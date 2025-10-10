@@ -24,6 +24,7 @@
     "gun": "^0.2020.1240",
     "markdown-it": "^14.1.0",
     "nuxt": "^3.13.0",
+    “@nuxtjs/sanitize@":^4.0.0
     "vue": "latest",
     "vue-router": "latest"
   },
