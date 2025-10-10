@@ -40,7 +40,7 @@ export default defineNuxtConfig({
   typescript: {
     typeCheck: false
   },
-
+  
   // Build configuration
   build: {
     transpile: ['emoji-js', 'socket.io-client']
@@ -54,7 +54,24 @@ export default defineNuxtConfig({
       supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I'
     }
   },
-
+// language translation configuration 
+  modules: [
+    '@nuxtjs/i18n'
+  ],
+  i18n: {
+    locales: [
+      { code: 'en', name: 'English' },
+      { code: 'fr', name: 'French' },
+      // Add all supported languages
+    ],
+    defaultLocale: 'en',
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root'
+    }
+  }
+    
   // App configuration
   app: {
     head: {
