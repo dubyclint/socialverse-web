@@ -24,6 +24,7 @@
     "gun": "^0.2020.1240",
     "markdown-it": "^14.1.0",
     "nuxt": "^3.13.0",
+    lazysizes@^5.3.0
     "vue-oembed@“:^3.2.0
     “@nuxtjs/sanitize@":^4.0.0
     "vue": "latest",
