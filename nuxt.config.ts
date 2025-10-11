@@ -13,13 +13,15 @@ export default defineNuxtConfig({
     plugins: ['~/server/plugins/socket.ts']
   },
 
-  // Your existing modules
+  // Enhanced modules for role-based access control
   modules: [
     '@pinia/nuxt',
-    '@nuxtjs/supabase'
+    '@nuxtjs/supabase',
+    '@nuxtjs/i18n',
+    '@vueuse/nuxt' // Added for enhanced composables
   ],
 
-  // Supabase configuration - HARDCODED VALUES with CORRECT ROUTES
+  // Supabase configuration with role-based security
   supabase: {
     url: 'https://cvzrhucbvezqwbesthek.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
@@ -27,6 +29,15 @@ export default defineNuxtConfig({
       login: '/auth',
       callback: '/auth',
       exclude: ['/']
+    },
+    // Enhanced client options for role-based access
+    clientOptions: {
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true
+      }
     }
   },
 
@@ -46,40 +57,84 @@ export default defineNuxtConfig({
     transpile: ['emoji-js', 'socket.io-client']
   },
 
-  // Runtime config for environment variables - HARDCODED VALUES
+  // Enhanced runtime config for role-based access control
   runtimeConfig: {
-    // Public keys (exposed to client-side) - REQUIRED for Supabase
+    // Private keys (server-side only)
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
+    jwtSecret: process.env.JWT_SECRET || 'your-jwt-secret-key',
+    
+    // Public keys (exposed to client-side)
     public: {
       supabaseUrl: 'https://cvzrhucbvezqwbesthek.supabase.co',
-      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I'
+      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+      // Role-based access control configuration
+      rbac: {
+        roles: {
+          user: {
+            permissions: ['read:posts', 'create:posts', 'update:own_posts', 'delete:own_posts', 'read:profile', 'update:own_profile'],
+            routes: ['/feed', '/profile', '/chat', '/explore', '/inbox', '/trade']
+          },
+          manager: {
+            permissions: ['read:posts', 'create:posts', 'update:posts', 'delete:posts', 'read:users', 'update:users', 'read:analytics'],
+            routes: ['/feed', '/profile', '/chat', '/explore', '/inbox', '/trade', '/manager/*']
+          },
+          admin: {
+            permissions: ['*'], // Full access
+            routes: ['*'] // Access to all routes
+          }
+        },
+        defaultRole: 'user',
+        adminRoutes: ['/admin/*'],
+        managerRoutes: ['/manager/*'],
+        protectedRoutes: ['/profile', '/chat', '/inbox', '/trade']
+      }
     }
   },
-// language translation configuration 
-  modules: [
-    '@nuxtjs/i18n'
-  ],
+
+  // Language translation configuration with role-based content
   i18n: {
     locales: [
       { code: 'en', name: 'English' },
       { code: 'fr', name: 'French' },
-      // Add all supported languages
+      { code: 'es', name: 'Spanish' },
+      { code: 'de', name: 'German' }
     ],
     defaultLocale: 'en',
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'i18n_redirected',
       redirectOn: 'root'
+    },
+    // Role-based translation keys
+    vueI18n: {
+      legacy: false,
+      locale: 'en',
+      messages: {
+        en: {
+          roles: {
+            user: 'User',
+            manager: 'Manager', 
+            admin: 'Administrator'
+          },
+          permissions: {
+            denied: 'Access denied. Insufficient permissions.',
+            required: 'Authentication required.',
+            admin_only: 'Admin access only.',
+            manager_only: 'Manager access only.'
+          }
+        }
+      }
     }
-  }
+  },
     
-  // App configuration
+  // App configuration with role-based meta
   app: {
     head: {
       title: 'SocialVerse',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'SocialVerse - Connect and Share' }
+        { name: 'description', content: 'SocialVerse - Connect and Share with Role-Based Access Control' }
       ]
     }
   },
@@ -87,18 +142,58 @@ export default defineNuxtConfig({
   // Server-side rendering configuration
   ssr: true,
 
-  // Experimental features (if needed)
-  experimental: {
-    payloadExtraction: false
+  // Enhanced router configuration for role-based routing
+  router: {
+    middleware: ['auth-check'] // Global middleware for role checking
   },
 
-  // Vite configuration for WebSocket support
+  // Experimental features
+  experimental: {
+    payloadExtraction: false,
+    // Enable server components for role-based rendering
+    serverComponents: true
+  },
+
+  // Vite configuration for WebSocket support and role-based modules
   vite: {
     define: {
       global: 'globalThis'
     },
     optimizeDeps: {
-      include: ['socket.io-client']
+      include: ['socket.io-client', 'jwt-decode']
     }
-  }
+  },
+
+  // Pinia configuration for role-based state management
+  pinia: {
+    storesDirs: ['./stores/**', './custom-folder/stores/**']
+  },
+
+  // Auto-imports for role-based composables
+  imports: {
+    dirs: [
+      'composables',
+      'composables/auth',
+      'composables/rbac'
+    ]
+  },
+
+  // Components auto-import with role-based components
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/admin',
+      prefix: 'Admin',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/manager',
+      prefix: 'Manager', 
+      pathPrefix: false,
+    }
+  ]
 })
+
