@@ -1,6 +1,6 @@
 export const useRBAC = () => {
-  const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
+  const authStore = useAuthStore()
+  const rolesStore = useRolesStore()
 
   // Role hierarchy: admin > manager > user
   const roleHierarchy = {
@@ -9,78 +9,51 @@ export const useRBAC = () => {
     user: 1
   }
 
-  // Permission mappings for each role
-  const rolePermissions = {
-    admin: [
-      'admin.all',
-      'manager.all', 
-      'user.all',
-      'users.manage',
-      'users.assign_roles',
-      'content.moderate',
-      'reports.handle',
-      'analytics.view',
-      'system.configure'
-    ],
-    manager: [
-      'manager.all',
-      'user.all', 
-      'users.moderate',
-      'users.suspend',
-      'users.warn',
-      'content.moderate',
-      'reports.handle',
-      'analytics.view'
-    ],
-    user: [
-      'user.all',
-      'posts.create',
-      'posts.edit.own',
-      'profile.edit.own',
-      'comments.create'
-    ]
+  const getUserRole = (user?: any): string => {
+    if (!user && !authStore.profile) return 'user'
+    const profile = user || authStore.profile
+    return profile?.role || 'user'
   }
 
-  const getUserRole = (userProfile: any): string => {
-    if (!userProfile) return 'user'
-    return userProfile.role || 'user'
-  }
-
-  const hasRole = (userRole: string, requiredRole: string): boolean => {
+  const hasRole = (requiredRole: string, user?: any): boolean => {
+    const userRole = getUserRole(user)
     const userLevel = roleHierarchy[userRole] || 0
     const requiredLevel = roleHierarchy[requiredRole] || 0
     return userLevel >= requiredLevel
   }
 
-  const getUserPermissions = (userProfile: any): string[] => {
-    const role = getUserRole(userProfile)
-    return rolePermissions[role] || rolePermissions.user
+  const getUserPermissions = (user?: any): string[] => {
+    if (!user && !authStore.profile) return []
+    const profile = user || authStore.profile
+    return authStore.permissions || []
   }
 
-  const hasPermission = (userProfile: any, permission: string): boolean => {
-    const permissions = getUserPermissions(userProfile)
-    return permissions.includes(permission) || permissions.includes('admin.all')
+  const hasPermission = (permission: string, user?: any): boolean => {
+    const userRole = getUserRole(user)
+    if (userRole === 'admin') return true
+    
+    const permissions = getUserPermissions(user)
+    return permissions.includes(permission)
   }
 
-  const hasAnyPermission = (userProfile: any, permissionList: string[]): boolean => {
-    return permissionList.some(permission => hasPermission(userProfile, permission))
+  const hasAnyPermission = (permissionList: string[], user?: any): boolean => {
+    return permissionList.some(permission => hasPermission(permission, user))
   }
 
-  const hasAllPermissions = (userProfile: any, permissionList: string[]): boolean => {
-    return permissionList.every(permission => hasPermission(userProfile, permission))
+  const hasAllPermissions = (permissionList: string[], user?: any): boolean => {
+    return permissionList.every(permission => hasPermission(permission, user))
   }
 
-  const canAccessRoute = (path: string, userRole: string): boolean => {
-    if (path.startsWith('/admin')) return hasRole(userRole, 'admin')
-    if (path.startsWith('/manager')) return hasRole(userRole, 'manager')
+  const canAccessRoute = (path: string, user?: any): boolean => {
+    const userRole = getUserRole(user)
+    
+    if (path.startsWith('/admin')) return hasRole('admin', user)
+    if (path.startsWith('/manager')) return hasRole('manager', user)
     return true
   }
 
   const requireRole = (requiredRole: string) => {
-    const authStore = useAuthStore()
-    const userRole = getUserRole(authStore.profile)
-    
-    if (!hasRole(userRole, requiredRole)) {
+    if (!hasRole(requiredRole)) {
       throw createError({
         statusCode: 403,
         statusMessage: `Access denied. ${requiredRole} role required.`
@@ -89,9 +62,7 @@ export const useRBAC = () => {
   }
 
   const requirePermission = (permission: string) => {
-    const authStore = useAuthStore()
-    
-    if (!hasPermission(authStore.profile, permission)) {
+    if (!hasPermission(permission)) {
       throw createError({
         statusCode: 403,
         statusMessage: `Access denied. ${permission} permission required.`
@@ -99,91 +70,52 @@ export const useRBAC = () => {
     }
   }
 
+  const requireAuthentication = () => {
+    if (!authStore.isAuthenticated) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Authentication required.'
+      })
+    }
+  }
+
   // Manager-specific functions
   const assignManagerRole = async (userId: string, permissions: string[] = []) => {
     requireRole('admin')
-    
-    try {
-      // Update user role to manager
-      const { error: roleError } = await supabase
-        .from('profiles')
-        .update({ 
-          role: 'manager',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-
-      if (roleError) throw roleError
-
-      // Log the role assignment
-      await logAuditAction('manager_assigned', 'user', userId, {
-        permissions,
-        assigned_by: user.value?.id
-      })
-
-      return { success: true }
-    } catch (error) {
-      console.error('Manager assignment error:', error)
-      return { success: false, error: error.message }
-    }
+    return await authStore.assignManagerRole(userId, permissions)
   }
 
   const removeManagerRole = async (userId: string) => {
     requireRole('admin')
+    return await authStore.removeManagerRole(userId)
+  }
+
+  // Utility functions
+  const canModerateUser = (targetUserId: string): boolean => {
+    if (!authStore.isAuthenticated) return false
+    if (authStore.user?.id === targetUserId) return false // Can't moderate self
     
-    try {
-      // Update user role back to user
-      const { error: roleError } = await supabase
-        .from('profiles')
-        .update({ 
-          role: 'user',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-
-      if (roleError) throw roleError
-
-      // Log the role removal
-      await logAuditAction('manager_removed', 'user', userId, {
-        removed_by: user.value?.id
-      })
-
-      return { success: true }
-    } catch (error) {
-      console.error('Manager removal error:', error)
-      return { success: false, error: error.message }
-    }
+    return hasPermission('users.moderate')
   }
 
-  const logAuditAction = async (action: string, resourceType: string, resourceId: string, details: any = {}) => {
-    try {
-      await supabase
-        .from('audit_logs')
-        .insert({
-          user_id: user.value?.id,
-          action,
-          resource_type: resourceType,
-          resource_id: resourceId,
-          details,
-          ip_address: await getClientIP(),
-          user_agent: navigator.userAgent
-        })
-    } catch (error) {
-      console.error('Audit log error:', error)
-    }
+  const canAssignRoles = (): boolean => {
+    return hasPermission('users.assign_roles')
   }
 
-  const getClientIP = async (): Promise<string> => {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json')
-      const data = await response.json()
-      return data.ip
-    } catch {
-      return 'unknown'
-    }
+  const canViewAnalytics = (): boolean => {
+    return hasPermission('analytics.view')
+  }
+
+  const canModerateContent = (): boolean => {
+    return hasPermission('content.moderate')
+  }
+
+  const canHandleReports = (): boolean => {
+    return hasPermission('reports.handle')
   }
 
   return {
+    // Core functions
     getUserRole,
     hasRole,
     getUserPermissions,
@@ -193,11 +125,20 @@ export const useRBAC = () => {
     canAccessRoute,
     requireRole,
     requirePermission,
+    requireAuthentication,
+    
+    // Manager functions
     assignManagerRole,
     removeManagerRole,
-    logAuditAction,
-    roleHierarchy,
-    rolePermissions
+    
+    // Utility functions
+    canModerateUser,
+    canAssignRoles,
+    canViewAnalytics,
+    canModerateContent,
+    canHandleReports,
+    
+    // Constants
+    roleHierarchy
   }
 }
-
