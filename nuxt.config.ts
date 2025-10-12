@@ -9,6 +9,58 @@ export default defineNuxtConfig({
     experimental: {
       wasm: true
     },
+    export default defineNuxtConfig({
+  // ... existing config
+  
+  // Add Pinia for state management
+  modules: [
+    '@pinia/nuxt',
+    '@nuxtjs/supabase',
+    // ... other modules
+  ],
+
+  // Pinia configuration
+  pinia: {
+    autoImports: [
+      'defineStore',
+      ['defineStore', 'definePiniaStore'],
+    ],
+  },
+
+  // Runtime config for environment variables
+  runtimeConfig: {
+    // Private keys (only available on server-side)
+    jwtSecret: process.env.JWT_SECRET,
+    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
+    sessionSecret: process.env.SESSION_SECRET,
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: process.env.SMTP_PORT,
+    smtpUser: process.env.SMTP_USER,
+    smtpPass: process.env.SMTP_PASS,
+    
+    // Public keys (exposed to client-side)
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      rbacEnabled: process.env.RBAC_ENABLED === 'true',
+      defaultUserRole: process.env.DEFAULT_USER_ROLE || 'user',
+      adminEmail: process.env.ADMIN_EMAIL,
+      maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'),
+      allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(',') || [],
+    }
+  },
+
+  // Auto-import composables
+  imports: {
+    dirs: ['composables/**']
+  },
+
+  // CSS framework (optional)
+  css: [
+    '~/assets/styles/main.css'
+  ]
+})
+
     // Add WebSocket plugin
     plugins: ['~/server/plugins/socket.ts']
   },
