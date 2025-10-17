@@ -1,5 +1,102 @@
 // nuxt.config.ts
 export default defineNuxtConfig({
+  // CRITICAL: Node.js server output for Socket.io
+  nitro: {
+    preset: 'node-server',
+    port: process.env.PORT || 8080,
+    host: process.env.HOST || '0.0.0.0',
+    experimental: {
+      wasm: true
+    },
+    plugins: ['~/server/plugins/socket.ts']
+  },
+
+  // Modules
+  modules: [
+    '@pinia/nuxt',
+    '@nuxtjs/supabase',
+    '@vueuse/nuxt',
+    '@nuxtjs/color-mode'
+  ],
+
+  // CSS Framework
+  css: [
+    '~/assets/css/main.css'
+  ],
+
+  // Runtime Config
+  runtimeConfig: {
+    // Private keys (only available on server-side)
+    jwtSecret: process.env.JWT_SECRET,
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+    
+    // Public keys (exposed to client-side)
+    public: {
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8080',
+      wsUrl: process.env.NUXT_PUBLIC_WS_URL || 'ws://localhost:8080',
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
+      maxFileSize: process.env.MAX_FILE_SIZE || '50MB'
+    }
+  },
+
+  // App Configuration
+  app: {
+    head: {
+      title: 'SocialVerse - Private Social Platform',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'Private social platform with secure messaging' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    }
+  },
+
+  // Build Configuration
+  build: {
+    transpile: ['socket.io-client']
+  },
+
+  // Vite Configuration
+  vite: {
+    define: {
+      global: 'globalThis'
+    },
+    optimizeDeps: {
+      include: ['socket.io-client']
+    }
+  },
+
+  // PWA Configuration
+  pwa: {
+    registerType: 'autoUpdate',
+    workbox: {
+      navigateFallback: '/',
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}']
+    },
+    client: {
+      installPrompt: true
+    },
+    devOptions: {
+      enabled: true,
+      type: 'module'
+    }
+  },
+
+  // Development Configuration
+  devtools: { enabled: true },
+  
+  // TypeScript Configuration
+  typescript: {
+    strict: true,
+    typeCheck: true
+  }
+})
+// nuxt.config.ts
+export default defineNuxtConfig({
   // CRITICAL: This ensures Node.js server output instead of serverless
   nitro: {
     preset: 'node-server',
