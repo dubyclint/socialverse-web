@@ -198,5 +198,77 @@ server.listen(PORT, HOST, () => {
   console.log(`🎥 Streaming namespace: /streaming`)
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
 })
+// server/index.ts (updated to include socket integration)
+import express from 'express'
+import { createServer } from 'http'
+import cors from 'cors'
+import { setupStreamingWebSocket } from './ws/streaming'
+import SocketServer from './ws/socketServer'
+
+// Import route handlers
+import streamRecordingRoutes from './routes/streamRecordingRoutes'
+import streamAnalyticsRoutes from './routes/streamAnalyticsRoutes'
+import streamModerationRoutes from './routes/streamModerationRoutes'
+import streamRoutes from './routes/streamRoutes'
+import userRoutes from './routes/userRoutes'
+import chatRoutes from './routes/chatRoutes'
+import groupChatRoutes from './routes/groupChatRoutes'
+import statusRoutes from './routes/statusRoutes'
+import contactSyncRoutes from './routes/contactSyncRoutes'
+
+const app = express()
+const httpServer = createServer(app)
+
+// Initialize Socket.io server
+const socketServer = new SocketServer(httpServer)
+
+// Middleware
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  credentials: true
+}))
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+
+// Make socket.io available to routes
+app.use((req, res, next) => {
+  req.io = socketServer.io
+  req.socketServer = socketServer
+  next()
+})
+
+// Routes
+app.use('/api/streams', streamRoutes)
+app.use('/api/stream-recording', streamRecordingRoutes)
+app.use('/api/stream-analytics', streamAnalyticsRoutes)
+app.use('/api/stream-moderation', streamModerationRoutes)
+app.use('/api/users', userRoutes)
+app.use('/api/chat', chatRoutes)
+app.use('/api/groups', groupChatRoutes)
+app.use('/api/status', statusRoutes)
+app.use('/api/contacts', contactSyncRoutes)
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    connectedUsers: socketServer.getConnectedUserCount()
+  })
+})
+
+// Setup streaming WebSocket (existing)
+setupStreamingWebSocket(httpServer)
+
+const PORT = process.env.PORT || 8080
+const HOST = process.env.HOST || '0.0.0.0'
+
+httpServer.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`)
+  console.log(`📡 Socket.io server initialized`)
+  console.log(`👥 Ready for real-time connections`)
+})
+
+export default app
 
 export { io }
