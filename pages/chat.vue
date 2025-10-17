@@ -1,9 +1,34 @@
 <!-- pages/chat.vue -->
 <template>
-  <div>
+  <div class="chat-page">
     <ChatLayout />
   </div>
 </template>
+
+<script setup>
+import ChatLayout from '@/components/chat/ChatLayout.vue'
+
+// Set page meta
+definePageMeta({
+  middleware: 'auth',
+  layout: 'chat'
+})
+
+// SEO
+useHead({
+  title: 'Chat - SocialVerse',
+  meta: [
+    { name: 'description', content: 'Private messaging and group chats on SocialVerse' }
+  ]
+})
+
+<style scoped>
+.chat-page {
+  height: 100vh;
+  overflow: hidden;
+}
+</style>
+
 
 <script setup>
 import ChatLayout from '@/components/chat/ChatLayout.vue'
