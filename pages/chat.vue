@@ -1,4 +1,20 @@
+<!-- pages/chat.vue -->
 <template>
+  <div>
+    <ChatLayout />
+  </div>
+</template>
+
+<script setup>
+import ChatLayout from '@/components/chat/ChatLayout.vue'
+
+// Set page meta
+definePageMeta({
+  middleware: 'auth',
+  layout: 'chat'
+})
+</script>
+
   <div class="chat-page">
     <div class="chat-container">
       <!-- Chat Sidebar -->
