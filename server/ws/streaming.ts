@@ -1,491 +1,690 @@
 // server/ws/streaming.ts
-import { StreamChat } from '~/models/StreamChat'
-import { Stream } from '~/models/Stream'
-import { StreamViewer } from '~/models/StreamViewer'
-import { StreamPewGift } from '~/models/StreamPewGift'
+import { Server, Socket } from 'socket.io'
+import { createClient } from '@supabase/supabase-js'
 
-interface StreamingUser {
-  userId: string
-  username: string
-  avatar?: string
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+interface StreamSocket extends Socket {
   streamId?: string
-  isStreamer: boolean
+  userId?: string
+  isStreamer?: boolean
 }
 
-const streamingUsers = new Map<string, StreamingUser>()
-const streamRooms = new Map<string, Set<string>>() // streamId -> Set of socketIds
+interface ViewerData {
+  userId: string
+  socketId: string
+  joinedAt: Date
+  country?: string
+  userAgent?: string
+}
 
-export default defineWebSocketHandler({
-  async open(peer, socket) {
-    console.log('Streaming WebSocket connection opened')
-    socket.send(JSON.stringify({ 
-      type: 'connection', 
-      message: 'Connected to streaming server' 
-    }))
-  },
-
-  async message(peer, socket, message) {
-    try {
-      const data = JSON.parse(message)
-      const { type, payload } = data
-
-      switch (type) {
-        case 'join_stream':
-          await handleJoinStream(socket, payload)
-          break
-
-        case 'leave_stream':
-          await handleLeaveStream(socket, payload)
-          break
-
-        case 'stream_chat':
-          await handleStreamChat(socket, payload)
-          break
-
-        case 'send_pewgift':
-          await handleSendPewGift(socket, payload)
-          break
-
-        case 'stream_reaction':
-          await handleStreamReaction(socket, payload)
-          break
-
-        case 'update_viewer_count':
-          await handleUpdateViewerCount(socket, payload)
-          break
-
-        case 'stream_status_update':
-          await handleStreamStatusUpdate(socket, payload)
-          break
-
-        case 'typing_indicator':
-          await handleTypingIndicator(socket, payload)
-          break
-
-        default:
-          console.log('Unknown streaming message type:', type)
-      }
-    } catch (error) {
-      console.error('Streaming WebSocket error:', error)
-      socket.send(JSON.stringify({ 
-        type: 'error', 
-        message: 'Invalid message format' 
-      }))
-    }
-  },
-
-  async close(peer, socket) {
-    // Clean up user from all rooms when they disconnect
-    const user = streamingUsers.get(socket.id)
-    if (user && user.streamId) {
-      await handleLeaveStream(socket, { streamId: user.streamId })
-    }
-    streamingUsers.delete(socket.id)
-    console.log('Streaming WebSocket connection closed')
-  }
-})
-
-async function handleJoinStream(socket: any, payload: any) {
-  const { streamId, userId, username, avatar, isStreamer = false } = payload
-
-  try {
-    // Verify stream exists and is live
-    const stream = await Stream.findOne({ streamId })
-    if (!stream) {
-      socket.send(JSON.stringify({ 
-        type: 'error', 
-        message: 'Stream not found' 
-      }))
-      return
-    }
-
-    if (stream.status !== 'live' && !isStreamer) {
-      socket.send(JSON.stringify({ 
-        type: 'error', 
-        message: 'Stream is not currently live' 
-      }))
-      return
-    }
-
-    // Add user to streaming users
-    streamingUsers.set(socket.id, {
-      userId,
-      username,
-      avatar,
-      streamId,
-      isStreamer
-    })
-
-    // Add socket to stream room
-    if (!streamRooms.has(streamId)) {
-      streamRooms.set(streamId, new Set())
-    }
-    streamRooms.get(streamId)!.add(socket.id)
-
-    // Send confirmation to user
-    socket.send(JSON.stringify({
-      type: 'joined_stream',
-      payload: {
-        streamId,
-        stream: stream,
-        message: 'Successfully joined stream'
-      }
-    }))
-
-    // Broadcast user joined to other viewers (except streamer notifications)
-    if (!isStreamer) {
-      broadcastToStream(streamId, {
-        type: 'user_joined',
-        payload: {
-          userId,
-          username,
-          avatar,
-          timestamp: new Date()
-        }
-      }, socket.id)
-
-      // Create system message
-      const systemMessage = new StreamChat({
-        streamId,
-        userId,
-        username,
-        message: `${username} joined the stream`,
-        messageType: 'system',
-        systemData: {
-          action: 'user_joined',
-          data: { userId, username, avatar }
-        }
-      })
-      await systemMessage.save()
-    }
-
-    // Update viewer count
-    await updateStreamViewerCount(streamId)
-
-  } catch (error) {
-    console.error('Join stream error:', error)
-    socket.send(JSON.stringify({ 
-      type: 'error', 
-      message: 'Failed to join stream' 
-    }))
+interface StreamRoom {
+  streamId: string
+  viewers: Map<string, ViewerData>
+  streamer?: string
+  isActive: boolean
+  startedAt: Date
+  metadata: {
+    title?: string
+    category?: string
+    isRecording?: boolean
   }
 }
 
-async function handleLeaveStream(socket: any, payload: any) {
-  const { streamId } = payload
-  const user = streamingUsers.get(socket.id)
+// In-memory store for active streams
+const activeStreams = new Map<string, StreamRoom>()
 
-  if (!user || user.streamId !== streamId) {
-    return
-  }
-
-  try {
-    // Remove from room
-    const room = streamRooms.get(streamId)
-    if (room) {
-      room.delete(socket.id)
-      if (room.size === 0) {
-        streamRooms.delete(streamId)
-      }
-    }
-
-    // Broadcast user left (except for streamers)
-    if (!user.isStreamer) {
-      broadcastToStream(streamId, {
-        type: 'user_left',
-        payload: {
-          userId: user.userId,
-          username: user.username,
-          timestamp: new Date()
-        }
-      }, socket.id)
-
-      // Create system message
-      const systemMessage = new StreamChat({
-        streamId,
-        userId: user.userId,
-        username: user.username,
-        message: `${user.username} left the stream`,
-        messageType: 'system',
-        systemData: {
-          action: 'user_left',
-          data: { userId: user.userId, username: user.username }
-        }
-      })
-      await systemMessage.save()
-    }
-
-    // Update viewer count
-    await updateStreamViewerCount(streamId)
-
-    // Remove user from streaming users
-    streamingUsers.delete(socket.id)
-
-    socket.send(JSON.stringify({
-      type: 'left_stream',
-      payload: { streamId, message: 'Left stream successfully' }
-    }))
-
-  } catch (error) {
-    console.error('Leave stream error:', error)
-  }
-}
-
-async function handleStreamChat(socket: any, payload: any) {
-  const { streamId, message, messageType = 'text' } = payload
-  const user = streamingUsers.get(socket.id)
-
-  if (!user || user.streamId !== streamId) {
-    socket.send(JSON.stringify({ 
-      type: 'error', 
-      message: 'Not in stream' 
-    }))
-    return
-  }
-
-  try {
-    // Create chat message
-    const chatMessage = new StreamChat({
-      streamId,
-      userId: user.userId,
-      username: user.username,
-      message: message.trim(),
-      messageType,
-      userAvatar: user.avatar,
-      userBadges: [] // TODO: Get user badges
-    })
-
-    await chatMessage.save()
-
-    // Broadcast to all viewers in stream
-    broadcastToStream(streamId, {
-      type: 'new_chat_message',
-      payload: {
-        id: chatMessage._id,
-        streamId,
-        userId: user.userId,
-        username: user.username,
-        message: message.trim(),
-        messageType,
-        timestamp: chatMessage.timestamp,
-        userAvatar: user.avatar,
-        userBadges: chatMessage.userBadges
-      }
-    })
-
-  } catch (error) {
-    console.error('Stream chat error:', error)
-    socket.send(JSON.stringify({ 
-      type: 'error', 
-      message: 'Failed to send message' 
-    }))
-  }
-}
-
-async function handleSendPewGift(socket: any, payload: any) {
-  const { streamId, giftId, quantity = 1, message, isAnonymous = false } = payload
-  const user = streamingUsers.get(socket.id)
-
-  if (!user || user.streamId !== streamId) {
-    socket.send(JSON.stringify({ 
-      type: 'error', 
-      message: 'Not in stream' 
-    }))
-    return
-  }
-
-  try {
-    // Get stream details
-    const stream = await Stream.findOne({ streamId })
-    if (!stream || !stream.pewGiftsEnabled) {
-      socket.send(JSON.stringify({ 
-        type: 'error', 
-        message: 'PewGifts not enabled for this stream' 
-      }))
-      return
-    }
-
-    // TODO: Validate gift and process payment
-    // For now, we'll create a mock gift
-    const pewGift = new StreamPewGift({
-      streamId,
-      senderId: user.userId,
-      receiverId: stream.userId,
-      giftId,
-      giftName: 'Heart', // TODO: Get from gift data
-      giftImage: '/gifts/heart.png',
-      giftValue: 10,
-      quantity,
-      message,
-      isAnonymous,
-      senderUsername: user.username,
-      senderAvatar: user.avatar,
-      receiverUsername: 'Streamer' // TODO: Get streamer username
-    })
-
-    await pewGift.save()
-
-    // Broadcast PewGift animation to all viewers
-    broadcastToStream(streamId, {
-      type: 'pewgift_received',
-      payload: {
-        id: pewGift._id,
-        streamId,
-        senderId: isAnonymous ? null : user.userId,
-        senderUsername: isAnonymous ? 'Anonymous' : user.username,
-        senderAvatar: isAnonymous ? null : user.avatar,
-        giftId,
-        giftName: pewGift.giftName,
-        giftImage: pewGift.giftImage,
-        giftValue: pewGift.giftValue,
-        quantity,
-        totalValue: pewGift.totalValue,
-        message,
-        timestamp: pewGift.timestamp,
-        animationType: quantity > 5 ? 'combo' : 'normal'
-      }
-    })
-
-    // Create chat message for the gift
-    const giftChatMessage = new StreamChat({
-      streamId,
-      userId: user.userId,
-      username: user.username,
-      message: `sent ${quantity}x ${pewGift.giftName}${message ? `: ${message}` : ''}`,
-      messageType: 'pewgift',
-      userAvatar: user.avatar,
-      pewGiftData: {
-        giftId,
-        giftName: pewGift.giftName,
-        giftValue: pewGift.giftValue,
-        giftImage: pewGift.giftImage,
-        quantity
-      }
-    })
-
-    await giftChatMessage.save()
-
-    socket.send(JSON.stringify({
-      type: 'pewgift_sent',
-      payload: { message: 'PewGift sent successfully!' }
-    }))
-
-  } catch (error) {
-    console.error('Send PewGift error:', error)
-    socket.send(JSON.stringify({ 
-      type: 'error', 
-      message: 'Failed to send PewGift' 
-    }))
-  }
-}
-
-async function handleStreamReaction(socket: any, payload: any) {
-  const { streamId, emoji } = payload
-  const user = streamingUsers.get(socket.id)
-
-  if (!user || user.streamId !== streamId) {
-    return
-  }
-
-  // Broadcast reaction to all viewers
-  broadcastToStream(streamId, {
-    type: 'stream_reaction',
-    payload: {
-      userId: user.userId,
-      username: user.username,
-      emoji,
-      timestamp: new Date()
-    }
-  })
-}
-
-async function handleUpdateViewerCount(socket: any, payload: any) {
-  const { streamId } = payload
-  await updateStreamViewerCount(streamId)
-}
-
-async function handleStreamStatusUpdate(socket: any, payload: any) {
-  const { streamId, status } = payload
-  const user = streamingUsers.get(socket.id)
-
-  // Only streamers can update stream status
-  if (!user || !user.isStreamer || user.streamId !== streamId) {
-    return
-  }
-
-  try {
-    await Stream.updateOne({ streamId }, { status })
-    
-    broadcastToStream(streamId, {
-      type: 'stream_status_changed',
-      payload: { streamId, status, timestamp: new Date() }
-    })
-  } catch (error) {
-    console.error('Stream status update error:', error)
-  }
-}
-
-async function handleTypingIndicator(socket: any, payload: any) {
-  const { streamId, isTyping } = payload
-  const user = streamingUsers.get(socket.id)
-
-  if (!user || user.streamId !== streamId) {
-    return
-  }
-
-  broadcastToStream(streamId, {
-    type: 'typing_indicator',
-    payload: {
-      userId: user.userId,
-      username: user.username,
-      isTyping,
-      timestamp: new Date()
-    }
-  }, socket.id)
-}
-
-function broadcastToStream(streamId: string, message: any, excludeSocketId?: string) {
-  const room = streamRooms.get(streamId)
-  if (!room) return
-
-  const messageStr = JSON.stringify(message)
+export function setupStreamingWebSocket(io: Server) {
+  const streamingNamespace = io.of('/streaming')
   
-  room.forEach(socketId => {
-    if (socketId !== excludeSocketId) {
-      // TODO: Get actual socket instance and send message
-      // This depends on your WebSocket implementation
-      console.log(`Broadcasting to ${socketId}:`, message.type)
-    }
-  })
-}
+  streamingNamespace.on('connection', (socket: StreamSocket) => {
+    console.log('Streaming client connected:', socket.id)
 
-async function updateStreamViewerCount(streamId: string) {
-  try {
-    const room = streamRooms.get(streamId)
-    const viewerCount = room ? room.size : 0
-
-    // Update database
-    const stream = await Stream.findOneAndUpdate(
-      { streamId },
-      { 
-        viewerCount,
-        $max: { peakViewers: viewerCount }
-      },
-      { new: true }
-    )
-
-    if (stream) {
-      // Broadcast updated viewer count
-      broadcastToStream(streamId, {
-        type: 'viewer_count_updated',
-        payload: {
-          streamId,
-          viewerCount,
-          peakViewers: stream.peakViewers
+    // Join stream room
+    socket.on('join-stream', async (data) => {
+      try {
+        const { streamId, userId, userCountry, isStreamer = false } = data
+        
+        if (!streamId || !userId) {
+          socket.emit('error', { message: 'Missing required parameters' })
+          return
         }
+
+        // Check if user is blocked from this stream
+        const { data: blockCheck } = await supabase
+          .from('stream_blocks')
+          .select('*')
+          .eq('stream_id', streamId)
+          .eq('blocked_user_id', userId)
+          .is('unblocked_at', null)
+          .single()
+
+        if (blockCheck) {
+          const isExpired = blockCheck.expires_at && new Date(blockCheck.expires_at) < new Date()
+          if (!isExpired) {
+            socket.emit('access-denied', { 
+              reason: `You are blocked from this stream: ${blockCheck.reason}` 
+            })
+            return
+          }
+        }
+
+        // Check stream privacy settings
+        const { data: privacySettings } = await supabase
+          .from('stream_privacy_settings')
+          .select('*')
+          .eq('stream_id', streamId)
+          .single()
+
+        if (privacySettings) {
+          // Check country restrictions
+          if (privacySettings.blocked_countries?.includes(userCountry)) {
+            socket.emit('access-denied', { 
+              reason: 'Stream not available in your country' 
+            })
+            return
+          }
+
+          // Check private stream access
+          if (privacySettings.is_private && !privacySettings.allowed_viewers?.includes(userId)) {
+            socket.emit('access-denied', { 
+              reason: 'This is a private stream' 
+            })
+            return
+          }
+        }
+
+        // Initialize stream room if it doesn't exist
+        if (!activeStreams.has(streamId)) {
+          activeStreams.set(streamId, {
+            streamId,
+            viewers: new Map(),
+            isActive: true,
+            startedAt: new Date(),
+            metadata: {}
+          })
+        }
+
+        const streamRoom = activeStreams.get(streamId)!
+        
+        // Set socket properties
+        socket.streamId = streamId
+        socket.userId = userId
+        socket.isStreamer = isStreamer
+
+        // Join socket room
+        socket.join(`stream-${streamId}`)
+
+        // Add viewer to stream room
+        if (!isStreamer) {
+          streamRoom.viewers.set(userId, {
+            userId,
+            socketId: socket.id,
+            joinedAt: new Date(),
+            country: userCountry,
+            userAgent: socket.handshake.headers['user-agent']
+          })
+
+          // Track viewer join event in database
+          await supabase
+            .from('stream_analytics_events')
+            .insert({
+              stream_id: streamId,
+              user_id: userId,
+              event_type: 'viewer_joined',
+              metadata: {
+                socketId: socket.id,
+                userAgent: socket.handshake.headers['user-agent'],
+                country: userCountry
+              },
+              timestamp: new Date().toISOString()
+            })
+        } else {
+          streamRoom.streamer = userId
+        }
+
+        // Update viewer count in database
+        await updateViewerCount(streamId, streamRoom.viewers.size)
+
+        // Broadcast updated viewer count
+        const viewerCount = streamRoom.viewers.size
+        streamingNamespace.to(`stream-${streamId}`).emit('viewer-count-updated', { 
+          count: viewerCount 
+        })
+
+        // Send join confirmation
+        socket.emit('stream-joined', { 
+          streamId, 
+          viewerCount,
+          isStreamer,
+          streamData: streamRoom.metadata
+        })
+
+        console.log(`User ${userId} joined stream ${streamId} (${isStreamer ? 'streamer' : 'viewer'})`)
+
+      } catch (error) {
+        console.error('Error joining stream:', error)
+        socket.emit('error', { message: 'Failed to join stream' })
+      }
+    })
+
+    // Leave stream room
+    socket.on('leave-stream', async () => {
+      await handleStreamLeave(socket, streamingNamespace)
+    })
+
+    // Handle chat messages with moderation
+    socket.on('stream-chat', async (data) => {
+      try {
+        const { streamId, userId, message, username } = data
+        
+        if (!streamId || !userId || !message) {
+          socket.emit('error', { message: 'Invalid chat message data' })
+          return
+        }
+
+        // Basic message validation
+        if (message.length > 500) {
+          socket.emit('message-blocked', { reason: 'Message too long' })
+          return
+        }
+
+        // Check if user is blocked
+        const { data: blockCheck } = await supabase
+          .from('stream_blocks')
+          .select('*')
+          .eq('stream_id', streamId)
+          .eq('blocked_user_id', userId)
+          .is('unblocked_at', null)
+          .single()
+
+        if (blockCheck) {
+          socket.emit('message-blocked', { reason: 'You are blocked from chatting' })
+          return
+        }
+
+        // Moderate message content
+        const moderationResult = await moderateMessage(message)
+        
+        if (!moderationResult.allowed) {
+          socket.emit('message-blocked', { reason: moderationResult.reason })
+          
+          // Log moderation action
+          await supabase
+            .from('moderation_logs')
+            .insert({
+              stream_id: streamId,
+              user_id: userId,
+              action: 'message_blocked',
+              reason: moderationResult.reason,
+              content: message,
+              timestamp: new Date().toISOString()
+            })
+          return
+        }
+
+        const chatMessage = {
+          id: `msg_${Date.now()}_${socket.id}`,
+          streamId,
+          userId,
+          username: username || `User${userId.slice(-4)}`,
+          message: moderationResult.filteredMessage || message,
+          timestamp: new Date().toISOString(),
+          type: 'text'
+        }
+
+        // Save message to database
+        await supabase
+          .from('stream_chat')
+          .insert({
+            stream_id: streamId,
+            user_id: userId,
+            message: chatMessage.message,
+            timestamp: chatMessage.timestamp,
+            message_type: 'text'
+          })
+
+        // Broadcast to all viewers in stream
+        streamingNamespace.to(`stream-${streamId}`).emit('stream-chat', chatMessage)
+
+        // Track analytics event
+        await supabase
+          .from('stream_analytics_events')
+          .insert({
+            stream_id: streamId,
+            user_id: userId,
+            event_type: 'chat_message',
+            metadata: {
+              messageLength: message.length,
+              filtered: moderationResult.filteredMessage !== message
+            },
+            timestamp: new Date().toISOString()
+          })
+
+      } catch (error) {
+        console.error('Error handling chat message:', error)
+        socket.emit('error', { message: 'Failed to send message' })
+      }
+    })
+
+    // Handle PewGift sending
+    socket.on('send-pewgift', async (data) => {
+      try {
+        const { streamId, gifterId, receiverId, giftType, amount } = data
+        
+        if (!streamId || !gifterId || !receiverId || !giftType || !amount) {
+          socket.emit('error', { message: 'Invalid gift data' })
+          return
+        }
+
+        // Validate gift amount (minimum $0.01, maximum $100.00)
+        if (amount < 1 || amount > 10000) {
+          socket.emit('error', { message: 'Invalid gift amount' })
+          return
+        }
+
+        // Save gift transaction
+        const { data: giftRecord } = await supabase
+          .from('stream_gift_revenue')
+          .insert({
+            stream_id: streamId,
+            gifter_id: gifterId,
+            receiver_id: receiverId,
+            gift_type: giftType,
+            amount,
+            timestamp: new Date().toISOString()
+          })
+          .select()
+          .single()
+
+        const giftMessage = {
+          id: `gift_${Date.now()}_${socket.id}`,
+          streamId,
+          gifterId,
+          receiverId,
+          giftType,
+          amount,
+          timestamp: new Date().toISOString(),
+          type: 'pewgift'
+        }
+
+        // Broadcast gift to all viewers
+        streamingNamespace.to(`stream-${streamId}`).emit('pewgift-received', giftMessage)
+
+        // Track analytics event
+        await supabase
+          .from('stream_analytics_events')
+          .insert({
+            stream_id: streamId,
+            user_id: gifterId,
+            event_type: 'gift_sent',
+            metadata: {
+              giftType,
+              amount,
+              receiverId
+            },
+            timestamp: new Date().toISOString()
+          })
+
+        // Send confirmation to sender
+        socket.emit('gift-sent-confirmation', { giftId: giftRecord?.id })
+
+      } catch (error) {
+        console.error('Error handling gift:', error)
+        socket.emit('error', { message: 'Failed to send gift' })
+      }
+    })
+
+    // Handle stream reactions
+    socket.on('stream-reaction', async (data) => {
+      try {
+        const { streamId, userId, reactionType } = data
+        
+        if (!streamId || !userId || !reactionType) {
+          socket.emit('error', { message: 'Invalid reaction data' })
+          return
+        }
+
+        const reaction = {
+          id: `reaction_${Date.now()}_${socket.id}`,
+          streamId,
+          userId,
+          reactionType,
+          timestamp: new Date().toISOString()
+        }
+
+        // Broadcast reaction to all viewers
+        streamingNamespace.to(`stream-${streamId}`).emit('stream-reaction', reaction)
+
+        // Track analytics
+        await supabase
+          .from('stream_analytics_events')
+          .insert({
+            stream_id: streamId,
+            user_id: userId,
+            event_type: 'reaction',
+            metadata: { reactionType },
+            timestamp: new Date().toISOString()
+          })
+
+      } catch (error) {
+        console.error('Error handling reaction:', error)
+      }
+    })
+
+    // Handle streamer actions (moderation)
+    socket.on('streamer-action', async (data) => {
+      try {
+        const { streamId, action, targetUserId, reason, duration } = data
+        
+        if (!socket.isStreamer) {
+          socket.emit('error', { message: 'Unauthorized action' })
+          return
+        }
+
+        switch (action) {
+          case 'block-user':
+            await handleUserBlock(streamId, socket.userId!, targetUserId, reason, duration, streamingNamespace)
+            break
+
+          case 'unblock-user':
+            await handleUserUnblock(streamId, targetUserId)
+            break
+
+          case 'clear-chat':
+            streamingNamespace.to(`stream-${streamId}`).emit('chat-cleared')
+            await logModerationAction(streamId, socket.userId!, 'chat_cleared', reason)
+            break
+
+          case 'slow-mode':
+            streamingNamespace.to(`stream-${streamId}`).emit('slow-mode-updated', { 
+              enabled: data.enabled 
+            })
+            await logModerationAction(streamId, socket.userId!, 'slow_mode_toggled', `Slow mode ${data.enabled ? 'enabled' : 'disabled'}`)
+            break
+
+          case 'end-stream':
+            await handleStreamEnd(streamId, streamingNamespace)
+            break
+        }
+
+      } catch (error) {
+        console.error('Error handling streamer action:', error)
+        socket.emit('error', { message: 'Failed to execute action' })
+      }
+    })
+
+    // Handle recording controls
+    socket.on('start-recording', async (data) => {
+      if (!socket.isStreamer) {
+        socket.emit('error', { message: 'Only streamers can control recording' })
+        return
+      }
+
+      const { streamId } = data
+      const streamRoom = activeStreams.get(streamId)
+      
+      if (streamRoom) {
+        streamRoom.metadata.isRecording = true
+        socket.emit('recording-started', { streamId })
+        streamingNamespace.to(`stream-${streamId}`).emit('recording-status-changed', { 
+          isRecording: true 
+        })
+      }
+    })
+
+    socket.on('stop-recording', async (data) => {
+      if (!socket.isStreamer) {
+        socket.emit('error', { message: 'Only streamers can control recording' })
+        return
+      }
+
+      const { streamId } = data
+      const streamRoom = activeStreams.get(streamId)
+      
+      if (streamRoom) {
+        streamRoom.metadata.isRecording = false
+        socket.emit('recording-stopped', { streamId })
+        streamingNamespace.to(`stream-${streamId}`).emit('recording-status-changed', { 
+          isRecording: false 
+        })
+      }
+    })
+
+    // Handle heartbeat for connection monitoring
+    socket.on('heartbeat', (data) => {
+      socket.emit('heartbeat-ack', { timestamp: Date.now() })
+    })
+
+    // Handle disconnect
+    socket.on('disconnect', async (reason) => {
+      console.log(`Client ${socket.id} disconnected:`, reason)
+      await handleStreamLeave(socket, streamingNamespace)
+    })
+  })
+
+  // Helper functions
+  async function handleStreamLeave(socket: StreamSocket, namespace: any) {
+    if (!socket.streamId || !socket.userId) return
+
+    const streamRoom = activeStreams.get(socket.streamId)
+    if (!streamRoom) return
+
+    // Remove viewer from stream room
+    if (!socket.isStreamer && streamRoom.viewers.has(socket.userId)) {
+      const viewerData = streamRoom.viewers.get(socket.userId)!
+      streamRoom.viewers.delete(socket.userId)
+
+      // Calculate watch time
+      const watchTime = Date.now() - viewerData.joinedAt.getTime()
+
+      // Track viewer leave event
+      await supabase
+        .from('stream_analytics_events')
+        .insert({
+          stream_id: socket.streamId,
+          user_id: socket.userId,
+          event_type: 'viewer_left',
+          metadata: {
+            watchTime: Math.floor(watchTime / 1000),
+            socketId: socket.id
+          },
+          timestamp: new Date().toISOString()
+        })
+
+      // Update viewer count
+      await updateViewerCount(socket.streamId, streamRoom.viewers.size)
+      
+      // Broadcast updated viewer count
+      namespace.to(`stream-${socket.streamId}`).emit('viewer-count-updated', { 
+        count: streamRoom.viewers.size 
       })
     }
-  } catch (error) {
-    console.error('Update viewer count error:', error)
+
+    // If streamer left, end the stream
+    if (socket.isStreamer) {
+      await handleStreamEnd(socket.streamId, namespace)
+    }
+
+    socket.leave(`stream-${socket.streamId}`)
   }
+
+  async function handleUserBlock(
+    streamId: string, 
+    streamerId: string, 
+    targetUserId: string, 
+    reason: string, 
+    duration: number | null,
+    namespace: any
+  ) {
+    // Add block record to database
+    await supabase
+      .from('stream_blocks')
+      .insert({
+        stream_id: streamId,
+        streamer_id: streamerId,
+        blocked_user_id: targetUserId,
+        reason,
+        blocked_at: new Date().toISOString(),
+        expires_at: duration ? new Date(Date.now() + duration * 1000).toISOString() : null,
+        is_permanent: !duration
+      })
+
+    // Find and disconnect blocked user
+    const blockedSocket = Array.from(namespace.sockets.values())
+      .find((s: StreamSocket) => s.userId === targetUserId && s.streamId === streamId)
+
+    if (blockedSocket) {
+      blockedSocket.emit('blocked-from-stream', { reason })
+      blockedSocket.leave(`stream-${streamId}`)
+    }
+
+    // Remove from active viewers
+    const streamRoom = activeStreams.get(streamId)
+    if (streamRoom && streamRoom.viewers.has(targetUserId)) {
+      streamRoom.viewers.delete(targetUserId)
+      
+      // Update viewer count
+      await updateViewerCount(streamId, streamRoom.viewers.size)
+      namespace.to(`stream-${streamId}`).emit('viewer-count-updated', { 
+        count: streamRoom.viewers.size 
+      })
+    }
+
+    // Log moderation action
+    await logModerationAction(streamId, streamerId, 'user_blocked', reason, targetUserId)
+  }
+
+  async function handleUserUnblock(streamId: string, targetUserId: string) {
+    await supabase
+      .from('stream_blocks')
+      .update({ unblocked_at: new Date().toISOString() })
+      .eq('stream_id', streamId)
+      .eq('blocked_user_id', targetUserId)
+      .is('unblocked_at', null)
+  }
+
+  async function handleStreamEnd(streamId: string, namespace: any) {
+    const streamRoom = activeStreams.get(streamId)
+    if (!streamRoom) return
+
+    // Mark stream as inactive
+    streamRoom.isActive = false
+
+    // Notify all viewers
+    namespace.to(`stream-${streamId}`).emit('stream-ended', {
+      streamId,
+      endedAt: new Date().toISOString()
+    })
+
+    // Update stream record in database
+    await supabase
+      .from('streams')
+      .update({
+        status: 'ended',
+        ended_at: new Date().toISOString(),
+        peak_viewers: Math.max(...Array.from(streamRoom.viewers.values()).map(() => 1))
+      })
+      .eq('id', streamId)
+
+    // Clean up stream room after a delay
+    setTimeout(() => {
+      activeStreams.delete(streamId)
+    }, 30000) // 30 seconds delay
+  }
+
+  async function updateViewerCount(streamId: string, count: number) {
+    await supabase
+      .from('streams')
+      .update({ 
+        viewer_count: count,
+        peak_viewers: supabase.raw(`GREATEST(peak_viewers, ${count})`)
+      })
+      .eq('id', streamId)
+  }
+
+  async function logModerationAction(
+    streamId: string, 
+    userId: string, 
+    action: string, 
+    reason?: string, 
+    targetUserId?: string
+  ) {
+    await supabase
+      .from('moderation_logs')
+      .insert({
+        stream_id: streamId,
+        user_id: userId,
+        target_user_id: targetUserId,
+        action,
+        reason,
+        timestamp: new Date().toISOString()
+      })
+  }
+
+  async function moderateMessage(message: string) {
+    // Basic content moderation
+    const bannedWords = [
+      'spam', 'scam', 'hate', 'toxic', 'abuse'
+      // Add more banned words as needed
+    ]
+
+    const lowerMessage = message.toLowerCase()
+    let filteredMessage = message
+    let blocked = false
+    let reason = ''
+
+    // Check for banned words
+    for (const word of bannedWords) {
+      if
+      if (lowerMessage.includes(word)) {
+        blocked = true
+        reason = 'Contains inappropriate content'
+        filteredMessage = message.replace(new RegExp(word, 'gi'), '***')
+      }
+    }
+
+    // Check for excessive caps
+    const capsRatio = (message.match(/[A-Z]/g) || []).length / message.length
+    if (capsRatio > 0.7 && message.length > 10) {
+      reason = 'Excessive caps usage'
+      filteredMessage = message.toLowerCase()
+    }
+
+    // Check for spam patterns (repeated characters)
+    if (/(.)\1{4,}/.test(message)) {
+      blocked = true
+      reason = 'Spam detected'
+    }
+
+    // Check for URLs (optional - you might want to allow some URLs)
+    if (/https?:\/\/[^\s]+/gi.test(message)) {
+      // You can choose to block or just flag URLs
+      // blocked = true
+      // reason = 'URLs not allowed'
+    }
+
+    return { 
+      allowed: !blocked, 
+      reason, 
+      filteredMessage: filteredMessage !== message ? filteredMessage : null 
+    }
+  }
+
+  // Cleanup inactive streams periodically
+  setInterval(() => {
+    const now = Date.now()
+    for (const [streamId, streamRoom] of activeStreams.entries()) {
+      // Remove streams inactive for more than 1 hour
+      if (!streamRoom.isActive && (now - streamRoom.startedAt.getTime()) > 3600000) {
+        activeStreams.delete(streamId)
+        console.log(`Cleaned up inactive stream: ${streamId}`)
+      }
+    }
+  }, 300000) // Check every 5 minutes
+
+  console.log('Streaming WebSocket namespace initialized')
 }
