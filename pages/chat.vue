@@ -13,7 +13,6 @@ definePageMeta({
   middleware: 'auth',
   layout: 'chat'
 })
-</script>
 
   <div class="chat-page">
     <div class="chat-container">
