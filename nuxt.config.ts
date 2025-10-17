@@ -9,75 +9,35 @@ export default defineNuxtConfig({
     experimental: {
       wasm: true
     },
-    export default defineNuxtConfig({
-  // ... existing config
-  
-  // Add Pinia for state management
-  modules: [
-    '@pinia/nuxt',
-    '@nuxtjs/supabase',
-    // ... other modules
-  ],
-
-  // Pinia configuration
-  pinia: {
-    autoImports: [
-      'defineStore',
-      ['defineStore', 'definePiniaStore'],
-    ],
-  },
-
-  // Runtime config for environment variables
-  runtimeConfig: {
-    // Private keys (only available on server-side)
-    jwtSecret: process.env.JWT_SECRET,
-    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
-    sessionSecret: process.env.SESSION_SECRET,
-    smtpHost: process.env.SMTP_HOST,
-    smtpPort: process.env.SMTP_PORT,
-    smtpUser: process.env.SMTP_USER,
-    smtpPass: process.env.SMTP_PASS,
-    
-    // Public keys (exposed to client-side)
-    public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      rbacEnabled: process.env.RBAC_ENABLED === 'true',
-      defaultUserRole: process.env.DEFAULT_USER_ROLE || 'user',
-      adminEmail: process.env.ADMIN_EMAIL,
-      maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'),
-      allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(',') || [],
-    }
-  },
-
-  // Auto-import composables
-  imports: {
-    dirs: ['composables/**']
-  },
-
-  // CSS framework (optional)
-  css: [
-    '~/assets/styles/main.css'
-  ]
-})
-
-    // Add WebSocket plugin
+    // Enable WebSocket handling
     plugins: ['~/server/plugins/socket.ts']
   },
 
-  // Enhanced modules for role-based access control
+  // Enhanced modules (merged from both files)
   modules: [
     '@pinia/nuxt',
     '@nuxtjs/supabase',
+    '@nuxtjs/tailwindcss',
     '@nuxtjs/i18n',
-    '@vueuse/nuxt' // Added for enhanced composables
+    '@vueuse/nuxt'
   ],
 
-  // Supabase configuration with role-based security
+  // Pinia configuration (merged)
+  pinia: {
+    storesDirs: ['./stores/**', './custom-folder/stores/**'],
+    autoImports: [
+      'defineStore',
+      ['defineStore', 'definePiniaStore']
+    ]
+  },
+
+  // Supabase configuration (merged with environment fallbacks)
   supabase: {
-    url: 'https://cvzrhucbvezqwbesthek.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+    // Prefer env vars, fallback to hardcoded values from second file
+    url: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
+    key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
     redirectOptions: {
+      // Prefer second file's simpler auth routes (more consistent with RBAC)
       login: '/auth',
       callback: '/auth',
       exclude: ['/']
@@ -93,33 +53,34 @@ export default defineNuxtConfig({
     }
   },
 
-  // CSS configuration
-  css: ['~/assets/css/main.css'],
-
-  // Development tools
-  devtools: { enabled: true },
-
-  // TypeScript configuration
-  typescript: {
-    typeCheck: false
-  },
-  
-  // Build configuration
-  build: {
-    transpile: ['emoji-js', 'socket.io-client']
-  },
-
-  // Enhanced runtime config for role-based access control
+  // Runtime configuration (fully merged)
   runtimeConfig: {
     // Private keys (server-side only)
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY,
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    ffmpegPath: process.env.FFMPEG_PATH || '/usr/bin/ffmpeg',
     jwtSecret: process.env.JWT_SECRET || 'your-jwt-secret-key',
-    
-    // Public keys (exposed to client-side)
+    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
+    sessionSecret: process.env.SESSION_SECRET,
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: process.env.SMTP_PORT,
+    smtpUser: process.env.SMTP_USER,
+    smtpPass: process.env.SMTP_PASS,
+
+    // Public keys (client-side)
     public: {
-      supabaseUrl: 'https://cvzrhucbvezqwbesthek.supabase.co',
-      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
-      // Role-based access control configuration
+      supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+      socketUrl: process.env.SOCKET_URL || 'http://localhost:8080',
+      appUrl: process.env.APP_URL || 'http://localhost:3000',
+      rbacEnabled: process.env.RBAC_ENABLED === 'true',
+      defaultUserRole: process.env.DEFAULT_USER_ROLE || 'user',
+      adminEmail: process.env.ADMIN_EMAIL,
+      maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'),
+      allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(',') || [],
+
+      // Role-based access control configuration (from second file)
       rbac: {
         roles: {
           user: {
@@ -131,8 +92,8 @@ export default defineNuxtConfig({
             routes: ['/feed', '/profile', '/chat', '/explore', '/inbox', '/trade', '/manager/*']
           },
           admin: {
-            permissions: ['*'], // Full access
-            routes: ['*'] // Access to all routes
+            permissions: ['*'],
+            routes: ['*']
           }
         },
         defaultRole: 'user',
@@ -143,7 +104,108 @@ export default defineNuxtConfig({
     }
   },
 
-  // Language translation configuration with role-based content
+  // CSS configuration (merged all paths)
+  css: [
+    '~/assets/css/main.css',
+    '~/assets/css/streaming.css',
+    '~/assets/styles/main.css'
+  ],
+
+  // Build configuration (merged transpile list)
+  build: {
+    transpile: ['chart.js', 'socket.io-client', 'emoji-js']
+  },
+
+  // App configuration (title and description from first file preserved)
+  app: {
+    head: {
+      title: 'SocialVerse - Live Streaming Platform',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'Connect, stream, and share with SocialVerse' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    }
+  },
+
+  // Development tools
+  devtools: { enabled: true },
+
+  // TypeScript configuration (strict from first, typeCheck from second)
+  typescript: {
+    strict: true,
+    typeCheck: false
+  },
+
+  // Vite configuration (merged)
+  vite: {
+    define: {
+      global: 'globalThis'
+    },
+    optimizeDeps: {
+      include: ['socket.io-client', 'chart.js', 'jwt-decode']
+    },
+    server: {
+      hmr: {
+        port: 24678
+      }
+    }
+  },
+
+  // Server-side rendering
+  ssr: true,
+
+  // Experimental features (merged)
+  experimental: {
+    payloadExtraction: false,
+    renderJsonPayloads: true,
+    serverComponents: true
+  },
+
+  // Plugins (merged)
+  plugins: [
+    '~/plugins/socket.client.ts',
+    '~/plugins/chart.client.ts'
+  ],
+
+  // Auto-imports (merged all directories)
+  imports: {
+    dirs: [
+      'composables/**',
+      'utils/**',
+      'composables',
+      'composables/auth',
+      'composables/rbac'
+    ]
+  },
+
+  // Components auto-import (merged with role-based prefixes)
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false
+    },
+    {
+      path: '~/components/admin',
+      prefix: 'Admin',
+      pathPrefix: false
+    },
+    {
+      path: '~/components/manager',
+      prefix: 'Manager',
+      pathPrefix: false
+    }
+  ],
+
+  // Enhanced router for RBAC
+  router: {
+    middleware: ['auth-check']
+  },
+
+  // i18n configuration (from second file)
   i18n: {
     locales: [
       { code: 'en', name: 'English' },
@@ -157,7 +219,6 @@ export default defineNuxtConfig({
       cookieKey: 'i18n_redirected',
       redirectOn: 'root'
     },
-    // Role-based translation keys
     vueI18n: {
       legacy: false,
       locale: 'en',
@@ -165,7 +226,7 @@ export default defineNuxtConfig({
         en: {
           roles: {
             user: 'User',
-            manager: 'Manager', 
+            manager: 'Manager',
             admin: 'Administrator'
           },
           permissions: {
@@ -177,75 +238,5 @@ export default defineNuxtConfig({
         }
       }
     }
-  },
-    
-  // App configuration with role-based meta
-  app: {
-    head: {
-      title: 'SocialVerse',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'SocialVerse - Connect and Share with Role-Based Access Control' }
-      ]
-    }
-  },
-
-  // Server-side rendering configuration
-  ssr: true,
-
-  // Enhanced router configuration for role-based routing
-  router: {
-    middleware: ['auth-check'] // Global middleware for role checking
-  },
-
-  // Experimental features
-  experimental: {
-    payloadExtraction: false,
-    // Enable server components for role-based rendering
-    serverComponents: true
-  },
-
-  // Vite configuration for WebSocket support and role-based modules
-  vite: {
-    define: {
-      global: 'globalThis'
-    },
-    optimizeDeps: {
-      include: ['socket.io-client', 'jwt-decode']
-    }
-  },
-
-  // Pinia configuration for role-based state management
-  pinia: {
-    storesDirs: ['./stores/**', './custom-folder/stores/**']
-  },
-
-  // Auto-imports for role-based composables
-  imports: {
-    dirs: [
-      'composables',
-      'composables/auth',
-      'composables/rbac'
-    ]
-  },
-
-  // Components auto-import with role-based components
-  components: [
-    {
-      path: '~/components',
-      pathPrefix: false,
-    },
-    {
-      path: '~/components/admin',
-      prefix: 'Admin',
-      pathPrefix: false,
-    },
-    {
-      path: '~/components/manager',
-      prefix: 'Manager', 
-      pathPrefix: false,
-    }
-  ]
+  }
 })
-
