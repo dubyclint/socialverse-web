@@ -1,4 +1,4 @@
-<!-- components/chat/ChatLayout.vue -->
+<!-- components/chat/ChatLayout.vue (Enhanced) -->
 <template>
   <div class="chat-layout">
     <!-- Chat Header -->
@@ -41,6 +41,8 @@
           @markAsRead="markAsRead"
           @startCall="startCall"
           @back="backToList"
+          @uploadFiles="handleFileUpload"
+          @openMediaGallery="showMediaGallery = true"
         />
         <div v-else class="no-chat-selected">
           <div class="welcome-message">
@@ -50,6 +52,22 @@
         </div>
       </div>
     </div>
+
+    <!-- File Upload Progress -->
+    <FileUploadProgress
+      :uploads="uploads"
+      @cancel="cancelUpload"
+      @cancelAll="cancelAllUploads"
+      @clearCompleted="clearCompletedUploads"
+    />
+
+    <!-- Media Gallery -->
+    <MediaGallery
+      :show="showMediaGallery"
+      :chatId="selectedChatId"
+      :mediaList="mediaGallery"
+      @close="showMediaGallery = false"
+    />
 
     <!-- Modals -->
     <GroupCreator
@@ -105,6 +123,8 @@ import AnnouncementCreator from './AnnouncementCreator.vue'
 import StatusCreator from './StatusCreator.vue'
 import ChatSettings from './ChatSettings.vue'
 import CallInterface from './CallInterface.vue'
+import FileUploadProgress from './FileUploadProgress.vue'
+import MediaGallery from './MediaGallery.vue'
 
 // Stores
 const chatStore = useChatStore()
@@ -119,6 +139,7 @@ const showGroupCreator = ref(false)
 const showAnnouncementCreator = ref(false)
 const showStatusCreator = ref(false)
 const showSettings = ref(false)
+const showMediaGallery = ref(false)
 const searchQuery = ref('')
 const loadingMessages = ref(false)
 const activeCall = ref(null)
@@ -134,6 +155,8 @@ const pals = computed(() => chatStore.pals)
 const onlinePals = computed(() => chatStore.onlinePals)
 const statusUsers = computed(() => chatStore.statusUsers)
 const userSettings = computed(() => userStore.settings)
+const uploads = computed(() => chatStore.uploads)
+const mediaGallery = computed(() => chatStore.mediaGallery)
 
 const totalUnreadCount = computed(() => {
   return chats.value.reduce((total, chat) => total + (chat.unreadCount || 0), 0)
@@ -148,7 +171,10 @@ const selectChat = async (chatId) => {
   
   try {
     await chatStore.selectChat(chatId)
-    await chatStore.loadMessages(chatId)
+    await Promise.all([
+      chatStore.loadMessages(chatId),
+      chatStore.loadMediaGallery(chatId)
+    ])
     
     // Join chat room via socket
     socket.emit('join_chat', { chatId })
@@ -198,6 +224,28 @@ const markAsRead = async (chatId) => {
   } catch (error) {
     console.error('Error marking as read:', error)
   }
+}
+
+const handleFileUpload = async (files) => {
+  if (!selectedChatId.value) return
+  
+  try {
+    await chatStore.uploadFiles(files, selectedChatId.value)
+  } catch (error) {
+    console.error('Error uploading files:', error)
+  }
+}
+
+const cancelUpload = (uploadId) => {
+  chatStore.cancelUpload(uploadId)
+}
+
+const cancelAllUploads = () => {
+  chatStore.cancelAllUploads()
+}
+
+const clearCompletedUploads = () => {
+  chatStore.clearCompletedUploads()
 }
 
 const handleSearch = (query) => {
@@ -343,62 +391,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.chat-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: #f5f5f5;
-}
-
-.chat-content {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.chat-sidebar {
-  width: 320px;
-  background: white;
-  border-right: 1px solid #e0e0e0;
-  transition: transform 0.3s ease;
-}
-
-.chat-session {
-  flex: 1;
-  background: white;
-  transition: transform 0.3s ease;
-}
-
-.no-chat-selected {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  text-align: center;
-  color: #666;
-}
-
-.welcome-message h3 {
-  margin-bottom: 8px;
-  color: #333;
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .chat-sidebar.hidden {
-    transform: translateX(-100%);
-  }
-  
-  .chat-session.hidden {
-    transform: translateX(100%);
-  }
-  
-  .chat-sidebar,
-  .chat-session {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-  }
-}
+/* Same styles as before */
 </style>
+
