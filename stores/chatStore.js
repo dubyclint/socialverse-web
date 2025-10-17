@@ -1,6 +1,7 @@
-// stores/chatStore.js
+// stores/chatStore.js (Enhanced with file management)
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import fileUploadService from '@/services/fileUploadService'
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -12,6 +13,8 @@ export const useChatStore = defineStore('chat', () => {
   const onlinePals = ref([])
   const statusUsers = ref([])
   const typingUsers = ref({})
+  const uploads = ref([])
+  const mediaGallery = ref([])
 
   // Getters
   const selectedChat = computed(() => 
@@ -20,6 +23,14 @@ export const useChatStore = defineStore('chat', () => {
 
   const unreadChatsCount = computed(() => 
     chats.value.filter(chat => chat.unreadCount > 0).length
+  )
+
+  const activeUploads = computed(() =>
+    uploads.value.filter(upload => upload.status === 'uploading')
+  )
+
+  const completedUploads = computed(() =>
+    uploads.value.filter(upload => upload.status === 'completed')
   )
 
   // Actions
@@ -62,11 +73,106 @@ export const useChatStore = defineStore('chat', () => {
       const data = await response.json()
       
       if (data.success) {
-        // Optimistic update
         messages.value.push(data.message)
       }
     } catch (error) {
       console.error('Send message error:', error)
+    }
+  }
+
+  const uploadFiles = async (files, chatId) => {
+    const uploadPromises = files.map(async (file) => {
+      const uploadId = Date.now() + Math.random()
+      
+      // Add upload to tracking
+      const upload = {
+        id: uploadId,
+        file,
+        status: 'uploading',
+        progress: 0,
+        chatId
+      }
+      uploads.value.push(upload)
+
+      try {
+        // Upload file
+        const result = await fileUploadService.uploadFile(file, {
+          type: getFileType(file.type),
+          chatId,
+          onProgress: (progress) => {
+            const uploadIndex = uploads.value.findIndex(u => u.id === uploadId)
+            if (uploadIndex > -1) {
+              uploads.value[uploadIndex].progress = progress
+            }
+          }
+        })
+
+        // Update upload status
+        const uploadIndex = uploads.value.findIndex(u => u.id === uploadId)
+        if (uploadIndex > -1) {
+          uploads.value[uploadIndex].status = 'completed'
+          uploads.value[uploadIndex].result = result
+        }
+
+        // Send message with file
+        await sendMessage({
+          chatId,
+          content: '',
+          messageType: getFileType(file.type),
+          mediaUrl: result.url,
+          mediaMetadata: {
+            originalName: file.name,
+            size: file.size,
+            mimeType: file.type,
+            ...result.metadata
+          }
+        })
+
+        return result
+
+      } catch (error) {
+        // Update upload status to error
+        const uploadIndex = uploads.value.findIndex(u => u.id === uploadId)
+        if (uploadIndex > -1) {
+          uploads.value[uploadIndex].status = 'error'
+          uploads.value[uploadIndex].error = error.message
+        }
+        throw error
+      }
+    })
+
+    return Promise.allSettled(uploadPromises)
+  }
+
+  const cancelUpload = (uploadId) => {
+    const uploadIndex = uploads.value.findIndex(u => u.id === uploadId)
+    if (uploadIndex > -1) {
+      uploads.value[uploadIndex].status = 'cancelled'
+      // Cancel actual upload if possible
+    }
+  }
+
+  const cancelAllUploads = () => {
+    uploads.value.forEach(upload => {
+      if (upload.status === 'uploading') {
+        upload.status = 'cancelled'
+      }
+    })
+  }
+
+  const clearCompletedUploads = () => {
+    uploads.value = uploads.value.filter(upload => 
+      upload.status === 'uploading'
+    )
+  }
+
+  const loadMediaGallery = async (chatId) => {
+    try {
+      const response = await fetch(`/api/chat/${chatId}/media`)
+      const data = await response.json()
+      mediaGallery.value = data.media
+    } catch (error) {
+      console.error('Load media gallery error:', error)
     }
   }
 
@@ -78,6 +184,11 @@ export const useChatStore = defineStore('chat', () => {
     if (chat) {
       chat.lastMessage = message
       chat.lastMessageAt = message.createdAt
+    }
+
+    // Add to media gallery if it's a media message
+    if (['image', 'video', 'audio', 'file'].includes(message.messageType)) {
+      mediaGallery.value.unshift(message)
     }
   }
 
@@ -125,6 +236,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // Helper function
+  const getFileType = (mimeType) => {
+    if (mimeType.startsWith('image/')) return 'image'
+    if (mimeType.startsWith('video/')) return 'video'
+    if (mimeType.startsWith('audio/')) return 'audio'
+    return 'file'
+  }
+
   return {
     // State
     chats,
@@ -135,10 +254,14 @@ export const useChatStore = defineStore('chat', () => {
     onlinePals,
     statusUsers,
     typingUsers,
+    uploads,
+    mediaGallery,
     
     // Getters
     selectedChat,
     unreadChatsCount,
+    activeUploads,
+    completedUploads,
     
     // Actions
     loadChats,
@@ -146,6 +269,11 @@ export const useChatStore = defineStore('chat', () => {
     clearSelectedChat,
     loadMessages,
     sendMessage,
+    uploadFiles,
+    cancelUpload,
+    cancelAllUploads,
+    clearCompletedUploads,
+    loadMediaGallery,
     addMessage,
     updateMessage,
     createGroup,
