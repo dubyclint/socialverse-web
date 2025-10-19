@@ -34,6 +34,8 @@ export default defineNuxtConfig({
   },
 
   supabase: {
+    url: process.env.SUPABASE_URL || '',
+    key: process.env.SUPABASE_KEY || '',
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
@@ -43,8 +45,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseKey: process.env.SUPABASE_KEY,
+      supabaseUrl: process.env.SUPABASE_URL || '',
+      supabaseKey: process.env.SUPABASE_KEY || '',
     },
   },
 
@@ -73,4 +75,3 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-10-19',
 });
-
