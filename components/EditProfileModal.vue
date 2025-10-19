@@ -311,7 +311,6 @@
                 </div>
               </div>
               <div class="privacy-toggle">
-                <label class="toggle*
                 <label class="toggle-label">
                   <input
                     v-model="privacySettings.skills_public"
