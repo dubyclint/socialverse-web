@@ -1,30 +1,20 @@
-<!-- app.vue - Remove store initialization -->
+<!-- app.vue -->
 <template>
   <NuxtLayout>
-    <NuxtPage />
+    <div id="app">
+      <NuxtPage />
+      
+      <!-- Global Notifications -->
+      <NotificationToast />
+      
+      <!-- Global Loading -->
+      <GlobalLoading v-if="isLoading" />
+    </div>
   </NuxtLayout>
 </template>
 
 <script setup>
-// Remove any useUserStore() calls from here
-// Let stores initialize themselves when needed
-</script>
-// if not 
-<!-- app.vue -->
-<template>
-  <div id="app">
-    <NuxtPage />
-    
-    <!-- Global Notifications -->
-    <NotificationToast />
-    
-    <!-- Global Loading -->
-    <GlobalLoading v-if="isLoading" />
-  </div>
-</template>
-
-<script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { useSocket } from '@/composables/useSocket'
 
