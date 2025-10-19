@@ -15,8 +15,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useUserStore } from '@/stores/userStore'
-import { useSocket } from '@/composables/useSocket'
+import { useUserStore } from '~/stores/user'
+import { useSocket } from '~/composables/useSocket'
 
 // Stores
 const userStore = useUserStore()
