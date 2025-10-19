@@ -1,10 +1,10 @@
-// middleware/languageCheck.ts
+// middleware/languageCheck.js
 export default defineNuxtRouteMiddleware((to) => {
   const { locale, setLocale } = useI18n()
   const user = useSupabaseUser()
   
   // Check for language preference in URL
-  const urlLang = to.query.lang as string
+  const urlLang = to.query.lang
   if (urlLang && ['en', 'fr', 'es', 'de'].includes(urlLang)) {
     setLocale(urlLang)
     return
@@ -22,4 +22,5 @@ export default defineNuxtRouteMiddleware((to) => {
   const { detectTranslationNeed } = useTranslation()
   detectTranslationNeed()
 })
+
 
