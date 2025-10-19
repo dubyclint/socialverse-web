@@ -1,5 +1,4 @@
 /* Socialverse Web - Main Styles */
-
 /* Reset and Base Styles */
 * {
   margin: 0;
@@ -26,7 +25,6 @@ h1, h2, h3, h4, h5, h6 {
   color: #2c3e50;
   margin-bottom: 0.5rem;
 }
-
 h1 { font-size: 2.5rem; }
 h2 { font-size: 2rem; }
 h3 { font-size: 1.75rem; }
@@ -51,32 +49,25 @@ p {
   font-size: 1rem;
   transition: all 0.3s ease;
 }
-
 .btn:hover {
   background-color: #0056b3;
   transform: translateY(-2px);
 }
-
 .btn-secondary {
   background-color: #6c757d;
 }
-
 .btn-secondary:hover {
   background-color: #545b62;
 }
-
 .btn-success {
   background-color: #28a745;
 }
-
 .btn-success:hover {
   background-color: #1e7e34;
 }
-
 .btn-danger {
   background-color: #dc3545;
 }
-
 .btn-danger:hover {
   background-color: #c82333;
 }
@@ -90,18 +81,15 @@ p {
   margin-bottom: 1rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
-
 .card-header {
   border-bottom: 1px solid #e9ecef;
   padding-bottom: 1rem;
   margin-bottom: 1rem;
 }
-
 .card-title {
   margin-bottom: 0.5rem;
   color: #2c3e50;
@@ -111,14 +99,12 @@ p {
 .form-group {
   margin-bottom: 1rem;
 }
-
 .form-label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
   color: #495057;
 }
-
 .form-control {
   width: 100%;
   padding: 0.75rem;
@@ -127,7 +113,6 @@ p {
   font-size: 1rem;
   transition: border-color 0.2s ease;
 }
-
 .form-control:focus {
   outline: none;
   border-color: #007bff;
@@ -141,28 +126,24 @@ p {
   padding: 1rem 0;
   margin-bottom: 2rem;
 }
-
 .navbar-brand {
   font-size: 1.5rem;
   font-weight: bold;
   color: #007bff;
   text-decoration: none;
 }
-
 .navbar-nav {
   display: flex;
   list-style: none;
   gap: 2rem;
   margin: 0;
 }
-
 .nav-link {
   color: #495057;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
 }
-
 .nav-link:hover {
   color: #007bff;
 }
@@ -175,7 +156,6 @@ p {
   margin-bottom: 1.5rem;
   overflow: hidden;
 }
-
 .post-header {
   padding: 1rem;
   border-bottom: 1px solid #e9ecef;
@@ -183,41 +163,34 @@ p {
   align-items: center;
   gap: 1rem;
 }
-
 .post-avatar {
   width: 50px;
   height: 50px;
   border-radius: 50%;
   object-fit: cover;
 }
-
 .post-meta h4 {
   margin-bottom: 0.25rem;
   color: #2c3e50;
 }
-
 .post-timestamp {
   color: #6c757d;
   font-size: 0.875rem;
 }
-
 .post-content {
   padding: 1rem;
 }
-
 .post-image {
   width: 100%;
   height: auto;
   display: block;
 }
-
 .post-actions {
   padding: 1rem;
   border-top: 1px solid #e9ecef;
   display: flex;
   gap: 1rem;
 }
-
 .post-action {
   display: flex;
   align-items: center;
@@ -231,12 +204,10 @@ p {
   border: none;
   cursor: pointer;
 }
-
 .post-action:hover {
   background: #e9ecef;
   color: #007bff;
 }
-
 .post-action.active {
   background: #007bff;
   color: white;
@@ -250,12 +221,10 @@ p {
   padding: 2rem;
   margin-bottom: 1rem;
 }
-
 .group-card h3 {
   color: white;
   margin-bottom: 1rem;
 }
-
 .group-members {
   background: rgba(255, 255, 255, 0.1);
   padding: 1rem;
@@ -272,39 +241,33 @@ p {
   flex-direction: column;
   background: white;
 }
-
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
 }
-
 .chat-message {
   margin-bottom: 1rem;
   padding: 0.75rem;
   border-radius: 18px;
   max-width: 70%;
 }
-
 .chat-message.own {
   background: #007bff;
   color: white;
   margin-left: auto;
   text-align: right;
 }
-
 .chat-message.other {
   background: #f8f9fa;
   color: #333;
 }
-
 .chat-input-container {
   padding: 1rem;
   border-top: 1px solid #e9ecef;
   display: flex;
   gap: 0.5rem;
 }
-
 .chat-input {
   flex: 1;
   padding: 0.75rem;
@@ -317,19 +280,16 @@ p {
 .text-center { text-align: center; }
 .text-left { text-align: left; }
 .text-right { text-align: right; }
-
 .mt-1 { margin-top: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 1rem; }
 .mt-4 { margin-top: 1.5rem; }
 .mt-5 { margin-top: 3rem; }
-
 .mb-1 { margin-bottom: 0.25rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-3 { margin-bottom: 1rem; }
 .mb-4 { margin-bottom: 1.5rem; }
 .mb-5 { margin-bottom: 3rem; }
-
 .p-1 { padding: 0.25rem; }
 .p-2 { padding: 0.5rem; }
 .p-3 { padding: 1rem; }
@@ -344,7 +304,6 @@ p {
   padding: 3rem;
   color: #6c757d;
 }
-
 .loading::after {
   content: '';
   width: 20px;
@@ -355,12 +314,10 @@ p {
   animation: spin 1s linear infinite;
   margin-left: 1rem;
 }
-
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
 .error {
   background: #f8d7da;
   color: #721c24;
@@ -369,7 +326,6 @@ p {
   border: 1px solid #f5c6cb;
   margin: 1rem 0;
 }
-
 .success {
   background: #d4edda;
   color: #155724;
@@ -384,306 +340,57 @@ p {
   .container {
     padding: 0 0.5rem;
   }
-  
   h1 { font-size: 2rem; }
   h2 { font-size: 1.75rem; }
   h3 { font-size: 1.5rem; }
-  
   .navbar-nav {
     flex-direction: column;
     gap: 1rem;
   }
-  
   .post-actions {
     flex-wrap: wrap;
   }
-  
   .chat-message {
     max-width: 85%;
   }
 }
-
 @media (max-width: 480px) {
   .card {
     padding: 1rem;
   }
-  
   .btn {
     width: 100%;
     margin-bottom: 0.5rem;
   }
-  
   .post-header {
     flex-direction: column;
     align-items: flex-start;
   }
 }
 
-/* Dark Mode Support (Optional) */
+/* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #1a1a1a;
     color: #e9ecef;
   }
-  
-  .card {
+  .card, .post, .chat-container {
     background: #2d3748;
     color: #e9ecef;
   }
-  
   .navbar {
     background: #2d3748;
   }
-  
   .form-control {
     background: #4a5568;
     border-color: #718096;
     color: #e9ecef;
   }
-  
-  .post {
-    background: #2d3748;
-  }
-}e0;
-  transform: translateY(-1px);
 }
 
-.action-btn.deposit {
-  color: #38a169;
-  border-color: #c6f6d5;
-}
+/* --- Wallet & Modal Components --- */
 
-.action-btn.withdraw {
-  color: #e53e3e;
-  border-color: #fed7d7;
-}
-
-.action-btn.gift {
-  color: #d69e2e;
-  border-color: #faf089;
-}
-
-.action-btn.trade {
-  color: #3182ce;
-  border-color: #bee3f8;
-}
-
-.active-deals-summary {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f7fafc;
-}
-
-.deals-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.deals-header h4 {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2d3748;
-}
-
-.deals-count {
-  background: #3182ce;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-}
-
-.deals-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.deal-type {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background: #f7fafc;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-}
-
-.deal-type.p2p {
-  background: #e6fffa;
-  color: #234e52;
-}
-
-.deal-type.escrow {
-  background: #edf2f7;
-  color: #2d3748;
-}
-
-.deal-type.trade {
-  background: #ebf8ff;
-  color: #2c5282;
-}
-
-.deal-value {
-  font-weight: 600;
-}
-
-.recent-activity {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f7fafc;
-}
-
-.activity-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.activity-header h4 {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2d3748;
-}
-
-.view-all-btn {
-  background: none;
-  border: none;
-  color: #3182ce;
-  font-size: 0.75rem;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.activity-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.activity-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f7fafc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #4a5568;
-}
-
-.activity-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.activity-type {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #2d3748;
-}
-
-.activity-description {
-  font-size: 0.75rem;
-  color: #718096;
-}
-
-.activity-time {
-  font-size: 0.75rem;
-  color: #a0aec0;
-}
-
-.activity-amount {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.activity-amount.positive {
-  color: #38a169;
-}
-
-.activity-amount.negative {
-  color: #e53e3e;
-}
-
-.gift-notifications {
-  padding: 1rem 1.5rem;
-}
-
-.gifts-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.gifts-header h4 {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2d3748;
-}
-
-.gifts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.gift-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-radius: 0.5rem;
-}
-
-.gift-sender-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.gift-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.gift-message {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #92400e;
-}
-
-.gift-type {
-  font-size: 0.75rem;
-  color: #a16207;
-}
-
-.gift-value {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #38a169;
-}
-
-/* Modal Styles */
+/* Modal Overlay */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -695,6 +402,7 @@ p {
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
@@ -718,7 +426,6 @@ p {
   padding: 1.5rem;
   border-bottom: 1px solid #e2e8f0;
 }
-
 .modal-header h2,
 .modal-header h3 {
   margin: 0;
@@ -737,19 +444,18 @@ p {
   border-radius: 0.25rem;
   transition: all 0.2s;
 }
-
 .close-btn:hover {
   background: #f7fafc;
   color: #2d3748;
 }
 
+/* Wallet Tabs */
 .wallet-tabs {
   display: flex;
   border-bottom: 1px solid #e2e8f0;
   background: #f7fafc;
   overflow-x: auto;
 }
-
 .tab-btn {
   display: flex;
   align-items: center;
@@ -765,86 +471,76 @@ p {
   transition: all 0.2s;
   white-space: nowrap;
 }
-
 .tab-btn:hover {
   color: #2d3748;
   background: #edf2f7;
 }
-
 .tab-btn.active {
   color: #3182ce;
   background: white;
   border-bottom-color: #3182ce;
 }
 
+/* Wallet Content */
 .wallet-content {
   padding: 1.5rem;
 }
 
-/* Overview Tab */
+/* Portfolio Summary */
 .portfolio-summary {
   margin-bottom: 2rem;
 }
-
 .portfolio-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
 }
-
 .stat-card {
   padding: 1.5rem;
   background: #f7fafc;
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
 }
-
 .stat-card h4 {
   margin: 0 0 0.5rem 0;
   font-size: 0.875rem;
   font-weight: 500;
   color: #718096;
 }
-
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
   color: #1a202c;
   margin-bottom: 0.25rem;
 }
-
 .stat-change {
   font-size: 0.75rem;
   font-weight: 500;
 }
-
 .stat-change.positive {
   color: #38a169;
 }
-
 .stat-change.negative {
   color: #e53e3e;
 }
-
 .stat-label {
   font-size: 0.75rem;
   color: #a0aec0;
 }
 
+/* Wallet Grid */
 .all-wallets h3 {
   margin: 0 0 1rem 0;
   font-size: 1.125rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .wallets-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
 }
-
 .wallet-card {
   background: white;
   border: 1px solid #e2e8f0;
@@ -852,53 +548,44 @@ p {
   padding: 1.5rem;
   transition: all 0.2s;
 }
-
 .wallet-card:hover {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   border-color: #cbd5e0;
 }
-
 .wallet-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1rem;
 }
-
 .wallet-header .currency-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
-
 .wallet-header .currency-info img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
 }
-
 .wallet-header .currency-info h4 {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .wallet-header .currency-code {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .wallet-header .wallet-balance {
   text-align: right;
 }
-
 .wallet-header .balance {
   font-size: 1.25rem;
   font-weight: 700;
   color: #1a202c;
 }
-
 .wallet-header .locked-info {
   display: flex;
   align-items: center;
@@ -906,17 +593,16 @@ p {
   margin-top: 0.25rem;
   justify-content: flex-end;
 }
-
 .wallet-header .locked-amount {
   font-size: 0.75rem;
   color: #e53e3e;
 }
-
 .wallet-actions {
   display: flex;
   gap: 0.5rem;
 }
 
+/* Buttons */
 .btn-sm {
   display: flex;
   align-items: center;
@@ -931,7 +617,6 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .btn-sm:hover {
   background: #f7fafc;
   border-color: #cbd5e0;
@@ -944,7 +629,6 @@ p {
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
 }
-
 .filter-select,
 .filter-input {
   padding: 0.5rem 0.75rem;
@@ -953,13 +637,11 @@ p {
   font-size: 0.875rem;
   background: white;
 }
-
 .transactions-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-
 .transaction-row {
   display: flex;
   align-items: center;
@@ -971,19 +653,16 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .transaction-row:hover {
   background: #edf2f7;
   border-color: #cbd5e0;
 }
-
 .transaction-info {
   display: flex;
   align-items: center;
   gap: 1rem;
   flex: 1;
 }
-
 .transaction-icon {
   width: 40px;
   height: 40px;
@@ -995,69 +674,57 @@ p {
   color: #4a5568;
   border: 1px solid #e2e8f0;
 }
-
 .transaction-details h4 {
   margin: 0 0 0.25rem 0;
   font-size: 0.875rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .transaction-details p {
   margin: 0 0 0.25rem 0;
   font-size: 0.75rem;
   color: #718096;
 }
-
 .transaction-meta {
   display: flex;
   gap: 1rem;
   font-size: 0.75rem;
   color: #a0aec0;
 }
-
 .transaction-amount {
   text-align: right;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
-
 .transaction-amount .amount {
   font-size: 1rem;
   font-weight: 600;
 }
-
 .transaction-amount.positive .amount {
   color: #38a169;
 }
-
 .transaction-amount.negative .amount {
   color: #e53e3e;
 }
-
 .transaction-amount .currency {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .transaction-amount .status {
   font-size: 0.75rem;
   font-weight: 500;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
 }
-
 .status.completed {
   background: #c6f6d5;
   color: #22543d;
 }
-
 .status.pending {
   background: #fef3c7;
   color: #92400e;
 }
-
 .status.failed {
   background: #fed7d7;
   color: #742a2a;
@@ -1070,31 +737,26 @@ p {
   align-items: center;
   margin-bottom: 1.5rem;
 }
-
 .gifts-header h3 {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .gift-stats {
   margin-bottom: 1.5rem;
 }
-
 .stat-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
 }
-
 .stat-item {
   text-align: center;
   padding: 1rem;
   background: #f7fafc;
   border-radius: 0.5rem;
 }
-
 .stat-number {
   display: block;
   font-size: 1.5rem;
@@ -1102,18 +764,11 @@ p {
   color: #1a202c;
   margin-bottom: 0.25rem;
 }
-
-.stat-label {
-  font-size: 0.75rem;
-  color: #718096;
-}
-
 .gift-subtabs {
   display: flex;
   border-bottom: 1px solid #e2e8f0;
   margin-bottom: 1.5rem;
 }
-
 .subtab-btn {
   padding: 0.75rem 1rem;
   background: none;
@@ -1125,20 +780,16 @@ p {
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
-
 .subtab-btn:hover {
   color: #2d3748;
 }
-
 .subtab-btn.active {
   color: #3182ce;
   border-bottom-color: #3182ce;
 }
-
 .gift-content {
   min-height: 300px;
 }
-
 .gift-item-detailed {
   display: flex;
   align-items: center;
@@ -1149,14 +800,12 @@ p {
   border-radius: 0.5rem;
   margin-bottom: 0.75rem;
 }
-
 .gift-sender,
 .gift-recipient {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
-
 .gift-sender img,
 .gift-recipient img {
   width: 40px;
@@ -1164,44 +813,37 @@ p {
   border-radius: 50%;
   object-fit: cover;
 }
-
 .sender-info,
 .recipient-info {
   display: flex;
   flex-direction: column;
 }
-
 .sender-name,
 .recipient-name {
   font-weight: 600;
   color: #1a202c;
   font-size: 0.875rem;
 }
-
 .gift-time {
   font-size: 0.75rem;
   color: #a0aec0;
 }
-
 .gift-details {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
-
 .gift-type {
   font-weight: 500;
   color: #2d3748;
   font-size: 0.875rem;
 }
-
 .gift-message {
   font-size: 0.75rem;
   color: #718096;
   font-style: italic;
 }
-
 .gift-context {
   display: flex;
   align-items: center;
@@ -1209,16 +851,13 @@ p {
   font-size: 0.75rem;
   color: #a0aec0;
 }
-
 .gift-value {
   font-size: 1rem;
   font-weight: 600;
 }
-
 .gift-value.positive {
   color: #38a169;
 }
-
 .gift-value.negative {
   color: #e53e3e;
 }
@@ -1230,12 +869,10 @@ p {
   align-items: center;
   margin-bottom: 1.5rem;
 }
-
 .p2p-actions {
   display: flex;
   gap: 0.75rem;
 }
-
 .btn-primary {
   display: flex;
   align-items: center;
@@ -1249,12 +886,10 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .btn-primary:hover {
   background: #2c5282;
 }
-
-.btn-secondary {
+.btn-secondary-alt {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1267,64 +902,55 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
-.btn-secondary:hover {
+.btn-secondary-alt:hover {
   background: #f7fafc;
   border-color: #cbd5e0;
 }
 
+/* Status & Stats */
 .p2p-status {
   margin-bottom: 1.5rem;
 }
-
 .status-card {
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   padding: 1.5rem;
 }
-
 .status-card h4 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .status-info {
   display: flex;
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
 }
-
 .status-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
 }
-
 .status-badge.unverified {
   background: #fed7d7;
   color: #742a2a;
 }
-
 .status-badge.basic {
   background: #fef3c7;
   color: #92400e;
 }
-
 .status-badge.advanced {
   background: #c6f6d5;
   color: #22543d;
 }
-
 .status-badge.premium {
   background: #e0e7ff;
   color: #3730a3;
 }
-
 .active-indicator {
   display: flex;
   align-items: center;
@@ -1333,17 +959,14 @@ p {
   font-size: 0.75rem;
   font-weight: 500;
 }
-
 .profile-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
 }
-
 .stat {
   text-align: center;
 }
-
 .stat-number {
   display: block;
   font-size: 1.25rem;
@@ -1352,17 +975,11 @@ p {
   margin-bottom: 0.25rem;
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  color: #718096;
-}
-
-/* Active deals sections */
+/* Active Deals */
 .active-p2p-trades,
 .active-escrow-deals {
   margin-top: 1.5rem;
 }
-
 .active-p2p-trades h4,
 .active-escrow-deals h4 {
   margin: 0 0 1rem 0;
@@ -1370,31 +987,26 @@ p {
   font-weight: 600;
   color: #1a202c;
 }
-
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
   color: #718096;
 }
-
 .empty-state h3 {
   margin: 1rem 0 0.5rem 0;
   color: #2d3748;
 }
-
 .empty-state-small {
   text-align: center;
   padding: 2rem 1rem;
   color: #718096;
 }
-
 .trades-list,
 .deals-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
-
 .trade-item,
 .deal-item {
   display: flex;
@@ -1405,7 +1017,6 @@ p {
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
 }
-
 .trade-info,
 .deal-info {
   flex: 1;
@@ -1413,20 +1024,17 @@ p {
   flex-direction: column;
   gap: 0.5rem;
 }
-
 .trade-header,
 .deal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
 .trade-type {
   font-weight: 600;
   color: #2d3748;
   font-size: 0.875rem;
 }
-
 .trade-status,
 .deal-status {
   padding: 0.125rem 0.5rem;
@@ -1434,48 +1042,40 @@ p {
   font-size: 0.75rem;
   font-weight: 500;
 }
-
 .trade-status.pending,
 .deal-status.pending {
   background: #fef3c7;
   color: #92400e;
 }
-
 .trade-status.in_progress,
 .deal-status.in_progress {
   background: #dbeafe;
   color: #1e40af;
 }
-
 .trade-status.completed,
 .deal-status.completed {
   background: #c6f6d5;
   color: #22543d;
 }
-
 .trade-details,
 .deal-details {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
-
 .trade-amount,
 .deal-amount {
   font-weight: 600;
   color: #1a202c;
 }
-
 .trade-counterparty,
 .deal-parties {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .trade-progress {
   margin-top: 0.5rem;
 }
-
 .progress-bar {
   width: 100%;
   height: 4px;
@@ -1484,18 +1084,15 @@ p {
   overflow: hidden;
   margin-bottom: 0.25rem;
 }
-
 .progress-fill {
   height: 100%;
   background: #3182ce;
   transition: width 0.3s ease;
 }
-
 .progress-text {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .deal-timeline {
   display: flex;
   align-items: center;
@@ -1503,31 +1100,26 @@ p {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .trade-actions,
 .deal-actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
-.btn-success {
+.btn-success-alt {
   background: #38a169;
   color: white;
   border: none;
 }
-
-.btn-success:hover {
+.btn-success-alt:hover {
   background: #2f855a;
 }
-
-.btn-warning {
+.btn-warning-alt {
   background: #d69e2e;
   color: white;
   border: none;
 }
-
-.btn-warning:hover {
+.btn-warning-alt:hover {
   background: #b7791f;
 }
 
@@ -1538,36 +1130,30 @@ p {
   align-items: center;
   margin-bottom: 1.5rem;
 }
-
 .marketplace-actions {
   display: flex;
   gap: 0.75rem;
 }
-
 .marketplace-stats {
   margin-bottom: 1.5rem;
 }
-
 .marketplace-sections {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
 }
-
 .marketplace-section h4 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .purchases-list,
 .sales-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-
 .purchase-item,
 .sale-item {
   display: flex;
@@ -1578,14 +1164,12 @@ p {
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;
 }
-
 .item-image {
   width: 48px;
   height: 48px;
   border-radius: 0.375rem;
   object-fit: cover;
 }
-
 .purchase-info,
 .sale-info {
   flex: 1;
@@ -1593,7 +1177,6 @@ p {
   flex-direction: column;
   gap: 0.25rem;
 }
-
 .purchase-info h5,
 .sale-info h5 {
   margin: 0;
@@ -1601,13 +1184,11 @@ p {
   font-weight: 600;
   color: #1a202c;
 }
-
 .purchase-seller,
 .sale-buyer {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .purchase-status,
 .sale-status {
   font-size: 0.75rem;
@@ -1615,7 +1196,6 @@ p {
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
 }
-
 .purchase-amount,
 .sale-amount {
   text-align: right;
@@ -1623,7 +1203,6 @@ p {
   flex-direction: column;
   gap: 0.25rem;
 }
-
 .purchase-amount .amount,
 .sale-amount .amount {
   font-weight: 600;
@@ -1636,30 +1215,25 @@ p {
 .transfer-form {
   padding: 1.5rem;
 }
-
 .form-section {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #f7fafc;
 }
-
 .form-section:last-of-type {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
-
 .form-section h4 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .form-group {
   margin-bottom: 1rem;
 }
-
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
@@ -1667,7 +1241,6 @@ p {
   font-weight: 500;
   color: #374151;
 }
-
 .form-input,
 .form-textarea,
 .form-select {
@@ -1678,28 +1251,25 @@ p {
   font-size: 0.875rem;
   transition: all 0.2s;
 }
-
 .form-input:focus,
 .form-textarea:focus,
 .form-select:focus {
   outline: none;
   border-color: #3182ce;
-  box-shadow: 0 0 0 3px rgba(49,
-130, 206, 0.1);
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
 }
-
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
-
 .char-count {
   font-size: 0.75rem;
   color: #a0aec0;
   margin-top: 0.25rem;
 }
 
+/* Search & Recipient */
 .search-results {
   position: absolute;
   top: 100%;
@@ -1713,7 +1283,6 @@ p {
   overflow-y: auto;
   z-index: 10;
 }
-
 .search-result-item {
   display: flex;
   align-items: center;
@@ -1722,34 +1291,28 @@ p {
   cursor: pointer;
   transition: background-color 0.2s;
 }
-
 .search-result-item:hover {
   background: #f7fafc;
 }
-
 .search-result-item img {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
 }
-
 .user-info {
   display: flex;
   flex-direction: column;
 }
-
 .user-name {
   font-weight: 500;
   color: #1a202c;
   font-size: 0.875rem;
 }
-
 .user-username {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .selected-recipient {
   display: flex;
   align-items: center;
@@ -1760,31 +1323,26 @@ p {
   border-radius: 0.5rem;
   margin-top: 0.5rem;
 }
-
 .selected-recipient img {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
 }
-
 .recipient-info {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
-
 .recipient-name {
   font-weight: 500;
   color: #234e52;
   font-size: 0.875rem;
 }
-
 .recipient-username {
   font-size: 0.75rem;
   color: #4a5568;
 }
-
 .clear-btn {
   background: none;
   border: none;
@@ -1794,18 +1352,17 @@ p {
   border-radius: 0.25rem;
   transition: all 0.2s;
 }
-
 .clear-btn:hover {
   background: #f7fafc;
   color: #2d3748;
 }
 
+/* Gift Types */
 .gift-types {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.75rem;
 }
-
 .gift-type-card {
   display: flex;
   flex-direction: column;
@@ -1818,37 +1375,32 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .gift-type-card:hover {
   background: #edf2f7;
   border-color: #cbd5e0;
 }
-
 .gift-type-card.selected {
   background: #e6fffa;
   border-color: #38b2ac;
 }
-
 .gift-icon {
   font-size: 2rem;
 }
-
 .gift-info {
   text-align: center;
 }
-
 .gift-name {
   font-weight: 500;
   color: #1a202c;
   font-size: 0.875rem;
 }
-
 .gift-value {
   font-size: 0.75rem;
   color: #718096;
   font-weight: 600;
 }
 
+/* Checkbox */
 .checkbox-option {
   display: flex;
   align-items: center;
@@ -1857,13 +1409,13 @@ p {
   font-size: 0.875rem;
   color: #2d3748;
 }
-
 .checkbox-option input[type="checkbox"] {
   width: 16px;
   height: 16px;
   accent-color: #3182ce;
 }
 
+/* Summary */
 .gift-summary,
 .withdraw-summary,
 .transfer-summary {
@@ -1873,7 +1425,6 @@ p {
   padding: 1rem;
   margin-top: 1rem;
 }
-
 .summary-row {
   display: flex;
   justify-content: space-between;
@@ -1881,11 +1432,9 @@ p {
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
 }
-
 .summary-row:last-child {
   margin-bottom: 0;
 }
-
 .summary-row.total {
   font-weight: 600;
   font-size: 1rem;
@@ -1894,6 +1443,7 @@ p {
   margin-top: 0.5rem;
 }
 
+/* Form Actions */
 .form-actions {
   display: flex;
   gap: 1rem;
@@ -1902,32 +1452,28 @@ p {
   padding-top: 1rem;
   border-top: 1px solid #f7fafc;
 }
-
 .btn-primary:disabled,
-.btn-secondary:disabled {
+.btn-secondary-alt:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Deposit Modal Specific */
+/* Deposit Modal */
 .deposit-content {
   padding: 1.5rem;
 }
-
 .currency-selection h4 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .currency-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.5rem;
 }
-
 .currency-option {
   display: flex;
   align-items: center;
@@ -1939,56 +1485,46 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .currency-option:hover {
   background: #edf2f7;
   border-color: #cbd5e0;
 }
-
 .currency-option.selected {
   background: #e6fffa;
   border-color: #38b2ac;
 }
-
 .currency-option img {
   width: 32px;
   height: 32px;
   border-radius: 50%;
 }
-
 .currency-option .currency-info {
   display: flex;
   flex-direction: column;
 }
-
 .currency-option .currency-name {
   font-weight: 500;
   color: #1a202c;
   font-size: 0.875rem;
 }
-
 .currency-option .currency-code {
   font-size: 0.75rem;
   color: #718096;
 }
-
 .deposit-details {
   margin-top: 1.5rem;
 }
-
 .deposit-address h4 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .address-container {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
-
 .address-input {
   flex: 1;
   padding: 0.75rem;
@@ -1999,7 +1535,6 @@ p {
   font-size: 0.875rem;
   color: #2d3748;
 }
-
 .copy-btn {
   padding: 0.75rem;
   background: #3182ce;
@@ -2009,17 +1544,14 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .copy-btn:hover {
   background: #2c5282;
 }
-
 .qr-code {
   display: flex;
   justify-content: center;
   margin-bottom: 1.5rem;
 }
-
 .qr-placeholder {
   display: flex;
   flex-direction: column;
@@ -2031,44 +1563,38 @@ p {
   border-radius: 0.5rem;
   color: #718096;
 }
-
 .deposit-instructions h4 {
   margin: 0 0 1rem 0;
   font-size: 1rem;
   font-weight: 600;
   color: #1a202c;
 }
-
 .deposit-instructions ul {
   margin: 0;
   padding-left: 1.5rem;
   color: #4a5568;
 }
-
 .deposit-instructions li {
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
 }
 
-/* Withdraw Modal Specific */
+/* Withdraw Modal */
 .amount-input {
   position: relative;
   display: flex;
   align-items: center;
 }
-
 .currency-symbol {
   position: absolute;
   left: 0.75rem;
   color: #718096;
   font-weight: 500;
 }
-
 .amount-input .form-input {
   padding-left: 2rem;
   padding-right: 4rem;
 }
-
 .max-btn {
   position: absolute;
   right: 0.5rem;
@@ -2082,291 +1608,43 @@ p {
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .max-btn:hover {
   background: #2c5282;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .wallet-dropdown {
-    width: 350px;
-    right: -50px;
-  }
-  
-  .balance-breakdown {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-  
-  .quick-actions {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .wallet-tabs {
-    flex-wrap: wrap;
-  }
-  
-  .tab-btn {
-    padding: 0.75rem 1rem;
-    font-size: 0.75rem;
-  }
-  
-  .portfolio-stats {
-    grid-template-columns: 1fr;
-  }
-  
-  .wallets-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .transactions-filters {
-    flex-direction: column;
-  }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .gift-types {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .currency-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .marketplace-sections {
-    grid-template-columns: 1fr;
-  }
-  
-  .stat-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .profile-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .modal-content {
-    width: 95%;
-    margin: 1rem;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-@media (max-width: 480px) {
-  .wallet-dropdown {
-    width: 320px;
-    right: -80px;
-  }
-  
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
-  
-  .gift-types {
-    grid-template-columns: 1fr;
-  }
-  
-  .stat-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .profile-stats {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .wallet-toggle {
-    background: #2d3748;
-    border-color: #4a5568;
-    color: #e2e8f0;
-  }
-  
-  .wallet-dropdown {
-    background: #1a202c;
-    border-color: #4a5568;
-    color: #e2e8f0;
-  }
-  
-  .modal-content {
-    background: #1a202c;
-    color: #e2e8f0;
-  }
-  
-  .wallet-tabs {
-    background: #2d3748;
-  }
-  
-  .tab-btn.active {
-    background: #1a202c;
-  }
-  
-  .stat-card,
-  .wallet-card,
-  .transaction-row,
-  .gift-item-detailed,
-  .trade-item,
-  .deal-item {
-    background: #2d3748;
-    border-color: #4a5568;
-  }
-  
-  .form-input,
-  .form-textarea,
-  .form-select {
-    background: #2d3748;
-    border-color: #4a5568;
-    color: #e2e8f0;
-  }
-  
-  .gift-summary,
-  .withdraw-summary,
-  .transfer-summary {
-    background: #2d3748;
-    border-color: #4a5568;
-  }
-}
-
-/* Print styles */
-@media print {
-  .wallet-dropdown,
-  .modal-overlay {
-    display: none;
-  }
-}
-
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .wallet-toggle {
-    border: 2px solid #000;
-  }
-  
-  .wallet-dropdown {
-    border: 2px solid #000;
-  }
-  
-  .btn-primary {
-    background: #000;
-    border: 2px solid #000;
-  }
-  
-  .btn-secondary {
-    border: 2px solid #000;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Focus styles for accessibility */
-.wallet-toggle:focus,
-.tab-btn:focus,
-.btn-primary:focus,
-.btn-secondary:focus,
-.btn-sm:focus {
-  outline: 2px solid #3182ce;
-  outline-offset: 2px;
-}
-
-.form-input:focus,
-.form-textarea:focus,
-.form-select:focus {
-  outline: 2px solid #3182ce;
-  outline-offset: 2px;
-}
-
-/* Smooth scrolling */
-.wallet-dropdown,
-.modal-content {
-  scroll-behavior: smooth;
-}
-
-/* Custom scrollbar */
-.wallet-dropdown::-webkit-scrollbar,
-.modal-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.wallet-dropdown::-webkit-scrollbar-track,
-.modal-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.wallet-dropdown::-webkit-scrollbar-thumb,
-.modal-content::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.wallet-dropdown::-webkit-scrollbar-thumb:hover,
-.modal-content::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-<style scoped>
+/* Feed Posts */
 .feed-posts {
   max-width: 600px;
   margin: 0 auto;
   padding: 1rem;
 }
-
-.loading, .error {
-  text-align: center;
-  padding: 2rem;
-}
-
-.error {
-  color: #e74c3c;
-  background: #fdf2f2;
-  border-radius: 8px;
-  border: 1px solid #f5c6cb;
-}
-
 .posts-list {
   list-style: none;
   padding: 0;
 }
-
 .post-item {
   background: white;
   border: 1px solid #e1e8ed;
   border-radius: 12px;
   margin-bottom: 1.5rem;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.2s ease;
 }
-
 .post-item:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
-
 .post-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
-
 .author-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
-
 .author-avatar {
   width: 40px;
   height: 40px;
@@ -2374,13 +1652,11 @@ p {
   object-fit: cover;
   border: 2px solid #e1e8ed;
 }
-
 .post-author {
   font-weight: 600;
   color: #1da1f2;
   font-size: 1rem;
 }
-
 .verified-badge {
   color: #1da1f2;
   font-weight: bold;
@@ -2389,25 +1665,21 @@ p {
   border-radius: 50%;
   font-size: 0.8rem;
 }
-
 .post-date {
   font-size: 0.9rem;
   color: #657786;
 }
-
 .post-content {
   line-height: 1.6;
   margin-bottom: 1rem;
   font-size: 1rem;
 }
-
 .post-media {
   margin: 1rem 0;
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
-
 .post-image {
   width: 100%;
   max-height: 300px;
@@ -2416,7 +1688,6 @@ p {
   cursor: pointer;
   transition: transform 0.2s ease;
 }
-
 .post-image:hover {
   transform: scale(1.02);
 }
@@ -2430,7 +1701,6 @@ p {
   border-top: 1px solid #e1e8ed;
   margin-top: 1rem;
 }
-
 .interaction-btn {
   display: flex;
   align-items: center;
@@ -2444,71 +1714,54 @@ p {
   font-size: 0.9rem;
   color: #657786;
 }
-
 .interaction-btn:hover {
   background: #f7f9fa;
   transform: translateY(-1px);
 }
-
 .interaction-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
 .interaction-btn .icon {
   width: 18px;
   height: 18px;
   fill: currentColor;
 }
-
 .interaction-btn .count {
   font-weight: 500;
   min-width: 20px;
   text-align: left;
 }
-
-/* Like Button States */
 .like-btn.liked {
   color: #e91e63;
   background: #fce4ec;
 }
-
 .like-btn.liked:hover {
   background: #f8bbd9;
 }
-
 .like-btn:hover {
   color: #e91e63;
   background: #fce4ec;
 }
-
-/* Comment Button */
 .comment-btn:hover {
   color: #1da1f2;
   background: #e8f4fd;
 }
-
-/* Share Button */
 .share-btn:hover {
   color: #17bf63;
   background: #e8f5e8;
 }
-
-/* PewGift Button */
 .pewgift-btn {
   position: relative;
 }
-
 .pewgift-btn:hover {
   color: #ff9800;
   background: #fff3e0;
 }
-
 .pewgift-btn.has-gifts {
   color: #ff9800;
   background: #fff3e0;
 }
-
 .pewgift-btn.has-gifts::after {
   content: '';
   position: absolute;
@@ -2520,26 +1773,23 @@ p {
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
-
 @keyframes pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.2); opacity: 0.7; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Comments Section */
+/* Comments */
 .comments-section {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #e1e8ed;
 }
-
 .comment-input {
   display: flex;
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
-
 .comment-field {
   flex: 1;
   padding: 0.75rem;
@@ -2549,12 +1799,10 @@ p {
   font-size: 0.9rem;
   transition: border-color 0.2s ease;
 }
-
 .comment-field:focus {
   border-color: #1da1f2;
   box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.1);
 }
-
 .comment-submit {
   padding: 0.75rem 1.5rem;
   background: #1da1f2;
@@ -2565,26 +1813,23 @@ p {
   font-weight: 500;
   transition: background 0.2s ease;
 }
-
 .comment-submit:hover:not(:disabled) {
   background: #1991db;
 }
-
 .comment-submit:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
-
 .comments-list {
-  space-y: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-
 .comment-item {
   display: flex;
   gap: 0.75rem;
   padding: 0.75rem 0;
 }
-
 .comment-avatar {
   width: 32px;
   height: 32px;
@@ -2592,30 +1837,25 @@ p {
   object-fit: cover;
   flex-shrink: 0;
 }
-
 .comment-content {
   flex: 1;
 }
-
 .comment-author {
   font-weight: 600;
   color: #1da1f2;
   font-size: 0.9rem;
 }
-
 .comment-text {
   margin: 0.25rem 0;
   line-height: 1.4;
   font-size: 0.9rem;
 }
-
 .comment-actions {
   display: flex;
   align-items: center;
   gap: 1rem;
   margin-top: 0.5rem;
 }
-
 .comment-like {
   background: none;
   border: none;
@@ -2626,23 +1866,20 @@ p {
   border-radius: 12px;
   transition: all 0.2s ease;
 }
-
 .comment-like:hover {
   color: #e91e63;
   background: #fce4ec;
 }
-
 .comment-like.liked {
   color: #e91e63;
   background: #fce4ec;
 }
-
 .comment-date {
   font-size: 0.8rem;
   color: #657786;
 }
 
-/* Load More Button */
+/* Load More */
 .load-more-btn {
   display: block;
   margin: 2rem auto;
@@ -2656,13 +1893,11 @@ p {
   font-weight: 500;
   transition: all 0.2s ease;
 }
-
 .load-more-btn:hover:not(:disabled) {
   background: #1991db;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(29, 161, 242, 0.3);
 }
-
 .load-more-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
@@ -2671,20 +1906,6 @@ p {
 }
 
 /* PewGift Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
 .pewgift-modal {
   background: white;
   border-radius: 16px;
@@ -2694,7 +1915,6 @@ p {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease;
 }
-
 @keyframes modalSlideIn {
   from {
     opacity: 0;
@@ -2705,25 +1925,21 @@ p {
     transform: translateY(0) scale(1);
   }
 }
-
 .pewgift-modal h3 {
   margin: 0 0 0.5rem 0;
   color: #333;
   font-size: 1.5rem;
 }
-
 .pewgift-modal p {
   margin: 0 0 1.5rem 0;
   color: #666;
 }
-
 .gift-amounts {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
-
 .amount-btn {
   padding: 0.75rem;
   border: 2px solid #e1e8ed;
@@ -2733,22 +1949,18 @@ p {
   font-weight: 500;
   transition: all 0.2s ease;
 }
-
 .amount-btn:hover {
   border-color: #ff9800;
   background: #fff3e0;
 }
-
 .amount-btn.selected {
   border-color: #ff9800;
   background: #ff9800;
   color: white;
 }
-
 .custom-amount {
   margin-bottom: 1.5rem;
 }
-
 .custom-input {
   width: 100%;
   padding: 0.75rem;
@@ -2758,17 +1970,14 @@ p {
   outline: none;
   transition: border-color 0.2s ease;
 }
-
 .custom-input:focus {
   border-color: #ff9800;
 }
-
 .modal-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
 }
-
 .cancel-btn {
   padding: 0.75rem 1.5rem;
   border: 2px solid #e1e8ed;
@@ -2778,11 +1987,9 @@ p {
   font-weight: 500;
   transition: all 0.2s ease;
 }
-
 .cancel-btn:hover {
   background: #f7f9fa;
 }
-
 .send-btn {
   padding: 0.75rem 1.5rem;
   background: #ff9800;
@@ -2793,115 +2000,36 @@ p {
   font-weight: 500;
   transition: all 0.2s ease;
 }
-
 .send-btn:hover:not(:disabled) {
   background: #f57c00;
   transform: translateY(-1px);
 }
-
 .send-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
   transform: none;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .feed-posts {
-    padding: 0.5rem;
-  }
-  
-  .post-item {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .interaction-bar {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .interaction-btn {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-  
-  .gift-amounts {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .modal-actions {
-    flex-direction: column;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .post-item {
-    background: #1a1a1a;
-    border-color: #333;
-    color: #fff;
-  }
-  
-  .interaction-btn {
-    color: #8899a6;
-  }
-  
-  .interaction-btn:hover {
-    background: #2a2a2a;
-  }
-  
-  .comment-field {
-    background: #2a2a2a;
-    border-color: #333;
-    color: #fff;
-  }
-  
-  .pewgift-modal {
-    background: #1a1a1a;
-    color: #fff;
-  }
-  
-  .amount-btn {
-    background: #2a2a2a;
-    border-color: #333;
-    color: #fff;
-  }
-  
-  .custom-input {
-    background: #2a2a2a;
-    border-color: #333;
-    color: #fff;
-  }
-}
-/* Enhanced Global Styles for SocialVerse */
-
-/* Smooth scrolling */
+/* Global Enhancements */
 html {
   scroll-behavior: smooth;
 }
-
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
 }
 
-/* Loading animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -2912,16 +2040,6 @@ html {
     transform: translateY(0);
   }
 }
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -2932,110 +2050,14 @@ html {
     transform: translateX(0);
   }
 }
-
-/* Utility classes */
 .fade-in-up {
   animation: fadeInUp 0.6s ease-out;
 }
-
-.pulse {
-  animation: pulse 2s infinite;
-}
-
 .slide-in-right {
   animation: slideInRight 0.4s ease-out;
 }
 
-/* Enhanced button styles */
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary {
-  background: transparent;
-  color: #667eea;
-  border: 2px solid #667eea;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-secondary:hover {
-  background: #667eea;
-  color: white;
-  transform: translateY(-2px);
-}
-
-/* Card styles */
-.card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-}
-
-/* Form styles */
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #2d3436;
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-/* Status indicators */
-.status-online { color: #2ed573; }
-.status-away { color: #ffa502; }
-.status-busy { color: #ff4757; }
-.status-offline { color: #747d8c; }
-
-/* Notification styles */
+/* Notification Styles */
 .notification {
   padding: 1rem 1.5rem;
   border-radius: 8px;
@@ -3044,160 +2066,34 @@ html {
   align-items: center;
   gap: 0.75rem;
 }
-
 .notification.success {
   background: #d4edda;
   color: #155724;
   border: 1px solid #c3e6cb;
 }
-
 .notification.error {
   background: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
 }
-
 .notification.warning {
   background: #fff3cd;
   color: #856404;
   border: 1px solid #ffeaa7;
 }
-
 .notification.info {
   background: #d1ecf1;
   color: #0c5460;
   border: 1px solid #bee5eb;
 }
 
-/* Mobile-first responsive design */
-@media (max-width: 1200px) {
-  .container {
-    padding: 0 1.5rem;
-  }
-}
+/* Status Indicators */
+.status-online { color: #2ed573; }
+.status-away { color: #ffa502; }
+.status-busy { color: #ff4757; }
+.status-offline { color: #747d8c; }
 
-@media (max-width: 768px) {
-  .container {
-    padding: 0 1rem;
-  }
-  
-  h1 { font-size: 2rem; }
-  h2 { font-size: 1.75rem; }
-  h3 { font-size: 1.5rem; }
-  
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.625rem 1.25rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .container {
-    padding: 0 0.75rem;
-  }
-  
-  h1 { font-size: 1.75rem; }
-  h2 { font-size: 1.5rem; }
-  h3 { font-size: 1.25rem; }
-  
-  .card {
-    padding: 1rem;
-    border-radius: 8px;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-color: #1a1a1a;
-    --text-color: #ffffff;
-    --card-bg: #2d2d2d;
-  }
-  
-  body
-  body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-  }
-  
-  .card {
-    background: var(--card-bg);
-    color: var(--text-color);
-  }
-  
-  .form-input {
-    background: var(--card-bg);
-    color: var(--text-color);
-    border-color: #444;
-  }
-  
-  .form-input:focus {
-    border-color: #667eea;
-  }
-}
-
-/* Print styles */
-@media print {
-  .modern-header,
-  .modern-footer,
-  .fab,
-  .sidebar,
-  .action-buttons {
-    display: none !important;
-  }
-  
-  .post-card {
-    break-inside: avoid;
-    box-shadow: none;
-    border: 1px solid #ddd;
-  }
-}
-
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .btn-primary {
-    background: #000;
-    color: #fff;
-    border: 2px solid #000;
-  }
-  
-  .btn-secondary {
-    background: #fff;
-    color: #000;
-    border: 2px solid #000;
-  }
-  
-  .post-card {
-    border: 2px solid #000;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Focus styles for accessibility */
-*:focus {
-  outline: 2px solid #667eea;
-  outline-offset: 2px;
-}
-
-button:focus,
-a:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  outline: 2px solid #667eea;
-  outline-offset: 2px;
-}
-
-/* Skip link for screen readers */
+/* Skip Link */
 .skip-link {
   position: absolute;
   top: -40px;
@@ -3209,11 +2105,109 @@ select:focus {
   border-radius: 4px;
   z-index: 9999;
 }
-
 .skip-link:focus {
   top: 6px;
 }
 
-</style>
-</style>
+/* High Contrast & Reduced Motion */
+@media (prefers-contrast: high) {
+  .btn-primary,
+  .btn-secondary-alt,
+  .post-card {
+    border: 2px solid #000;
+  }
+  .btn-primary {
+    background: #000;
+    color: #fff;
+  }
+  .btn-secondary-alt {
+    background: #fff;
+    color: #000;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
+/* Focus Styles */
+*:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Print */
+@media print {
+  .modal-overlay,
+  .modern-header,
+  .modern-footer,
+  .fab,
+  .sidebar,
+  .action-buttons {
+    display: none !important;
+  }
+  .post-card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}
+
+/* Dark Mode Final Pass */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #1a1a1a;
+    --text-color: #e9ecef;
+    --card-bg: #2d3748;
+  }
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+  }
+  .card,
+  .post,
+  .post-item,
+  .modal-content,
+  .pewgift-modal,
+  .stat-card,
+  .wallet-card,
+  .transaction-row,
+  .gift-item-detailed,
+  .trade-item,
+  .deal-item {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-color: #4a5568;
+  }
+  .form-input,
+  .form-textarea,
+  .form-select,
+  .comment-field,
+  .custom-input {
+    background: var(--card-bg);
+    border-color: #4a5568;
+    color: var(--text-color);
+  }
+  .wallet-tabs {
+    background: #2d3748;
+  }
+  .tab-btn.active {
+    background: #1a202c;
+  }
+  .interaction-btn,
+  .comment-like {
+    color: #8899a6;
+  }
+  .amount-btn,
+  .search-result-item,
+  .selected-recipient {
+    background: #2d3748;
+    border-color: #4a5568;
+    color: #e9ecef;
+  }
+}
