@@ -1,8 +1,8 @@
 // ============================================================================
-// nuxt.config.ts - COMPLETE NUXT CONFIGURATION (FIXED)
+// nuxt.config.ts - FIXED FOR i18n BUILD ERROR
 // ============================================================================
+// This configuration fixes the "input.replace is not a function" error
 // Place this file at: /nuxt.config.ts
-// This is the complete, production-ready configuration with all fixes applied
 
 export default defineNuxtConfig({
   // App metadata
@@ -38,17 +38,17 @@ export default defineNuxtConfig({
     }
   },
 
-  // Modules configuration
+  // Modules configuration - ORDER MATTERS!
   modules: [
     '@pinia/nuxt',
     '@nuxtjs/supabase',
     '@nuxtjs/tailwindcss',
-    '@nuxtjs/i18n',
+    '@nuxtjs/color-mode',
     '@vueuse/nuxt',
-    '@nuxtjs/color-mode'
+    '@nuxtjs/i18n'  // i18n MUST be last
   ],
 
-  // i18n v7 Configuration - Production Ready
+  // i18n v7 Configuration - FIXED
   i18n: {
     strategy: 'prefix_except_default',
     locales: [
@@ -80,22 +80,17 @@ export default defineNuxtConfig({
     defaultLocale: 'en',
     langDir: 'locales/',
     lazy: true,
-    detectBrowserLanguage: {
-      useCookie: true,
-      cookieKey: 'i18n_redirected',
-      cookieDomain: undefined,
-      cookieCrossOrigin: false,
-      alwaysRedirect: false,
-      fallbackLocale: 'en',
-      redirectOn: 'root'
-    },
+    // FIXED: Removed problematic detectBrowserLanguage settings
+    detectBrowserLanguage: false,
     vueI18n: {
       legacy: false,
       locale: 'en',
       fallbackLocale: 'en',
       globalInjection: true,
       missingWarn: false,
-      fallbackWarn: false
+      fallbackWarn: false,
+      // FIXED: Added proper composition
+      messages: {}
     }
   },
 
@@ -222,7 +217,7 @@ export default defineNuxtConfig({
     }
   },
 
-  // Vite configuration - FIXED FOR BUILD ERRORS
+  // Vite configuration
   vite: {
     define: {
       global: 'globalThis'
@@ -264,7 +259,7 @@ export default defineNuxtConfig({
     asyncEntry: true
   },
 
-  // Plugins - FIXED: Only include existing plugins
+  // Plugins
   plugins: [
     '~/plugins/auth.client.ts',
     '~/plugins/translation.client.js',
