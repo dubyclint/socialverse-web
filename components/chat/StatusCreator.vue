@@ -36,8 +36,6 @@
           <div class="text-input-container" :style="{ backgroundColor: selectedColor.background }">
             <textarea
               v-model="statusText"
-              placeholder="What's on
-<!-- components/chat/StatusCreator.vue (continued) -->
               placeholder="What's on your mind?"
               class="status-textarea"
               :style="{ color: selectedColor.text }"
@@ -1114,21 +1112,6 @@ onUnmounted(() => {
   
   .type-btn {
     min-width: 80px;
-  }
-<!-- components/chat/StatusCreator.vue (continued) -->
-  .text-input-container {
-    min-height: 100px;
-    padding: 16px;
-  }
-  
-  .status-textarea {
-    font-size: 16px;
-  }
-  
-  .record-btn {
-    width: 60px;
-    height: 60px;
-    font-size: 20px;
   }
 }
 </style>
