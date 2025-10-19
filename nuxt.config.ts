@@ -56,8 +56,10 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: false,
-      routes: ['/sitemap.xml', '/robots.txt'],
-      ignore: ['/admin', '/api'],
+      // Remove sitemap.xml and robots.txt from prerender routes
+      // They will be generated dynamically at runtime
+      routes: [],
+      ignore: ['/admin', '/api', '/sitemap.xml', '/robots.txt'],
     },
   },
 
@@ -77,4 +79,5 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-10-19',
 })
+
 
