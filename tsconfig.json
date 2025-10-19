@@ -1,3 +1,8 @@
+# Navigate to your project directory
+cd socialverse-web
+
+# Create a new clean tsconfig.json file
+cat > tsconfig.json << 'EOF'
 {
   "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
@@ -85,4 +90,10 @@
     "target": 3
   }
 }
+EOF
+
+# Commit and push
+git add tsconfig.json
+git commit -m "Fix tsconfig.json - remove trailing characters"
+git push origin main
 ```~~
