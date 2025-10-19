@@ -172,7 +172,6 @@
           </div>
         </div>
 
-        <!-- Step
         <!-- Step 3: Budget & Schedule -->
         <div v-if="currentStep === 2" class="form-step">
           <h2>💰 Budget & Schedule</h2>
@@ -1184,7 +1183,6 @@ onMounted(() => {
   color: white;
 }
 
-.metric-value {*_
 .metric-value {
   display: block;
   font-size: 1.5rem;
