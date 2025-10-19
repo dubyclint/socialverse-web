@@ -309,13 +309,6 @@ const getInputPlaceholder = () => {
 
 const getTypingText = (users) => {
   if (users.length === 1) {
-    return `${users[0].username
-<!-- components/chat/ChatSession.vue (continued) -->
-<script setup>
-// ... previous code ...
-
-const getTypingText = (users) => {
-  if (users.length === 1) {
     return `${users[0].username} is typing...`
   } else if (users.length === 2) {
     return `${users[0].username} and ${users[1].username} are typing...`
