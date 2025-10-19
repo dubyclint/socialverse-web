@@ -201,15 +201,17 @@ export default defineNuxtConfig({
     middleware: ['auth-check']
   },
 
-  // i18n configuration
+  // i18n configuration - FIXED
   i18n: {
     locales: [
-      { code: 'en', name: 'English' },
-      { code: 'fr', name: 'French' },
-      { code: 'es', name: 'Spanish' },
-      { code: 'de', name: 'German' }
+      { code: 'en', name: 'English', file: 'en.json' },
+      { code: 'fr', name: 'French', file: 'fr.json' },
+      { code: 'es', name: 'Spanish', file: 'es.json' },
+      { code: 'de', name: 'German', file: 'de.json' }
     ],
     defaultLocale: 'en',
+    langDir: 'locales/',
+    strategy: 'prefix_except_default',
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'i18n_redirected',
@@ -218,21 +220,7 @@ export default defineNuxtConfig({
     vueI18n: {
       legacy: false,
       locale: 'en',
-      messages: {
-        en: {
-          roles: {
-            user: 'User',
-            manager: 'Manager',
-            admin: 'Administrator'
-          },
-          permissions: {
-            denied: 'Access denied. Insufficient permissions.',
-            required: 'Authentication required.',
-            admin_only: 'Admin access only.',
-            manager_only: 'Manager access only.'
-          }
-        }
-      }
+      fallbackLocale: 'en'
     }
   }
 })
