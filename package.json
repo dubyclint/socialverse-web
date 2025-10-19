@@ -52,25 +52,7 @@
     "compression": "^1.7.4",
     "sequelize": "^6.35.0",
     "pg": "^8.11.3",
-    "pg-hstore": "^2.3.4",
-    "express-rate-limit": "^7.1.5",
-    "redis": "^4.6.10",
-    "axios": "^1.6.2",
-    "maxmind": "^4.3.6",
-    "geoip-lite": "^1.4.7",
-    "winston": "^3.11.0",
-    "joi": "^17.11.0",
-    "uuid": "^9.0.1",
-    "dotenv": "^16.3.1",
-    "express-validator": "^7.0.1",
-    "csv-parser": "^3.0.0",
-    "node-cron": "^3.0.3",
-    "express-session": "^1.17.3",
-    "connect-redis": "^7.1.0",
-    "ejs": "^3.1.9",
-    "moment": "^2.29.4",
-    "lodash": "^4.17.21",
-    "crypto-js": "^4.2.0"
+    "pg-hstore": "^2.3.4"
   },
   "devDependencies": {
     "@nuxt/devtools": "^1.5.2",
@@ -79,12 +61,6 @@
     "webpack-bundle-analyzer": "^4.10.1",
     "typescript": "^5.3.0",
     "@types/node": "^20.10.0",
-    "@types/express": "^4.17.21",
-    "@types/multer": "^1.4.11",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.5",
-    "@types/cors": "^2.8.17",
-    "@types/compression": "^1.7.5",
     "@typescript-eslint/parser": "^7.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "eslint": "^8.56.0",
@@ -92,23 +68,9 @@
     "sass": "^1.69.5",
     "autoprefixer": "^10.4.16",
     "tailwindcss": "^3.3.6",
-    "ffmpeg-static": "^5.2.0",
-    "nodemon": "^3.0.2",
-    "jest": "^29.7.0",
-    "supertest": "^6.3.3"
+    "ffmpeg-static": "^5.2.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "keywords": [
-    "socialverse",
-    "social-platform",
-    "nuxt",
-    "vue",
-    "streaming",
-    "chat",
-    "p2p"
-  ],
-  "author": "SocialVerse Team",
-  "license": "MIT"
+  }
 }
