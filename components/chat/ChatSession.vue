@@ -239,7 +239,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useSocket } from '@/composables/useSocket'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
 import Icon from '@/components/ui/Icon.vue'
 import MessageBubble from './MessageBubble.vue'
@@ -1179,3 +1179,5 @@ onUnmounted(() => {
   }
 }
 </style>
+  
+  
