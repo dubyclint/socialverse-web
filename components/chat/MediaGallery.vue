@@ -348,13 +348,10 @@ const loadMore = async () => {
   isLoading.value = true
   
   try {
-    // Load more media from API
     const response = await fetch(`/api/chat/${props.chatId}/media?page=${page.value + 1}`)
     const data = await response.json()
     
     if (data.media && data.media.length > 0) {
-      // Add new media to the list
-      // This would be handled by the parent component
       page.value++
     } else {
       hasMore.value = false
@@ -366,7 +363,6 @@ const loadMore = async () => {
   }
 }
 
-// Lifecycle
 onMounted(() => {
   // Load initial media if needed
 })
@@ -631,7 +627,6 @@ onMounted(() => {
   transition: all 0.2s;
 }
 
-<!-- components/chat/MediaGallery.vue (continued) -->
 .media-list-item:hover {
   background: #f8f9fa;
   border-color: #1976d2;
@@ -806,7 +801,6 @@ onMounted(() => {
   background: #1565c0;
 }
 
-/* Mobile responsive */
 @media (max-width: 768px) {
   .media-gallery-overlay {
     padding: 10px;
@@ -814,18 +808,6 @@ onMounted(() => {
   
   .media-gallery {
     max-height: 95vh;
-  }
-  
-  .gallery-header {
-    padding: 16px;
-  }
-  
-  .header-info h3 {
-    font-size: 18px;
-  }
-  
-  .gallery-filters {
-    padding: 12px 16px;
   }
   
   .gallery-content {
@@ -836,15 +818,5 @@ onMounted(() => {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 12px;
   }
-  
-  .media-list-item {
-    padding: 10px;
-  }
-  
-  .list-thumbnail {
-    width: 40px;
-    height: 40px;
-  }
 }
 </style>
-
