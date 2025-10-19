@@ -1,4 +1,3 @@
-// nuxt.config.ts
 export default defineNuxtConfig({
   // Node.js server output for Socket.io
   nitro: {
@@ -20,6 +19,57 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@nuxtjs/color-mode'
   ],
+
+  // i18n v7 Configuration - UPDATED
+  i18n: {
+    strategy: 'prefix_except_default',
+    locales: [
+      {
+        code: 'en',
+        iso: 'en-US',
+        name: 'English',
+        file: 'en.json'
+      },
+      {
+        code: 'fr',
+        iso: 'fr-FR',
+        name: 'Français',
+        file: 'fr.json'
+      },
+      {
+        code: 'es',
+        iso: 'es-ES',
+        name: 'Español',
+        file: 'es.json'
+      },
+      {
+        code: 'de',
+        iso: 'de-DE',
+        name: 'Deutsch',
+        file: 'de.json'
+      }
+    ],
+    defaultLocale: 'en',
+    langDir: 'locales/',
+    lazy: true,
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      cookieDomain: undefined,
+      cookieCrossOrigin: false,
+      alwaysRedirect: false,
+      fallbackLocale: 'en',
+      redirectOn: 'root'
+    },
+    vueI18n: {
+      legacy: false,
+      locale: 'en',
+      fallbackLocale: 'en',
+      globalInjection: true,
+      missingWarn: false,
+      fallbackWarn: false
+    }
+  },
 
   // Pinia configuration
   pinia: {
@@ -51,7 +101,6 @@ export default defineNuxtConfig({
 
   // Runtime configuration
   runtimeConfig: {
-    // Private keys (server-side only)
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY,
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
@@ -64,7 +113,6 @@ export default defineNuxtConfig({
     smtpUser: process.env.SMTP_USER,
     smtpPass: process.env.SMTP_PASS,
 
-    // Public keys (client-side)
     public: {
       supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
@@ -76,7 +124,6 @@ export default defineNuxtConfig({
       maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'),
       allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(',') || [],
 
-      // Role-based access control configuration
       rbac: {
         roles: {
           user: {
@@ -199,29 +246,5 @@ export default defineNuxtConfig({
   // Enhanced router for RBAC
   router: {
     middleware: ['auth-check']
-  },
-
-  // i18n configuration - FIXED
-  i18n: {
-    locales: [
-      { code: 'en', name: 'English', file: 'en.json' },
-      { code: 'fr', name: 'French', file: 'fr.json' },
-      { code: 'es', name: 'Spanish', file: 'es.json' },
-      { code: 'de', name: 'German', file: 'de.json' }
-    ],
-    defaultLocale: 'en',
-    langDir: 'locales/',
-    strategy: 'prefix_except_default',
-    detectBrowserLanguage: {
-      useCookie: true,
-      cookieKey: 'i18n_redirected',
-      redirectOn: 'root'
-    },
-    vueI18n: {
-      legacy: false,
-      locale: 'en',
-      fallbackLocale: 'en'
-    }
   }
 })
-
