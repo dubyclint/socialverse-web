@@ -29,15 +29,15 @@
       <div v-if="message.replyToId && message.quotedMessage" class="reply-preview">
         <div class="reply-line"></div>
         <div class="reply-content">
-          <div class="reply-sender">{{ message.quotedMessage.senderName }}</div>
+          <div class="reply-sender">{{ message.quotedMessage.sender?.username }}</div>
           <div class="reply-text">{{ message.quotedMessage.content }}</div>
         </div>
       </div>
 
       <!-- Message Body -->
-      <div class="message-body" v-if="!message.isDeleted">
+      <div class="message-body" :class="`${message.messageType}-message`">
         <!-- Text Message -->
-        <div v-if="message.messageType === 'text'" class="text-message">
+        <div v-if="message.messageType === 'text' && !message.isDeleted" class="text-message">
           <div class="message-text" v-html="formatMessageText(message.content)"></div>
         </div>
 
@@ -46,16 +46,14 @@
           <div class="image-container" @click="openImageViewer">
             <img 
               :src="message.mediaUrl" 
-              :alt="'Image from ' + message.sender?.username"
+              :alt="message.mediaMetadata?.originalName"
               @load="handleImageLoad"
             />
             <div v-if="imageLoading" class="image-loading">
               <div class="loading-spinner"></div>
             </div>
           </div>
-          <div v-if="message.content" class="image-caption">
-            {{ message.content }}
-          </div>
+          <div v-if="message.content" class="image-caption">{{ message.content }}</div>
         </div>
 
         <!-- Video Message -->
@@ -64,29 +62,20 @@
             <video 
               :src="message.mediaUrl"
               controls
-              preload="metadata"
               @loadedmetadata="handleVideoLoad"
-            >
-              Your browser does not support video playback.
-            </video>
-            <div class="video-duration" v-if="message.mediaMetadata?.duration">
+            ></video>
+            <div v-if="message.mediaMetadata?.duration" class="video-duration">
               {{ formatDuration(message.mediaMetadata.duration) }}
             </div>
           </div>
-          <div v-if="message.content" class="video-caption">
-            {{ message.content }}
-          </div>
+          <div v-if="message.content" class="video-caption">{{ message.content }}</div>
         </div>
 
         <!-- Audio Message -->
         <div v-else-if="message.messageType === 'audio'" class="audio-message">
           <div class="audio-player">
-            <button 
-              class="play-btn"
-              @click="toggleAudioPlayback"
-              :class="{ 'playing': isAudioPlaying }"
-            >
-              <Icon :name="isAudioPlaying ? 'pause' : 'play'" />
+            <button class="play-btn" @click="toggleAudioPlayback">
+              <Icon :name="isAudioPlaying ? 'pause' : 'play'" size="20" />
             </button>
             <div class="audio-waveform">
               <div class="waveform-bars">
@@ -99,35 +88,27 @@
               </div>
               <div class="audio-progress" :style="{ width: audioProgress + '%' }"></div>
             </div>
-            <div class="audio-duration">
-              {{ formatDuration(message.mediaMetadata?.duration || 0) }}
-            </div>
+            <div class="audio-duration">{{ formatDuration(message.mediaMetadata?.duration || 0) }}</div>
           </div>
         </div>
 
         <!-- Voice Note -->
-        <div v-else-if="message.messageType === 'voice_note'" class="voice-note">
-          <div class="voice-player">
-            <button 
-              class="voice-play-btn"
-              @click="toggleVoicePlayback"
-              :class="{ 'playing': isVoicePlaying }"
-            >
-              <Icon :name="isVoicePlaying ? 'pause' : 'play'" />
+        <div v-else-if="message.messageType === 'voice'" class="voice-note">
+          <div class="audio-player">
+            <button class="voice-play-btn" @click="toggleVoicePlayback">
+              <Icon :name="isVoicePlaying ? 'pause' : 'play'" size="20" />
             </button>
             <div class="voice-waveform">
               <div class="voice-bars">
                 <div 
-                  v-for="n in 20" 
-                  :key="n"
+                  v-for="i in 20" 
+                  :key="i"
                   class="voice-bar"
-                  :class="{ 'active': n <= voiceProgress * 20 / 100 }"
+                  :class="{ active: i <= (voiceProgress / 5) }"
                 ></div>
               </div>
             </div>
-            <div class="voice-duration">
-              {{ formatDuration(message.mediaMetadata?.duration || 0) }}
-            </div>
+            <div class="voice-duration">{{ formatDuration(message.mediaMetadata?.duration || 0) }}</div>
           </div>
         </div>
 
@@ -135,14 +116,14 @@
         <div v-else-if="message.messageType === 'file'" class="file-message">
           <div class="file-container" @click="downloadFile">
             <div class="file-icon">
-              <Icon :name="getFileIcon(message.mediaMetadata?.mimeType)" />
+              <Icon :name="getFileIcon(message.mediaMetadata?.mimeType)" size="24" />
             </div>
             <div class="file-info">
               <div class="file-name">{{ message.mediaMetadata?.originalName || 'File' }}</div>
               <div class="file-size">{{ formatFileSize(message.mediaMetadata?.size) }}</div>
             </div>
             <div class="download-btn">
-              <Icon name="download" />
+              <Icon name="download" size="20" />
             </div>
           </div>
         </div>
@@ -188,9 +169,9 @@
       </div>
 
       <!-- Message Reactions -->
-      <div v-if="message.reactions && message.reactions.length > 0" class="message-reactions">
+      <div v-if="groupedReactions.length > 0" class="message-reactions">
         <div 
-          v-for="reaction in groupedReactions" 
+          v-for="reaction in groupedReactions"
           :key="reaction.emoji"
           class="reaction-item"
           :class="{ 'own-reaction': reaction.hasOwnReaction }"
@@ -216,7 +197,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/user'
 import { format } from 'date-fns'
 import Icon from '@/components/ui/Icon.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
@@ -232,7 +213,7 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['edit', 'delete', 'reply', 'react'])
 
-// Stores
+// Store
 const userStore = useUserStore()
 
 // Reactive data
@@ -1009,7 +990,7 @@ onUnmounted(() => {
   
   .audio-message,
   .voice-note {
-    min-width: 180px;
+    min-width: 150px;
   }
 }
 </style>
