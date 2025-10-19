@@ -95,7 +95,6 @@
                   type="file"
                   accept="image/*,.pdf"
                   @change="handleIdDocumentUpload"
-                  class="file*
                   class="file-input"
                 />
                 <div class="upload-content">
