@@ -13,7 +13,7 @@
         <div v-else class="posts-grid">
           <div v-for="post in trendingPosts" :key="post.id" class="post-card">
             <div class="post-author">{{ post.author }}</div>
-            <div class="post-content" v-html="renderContent(post.content)"></div>
+            <div class="post-content">{{ truncateContent(post.content) }}</div>
             <div class="post-date">{{ formatDate(post.created_at) }}</div>
           </div>
         </div>
@@ -41,61 +41,59 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import MarkdownIt from 'markdown-it';
+import { ref, onMounted } from 'vue'
 
 definePageMeta({
   layout: 'default'
-});
+})
 
 useHead({
   title: 'Explore - SocialVerse',
   meta: [
     { name: 'description', content: 'Discover trending content and topics' }
   ]
-});
+})
 
-const supabase = useSupabaseClient();
-const md = new MarkdownIt();
+const supabase = useSupabaseClient()
 
-const trendingPosts = ref([]);
-const loading = ref(false);
-const error = ref('');
+const trendingPosts = ref([])
+const loading = ref(false)
+const error = ref('')
 
 const loadTrendingPosts = async () => {
   try {
-    loading.value = true;
-    error.value = '';
+    loading.value = true
+    error.value = ''
     
     const { data, error: supabaseError } = await supabase
       .from('posts')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(6);
+      .limit(6)
       
-    if (supabaseError) throw supabaseError;
+    if (supabaseError) throw supabaseError
     
-    trendingPosts.value = data || [];
+    trendingPosts.value = data || []
   } catch (err) {
-    error.value = 'Failed to load trending posts';
-    console.error('Trending posts error:', err);
+    error.value = 'Failed to load trending posts'
+    console.error('Trending posts error:', err)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const renderContent = (content) => {
-  if (!content) return '';
-  return md.render(content.slice(0, 150) + (content.length > 150 ? '...' : ''));
-};
+const truncateContent = (content) => {
+  if (!content) return ''
+  return content.length > 150 ? content.slice(0, 150) + '...' : content
+}
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString();
-};
+  return new Date(dateString).toLocaleDateString()
+}
 
 onMounted(() => {
-  loadTrendingPosts();
-});
+  loadTrendingPosts()
+})
 </script>
 
 <style scoped>
@@ -152,12 +150,12 @@ onMounted(() => {
   border: 1px solid #e1e5e9;
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.2s ease;
 }
 
 .post-card:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .post-author {
@@ -170,6 +168,7 @@ onMounted(() => {
   color: #333;
   line-height: 1.6;
   margin-bottom: 1rem;
+  word-break: break-word;
 }
 
 .post-date {
@@ -203,18 +202,8 @@ onMounted(() => {
 }
 
 .topic-card p {
-  opacity: 0.9;
   margin: 0;
-}
-
-@media (max-width: 768px) {
-  .posts-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .explore-content {
-    gap: 2rem;
-  }
+  font-size: 0.875rem;
+  opacity: 0.9;
 }
 </style>
-
