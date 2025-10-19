@@ -26,7 +26,7 @@ export const requirePremiumFeature = (featureKey) => {
         const feature = await PremiumFeature.findByKey(featureKey);
         const userTier = await PremiumSubscription.getUserTier(userId);
         
-        return res.status(403).json({*_
+        return res.status(403).json({
           success: false,
           message: `This feature requires ${feature?.required_tier || 'premium'} subscription`,
           code: 'PREMIUM_REQUIRED',
