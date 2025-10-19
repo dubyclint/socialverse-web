@@ -4,8 +4,6 @@
     <div class="upload-progress-panel">
       <div class="panel-header">
         <h4>Uploading Files</h4>
-        <button class="minimize-
-<!-- components/chat/FileUploadProgress.vue (continued) -->
         <button class="minimize-btn" @click="isMinimized = !isMinimized">
           <Icon :name="isMinimized ? 'chevron-up' : 'chevron-down'" />
         </button>
@@ -450,10 +448,6 @@ const clearCompleted = () => {
   
   .progress-container {
     min-width: 70px;
-  }
-  
-  .progress-bar {
-    width: 50px;
   }
 }
 </style>
