@@ -2,6 +2,7 @@
 // nuxt.config.ts - FIXED FOR i18n BUILD ERROR
 // ============================================================================
 // This configuration fixes the "input.replace is not a function" error
+// by removing the conflicting vueI18n object configuration
 // Place this file at: /nuxt.config.ts
 
 export default defineNuxtConfig({
@@ -48,7 +49,7 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n'  // i18n MUST be last
   ],
 
-  // i18n v7 Configuration - FIXED
+  // i18n Configuration - FIXED (removed conflicting vueI18n object)
   i18n: {
     strategy: 'prefix_except_default',
     locales: [
@@ -80,18 +81,8 @@ export default defineNuxtConfig({
     defaultLocale: 'en',
     langDir: 'locales/',
     lazy: true,
-    // FIXED: Removed problematic detectBrowserLanguage settings
-    detectBrowserLanguage: false,
-    vueI18n: {
-      legacy: false,
-      locale: 'en',
-      fallbackLocale: 'en',
-      globalInjection: true,
-      missingWarn: false,
-      fallbackWarn: false,
-      // FIXED: Added proper composition
-      messages: {}
-    }
+    detectBrowserLanguage: false
+    // FIXED: Removed the entire vueI18n object that was causing the conflict
   },
 
   // Pinia state management
