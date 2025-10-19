@@ -51,25 +51,24 @@
                   v-for="contact in onlineContacts"
                   :key="contact.id"
                   :contact="contact"
-                  :isSelected="isContactSelected(contact.id)"
+                  :selected="isContactSelected(contact.id)"
                   @toggle="toggleContact"
                 />
               </div>
 
               <div class="contacts-section" v-if="offlineContacts.length > 0">
-                <div class="section-header">All Contacts</div>
+                <div class="section-header">Offline</div>
                 <ContactItem
                   v-for="contact in offlineContacts"
                   :key="contact.id"
                   :contact="contact"
-                  :isSelected="isContactSelected(contact.id)"
+                  :selected="isContactSelected(contact.id)"
                   @toggle="toggleContact"
                 />
               </div>
 
               <div v-if="filteredContacts.length === 0" class="no-contacts">
-                <Icon name="users" />
-                <p>No contacts found</p>
+                No contacts found
               </div>
             </div>
           </div>
@@ -87,81 +86,94 @@
 
         <!-- Step 2: Group Details -->
         <div v-if="currentStep === 2" class="step-details">
-          <div class="group-avatar-section">
-            <div class="avatar-container" @click="selectGroupAvatar">
-              <div v-if="!groupAvatar" class="avatar-placeholder">
-                <Icon name="camera" />
-                <span>Add Group Photo</span>
+          <div class="form-group">
+            <label>Group Name *</label>
+            <input
+              v-model="groupName"
+              @blur="validateGroupName"
+              placeholder="Enter group name"
+              class="form-input"
+              maxlength="50"
+            />
+            <div v-if="groupNameError" class="error-message">
+              {{ groupNameError }}
+            </div>
+            <div class="char-count">{{ groupName.length }}/50</div>
+          </div>
+
+          <div class="form-group">
+            <label>Group Description</label>
+            <textarea
+              v-model="groupDescription"
+              placeholder="Enter group description (optional)"
+              class="form-textarea"
+              maxlength="200"
+              rows="3"
+            ></textarea>
+            <div class="char-count">{{ groupDescription.length }}/200</div>
+          </div>
+
+          <div class="form-group">
+            <label>Group Avatar</label>
+            <div class="avatar-upload">
+              <div v-if="groupAvatarPreview" class="avatar-preview">
+                <img :src="groupAvatarPreview" alt="Group avatar preview" />
+                <button @click="groupAvatar = null; groupAvatarPreview = ''" class="remove-avatar">
+                  <Icon name="x" />
+                </button>
               </div>
-              <img v-else :src="groupAvatarPreview" alt="Group avatar" />
+              <div v-else class="avatar-placeholder" @click="selectGroupAvatar">
+                <Icon name="image" />
+                <span>Click to upload</span>
+              </div>
+              <input
+                ref="avatarInput"
+                type="file"
+                accept="image/*"
+                @change="handleAvatarUpload"
+                style="display: none"
+              />
             </div>
           </div>
 
-          <div class="group-info">
-            <div class="input-group">
-              <label>Group Name *</label>
-              <input
-                v-model="groupName"
-                placeholder="Enter group name"
-                class="group-input"
-                maxlength="50"
-                @input="validateGroupName"
-              />
-              <div class="input-error" v-if="groupNameError">
-                {{ groupNameError }}
+          <div class="form-group">
+            <label>Group Type</label>
+            <div class="template-options">
+              <div 
+                v-for="template in ['open', 'closed', 'secret']"
+                :key="template"
+                class="template-option"
+                :class="{ active: selectedTemplate === template }"
+                @click="selectTemplate(template)"
+              >
+                <div class="template-icon">
+                  <Icon :name="template === 'open' ? 'globe' : template === 'closed' ? 'lock' : 'eye-off'" />
+                </div>
+                <div class="template-info">
+                  <div class="template-name">{{ template.charAt(0).toUpperCase() + template.slice(1) }}</div>
+                  <div class="template-description">
+                    {{ getTemplateDescription(template) }}
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div class="input-group">
-              <label>Description (Optional)</label>
-              <textarea
-                v-model="groupDescription"
-                placeholder="What's this group about?"
-                class="group-textarea"
-                maxlength="500"
-                rows="3"
-              ></textarea>
             </div>
           </div>
 
           <div class="step-footer">
-            <button class="next-btn" @click="nextStep" :disabled="!isDetailsValid">
+            <button class="back-btn-footer" @click="goBack">Back</button>
+            <button 
+              class="next-btn"
+              @click="nextStep"
+              :disabled="!isDetailsValid"
+            >
               Next
             </button>
           </div>
         </div>
 
-        <!-- Step 3: Group Permissions -->
-        <div v-if="currentStep === 3" class="step-permissions">
-          <div class="permission-templates">
-            <div class="templates-header">
-              <h4>Choose Group Type</h4>
-              <p>You can change these settings later</p>
-            </div>
-
-            <div class="template-options">
-              <div 
-                v-for="template in permissionTemplates"
-                :key="template.id"
-                class="template-option"
-                :class="{ active: selectedTemplate === template.id }"
-                @click="selectTemplate(template.id)"
-              >
-                <div class="template-icon">
-                  <Icon :name="template.icon" />
-                </div>
-                <div class="template-info">
-                  <div class="template-name">{{ template.name }}</div>
-                  <div class="template-description">{{ template.description }}</div>
-                </div>
-                <div class="template-radio">
-                  <div class="radio-dot" v-if="selectedTemplate === template.id"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="custom-permissions" v-if="selectedTemplate === 'custom'">
+        <!-- Step 3: Group Settings -->
+        <div v-if="currentStep === 3" class="step-settings">
+          <div class="permissions-section">
             <div class="permissions-header">
               <h4>Custom Permissions</h4>
             </div>
@@ -190,6 +202,7 @@
           </div>
 
           <div class="step-footer">
+            <button class="back-btn-footer" @click="goBack">Back</button>
             <button 
               class="create-btn"
               @click="createGroup"
@@ -200,22 +213,13 @@
           </div>
         </div>
       </div>
-
-      <!-- Hidden file input -->
-      <input
-        ref="avatarInput"
-        type="file"
-        accept="image/*"
-        @change="handleAvatarSelect"
-        style="display: none"
-      />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useChatStore } from '@/stores/chatStore'
+import { useChatStore } from '@/stores/chat'
 import Icon from '@/components/ui/Icon.vue'
 import ContactItem from './ContactItem.vue'
 
@@ -275,46 +279,13 @@ const offlineContacts = computed(() =>
 )
 
 const isDetailsValid = computed(() => {
-  return groupName.value.trim().length > 0 && !groupNameError.value
+  return groupName.value.trim().length > 0 && groupName.value.trim().length <= 50
 })
-
-const permissionTemplates = computed(() => [
-  {
-    id: 'open',
-    name: 'Open Group',
-    description: 'Anyone can message, add members, and change basic info',
-    icon: 'unlock'
-  },
-  {
-    id: 'moderated',
-    name: 'Moderated Group',
-    description: 'Only admins can add/remove members and change group info',
-    icon: 'shield'
-  },
-  {
-    id: 'restricted',
-    name: 'Restricted Group',
-    description: 'Only admins can message and manage the group',
-    icon: 'lock'
-  },
-  {
-    id: 'announcement',
-    name: 'Announcement Group',
-    description: 'Only admins can send messages, members can only read',
-    icon: 'megaphone'
-  },
-  {
-    id: 'custom',
-    name: 'Custom Settings',
-    description: 'Configure permissions manually',
-    icon: 'settings'
-  }
-])
 
 const customPermissions = computed(() => [
   {
     key: 'onlyAdminsCanMessage',
-    name: 'Only admins can send messages',
+    name: 'Only admins can message',
     description: 'Restrict messaging to group admins only'
   },
   {
@@ -402,77 +373,49 @@ const selectGroupAvatar = () => {
   avatarInput.value?.click()
 }
 
-const handleAvatarSelect = (event) => {
-  const file = event.target.files[0]
+const handleAvatarUpload = (event) => {
+  const file = event.target.files?.[0]
   if (file) {
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      alert('Image size must be less than 5MB')
-      return
-    }
-    
     groupAvatar.value = file
-    groupAvatarPreview.value = URL.createObjectURL(file)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      groupAvatarPreview.value = e.target?.result
+    }
+    reader.readAsDataURL(file)
   }
 }
 
-const selectTemplate = (templateId) => {
-  selectedTemplate.value = templateId
-  
-  // Set default permissions based on template
-  const templates = {
-    open: {
-      onlyAdminsCanMessage: false,
-      onlyAdminsCanAddMembers: false,
-      onlyAdminsCanRemoveMembers: false,
-      onlyAdminsCanChangeGroupInfo: false,
-      allowMemberExit: true,
-      readReceipts: true
-    },
-    moderated: {
-      onlyAdminsCanMessage: false,
-      onlyAdminsCanAddMembers: true,
-      onlyAdminsCanRemoveMembers: true,
-      onlyAdminsCanChangeGroupInfo: true,
-      allowMemberExit: true,
-      readReceipts: true
-    },
-    restricted: {
-      onlyAdminsCanMessage: true,
-      onlyAdminsCanAddMembers: true,
-      onlyAdminsCanRemoveMembers: true,
-      onlyAdminsCanChangeGroupInfo: true,
-      allowMemberExit: false,
-      readReceipts: true
-    },
-    announcement: {
-      onlyAdminsCanMessage: true,
-      onlyAdminsCanAddMembers: true,
-      onlyAdminsCanRemoveMembers: true,
-      onlyAdminsCanChangeGroupInfo: true,
-      allowMemberExit: true,
-      readReceipts: false
-    }
+const selectTemplate = (template) => {
+  selectedTemplate.value = template
+}
+
+const getTemplateDescription = (template) => {
+  const descriptions = {
+    open: 'Anyone can find and join',
+    closed: 'Members must be invited',
+    secret: 'Hidden from search, invite only'
   }
-  
-  if (templates[templateId]) {
-    groupPermissions.value = { ...templates[templateId] }
-  }
+  return descriptions[template] || ''
 }
 
 const createGroup = async () => {
-  if (isCreating.value) return
+  validateGroupName()
   
-  isCreating.value = true
+  if (groupNameError.value) {
+    return
+  }
   
   try {
+    isCreating.value = true
+    
     const groupData = {
-      name: groupName.value.trim(),
-      description: groupDescription.value.trim(),
+      name: groupName.value,
+      description: groupDescription.value,
+      type: selectedTemplate.value,
       participantIds: selectedContacts.value.map(c => c.id),
       permissions: groupPermissions.value
     }
     
-    // Handle avatar upload
     if (groupAvatar.value) {
       const formData = new FormData()
       formData.append('name', groupData.name)
@@ -590,25 +533,28 @@ onMounted(() => {
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #666;
-  width: 16px;
-  height: 16px;
+  color: #999;
+  pointer-events: none;
 }
 
 .contacts-list {
-  max-height: 400px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .selected-contacts {
-  margin-bottom: 20px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
 }
 
 .selected-header {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #666;
   margin-bottom: 8px;
+  text-transform: uppercase;
 }
 
 .selected-chips {
@@ -620,13 +566,12 @@ onMounted(() => {
 .contact-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #e3f2fd;
-  border: 1px solid #1976d2;
+  gap: 6px;
+  background: white;
+  border: 1px solid #e0e0e0;
   border-radius: 20px;
   padding: 4px 8px 4px 4px;
-  font-size: 12px;
-  color: #1976d2;
+  font-size: 13px;
 }
 
 .contact-chip img {
@@ -639,199 +584,157 @@ onMounted(() => {
 .contact-chip button {
   background: none;
   border: none;
-  color: #1976d2;
-  cursor: pointer;
   padding: 2px;
-  border-radius: 50%;
+  cursor: pointer;
+  color: #999;
   display: flex;
   align-items: center;
-  justify-content: center;
 }
 
 .contact-chip button:hover {
-  background: rgba(25, 118, 210, 0.1);
+  color: #333;
+}
+
+.available-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .contacts-section {
-  margin-bottom: 16px;
-}
-
-.section-header {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
-.no-contacts {
-  text-align: center;
-  padding: 40px 20px;
-  color: #666;
-}
-
-.no-contacts svg {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 12px;
-  opacity: 0.5;
-}
-
-.step-footer {
-  border-top: 1px solid #e0e0e0;
-  padding: 16px 0 0;
-  margin-top: 20px;
-}
-
-.next-btn,
-.create-btn {
-  width: 100%;
-  background: #1976d2;
-  color: white;
-  border: none;
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.next-btn:hover:not(:disabled),
-.create-btn:hover:not(:disabled) {
-  background: #1565c0;
-}
-
-.next-btn:disabled,
-.create-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.group-avatar-section {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.avatar-container {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 2px dashed #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  margin: 0 auto;
-  transition: border-color 0.2s;
-  overflow: hidden;
-}
-
-.avatar-container:hover {
-  border-color: #1976d2;
-}
-
-.avatar-placeholder {
-  text-align: center;
-  color: #666;
-}
-
-.avatar-placeholder svg {
-  width: 24px;
-  height: 24px;
-  margin-bottom: 4px;
-}
-
-.avatar-placeholder span {
-  font-size: 12px;
-}
-
-.avatar-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.input-group {
-  margin-bottom: 20px;
-}
-
-.input-group label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.group-input,
-.group-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  outline: none;
-  font-size: 14px;
-  transition: border-color 0.2s;
-  font-family: inherit;
-}
-
-.group-input:focus,
-.group-textarea:focus {
-  border-color: #1976d2;
-}
-
-.group-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.input-error {
-  color: #f44336;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.permission-templates {
-  margin-bottom: 24px;
-}
-
-.templates-header {
-  margin-bottom: 16px;
-}
-
-.templates-header h4 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.templates-header p {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-}
-
-.template-options {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.template-option {
+.section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  padding: 0 8px;
+}
+
+.no-contacts {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: #1976d2;
+}
+
+.char-count {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  text-align: right;
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.avatar-upload {
+  display: flex;
+  gap: 12px;
+}
+
+.avatar-preview,
+.avatar-placeholder {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  border: 2px dashed #e0e0e0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  flex-direction: column;
+  gap: 8px;
+  color: #999;
+  transition: border-color 0.2s;
+}
+
+.avatar-placeholder:hover {
+  border-color: #1976d2;
+}
+
+.remove-avatar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-options {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  padding: 16px;
+}
+
+.template-option {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
   border: 2px solid #e0e0e0;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .template-option:hover {
   border-color: #1976d2;
+  background: #f5f5f5;
 }
 
 .template-option.active {
@@ -842,8 +745,8 @@ onMounted(() => {
 .template-icon {
   width: 40px;
   height: 40px;
+  border-radius: 8px;
   background: #f5f5f5;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -863,44 +766,26 @@ onMounted(() => {
 .template-name {
   font-weight: 600;
   color: #333;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .template-description {
   font-size: 13px;
-  color: #666;
-  line-height: 1.4;
+  color: #999;
 }
 
-.template-radio {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e0e0e0;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.permissions-section {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 16px;
 }
 
-.template-option.active .template-radio {
-  border-color: #1976d2;
-}
-
-.radio-dot {
-  width: 10px;
-  height: 10px;
-  background: #1976d2;
-  border-radius: 50%;
-}
-
-.custom-permissions {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 20px;
+.permissions-header {
+  margin-bottom: 16px;
 }
 
 .permissions-header h4 {
-  margin: 0 0 16px 0;
+  margin: 0;
   font-size: 16px;
   color: #333;
 }
@@ -908,14 +793,16 @@ onMounted(() => {
 .permission-items {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .permission-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
 }
 
 .permission-info {
@@ -923,15 +810,18 @@ onMounted(() => {
 }
 
 .permission-name {
-  font-weight: 500;
+  font-weight: 600;
   color: #333;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .permission-description {
   font-size: 13px;
-  color: #666;
-  line-height: 1.4;
+  color: #999;
+}
+
+.permission-toggle {
+  margin-left: 12px;
 }
 
 .toggle-switch {
@@ -955,19 +845,19 @@ onMounted(() => {
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  transition: 0.2s;
+  transition: 0.3s;
   border-radius: 24px;
 }
 
 .toggle-slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: 0.2s;
+  transition: 0.3s;
   border-radius: 50%;
 }
 
@@ -979,36 +869,62 @@ input:checked + .toggle-slider:before {
   transform: translateX(20px);
 }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .group-creator-overlay {
-    padding: 10px;
-  }
-  
+.step-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.next-btn,
+.create-btn,
+.back-btn-footer {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.next-btn,
+.create-btn {
+  background: #1976d2;
+  color: white;
+}
+
+.next-btn:hover:not(:disabled),
+.create-btn:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+.next-btn:disabled,
+.create-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.back-btn-footer {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.back-btn-footer:hover {
+  background: #e0e0e0;
+}
+
+@media (max-width: 600px) {
   .group-creator {
-    max-height: 95vh;
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
   }
   
   .creator-content {
     padding: 16px;
-  }
-  
-  .contacts-list {
-    max-height: 300px;
-  }
-  
-  .avatar-container {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .template-option {
-    padding: 12px;
-  }
-  
-  .template-icon {
-    width: 32px;
-    height: 32px;
   }
 }
 </style>
