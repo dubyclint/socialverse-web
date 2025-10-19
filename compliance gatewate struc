@@ -1,0 +1,64 @@
+compliance-gateway/
+├── package.json
+├── .env.example
+├── .gitignore
+├── README.md
+├── Dockerfile
+├── docker-compose.yml
+├── src/
+│   ├── server.js
+│   ├── app.js
+│   ├── config/
+│   │   ├── database.js
+│   │   ├── redis.js
+│   │   └── logger.js
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── complianceController.js
+│   │   ├── policyController.js
+│   │   ├── geoController.js
+│   │   ├── sanctionsController.js
+│   │   ├── auditController.js
+│   │   └── dashboardController.js
+│   ├── middleware/
+│   │   ├── auth.js
+│   │   ├── validation.js
+│   │   ├── rateLimit.js
+│   │   └── compliance.js
+│   ├── models/
+│   │   ├── User.js
+│   │   ├── Policy.js
+│   │   ├── AuditLog.js
+│   │   ├── GeoRestriction.js
+│   │   └── ABTest.js
+│   ├── routes/
+│   │   ├── index.js
+│   │   ├── auth.js
+│   │   ├── compliance.js
+│   │   ├── policies.js
+│   │   ├── geo.js
+│   │   ├── sanctions.js
+│   │   ├── audit.js
+│   │   └── dashboard.js
+│   ├── services/
+│   │   ├── PolicyEngine.js
+│   │   ├── GeoService.js
+│   │   ├── SanctionsService.js
+│   │   ├── ABTestService.js
+│   │   └── AuditService.js
+│   ├── utils/
+│   │   ├── encryption.js
+│   │   ├── validators.js
+│   │   ├── helpers.js
+│   │   └── constants.js
+│   ├── database/
+│   │   ├── migrations/
+│   │   ├── seeds/
+│   │   └── connection.js
+│   └── dashboard/
+│       ├── public/
+│       ├── views/
+│       └── assets/
+├── tests/
+├── docs/
+└── scripts/
