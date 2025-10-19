@@ -272,7 +272,7 @@ const onlineChats = computed(() =>
   filteredChats.value.filter(chat => 
     chat.type === 'direct' && 
     chat.isOnline && 
-    chat.unreadCount === 0 && 
+    chat.unreadCount === 0 &&
     !chat.isPinned
   )
 )
@@ -309,13 +309,6 @@ const viewedStatusUpdates = computed(() =>
 const unviewedStatusCount = computed(() => recentStatusUpdates.value.length)
 
 const callHistory = computed(() => {
-  // This would come from
-<!-- components/chat/ChatSidebar.vue (continued) -->
-<script setup>
-// ... previous code ...
-
-const callHistory = computed(() => {
-  // This would come from call store
   return userStore.callHistory || []
 })
 
