@@ -63,7 +63,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/user'
 import Icon from '@/components/ui/Icon.vue'
 
 // Props
@@ -307,5 +307,3 @@ onUnmounted(() => {
   }
 }
 </style>
-
-
