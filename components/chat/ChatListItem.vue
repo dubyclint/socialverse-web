@@ -107,7 +107,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow } from 'date-fns'
 import Icon from '@/components/ui/Icon.vue'
 
