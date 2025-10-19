@@ -1,3 +1,9 @@
+// ============================================================================
+// nuxt.config.ts - COMPLETE NUXT CONFIGURATION (FIXED)
+// ============================================================================
+// Place this file at: /nuxt.config.ts
+// This is the complete, production-ready configuration with all fixes applied
+
 export default defineNuxtConfig({
   // App metadata
   app: {
@@ -95,7 +101,7 @@ export default defineNuxtConfig({
 
   // Pinia state management
   pinia: {
-    storesDirs: ['./stores/**', './custom-folder/stores/**'],
+    storesDirs: ['./stores/**'],
     autoImports: [
       'defineStore',
       ['defineStore', 'definePiniaStore']
@@ -216,7 +222,7 @@ export default defineNuxtConfig({
     }
   },
 
-  // Vite configuration
+  // Vite configuration - FIXED FOR BUILD ERRORS
   vite: {
     define: {
       global: 'globalThis'
@@ -235,6 +241,14 @@ export default defineNuxtConfig({
         compress: {
           drop_console: process.env.NODE_ENV === 'production'
         }
+      },
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'socket-io': ['socket.io-client'],
+            'chart': ['chart.js']
+          }
+        }
       }
     }
   },
@@ -250,8 +264,10 @@ export default defineNuxtConfig({
     asyncEntry: true
   },
 
-  // Plugins
+  // Plugins - FIXED: Only include existing plugins
   plugins: [
+    '~/plugins/auth.client.ts',
+    '~/plugins/translation.client.js',
     '~/plugins/socket.client.ts',
     '~/plugins/chart.client.ts'
   ],
