@@ -111,8 +111,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSocket } from '@/composables/useSocket'
-import { useChatStore } from '@/stores/chatStore'
-import { useUserStore } from '@/stores/userStore'
+import { useChatStore } from '@/stores/chat'
+import { useUserStore } from '@/stores/user'
 
 // Components
 import ChatHeader from './ChatHeader.vue'
