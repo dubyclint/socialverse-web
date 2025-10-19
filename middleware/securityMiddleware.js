@@ -105,7 +105,7 @@ export const checkAccountSuspension = async (req, res, next) => {
       });
     }
 
-    next();*_
+    next();
   } catch (error) {
     console.error('Error in account suspension check middleware:', error);
     next(); // Continue on error to avoid blocking legitimate users
