@@ -1,5 +1,21 @@
 export default defineNuxtConfig({
-  // Node.js server output for Socket.io
+  // App metadata
+  app: {
+    head: {
+      title: 'SocialVerse - Live Streaming Platform',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'Connect, stream, and share with SocialVerse' },
+        { name: 'theme-color', content: '#000000' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    }
+  },
+
+  // Nitro server configuration
   nitro: {
     preset: 'node-server',
     port: process.env.PORT || 8080,
@@ -7,10 +23,16 @@ export default defineNuxtConfig({
     experimental: {
       wasm: true
     },
-    plugins: ['~/server/plugins/socket.ts']
+    plugins: ['~/server/plugins/socket.ts'],
+    storage: {
+      redis: {
+        driver: 'redis',
+        url: process.env.REDIS_URL || 'redis://localhost:6379'
+      }
+    }
   },
 
-  // Modules
+  // Modules configuration
   modules: [
     '@pinia/nuxt',
     '@nuxtjs/supabase',
@@ -20,7 +42,7 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode'
   ],
 
-  // i18n v7 Configuration - UPDATED
+  // i18n v7 Configuration - Production Ready
   i18n: {
     strategy: 'prefix_except_default',
     locales: [
@@ -71,7 +93,7 @@ export default defineNuxtConfig({
     }
   },
 
-  // Pinia configuration
+  // Pinia state management
   pinia: {
     storesDirs: ['./stores/**', './custom-folder/stores/**'],
     autoImports: [
@@ -101,6 +123,7 @@ export default defineNuxtConfig({
 
   // Runtime configuration
   runtimeConfig: {
+    // Private keys (server-side only)
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY,
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
@@ -112,7 +135,9 @@ export default defineNuxtConfig({
     smtpPort: process.env.SMTP_PORT,
     smtpUser: process.env.SMTP_USER,
     smtpPass: process.env.SMTP_PASS,
+    redisUrl: process.env.REDIS_URL,
 
+    // Public keys (client-side accessible)
     public: {
       supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
@@ -124,14 +149,30 @@ export default defineNuxtConfig({
       maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'),
       allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(',') || [],
 
+      // Role-based access control configuration
       rbac: {
         roles: {
           user: {
-            permissions: ['read:posts', 'create:posts', 'update:own_posts', 'delete:own_posts', 'read:profile', 'update:own_profile'],
+            permissions: [
+              'read:posts',
+              'create:posts',
+              'update:own_posts',
+              'delete:own_posts',
+              'read:profile',
+              'update:own_profile'
+            ],
             routes: ['/feed', '/profile', '/chat', '/explore', '/inbox', '/trade']
           },
           manager: {
-            permissions: ['read:posts', 'create:posts', 'update:posts', 'delete:posts', 'read:users', 'update:users', 'read:analytics'],
+            permissions: [
+              'read:posts',
+              'create:posts',
+              'update:posts',
+              'delete:posts',
+              'read:users',
+              'update:users',
+              'read:analytics'
+            ],
             routes: ['/feed', '/profile', '/chat', '/explore', '/inbox', '/trade', '/manager/*']
           },
           admin: {
@@ -159,28 +200,20 @@ export default defineNuxtConfig({
     transpile: ['chart.js', 'socket.io-client', 'emoji-js']
   },
 
-  // App configuration
-  app: {
-    head: {
-      title: 'SocialVerse - Live Streaming Platform',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Connect, stream, and share with SocialVerse' }
-      ],
-      link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
-      ]
-    }
-  },
-
   // Development tools
-  devtools: { enabled: true },
+  devtools: {
+    enabled: true
+  },
 
   // TypeScript configuration
   typescript: {
     strict: true,
-    typeCheck: false
+    typeCheck: false,
+    tsConfig: {
+      compilerOptions: {
+        types: ['node', '@nuxt/devtools']
+      }
+    }
   },
 
   // Vite configuration
@@ -195,6 +228,14 @@ export default defineNuxtConfig({
       hmr: {
         port: 24678
       }
+    },
+    build: {
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: process.env.NODE_ENV === 'production'
+        }
+      }
     }
   },
 
@@ -205,7 +246,8 @@ export default defineNuxtConfig({
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
-    serverComponents: true
+    serverComponents: true,
+    asyncEntry: true
   },
 
   // Plugins
@@ -214,7 +256,7 @@ export default defineNuxtConfig({
     '~/plugins/chart.client.ts'
   ],
 
-  // Auto-imports
+  // Auto-imports configuration
   imports: {
     dirs: [
       'composables/**',
@@ -243,8 +285,21 @@ export default defineNuxtConfig({
     }
   ],
 
-  // Enhanced router for RBAC
+  // Router configuration with RBAC middleware
   router: {
     middleware: ['auth-check']
+  },
+
+  // Tailwind CSS configuration
+  tailwindcss: {
+    exposeConfig: true,
+    viewer: true
+  },
+
+  // Color mode configuration
+  colorMode: {
+    preference: 'system',
+    fallback: 'light',
+    classSuffix: ''
   }
 })
