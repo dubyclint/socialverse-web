@@ -312,7 +312,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/user'
 import Icon from '@/components/ui/Icon.vue'
 import SettingsItem from './SettingsItem.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
@@ -786,11 +786,8 @@ onMounted(() => {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .settings-overlay {
-    padding: 10px;
-  }
-  
   .settings-panel {
+    max-width: 100%;
     max-height: 95vh;
   }
   
