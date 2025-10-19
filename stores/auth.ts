@@ -427,99 +427,8 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('Sign out error:', error)
       }
-    },    // Clear auth state
-    clearAuth() {
-      this.user = null
-      this.profile = null
-      this.permissions = []
-      this.lastRoleCheck = null
-      this.sessionValid = false
-      this.loading = false
     },
 
-    // Check if user needs to verify email
-    needsEmailVerification(): boolean {
-      return this.user && !this.user.email_confirmed_at
-    },
-
-    // Send email verification
-    async sendEmailVerification() {
-      if (!this.user?.email) return { success: false, error: 'No email found' }
-
-      const supabase = useSupabaseClient()
-      
-      try {
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email: this.user.email
-        })
-
-        if (error) throw error
-
-        return { success: true }
-        
-      } catch (error) {
-        console.error('Email verification error:', error)
-        return { success: false, error: error.message }
-      }
-    },
-
-    // Update password
-    async updatePassword(newPassword: string) {
-      const supabase = useSupabaseClient()
-      
-      try {
-        const { error } = await supabase.auth.updateUser({
-          password: newPassword
-        })
-
-        if (error) throw error
-
-        await this.logAuditAction('password_updated', 'user', this.user!.id)
-
-        return { success: true }
-        
-      } catch (error) {
-        console.error('Password update error:', error)
-        return { success: false, error: error.message }
-      }
-    },
-
-    // Delete account
-    async deleteAccount() {
-      if (!this.user) return { success: false, error: 'Not authenticated' }
-
-      const supabase = useSupabaseClient()
-      
-      try {
-        // Log the account deletion
-        await this.logAuditAction('account_deleted', 'user', this.user.id)
-
-        // Delete user profile (cascade will handle related data)
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', this.user.id)
-
-        if (profileError) throw profileError
-
-        // Sign out
-        await this.signOut()
-
-        return { success: true }
-        
-      } catch (error) {
-        console.error('Account deletion error:', error)
-        return { success: false, error: error.message }
-      }
-    }
-  }
-})
-
-
-    // Clear auth state
-    clearAuth() {
-      this.user*
     // Clear auth state
     clearAuth() {
       this.user = null
@@ -608,4 +517,3 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 })
-
