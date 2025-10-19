@@ -47,6 +47,7 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.SUPABASE_URL || '',
       supabaseKey: process.env.SUPABASE_KEY || '',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse.app',
     },
   },
 
@@ -54,8 +55,9 @@ export default defineNuxtConfig({
 
   nitro: {
     prerender: {
-      crawlLinks: true,
+      crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
+      ignore: ['/admin', '/api'],
     },
   },
 
@@ -74,4 +76,5 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2024-10-19',
-});
+})
+
