@@ -34,7 +34,7 @@
                 <button
                   v-for="badge in verificationBadges"
                   :key="badge.badge_type"
-                  @click="showVerificationDetails(badge)"
+                  @click="openVerificationDetails(badge)"
                   class="verification-badge"
                   :class="`badge-${badge.badge_type}`"
                   :title="`${badge.badge_type.replace('_', ' ').toUpperCase()} - Click for details`"
@@ -523,7 +523,6 @@ const loadProfile = async () => {
     
   } catch (error) {
     console.error('Error loading profile:', error)
-    // Handle error (show toast, redirect, etc.)
   } finally {
     loading.value = false
   }
@@ -582,7 +581,8 @@ const handleAvatarUploaded = (avatarUrl) => {
   showAvatarUpload.value = false
 }
 
-const showVerificationDetails = (badge) => {
+// FIXED: Renamed function to avoid naming conflict with ref
+const openVerificationDetails = (badge) => {
   selectedBadge.value = badge
   showVerificationDetails.value = true
 }
@@ -603,7 +603,6 @@ const handleLogout = async () => {
 }
 
 const toggleFollow = async () => {
-  // Implement follow/unfollow logic
   try {
     if (isFollowing.value) {
       // Unfollow logic
@@ -709,48 +708,54 @@ watch(() => route.params.id, () => {
   color: white;
 }
 
+.profile-picture-section {
+  flex-shrink: 0;
+}
+
 .profile-picture-container {
   position: relative;
+  width: 150px;
+  height: 150px;
 }
 
 .profile-picture {
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 4px solid white;
   object-fit: cover;
+  border: 4px solid white;
 }
 
 .profile-picture-placeholder {
-  width: 120px;
-  height: 120px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 4px solid white;
   background: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 4px solid white;
 }
 
 .edit-avatar-btn {
   position: absolute;
   bottom: 0;
   right: 0;
-  background: #4f46e5;
-  color: white;
-  border: none;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  width: 36px;
-  height: 36px;
+  background: #667eea;
+  border: 2px solid white;
+  color: white;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background 0.2s;
 }
 
 .edit-avatar-btn:hover {
-  background: #4338ca;
+  background: #764ba2;
 }
 
 .profile-info {
@@ -763,91 +768,83 @@ watch(() => route.params.id, () => {
 
 .profile-name {
   font-size: 2rem;
-  font-weight: bold;
-  margin: 0 0 0.5rem 0;
+  font-weight: 700;
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .verification-badges {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .verification-badge {
-  position: relative;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  color: white;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 0.875rem;
 }
 
 .verification-badge:hover {
   background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .badge-level {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #fbbf24;
-  color: #92400e;
-  font-size: 10px;
-  font-weight: bold;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
 }
 
 .profile-username {
-  font-size: 1.1rem;
+  font-size: 1rem;
+  margin: 0.5rem 0 0 0;
   opacity: 0.9;
-  margin: 0;
 }
 
 .user-rank {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
-  opacity: 0.8;
+  font-size: 0.875rem;
   margin-top: 0.5rem;
+  opacity: 0.9;
 }
 
 .rank-points {
-  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
 .profile-stats {
   display: flex;
   gap: 2rem;
-  margin-bottom: 1.5rem;
+  margin: 1.5rem 0;
 }
 
 .stat-item {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .stat-number {
-  display: block;
   font-size: 1.5rem;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .stat-label {
-  font-size: 0.9rem;
-  opacity: 0.8;
+  font-size: 0.875rem;
+  opacity: 0.9;
 }
 
 .profile-actions {
@@ -857,31 +854,30 @@ watch(() => route.params.id, () => {
 }
 
 .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  display: flex;
+  transition: all 0.2s;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s;
-  text-decoration: none;
 }
 
 .btn-primary {
-  background: #4f46e5;
+  background: #667eea;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #4338ca;
+  background: #5568d3;
 }
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.2);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .btn-secondary:hover {
@@ -897,58 +893,66 @@ watch(() => route.params.id, () => {
   background: #dc2626;
 }
 
-.create-post-btn {
-  background: #10b981;
+.btn-outline {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
 }
 
-.create-post-btn:hover {
-  background: #059669;
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.logout-btn {
-  margin-left: auto;
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
 }
 
 .profile-bio-section {
   padding: 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.bio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .bio-text {
-  font-size: 1.1rem;
+  font-size: 1rem;
   line-height: 1.6;
-  margin-bottom: 1.5rem;
-  color: #374151;
+  color: #333;
+  margin: 0;
 }
 
 .bio-details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
-  margin-bottom: 1.5rem;
 }
 
 .bio-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   padding: 0.75rem;
   background: #f9fafb;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .bio-label {
-  font-weight: 500;
-  color: #6b7280;
+  font-weight: 600;
+  color: #666;
   min-width: 80px;
 }
 
 .bio-value {
-  color: #374151;
+  color: #333;
 }
 
 .bio-link {
-  color: #4f46e5;
+  color: #667eea;
   text-decoration: none;
 }
 
@@ -957,20 +961,23 @@ watch(() => route.params.id, () => {
 }
 
 .bio-section {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .bio-section-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.1rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.75rem;
+  color: #666;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.skills-tags_
 .skills-tags,
 .interests-tags {
   display: flex;
@@ -980,9 +987,10 @@ watch(() => route.params.id, () => {
 
 .skill-tag,
 .interest-tag {
+  display: inline-block;
+  padding: 0.5rem 1rem;
   background: #e0e7ff;
-  color: #4338ca;
-  padding: 0.25rem 0.75rem;
+  color: #667eea;
   border-radius: 20px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -990,7 +998,7 @@ watch(() => route.params.id, () => {
 
 .interest-tag {
   background: #fce7f3;
-  color: #be185d;
+  color: #ec4899;
 }
 
 .social-links {
@@ -1000,20 +1008,20 @@ watch(() => route.params.id, () => {
 }
 
 .social-link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: #f3f4f6;
-  border-radius: 8px;
+  border-radius: 6px;
+  color: #333;
   text-decoration: none;
-  color: #374151;
   transition: all 0.2s;
 }
 
 .social-link:hover {
   background: #e5e7eb;
-  transform: translateY(-1px);
+  color: #667eea;
 }
 
 .kyc-status {
@@ -1023,72 +1031,67 @@ watch(() => route.params.id, () => {
 }
 
 .kyc-level {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
   font-weight: 600;
+  font-size: 0.875rem;
 }
 
 .kyc-basic {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.kyc-k2_level_1 {
   background: #dbeafe;
   color: #1e40af;
 }
 
+.kyc-k2_level_1 {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .kyc-k2_level_2 {
-  background: #d1fae5;
-  color: #065f46;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .profile-tabs {
-  background: white;
+  border-top: 1px solid #e5e7eb;
 }
 
 .tab-buttons {
   display: flex;
+  gap: 0;
+  padding: 0 2rem;
   border-bottom: 1px solid #e5e7eb;
 }
 
 .tab-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   padding: 1rem 1.5rem;
-  background: none;
+  background: transparent;
   border: none;
   cursor: pointer;
   font-weight: 500;
-  color: #6b7280;
+  color: #666;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
-}
-
-.tab-button:hover {
-  color: #374151;
-  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .tab-button.active {
-  color: #4f46e5;
-  border-bottom-color: #4f46e5;
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.tab-button:hover {
+  color: #333;
 }
 
 .tab-count {
-  background: #e5e7eb;
-  color: #6b7280;
-  padding: 0.125rem 0.5rem;
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.tab-button.active .tab-count {
-  background: #e0e7ff;
-  color: #4338ca;
 }
 
 .posts-tab,
@@ -1098,24 +1101,29 @@ watch(() => route.params.id, () => {
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
   text-align: center;
-  padding: 3rem 1rem;
-  color: #6b7280;
+  color: #999;
 }
 
 .empty-state h3 {
   font-size: 1.25rem;
-  font-weight: 600;
   margin: 1rem 0 0.5rem 0;
-  color: #374151;
+  color: #666;
 }
 
 .empty-state p {
-  margin-bottom: 1.5rem;
+  margin: 0 0 1rem 0;
+  color: #999;
 }
 
 .posts-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
@@ -1127,36 +1135,33 @@ watch(() => route.params.id, () => {
 
 .media-item {
   position: relative;
-  aspect-ratio: 1;
-  border-radius: 8px;
   overflow: hidden;
+  border-radius: 8px;
   cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.media-item:hover {
-  transform: scale(1.02);
+  aspect-ratio: 1;
 }
 
 .media-thumbnail {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.media-item:hover .media-thumbnail {
+  transform: scale(1.05);
 }
 
 .media-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: white;
   opacity: 0;
   transition: opacity 0.2s;
-  color: white;
 }
 
 .media-item:hover .media-overlay {
@@ -1164,8 +1169,9 @@ watch(() => route.params.id, () => {
 }
 
 .load-more-section {
-  text-align: center;
-  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
 }
 
 .spinning {
@@ -1173,40 +1179,54 @@ watch(() => route.params.id, () => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .profile-page {
-    padding: 1rem;
-  }
-  
   .profile-header {
     flex-direction: column;
+    align-items: center;
     text-align: center;
-    gap: 1rem;
   }
-  
+
+  .profile-picture-container {
+    width: 120px;
+    height: 120px;
+  }
+
+  .profile-name {
+    font-size: 1.5rem;
+  }
+
+  .profile-stats {
+    justify-content: center;
+  }
+
   .profile-actions {
     justify-content: center;
   }
-  
+
   .bio-details-grid {
     grid-template-columns: 1fr;
   }
-  
+
+  .posts-grid {
+    grid-template-columns: 1fr;
+  }
+
   .tab-buttons {
     overflow-x: auto;
+    padding: 0 1rem;
   }
-  
+
   .tab-button {
+    padding: 1rem;
     white-space: nowrap;
-  }
-  
-  .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 </style>
