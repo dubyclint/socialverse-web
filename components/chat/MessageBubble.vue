@@ -133,12 +133,12 @@
           <Icon name="info" />
           <span>{{ message.content }}</span>
         </div>
-      </div>
 
-      <!-- Deleted Message -->
-      <div v-else class="deleted-message-content">
-        <Icon name="trash-2" />
-        <span>This message was deleted</span>
+        <!-- Deleted Message -->
+        <div v-else class="deleted-message-content">
+          <Icon name="trash-2" />
+          <span>This message was deleted</span>
+        </div>
       </div>
 
       <!-- Message Footer -->
@@ -994,3 +994,5 @@ onUnmounted(() => {
   }
 }
 </style>
+
+
