@@ -30,7 +30,7 @@
           <!-- Profile Settings -->
           <div v-if="activeCategory === 'profile'" class="settings-section">
             <h3 class="section-title">Profile Settings</h3>
-            <p class="section-description">Manage your profile appearance and personal information</p>
+            <p class="section-description">Customize your profile appearance and preferences</p>
             
             <div class="setting-group">
               <div class="setting-item">
@@ -52,27 +52,24 @@
                 </div>
                 <select v-model="settings.profile.language" class="setting-select">
                   <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="zh">Chinese</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                  <option value="de">Deutsch</option>
+                  <option value="zh">中文</option>
                 </select>
               </div>
               
               <div class="setting-item">
                 <div class="setting-info">
                   <h4>Timezone</h4>
-                  <p>Set your local timezone</p>
+                  <p>Set your timezone for accurate timestamps</p>
                 </div>
                 <select v-model="settings.profile.timezone" class="setting-select">
                   <option value="UTC">UTC</option>
-                  <option value="America/New_York">Eastern Time</option>
-                  <option value="America/Chicago">Central Time</option>
-                  <option value="America/Denver">Mountain Time</option>
-                  <option value="America/Los_Angeles">Pacific Time</option>
-                  <option value="Europe/London">London</option>
-                  <option value="Europe/Paris">Paris</option>
-                  <option value="Asia/Tokyo">Tokyo</option>
+                  <option value="EST">Eastern Time</option>
+                  <option value="CST">Central Time</option>
+                  <option value="MST">Mountain Time</option>
+                  <option value="PST">Pacific Time</option>
                 </select>
               </div>
             </div>
@@ -80,11 +77,11 @@
             <div class="section-actions">
               <button @click="openProfileSettings" class="btn btn-primary">
                 <Icon name="user" size="16" />
-                Edit Profile Details
+                Edit Profile
               </button>
               <button @click="openVerificationApplication" class="btn btn-secondary">
-                <Icon name="shield-check" size="16" />
-                Verification Application
+                <Icon name="check-circle" size="16" />
+                Apply for Verification
               </button>
             </div>
           </div>
@@ -92,12 +89,12 @@
           <!-- Chat Settings -->
           <div v-if="activeCategory === 'chat'" class="settings-section">
             <h3 class="section-title">Chat Settings</h3>
-            <p class="section-description">Configure your messaging and communication preferences</p>
+            <p class="section-description">Manage your chat notifications and preferences</p>
             
             <div class="setting-group">
               <div class="setting-item">
                 <div class="setting-info">
-                  <h4>Chat Notifications</h4>
+                  <h4>Notifications</h4>
                   <p>Receive notifications for new messages</p>
                 </div>
                 <label class="toggle-switch">
@@ -112,8 +109,8 @@
               
               <div class="setting-item">
                 <div class="setting-info">
-                  <h4>Sound Notifications</h4>
-                  <p>Play sound when receiving messages</p>
+                  <h4>Sound Enabled</h4>
+                  <p>Play sound for incoming messages</p>
                 </div>
                 <label class="toggle-switch">
                   <input
@@ -143,7 +140,7 @@
               <div class="setting-item">
                 <div class="setting-info">
                   <h4>Online Status</h4>
-                  <p>Show when you're online to other users</p>
+                  <p>Show when you're online</p>
                 </div>
                 <label class="toggle-switch">
                   <input
@@ -157,8 +154,8 @@
               
               <div class="setting-item">
                 <div class="setting-info">
-                  <h4>Group Message Notifications</h4>
-                  <p>Receive notifications for group messages</p>
+                  <h4>Group Notifications</h4>
+                  <p>Get notified about group messages</p>
                 </div>
                 <label class="toggle-switch">
                   <input
@@ -182,16 +179,16 @@
           <!-- Post Settings -->
           <div v-if="activeCategory === 'post'" class="settings-section">
             <h3 class="section-title">Post Settings</h3>
-            <p class="section-description">Control how your posts are displayed and shared</p>
+            <p class="section-description">Control your post privacy and interaction settings</p>
             
             <div class="setting-group">
               <div class="setting-item">
                 <div class="setting-info">
                   <h4>Default Privacy</h4>
-                  <p>Default privacy setting for new posts</p>
+                  <p>Set the default privacy level for your posts</p>
                 </div>
                 <select v-model="settings.post.privacyDefault" class="setting-select">
-                  <option value="public">🌍 Public</option>
+                  <option value="public">🌐 Public</option>
                   <option value="friends">👥 Friends Only</option>
                   <option value="private">🔒 Private</option>
                 </select>
@@ -289,7 +286,6 @@
               
               <div class="setting-item">
                 <div class="setting-info">
-                  <h4>PEW Notifications</h4
                   <h4>PEW Notifications</h4>
                   <p>Get notified about PEW activities and gifts</p>
                 </div>
@@ -1067,7 +1063,7 @@ onMounted(() => {
 
 .toggle-slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 20px;
   width: 20px;
   left: 4px;
