@@ -220,7 +220,7 @@ const searchUsers = debounce(async () => {
 
 const selectUser = (user) => {
   selectedUser.value = user
-  selectedPermissions.value = ['manage_users', 'handle_reports'] // Default permissions
+  selectedPermissions.value = ['manage_users', 'handle_reports']
 }
 
 const assignManager = async () => {
@@ -317,9 +317,6 @@ const formatDateTime = (date) => {
   gap: 1.5rem;
 }
 
-.manager-card {
-  background: white;
-  padding
 .manager-card {
   background: white;
   padding: 1.5rem;
