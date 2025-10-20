@@ -1,4 +1,4 @@
-// gundb/client.js - SSR-Safe Version
+// plugins/gun-client.ts  - SSR-Safe Version
 // Initialize only on client side to prevent SSR errors
 
 let gun = null;
