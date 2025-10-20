@@ -1,4 +1,4 @@
-// client/composables/useGun.js
+// composables/useGun.js
 import Gun from 'gun/gun'
 import 'gun/sea'
 
