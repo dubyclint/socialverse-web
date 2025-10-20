@@ -1,4 +1,10 @@
-// composables/useGun.js
+
+import gun from '~/plugins/gun-client'
+import contract from '~/utils/smart-contracts/AdminControl.sol'
+
+
+
+
 import Gun from 'gun/gun'
 import 'gun/sea'
 
