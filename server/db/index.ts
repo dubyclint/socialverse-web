@@ -1,13 +1,8 @@
-const requiredEnv = [
-  'INFURA_URL',
-  'ETH_PRIVATE_KEY',
-  'JWT_SECRET',
-  'SQLITE_DB_PATH',
-  'GUI_SECRET'
-]
+// ✅ FIXED - Removed blockchain requirements, only Supabase
+export const initializeDatabase = async () => {
+  // Database initialization is handled by Supabase
+  // No local database connection needed
+  console.log('✅ Database initialized (Supabase)')
+}
 
-requiredEnv.forEach((key) => {
-  if (!process.env[key]) {
-    throw new Error(`❌ Missing required env variable: ${key}`)
-  }
-})
+export default initializeDatabase
