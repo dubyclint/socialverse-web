@@ -60,7 +60,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useEscrowContract } from '@/composables/useEscrowContract'
-import { useToast } from 'vue-toastification'
+
 
 const props = defineProps({
   search: String,
@@ -78,7 +78,7 @@ const sortAsc = ref(false)
 const showModal = ref(false)
 const selectedDealId = ref(null)
 const actionType = ref('')
-const toast = useToast()
+
 const { releaseDeal, refundDeal } = useEscrowContract()
 
 onMounted(async () => {
@@ -169,7 +169,8 @@ async function executeAction() {
       toast.success(`✅ Deal #${selectedDealId.value} refunded`)
     }
   } catch (err) {
-    toast.error(`❌ Failed to ${actionType.value} deal: ${err.message}`)
+    console.error(`Failed to load deals: ${err.message}`)
+    
   }
   cancelAction()
 }
