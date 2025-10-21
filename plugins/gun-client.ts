@@ -1,155 +1,215 @@
-// plugins/gun-client.ts  - SSR-Safe Version
-// Initialize only on client side to prevent SSR errors
-
-let gun = null;
-let user = null;
-let SEA = null;
-
-// SSR-safe initialization
-function initGun() {
-  if (typeof window === 'undefined') {
-    // Server-side: return mock to prevent errors
-    return null;
-  }
-  
-  if (!gun) {
-    // Client-side: use window.Gun from CDN
-    const Gun = window.Gun;
-    if (!Gun) {
-      console.warn('Gun not loaded. Make sure gun.min.js is loaded from CDN.');
-      return null;
-    }
+<template>
+  <div class="create-post">
+    <div class="create-form">
+      <textarea 
+        v-model="postContent" 
+        placeholder="What's on your mind?"
+        class="post-textarea"
+        rows="4"
+        maxlength="500"
+      ></textarea>
+      
+      <div class="post-actions">
+        <div class="media-buttons">
+          <button @click="addEmoji" class="emoji-btn">😀</button>
+          <button @click="addImage" class="image-btn">📷</button>
+          <button @click="addGif" class="gif-btn">GIF</button>
+        </div>
+        
+        <div class="post-controls">
+          <span class="char-count">{{ postContent.length }}/500</span>
+          <button 
+            @click="publishPost" 
+            :disabled="!postContent.trim()" 
+            class="publish-btn"
+          >
+            🚀 Pew
+          </button>
+        </div>
+      </div>
+    </div>
     
-    gun = Gun(['https://gun-messaging-peer.herokuapp.com/gun']);
-    SEA = Gun.SEA;
-  }
-  
-  return gun;
+    <div v-if="showEmojiPicker" class="emoji-picker">
+      <div class="emoji-grid">
+        <span 
+          v-for="emoji in popularEmojis" 
+          :key="emoji"
+          @click="insertEmoji(emoji)"
+          class="emoji-option"
+        >
+          {{ emoji }}
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import { gun } from '~/plugins/gun-client';
+
+const postContent = ref('');
+const showEmojiPicker = ref(false);
+
+const popularEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗'];
+
+const emit = defineEmits(['postCreated']);
+
+function addEmoji() {
+  showEmojiPicker.value = !showEmojiPicker.value;
 }
 
-// Create user instance for authentication - LAZY INITIALIZATION
-const getUser = () => {
-  const gunInstance = initGun();
-  if (!gunInstance) return null;
+function insertEmoji(emoji) {
+  postContent.value += emoji;
+  showEmojiPicker.value = false;
+}
+
+function addImage() {
+  // TODO: Implement image upload
+  alert('Image upload coming soon!');
+}
+
+function addGif() {
+  // TODO: Implement GIF picker
+  alert('GIF picker coming soon!');
+}
+
+function publishPost() {
+  if (!postContent.value.trim()) return;
   
-  if (!user) {
-    user = gunInstance.user();
-  }
-  return user;
-};
-
-// Helper functions for common operations
-const gunHelpers = {
-  // Get data from a specific path
-  async get(path) {
-    const gunInstance = initGun();
-    if (!gunInstance) return null;
-    
-    return new Promise((resolve) => {
-      gunInstance.get(path).once((data) => {
-        resolve(data);
-      });
-    });
-  },
-
-  // Set data at a specific path
-  set(path, data) {
-    const gunInstance = initGun();
-    if (!gunInstance) return;
-    
-    gunInstance.get(path).put(data);
-  },
-
-  // Authentication helpers
-  auth: {
-    async create(username, password) {
-      const userInstance = getUser();
-      if (!userInstance) throw new Error('Gun not available');
-      
-      return new Promise((resolve, reject) => {
-        userInstance.create(username, password, (ack) => {
-          if (ack.err) {
-            reject(new Error(ack.err));
-          } else {
-            resolve(ack);
-          }
-        });
-      });
-    },
-
-    async login(username, password) {
-      const userInstance = getUser();
-      if (!userInstance) throw new Error('Gun not available');
-      
-      return new Promise((resolve, reject) => {
-        userInstance.auth(username, password, (ack) => {
-          if (ack.err) {
-            reject(new Error(ack.err));
-          } else {
-            resolve(ack);
-          }
-        });
-      });
-    },
-
-    logout() {
-      const userInstance = getUser();
-      if (userInstance) {
-        userInstance.leave();
-      }
-    },
-
-    getCurrentUser() {
-      const userInstance = getUser();
-      return userInstance ? userInstance.is : null;
-    }
-  },
-
-  // Post operations
-  posts: {
-    create(postData) {
-      const gunInstance = initGun();
-      const userInstance = getUser();
-      if (!gunInstance) return null;
-      
-      const post = {
-        ...postData,
-        id: window.Gun ? window.Gun.node.lex : Date.now().toString(),
-        timestamp: window.Gun ? window.Gun.state() : Date.now(),
-        author: userInstance?.is?.pub || 'anonymous'
-      };
-      
+  const post = {
+    content: postContent.value,
+    timestamp: Date.now(),
+    author: 'current_user', // Replace with actual user data
+    likes: 0,
+    comments: 0,
+    id: Date.now().toString()
+  };
+  
+  // Store in GunDB - only on client side
+  if (process.client) {
+    const gunInstance = gun();
+    if (gunInstance) {
       gunInstance.get('posts').set(post);
-      return post;
-    },
-
-    getAll(callback) {
-      const gunInstance = initGun();
-      if (!gunInstance) return;
-      
-      gunInstance.get('posts').map().on(callback);
-    },
-
-    getById(id, callback) {
-      const gunInstance = initGun();
-      if (!gunInstance) return;
-      
-      gunInstance.get('posts').get(id).on(callback);
     }
   }
-};
+  
+  // Emit event for parent component
+  emit('postCreated', post);
+  
+  // Clear form
+  postContent.value = '';
+  showEmojiPicker.value = false;
+}
+</script>
 
-// Export everything needed - maintain original exports
-export { initGun as gun, getUser as user, gunHelpers };
+<style scoped>
+.create-post {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
-// For SEA access
-export const getSEA = () => {
-  if (typeof window !== 'undefined' && window.Gun) {
-    return window.Gun.SEA;
-  }
-  return null;
-};
+.post-textarea {
+  width: 100%;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 
-// Default export for compatibility
-export default initGun;
+.post-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
 
+.post-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.media-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.media-buttons button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e1e5e9;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.media-buttons button:hover {
+  background: #f8fafc;
+  border-color: #2563eb;
+}
+
+.post-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.char-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.publish-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.publish-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.publish-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.emoji-picker {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 0.5rem;
+}
+
+.emoji-option {
+  padding: 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+  font-size: 1.5rem;
+}
+
+.emoji-option:hover {
+  background: #e5e7eb;
+}
+</style>
