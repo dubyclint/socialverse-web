@@ -46,7 +46,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { gun } from '~/gundb/client';
+import { gun } from '~/plugins/gun-client';
 
 const postContent = ref('');
 const showEmojiPicker = ref(false);
@@ -80,7 +80,7 @@ function publishPost() {
   const post = {
     content: postContent.value,
     timestamp: Date.now(),
-    author: 'current_user', // Replace with actual user data
+    author: 'current_user',
     likes: 0,
     comments: 0,
     id: Date.now().toString()
@@ -206,10 +206,10 @@ function publishPost() {
   cursor: pointer;
   border-radius: 4px;
   transition: background 0.2s;
+  font-size: 1.5rem;
 }
 
 .emoji-option:hover {
-  background: white;
+  background: #e5e7eb;
 }
 </style>
-
