@@ -43,9 +43,10 @@
     "markdown-it": "^14.1.0",
     "emoji-js": "^3.7.0",
     "date-fns": "^3.0.0",
-   "gun": "^0.2020.1241" ,
+    "gun": "^0.2020.1241",
     "vue-toastification": "^2.0.0"
-    "devDependencies": {
+  },
+  "devDependencies": {
     "@nuxt/devtools": "^2.6.5",
     "@typescript-eslint/eslint-plugin": "^6.13.2",
     "@typescript-eslint/parser": "^6.13.2",
@@ -62,4 +63,3 @@
     "npm": ">=9.0.0"
   }
 }
-
