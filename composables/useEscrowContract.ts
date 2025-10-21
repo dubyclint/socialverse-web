@@ -3,7 +3,7 @@ import EscrowDealABI from '@/abis/EscrowDeal.json'
 
 const ESCROW_CONTRACT_ADDRESS = '0xYourEscrowDealAddress'
 
-export function useEscrowContract() {
+export async function useEscrowContract() {
   const provider = new ethers.BrowserProvider(window.ethereum)
   const signer = await provider.getSigner()
   const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, EscrowDealABI, signer)
@@ -11,39 +11,37 @@ export function useEscrowContract() {
   // ✅ Create a new deal
   async function createDeal(seller: string, amount: bigint) {
     const tx = await contract.createDeal(seller, amount)
-    await tx.wait()
-    return tx.hash
+    return await tx.wait()
   }
 
-  // ✅ Release deal
-  async function releaseDeal(dealId: number) {
-    const tx = await contract.releaseDeal(dealId)
-    await tx.wait()
-    return tx.hash
+  // ✅ Approve a deal
+  async function approveDeal(dealId: bigint) {
+    const tx = await contract.approveDeal(dealId)
+    return await tx.wait()
   }
 
-  // ✅ Refund deal
-  async function refundDeal(dealId: number) {
+  // ✅ Reject a deal
+  async function rejectDeal(dealId: bigint) {
+    const tx = await contract.rejectDeal(dealId)
+    return await tx.wait()
+  }
+
+  // ✅ Refund a deal
+  async function refundDeal(dealId: bigint) {
     const tx = await contract.refundDeal(dealId)
-    await tx.wait()
-    return tx.hash
+    return await tx.wait()
   }
 
-  // ✅ Get deal info
-  async function getDeal(dealId: number) {
-    const deal = await contract.getDeal(dealId)
-    return {
-      buyer: deal[0],
-      seller: deal[1],
-      amount: deal[2].toString(),
-      status: Number(deal[3])
-    }
+  // ✅ Get pending deals
+  async function getPendingDeals() {
+    return await contract.getPendingDeals()
   }
 
   return {
     createDeal,
-    releaseDeal,
+    approveDeal,
+    rejectDeal,
     refundDeal,
-    getDeal
+    getPendingDeals
   }
 }
