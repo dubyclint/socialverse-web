@@ -1,6 +1,6 @@
 // server/api/middleware/auth.js
 import jwt from 'jsonwebtoken';
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../../../utils/supabase.ts';
 
 export const authenticateUser = async (event) => {
   const token = getCookie(event, 'auth-token') || getHeader(event, 'authorization')?.replace('Bearer ', '');
@@ -31,3 +31,6 @@ export const authenticateUser = async (event) => {
     });
   }
 };
+
+export const authMiddleware = authenticateUser;
+export default authenticateUser;
