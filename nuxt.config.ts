@@ -31,6 +31,8 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en-US',
     strategy: 'prefix_except_default',
+    lazy: true,
+    langDir: 'locales',
   },
 
   supabase: {
@@ -56,8 +58,6 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: false,
-      // Remove sitemap.xml and robots.txt from prerender routes
-      // They will be generated dynamically at runtime
       routes: [],
       ignore: ['/admin', '/api', '/sitemap.xml', '/robots.txt'],
     },
@@ -77,7 +77,21 @@ export default defineNuxtConfig({
     },
   },
 
+  vite: {
+    optimizeDeps: {
+      include: ['vue', 'vue-router', 'pinia'],
+    },
+  },
+
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+        },
+      },
+    },
+  },
+
   compatibilityDate: '2024-10-19',
 })
-
-
