@@ -1,13 +1,14 @@
-
-import gun from '~/plugins/gun-client'
-import contract from '~/utils/smart-contracts/AdminControl.sol'
-
-
-
-
 import Gun from 'gun/gun'
 import 'gun/sea'
 
-const gun = Gun(['https://gun-messaging-peer.herokuapp.com/gun'])
+// Connect to your local Nuxt server's Gun peer
+const gun = Gun({
+  peers: [
+    typeof window !== 'undefined' && window.location.origin 
+      ? `${window.location.origin}/gun`
+      : 'http://localhost:3000/gun'
+  ],
+})
 
 export default gun
+
