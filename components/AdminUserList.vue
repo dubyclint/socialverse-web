@@ -1,11 +1,14 @@
+<!-- components/AdminUserList.vue - FIXED -->
 <template>
   <div class="admin-user-list">
     <h3>Users</h3>
-    <ul>
-      <li v-for="user in users" :key="user._id">
-        {{ user.name }} - Verified: {{ user.isVerified ? '✔️' : '❌' }}
-        <button @click="toggleVerify(user._id, !user.isVerified)">
-          {{ user.isVerified ? 'Unverify' : 'Verify' }}
+    <div v-if="loading" class="loading">Loading...</div>
+    <div v-else-if="error" class="error">{{ error }}</div>
+    <ul v-else>
+      <li v-for="user in users" :key="user.id">
+        {{ user.name }} - Verified: {{ user.is_verified ? '✔️' : '❌' }}
+        <button @click="toggleVerify(user.id, !user.is_verified)">
+          {{ user.is_verified ? 'Unverify' : 'Verify' }}
         </button>
       </li>
     </ul>
@@ -16,18 +19,36 @@
 import { ref, onMounted } from 'vue'
 
 const users = ref([])
+const loading = ref(false)
+const error = ref(null)
+const api = useApi()
 
 onMounted(async () => {
-  const res = await fetch('http://localhost:3000/api/admin/users')
-  users.value = await res.json()
+  loading.value = true
+  try {
+    const result = await api.admin.getStats()
+    if (result.success) {
+      users.value = result.data.users || []
+    }
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    loading.value = false
+  }
 })
 
 async function toggleVerify(userId, verified) {
-  await fetch('http://localhost:3000/api/admin/verify-user', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, verified })
-  })
+  try {
+    const result = await api.admin.verifyUser(userId)
+    if (result.success) {
+      const user = users.value.find(u => u.id === userId)
+      if (user) {
+        user.is_verified = verified
+      }
+    }
+  } catch (err) {
+    error.value = err.message
+  }
 }
 </script>
 
@@ -35,5 +56,14 @@ async function toggleVerify(userId, verified) {
 .admin-user-list {
   border: 1px solid #ccc;
   padding: 1rem;
+}
+
+.loading, .error {
+  padding: 1rem;
+  text-align: center;
+}
+
+.error {
+  color: red;
 }
 </style>
