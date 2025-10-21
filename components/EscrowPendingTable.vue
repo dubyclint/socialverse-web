@@ -87,7 +87,8 @@ onMounted(async () => {
     const allDeals = await res.json()
     deals.value = allDeals
   } catch (err) {
-    toast.error(`Failed to load deals: ${err.message}`)
+    console.error(`Failed to load deals: ${err.message}`)
+    
   }
 })
 
