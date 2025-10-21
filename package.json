@@ -45,6 +45,7 @@
     "date-fns": "^3.0.0",
     "gun": "^0.2020.1241",
     "vue-toastification": "^1.7.14"
+    "ethers": "^6.0.0"
   },
   "devDependencies": {
     "@nuxt/devtools": "^2.6.5",
