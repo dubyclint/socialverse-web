@@ -1,3 +1,4 @@
+[
   {
     "inputs": [
       {
@@ -108,4 +109,4 @@
     "stateMutability": "view",
     "type": "function"
   }
-
+]
