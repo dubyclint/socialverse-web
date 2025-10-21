@@ -1,31 +1,68 @@
-// controllers/adminController.js
-import { supabase } from '../utils/supabase.js';
+// server/controllers/adminController.js
+// ✅ FIXED - Now uses master auth-utils
+import { supabase, logAdminAction } from '../utils/auth-utils.ts';
 
 export class AdminController {
-  // Get admin dashboard stats
   static async getDashboardStats(req, res) {
     try {
       const { data, error } = await supabase.rpc('get_admin_stats');
-      
       if (error) throw error;
-      
-      return res.status(200).json({
-        success: true,
-        data: data
-      });
+      return res.status(200).json({ success: true, data });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  // Adjust user balance
+  static async banUser(req, res) {
+    try {
+      const { user_id, reason } = req.body;
+      const admin_id = req.user.id;
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ is_banned: true, ban_reason: reason })
+        .eq('id', user_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      await logAdminAction(admin_id, 'user_ban', user_id, 'user', { reason });
+      
+      return res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Error banning user:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  static async verifyUser(req, res) {
+    try {
+      const { user_id } = req.body;
+      const admin_id = req.user.id;
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ is_verified: true, verified_at: new Date().toISOString() })
+        .eq('id', user_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      await logAdminAction(admin_id, 'user_verify', user_id, 'user');
+      
+      return res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Error verifying user:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   static async adjustUserBalance(req, res) {
     try {
       const { user_id, amount, action, reason } = req.body;
-      const admin_id = req.user.id; // From auth middleware
+      const admin_id = req.user.id;
 
-      // Record the adjustment
       const { data: adjustment, error: adjustmentError } = await supabase
         .from('balance_adjustments')
         .insert({
@@ -33,196 +70,90 @@ export class AdminController {
           amount,
           action,
           reason,
-          admin_id
+          admin_id,
+          created_at: new Date().toISOString()
         })
         .select()
         .single();
 
       if (adjustmentError) throw adjustmentError;
 
-      // Apply the balance change
+      const adjustmentAmount = action === 'add' ? amount : action === 'subtract' ? -amount : amount;
       const { error: balanceError } = await supabase.rpc('adjust_user_balance', {
         user_id,
-        adjustment: action === 'add' ? amount : action === 'subtract' ? -amount : amount,
+        adjustment: adjustmentAmount,
         set_balance: action === 'set'
       });
 
       if (balanceError) throw balanceError;
-
-      // Log admin action
-      await supabase.from('admin_actions').insert({
-        admin_id,
-        action_type: 'balance_adjustment',
-        target_id: user_id,
-        target_type: 'user',
-        details: { amount, action, reason }
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'Balance adjusted successfully',
-        data: adjustment
-      });
+      await logAdminAction(admin_id, 'balance_adjustment', user_id, 'user', { amount, action, reason });
+      
+      return res.status(200).json({ success: true, data: adjustment });
     } catch (error) {
       console.error('Error adjusting balance:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  // Assign manager role
   static async assignManager(req, res) {
     try {
-      const { user_id, role, permissions } = req.body;
+      const { user_id } = req.body;
       const admin_id = req.user.id;
 
-      const { data: manager, error } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id,
-          role,
-          permissions,
-          assigned_by: admin_id
-        })
+      const { data, error } = await supabase
+        .from('users')
+        .update({ role: 'manager', assigned_by: admin_id })
+        .eq('id', user_id)
         .select()
         .single();
 
       if (error) throw error;
-
-      // Log admin action
-      await supabase.from('admin_actions').insert({
-        admin_id,
-        action_type: 'manager_assignment',
-        target_id: user_id,
-        target_type: 'user',
-        details: { role, permissions }
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Manager assigned successfully',
-        data: manager
-      });
+      await logAdminAction(admin_id, 'manager_assignment', user_id, 'user');
+      
+      return res.status(200).json({ success: true, data });
     } catch (error) {
       console.error('Error assigning manager:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  // Get flagged content
   static async getFlaggedContent(req, res) {
     try {
-      const { data: reports, error } = await supabase
-        .from('content_reports')
-        .select(`
-          *,
-          reporter:reporter_id(username, avatar_url),
-          reviewer:reviewed_by(username)
-        `)
+      const { limit = 20, offset = 0 } = req.query;
+
+      const { data, error, count } = await supabase
+        .from('flagged_content')
+        .select('*', { count: 'exact' })
         .eq('status', 'pending')
+        .range(offset, offset + limit - 1)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      return res.status(200).json({
-        success: true,
-        data: reports
-      });
+      
+      return res.status(200).json({ success: true, data, total: count });
     } catch (error) {
       console.error('Error fetching flagged content:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  // Ban user
-  static async banUser(req, res) {
-    try {
-      const { user_id, reason, duration } = req.body;
-      const admin_id = req.user.id;
-
-      // Update user status
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          status: 'banned',
-          ban_reason: reason,
-          ban_expires_at: duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null
-        })
-        .eq('id', user_id);
-
-      if (updateError) throw updateError;
-
-      // Log admin action
-      await supabase.from('admin_actions').insert({
-        admin_id,
-        action_type: 'user_ban',
-        target_id: user_id,
-        target_type: 'user',
-        details: { reason, duration }
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'User banned successfully'
-      });
-    } catch (error) {
-      console.error('Error banning user:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-
-  // Verify user
-  static async verifyUser(req, res) {
-    try {
-      const { user_id } = req.body;
-      const admin_id = req.user.id;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ verified: true })
-        .eq('id', user_id);
-
-      if (updateError) throw updateError;
-
-      // Log admin action
-      await supabase.from('admin_actions').insert({
-        admin_id,
-        action_type: 'user_verification',
-        target_id: user_id,
-        target_type: 'user',
-        details: {}
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'User verified successfully'
-      });
-    } catch (error) {
-      console.error('Error verifying user:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-
-  // Get admin activity log
   static async getAdminActivity(req, res) {
     try {
-      const { data: activities, error } = await supabase
+      const { limit = 50, offset = 0 } = req.query;
+
+      const { data, error, count } = await supabase
         .from('admin_actions')
-        .select(`
-          *,
-          admin:admin_id(username, avatar_url)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .select('*', { count: 'exact' })
+        .range(offset, offset + limit - 1)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      return res.status(200).json({
-        success: true,
-        data: activities
-      });
+      
+      return res.status(200).json({ success: true, data, total: count });
     } catch (error) {
       console.error('Error fetching admin activity:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 }
+
