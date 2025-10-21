@@ -1,5 +1,5 @@
-// composables/usePremium.js - Premium Features Composable
-import { ref, computed } from 'vue'
+// composables/usePremium.js - 
+import { ref, computed, readonly } from 'vue'
 
 export const usePremium = () => {
   const subscription = ref(null)
@@ -61,6 +61,40 @@ export const usePremium = () => {
   }
 
   /**
+   * Get pricing tiers
+   */
+  const getPricingTiers = async () => {
+    try {
+      const { $fetch } = useNuxtApp()
+      const result = await $fetch('/api/premium/pricing')
+      if (result.success) {
+        return result.data
+      }
+      throw new Error(result.message)
+    } catch (err) {
+      console.error('Error fetching pricing:', err)
+      throw err
+    }
+  }
+
+  /**
+   * Check feature access
+   */
+  const checkFeatureAccess = async (featureKey) => {
+    try {
+      const { $fetch } = useNuxtApp()
+      const result = await $fetch('/api/premium/check-feature', {
+        method: 'POST',
+        body: { featureKey }
+      })
+      return result.data
+    } catch (err) {
+      console.error('Error checking feature access:', err)
+      return false
+    }
+  }
+
+  /**
    * Upgrade subscription
    */
   const upgradeSubscription = async (tier, paymentMethod) => {
@@ -105,7 +139,7 @@ export const usePremium = () => {
 
       if (result.success) {
         subscription.value = result.data.subscription
-        await loadPremiumStatus() // Reload to get updated features/restrictions
+        await loadPremiumStatus()
         return result
       } else {
         throw new Error(result.message)
@@ -148,23 +182,25 @@ export const usePremium = () => {
   }
 
   return {
-    // State
+    // State (readonly)
     subscription: readonly(subscription),
     features: readonly(features),
     restrictions: readonly(restrictions),
     loading: readonly(loading),
     error: readonly(error),
-
+    
     // Computed
     currentTier,
     isActive,
     isPremium,
-
+    
     // Methods
     loadPremiumStatus,
     hasFeature,
     hasRestriction,
     getRestrictionValue,
+    getPricingTiers,
+    checkFeatureAccess,
     upgradeSubscription,
     cancelSubscription,
     getTierInfo,
