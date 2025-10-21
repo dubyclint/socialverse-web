@@ -1,4 +1,4 @@
-import { defineEventHandler } from 'h3'
+import { defineEventHandler, readBody } from 'h3'
 import Gun from 'gun'
 import type { NitroApp } from 'nitropack'
 
@@ -33,4 +33,3 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
 })
 
 export { gunInstance }
-
