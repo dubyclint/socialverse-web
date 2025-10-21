@@ -31,8 +31,6 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en-US',
     strategy: 'prefix_except_default',
-    lazy: true,
-    langDir: 'locales',
   },
 
   supabase: {
@@ -95,3 +93,4 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-10-19',
 })
+
