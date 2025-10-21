@@ -1,3 +1,4 @@
+//updated start script 
 export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
