@@ -1,4 +1,4 @@
-//updated start script 
+// ✅ FIXED - Corrected environment variable names
 export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
