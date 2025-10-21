@@ -164,13 +164,11 @@ const mockPost = {
 };
 
 const canEdit = computed(() => {
-  // Check if current user is the author
-  return post.value?.author?.name === 'John Doe'; // Mock check
+  return post.value?.author?.name === 'John Doe';
 });
 
 const canDelete = computed(() => {
-  // Check if current user can delete (author or admin)
-  return canEdit.value || false; // Mock check
+  return canEdit.value || false;
 });
 
 function renderContent(content) {
@@ -202,7 +200,6 @@ function sharePost() {
       url: window.location.href
     });
   } else {
-    // Fallback: copy to clipboard
     navigator.clipboard.writeText(window.location.href);
     alert('Link copied to clipboard!');
   }
@@ -242,18 +239,15 @@ function likeComment(commentId) {
 
 function replyToComment(commentId) {
   console.log('Replying to comment:', commentId);
-  // Implement reply functionality
 }
 
 function editPost() {
   console.log('Editing post:', post.value.id);
-  // Navigate to edit page
 }
 
 function deletePost() {
   if (confirm('Are you sure you want to delete this post?')) {
     console.log('Deleting post:', post.value.id);
-    // Call delete API and navigate back
   }
 }
 
@@ -269,7 +263,6 @@ function closeImageModal() {
 
 onMounted(async () => {
   try {
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
     post.value = mockPost;
   } catch (error) {
@@ -384,3 +377,149 @@ onMounted(async () => {
 }
 
 .tag {
+  background: #f0f0f0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.post-stats {
+  padding: 1rem;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.engagement-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.stat-btn:hover {
+  background: #f0f0f0;
+}
+
+.stat-btn.liked {
+  color: #dc3545;
+}
+
+.comments-section {
+  padding: 1rem;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.comment-form textarea {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.comment-form button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.comment-form button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comment {
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.comment-author {
+  font-weight: bold;
+}
+
+.comment-date {
+  color: #999;
+  font-size: 0.875rem;
+  margin-left: auto;
+}
+
+.comment-content {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.comment-actions button {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.comment-actions button.liked {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-image {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 8px;
+}
+</style>
