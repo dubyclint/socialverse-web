@@ -8,29 +8,29 @@
         rows="4"
         maxlength="500"
       ></textarea>
-      
       <div class="post-actions">
-        <div class="media-buttons">
-          <button @click="addEmoji" class="emoji-btn">😀</button>
-          <button @click="addImage" class="image-btn">📷</button>
-          <button @click="addGif" class="gif-btn">GIF</button>
-        </div>
-        
-        <div class="post-controls">
-          <span class="char-count">{{ postContent.length }}/500</span>
-          <button 
-            @click="publishPost" 
-            :disabled="!postContent.trim()" 
-            class="publish-btn"
-          >
-            🚀 Pew
+        <div class="action-buttons">
+          <button @click="addEmoji" class="action-btn" title="Add emoji">
+            😊
+          </button>
+          <button @click="addImage" class="action-btn" title="Add image">
+            🖼️
+          </button>
+          <button @click="addGif" class="action-btn" title="Add GIF">
+            GIF
           </button>
         </div>
+        <button 
+          @click="publishPost" 
+          :disabled="!postContent.trim() || publishing"
+          class="publish-btn"
+        >
+          {{ publishing ? 'Publishing...' : 'Post' }}
+        </button>
       </div>
-    </div>
-    
-    <div v-if="showEmojiPicker" class="emoji-picker">
-      <div class="emoji-grid">
+      
+      <!-- Emoji Picker -->
+      <div v-if="showEmojiPicker" class="emoji-picker">
         <span 
           v-for="emoji in popularEmojis" 
           :key="emoji"
@@ -46,10 +46,12 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useGun } from '~/plugins/gun-client';
+import { useSupabaseClient } from '#app';
 
+const supabase = useSupabaseClient();
 const postContent = ref('');
 const showEmojiPicker = ref(false);
+const publishing = ref(false);
 
 const popularEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗'];
 const emit = defineEmits(['postCreated']);
@@ -73,31 +75,67 @@ function addGif() {
   alert('GIF picker coming soon!');
 }
 
-function publishPost() {
+async function publishPost() {
   if (!postContent.value.trim()) return;
   
-  const post = {
-    content: postContent.value,
-    timestamp: Date.now(),
-    author: 'current_user',
-    likes: 0,
-    comments: 0,
-    id: Date.now().toString()
-  };
-  
-  // Store in GunDB - only on client side
-  if (process.client) {
-    const gunInstance = useGun();
-    if (gunInstance) {
-      gunInstance.get('posts').set(post);
+  try {
+    publishing.value = true;
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      alert('You must be logged in to post');
+      return;
     }
+    
+    // Create post object
+    const post = {
+      content: postContent.value,
+      user_id: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Insert post into Supabase
+    const { data, error } = await supabase
+      .from('posts')
+      .insert([post])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error publishing post:', error);
+      alert('Failed to publish post. Please try again.');
+      return;
+    }
+    
+    // Emit event for parent component with the created post
+    emit('postCreated', {
+      id: data.id,
+      content: data.content,
+      user_id: data.user_id,
+      created_at: data.created_at,
+      likes_count: 0,
+      comments_count: 0,
+      shares_count: 0,
+      pewgifts_count: 0,
+      user_liked: false,
+      showComments: false,
+      comments: [],
+      newComment: ''
+    });
+    
+    // Clear form
+    postContent.value = '';
+    showEmojiPicker.value = false;
+    
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    alert('An unexpected error occurred. Please try again.');
+  } finally {
+    publishing.value = false;
   }
-  // Emit event for parent component
-  emit('postCreated', post);
-  
-  // Clear form
-  postContent.value = '';
-  showEmojiPicker.value = false;
 }
 </script>
 
@@ -133,46 +171,38 @@ function publishPost() {
   justify-content: space-between;
   align-items: center;
   margin-top: 1rem;
-}
-
-.media-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-.media-buttons button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e1e5e9;
-  background: white;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.media-buttons button:hover {
-  background: #f8fafc;
-  border-color: #2563eb;
-}
-
-.post-controls {
-  display: flex;
-  align-items: center;
   gap: 1rem;
 }
 
-.char-count {
-  font-size: 0.875rem;
-  color: #6b7280;
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  background: #f0f2f5;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+  background: #e4e6eb;
 }
 
 .publish-btn {
   background: #2563eb;
   color: white;
   border: none;
+  border-radius: 6px;
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s;
 }
 
 .publish-btn:hover:not(:disabled) {
@@ -180,32 +210,30 @@ function publishPost() {
 }
 
 .publish-btn:disabled {
-  background: #9ca3af;
+  background: #cbd5e1;
   cursor: not-allowed;
 }
 
 .emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-top: 1rem;
   padding: 1rem;
-  background: #f8fafc;
+  background: #f9fafb;
   border-radius: 8px;
-}
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-  gap: 0.5rem;
 }
 
 .emoji-option {
-  padding: 0.5rem;
-  text-align: center;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
   font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
 .emoji-option:hover {
   background: #e5e7eb;
 }
 </style>
+
