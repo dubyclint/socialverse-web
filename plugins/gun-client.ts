@@ -9,9 +9,6 @@ export const useGun = () => {
   return gunInstance
 }
 
-// Export the Gun instance directly for backward compatibility
-export default gunInstance
-
 // Nuxt plugin export
 export default defineNuxtPlugin(() => {
   return {
@@ -20,4 +17,3 @@ export default defineNuxtPlugin(() => {
     }
   }
 })
-
