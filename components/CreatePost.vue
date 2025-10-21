@@ -1,4 +1,4 @@
-<!-- components/CreatePostModal.vue -->
+<!-- components/CreatePost.vue -->
 <template>
   <div class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
