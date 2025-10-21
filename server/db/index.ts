@@ -6,3 +6,4 @@ export const initializeDatabase = async () => {
 }
 
 export default initializeDatabase
+
