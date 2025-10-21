@@ -46,7 +46,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useSupabaseClient } from '#supabase/server'
+
   
 
 const supabase = useSupabaseClient();
