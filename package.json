@@ -44,7 +44,6 @@
     "emoji-js": "^3.9.0",
     "date-fns": "^4.1.0",
     "gun": "^0.2020.1241",
-    "vue-toastification": "^2.0.0",
     "ethers": "^6.15.0"
   },
   "devDependencies": {
