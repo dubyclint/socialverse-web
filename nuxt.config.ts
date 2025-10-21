@@ -75,22 +75,5 @@ export default defineNuxtConfig({
     },
   },
 
-  vite: {
-    optimizeDeps: {
-      include: ['vue', 'vue-router', 'pinia'],
-    },
-  },
-
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-        },
-      },
-    },
-  },
-
   compatibilityDate: '2024-10-19',
 })
-
