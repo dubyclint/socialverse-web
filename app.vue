@@ -1,4 +1,4 @@
-<!-- app.vue -->
+<!-- app.vue - UPDATED VERSION -->
 <template>
   <NuxtLayout>
     <div id="app">
@@ -9,12 +9,18 @@
       
       <!-- Global Loading -->
       <GlobalLoading v-if="isLoading" />
+      
+      <!-- Global Error -->
+      <ErrorBoundary v-if="globalError" class="global-error">
+        <p>{{ globalError }}</p>
+        <button @click="clearError">Dismiss</button>
+      </ErrorBoundary>
     </div>
   </NuxtLayout>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useSocket } from '~/composables/useSocket'
 
@@ -26,6 +32,7 @@ const { initializeSocket } = useSocket()
 
 // Reactive data
 const isLoading = ref(false)
+const globalError = ref<string | null>(null)
 
 // Lifecycle
 onMounted(async () => {
@@ -40,10 +47,27 @@ onMounted(async () => {
       await initializeSocket()
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('App initialization error:', error)
+    globalError.value = error.message || 'Failed to initialize application'
   } finally {
     isLoading.value = false
+  }
+})
+
+// Clear error
+const clearError = () => {
+  globalError.value = null
+}
+
+// Watch for user changes
+watch(() => userStore.isAuthenticated, async (isAuth) => {
+  if (isAuth) {
+    try {
+      await initializeSocket()
+    } catch (error: any) {
+      console.error('Socket initialization error:', error)
+    }
   }
 })
 </script>
@@ -98,6 +122,30 @@ select:focus {
   outline-offset: 2px;
 }
 
+/* Global error */
+.global-error {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #f44336;
+  color: white;
+  padding: 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  max-width: 400px;
+}
+
+.global-error button {
+  background: white;
+  color: #f44336;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
 /* Animation utilities */
 .fade-enter-active,
 .fade-leave-active {
@@ -116,19 +164,6 @@ select:focus {
 
 .slide-up-enter-from,
 .slide-up-leave-to {
-  transform: translateY(100%);
-}
-
-/* Responsive utilities */
-@media (max-width: 768px) {
-  .desktop-only {
-    display: none !important;
-  }
-}
-
-@media (min-width: 769px) {
-  .mobile-only {
-    display: none !important;
-  }
+  transform: translateY(10px);
 }
 </style>
