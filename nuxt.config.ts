@@ -21,21 +21,25 @@ export default defineNuxtConfig({
         code: 'en-US',
         name: 'English',
         language: 'en',
+        file: 'en.json',
       },
       {
         code: 'fr-FR',
         name: 'Français',
         language: 'fr',
+        file: 'fr.json',
       },
       {
         code: 'es-ES',
         name: 'Español',
         language: 'es',
+        file: 'es.json',
       },
       {
         code: 'de-DE',
         name: 'Deutsch',
         language: 'de',
+        file: 'de.json',
       },
     ],
     defaultLocale: 'en-US',
@@ -160,3 +164,4 @@ export default defineNuxtConfig({
   },
 })
 
+    
