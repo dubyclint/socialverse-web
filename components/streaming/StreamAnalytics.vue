@@ -488,7 +488,6 @@ const exportToCsv = async () => {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `stream-analytics-${props
     link.download = `stream-analytics-${props.streamId}-${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(link)
     link.click()
@@ -1015,4 +1014,3 @@ onUnmounted(() => {
   }
 }
 </style>
-
