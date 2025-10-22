@@ -45,7 +45,7 @@
     "date-fns": "^4.1.0",
     "gun": "^0.2020.1241",
     "ethers": "^6.15.0",
-    "jsonwebtoken": "^9.1.2"
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@nuxt/devtools": "^2.6.5",
