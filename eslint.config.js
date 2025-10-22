@@ -12,7 +12,8 @@ export default [
       parser: typescriptParser,
       parserOptions: {
         ecmaVersion: 'latest',
-        sourceType: 'module'
+        sourceType: 'module',
+        extraFileExtensions: ['.vue']
       }
     },
     plugins: {
@@ -20,9 +21,17 @@ export default [
       vue
     },
     rules: {
-      // Add your custom rules here
       'vue/multi-word-component-names': 'off',
-      '@typescript-eslint/no-unused-vars': 'warn'
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'vue/no-multiple-template-root': 'off'
+    }
+  },
+  {
+    files: ['**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        parser: typescriptParser
+      }
     }
   }
 ]
