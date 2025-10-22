@@ -34,27 +34,29 @@
             v-model.number="localConfig.minExperimentSize"
             @change="updateConfig"
           >
-          <small>Minimum users per experiment</small>
-        </div>
-
-        <div class="config-item">
-          <label>Experiment Duration (days)</label>
-          <input 
-            type="number" 
-            min="7" 
-            max="60"
-            v-model.number="localConfig.experimentDuration"
-            @change="updateConfig"
-          >
+          <small>Minimum users required per experiment</small>
         </div>
 
         <div class="config-item">
           <label>Confidence Level</label>
           <select v-model.number="localConfig.confidenceLevel" @change="updateConfig">
-            <option :value="0.90">90%</option>
-            <option :value="0.95">95%</option>
-            <option :value="0.99">99%</option>
+            <option value="0.90">90%</option>
+            <option value="0.95">95%</option>
+            <option value="0.99">99%</option>
           </select>
+        </div>
+
+        <div class="config-item">
+          <label>Min Detectable Effect</label>
+          <input 
+            type="number" 
+            min="0.01" 
+            max="0.5" 
+            step="0.01"
+            v-model.number="localConfig.minDetectableEffect"
+            @change="updateConfig"
+          >
+          <small>{{ (localConfig.minDetectableEffect * 100).toFixed(1) }}% lift</small>
         </div>
       </div>
     </div>
@@ -63,49 +65,31 @@
     <div class="experiments-section">
       <h3>Active Experiments</h3>
       <div v-if="activeExperiments.length === 0" class="empty-state">
-        No active experiments. Create one to start measuring incrementality.
+        No active experiments. Create one to get started.
       </div>
-      
       <div v-else class="experiments-grid">
-        <div 
-          v-for="experiment in activeExperiments" 
-          :key="experiment.id"
-          class="experiment-card"
-        >
+        <div v-for="experiment in activeExperiments" :key="experiment.id" class="experiment-card">
           <div class="experiment-header">
             <h4>{{ experiment.campaignName || `Campaign ${experiment.campaignId}` }}</h4>
-            <div class="experiment-status" :class="experiment.status">
-              {{ experiment.status }}
-            </div>
+            <span class="experiment-status active">Active</span>
           </div>
 
           <div class="experiment-metrics">
             <div class="metric-row">
-              <span>Control Group:</span>
-              <span>{{ experiment.controlGroup.users.toLocaleString() }} users</span>
-            </div>
-            <div class="metric-row">
-              <span>Treatment Group:</span>
-              <span>{{ experiment.treatmentGroup.users.toLocaleString() }} users</span>
+              <span>Progress:</span>
+              <span>{{ experiment.currentUsers.toLocaleString() }} / {{ experiment.targetUsers.toLocaleString() }} users</span>
             </div>
             <div class="metric-row">
               <span>Duration:</span>
-              <span>{{ experiment.daysRunning }} / {{ experiment.plannedDuration }} days</span>
+              <span>{{ experiment.daysElapsed }} / {{ experiment.duration }} days</span>
             </div>
           </div>
 
-          <div class="experiment-results" v-if="experiment.results">
+          <div class="experiment-results">
             <div class="result-metric">
               <span class="metric-label">Incrementality:</span>
-              <span class="metric-value" :class="getIncrementalityClass(experiment.results.incrementalityRate)">
-                {{ (experiment.results.incrementalityRate * 100).toFixed(1) }}%
-              </span>
-            </div>
-            <div class="result-metric">
-              <span class="metric-label">Statistical Significance:</span>
-              <span class="metric-value" :class="experiment.results.isSignificant ? 'significant' : 'not-significant'">
-                {{ experiment.results.isSignificant ? 'Significant' : 'Not Significant' }}
-                (p={{ experiment.results.pValue.toFixed(3) }})
+              <span class="metric-value" :class="getIncrementalityClass(experiment.results.incrementality)">
+                {{ (experiment.results.incrementality * 100).toFixed(1) }}%
               </span>
             </div>
             <div class="result-metric">
@@ -145,7 +129,6 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="experiment in completedExperiments" :key="experiment.
             <tr v-for="experiment in completedExperiments" :key="experiment.id">
               <td>{{ experiment.campaignName || `Campaign ${experiment.campaignId}` }}</td>
               <td>{{ experiment.duration }} days</td>
