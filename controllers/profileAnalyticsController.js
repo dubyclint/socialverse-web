@@ -1,4 +1,4 @@
-// controllers/profileAnalyticsController.js - Profile Analytics Management Controller
+ // controllers/profileAnalyticsController.js - Profile Analytics Management Controller
 import { ProfileView } from '../models/profileView.js';
 import { ProfileAnalytics } from '../models/profileAnalytics.js';
 import { ProfilePrivacySettings } from '../models/profilePrivacySettings.js';
@@ -334,4 +334,63 @@ export class ProfileAnalyticsController {
    * Export analytics data
    * GET /api/profile-analytics/:profileId/export
    */
-  static async exportAnalytics(req,*
+  static async exportAnalytics(req, res) {
+    try {
+      const { profileId } = req.params;
+      const requesterId = req.user?.id;
+      const { format = 'json' } = req.query;
+
+      if (!profileId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Profile ID is required'
+        });
+      }
+
+      // Only profile owner can export their analytics
+      if (profileId !== requesterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only export your own analytics'
+        });
+      }
+
+      const analyticsData = await ProfileAnalytics.getAnalytics(profileId);
+
+      if (format === 'csv') {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="analytics-${profileId}.csv"`);
+        res.send(this.convertToCSV(analyticsData));
+      } else {
+        res.json({
+          success: true,
+          data: analyticsData
+        });
+      }
+    } catch (error) {
+      console.error('Error exporting analytics:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error exporting analytics'
+      });
+    }
+  }
+
+  // Helper method
+  static getTimeframeDays(timeframe) {
+    const timeframes = {
+      '7d': 7,
+      '30d': 30,
+      '90d': 90,
+      '1y': 365
+    };
+    return timeframes[timeframe] || 30;
+  }
+
+  static convertToCSV(data) {
+    // Simple CSV conversion
+    return JSON.stringify(data, null, 2);
+  }
+}
+
+      
