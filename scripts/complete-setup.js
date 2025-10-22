@@ -357,7 +357,6 @@ export class TradeController {
   }
 }`,
 
-  // Adding compressed versions of remaining controllers for space
   postController: `// server/api/controllers/postController.js
 import { supabase } from '../../../utils/supabase.js';
 export class PostController {
@@ -542,3 +541,157 @@ async function completeSetup() {
   try {
     // Step 1: Create utils/supabase.js
     log('📡 Setting up Supabase connection...', 'blue');
+    writeFile(join(projectRoot, 'server/utils/supabase.js'), `import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey);`);
+    successCount++;
+
+    // Step 2: Create all controllers
+    log('🎮 Creating API controllers...', 'blue');
+    Object.entries(controllers).forEach(([name, content]) => {
+      writeFile(join(projectRoot, `server/api/controllers/${name}.js`), content);
+      successCount++;
+    });
+
+    // Step 3: Create all routes
+    log('🛣️  Creating API routes...', 'blue');
+    routes.forEach(([filePath, controllerName, methodName, params, hasBody, hasQuery]) => {
+      const routeContent = createRouteTemplate(controllerName, methodName, params, hasBody, hasQuery);
+      writeFile(join(projectRoot, filePath), routeContent);
+      successCount++;
+    });
+
+    // Step 4: Create .env.example
+    log('🔐 Creating environment configuration...', 'blue');
+    writeFile(join(projectRoot, '.env.example'), `# Supabase Configuration
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_KEY=your_supabase_anon_key_here
+
+# API Configuration
+API_PORT=3000
+NODE_ENV=development`);
+    successCount++;
+
+    // Step 5: Create README for setup
+    log('📚 Creating setup documentation...', 'blue');
+    writeFile(join(projectRoot, 'API_SETUP.md'), `# SocialVerse API Setup Complete
+
+## Overview
+This setup has created a complete API structure for SocialVerse with the following features:
+
+### Controllers Created
+- **PewController**: Direct messaging system
+- **WalletController**: Multi-currency wallet management
+- **TradeController**: P2P trading functionality
+- **PostController**: Social media posts with engagement
+
+### Routes Generated
+- Pew routes: Create, retrieve, mark as read, delete, and get conversations
+- Wallet routes: Create wallets, manage balances, lock/unlock funds, view transactions
+- Trade routes: Create trades, browse active trades, accept trades, manage status
+- Post routes: Create, read, update, delete posts, like, comment, and promote
+
+## Environment Setup
+1. Copy \`.env.example\` to \`.env.local\`
+2. Add your Supabase credentials:
+   - SUPABASE_URL: Your Supabase project URL
+   - SUPABASE_KEY: Your Supabase anon key
+
+## Database Requirements
+Ensure your Supabase database has the following tables:
+- users
+- pews
+- wallets
+- wallet_transactions
+- trades
+- posts
+- likes
+- comments
+
+## API Usage Examples
+
+### Create a Pew
+\`\`\`bash
+POST /api/pews
+{
+  "sender_id": "user1",
+  "receiver_id": "user2",
+  "content": "Hello!",
+  "pew_type": "text"
+}
+\`\`\`
+
+### Create User Wallets
+\`\`\`bash
+POST /api/wallets/create
+{
+  "userId": "user1"
+}
+\`\`\`
+
+### Create a Trade
+\`\`\`bash
+POST /api/trades
+{
+  "user_id": "user1",
+  "trade_type": "sell",
+  "currency_from": "USDT",
+  "currency_to": "BTC",
+  "amount_from": 100,
+  "exchange_rate": 0.000025
+}
+\`\`\`
+
+### Create a Post
+\`\`\`bash
+POST /api/posts
+{
+  "user_id": "user1",
+  "content": "Check out this amazing feature!",
+  "visibility": "public"
+}
+\`\`\`
+
+## Next Steps
+1. Set up your Supabase database with the required tables
+2. Configure your environment variables
+3. Test the API endpoints
+4. Integrate with your frontend application
+`);
+    successCount++;
+
+    log('', 'reset');
+    log('✨ Setup Complete!', 'bold');
+    log(`✅ Successfully created ${successCount} files`, 'green');
+    log('', 'reset');
+    log('📋 Summary:', 'bold');
+    log('  • 1 Supabase utility file', 'blue');
+    log('  • 4 API controllers', 'blue');
+    log('  • 18 API routes', 'blue');
+    log('  • 1 Environment configuration', 'blue');
+    log('  • 1 Setup documentation', 'blue');
+    log('', 'reset');
+    log('🚀 Next Steps:', 'yellow');
+    log('  1. Configure your .env.local with Supabase credentials', 'yellow');
+    log('  2. Set up your Supabase database tables', 'yellow');
+    log('  3. Run: npm run dev', 'yellow');
+    log('  4. Test your API endpoints', 'yellow');
+
+  } catch (error) {
+    log(`❌ Setup failed: ${error.message}`, 'red');
+    process.exit(1);
+  }
+}
+
+// Run the setup
+completeSetup().catch(error => {
+  log(`Fatal error: ${error.message}`, 'red');
+  process.exit(1);
+});
