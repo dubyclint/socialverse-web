@@ -1,3 +1,5 @@
+npm install bcrypt jsonwebtoken crypto
+npm install -D @types/bcrypt @types/jsonwebtoken
 {
   "name": "socialverse-web",
   "private": true,
