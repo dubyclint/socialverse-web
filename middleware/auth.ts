@@ -1,4 +1,17 @@
-// middleware/auth.ts
+middleware/auth.ts/export default defineRouteMiddleware((to, from) => {
+  const token = localStorage.getItem('auth_token')
+
+  const publicRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email']
+
+  if (!token && !publicRoutes.includes(to.path)) {
+    return navigateTo('/auth/login')
+  }
+
+  if (token && publicRoutes.includes(to.path)) {
+    return navigateTo('/feed')
+  }
+})
+ middleware/auth.ts
 export default defineNuxtRouteMiddleware((to) => {
   const user = useSupabaseUser()
   
