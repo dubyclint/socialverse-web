@@ -1,5 +1,15 @@
 // ✅ FIXED - Corrected environment variable names
-export default defineNuxtConfig({
+// ... existing config
+  
+  ssr: false, // Disable SSR for auth pages
+  
+  runtimeConfig: {
+    jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
+    public: {
+      apiBase: process.env.API_BASE || 'http://localhost:3000'
+    }
+  }
+})export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
