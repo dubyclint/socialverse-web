@@ -300,7 +300,6 @@ function stopExperiment(experimentId) {
 }
 
 function viewExperimentDetails(experiment) {
-  // Navigate to detailed experiment view
   navigateTo(`/admin/experiments/${experiment.id}`)
 }
 
