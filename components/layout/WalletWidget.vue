@@ -2513,7 +2513,7 @@ watch(() => user.value, (newUser) => {
 
 .action-btn:hover {
   background: #edf2f7;
-  border-color: #cbd5
+  border-color: #cbd5e0;
 
           
 
