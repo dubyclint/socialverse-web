@@ -1507,7 +1507,7 @@ const loadEscrowData = async () => {
   } catch (error) {
     console.error('Error loading escrow data:', error)
   }
-}*_
+}
 const loadMarketplaceData = async () => {
   try {
     // Load active purchases
@@ -2513,7 +2513,7 @@ watch(() => user.value, (newUser) => {
 
 .action-btn:hover {
   background: #edf2f7;
-  border-color: #cbd5*_
+  border-color: #cbd5
 
           
 
