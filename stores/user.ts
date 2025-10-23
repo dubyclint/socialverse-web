@@ -8,6 +8,21 @@ export const useUserStore = defineStore('user', () => {
   const isAdmin = computed(() => profile.value?.role === 'admin');
   const isAuthenticated = computed(() => !!user.value);
   
+  const initializeSession = async () => {
+    try {
+      loading.value = true;
+      // Fetch current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await fetchProfile();
+      }
+    } catch (err) {
+      console.error('Session initialization error:', err);
+    } finally {
+      loading.value = false;
+    }
+  };
+  
   const fetchProfile = async () => {
     if (!user.value) return;
     
@@ -66,8 +81,10 @@ export const useUserStore = defineStore('user', () => {
     loading: readonly(loading),
     isAdmin,
     isAuthenticated,
+    initializeSession,
     fetchProfile,
     updateProfile
   };
 });
+
 
