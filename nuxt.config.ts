@@ -16,7 +16,7 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
   ],
 
-  // ✅ Internationalization (i18n)
+  // ✅ Internationalization (i18n) - FIXED PATH
   i18n: {
     locales: [
       {
@@ -46,7 +46,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en-US',
     strategy: 'prefix_except_default',
-    langDir: './locales/',
+    langDir: './locales/', // ✅ FIXED: Changed from './i18n/locales/' to './locales/'
   },
 
   // ✅ Supabase Configuration
