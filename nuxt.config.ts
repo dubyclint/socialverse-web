@@ -41,6 +41,9 @@ export default defineNuxtConfig({
       supabaseKey: process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || '',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
       apiBase: process.env.API_BASE || 'http://localhost:3000',
+      rbac: {
+        protectedRoutes: ['/dashboard', '/admin', '/settings', '/profile', '/chat', '/post'],
+      },
     },
   },
 
@@ -147,12 +150,13 @@ export default defineNuxtConfig({
 
         console.log('🔄 Generating Supabase types...')
         try {
-          execSync('pnpm exec supabase gen types typescript --project-id cvzrhucbvezqwbesthek > types/supabase.ts', {
+          execSync('npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > types/supabase.ts', {
             stdio: 'inherit',
+            shell: true,
           })
           console.log('✅ Supabase types generated')
         } catch (error) {
-          console.warn('⚠️ Failed to generate Supabase types, continuing with existing types...')
+          console.warn('⚠️ Could not generate Supabase types (this is optional)')
         }
       } catch (error) {
         console.error('❌ Build hook error:', error)
