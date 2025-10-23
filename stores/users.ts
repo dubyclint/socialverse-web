@@ -105,13 +105,10 @@ export const useUsersStore = defineStore('users', {
         this.error = null
         this.filters = { ...this.filters, ...filters }
 
+        // Build query without complex relations
         let query = supabase
           .from('profiles')
-          .select(`
-            *,
-            posts:posts(count),
-            reports:reports!reported_user_id(count)
-          `, { count: 'exact' })
+          .select('*', { count: 'exact' })
 
         // Apply filters
         if (this.filters.search) {
@@ -138,11 +135,23 @@ export const useUsersStore = defineStore('users', {
 
         if (error) throw error
 
-        // Process the data to include counts
+        // Map data to UserProfile
         this.users = (data || []).map((user: any) => ({
-          ...user,
-          posts_count: user.posts?.[0]?.count || 0,
-          reports_count: user.reports?.[0]?.count || 0
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          full_name: user.full_name,
+          avatar_url: user.avatar_url,
+          role: user.role,
+          status: user.status,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+          last_login: user.last_login,
+          assigned_by: user.assigned_by,
+          manager_permissions: user.manager_permissions,
+          manager_assigned_at: user.manager_assigned_at,
+          posts_count: 0,
+          reports_count: 0
         }))
 
         this.totalUsers = count || 0
@@ -165,21 +174,28 @@ export const useUsersStore = defineStore('users', {
 
         const { data, error, count } = await supabase
           .from('profiles')
-          .select(`
-            *,
-            assigned_by_profile:assigned_by(full_name, email),
-            posts:posts(count),
-            reports_handled:audit_logs!user_id(count)
-          `, { count: 'exact' })
+          .select('*', { count: 'exact' })
           .eq('role', 'manager')
           .order('manager_assigned_at', { ascending: false })
 
         if (error) throw error
 
         this.managers = (data || []).map((manager: any) => ({
-          ...manager,
-          posts_count: manager.posts?.[0]?.count || 0,
-          actions_count: manager.reports_handled?.[0]?.count || 0
+          id: manager.id,
+          email: manager.email,
+          username: manager.username,
+          full_name: manager.full_name,
+          avatar_url: manager.avatar_url,
+          role: manager.role,
+          status: manager.status,
+          created_at: manager.created_at,
+          updated_at: manager.updated_at,
+          last_login: manager.last_login,
+          assigned_by: manager.assigned_by,
+          manager_permissions: manager.manager_permissions,
+          manager_assigned_at: manager.manager_assigned_at,
+          posts_count: 0,
+          reports_count: 0
         }))
 
         this.totalManagers = count || 0
@@ -202,31 +218,31 @@ export const useUsersStore = defineStore('users', {
 
         const { data, error } = await supabase
           .from('profiles')
-          .select(`
-            *,
-            posts:posts(count),
-            comments:comments(count),
-            reports_made:reports!reporter_id(count),
-            reports_against:reports!reported_user_id(count),
-            audit_logs:audit_logs!user_id(
-              action,
-              resource_type,
-              details,
-              created_at
-            )
-          `)
+          .select('*')
           .eq('id', userId)
           .single()
 
         if (error) throw error
 
         return {
-          ...data,
-          posts_count: data.posts?.[0]?.count || 0,
-          comments_count: data.comments?.[0]?.count || 0,
-          reports_made_count: data.reports_made?.[0]?.count || 0,
-          reports_against_count: data.reports_against?.[0]?.count || 0,
-          recent_actions: data.audit_logs?.slice(0, 10) || []
+          id: data.id,
+          email: data.email,
+          username: data.username,
+          full_name: data.full_name,
+          avatar_url: data.avatar_url,
+          role: data.role,
+          status: data.status,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          last_login: data.last_login,
+          assigned_by: data.assigned_by,
+          manager_permissions: data.manager_permissions,
+          manager_assigned_at: data.manager_assigned_at,
+          posts_count: 0,
+          comments_count: 0,
+          reports_made_count: 0,
+          reports_against_count: 0,
+          recent_actions: []
         }
         
       } catch (error: any) {
@@ -267,7 +283,11 @@ export const useUsersStore = defineStore('users', {
         // Update local state
         const userIndex = this.users.findIndex(u => u.id === userId)
         if (userIndex !== -1) {
-          this.users[userIndex] = { ...this.users[userIndex], ...data }
+          this.users[userIndex] = { 
+            ...this.users[userIndex], 
+            status: data.status,
+            updated_at: data.updated_at
+          }
         }
 
         // Log the action
@@ -338,7 +358,7 @@ export const useUsersStore = defineStore('users', {
             message: messages[type] + (reason ? ` Reason: ${reason}` : ''),
             data: { type, reason },
             created_by: authStore.user?.id
-          })
+          } as any)
       } catch (error: any) {
         console.error('Notification send error:', error)
       }
@@ -353,8 +373,8 @@ export const useUsersStore = defineStore('users', {
           .from('profiles')
           .select('id, email, username, full_name, avatar_url, role, status')
           .or(`full_name.ilike.%${query}%,username.ilike.%${query}%,email.ilike.%${query}%`)
-          .eq('role', 'user') // Only search regular users
-          .eq('status', 'active') // Only active users
+          .eq('role', 'user')
+          .eq('status', 'active')
           .limit(10)
 
         if (error) throw error
@@ -374,10 +394,7 @@ export const useUsersStore = defineStore('users', {
       try {
         const { data, error } = await supabase
           .from('audit_logs')
-          .select(`
-            *,
-            target_user:profiles!user_id(full_name, email)
-          `)
+          .select('*')
           .eq('user_id', managerId)
           .in('action', ['user_suspended', 'user_warned', 'user_activated', 'content_moderated', 'report_resolved'])
           .order('created_at', { ascending: false })
