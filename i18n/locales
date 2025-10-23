@@ -1,0 +1,52 @@
+{
+  "common": {
+    "appName": "SocialVerse",
+    "tagline": "Live Streaming Platform",
+    "welcome": "Welcome to SocialVerse",
+    "description": "Connect, stream, and share with SocialVerse"
+  },
+  "navigation": {
+    "home": "Home",
+    "feed": "Feed",
+    "explore": "Explore",
+    "profile": "Profile",
+    "chat": "Chat",
+    "inbox": "Inbox",
+    "trade": "Trade",
+    "settings": "Settings",
+    "logout": "Logout",
+    "login": "Login",
+    "signup": "Sign Up"
+  },
+  "roles": {
+    "user": "User",
+    "manager": "Manager",
+    "admin": "Administrator"
+  },
+  "permissions": {
+    "readPosts": "Read Posts",
+    "createPosts": "Create Posts",
+    "updatePosts": "Update Posts",
+    "deletePosts": "Delete Posts",
+    "readUsers": "Read Users",
+    "updateUsers": "Update Users",
+    "readAnalytics": "Read Analytics"
+  },
+  "messages": {
+    "welcome": "Welcome back!",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success!",
+    "noData": "No data available"
+  },
+  "buttons": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "next": "Next",
+    "previous": "Previous"
+  }
+}
