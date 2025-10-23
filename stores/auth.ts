@@ -90,14 +90,12 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    // Initialize auth state
     async initialize() {
       const supabase = useSupabaseClient()
       
       try {
         this.loading = true
         
-        // Get current session
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) throw error
@@ -108,7 +106,6 @@ export const useAuthStore = defineStore('auth', {
           this.sessionValid = true
         }
         
-        // Listen for auth changes
         supabase.auth.onAuthStateChange(async (event, session) => {
           if (event === 'SIGNED_IN' && session?.user) {
             this.user = session.user
@@ -130,7 +127,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Fetch user profile with role and permissions
     async fetchProfile() {
       if (!this.user) return
 
@@ -141,23 +137,17 @@ export const useAuthStore = defineStore('auth', {
         
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select(`
-            *,
-            assigned_by_profile:assigned_by(full_name, email)
-          `)
+          .select('*')
           .eq('id', this.user.id)
           .single()
 
         if (error && error.code !== 'PGRST116') throw error
 
         if (profile) {
-          this.profile = profile
+          this.profile = profile as Profile
           await this.loadPermissions()
-          
-          // Update last login
           await this.updateLastLogin()
         } else {
-          // Create profile if it doesn't exist
           await this.createProfile()
         }
 
@@ -170,7 +160,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Create user profile
     async createProfile() {
       if (!this.user) return
 
@@ -185,7 +174,9 @@ export const useAuthStore = defineStore('auth', {
           username: this.user.user_metadata?.username,
           email_verified: !!this.user.email_confirmed_at,
           role: 'user',
-          status: 'active'
+          status: 'active',
+          preferences: {},
+          metadata: {}
         }
 
         const { data, error } = await supabase
@@ -196,7 +187,7 @@ export const useAuthStore = defineStore('auth', {
 
         if (error) throw error
 
-        this.profile = data
+        this.profile = data as Profile
         await this.loadPermissions()
         
       } catch (error) {
@@ -204,7 +195,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Load user permissions based on role
     async loadPermissions() {
       if (!this.profile) return
 
@@ -219,9 +209,8 @@ export const useAuthStore = defineStore('auth', {
 
         if (error) throw error
 
-        this.permissions = data?.permissions || []
+        this.permissions = (data?.permissions as string[]) || []
         
-        // Add manager-specific permissions if applicable
         if (this.profile.role === 'manager' && this.profile.manager_permissions) {
           this.permissions = [...new Set([...this.permissions, ...this.profile.manager_permissions])]
         }
@@ -232,7 +221,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Update user profile
     async updateProfile(updates: Partial<Profile>) {
       if (!this.user || !this.profile) return { success: false, error: 'Not authenticated' }
 
@@ -253,19 +241,18 @@ export const useAuthStore = defineStore('auth', {
 
         if (error) throw error
 
-        this.profile = { ...this.profile, ...data }
+        this.profile = { ...this.profile, ...data } as Profile
         
         return { success: true, data }
         
       } catch (error) {
         console.error('Profile update error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: (error as any).message }
       } finally {
         this.loading = false
       }
     },
 
-    // Update last login timestamp
     async updateLastLogin() {
       if (!this.user) return
 
@@ -281,7 +268,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Role and permission checking methods
     hasRole(requiredRole: string): boolean {
       const levels = { admin: 3, manager: 2, user: 1 }
       const userLevel = levels[this.userRole as keyof typeof levels] || 0
@@ -308,7 +294,6 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
-    // Manager role assignment (admin only)
     async assignManagerRole(userId: string, permissions: string[] = []) {
       if (!this.isAdmin) {
         throw new Error('Only admins can assign manager roles')
@@ -317,7 +302,7 @@ export const useAuthStore = defineStore('auth', {
       const supabase = useSupabaseClient()
       
       try {
-        const { data, error } = await supabase.rpc('assign_manager_role', {
+        const { error } = await supabase.rpc('assign_manager_role', {
           target_user_id: userId,
           assigner_id: this.user!.id,
           manager_perms: permissions
@@ -325,7 +310,7 @@ export const useAuthStore = defineStore('auth', {
 
         if (error) throw error
 
-        await this.logAuditAction('manager_assigned', 'user', userId, {
+        await this.logAuditAction('assign_manager_role', 'user', userId, {
           permissions,
           assigned_by: this.user!.id
         })
@@ -334,11 +319,10 @@ export const useAuthStore = defineStore('auth', {
         
       } catch (error) {
         console.error('Manager assignment error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: (error as any).message }
       }
     },
 
-    // Remove manager role (admin only)
     async removeManagerRole(userId: string) {
       if (!this.isAdmin) {
         throw new Error('Only admins can remove manager roles')
@@ -347,14 +331,14 @@ export const useAuthStore = defineStore('auth', {
       const supabase = useSupabaseClient()
       
       try {
-        const { data, error } = await supabase.rpc('remove_manager_role', {
+        const { error } = await supabase.rpc('remove_manager_role', {
           target_user_id: userId,
           remover_id: this.user!.id
         })
 
         if (error) throw error
 
-        await this.logAuditAction('manager_removed', 'user', userId, {
+        await this.logAuditAction('remove_manager_role', 'user', userId, {
           removed_by: this.user!.id
         })
 
@@ -362,11 +346,10 @@ export const useAuthStore = defineStore('auth', {
         
       } catch (error) {
         console.error('Manager removal error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: (error as any).message }
       }
     },
 
-    // Audit logging
     async logAuditAction(action: string, resourceType: string, resourceId: string, details: any = {}) {
       if (!this.user) return
 
@@ -378,18 +361,14 @@ export const useAuthStore = defineStore('auth', {
           .insert({
             user_id: this.user.id,
             action,
-            resource_type: resourceType,
-            resource_id: resourceId,
-            details,
-            ip_address: await this.getClientIP(),
-            user_agent: navigator.userAgent
+            resource: resourceType,
+            details
           })
       } catch (error) {
         console.error('Audit log error:', error)
       }
     },
 
-    // Get client IP address
     async getClientIP(): Promise<string> {
       try {
         const response = await fetch('https://api.ipify.org?format=json')
@@ -400,18 +379,15 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Refresh role check (for security)
     async refreshRoleCheck() {
       const now = new Date()
       const lastCheck = this.lastRoleCheck
       
-      // Refresh if last check was more than 5 minutes ago
       if (!lastCheck || (now.getTime() - lastCheck.getTime()) > 5 * 60 * 1000) {
         await this.fetchProfile()
       }
     },
 
-    // Sign out
     async signOut() {
       const supabase = useSupabaseClient()
       
@@ -420,8 +396,6 @@ export const useAuthStore = defineStore('auth', {
         if (error) throw error
         
         this.clearAuth()
-        
-        // Redirect to login
         await navigateTo('/auth/login')
         
       } catch (error) {
@@ -429,7 +403,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Clear auth state
     clearAuth() {
       this.user = null
       this.profile = null
@@ -439,12 +412,10 @@ export const useAuthStore = defineStore('auth', {
       this.loading = false
     },
 
-    // Check if user needs to verify email
     needsEmailVerification(): boolean {
-      return this.user && !this.user.email_confirmed_at
+      return !!(this.user && !this.user.email_confirmed_at)
     },
 
-    // Send email verification
     async sendEmailVerification() {
       if (!this.user?.email) return { success: false, error: 'No email found' }
 
@@ -462,11 +433,10 @@ export const useAuthStore = defineStore('auth', {
         
       } catch (error) {
         console.error('Email verification error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: (error as any).message }
       }
     },
 
-    // Update password
     async updatePassword(newPassword: string) {
       const supabase = useSupabaseClient()
       
@@ -483,21 +453,18 @@ export const useAuthStore = defineStore('auth', {
         
       } catch (error) {
         console.error('Password update error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: (error as any).message }
       }
     },
 
-    // Delete account
     async deleteAccount() {
       if (!this.user) return { success: false, error: 'Not authenticated' }
 
       const supabase = useSupabaseClient()
       
       try {
-        // Log the account deletion
         await this.logAuditAction('account_deleted', 'user', this.user.id)
 
-        // Delete user profile (cascade will handle related data)
         const { error: profileError } = await supabase
           .from('profiles')
           .delete()
@@ -505,14 +472,13 @@ export const useAuthStore = defineStore('auth', {
 
         if (profileError) throw profileError
 
-        // Sign out
         await this.signOut()
 
         return { success: true }
         
       } catch (error) {
         console.error('Account deletion error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: (error as any).message }
       }
     }
   }
