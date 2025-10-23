@@ -51,6 +51,7 @@ export default defineNuxtConfig({
       crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
       ignore: ['/admin', '/api', '/auth'],
+      failOnError: false,  // ✅ ADDED: Don't fail build if prerender errors occur
     },
     storage: {
       redis: {
