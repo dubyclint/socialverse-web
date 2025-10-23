@@ -1,5 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { execSync } from 'child_process'
+import fs from 'fs'
+import path from 'path'
 
 export default defineNuxtConfig({
   // ✅ Core Configuration
@@ -16,7 +18,7 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
   ],
 
-  // ✅ Internationalization (i18n) - FIXED PATH
+  // ✅ Internationalization (i18n) - CORRECT PATH
   i18n: {
     locales: [
       {
@@ -46,7 +48,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en-US',
     strategy: 'prefix_except_default',
-    langDir: './locales/', // ✅ FIXED: Changed from './i18n/locales/' to './locales/'
+    langDir: './locales/', // ✅ CORRECT: Points to /locales/ directory
   },
 
   // ✅ Supabase Configuration
@@ -151,7 +153,7 @@ export default defineNuxtConfig({
   // ✅ TypeScript Configuration
   typescript: {
     strict: true,
-    typeCheck: false, // Disabled to prevent build failures during type generation
+    typeCheck: false,
   },
 
   // ✅ Vite Configuration
@@ -164,22 +166,26 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ Hooks - Generate Supabase Types Before Build
+  // ✅ Hooks - Clear cache and generate Supabase types
   hooks: {
     'build:before': async () => {
       try {
+        // STEP 1: Clear Nuxt build cache to force fresh configuration
+        console.log('🧹 Clearing Nuxt build cache...')
+        const cacheDir = path.join(process.cwd(), '.nuxt')
+        if (fs.existsSync(cacheDir)) {
+          fs.rmSync(cacheDir, { recursive: true, force: true })
+          console.log('✅ Cache cleared')
+        }
+
+        // STEP 2: Generate Supabase types
         console.log('🔄 Generating Supabase types...')
         const projectId = 'cvzrhucbvezqwbesthek'
         
         // Ensure types directory exists
-        const fs = await import('fs').then(m => m.promises)
-        const path = await import('path')
         const typesDir = path.join(process.cwd(), 'types')
-        
-        try {
-          await fs.mkdir(typesDir, { recursive: true })
-        } catch (err) {
-          // Directory might already exist
+        if (!fs.existsSync(typesDir)) {
+          fs.mkdirSync(typesDir, { recursive: true })
         }
 
         // Generate Supabase types
@@ -195,7 +201,6 @@ export default defineNuxtConfig({
         }
       } catch (error) {
         console.error('❌ Error in build hook:', error)
-        // Don't fail the build, just warn
       }
     },
   },
