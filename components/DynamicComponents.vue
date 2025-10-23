@@ -3,7 +3,7 @@
     <!-- Lazy load heavy components -->
     <Suspense>
       <template #default>
-        <LazyTradeListings v-if="showTrades" @close="showTrades = false" />
+        <DynamicTradeListings v-if="showTrades" @close="showTrades = false" />
       </template>
       <template #fallback>
         <div class="loading-skeleton">
@@ -16,7 +16,7 @@
 
     <Suspense>
       <template #default>
-        <LazyMatchResults v-if="showMatches" @close="showMatches = false" />
+        <DynamicMatchResults v-if="showMatches" @close="showMatches = false" />
       </template>
       <template #fallback>
         <div class="loading-skeleton">
