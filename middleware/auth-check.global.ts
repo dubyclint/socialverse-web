@@ -1,14 +1,25 @@
 // middleware/auth-check.global.ts
 export default defineNuxtRouteMiddleware((to) => {
   const user = useSupabaseUser()
-  const { $i18n } = useNuxtApp()
   
   // Get RBAC configuration from runtime config
   const config = useRuntimeConfig()
   const rbacConfig = config.public.rbac
   
-  // Routes that don't require authentication
-  const publicRoutes = ['/', '/auth', '/auth/login', '/auth/register', '/auth/forgot-password']
+  // Routes that don't require authentication (PUBLIC ROUTES)
+  const publicRoutes = [
+    '/',                           // Homepage (shows different content based on auth)
+    '/auth',
+    '/auth/login',
+    '/auth/register',
+    '/auth/signup',
+    '/auth/forgot-password',
+    '/about',
+    '/features',
+    '/pricing',
+    '/blog'
+  ]
+  
   const isPublicRoute = publicRoutes.some(route => 
     to.path === route || to.path.startsWith(route + '/')
   )
@@ -19,7 +30,7 @@ export default defineNuxtRouteMiddleware((to) => {
   }
   
   // Check if user is authenticated for protected routes
-  if (rbacConfig.protectedRoutes.some((route: string) => 
+  if (rbacConfig && rbacConfig.protectedRoutes && rbacConfig.protectedRoutes.some((route: string) => 
     to.path.startsWith(route.replace('*', ''))
   )) {
     if (!user.value) {
