@@ -80,6 +80,7 @@ export default defineNuxtConfig({
 
   // ✅ Nitro Server Configuration
   nitro: {
+    preset: 'node-server',
     prerender: {
       crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
