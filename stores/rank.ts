@@ -61,3 +61,4 @@ export const useRankStore = defineStore('rank', {
     }
   }
 })
+
