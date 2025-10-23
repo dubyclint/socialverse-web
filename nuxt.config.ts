@@ -45,7 +45,7 @@ export default defineNuxtConfig({
         ],
         defaultLocale: 'en-US',
         strategy: 'prefix_except_default',
-        langDir: './locales/', // ✅ CORRECT PATH - Configured in module options
+        langDir: 'locales/',
       },
     ],
     '@nuxtjs/color-mode',
