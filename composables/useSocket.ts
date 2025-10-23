@@ -6,7 +6,13 @@ export const useSocket = () => {
   let socket: Socket | null = null
   const chatStore = useChatStore()
 
-  const connect = (user: User) => {
+  const initializeSocket = async () => {
+    // Initialize socket connection
+    if (socket?.connected) return socket
+    return connect()
+  }
+
+  const connect = (user?: User) => {
     if (socket?.connected) return socket
 
     // Connect to WebSocket server
@@ -18,12 +24,14 @@ export const useSocket = () => {
       console.log('Connected to WebSocket server')
       chatStore.setConnectionStatus(true)
       
-      // Join the chat with user info
-      socket?.emit('join', {
-        userId: user.id,
-        username: user.username,
-        avatar: user.avatar
-      })
+      // Join the chat with user info if provided
+      if (user) {
+        socket?.emit('join', {
+          userId: user.id,
+          username: user.username,
+          avatar: user.avatar
+        })
+      }
     })
 
     socket.on('disconnect', () => {
@@ -71,6 +79,7 @@ export const useSocket = () => {
   }
 
   return {
+    initializeSocket,
     connect,
     disconnect,
     sendMessage,
@@ -78,3 +87,4 @@ export const useSocket = () => {
     socket: readonly(ref(socket))
   }
 }
+
