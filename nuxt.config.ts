@@ -4,12 +4,12 @@ import fs from 'fs'
 import path from 'path'
 
 export default defineNuxtConfig({
-  // ✅ Core Configuration
+  // ✅ Core Configuration - DYNAMIC SSR MODE
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
   ssr: true,
   
-  // ✅ Modules - IMPORTANT: i18n must be configured CORRECTLY here
+  // ✅ Modules
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
@@ -78,7 +78,7 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ Nitro Server Configuration
+  // ✅ Nitro Server Configuration - DYNAMIC SSR (NOT STATIC)
   nitro: {
     preset: 'node-server',
     prerender: {
@@ -99,7 +99,7 @@ export default defineNuxtConfig({
     transpile: ['@vueuse/nuxt'],
   },
 
-  // ✅ CSS Configuration - Only include existing files
+  // ✅ CSS Configuration
   css: [
     '~/assets/css/main.css',
   ],
@@ -176,32 +176,21 @@ export default defineNuxtConfig({
         const cacheDir = path.join(process.cwd(), '.nuxt')
         if (fs.existsSync(cacheDir)) {
           fs.rmSync(cacheDir, { recursive: true, force: true })
-          console.log('✅ Cache cleared')
         }
+        console.log('✅ Cache cleared')
 
         // STEP 2: Generate Supabase types
         console.log('🔄 Generating Supabase types...')
-        const projectId = 'cvzrhucbvezqwbesthek'
-        
-        // Ensure types directory exists
-        const typesDir = path.join(process.cwd(), 'types')
-        if (!fs.existsSync(typesDir)) {
-          fs.mkdirSync(typesDir, { recursive: true })
-        }
-
-        // Generate Supabase types
         try {
-          execSync(
-            `pnpm exec supabase gen types typescript --project-id ${projectId} > types/supabase.ts`,
-            { stdio: 'inherit', cwd: process.cwd() }
-          )
-          console.log('✅ Supabase types generated successfully')
+          execSync('pnpm exec supabase gen types typescript --project-id cvzrhucbvezqwbesthek > types/supabase.ts', {
+            stdio: 'inherit',
+          })
+          console.log('✅ Supabase types generated')
         } catch (error) {
           console.warn('⚠️ Failed to generate Supabase types, continuing with existing types...')
-          console.warn('Error:', (error as any).message)
         }
       } catch (error) {
-        console.error('❌ Error in build hook:', error)
+        console.error('❌ Build hook error:', error)
       }
     },
   },
