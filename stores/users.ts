@@ -95,7 +95,7 @@ export const useUsersStore = defineStore('users', {
         const { data, error, count } = await query
         if (error) throw error
 
-        this.users = (data || []) as UserProfile[]
+        this.users = (data || []) as any
         this.totalUsers = count || 0
       } catch (error: any) {
         console.error('Users load error:', error)
@@ -119,7 +119,7 @@ export const useUsersStore = defineStore('users', {
 
         if (error) throw error
 
-        this.managers = (data || []) as UserProfile[]
+        this.managers = (data || []) as any
         this.totalManagers = count || 0
       } catch (error: any) {
         console.error('Managers load error:', error)
@@ -140,7 +140,7 @@ export const useUsersStore = defineStore('users', {
           .single()
 
         if (error) throw error
-        return data as UserProfile
+        return data as any
       } catch (error: any) {
         console.error('User details error:', error)
         this.error = error.message || 'Failed to load user details'
@@ -219,7 +219,7 @@ export const useUsersStore = defineStore('users', {
           title: `Account ${type}`,
           message: messages[type] + (reason ? ` Reason: ${reason}` : ''),
           created_by: authStore.user?.id
-        })
+        } as any)
       } catch (error: any) {
         console.error('Notification send error:', error)
       }
