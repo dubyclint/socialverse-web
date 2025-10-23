@@ -1,5 +1,4 @@
 {
-  "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
     "strict": false,
     "noImplicitAny": false,
@@ -35,8 +34,12 @@
       "#cache": ["./.nuxt/cache"],
       "#cache/*": ["./.nuxt/cache/*"]
     }
-  }
+  },
+  "include": [
+    ".nuxt/tsconfig.json",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.vue"
+  ]
 }
-
-
 
