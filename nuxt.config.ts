@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   // ✅ Core Configuration
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
-  ssr: false,
+  ssr: true,
   
   // ✅ Modules - IMPORTANT: i18n must be configured CORRECTLY here
   modules: [
