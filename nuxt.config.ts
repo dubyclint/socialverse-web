@@ -96,10 +96,9 @@ export default defineNuxtConfig({
     transpile: ['@vueuse/nuxt'],
   },
 
-  // ✅ CSS Configuration
+  // ✅ CSS Configuration - Only include existing files
   css: [
     '~/assets/css/main.css',
-    '~/assets/css/tailwind.css',
   ],
 
   // ✅ App Configuration
