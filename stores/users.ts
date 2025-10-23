@@ -48,6 +48,7 @@ export const useUsersStore = defineStore('users', {
   getters: {
     filteredUsers: (state): UserProfile[] => {
       let filtered = state.users
+
       if (state.filters.search) {
         const search = state.filters.search.toLowerCase()
         filtered = filtered.filter(user => 
@@ -95,11 +96,11 @@ export const useUsersStore = defineStore('users', {
         const { data, error, count } = await query
         if (error) throw error
 
-        this.users = (data || []) as any
+        this.users = (data || []) as UserProfile[]
         this.totalUsers = count || 0
-      } catch (error: any) {
+      } catch (error) {
         console.error('Users load error:', error)
-        this.error = error.message || 'Failed to load users'
+        this.error = (error as any).message || 'Failed to load users'
       } finally {
         this.loading = false
       }
@@ -119,11 +120,11 @@ export const useUsersStore = defineStore('users', {
 
         if (error) throw error
 
-        this.managers = (data || []) as any
+        this.managers = (data || []) as UserProfile[]
         this.totalManagers = count || 0
-      } catch (error: any) {
+      } catch (error) {
         console.error('Managers load error:', error)
-        this.error = error.message || 'Failed to load managers'
+        this.error = (error as any).message || 'Failed to load managers'
       } finally {
         this.loading = false
       }
@@ -140,10 +141,10 @@ export const useUsersStore = defineStore('users', {
           .single()
 
         if (error) throw error
-        return data as any
-      } catch (error: any) {
+        return data as UserProfile
+      } catch (error) {
         console.error('User details error:', error)
-        this.error = error.message || 'Failed to load user details'
+        this.error = (error as any).message || 'Failed to load user details'
         return null
       } finally {
         this.loading = false
@@ -167,17 +168,17 @@ export const useUsersStore = defineStore('users', {
 
         const userIndex = this.users.findIndex(u => u.id === userId)
         if (userIndex !== -1) {
-          this.users[userIndex] = { ...this.users[userIndex], ...data }
+          this.users[userIndex] = { ...this.users[userIndex], ...data } as UserProfile
         }
 
         await authStore.logAuditAction(`user_${status}`, 'user', userId, { reason })
         await this.sendUserNotification(userId, status, reason)
 
         return { success: true }
-      } catch (error: any) {
+      } catch (error) {
         console.error('User status update error:', error)
-        this.error = error.message || 'Failed to update user status'
-        return { success: false, error: error.message }
+        this.error = (error as any).message || 'Failed to update user status'
+        return { success: false, error: (error as any).message }
       } finally {
         this.loading = false
       }
@@ -217,10 +218,9 @@ export const useUsersStore = defineStore('users', {
           user_id: userId,
           type: 'moderation',
           title: `Account ${type}`,
-          message: messages[type] + (reason ? ` Reason: ${reason}` : ''),
-          created_by: authStore.user?.id
-        } as any)
-      } catch (error: any) {
+          message: messages[type] + (reason ? ` Reason: ${reason}` : '')
+        })
+      } catch (error) {
         console.error('Notification send error:', error)
       }
     },
@@ -238,7 +238,7 @@ export const useUsersStore = defineStore('users', {
 
         if (error) throw error
         return data || []
-      } catch (error: any) {
+      } catch (error) {
         console.error('User search error:', error)
         return []
       }
@@ -269,7 +269,7 @@ export const useUsersStore = defineStore('users', {
           reportsResolved: 0,
           recentActions: data?.slice(0, 20) || []
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Manager activity error:', error)
         return { actionsThisMonth: 0, usersManaged: 0, reportsResolved: 0, recentActions: [] }
       }
