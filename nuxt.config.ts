@@ -9,45 +9,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: true,
   
-  // ✅ Modules
+  // ✅ Modules - REMOVED @nuxtjs/i18n to use custom API
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
     '@nuxtjs/supabase',
-    [
-      '@nuxtjs/i18n',
-      {
-        locales: [
-          {
-            code: 'en-US',
-            name: 'English',
-            language: 'en',
-            file: 'en.json',
-          },
-          {
-            code: 'fr-FR',
-            name: 'Français',
-            language: 'fr',
-            file: 'fr.json',
-          },
-          {
-            code: 'es-ES',
-            name: 'Español',
-            language: 'es',
-            file: 'es.json',
-          },
-          {
-            code: 'de-DE',
-            name: 'Deutsch',
-            language: 'de',
-            file: 'de.json',
-          },
-        ],
-        defaultLocale: 'en-US',
-        strategy: 'prefix_except_default',
-        langDir: 'locales/',
-      },
-    ],
     '@nuxtjs/color-mode',
   ],
 
@@ -167,11 +133,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ Hooks - Clear cache and generate Supabase types
+  // ✅ Hooks - Clear cache
   hooks: {
     'build:before': async () => {
       try {
-        // STEP 1: Clear Nuxt build cache to force fresh configuration
         console.log('🧹 Clearing Nuxt build cache...')
         const cacheDir = path.join(process.cwd(), '.nuxt')
         if (fs.existsSync(cacheDir)) {
@@ -179,7 +144,6 @@ export default defineNuxtConfig({
         }
         console.log('✅ Cache cleared')
 
-        // STEP 2: Generate Supabase types
         console.log('🔄 Generating Supabase types...')
         try {
           execSync('pnpm exec supabase gen types typescript --project-id cvzrhucbvezqwbesthek > types/supabase.ts', {
