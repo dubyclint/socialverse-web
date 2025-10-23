@@ -139,7 +139,7 @@ export const useUsersStore = defineStore('users', {
         if (error) throw error
 
         // Process the data to include counts
-        this.users = (data || []).map(user => ({
+        this.users = (data || []).map((user: any) => ({
           ...user,
           posts_count: user.posts?.[0]?.count || 0,
           reports_count: user.reports?.[0]?.count || 0
@@ -147,9 +147,9 @@ export const useUsersStore = defineStore('users', {
 
         this.totalUsers = count || 0
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('Users load error:', error)
-        this.error = error.message
+        this.error = error.message || 'Failed to load users'
       } finally {
         this.loading = false
       }
@@ -176,7 +176,7 @@ export const useUsersStore = defineStore('users', {
 
         if (error) throw error
 
-        this.managers = (data || []).map(manager => ({
+        this.managers = (data || []).map((manager: any) => ({
           ...manager,
           posts_count: manager.posts?.[0]?.count || 0,
           actions_count: manager.reports_handled?.[0]?.count || 0
@@ -184,9 +184,9 @@ export const useUsersStore = defineStore('users', {
 
         this.totalManagers = count || 0
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('Managers load error:', error)
-        this.error = error.message
+        this.error = error.message || 'Failed to load managers'
       } finally {
         this.loading = false
       }
@@ -229,9 +229,9 @@ export const useUsersStore = defineStore('users', {
           recent_actions: data.audit_logs?.slice(0, 10) || []
         }
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('User details error:', error)
-        this.error = error.message
+        this.error = error.message || 'Failed to load user details'
         return null
       } finally {
         this.loading = false
@@ -281,9 +281,9 @@ export const useUsersStore = defineStore('users', {
 
         return { success: true }
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('User status update error:', error)
-        this.error = error.message
+        this.error = error.message || 'Failed to update user status'
         return { success: false, error: error.message }
       } finally {
         this.loading = false
@@ -321,7 +321,7 @@ export const useUsersStore = defineStore('users', {
       const supabase = useSupabaseClient()
       const authStore = useAuthStore()
       
-      const messages = {
+      const messages: Record<string, string> = {
         warned: 'Your account has received a warning from our moderation team.',
         suspended: 'Your account has been temporarily suspended.',
         banned: 'Your account has been permanently banned.',
@@ -339,7 +339,7 @@ export const useUsersStore = defineStore('users', {
             data: { type, reason },
             created_by: authStore.user?.id
           })
-      } catch (error) {
+      } catch (error: any) {
         console.error('Notification send error:', error)
       }
     },
@@ -361,7 +361,7 @@ export const useUsersStore = defineStore('users', {
 
         return data || []
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('User search error:', error)
         return []
       }
@@ -376,7 +376,7 @@ export const useUsersStore = defineStore('users', {
           .from('audit_logs')
           .select(`
             *,
-            target_user:profiles!resource_id(full_name, email)
+            target_user:profiles!user_id(full_name, email)
           `)
           .eq('user_id', managerId)
           .in('action', ['user_suspended', 'user_warned', 'user_activated', 'content_moderated', 'report_resolved'])
@@ -394,10 +394,10 @@ export const useUsersStore = defineStore('users', {
         ).length || 0
 
         const usersManaged = new Set(
-          data?.map(action => action.resource_id)
+          data?.map((action: any) => action.user_id)
         ).size
 
-        const reportsResolved = data?.filter(action => 
+        const reportsResolved = data?.filter((action: any) => 
           action.action === 'report_resolved'
         ).length || 0
 
@@ -408,7 +408,7 @@ export const useUsersStore = defineStore('users', {
           recentActions: data?.slice(0, 20) || []
         }
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('Manager activity error:', error)
         return {
           actionsThisMonth: 0,
