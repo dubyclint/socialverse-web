@@ -24,10 +24,7 @@
       "DOM.Iterable"
     ],
     "types": [
-      "node",
-      "@nuxt/types",
-      "@pinia/nuxt",
-      "@nuxtjs/supabase"
+      "node"
     ],
     "baseUrl": ".",
     "paths": {
@@ -39,50 +36,9 @@
       "#app/*": ["./node_modules/nuxt/dist/app/*"],
       "#build": ["./.nuxt"],
       "#build/*": ["./.nuxt/*"],
-      "#components": ["./.nuxt/components"],
-      "#imports": ["./.nuxt/imports"],
-      "#head": ["./node_modules/@unhead/vue/dist/index"],
-      "#head/*": ["./node_modules/@unhead/vue/dist/*"]
-    },
-    "typeRoots": [
-      "./node_modules/@types",
-      "./types"
-    ]
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.vue",
-    "**/*.js",
-    "**/*.jsx",
-    "**/*.mjs",
-    ".nuxt/**/*",
-    "nuxt.config.ts",
-    "app.vue",
-    "server/**/*",
-    "middleware/**/*",
-    "plugins/**/*",
-    "composables/**/*",
-    "utils/**/*",
-    "stores/**/*",
-    "types/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    ".nuxt/dist",
-    ".output",
-    "dist",
-    "coverage",
-    ".nyc_output",
-    ".cache",
-    "static"
-  ],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
-  },
-  "vueCompilerOptions": {
-    "target": 3
+      "#cache": ["./.nuxt/cache"],
+      "#cache/*": ["./.nuxt/cache/*"]
+    }
   }
 }
 
