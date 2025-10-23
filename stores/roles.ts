@@ -74,7 +74,7 @@ export const useRolesStore = defineStore('roles', {
 
         if (error) throw error
 
-        this.roles = (data || []) as Role[]
+        this.roles = (data || []) as any
       } catch (error: any) {
         console.error('Roles load error:', error)
         this.error = error.message || 'Failed to load roles'
@@ -96,7 +96,7 @@ export const useRolesStore = defineStore('roles', {
 
         if (error) throw error
 
-        this.permissions = (data || []) as Permission[]
+        this.permissions = (data || []) as any
       } catch (error: any) {
         console.error('Permissions load error:', error)
         this.error = error.message || 'Failed to load permissions'
@@ -110,3 +110,4 @@ export const useRolesStore = defineStore('roles', {
     }
   }
 })
+
