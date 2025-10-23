@@ -14,7 +14,7 @@
     "preview": "nuxt preview",
     "optimize": "node scripts/optimize-all.js",
     "postinstall": "nuxt prepare",
-    "start": "node .zeabur/output/functions/__nitro.func/index.mjs",
+    "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
@@ -75,6 +75,7 @@
     }
   }
 }
+
 
 
 
