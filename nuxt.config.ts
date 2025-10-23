@@ -9,47 +9,47 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
   
-  // ✅ Modules
+  // ✅ Modules - IMPORTANT: i18n must be configured CORRECTLY here
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
     '@nuxtjs/supabase',
-    '@nuxtjs/i18n',
-    '@nuxtjs/color-mode',
-  ],
-
-  // ✅ Internationalization (i18n) - CORRECT PATH
-  i18n: {
-    locales: [
+    [
+      '@nuxtjs/i18n',
       {
-        code: 'en-US',
-        name: 'English',
-        language: 'en',
-        file: 'en.json',
-      },
-      {
-        code: 'fr-FR',
-        name: 'Français',
-        language: 'fr',
-        file: 'fr.json',
-      },
-      {
-        code: 'es-ES',
-        name: 'Español',
-        language: 'es',
-        file: 'es.json',
-      },
-      {
-        code: 'de-DE',
-        name: 'Deutsch',
-        language: 'de',
-        file: 'de.json',
+        locales: [
+          {
+            code: 'en-US',
+            name: 'English',
+            language: 'en',
+            file: 'en.json',
+          },
+          {
+            code: 'fr-FR',
+            name: 'Français',
+            language: 'fr',
+            file: 'fr.json',
+          },
+          {
+            code: 'es-ES',
+            name: 'Español',
+            language: 'es',
+            file: 'es.json',
+          },
+          {
+            code: 'de-DE',
+            name: 'Deutsch',
+            language: 'de',
+            file: 'de.json',
+          },
+        ],
+        defaultLocale: 'en-US',
+        strategy: 'prefix_except_default',
+        langDir: './locales/', // ✅ CORRECT PATH - Configured in module options
       },
     ],
-    defaultLocale: 'en-US',
-    strategy: 'prefix_except_default',
-    langDir: './locales/', // ✅ CORRECT: Points to /locales/ directory
-  },
+    '@nuxtjs/color-mode',
+  ],
 
   // ✅ Supabase Configuration
   supabase: {
