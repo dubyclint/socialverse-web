@@ -1,7 +1,0 @@
-<!-- /components/ui/AdSlot.vue -->
-<template>
-  <div class="ad-slot" v-if="showAd">
-    <!-- Move AdSlot.vue content here -->
-  </div>
-</template>
-<!-- Keep existing script and styles -->
