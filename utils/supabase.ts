@@ -1,14 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'
 
-const config = useRuntimeConfig();
+const config = useRuntimeConfig()
 
-if (!config.public.supabaseUrl || !config.public.supabaseAnonKey) {
-  throw new Error('Missing Supabase configuration. Please check your environment variables.');
+const supabaseUrl = config.public.supabaseUrl as string
+const supabaseAnonKey = config.public.supabaseAnonKey as string
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase configuration. Please check your environment variables.')
 }
 
-export const supabase = createClient(
-  config.public.supabaseUrl,
-  config.public.supabaseAnonKey
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default supabase;
+export default supabase
