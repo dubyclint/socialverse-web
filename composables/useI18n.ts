@@ -1,54 +1,99 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export const currentLang = ref('en')
-export const translations = ref<Record<string, string>>({})
+export const translations = ref<Record<string, any>>({})
+export const isLoadingTranslations = ref(false)
 
 /**
- * Load translations for a given language.
+ * Load translations for a given language from API.
  * Falls back to English if none are found.
  */
-export async function loadTranslations(lang: string) {
+export async function loadTranslations(lang: string = 'en') {
+  if (isLoadingTranslations.value) return
+  
+  isLoadingTranslations.value = true
   try {
-    const res = await fetch(`/api/admin/translations?lang=${lang}`)
-    const entries = await res.json()
+    const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
+    
+    if (error.value) {
+      console.error('Translation load failed:', error.value)
+      if (lang !== 'en') {
+        return loadTranslations('en')
+      }
+      return
+    }
 
+    const entries = data.value || []
+    
     if (!entries.length && lang !== 'en') {
       return loadTranslations('en')
     }
 
-    translations.value = Object.fromEntries(entries.map(e => [e.key, e.value]))
+    // Flatten nested translation object
+    translations.value = flattenTranslations(entries)
     currentLang.value = lang
   } catch (err) {
     console.error('Translation load failed:', err)
-    await loadTranslations('en')
+    if (lang !== 'en') {
+      await loadTranslations('en')
+    }
+  } finally {
+    isLoadingTranslations.value = false
   }
 }
 
 /**
- * Translate a given key.
+ * Flatten translation entries into dot-notation keys
  */
-export function t(key: string): string {
-  return translations.value[key] || key
+function flattenTranslations(entries: any[]): Record<string, string> {
+  const result: Record<string, string> = {}
+  
+  entries.forEach(entry => {
+    if (entry.key && entry.value) {
+      result[entry.key] = entry.value
+    }
+  })
+  
+  return result
 }
 
 /**
- * Detect language from browser settings.
+ * Translate a given key with fallback support
  */
-export async function detectBrowserLanguage() {
-  const lang = navigator.language?.split('-')[0] || 'en'
+export function t(key: string, defaultValue?: string): string {
+  return translations.value[key] || defaultValue || key
+}
+
+/**
+ * Get current language
+ */
+export function getCurrentLang(): string {
+  return currentLang.value
+}
+
+/**
+ * Set language and load translations
+ */
+export async function setLanguage(lang: string) {
   await loadTranslations(lang)
 }
 
 /**
- * Detect language from IP via backend.
+ * Detect language from browser settings
  */
-export async function detectIPLanguage() {
-  try {
-    const res = await fetch('/api/user/languageDetect')
-    const { language } = await res.json()
-    await loadTranslations(language)
-  } catch (err) {
-    console.warn('IP language detection failed:', err)
-    await loadTranslations('en')
+export function detectBrowserLanguage(): string {
+  if (process.client) {
+    return navigator.language?.split('-')[0] || 'en'
   }
+  return 'en'
 }
+
+/**
+ * Get all available languages
+ */
+export const availableLanguages = [
+  { code: 'en', name: 'English' },
+  { code: 'fr', name: 'Français' },
+  { code: 'es', name: 'Español' },
+  { code: 'de', name: 'Deutsch' },
+]
