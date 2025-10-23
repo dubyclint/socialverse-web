@@ -3,7 +3,6 @@ import { defineStore } from 'pinia'
 interface Role {
   id: string
   name: string
-  description?: string
   permissions: string[]
   level: number
   created_at: string
@@ -13,7 +12,6 @@ interface Role {
 interface Permission {
   id: string
   name: string
-  description?: string
   resource: string
   action: string
   created_at: string
@@ -74,10 +72,10 @@ export const useRolesStore = defineStore('roles', {
 
         if (error) throw error
 
-        this.roles = (data || []) as any
-      } catch (error: any) {
+        this.roles = (data || []) as Role[]
+      } catch (error) {
         console.error('Roles load error:', error)
-        this.error = error.message || 'Failed to load roles'
+        this.error = (error as any).message || 'Failed to load roles'
       } finally {
         this.loading = false
       }
@@ -96,10 +94,10 @@ export const useRolesStore = defineStore('roles', {
 
         if (error) throw error
 
-        this.permissions = (data || []) as any
-      } catch (error: any) {
+        this.permissions = (data || []) as Permission[]
+      } catch (error) {
         console.error('Permissions load error:', error)
-        this.error = error.message || 'Failed to load permissions'
+        this.error = (error as any).message || 'Failed to load permissions'
       } finally {
         this.loading = false
       }
@@ -110,4 +108,3 @@ export const useRolesStore = defineStore('roles', {
     }
   }
 })
-
