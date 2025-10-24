@@ -2515,5 +2515,5 @@ watch(() => user.value, (newUser) => {
   background: #edf2f7;
   border-color: #cbd5e0;
 
-          
+   </style>       
 
