@@ -1,26 +1,47 @@
 // middleware/permission.ts
 export default defineNuxtRouteMiddleware((to) => {
-  const user = useSupabaseUser()
-  const { hasPermission, getUserPermissions } = useRBAC()
-  
+  // Safely get user with error handling
+  let user = null
+  try {
+    user = useSupabaseUser()
+  } catch (error) {
+    console.warn('Supabase user check failed:', error)
+    return
+  }
+
   // Get required permissions from route meta
   const requiredPermissions = to.meta.permissions as string[] || []
   const requireAll = to.meta.requireAllPermissions as boolean || false
-  
-  if (!user.value) {
-    return navigateTo('/auth')
-  }
-  
+
+  // If no permissions required, allow access
   if (requiredPermissions.length === 0) {
-    return // No specific permissions required
+    return
   }
-  
-  const userPermissions = getUserPermissions(user.value)
-  
+
+  // If no user and permissions required, redirect to login
+  if (!user) {
+    return navigateTo('/auth/login')
+  }
+
+  // Try to get RBAC composable with error handling
+  let hasPermission: (permissions: string[], permission: string) => boolean
+  let getUserPermissions: (user: any) => string[]
+
+  try {
+    const rbac = useRBAC()
+    hasPermission = rbac.hasPermission
+    getUserPermissions = rbac.getUserPermissions
+  } catch (error) {
+    console.warn('RBAC composable not available:', error)
+    return
+  }
+
+  const userPermissions = getUserPermissions(user)
+
   const hasAccess = requireAll 
     ? requiredPermissions.every(permission => hasPermission(userPermissions, permission))
     : requiredPermissions.some(permission => hasPermission(userPermissions, permission))
-  
+
   if (!hasAccess) {
     throw createError({
       statusCode: 403,
@@ -29,7 +50,6 @@ export default defineNuxtRouteMiddleware((to) => {
         requiredPermissions,
         userPermissions,
         requireAll,
-        path: to.path
       }
     })
   }
