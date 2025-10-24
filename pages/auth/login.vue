@@ -63,7 +63,7 @@
           </button>
           <button 
             v-else
-            @click="navigateTo('/feed')" 
+            @click="goToFeed" 
             class="btn btn-primary"
           >
             Go to Feed
@@ -112,7 +112,7 @@
       </button>
       <button 
         v-else
-        @click="navigateTo('/feed')" 
+        @click="goToFeed" 
         class="btn btn-primary"
       >
         Explore Now
@@ -308,7 +308,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-const router = useRouter()
 const user = useSupabaseUser()
 const supabaseClient = useSupabaseClient()
 
@@ -329,6 +328,15 @@ const signupForm = ref({
   loading: false,
   error: ''
 })
+
+// Navigate to feed
+const goToFeed = async () => {
+  try {
+    await navigateTo('/feed')
+  } catch (err) {
+    console.error('Navigation error:', err)
+  }
+}
 
 // Handle Login
 const handleLogin = async () => {
@@ -352,9 +360,11 @@ const handleLogin = async () => {
     }
 
     if (data.user) {
+      // Store user data
       localStorage.setItem('auth_token', data.session?.access_token || '')
       localStorage.setItem('user', JSON.stringify(data.user))
 
+      // Update auth store if available
       try {
         const authStore = useAuthStore()
         authStore.user = data.user
@@ -363,8 +373,9 @@ const handleLogin = async () => {
         console.warn('Auth store not available')
       }
 
+      // Close modal and redirect
       showLoginModal.value = false
-      await navigateTo('/feed')
+      await goToFeed()
     }
   } catch (err: any) {
     console.error('Login error:', err)
@@ -378,6 +389,7 @@ const handleLogin = async () => {
 const handleSignup = async () => {
   signupForm.value.error = ''
 
+  // Validate passwords match
   if (signupForm.value.password !== signupForm.value.confirmPassword) {
     signupForm.value.error = 'Passwords do not match'
     return
@@ -402,9 +414,11 @@ const handleSignup = async () => {
     }
 
     if (data.user) {
+      // Store user data
       localStorage.setItem('auth_token', data.session?.access_token || '')
       localStorage.setItem('user', JSON.stringify(data.user))
 
+      // Update auth store if available
       try {
         const authStore = useAuthStore()
         authStore.user = data.user
@@ -413,8 +427,9 @@ const handleSignup = async () => {
         console.warn('Auth store not available')
       }
 
+      // Close modal and redirect
       showSignupModal.value = false
-      await navigateTo('/feed')
+      await goToFeed()
     }
   } catch (err: any) {
     console.error('Signup error:', err)
@@ -445,7 +460,7 @@ const handleLogout = async () => {
   }
 }
 
-// Switch between modals
+// Switch between login and signup modals
 const switchToSignup = () => {
   showLoginModal.value = false
   showSignupModal.value = true
@@ -456,10 +471,10 @@ const switchToLogin = () => {
   showLoginModal.value = true
 }
 
-// Redirect if already authenticated
+// If user is already authenticated, redirect to feed
 onMounted(() => {
   if (user.value) {
-    navigateTo('/feed')
+    goToFeed()
   }
 })
 
