@@ -1,25 +1,55 @@
 // middleware/admin-auth.ts
+// Only for /admin routes
 export default defineNuxtRouteMiddleware((to) => {
-  const user = useSupabaseUser()
-  const { getUserRole, hasRole } = useRBAC()
-  
-  // Check if user is authenticated
-  if (!user.value) {
-    // Store intended admin destination
+  // Only run on admin routes
+  if (!to.path.startsWith('/admin')) {
+    return
+  }
+
+  // Safely get user with error handling
+  let user = null
+  try {
+    user = useSupabaseUser()
+  } catch (error) {
+    console.warn('Supabase user check failed:', error)
     const redirectCookie = useCookie('admin-redirect', {
       default: () => '/admin',
       maxAge: 60 * 15
     })
     redirectCookie.value = to.fullPath
-    
-    return navigateTo('/auth')
+    return navigateTo('/auth/login')
   }
-  
+
+  // Check if user is authenticated
+  if (!user) {
+    const redirectCookie = useCookie('admin-redirect', {
+      default: () => '/admin',
+      maxAge: 60 * 15
+    })
+    redirectCookie.value = to.fullPath
+    return navigateTo('/auth/login')
+  }
+
+  // Try to get RBAC composable with error handling
+  let getUserRole: (user: any) => string
+  let hasRole: (role: string, requiredRole: string) => boolean
+
+  try {
+    const rbac = useRBAC()
+    getUserRole = rbac.getUserRole
+    hasRole = rbac.hasRole
+  } catch (error) {
+    console.warn('RBAC composable not available:', error)
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Access denied. Admin privileges required.'
+    })
+  }
+
   // Check if user has admin role
-  const userRole = getUserRole(user.value)
+  const userRole = getUserRole(user)
   if (!hasRole(userRole, 'admin')) {
-    // Log unauthorized access attempt
-    console.warn(`Unauthorized admin access attempt by user ${user.value.id} with role ${userRole}`)
+    console.warn(`Unauthorized admin access attempt by user ${user.id} with role ${userRole}`)
     
     throw createError({
       statusCode: 403,
@@ -27,13 +57,10 @@ export default defineNuxtRouteMiddleware((to) => {
       data: {
         requiredRole: 'admin',
         userRole: userRole,
-        userId: user.value.id,
+        userId: user.id,
         attemptedPath: to.path,
         timestamp: new Date().toISOString()
       }
     })
   }
-  
-  // Optional: Log successful admin access
-  console.info(`Admin access granted to user ${user.value.id} for path ${to.path}`)
 })
