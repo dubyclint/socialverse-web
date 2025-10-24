@@ -2,23 +2,10 @@
   <div class="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
       <div class="bg-white rounded-lg shadow-xl p-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-        <p class="text-gray-600 mb-8">Join SocialVerse today</p>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+        <p class="text-gray-600 mb-8">Sign in to your SocialVerse account</p>
 
-        <form @submit.prevent="handleSignUp" class="space-y-4">
-          <div>
-            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-            <input
-              id="name"
-              v-model="name"
-              type="text"
-              required
-              placeholder="John Doe"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              :disabled="loading"
-            />
-          </div>
-
+        <form @submit.prevent="handleLogin" class="space-y-4">
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
@@ -40,21 +27,6 @@
               type="password"
               required
               placeholder="••••••••"
-              minlength="6"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              :disabled="loading"
-            />
-            <p class="text-xs text-gray-500 mt-1">At least 6 characters</p>
-          </div>
-
-          <div>
-            <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-            <input
-              id="confirm-password"
-              v-model="confirmPassword"
-              type="password"
-              required
-              placeholder="••••••••"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               :disabled="loading"
             />
@@ -69,16 +41,21 @@
             :disabled="loading"
             class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
           >
-            {{ loading ? 'Creating account...' : 'Create Account' }}
+            {{ loading ? 'Signing in...' : 'Sign In' }}
           </button>
         </form>
 
-        <p class="text-center text-gray-600 mt-6">
-          Already have an account?
-          <NuxtLink to="/auth/login" class="text-blue-600 hover:text-blue-700 font-semibold">
-            Sign in
+        <div class="mt-6 space-y-3">
+          <NuxtLink to="/auth/forgot-password" class="block text-center text-sm text-blue-600 hover:text-blue-700">
+            Forgot your password?
           </NuxtLink>
-        </p>
+          <p class="text-center text-gray-600">
+            Don't have an account?
+            <NuxtLink to="/auth/signup" class="text-blue-600 hover:text-blue-700 font-semibold">
+              Sign up
+            </NuxtLink>
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -86,45 +63,66 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const name = ref('')
 const email = ref('')
 const password = ref('')
-const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
 
-const handleSignUp = async () => {
+const handleLogin = async () => {
   error.value = ''
-
-  if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match'
-    return
-  }
-
   loading.value = true
 
   try {
-    const response = await $fetch('/api/auth/signup', {
-      method: 'POST',
-      body: {
-        name: name.value,
-        email: email.value,
-        password: password.value
-      }
+    // Get Supabase client
+    let supabase = null
+    try {
+      supabase = useSupabaseClient()
+    } catch (err) {
+      error.value = 'Authentication service not available'
+      loading.value = false
+      return
+    }
+
+    // Sign in with Supabase
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value
     })
 
-    if (response.token) {
-      localStorage.setItem('auth_token', response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
-      await router.push('/auth/verify-email')
+    if (signInError) {
+      error.value = signInError.message || 'Failed to sign in'
+      loading.value = false
+      return
+    }
+
+    if (data.user) {
+      // Store user data
+      localStorage.setItem('auth_token', data.session?.access_token || '')
+      localStorage.setItem('user', JSON.stringify(data.user))
+
+      // Update auth store
+      const authStore = useAuthStore()
+      authStore.user = data.user
+      authStore.sessionValid = true
+
+      // Redirect to feed or homepage
+      await navigateTo('/feed')
     }
   } catch (err: any) {
-    error.value = err.data?.message || 'Sign up failed. Please try again.'
+    console.error('Login error:', err)
+    error.value = err.message || 'An error occurred during sign in'
   } finally {
     loading.value = false
   }
 }
+
+definePageMeta({
+  layout: 'default'
+})
 </script>
+
+<style scoped>
+/* Styles are handled by Tailwind CSS classes */
+</style>
