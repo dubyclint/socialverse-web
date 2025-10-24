@@ -29,6 +29,7 @@ const userStore = useUserStore()
 
 // Composables
 const { initializeSocket } = useSocket()
+const user = useSupabaseUser()
 
 // Reactive data
 const isLoading = ref(false)
@@ -39,131 +40,76 @@ onMounted(async () => {
   try {
     isLoading.value = true
     
-    // Initialize user session
-    await userStore.initializeSession()
-    
-    // Initialize socket connection if user is authenticated
-    if (userStore.isAuthenticated) {
-      await initializeSocket()
+    // Initialize user session if user is authenticated
+    if (user.value?.id) {
+      console.log('[App] Initializing session for user:', user.value.id)
+      await userStore.initializeSession()
     }
     
-  } catch (error: any) {
-    console.error('App initialization error:', error)
-    globalError.value = error.message || 'Failed to initialize application'
+    // Initialize socket connection if authenticated
+    if (userStore.isAuthenticated) {
+      initializeSocket()
+    }
+  } catch (err: any) {
+    console.error('[App] Initialization error:', err)
+    globalError.value = err.message || 'Failed to initialize application'
   } finally {
     isLoading.value = false
   }
 })
 
+// Watch for authentication changes
+watch(
+  () => user.value?.id,
+  async (newUserId) => {
+    if (newUserId) {
+      console.log('[App] User authenticated, initializing...')
+      await userStore.initializeSession()
+      initializeSocket()
+    } else {
+      console.log('[App] User logged out')
+      userStore.clearProfile()
+    }
+  }
+)
+
 // Clear error
 const clearError = () => {
   globalError.value = null
 }
-
-// Watch for user changes
-watch(() => userStore.isAuthenticated, async (isAuth) => {
-  if (isAuth) {
-    try {
-      await initializeSocket()
-    } catch (error: any) {
-      console.error('Socket initialization error:', error)
-    }
-  }
-})
 </script>
 
 <style>
-/* Global styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: #f5f5f5;
-}
-
 #app {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #999;
-}
-
-/* Focus styles */
-button:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  outline: 2px solid #1976d2;
-  outline-offset: 2px;
-}
-
-/* Global error */
 .global-error {
   position: fixed;
   top: 20px;
   right: 20px;
-  background: #f44336;
-  color: white;
-  padding: 16px;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 9999;
   max-width: 400px;
 }
 
 .global-error button {
-  background: white;
-  color: #f44336;
+  background: #c33;
+  color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 0.5rem;
 }
 
-/* Animation utilities */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  transform: translateY(10px);
+.global-error button:hover {
+  background: #a22;
 }
 </style>
+
+
