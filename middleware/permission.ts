@@ -1,68 +1,64 @@
-// middleware/permission.ts
-export default defineNuxtRouteMiddleware((to) => {
-  // Safely get user with error handling
+// middleware/session-check.ts
+export default defineNuxtRouteMiddleware(async (to) => {
+  // Safely get Supabase client with error handling
+  let supabase = null
   let user = null
+
   try {
+    supabase = useSupabaseClient()
     user = useSupabaseUser()
   } catch (error) {
-    console.warn('Supabase user check failed in permission middleware:', error)
+    console.warn('Supabase client/user check failed in session-check middleware:', error)
     return
   }
 
-  // Get required permissions from route meta
-  const requiredPermissions = (to.meta.permissions as string[]) || []
-  const requireAll = (to.meta.requireAllPermissions as boolean) || false
-
-  // If no permissions required, allow access
-  if (requiredPermissions.length === 0) {
+  // Skip for public routes
+  const publicRoutes = ['/', '/auth', '/explore', '/feed']
+  if (publicRoutes.some(route => to.path === route || to.path.startsWith(route + '/'))) {
     return
   }
 
-  // If no user and permissions required, redirect to login
+  // If no user, skip session check
   if (!user?.value) {
-    return navigateTo('/auth/login')
+    return
   }
-
-  // Try to get RBAC composable with error handling
-  let hasPermission: ((permissions: string[], permission: string) => boolean) | null = null
-  let getUserPermissions: ((user: any) => string[]) | null = null
 
   try {
-    const rbac = useRBAC()
-    hasPermission = rbac.hasPermission
-    getUserPermissions = rbac.getUserPermissions
-  } catch (error) {
-    console.warn('RBAC composable not available in permission middleware:', error)
-    return
-  }
+    // Validate current session
+    const { data: { session }, error } = await supabase.auth.getSession()
 
-  // Validate that required functions exist
-  if (!hasPermission || !getUserPermissions) {
-    console.warn('Required RBAC functions not available')
-    return
-  }
-
-  let userPermissions: string[] = []
-  try {
-    userPermissions = getUserPermissions(user.value)
-  } catch (error) {
-    console.warn('Failed to get user permissions:', error)
-    return
-  }
-
-  const hasAccess = requireAll
-    ? requiredPermissions.every(permission => hasPermission!(userPermissions, permission))
-    : requiredPermissions.some(permission => hasPermission!(userPermissions, permission))
-
-  if (!hasAccess) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Insufficient permissions to access this resource.',
-      data: {
-        requiredPermissions,
-        userPermissions,
-        requireAll,
+    if (error || !session) {
+      // Session is invalid, clear user and redirect
+      try {
+        await supabase.auth.signOut()
+      } catch (signOutError) {
+        console.warn('Sign out error during session validation:', signOutError)
       }
-    })
+      return navigateTo('/auth?reason=session_expired')
+    }
+
+    // Check if session is about to expire (within 5 minutes)
+    const expiresAt = new Date(session.expires_at! * 1000)
+    const now = new Date()
+    const fiveMinutes = 5 * 60 * 1000
+
+    if (expiresAt.getTime() - now.getTime() < fiveMinutes) {
+      // Attempt to refresh session
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+
+        if (refreshError || !refreshData.session) {
+          // Refresh failed, redirect to login
+          return navigateTo('/auth?reason=session_expired')
+        }
+      } catch (refreshError) {
+        console.warn('Session refresh error:', refreshError)
+        return navigateTo('/auth?reason=session_expired')
+      }
+    }
+  } catch (error) {
+    console.warn('Session check error:', error)
+    // Don't block navigation on unexpected errors
+    return
   }
 })
