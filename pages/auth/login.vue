@@ -63,7 +63,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const email = ref('')
@@ -76,24 +75,54 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const response = await $fetch('/api/auth/login', {
-      method: 'POST',
-      body: {
-        email: email.value,
-        password: password.value
-      }
+    // Get Supabase client
+    let supabase = null
+    try {
+      supabase = useSupabaseClient()
+    } catch (err) {
+      error.value = 'Authentication service not available'
+      loading.value = false
+      return
+    }
+
+    // Sign in with Supabase
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value
     })
 
-    if (response.token) {
-      localStorage.setItem('auth_token', response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
-      await router.push('/')
+    if (signInError) {
+      error.value = signInError.message || 'Failed to sign in'
+      loading.value = false
+      return
+    }
 
+    if (data.user) {
+      // Store user data
+      localStorage.setItem('auth_token', data.session?.access_token || '')
+      localStorage.setItem('user', JSON.stringify(data.user))
+
+      // Update auth store
+      const authStore = useAuthStore()
+      authStore.user = data.user
+      authStore.sessionValid = true
+
+      // Redirect to feed or homepage
+      await navigateTo('/feed')
     }
   } catch (err: any) {
-    error.value = err.data?.message || 'Login failed. Please try again.'
+    console.error('Login error:', err)
+    error.value = err.message || 'An error occurred during sign in'
   } finally {
     loading.value = false
   }
 }
+
+definePageMeta({
+  layout: 'default'
+})
 </script>
+
+<style scoped>
+/* Styles are handled by Tailwind CSS classes */
+</style>
