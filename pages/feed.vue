@@ -222,12 +222,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
-import { useSupabaseClient } from '#app'
 
 // Stores
 const userStore = useUserStore()
 const router = useRouter()
 const supabase = useSupabaseClient()
+const user = useSupabaseUser()
 
 // Reactive Data
 const posts = ref<any[]>([])
@@ -241,8 +241,8 @@ const suggestedUsers = ref<any[]>([])
 
 // Computed Properties
 const userDisplayName = computed(() => {
-  return userStore.user?.user_metadata?.full_name || 
-         userStore.user?.email?.split('@')[0] || 
+  return user.value?.user_metadata?.full_name || 
+         user.value?.email?.split('@')[0] || 
          'User'
 })
 
@@ -349,7 +349,7 @@ const toggleLike = async (postId: string) => {
         .from('post_likes')
         .delete()
         .eq('post_id', postId)
-        .eq('user_id', userStore.user?.id)
+        .eq('user_id', user.value?.id)
 
       post.liked_by_user = false
       post.likes_count = (post.likes_count || 1) - 1
@@ -359,7 +359,7 @@ const toggleLike = async (postId: string) => {
         .from('post_likes')
         .insert({
           post_id: postId,
-          user_id: userStore.user?.id
+          user_id: user.value?.id
         })
 
       post.liked_by_user = true
@@ -412,7 +412,7 @@ const togglePostMenu = (postId: string) => {
 }
 
 const isPostOwner = (post: any): boolean => {
-  return post.user_id === userStore.user?.id
+  return post.user_id === user.value?.id
 }
 
 const deletePost = async (postId: string) => {
@@ -423,7 +423,7 @@ const deletePost = async (postId: string) => {
       .from('posts')
       .delete()
       .eq('id', postId)
-      .eq('user_id', userStore.user?.id)
+      .eq('user_id', user.value?.id)
 
     if (deleteError) throw deleteError
 
@@ -444,7 +444,7 @@ const reportPost = async (postId: string) => {
       .from('post_reports')
       .insert({
         post_id: postId,
-        user_id: userStore.user?.id,
+        user_id: user.value?.id,
         reason
       })
 
@@ -482,7 +482,7 @@ const loadSuggestedUsers = async () => {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .neq('id', userStore.user?.id)
+      .neq('id', user.value?.id)
       .limit(5)
 
     suggestedUsers.value = (data || []).map(user => ({
@@ -500,17 +500,17 @@ const navigateToTrend = (trend: any) => {
 
 const followUser = async (userId: string) => {
   try {
-    const user = suggestedUsers.value.find(u => u.id === userId)
-    if (!user) return
+    const followUser = suggestedUsers.value.find(u => u.id === userId)
+    if (!followUser) return
 
     await supabase
       .from('follows')
       .insert({
-        follower_id: userStore.user?.id,
+        follower_id: user.value?.id,
         following_id: userId
       })
 
-    user.isFollowing = true
+    followUser.isFollowing = true
   } catch (err: any) {
     console.error('Error following user:', err)
   }
@@ -1164,6 +1164,7 @@ useHead({
   }
 }
 </style>
+
 
 
 
