@@ -31,6 +31,7 @@ interface AuthState {
   permissions: string[]
   lastRoleCheck: Date | null
   sessionValid: boolean
+  supabaseAvailable: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -40,7 +41,8 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     permissions: [],
     lastRoleCheck: null,
-    sessionValid: false
+    sessionValid: false,
+    supabaseAvailable: false
   }),
 
   getters: {
@@ -91,7 +93,17 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async initialize() {
-      const supabase = useSupabaseClient()
+      // Safely initialize Supabase client
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+        this.supabaseAvailable = true
+      } catch (error) {
+        console.warn('Supabase client not available during initialization:', error)
+        this.supabaseAvailable = false
+        this.loading = false
+        return
+      }
       
       try {
         this.loading = true
@@ -128,9 +140,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async fetchProfile() {
-      if (!this.user) return
+      if (!this.user || !this.supabaseAvailable) return
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return
+      }
       
       try {
         this.loading = true
@@ -161,9 +179,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async createProfile() {
-      if (!this.user) return
+      if (!this.user || !this.supabaseAvailable) return
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return
+      }
       
       try {
         const profileData = {
@@ -196,9 +220,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async loadPermissions() {
-      if (!this.profile) return
+      if (!this.profile || !this.supabaseAvailable) return
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return
+      }
       
       try {
         const { data, error } = await supabase
@@ -222,9 +252,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async updateProfile(updates: Partial<Profile>) {
-      if (!this.user || !this.profile) return { success: false, error: 'Not authenticated' }
+      if (!this.user || !this.profile || !this.supabaseAvailable) return { success: false, error: 'Not authenticated' }
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return { success: false, error: 'Supabase not available' }
+      }
       
       try {
         this.loading = true
@@ -254,9 +290,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async updateLastLogin() {
-      if (!this.user) return
+      if (!this.user || !this.supabaseAvailable) return
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return
+      }
       
       try {
         await supabase
@@ -295,11 +337,16 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async assignManagerRole(userId: string, permissions: string[] = []) {
-      if (!this.isAdmin) {
+      if (!this.isAdmin || !this.supabaseAvailable) {
         throw new Error('Only admins can assign manager roles')
       }
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        throw new Error('Supabase not available')
+      }
       
       try {
         const { error } = await supabase.rpc('assign_manager_role', {
@@ -324,11 +371,16 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async removeManagerRole(userId: string) {
-      if (!this.isAdmin) {
+      if (!this.isAdmin || !this.supabaseAvailable) {
         throw new Error('Only admins can remove manager roles')
       }
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        throw new Error('Supabase not available')
+      }
       
       try {
         const { error } = await supabase.rpc('remove_manager_role', {
@@ -351,9 +403,15 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logAuditAction(action: string, resourceType: string, resourceId: string, details: any = {}) {
-      if (!this.user) return
+      if (!this.user || !this.supabaseAvailable) return
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return
+      }
       
       try {
         await supabase
@@ -389,7 +447,20 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async signOut() {
-      const supabase = useSupabaseClient()
+      if (!this.supabaseAvailable) {
+        this.clearAuth()
+        await navigateTo('/auth/login')
+        return
+      }
+
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        this.clearAuth()
+        return
+      }
       
       try {
         const { error } = await supabase.auth.signOut()
@@ -400,6 +471,7 @@ export const useAuthStore = defineStore('auth', {
         
       } catch (error) {
         console.error('Sign out error:', error)
+        this.clearAuth()
       }
     },
 
@@ -417,9 +489,14 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async sendEmailVerification() {
-      if (!this.user?.email) return { success: false, error: 'No email found' }
+      if (!this.user?.email || !this.supabaseAvailable) return { success: false, error: 'No email found' }
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        return { success: false, error: 'Supabase not available' }
+      }
       
       try {
         const { error } = await supabase.auth.resend({
@@ -438,7 +515,14 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async updatePassword(newPassword: string) {
-      const supabase = useSupabaseClient()
+      if (!this.supabaseAvailable) return { success: false, error: 'Supabase not available' }
+
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        return { success: false, error: 'Supabase not available' }
+      }
       
       try {
         const { error } = await supabase.auth.updateUser({
@@ -458,9 +542,14 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async deleteAccount() {
-      if (!this.user) return { success: false, error: 'Not authenticated' }
+      if (!this.user || !this.supabaseAvailable) return { success: false, error: 'Not authenticated' }
 
-      const supabase = useSupabaseClient()
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        return { success: false, error: 'Supabase not available' }
+      }
       
       try {
         await this.logAuditAction('account_deleted', 'user', this.user.id)
