@@ -1,21 +1,57 @@
 // middleware/rbac.ts
 export default defineNuxtRouteMiddleware((to) => {
-  const user = useSupabaseUser()
-  const { hasPermission, getUserRole, canAccessRoute } = useRBAC()
+  let user = null
+  let hasPermission: any = null
+  let getUserRole: any = null
+  let canAccessRoute: any = null
   const { $i18n } = useNuxtApp()
-  
-  // Skip if user is not authenticated (handled by auth-check)
-  if (!user.value) {
+
+  // Safely get user with error handling
+  try {
+    user = useSupabaseUser()
+  } catch (error) {
+    console.warn('Supabase user check failed in rbac middleware:', error)
     return
   }
-  
-  const userRole = getUserRole(user.value)
-  const canAccess = canAccessRoute(to.path, userRole)
-  
+
+  // Skip if user is not authenticated (handled by auth-check)
+  if (!user?.value) {
+    return
+  }
+
+  // Safely get RBAC composable with error handling
+  try {
+    const rbac = useRBAC()
+    hasPermission = rbac.hasPermission
+    getUserRole = rbac.getUserRole
+    canAccessRoute = rbac.canAccessRoute
+  } catch (error) {
+    console.warn('RBAC composable not available:', error)
+    return
+  }
+
+  // Safely get user role with error handling
+  let userRole = 'user'
+  try {
+    userRole = getUserRole(user.value)
+  } catch (error) {
+    console.warn('Failed to get user role:', error)
+    userRole = 'user'
+  }
+
+  // Safely check route access with error handling
+  let canAccess = false
+  try {
+    canAccess = canAccessRoute(to.path, userRole)
+  } catch (error) {
+    console.warn('Failed to check route access:', error)
+    return
+  }
+
   if (!canAccess) {
     throw createError({
       statusCode: 403,
-      statusMessage: $i18n.t('permissions.denied'),
+      statusMessage: $i18n?.t('permissions.denied') || 'Access Denied',
       data: {
         requiredRole: getRequiredRoleForRoute(to.path),
         userRole: userRole,
