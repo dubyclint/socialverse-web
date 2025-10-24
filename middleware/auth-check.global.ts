@@ -1,6 +1,13 @@
 // middleware/auth-check.global.ts
 export default defineNuxtRouteMiddleware((to) => {
-  const user = useSupabaseUser()
+  // Safely get Supabase user with error handling
+  let user = null
+  try {
+    user = useSupabaseUser()
+  } catch (error) {
+    console.warn('Supabase user check failed:', error)
+    user = null
+  }
   
   // Get RBAC configuration from runtime config
   const config = useRuntimeConfig()
@@ -33,14 +40,7 @@ export default defineNuxtRouteMiddleware((to) => {
   if (rbacConfig && rbacConfig.protectedRoutes && rbacConfig.protectedRoutes.some((route: string) => 
     to.path.startsWith(route.replace('*', ''))
   )) {
-    if (!user.value) {
-      // Store intended destination for redirect after login
-      const redirectCookie = useCookie('auth-redirect', {
-        default: () => '/',
-        maxAge: 60 * 15 // 15 minutes
-      })
-      redirectCookie.value = to.fullPath
-      
+    if (!user) {
       return navigateTo('/auth/login')
     }
   }
