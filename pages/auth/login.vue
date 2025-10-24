@@ -3,15 +3,13 @@
     <!-- Header -->
     <header class="header">
       <div class="header-content">
-        <!-- Logo with Home Link & Container -->
-        <NuxtLink to="/auth/login" class="logo-container">
+        <NuxtLink to="/" class="logo-container">
           <div class="logo-box">
             <span class="logo-text">SocialVerse</span>
           </div>
         </NuxtLink>
         
         <nav class="nav">
-          <!-- Features in Styled Box -->
           <div class="features-badge">
             <a href="#features" class="features-link">✨ Features</a>
           </div>
@@ -33,7 +31,7 @@
           <button 
             v-else 
             @click="handleLogout" 
-            class="nav-link btn-login"
+            class="nav-link btn-logout"
           >
             Logout
           </button>
@@ -41,275 +39,141 @@
       </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-      <div class="hero-content">
-        <h2>Welcome to SocialVerse</h2>
-        <p>Connect, Share, and Grow with Our Community</p>
-        <div class="hero-buttons">
-          <button 
-            v-if="!user"
-            @click="showSignupModal = true" 
-            class="btn btn-primary"
-          >
-            Get Started
-          </button>
-          <button 
-            v-if="!user"
-            @click="showLoginModal = true" 
-            class="btn btn-secondary"
-          >
-            Sign In
-          </button>
-          <button 
-            v-else
-            @click="goToFeed" 
-            class="btn btn-primary"
-          >
-            Go to Feed
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Features Section -->
-    <section id="features" class="features">
-      <h3>Our Features</h3>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">📱</div>
-          <h4>Social Networking</h4>
-          <p>Connect with friends and share your thoughts</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">💬</div>
-          <h4>Real-time Chat</h4>
-          <p>Instant messaging with your connections</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">💰</div>
-          <h4>P2P Trading</h4>
-          <p>Secure peer-to-peer transactions</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔒</div>
-          <h4>Escrow Services</h4>
-          <p>Safe and protected transactions</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta">
-      <h3>Ready to Join?</h3>
-      <p>Start your journey with SocialVerse today</p>
-      <button 
-        v-if="!user"
-        @click="showSignupModal = true" 
-        class="btn btn-primary"
-      >
-        Create Account
-      </button>
-      <button 
-        v-else
-        @click="goToFeed" 
-        class="btn btn-primary"
-      >
-        Explore Now
-      </button>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="footer-content">
-        <div class="footer-section">
-          <h4>SocialVerse</h4>
-          <p>Connect, Share, and Grow with Our Community</p>
-        </div>
+    <!-- Login Modal -->
+    <div v-if="showLoginModal" class="modal-overlay" @click="showLoginModal = false">
+      <div class="modal-content" @click.stop>
+        <button class="close-btn" @click="showLoginModal = false">×</button>
         
-        <div class="footer-section">
-          <h5>Quick Links</h5>
-          <ul>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#contact">Contact</a></li>
-          </ul>
-        </div>
+        <h2>Sign In</h2>
         
-        <div class="footer-section">
-          <h5>Legal</h5>
-          <ul>
-            <li><a href="#privacy">Privacy Policy</a></li>
-            <li><a href="#terms">Terms of Service</a></li>
-          </ul>
-        </div>
-        
-        <div class="footer-section">
-          <h5>Follow Us</h5>
-          <div class="social-links">
-            <a href="#" class="social-icon">f</a>
-            <a href="#" class="social-icon">𝕏</a>
-            <a href="#" class="social-icon">in</a>
+        <form @submit.prevent="handleLogin">
+          <div v-if="loginForm.error" class="error-message">
+            {{ loginForm.error }}
           </div>
-        </div>
-      </div>
-      
-      <div class="footer-bottom">
-        <p>&copy; 2024 SocialVerse. All rights reserved.</p>
-      </div>
-    </footer>
 
-    <!-- LOGIN MODAL -->
-    <div v-if="showLoginModal" class="modal-overlay" @click.self="showLoginModal = false">
-      <div class="modal-content">
-        <button class="modal-close" @click="showLoginModal = false">✕</button>
-        
-        <div class="auth-form-container">
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p class="text-gray-600 mb-8">Sign in to your SocialVerse account</p>
-
-          <form @submit.prevent="handleLogin" class="space-y-4">
-            <div>
-              <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                id="login-email"
-                v-model="loginForm.email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                :disabled="loginForm.loading"
-              />
-            </div>
-
-            <div>
-              <label for="login-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-              <input
-                id="login-password"
-                v-model="loginForm.password"
-                type="password"
-                required
-                placeholder="••••••••"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                :disabled="loginForm.loading"
-              />
-            </div>
-
-            <div v-if="loginForm.error" class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {{ loginForm.error }}
-            </div>
-
-            <button
-              type="submit"
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input
+              id="login-email"
+              v-model="loginForm.email"
+              type="email"
+              required
+              placeholder="you@example.com"
               :disabled="loginForm.loading"
-              class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
-            >
-              {{ loginForm.loading ? 'Signing in...' : 'Sign In' }}
-            </button>
-          </form>
-
-          <div class="mt-6 space-y-3">
-            <NuxtLink to="/auth/forgot-password" class="block text-center text-sm text-blue-600 hover:text-blue-700">
-              Forgot your password?
-            </NuxtLink>
-            <p class="text-center text-gray-600">
-              Don't have an account?
-              <button 
-                @click="switchToSignup" 
-                class="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
-              >
-                Sign up
-              </button>
-            </p>
+            />
           </div>
-        </div>
+
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input
+              id="login-password"
+              v-model="loginForm.password"
+              type="password"
+              required
+              placeholder="••••••••"
+              :disabled="loginForm.loading"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            class="btn-submit"
+            :disabled="loginForm.loading"
+          >
+            {{ loginForm.loading ? 'Signing in...' : 'Sign In' }}
+          </button>
+        </form>
+
+        <p class="signup-link">
+          Don't have an account?
+          <button 
+            @click="showLoginModal = false; showSignupModal = true"
+            class="link-button"
+          >
+            Sign up
+          </button>
+        </p>
       </div>
     </div>
 
-    <!-- SIGNUP MODAL -->
-    <div v-if="showSignupModal" class="modal-overlay" @click.self="showSignupModal = false">
-      <div class="modal-content">
-        <button class="modal-close" @click="showSignupModal = false">✕</button>
+    <!-- Signup Modal -->
+    <div v-if="showSignupModal" class="modal-overlay" @click="showSignupModal = false">
+      <div class="modal-content" @click.stop>
+        <button class="close-btn" @click="showSignupModal = false">×</button>
         
-        <div class="auth-form-container">
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p class="text-gray-600 mb-8">Join SocialVerse today</p>
-
-          <form @submit.prevent="handleSignup" class="space-y-4">
-            <div>
-              <label for="signup-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                id="signup-email"
-                v-model="signupForm.email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                :disabled="signupForm.loading"
-              />
-            </div>
-
-            <div>
-              <label for="signup-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-              <input
-                id="signup-password"
-                v-model="signupForm.password"
-                type="password"
-                required
-                placeholder="••••••••"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                :disabled="signupForm.loading"
-              />
-            </div>
-
-            <div>
-              <label for="signup-confirm" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-              <input
-                id="signup-confirm"
-                v-model="signupForm.confirmPassword"
-                type="password"
-                required
-                placeholder="••••••••"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                :disabled="signupForm.loading"
-              />
-            </div>
-
-            <div v-if="signupForm.error" class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {{ signupForm.error }}
-            </div>
-
-            <button
-              type="submit"
-              :disabled="signupForm.loading"
-              class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
-            >
-              {{ signupForm.loading ? 'Creating account...' : 'Sign Up' }}
-            </button>
-          </form>
-
-          <div class="mt-6 space-y-3">
-            <p class="text-center text-gray-600">
-              Already have an account?
-              <button 
-                @click="switchToLogin" 
-                class="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
-              >
-                Sign in
-              </button>
-            </p>
+        <h2>Sign Up</h2>
+        
+        <form @submit.prevent="handleSignup">
+          <div v-if="signupForm.error" class="error-message">
+            {{ signupForm.error }}
           </div>
-        </div>
+
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input
+              id="signup-email"
+              v-model="signupForm.email"
+              type="email"
+              required
+              placeholder="you@example.com"
+              :disabled="signupForm.loading"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input
+              id="signup-password"
+              v-model="signupForm.password"
+              type="password"
+              required
+              placeholder="••••••••"
+              :disabled="signupForm.loading"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="signup-confirm">Confirm Password</label>
+            <input
+              id="signup-confirm"
+              v-model="signupForm.confirmPassword"
+              type="password"
+              required
+              placeholder="••••••••"
+              :disabled="signupForm.loading"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            class="btn-submit"
+            :disabled="signupForm.loading"
+          >
+            {{ signupForm.loading ? 'Creating account...' : 'Sign Up' }}
+          </button>
+        </form>
+
+        <p class="login-link">
+          Already have an account?
+          <button 
+            @click="showSignupModal = false; showLoginModal = true"
+            class="link-button"
+          >
+            Sign in
+          </button>
+        </p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const user = useSupabaseUser()
 const supabaseClient = useSupabaseClient()
+const userStore = useUserStore()
+const router = useRouter()
 
 const showLoginModal = ref(false)
 const showSignupModal = ref(false)
@@ -332,7 +196,7 @@ const signupForm = ref({
 // Navigate to feed
 const goToFeed = async () => {
   try {
-    await navigateTo('/feed')
+    await router.push('/feed')
   } catch (err) {
     console.error('Navigation error:', err)
   }
@@ -349,6 +213,12 @@ const handleLogin = async () => {
       return
     }
 
+    // Validate inputs
+    if (!loginForm.value.email || !loginForm.value.password) {
+      loginForm.value.error = 'Email and password are required'
+      return
+    }
+
     const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
       email: loginForm.value.email,
       password: loginForm.value.password
@@ -359,23 +229,22 @@ const handleLogin = async () => {
       return
     }
 
-    if (data.user) {
+    if (data.user?.id) {
+      // CRITICAL: Verify user ID exists before storing
+      console.log('[Login] User authenticated with ID:', data.user.id)
+      
       // Store user data
       localStorage.setItem('auth_token', data.session?.access_token || '')
       localStorage.setItem('user', JSON.stringify(data.user))
 
-      // Update auth store if available
-      try {
-        const authStore = useAuthStore()
-        authStore.user = data.user
-        authStore.sessionValid = true
-      } catch (err) {
-        console.warn('Auth store not available')
-      }
+      // Initialize user store with profile
+      await userStore.initializeSession()
 
       // Close modal and redirect
       showLoginModal.value = false
       await goToFeed()
+    } else {
+      loginForm.value.error = 'User ID not available from authentication'
     }
   } catch (err: any) {
     console.error('Login error:', err)
@@ -388,18 +257,27 @@ const handleLogin = async () => {
 // Handle Signup
 const handleSignup = async () => {
   signupForm.value.error = ''
-
-  // Validate passwords match
-  if (signupForm.value.password !== signupForm.value.confirmPassword) {
-    signupForm.value.error = 'Passwords do not match'
-    return
-  }
-
   signupForm.value.loading = true
 
   try {
     if (!supabaseClient) {
       signupForm.value.error = 'Authentication service not available'
+      return
+    }
+
+    // Validate inputs
+    if (!signupForm.value.email || !signupForm.value.password) {
+      signupForm.value.error = 'Email and password are required'
+      return
+    }
+
+    if (signupForm.value.password !== signupForm.value.confirmPassword) {
+      signupForm.value.error = 'Passwords do not match'
+      return
+    }
+
+    if (signupForm.value.password.length < 6) {
+      signupForm.value.error = 'Password must be at least 6 characters'
       return
     }
 
@@ -413,23 +291,21 @@ const handleSignup = async () => {
       return
     }
 
-    if (data.user) {
+    if (data.user?.id) {
+      console.log('[Signup] User created with ID:', data.user.id)
+      
       // Store user data
       localStorage.setItem('auth_token', data.session?.access_token || '')
       localStorage.setItem('user', JSON.stringify(data.user))
 
-      // Update auth store if available
-      try {
-        const authStore = useAuthStore()
-        authStore.user = data.user
-        authStore.sessionValid = true
-      } catch (err) {
-        console.warn('Auth store not available')
-      }
+      // Initialize user store
+      await userStore.initializeSession()
 
       // Close modal and redirect
       showSignupModal.value = false
       await goToFeed()
+    } else {
+      signupForm.value.error = 'User ID not available from authentication'
     }
   } catch (err: any) {
     console.error('Signup error:', err)
@@ -443,72 +319,34 @@ const handleSignup = async () => {
 const handleLogout = async () => {
   try {
     await supabaseClient.auth.signOut()
+    userStore.clearProfile()
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user')
-    
-    try {
-      const authStore = useAuthStore()
-      authStore.user = null
-      authStore.sessionValid = false
-    } catch (err) {
-      console.warn('Auth store not available')
-    }
-
-    await navigateTo('/')
+    await router.push('/')
   } catch (err) {
     console.error('Logout error:', err)
   }
 }
 
-// Switch between login and signup modals
-const switchToSignup = () => {
-  showLoginModal.value = false
-  showSignupModal.value = true
-}
-
-const switchToLogin = () => {
-  showSignupModal.value = false
-  showLoginModal.value = true
-}
-
-// If user is already authenticated, redirect to feed
-onMounted(() => {
-  if (user.value) {
+// Redirect to feed if already logged in
+watch(user, (newUser) => {
+  if (newUser?.id) {
     goToFeed()
   }
-})
-
-definePageMeta({
-  layout: 'default'
-})
-
-useHead({
-  title: 'SocialVerse - Connect, Share, Grow',
-  meta: [
-    { name: 'description', content: 'SocialVerse - A modern social networking platform' }
-  ]
-})
+}, { immediate: true })
 </script>
 
 <style scoped>
 .landing-page {
-  width: 100%;
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  flex-direction: column;
-  background-attachment: fixed;
 }
 
-/* Header */
 .header {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   padding: 1rem 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .header-content {
@@ -517,351 +355,84 @@ useHead({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 2rem;
 }
 
-/* Logo Container */
 .logo-container {
   text-decoration: none;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
 }
 
 .logo-box {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  transition: all 0.3s ease;
-}
-
-.logo-box:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  background: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .logo-text {
   font-size: 1.5rem;
-  font-weight: 700;
-  color: white;
-  letter-spacing: 0.5px;
-}
-
-/* Navigation */
-.nav {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-}
-
-.nav-link {
-  text-decoration: none;
-  color: #333;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-}
-
-.nav-link:hover {
+  font-weight: bold;
   color: #667eea;
 }
 
-/* Features Badge */
-.features-badge {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 0.5rem 1.25rem;
-  border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-  transition: all 0.3s ease;
+.nav {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
-.features-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+.features-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
 }
 
 .features-link {
-  text-decoration: none;
   color: white;
-  font-weight: 600;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  text-decoration: none;
+  font-weight: 500;
 }
 
-/* Buttons */
-.btn-login {
-  background: #667eea;
+.nav-link {
+  background: none;
+  border: none;
   color: white;
-  padding: 0.5rem 1.5rem;
-  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
   transition: all 0.3s ease;
 }
 
+.btn-login {
+  border: 2px solid white;
+}
+
 .btn-login:hover {
-  background: #764ba2;
-  transform: translateY(-2px);
+  background: white;
+  color: #667eea;
 }
 
 .btn-signup {
   background: white;
   color: #667eea;
-  padding: 0.5rem 1.5rem;
-  border-radius: 8px;
-  border: 2px solid #667eea;
-  transition: all 0.3s ease;
   font-weight: 600;
 }
 
 .btn-signup:hover {
-  background: #667eea;
-  color: white;
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Hero Section */
-.hero {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-  color: white;
-}
-
-.hero-content h2 {
-  font-size: 3.5rem;
-  margin: 0 0 1rem 0;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.hero-content p {
-  font-size: 1.25rem;
-  margin: 0 0 2rem 0;
-  opacity: 0.95;
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-/* Buttons */
-.btn {
-  padding: 0.75rem 2rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-primary {
-  background: white;
-  color: #667eea;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.btn-secondary {
-  background: transparent;
-  color: white;
+.btn-logout {
+  background: rgba(255, 255, 255, 0.2);
   border: 2px solid white;
 }
 
-.btn-secondary:hover {
+.btn-logout:hover {
   background: white;
   color: #667eea;
 }
 
-/* Features Section */
-.features {
-  background: white;
-  padding: 4rem 2rem;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.features h3 {
-  font-size: 2.5rem;
-  margin: 0 0 3rem 0;
-  color: #333;
-  font-weight: 700;
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.feature-card {
-  padding: 2rem;
-  background: #f8f9fa;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  border: 1px solid #e9ecef;
-}
-
-.feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  background: white;
-}
-
-.feature-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.feature-card h4 {
-  font-size: 1.25rem;
-  margin: 0 0 0.5rem 0;
-  color: #333;
-  font-weight: 600;
-}
-
-.feature-card p {
-  margin: 0;
-  color: #666;
-  font-size: 0.95rem;
-}
-
-/* CTA Section */
-.cta {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 4rem 2rem;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.cta h3 {
-  font-size: 2.5rem;
-  margin: 0 0 1rem 0;
-  font-weight: 700;
-}
-
-.cta p {
-  font-size: 1.1rem;
-  margin: 0 0 2rem 0;
-  opacity: 0.95;
-}
-
-/* Footer */
-.footer {
-  background: rgba(0, 0, 0, 0.15);
-  color: white;
-  padding: 3rem 2rem 1.5rem;
-  flex-shrink: 0;
-}
-
-.footer-content {
-  max-width: 1200px;
-  margin: 0 auto 2rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 2rem;
-}
-
-.footer-section h4 {
-  font-size: 1.25rem;
-  margin: 0 0 1rem 0;
-  font-weight: 700;
-}
-
-.footer-section h5 {
-  font-size: 1rem;
-  margin: 0 0 1rem 0;
-  font-weight: 600;
-}
-
-.footer-section p {
-  margin: 0;
-  opacity: 0.9;
-  font-size: 0.95rem;
-}
-
-.footer-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.footer-section ul li {
-  margin-bottom: 0.75rem;
-}
-
-.footer-section ul li a {
-  color: white;
-  text-decoration: none;
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
-  font-size: 0.95rem;
-}
-
-.footer-section ul li a:hover {
-  opacity: 1;
-}
-
-.social-links {
-  display: flex;
-  gap: 1rem;
-}
-
-.social-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  color: white;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  font-weight: 600;
-}
-
-.social-icon:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.footer-bottom {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-top: 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
-  opacity: 0.8;
-  font-size: 0.9rem;
-}
-
-.footer-bottom p {
-  margin: 0;
-}
-
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -873,23 +444,19 @@ useHead({
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
-  overflow-y: auto;
 }
 
 .modal-content {
   background: white;
   border-radius: 12px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 450px;
-  width: 100%;
   position: relative;
-  max-height: 90vh;
-  overflow-y: auto;
-  margin: auto;
 }
 
-.modal-close {
+.close-btn {
   position: absolute;
   top: 1rem;
   right: 1rem;
@@ -897,174 +464,101 @@ useHead({
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
-  z-index: 10;
+  color: #999;
 }
 
-.modal-close:hover {
+.close-btn:hover {
   color: #333;
 }
 
-.auth-form-container {
-  padding: 2rem;
+.modal-content h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+  text-align: center;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .header-content {
-    gap: 1rem;
-  }
-
-  .hero-content h2 {
-    font-size: 2.5rem;
-  }
-
-  .features h3 {
-    font-size: 2rem;
-  }
-
-  .cta h3 {
-    font-size: 2rem;
-  }
+.form-group {
+  margin-bottom: 1rem;
 }
 
-@media (max-width: 768px) {
-  .header {
-    padding: 1rem;
-  }
-
-  .header-content {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .logo-box {
-    padding: 0.5rem 1rem;
-  }
-
-  .logo-text {
-    font-size: 1.25rem;
-  }
-
-  .nav {
-    width: 100%;
-    justify-content: center;
-    gap: 0.75rem;
-  }
-
-  .hero {
-    padding: 2rem 1rem;
-  }
-
-  .hero-content h2 {
-    font-size: 2rem;
-  }
-
-  .hero-content p {
-    font-size: 1rem;
-  }
-
-  .hero-buttons {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .btn {
-    width: 100%;
-  }
-
-  .features {
-    padding: 2rem 1rem;
-  }
-
-  .features h3 {
-    font-size: 1.75rem;
-  }
-
-  .features-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .cta {
-    padding: 2rem 1rem;
-  }
-
-  .cta h3 {
-    font-size: 1.75rem;
-  }
-
-  .footer-content {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-  }
-
-  .footer {
-    padding: 2rem 1rem 1rem;
-  }
-
-  .modal-content {
-    max-width: 90%;
-  }
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
 }
 
-@media (max-width: 480px) {
-  .header {
-    padding: 0.75rem;
-  }
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
 
-  .header-content {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
 
-  .nav {
-    flex-direction: column;
-    width: 100%;
-    gap: 0.5rem;
-  }
+.form-group input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
 
-  .nav-link,
-  .btn-login,
-  .btn-signup,
-  .features-badge {
-    width: 100%;
-    text-align: center;
-  }
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
 
-  .logo-text {
-    font-size: 1.1rem;
-  }
+.btn-submit {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
 
-  .hero-content h2 {
-    font-size: 1.5rem;
-  }
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
 
-  .hero-content p {
-    font-size: 0.9rem;
-  }
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-  .features h3,
-  .cta h3 {
-    font-size: 1.5rem;
-  }
+.signup-link,
+.login-link {
+  text-align: center;
+  margin-top: 1rem;
+  color: #666;
+  font-size: 0.9rem;
+}
 
-  .footer-content {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
+.link-button {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+}
 
-  .footer-section h4,
-  .footer-section h5 {
-    font-size: 0.95rem;
-  }
-
-  .modal-content {
-    max-width: 95%;
-  }
-
-  .auth-form-container {
-    padding: 1.5rem;
-  }
+.link-button:hover {
+  color: #764ba2;
 }
 </style>
