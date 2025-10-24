@@ -497,6 +497,7 @@ useHead({
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   flex-direction: column;
+  background-attachment: fixed;
 }
 
 /* Header */
@@ -507,6 +508,7 @@ useHead({
   position: sticky;
   top: 0;
   z-index: 100;
+  flex-shrink: 0;
 }
 
 .header-content {
@@ -523,6 +525,7 @@ useHead({
   text-decoration: none;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .logo-box {
@@ -551,6 +554,7 @@ useHead({
   gap: 1.5rem;
   align-items: center;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .nav-link {
@@ -692,6 +696,7 @@ useHead({
   background: white;
   padding: 4rem 2rem;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .features h3 {
@@ -747,6 +752,7 @@ useHead({
   color: white;
   padding: 4rem 2rem;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .cta h3 {
@@ -766,7 +772,7 @@ useHead({
   background: rgba(0, 0, 0, 0.15);
   color: white;
   padding: 3rem 2rem 1.5rem;
-  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .footer-content {
@@ -868,6 +874,7 @@ useHead({
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -879,6 +886,7 @@ useHead({
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
+  margin: auto;
 }
 
 .modal-close {
