@@ -1,17 +1,36 @@
 // middleware/route-guard.ts
 export default defineNuxtRouteMiddleware((to) => {
-  const user = useSupabaseUser()
-  const { getUserRole, canAccessRoute } = useRBAC()
-  const config = useRuntimeConfig()
-  
-  if (!user.value) {
-    return // Let auth-check handle this
+  // Safely get user with error handling
+  let user = null
+  try {
+    user = useSupabaseUser()
+  } catch (error) {
+    console.warn('Supabase user check failed:', error)
+    return
   }
-  
-  const userRole = getUserRole(user.value)
-  const rbacConfig = config.public.rbac
-  
-  // Check admin routes - based on your existing /pages/admin/ structure
+
+  // If no user, skip this middleware
+  if (!user) {
+    return
+  }
+
+  // Try to get RBAC composable with error handling
+  let getUserRole: (user: any) => string
+  let canAccessRoute: (path: string, role: string) => boolean
+
+  try {
+    const rbac = useRBAC()
+    getUserRole = rbac.getUserRole
+    canAccessRoute = rbac.canAccessRoute
+  } catch (error) {
+    console.warn('RBAC composable not available:', error)
+    return
+  }
+
+  const userRole = getUserRole(user)
+  const rbacConfig = useRuntimeConfig().public.rbac
+
+  // Check admin routes
   if (to.path.startsWith('/admin')) {
     if (userRole !== 'admin') {
       throw createError({
@@ -20,8 +39,8 @@ export default defineNuxtRouteMiddleware((to) => {
       })
     }
   }
-  
-  // Check manager routes (if you add manager pages)
+
+  // Check manager routes
   if (to.path.startsWith('/manager')) {
     if (userRole !== 'manager' && userRole !== 'admin') {
       throw createError({
@@ -30,12 +49,16 @@ export default defineNuxtRouteMiddleware((to) => {
       })
     }
   }
-  
-  // Protected routes based on your existing pages structure
-  const protectedRoutes = ['/profile', '/chat', '/inbox', '/trade', '/groups']
+
+  // Protected routes based on existing pages structure
+  const protectedRoutes = ['/profile', '/chat', '/inbox', '/trade', '/p2p', '/cross-meet', '/universe', '/my-pocket', '/notifications', '/settings']
+
   if (protectedRoutes.some(route => to.path.startsWith(route))) {
-    if (!user.value) {
-      return navigateTo('/auth')
+    if (!canAccessRoute(to.path, userRole)) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Access denied'
+      })
     }
   }
 })
