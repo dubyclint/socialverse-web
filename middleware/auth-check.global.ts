@@ -1,4 +1,5 @@
-// middleware/auth-check.global.ts
+// middleware/auth-check.ts
+// NOT GLOBAL - only runs on routes that explicitly use it
 export default defineNuxtRouteMiddleware((to) => {
   // Safely get Supabase user with error handling
   let user = null
@@ -15,7 +16,7 @@ export default defineNuxtRouteMiddleware((to) => {
   
   // Routes that don't require authentication (PUBLIC ROUTES)
   const publicRoutes = [
-    '/',                           // Homepage (shows different content based on auth)
+    '/',
     '/auth',
     '/auth/login',
     '/auth/register',
