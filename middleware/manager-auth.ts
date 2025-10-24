@@ -1,23 +1,55 @@
 // middleware/manager-auth.ts
+// Only for /manager routes
 export default defineNuxtRouteMiddleware((to) => {
-  const user = useSupabaseUser()
-  const { getUserRole, hasRole } = useRBAC()
-  
-  // Check if user is authenticated
-  if (!user.value) {
+  // Only run on manager routes
+  if (!to.path.startsWith('/manager')) {
+    return
+  }
+
+  // Safely get user with error handling
+  let user = null
+  try {
+    user = useSupabaseUser()
+  } catch (error) {
+    console.warn('Supabase user check failed:', error)
     const redirectCookie = useCookie('manager-redirect', {
       default: () => '/manager',
       maxAge: 60 * 15
     })
     redirectCookie.value = to.fullPath
-    
-    return navigateTo('/auth')
+    return navigateTo('/auth/login')
   }
-  
+
+  // Check if user is authenticated
+  if (!user) {
+    const redirectCookie = useCookie('manager-redirect', {
+      default: () => '/manager',
+      maxAge: 60 * 15
+    })
+    redirectCookie.value = to.fullPath
+    return navigateTo('/auth/login')
+  }
+
+  // Try to get RBAC composable with error handling
+  let getUserRole: (user: any) => string
+  let hasRole: (role: string, requiredRole: string) => boolean
+
+  try {
+    const rbac = useRBAC()
+    getUserRole = rbac.getUserRole
+    hasRole = rbac.hasRole
+  } catch (error) {
+    console.warn('RBAC composable not available:', error)
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Access denied. Manager privileges required.'
+    })
+  }
+
   // Check if user has manager or admin role
-  const userRole = getUserRole(user.value)
+  const userRole = getUserRole(user)
   if (!hasRole(userRole, 'manager') && !hasRole(userRole, 'admin')) {
-    console.warn(`Unauthorized manager access attempt by user ${user.value.id} with role ${userRole}`)
+    console.warn(`Unauthorized manager access attempt by user ${user.id} with role ${userRole}`)
     
     throw createError({
       statusCode: 403,
@@ -25,7 +57,7 @@ export default defineNuxtRouteMiddleware((to) => {
       data: {
         requiredRole: 'manager',
         userRole: userRole,
-        userId: user.value.id,
+        userId: user.id,
         attemptedPath: to.path,
         timestamp: new Date().toISOString()
       }
