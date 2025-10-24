@@ -1,6 +1,5 @@
 export default defineNuxtPlugin(async () => {
   const authStore = useAuthStore()
-  const rolesStore = useRolesStore()
 
   // Initialize auth store with error handling
   try {
@@ -9,28 +8,35 @@ export default defineNuxtPlugin(async () => {
     console.warn('Auth store initialization failed:', error)
   }
 
-  // Initialize roles store with error handling
-  try {
-    await rolesStore.initialize()
-  } catch (error) {
-    console.warn('Roles store initialization failed:', error)
-  }
-
-  // Set up navigation guards
+  // Set up navigation guards - but don't redirect on homepage
   addRouteMiddleware('auth-global', (to) => {
-    // Skip auth check for public routes
-    const publicRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/signup', '/']
-    if (publicRoutes.includes(to.path)) return
+    // Always allow public routes
+    const publicRoutes = [
+      '/',
+      '/auth',
+      '/auth/login',
+      '/auth/register',
+      '/auth/signup',
+      '/auth/forgot-password',
+      '/auth/verify-email',
+      '/about',
+      '/features',
+      '/pricing',
+      '/blog',
+      '/terms',
+      '/privacy'
+    ]
 
-    // If Supabase is not available, allow access to public routes only
-    if (!authStore.supabaseAvailable) {
-      if (!publicRoutes.includes(to.path)) {
-        return navigateTo('/auth/login')
-      }
+    const isPublicRoute = publicRoutes.some(route =>
+      to.path === route || to.path.startsWith(route + '/')
+    )
+
+    // Allow all public routes without auth check
+    if (isPublicRoute) {
       return
     }
 
-    // Check authentication
+    // For protected routes, check authentication
     if (!authStore.isAuthenticated) {
       return navigateTo('/auth/login')
     }
