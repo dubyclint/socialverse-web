@@ -1,89 +1,108 @@
-import { ref, computed } from 'vue';
-import type { User } from '@supabase/supabase-js';
+// composables/useAuth.ts - FIXED VERSION
+import { ref, computed } from 'vue'
+import type { User } from '@supabase/supabase-js'
 
 export const useAuth = () => {
-  const supabase = useSupabaseClient();
-  const user = useSupabaseUser(); // Use built-in user state
-  const loading = ref(false);
-  const error = ref('');
+  const supabase = useSupabaseClient()
+  const user = useSupabaseUser()
+  const userStore = useUserStore()
   
-  const isAuthenticated = computed(() => !!user.value);
+  const loading = ref(false)
+  const error = ref('')
+  
+  const isAuthenticated = computed(() => !!user.value?.id)
   
   const login = async (email: string, password: string) => {
     try {
-      loading.value = true;
-      error.value = '';
+      loading.value = true
+      error.value = ''
       
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
-      });
+      })
       
-      if (signInError) throw signInError;
+      if (signInError) throw signInError
       
-      // Navigation will be handled by the calling component
-      return { success: true, user: data.user };
+      // CRITICAL: Verify user ID exists
+      if (!data.user?.id) {
+        throw new Error('User ID not available from authentication')
+      }
+
+      console.log('[useAuth] User logged in with ID:', data.user.id)
+      
+      // Initialize user store
+      await userStore.initializeSession()
+      
+      return { success: true, user: data.user }
     } catch (err: any) {
-      error.value = err.message;
-      console.error('Login error:', err);
-      return { success: false, error: err.message };
+      error.value = err.message
+      console.error('[useAuth] Login error:', err)
+      return { success: false, error: err.message }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
-  };
+  }
   
   const signup = async (email: string, password: string) => {
     try {
-      loading.value = true;
-      error.value = '';
+      loading.value = true
+      error.value = ''
       
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password
-      });
+      })
       
-      if (signUpError) throw signUpError;
+      if (signUpError) throw signUpError
       
-      if (data.user && !data.user.email_confirmed_at) {
-        return { success: true, user: data.user, needsConfirmation: true };
+      // CRITICAL: Verify user ID exists
+      if (!data.user?.id) {
+        throw new Error('User ID not available from authentication')
       }
+
+      console.log('[useAuth] User signed up with ID:', data.user.id)
       
-      return { success: true, user: data.user };
+      // Initialize user store
+      await userStore.initializeSession()
+      
+      return { success: true, user: data.user }
     } catch (err: any) {
-      error.value = err.message;
-      console.error('Signup error:', err);
-      return { success: false, error: err.message };
+      error.value = err.message
+      console.error('[useAuth] Signup error:', err)
+      return { success: false, error: err.message }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
-  };
+  }
   
   const logout = async () => {
     try {
-      loading.value = true;
-      error.value = '';
+      loading.value = true
+      error.value = ''
       
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) throw signOutError;
+      await supabase.auth.signOut()
+      userStore.clearProfile()
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user')
       
-      await navigateTo('/');
-      return { success: true };
+      return { success: true }
     } catch (err: any) {
-      error.value = err.message;
-      console.error('Logout error:', err);
-      return { success: false, error: err.message };
+      error.value = err.message
+      console.error('[useAuth] Logout error:', err)
+      return { success: false, error: err.message }
     } finally {
-      loading.value = false;
+      loading.value = false
     }
-  };
+  }
   
   return {
-    user: readonly(user),
-    loading: readonly(loading),
-    error: readonly(error),
+    user,
+    loading,
+    error,
     isAuthenticated,
     login,
     signup,
     logout
-  };
-};
+  }
+}
