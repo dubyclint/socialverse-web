@@ -39,7 +39,7 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: 'https://cvzrhucbvezqwbesthek.supabase.co',
       supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app,
       apiBase: process.env.API_BASE || 'http://localhost:3000',
       rbac: {
         protectedRoutes: ['/dashboard', '/admin', '/settings', '/profile', '/chat', '/post'],
