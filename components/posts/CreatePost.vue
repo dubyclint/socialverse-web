@@ -45,49 +45,60 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref } from 'vue'
 
-  
+const postContent = ref('')
+const showEmojiPicker = ref(false)
+const publishing = ref(false)
 
-const supabase = useSupabaseClient();
-const postContent = ref('');
-const showEmojiPicker = ref(false);
-const publishing = ref(false);
+const popularEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗']
+const emit = defineEmits(['postCreated'])
 
-const popularEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗'];
-const emit = defineEmits(['postCreated']);
+// Safely initialize Supabase client
+let supabase = null
+try {
+  supabase = useSupabaseClient()
+} catch (error) {
+  console.warn('Supabase client not available:', error)
+}
 
 function addEmoji() {
-  showEmojiPicker.value = !showEmojiPicker.value;
+  showEmojiPicker.value = !showEmojiPicker.value
 }
 
 function insertEmoji(emoji) {
-  postContent.value += emoji;
-  showEmojiPicker.value = false;
+  postContent.value += emoji
+  showEmojiPicker.value = false
 }
 
 function addImage() {
   // TODO: Implement image upload
-  alert('Image upload coming soon!');
+  alert('Image upload coming soon!')
 }
 
 function addGif() {
   // TODO: Implement GIF picker
-  alert('GIF picker coming soon!');
+  alert('GIF picker coming soon!')
 }
 
 async function publishPost() {
-  if (!postContent.value.trim()) return;
+  if (!postContent.value.trim()) return
+  
+  // Check if Supabase is available
+  if (!supabase) {
+    alert('Please sign in to post')
+    return
+  }
   
   try {
-    publishing.value = true;
+    publishing.value = true
     
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      alert('You must be logged in to post');
-      return;
+      alert('You must be logged in to post')
+      return
     }
     
     // Create post object
@@ -96,19 +107,19 @@ async function publishPost() {
       user_id: user.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    };
+    }
     
     // Insert post into Supabase
     const { data, error } = await supabase
       .from('posts')
       .insert([post])
       .select()
-      .single();
+      .single()
     
     if (error) {
-      console.error('Error publishing post:', error);
-      alert('Failed to publish post. Please try again.');
-      return;
+      console.error('Error publishing post:', error)
+      alert('Failed to publish post. Please try again.')
+      return
     }
     
     // Emit event for parent component with the created post
@@ -123,48 +134,49 @@ async function publishPost() {
       pewgifts_count: 0,
       user_liked: false,
       showComments: false,
-      comments: [],
-      newComment: ''
-    });
+      comments: []
+    })
     
-    // Clear form
-    postContent.value = '';
-    showEmojiPicker.value = false;
+    // Clear the textarea
+    postContent.value = ''
     
-  } catch (err) {
-    console.error('Unexpected error:', err);
-    alert('An unexpected error occurred. Please try again.');
+  } catch (error) {
+    console.error('Error publishing post:', error)
+    alert('An error occurred while publishing your post. Please try again.')
   } finally {
-    publishing.value = false;
+    publishing.value = false
   }
 }
 </script>
 
 <style scoped>
 .create-post {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.create-form {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  margin-bottom: 2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .post-textarea {
   width: 100%;
-  border: 1px solid #e1e5e9;
-  border-radius: 8px;
   padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   font-size: 1rem;
-  resize: vertical;
-  min-height: 100px;
   font-family: inherit;
-  box-sizing: border-box;
+  resize: vertical;
+  transition: border-color 0.3s ease;
 }
 
 .post-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .post-actions {
@@ -181,37 +193,39 @@ async function publishPost() {
 }
 
 .action-btn {
-  background: #f0f2f5;
-  border: none;
+  background: transparent;
+  border: 1px solid #e0e0e0;
+  padding: 0.5rem 1rem;
   border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  font-size: 1.2rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-size: 1.25rem;
+  transition: all 0.3s ease;
 }
 
 .action-btn:hover {
-  background: #e4e6eb;
+  background: #f5f5f5;
+  border-color: #667eea;
 }
 
 .publish-btn {
-  background: #2563eb;
+  background: #667eea;
   color: white;
   border: none;
+  padding: 0.75rem 2rem;
   border-radius: 6px;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
 }
 
 .publish-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #764ba2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .publish-btn:disabled {
-  background: #cbd5e1;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -221,20 +235,40 @@ async function publishPost() {
   gap: 0.5rem;
   margin-top: 1rem;
   padding: 1rem;
-  background: #f9fafb;
+  background: #f5f5f5;
   border-radius: 8px;
 }
 
 .emoji-option {
   font-size: 1.5rem;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
 }
 
 .emoji-option:hover {
-  background: #e5e7eb;
+  background: white;
+  transform: scale(1.2);
+}
+
+@media (max-width: 768px) {
+  .create-form {
+    padding: 1rem;
+  }
+
+  .post-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-buttons {
+    width: 100%;
+  }
+
+  .publish-btn {
+    width: 100%;
+  }
 }
 </style>
 
