@@ -8,29 +8,29 @@
             <span class="logo-text">SocialVerse</span>
           </div>
         </NuxtLink>
-        
+
         <nav class="nav">
           <div class="features-badge">
             <a href="#features" class="features-link">✨ Features</a>
           </div>
-          
-          <button 
-            v-if="!user" 
-            @click="showLoginModal = true" 
+
+          <button
+            v-if="!user"
+            @click="showLoginModal = true"
             class="nav-link btn-login"
           >
             Sign In
           </button>
-          <button 
+          <button
             v-if="!user"
-            @click="showSignupModal = true" 
+            @click="showSignupModal = true"
             class="nav-link btn-signup"
           >
             Sign Up
           </button>
-          <button 
-            v-else 
-            @click="handleLogout" 
+          <button
+            v-else
+            @click="handleLogout"
             class="nav-link btn-logout"
           >
             Logout
@@ -43,25 +43,25 @@
     <section class="hero">
       <div class="hero-content">
         <h1 class="hero-title">Welcome to SocialVerse</h1>
-        <p class="hero-subtitle">Connect, Share, and Grow Your Network Solid </p>
+        <p class="hero-subtitle">Connect, Share, and Grow Your Network</p>
         <div class="hero-buttons">
-          <button 
+          <button
             v-if="!user"
-            @click="showSignupModal = true" 
+            @click="showSignupModal = true"
             class="btn-hero btn-hero-primary"
           >
             Get Started
           </button>
-          <button 
+          <button
             v-if="!user"
-            @click="showLoginModal = true" 
+            @click="showLoginModal = true"
             class="btn-hero btn-hero-secondary"
           >
             Sign In
           </button>
-          <NuxtLink 
+          <NuxtLink
             v-if="user"
-            to="/feed" 
+            to="/feed"
             class="btn-hero btn-hero-primary"
           >
             Go to Feed
@@ -77,33 +77,33 @@
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon">🌐</div>
-            <h3>Universe Match Meet&Chat </h3>
-            <p>Connect with people from around the world and expand your circle based STRICTLY on your interest,Lists and likes & filters. match for jobS,skills,gigs,orientation,country,denominations,religion,race,occupation,age,sex ETC. cross and meet NOW. </p>
+            <h3>Universe Match Meet & Chat</h3>
+            <p>Connect with people from around the world and expand your circle based on your interests, lists, and likes. Match for jobs, skills, gigs, orientation, country, denominations, religion, race, occupation, age, and more.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🔒</div>
-            <h3>Secure & Private escrow </h3>
-            <p> No Problem if the other party is unknown. leave the trust and security create the deal today submit your deal terms and condition our full dedicated TEAM and system is waiting to implement it and deliver it strictly T&Cs applies.</p>
+            <h3>Secure & Private Escrow</h3>
+            <p>No problem if the other party is unknown. Leave the trust and security to us. Create deals today and submit your terms and conditions. Our dedicated team and system will implement and deliver it strictly according to T&Cs.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">⚡</div>
-            <h3>P2P & SOXM Features </h3>
-            <p> have you tried the p2p feature? or the incoming SOXM Feature with a new world definition of what payment,ecommerce and outsourcing should be like in ERA AI, web3 and computing?.</p>
+            <h3>P2P & SOXM Features</h3>
+            <p>Experience the P2P feature and the incoming SOXM Feature with a new world definition of what payment, ecommerce, and outsourcing should be like in the era of AI, Web3, and computing.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">💬</div>
             <h3>Real-time Chat</h3>
-            <p>society and civilization are changing fast? lets think chats realtime and beyound what is available today.check it out and more updates.</p>
+            <p>Society and civilization are changing fast. Let's think beyond what is available today with real-time chats and more. Check it out and stay updated with more features.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">📱</div>
-            <h3> Wallet </h3>
-            <p> Are you aware that your private chat,your live stream, your universe match,your group chat,your posts ,your comments are all your revenue streams ? yes with pewgift , you can gift and recieve gifts with instant reflection on your wallat balance, you can withdraw by swap to crypto on your wallet or trade it in the p2p section for your local currency .our GIG pew economy and ecosystem got you covered. always check us out for more user centric policies and features. T&Cs Applies.</p>
+            <h3>Wallet</h3>
+            <p>Your private chats, live streams, universe matches, group chats, posts, and comments are all revenue streams. With PewGift, you can gift and receive gifts with instant reflection on your wallet balance. Withdraw by swapping to crypto or trade in the P2P section for local currency.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
-            <h3> Discover, Customizable  </h3>
-            <p>Discover other features now , the  like live stream, the Adcenter, monitization.Etc </p>
+            <h3>Discover & Customize</h3>
+            <p>Discover other features including live streams, the Ad Center, monetization, and more. T&Cs apply.</p>
           </div>
         </div>
       </div>
@@ -113,17 +113,17 @@
     <section class="cta-section">
       <div class="cta-content">
         <h2>Ready to Join SocialVerse?</h2>
-        <p>Start connecting with people today and build your netwoth & network.</p>
-        <button 
+        <p>Start connecting with people today and build your network.</p>
+        <button
           v-if="!user"
-          @click="showSignupModal = true" 
+          @click="showSignupModal = true"
           class="btn-cta"
         >
           Create Account Now
         </button>
-        <NuxtLink 
+        <NuxtLink
           v-if="user"
-          to="/feed" 
+          to="/feed"
           class="btn-cta"
         >
           Go to Your Feed
@@ -173,9 +173,9 @@
     <div v-if="showLoginModal" class="modal-overlay" @click="showLoginModal = false">
       <div class="modal-content" @click.stop>
         <button class="close-btn" @click="showLoginModal = false">×</button>
-        
+
         <h2>Sign In</h2>
-        
+
         <form @submit.prevent="handleLogin">
           <div v-if="loginForm.error" class="error-message">
             {{ loginForm.error }}
@@ -205,8 +205,8 @@
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             class="btn-submit"
             :disabled="loginForm.loading"
           >
@@ -216,7 +216,7 @@
 
         <p class="signup-link">
           Don't have an account?
-          <button 
+          <button
             @click="showLoginModal = false; showSignupModal = true"
             class="link-button"
           >
@@ -230,9 +230,9 @@
     <div v-if="showSignupModal" class="modal-overlay" @click="showSignupModal = false">
       <div class="modal-content" @click.stop>
         <button class="close-btn" @click="showSignupModal = false">×</button>
-        
+
         <h2>Sign Up</h2>
-        
+
         <form @submit.prevent="handleSignup">
           <div v-if="signupForm.error" class="error-message">
             {{ signupForm.error }}
@@ -274,8 +274,8 @@
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             class="btn-submit"
             :disabled="signupForm.loading"
           >
@@ -285,7 +285,7 @@
 
         <p class="login-link">
           Already have an account?
-          <button 
+          <button
             @click="showSignupModal = false; showLoginModal = true"
             class="link-button"
           >
@@ -305,9 +305,11 @@ const supabaseClient = useSupabaseClient()
 const userStore = useUserStore()
 const router = useRouter()
 
+// Modal state
 const showLoginModal = ref(false)
 const showSignupModal = ref(false)
 
+// Form state
 const loginForm = ref({
   email: '',
   password: '',
@@ -360,9 +362,8 @@ const handleLogin = async () => {
     }
 
     if (data.user?.id) {
-      // CRITICAL: Verify user ID exists before storing
       console.log('[Login] User authenticated with ID:', data.user.id)
-      
+
       // Store user data
       localStorage.setItem('auth_token', data.session?.access_token || '')
       localStorage.setItem('user', JSON.stringify(data.user))
@@ -423,7 +424,7 @@ const handleSignup = async () => {
 
     if (data.user?.id) {
       console.log('[Signup] User created with ID:', data.user.id)
-      
+
       // Store user data
       localStorage.setItem('auth_token', data.session?.access_token || '')
       localStorage.setItem('user', JSON.stringify(data.user))
@@ -471,7 +472,8 @@ watch(user, (newUser) => {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
@@ -484,6 +486,7 @@ html, body {
   flex-direction: column;
 }
 
+/* Header Styles */
 .header {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -1363,3 +1366,4 @@ html, body {
   }
 }
 </style>
+
