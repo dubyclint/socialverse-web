@@ -78,7 +78,7 @@
           <div class="feature-card">
             <div class="feature-icon">🌐</div>
             <h3>Universe Match Meet&Chat </h3>
-            <p>Connect with people from around the world and expand your circle based STRICTLY on your interest,Lists and likes filters. cross and meet NOW.</p>
+            <p>Connect with people from around the world and expand your circle based STRICTLY on your interest,Lists and likes & filters. match for jobS,skills,gigs,orientation,country,denominations,religion,race,occupation,age,sex ETC. cross and meet NOW.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🔒</div>
@@ -103,7 +103,7 @@
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
             <h3> Discover, Customizable  </h3>
-            <p>Discover other features now , the  like live stream, the Adcenter, monitization.</p>
+            <p>Discover other features now , the  like live stream, the Adcenter, monitization.Etc </p>
           </div>
         </div>
       </div>
