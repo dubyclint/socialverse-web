@@ -93,7 +93,7 @@
           <div class="feature-card">
             <div class="feature-icon">💬</div>
             <h3>Real-time Chat</h3>
-            <p>isnt society and civilization changing fast? lets think chats realtime and beyound what is available check it out and more updates.</p>
+            <p>isnt society and civilization changing fast? lets think chats realtime and beyound what is available today.check it out and more updates.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">📱</div>
