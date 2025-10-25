@@ -7,7 +7,7 @@
         <button @click="toggleSidebar" class="menu-btn">
           <Icon name="menu" size="20" />
         </button>
-        <NuxtLink to="/" class="logo">
+        <NuxtLink to="/feed" class="logo">
           <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
           <span class="logo-text">SocialVerse</span>
         </NuxtLink>
@@ -15,21 +15,27 @@
 
       <!-- Center - Navigation Icons -->
       <div class="header-center">
-        <NuxtLink to="/" class="nav-icon" :class="{ active: $route.path === '/' }">
+        <!-- Home/Feed Link -->
+        <NuxtLink to="/feed" class="nav-icon" :class="{ active: $route.path === '/feed' }">
           <Icon name="home" size="24" />
-          <span class="nav-label">Home</span>
+          <span class="nav-label">Feed</span>
         </NuxtLink>
+
+        <!-- Chat Link -->
         <NuxtLink to="/chat" class="nav-icon" :class="{ active: $route.path === '/chat' }">
           <Icon name="message-circle" size="24" />
           <span class="nav-label">Chat</span>
           <span v-if="unreadMessages > 0" class="notification-badge">{{ unreadMessages }}</span>
         </NuxtLink>
-        <NuxtLink to="/post" class="nav-icon" :class="{ active: $route.path === '/post' }">
+
+        <!-- Posts Link -->
+        <NuxtLink to="/posts" class="nav-icon" :class="{ active: $route.path === '/posts' }">
           <Icon name="plus-square" size="24" />
           <span class="nav-label">Post</span>
         </NuxtLink>
-        <!-- NEW: Live Stream Icon and Link -->
-        <NuxtLink to="/live-stream" class="nav-icon" :class="{ active: $route.path === '/live-stream' }">
+
+        <!-- Live Stream Link -->
+        <NuxtLink to="/universe" class="nav-icon" :class="{ active: $route.path === '/universe' }">
           <Icon name="radio" size="24" />
           <span class="nav-label">Live</span>
           <span v-if="isLiveStreaming" class="live-badge">LIVE</span>
@@ -87,6 +93,10 @@
               <Icon name="settings" size="18" />
               <span>Settings</span>
             </NuxtLink>
+            <button @click="handleLogout" class="dropdown-item logout-btn">
+              <Icon name="log-out" size="18" />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </div>
@@ -127,38 +137,66 @@
         </div>
         
         <nav class="sidebar-nav">
+          <!-- Main Navigation -->
+          <NuxtLink to="/feed" class="sidebar-item">
+            <Icon name="home" size="20" />
+            <span>Feed</span>
+          </NuxtLink>
+          <NuxtLink to="/chat" class="sidebar-item">
+            <Icon name="message-circle" size="20" />
+            <span>Chat</span>
+          </NuxtLink>
+          <NuxtLink to="/posts" class="sidebar-item">
+            <Icon name="plus-square" size="20" />
+            <span>Create Post</span>
+          </NuxtLink>
+          <NuxtLink to="/universe" class="sidebar-item">
+            <Icon name="radio" size="20" />
+            <span>Live Stream</span>
+          </NuxtLink>
+
+          <hr class="sidebar-divider" />
+
+          <!-- Trading & Services -->
           <NuxtLink to="/p2p" class="sidebar-item">
             <Icon name="users" size="20" />
             <span>P2P Trading</span>
+          </NuxtLink>
+          <NuxtLink to="/trade" class="sidebar-item">
+            <Icon name="trending-up" size="20" />
+            <span>Trade</span>
           </NuxtLink>
           <NuxtLink to="/escrow" class="sidebar-item">
             <Icon name="shield" size="20" />
             <span>Escrow Services</span>
           </NuxtLink>
+
+          <hr class="sidebar-divider" />
+
+          <!-- Community & Matching -->
+          <NuxtLink to="/cross-meet" class="sidebar-item">
+            <Icon name="heart" size="20" />
+            <span>Universe Match</span>
+          </NuxtLink>
+          <NuxtLink to="/explore" class="sidebar-item">
+            <Icon name="compass" size="20" />
+            <span>Explore</span>
+          </NuxtLink>
+
+          <hr class="sidebar-divider" />
+
+          <!-- Support & Tools -->
           <NuxtLink to="/support" class="sidebar-item">
             <Icon name="help-circle" size="20" />
-            <span>Agent Support</span>
+            <span>Support</span>
           </NuxtLink>
-          <NuxtLink to="/ads" class="sidebar-item">
-            <Icon name="target" size="20" />
-            <span>Ad Center</span>
+          <NuxtLink to="/notifications" class="sidebar-item">
+            <Icon name="bell" size="20" />
+            <span>Notifications</span>
           </NuxtLink>
-          <NuxtLink to="/monetization" class="sidebar-item">
-            <Icon name="dollar-sign" size="20" />
-            <span>Monetization</span>
-          </NuxtLink>
-          <NuxtLink to="/analytics" class="sidebar-item">
-            <Icon name="bar-chart" size="20" />
-            <span>Analytics</span>
-          </NuxtLink>
-          <NuxtLink to="/marketplace" class="sidebar-item">
-            <Icon name="shopping-bag" size="20" />
-            <span>Marketplace</span>
-          </NuxtLink>
-          <!-- NEW: Live Stream in Sidebar -->
-          <NuxtLink to="/live-stream" class="sidebar-item">
-            <Icon name="radio" size="20" />
-            <span>Live Stream</span>
+          <NuxtLink to="/inbox" class="sidebar-item">
+            <Icon name="inbox" size="20" />
+            <span>Inbox</span>
           </NuxtLink>
         </nav>
       </div>
@@ -167,7 +205,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 // Reactive data
 const showSidebar = ref(false)
@@ -175,7 +216,7 @@ const showWalletMenu = ref(false)
 const showProfileMenu = ref(false)
 const unreadMessages = ref(3)
 const walletBalance = ref(1250.50)
-const isLiveStreaming = ref(false) // NEW: Track if user is currently streaming
+const isLiveStreaming = ref(false)
 
 // User data (would come from your auth store)
 const user = ref({
@@ -210,8 +251,7 @@ const mediaItems = ref([
     thumbnail: '/media/wedding.jpg',
     type: 'image',
     category: 'Friends'
-  },
-  // Add more items...
+  }
 ])
 
 // Methods
@@ -234,23 +274,33 @@ const toggleProfileMenu = () => {
 }
 
 const openP2P = () => {
-  navigateTo('/p2p')
+  router.push('/p2p')
   showWalletMenu.value = false
 }
 
 const openPEW = () => {
-  navigateTo('/pew')
+  router.push('/my-pocket')
   showWalletMenu.value = false
 }
 
 const openEscrow = () => {
-  navigateTo('/escrow')
+  router.push('/escrow')
   showWalletMenu.value = false
 }
 
 const openMediaItem = (item) => {
   // Handle media item click
-  navigateTo(`/media/${item.id}`)
+  router.push(`/media/${item.id}`)
+}
+
+const handleLogout = async () => {
+  try {
+    // Call your logout function from auth store
+    // await authStore.logout()
+    router.push('/auth/login')
+  } catch (err) {
+    console.error('Logout error:', err)
+  }
 }
 
 // Close dropdowns when clicking outside
@@ -367,7 +417,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
-/* NEW: Live Badge Style */
+/* Live Badge Style */
 .live-badge {
   position: absolute;
   top: -8px;
@@ -432,6 +482,7 @@ onMounted(() => {
   padding: 0.5rem;
   min-width: 200px;
   margin-top: 0.5rem;
+  z-index: 1001;
 }
 
 .wallet-option {
@@ -496,6 +547,7 @@ onMounted(() => {
   padding: 1rem;
   min-width: 250px;
   margin-top: 0.5rem;
+  z-index: 1001;
 }
 
 .profile-info {
@@ -531,10 +583,20 @@ onMounted(() => {
   text-decoration: none;
   color: #333;
   transition: background-color 0.2s;
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
 }
 
 .dropdown-item:hover {
   background: #f8f9fa;
+}
+
+.logout-btn {
+  color: #ff4757;
+  font-weight: 600;
 }
 
 /* Media Container */
@@ -647,6 +709,7 @@ onMounted(() => {
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
   transform: translateX(0);
   transition: transform 0.3s ease;
+  overflow-y: auto;
 }
 
 .sidebar-header {
@@ -655,6 +718,9 @@ onMounted(() => {
   justify-content: space-between;
   padding: 1.5rem;
   border-bottom: 1px solid #e1e5e9;
+  position: sticky;
+  top: 0;
+  background: white;
 }
 
 .sidebar-header h3 {
@@ -677,6 +743,12 @@ onMounted(() => {
 
 .sidebar-nav {
   padding: 1rem;
+}
+
+.sidebar-divider {
+  border: none;
+  border-top: 1px solid #e1e5e9;
+  margin: 1rem 0;
 }
 
 .sidebar-item {
