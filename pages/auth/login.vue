@@ -239,6 +239,18 @@
           </div>
 
           <div class="form-group">
+            <label for="signup-name">Full Name</label>
+            <input
+              id="signup-name"
+              v-model="signupForm.name"
+              type="text"
+              required
+              placeholder="John Doe"
+              :disabled="signupForm.loading"
+            />
+          </div>
+
+          <div class="form-group">
             <label for="signup-email">Email</label>
             <input
               id="signup-email"
@@ -318,6 +330,7 @@ const loginForm = ref({
 })
 
 const signupForm = ref({
+  name: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -325,16 +338,7 @@ const signupForm = ref({
   error: ''
 })
 
-// Navigate to feed
-const goToFeed = async () => {
-  try {
-    await router.push('/feed')
-  } catch (err) {
-    console.error('Navigation error:', err)
-  }
-}
-
-// Handle Login
+// Handle Login - FIXED VERSION
 const handleLogin = async () => {
   loginForm.value.error = ''
   loginForm.value.loading = true
@@ -371,9 +375,12 @@ const handleLogin = async () => {
       // Initialize user store with profile
       await userStore.initializeSession()
 
-      // Close modal and redirect
+      // Close modal FIRST
       showLoginModal.value = false
-      await goToFeed()
+      
+      // Then redirect with a small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await router.push('/feed')
     } else {
       loginForm.value.error = 'User ID not available from authentication'
     }
@@ -385,7 +392,7 @@ const handleLogin = async () => {
   }
 }
 
-// Handle Signup
+// Handle Signup - FIXED VERSION
 const handleSignup = async () => {
   signupForm.value.error = ''
   signupForm.value.loading = true
@@ -432,9 +439,12 @@ const handleSignup = async () => {
       // Initialize user store
       await userStore.initializeSession()
 
-      // Close modal and redirect
+      // Close modal FIRST
       showSignupModal.value = false
-      await goToFeed()
+      
+      // Then redirect with a small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await router.push('/feed')
     } else {
       signupForm.value.error = 'User ID not available from authentication'
     }
@@ -462,7 +472,7 @@ const handleLogout = async () => {
 // Redirect to feed if already logged in
 watch(user, (newUser) => {
   if (newUser?.id) {
-    goToFeed()
+    router.push('/feed')
   }
 }, { immediate: true })
 </script>
