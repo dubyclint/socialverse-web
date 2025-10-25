@@ -28,6 +28,12 @@
           <Icon name="plus-square" size="24" />
           <span class="nav-label">Post</span>
         </NuxtLink>
+        <!-- NEW: Live Stream Icon and Link -->
+        <NuxtLink to="/live-stream" class="nav-icon" :class="{ active: $route.path === '/live-stream' }">
+          <Icon name="radio" size="24" />
+          <span class="nav-label">Live</span>
+          <span v-if="isLiveStreaming" class="live-badge">LIVE</span>
+        </NuxtLink>
       </div>
 
       <!-- Right Side - Profile & Wallet -->
@@ -149,6 +155,11 @@
             <Icon name="shopping-bag" size="20" />
             <span>Marketplace</span>
           </NuxtLink>
+          <!-- NEW: Live Stream in Sidebar -->
+          <NuxtLink to="/live-stream" class="sidebar-item">
+            <Icon name="radio" size="20" />
+            <span>Live Stream</span>
+          </NuxtLink>
         </nav>
       </div>
     </div>
@@ -164,6 +175,7 @@ const showWalletMenu = ref(false)
 const showProfileMenu = ref(false)
 const unreadMessages = ref(3)
 const walletBalance = ref(1250.50)
+const isLiveStreaming = ref(false) // NEW: Track if user is currently streaming
 
 // User data (would come from your auth store)
 const user = ref({
@@ -353,6 +365,29 @@ onMounted(() => {
   justify-content: center;
   font-size: 0.7rem;
   font-weight: 600;
+}
+
+/* NEW: Live Badge Style */
+.live-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4757;
+  color: white;
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .header-right {
@@ -706,3 +741,4 @@ onMounted(() => {
   }
 }
 </style>
+
