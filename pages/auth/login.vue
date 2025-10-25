@@ -77,33 +77,33 @@
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon">🌐</div>
-            <h3>Global Network</h3>
-            <p>Connect with people from around the world and expand your social circle.</p>
+            <h3>Universe Match Meet&Chat </h3>
+            <p>Connect with people from around the world and expand your circle based STRICTLY on your interest,Lists and likes filters. cross and meet NOW.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🔒</div>
-            <h3>Secure & Private</h3>
-            <p>Your data is encrypted and protected with industry-leading security standards.</p>
+            <h3>Secure & Private escrow </h3>
+            <p> No Problem if the other party is unknown. leave the trust and security create the deal today submit your deal terms and condition our full dedicated TEAM and system is waiting to implement it and deliver it strictly T&Cs applies.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">⚡</div>
-            <h3>Lightning Fast</h3>
-            <p>Experience blazing-fast performance with our optimized infrastructure.</p>
+            <h3>P2P & SOXM Features </h3>
+            <p> have you tried the p2p feature? or the incoming SOXM Feature with a new world definition of what payment,ecommerce and outsourcing should be like in ERA AI, web3 and computing?.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">💬</div>
             <h3>Real-time Chat</h3>
-            <p>Instant messaging with real-time notifications and rich media support.</p>
+            <p>isnt society and civilization changing fast? lets think chats realtime and beyound what is available check it out and more updates.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">📱</div>
-            <h3>Mobile Friendly</h3>
-            <p>Access SocialVerse on any device with our responsive design.</p>
+            <h3> Dicover </h3>
+            <p> Discover other features now , like live stream, the Adcenter , etc .</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
-            <h3>Customizable</h3>
-            <p>Personalize your profile and make it truly yours with custom themes.</p>
+            <h3>Customizable </h3>
+            <p>.</p>
           </div>
         </div>
       </div>
@@ -113,7 +113,7 @@
     <section class="cta-section">
       <div class="cta-content">
         <h2>Ready to Join SocialVerse?</h2>
-        <p>Start connecting with people today and build your social network.</p>
+        <p>Start connecting with people today and build your netwoth & network.</p>
         <button 
           v-if="!user"
           @click="showSignupModal = true" 
