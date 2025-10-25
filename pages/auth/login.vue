@@ -98,7 +98,7 @@
           <div class="feature-card">
             <div class="feature-icon">📱</div>
             <h3> Wallet </h3>
-            <p> Are you aware that your private chat,the live stream, the universe match,the group chat,the posts ,the comments are all user revenue streams ? yes pewgift , you can gift and recieve gifts with instant reflection on your wallat balance, your can  withdrwal by swap to crypto on your wallet or trade it in the p2p section for your local currency . our GIG pew economy and ecosystem got you covered. always check us out for more user centric policies and features. T&Cs Applies .</p>
+            <p> Are you aware that your private chat,your live stream, your universe match,your group chat,your posts ,your comments are all your revenue streams ? yes with pewgift , you can gift and recieve gifts with instant reflection on your wallat balance, you can  withdraw by swap to crypto on your wallet or trade it in the p2p section for your local currency . our GIG pew economy and ecosystem got you covered. always check us out for more user centric policies and features. T&Cs Applies .</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
