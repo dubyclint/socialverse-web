@@ -43,7 +43,7 @@
     <section class="hero">
       <div class="hero-content">
         <h1 class="hero-title">Welcome to SocialVerse</h1>
-        <p class="hero-subtitle">Connect, Share, and Grow Your Network solid </p>
+        <p class="hero-subtitle">Connect, Share, and Grow Your Network Solid </p>
         <div class="hero-buttons">
           <button 
             v-if="!user"
