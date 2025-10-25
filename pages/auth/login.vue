@@ -102,8 +102,8 @@
           </div>
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
-            <h3>Customizable </h3>
-            <p>Discover other features now , the  like live stream, the Adcenter.</p>
+            <h3> Discover, Customizable  </h3>
+            <p>Discover other features now , the  like live stream, the Adcenter, monitization.</p>
           </div>
         </div>
       </div>
