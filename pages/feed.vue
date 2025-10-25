@@ -1,557 +1,575 @@
 <template>
   <div class="feed-container">
-    <!-- Header -->
+    <!-- Header Component (Imported) -->
     <Header />
 
-    <!-- Main Feed Content -->
-    <main class="feed-main">
+    <!-- Main Feed Body -->
+    <main class="feed-body">
       <div class="feed-wrapper">
-        <!-- Left Sidebar (Optional - for future features) -->
-        <aside class="feed-sidebar-left">
-          <!-- Placeholder for future widgets -->
-        </aside>
-
-        <!-- Center Feed -->
-        <section class="feed-center">
-          <!-- Welcome Section -->
-          <div class="welcome-section">
-            <div class="welcome-header">
-              <h1>Welcome back, {{ userDisplayName }}! 👋</h1>
-              <p class="welcome-subtitle">Your personalized feed is ready</p>
-            </div>
-          </div>
-
+        <!-- Feed Posts Section -->
+        <section class="posts-feed">
           <!-- Create Post Section -->
-          <div class="create-post-section">
-            <CreatePost @post-created="onPostCreated" />
+          <CreatePost @post-created="onPostCreated" />
+
+          <!-- Posts List -->
+          <div v-if="loading && posts.length === 0" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading posts...</p>
           </div>
 
-          <!-- Feed Posts Section -->
-          <section class="posts-section">
-            <!-- Loading State -->
-            <div v-if="loading && posts.length === 0" class="loading-state">
-              <div class="spinner"></div>
-              <p>Loading your feed...</p>
-            </div>
+          <div v-else-if="error" class="error-state">
+            <p>{{ error }}</p>
+            <button @click="retryLoadPosts" class="retry-btn">Retry</button>
+          </div>
 
-            <!-- Error State -->
-            <div v-else-if="error" class="error-state">
-              <div class="error-icon">⚠️</div>
-              <p>{{ error }}</p>
-              <button @click="retryLoadPosts" class="retry-btn">Retry</button>
-            </div>
-
-            <!-- Empty State -->
-            <div v-else-if="posts.length === 0 && !loading" class="empty-state">
-              <div class="empty-icon">📭</div>
-              <h3>No posts yet</h3>
-              <p>Follow users or create your first post to get started!</p>
-              <NuxtLink to="/explore" class="explore-btn">Explore Users</NuxtLink>
-            </div>
-
+          <div v-else class="posts-container">
             <!-- Posts List -->
-            <div v-else class="posts-list">
-              <article 
-                v-for="post in posts" 
-                :key="post.id" 
-                class="post-card"
-                :class="{ 'post-loading': post.isLoading }"
-              >
-                <!-- Post Header -->
-                <div class="post-header">
-                  <div class="author-section">
-                    <img 
-                      :src="post.author_avatar || '/default-avatar.png'" 
-                      :alt="post.author || 'Anonymous'"
-                      class="author-avatar"
-                      @error="handleImageError"
-                    />
-                    <div class="author-info">
-                      <div class="author-name-row">
-                        <span class="post-author">{{ post.author || 'Anonymous' }}</span>
-                        <span v-if="post.is_verified" class="verified-badge" title="Verified">✓</span>
-                      </div>
-                      <span class="post-date">{{ formatDate(post.created_at) }}</span>
-                    </div>
-                  </div>
-                  <div class="post-menu">
-                    <button class="menu-btn" @click="togglePostMenu(post.id)">⋯</button>
-                    <div v-if="activePostMenu === post.id" class="post-menu-dropdown">
-                      <button @click="reportPost(post.id)">Report</button>
-                      <button v-if="isPostOwner(post)" @click="deletePost(post.id)">Delete</button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Post Content -->
-                <div class="post-content">
-                  <p v-html="renderPost(post.content)" class="post-text"></p>
-                </div>
-
-                <!-- Post Media -->
-                <div v-if="post.media && post.media.length > 0" class="post-media">
+            <article 
+              v-for="post in posts" 
+              :key="post.id" 
+              class="post-item"
+              :class="[post.type, { 'sponsored': post.sponsored, 'ad': post.isAd }]"
+            >
+              <!-- Post Header -->
+              <header class="post-header">
+                <div class="author-info">
                   <img 
-                    v-for="(media, index) in post.media" 
+                    :src="post.author_avatar || '/default-avatar.png'" 
+                    :alt="post.author"
+                    class="author-avatar"
+                  />
+                  <div class="author-details">
+                    <h4 class="author-name">
+                      {{ post.author }}
+                      <Icon v-if="post.verified" name="check-circle" size="16" class="verified-badge" />
+                    </h4>
+                    <p class="post-timestamp">{{ formatDate(post.created_at) }}</p>
+                  </div>
+                </div>
+
+                <div class="post-badges">
+                  <span v-if="post.sponsored" class="badge sponsored-badge">
+                    <Icon name="dollar-sign" size="14" />
+                    Sponsored
+                  </span>
+                  <span v-if="post.isAd" class="badge ad-badge">
+                    <Icon name="megaphone" size="14" />
+                    Ad
+                  </span>
+                  <span v-if="post.pinned" class="badge pinned-badge">
+                    <Icon name="pin" size="14" />
+                    Pinned
+                  </span>
+                </div>
+
+                <button class="more-options-btn" @click="togglePostOptions(post.id)">
+                  <Icon name="more-horizontal" size="20" />
+                </button>
+              </header>
+
+              <!-- Post Content -->
+              <div class="post-content">
+                <p class="post-text">{{ post.content }}</p>
+                
+                <!-- Post Media -->
+                <div v-if="post.media_urls && post.media_urls.length > 0" class="post-media">
+                  <img 
+                    v-for="(url, index) in post.media_urls" 
                     :key="index"
-                    :src="media.url" 
+                    :src="url" 
                     :alt="`Post media ${index + 1}`"
                     class="post-image"
-                    @error="handleImageError"
+                    @click="openMediaViewer(url)"
                   />
                 </div>
+              </div>
 
-                <!-- Post Stats -->
-                <div class="post-stats">
-                  <span class="stat">
-                    <Icon name="heart" size="16" />
-                    {{ post.likes_count || 0 }} Likes
-                  </span>
-                  <span class="stat">
-                    <Icon name="message-circle" size="16" />
-                    {{ post.comments_count || 0 }} Comments
-                  </span>
-                  <span class="stat">
-                    <Icon name="share-2" size="16" />
-                    {{ post.shares_count || 0 }} Shares
-                  </span>
-                </div>
+              <!-- Engagement Stats -->
+              <div class="engagement-stats">
+                <span class="stat">
+                  <Icon name="heart" size="14" />
+                  {{ formatCount(post.likes_count || 0) }} likes
+                </span>
+                <span class="stat">
+                  <Icon name="message-circle" size="14" />
+                  {{ formatCount(post.comments_count || 0) }} comments
+                </span>
+                <span class="stat">
+                  <Icon name="share-2" size="14" />
+                  {{ formatCount(post.shares_count || 0) }} shares
+                </span>
+                <span class="stat">
+                  <Icon name="gift" size="14" />
+                  {{ formatCount(post.pewgifts_count || 0) }} gifts
+                </span>
+              </div>
 
-                <!-- Post Actions -->
-                <div class="post-actions">
-                  <button 
-                    class="action-btn"
-                    :class="{ 'liked': post.liked_by_user }"
-                    @click="toggleLike(post.id)"
-                    :disabled="post.isLiking"
-                  >
-                    <Icon name="heart" size="18" />
-                    <span>{{ post.liked_by_user ? 'Liked' : 'Like' }}</span>
-                  </button>
-                  <button 
-                    class="action-btn"
-                    @click="navigateToPost(post.id)"
-                  >
-                    <Icon name="message-circle" size="18" />
-                    <span>Comment</span>
-                  </button>
-                  <button 
-                    class="action-btn"
-                    @click="sharePost(post.id)"
-                    :disabled="post.isSharing"
-                  >
-                    <Icon name="share-2" size="18" />
-                    <span>Share</span>
-                  </button>
-                </div>
-              </article>
+              <!-- Interaction Bar -->
+              <div class="interaction-bar">
+                <!-- Like Button -->
+                <button 
+                  @click="toggleLike(post)"
+                  :class="['interaction-btn', 'like-btn', { 'active': post.user_liked }]"
+                  :disabled="post.liking"
+                  :title="`${post.user_liked ? 'Unlike' : 'Like'} this post`"
+                >
+                  <Icon :name="post.user_liked ? 'heart' : 'heart'" size="20" />
+                  <span>{{ post.user_liked ? 'Liked' : 'Like' }}</span>
+                </button>
 
-              <!-- Load More Button -->
-              <div v-if="hasMore && !loading" class="load-more">
-                <button @click="loadMorePosts" class="load-more-btn">
-                  Load More Posts
+                <!-- Comment Button -->
+                <button 
+                  @click="toggleComments(post)"
+                  class="interaction-btn comment-btn"
+                  title="Comment on this post"
+                >
+                  <Icon name="message-circle" size="20" />
+                  <span>Comment</span>
+                </button>
+
+                <!-- Share Button -->
+                <button 
+                  @click="sharePost(post)"
+                  class="interaction-btn share-btn"
+                  title="Share this post"
+                >
+                  <Icon name="share-2" size="20" />
+                  <span>Share</span>
+                </button>
+
+                <!-- PewGift Button (Interactive Component) -->
+                <button 
+                  @click="openPewGiftModal(post)"
+                  class="interaction-btn pewgift-btn"
+                  :class="{ 'has-gifts': post.pewgifts_count > 0 }"
+                  title="Send a PewGift to support this post"
+                >
+                  <Icon name="gift" size="20" />
+                  <span>PewGift</span>
                 </button>
               </div>
 
-              <!-- End of Feed -->
-              <div v-if="!hasMore && posts.length > 0" class="end-of-feed">
-                <p>You've reached the end of your feed</p>
-              </div>
-            </div>
-          </section>
-        </section>
-
-        <!-- Right Sidebar (Trending/Suggestions) -->
-        <aside class="feed-sidebar-right">
-          <!-- Trending Section -->
-          <div class="trending-widget">
-            <h3>Trending Now</h3>
-            <div class="trending-list">
-              <div 
-                v-for="(trend, index) in trendingTopics" 
-                :key="index"
-                class="trending-item"
-                @click="navigateToTrend(trend)"
-              >
-                <span class="trend-rank">#{{ index + 1 }}</span>
-                <div class="trend-info">
-                  <p class="trend-name">{{ trend.name }}</p>
-                  <p class="trend-count">{{ trend.count }} posts</p>
+              <!-- Comments Section -->
+              <div v-if="post.showComments" class="comments-section">
+                <!-- Comment Input -->
+                <div class="comment-input-wrapper">
+                  <img 
+                    :src="currentUserAvatar" 
+                    :alt="currentUserName"
+                    class="comment-input-avatar"
+                  />
+                  <div class="comment-input-group">
+                    <input 
+                      v-model="post.newComment"
+                      @keyup.enter="addComment(post)"
+                      placeholder="Write a comment..."
+                      class="comment-field"
+                    />
+                    <button 
+                      @click="addComment(post)"
+                      :disabled="!post.newComment?.trim() || post.commenting"
+                      class="comment-submit-btn"
+                    >
+                      {{ post.commenting ? '...' : 'Post' }}
+                    </button>
+                  </div>
                 </div>
+
+                <!-- Comments List -->
+                <div v-if="post.comments && post.comments.length > 0" class="comments-list">
+                  <div 
+                    v-for="comment in post.comments" 
+                    :key="comment.id"
+                    class="comment-item"
+                  >
+                    <img 
+                      :src="comment.author_avatar || '/default-avatar.png'" 
+                      :alt="comment.author"
+                      class="comment-avatar"
+                    />
+                    <div class="comment-content">
+                      <div class="comment-header">
+                        <span class="comment-author">{{ comment.author }}</span>
+                        <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
+                      </div>
+                      <p class="comment-text">{{ comment.content }}</p>
+                      <div class="comment-actions">
+                        <button 
+                          @click="toggleCommentLike(comment)"
+                          :class="['comment-like-btn', { 'liked': comment.user_liked }]"
+                        >
+                          <Icon :name="comment.user_liked ? 'heart' : 'heart'" size="14" />
+                          {{ comment.likes_count || 0 }}
+                        </button>
+                        <button class="comment-reply-btn">Reply</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Load More Comments -->
+                <button 
+                  v-if="post.hasMoreComments" 
+                  @click="loadMoreComments(post)"
+                  class="load-more-comments-btn"
+                >
+                  Load more comments
+                </button>
               </div>
+            </article>
+
+            <!-- Load More Posts -->
+            <div v-if="hasMore" class="load-more-wrapper">
+              <button 
+                @click="loadMorePosts" 
+                :disabled="loading"
+                class="load-more-btn"
+              >
+                {{ loading ? 'Loading...' : 'Load More Posts' }}
+              </button>
             </div>
           </div>
+        </section>
 
-          <!-- Suggestions Section -->
-          <div class="suggestions-widget">
-            <h3>Suggested Users</h3>
-            <div class="suggestions-list">
-              <div 
-                v-for="user in suggestedUsers" 
-                :key="user.id"
-                class="suggestion-item"
-              >
-                <img 
-                  :src="user.avatar_url || '/default-avatar.png'" 
-                  :alt="user.username"
-                  class="suggestion-avatar"
-                />
-                <div class="suggestion-info">
-                  <p class="suggestion-name">{{ user.username }}</p>
-                  <p class="suggestion-bio">{{ user.bio || 'No bio' }}</p>
-                </div>
-                <button 
-                  class="follow-btn"
-                  @click="followUser(user.id)"
-                  :disabled="user.isFollowing"
-                >
-                  {{ user.isFollowing ? 'Following' : 'Follow' }}
-                </button>
-              </div>
+        <!-- Sidebar (Optional - for ads/sponsored content) -->
+        <aside class="feed-sidebar">
+          <!-- Ad Slots -->
+          <div v-for="ad in adSlots" :key="ad.id" class="ad-slot">
+            <AdSlot :ad="ad" />
+          </div>
+
+          <!-- Trending Section -->
+          <div class="trending-section">
+            <h3>Trending</h3>
+            <div v-for="trend in trendingTopics" :key="trend.id" class="trend-item">
+              <p class="trend-title">{{ trend.title }}</p>
+              <p class="trend-count">{{ formatCount(trend.count) }} posts</p>
             </div>
           </div>
         </aside>
       </div>
     </main>
 
+    <!-- PewGift Modal -->
+    <div v-if="showPewGiftModal" class="modal-overlay" @click="closePewGiftModal">
+      <div class="pewgift-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Send PewGift</h3>
+          <button @click="closePewGiftModal" class="close-btn">
+            <Icon name="x" size="20" />
+          </button>
+        </div>
+
+        <div class="modal-content">
+          <p class="modal-description">Support this post with a PewGift!</p>
+
+          <!-- Quick Amount Buttons -->
+          <div class="quick-amounts">
+            <button 
+              v-for="amount in quickGiftAmounts" 
+              :key="amount"
+              @click="selectedGiftAmount = amount; customGiftAmount = null"
+              :class="['amount-btn', { 'selected': selectedGiftAmount === amount && !customGiftAmount }]"
+            >
+              {{ amount }} PEW
+            </button>
+          </div>
+
+          <!-- Custom Amount Input -->
+          <div class="custom-amount-section">
+            <input 
+              v-model.number="customGiftAmount"
+              type="number"
+              placeholder="Custom amount"
+              min="1"
+              step="0.01"
+              class="custom-amount-input"
+              @focus="selectedGiftAmount = null"
+            />
+            <span class="currency-label">PEW</span>
+          </div>
+
+          <!-- Gift Preview -->
+          <div v-if="giftPreview" class="gift-preview">
+            <div class="preview-row">
+              <span>Gift Amount:</span>
+              <span class="amount">{{ giftPreview.amount }} PEW</span>
+            </div>
+            <div class="preview-row">
+              <span>Platform Fee:</span>
+              <span class="fee">{{ giftPreview.platformFee }} PEW</span>
+            </div>
+            <div class="preview-row total">
+              <span>Total Cost:</span>
+              <span class="total-amount">{{ giftPreview.total }} PEW</span>
+            </div>
+          </div>
+
+          <!-- Modal Actions -->
+          <div class="modal-actions">
+            <button @click="closePewGiftModal" class="cancel-btn">Cancel</button>
+            <button 
+              @click="sendPewGift" 
+              :disabled="!getSelectedGiftAmount() || sendingGift"
+              class="send-gift-btn"
+            >
+              {{ sendingGift ? 'Sending...' : `Send ${getSelectedGiftAmount()} PEW` }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer -->
-    <Footer />
+    <footer class="homefeed-footer">
+      <p>&copy; 2024 SocialVerse. All rights reserved.</p>
+    </footer>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '~/stores/user'
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import Header from '~/components/layout/Header.vue'
+import CreatePost from '~/components/posts/CreatePost.vue'
+import AdSlot from '~/components/AdSlot.vue'
 
-// Stores
-const userStore = useUserStore()
-const router = useRouter()
-const supabase = useSupabaseClient()
-const user = useSupabaseUser()
-
-// Reactive Data
-const posts = ref<any[]>([])
+// State
+const posts = ref([])
 const loading = ref(false)
-const error = ref<string | null>(null)
+const error = ref(null)
 const hasMore = ref(true)
 const currentPage = ref(1)
-const activePostMenu = ref<string | null>(null)
-const trendingTopics = ref<any[]>([])
-const suggestedUsers = ref<any[]>([])
 
-// Computed Properties
-const userDisplayName = computed(() => {
-  return user.value?.user_metadata?.full_name || 
-         user.value?.email?.split('@')[0] || 
-         'User'
+const showPewGiftModal = ref(false)
+const selectedPost = ref(null)
+const selectedGiftAmount = ref(null)
+const customGiftAmount = ref(null)
+const sendingGift = ref(false)
+
+const adSlots = ref([])
+const trendingTopics = ref([])
+
+const quickGiftAmounts = [1, 5, 10, 25, 50]
+const currentUserAvatar = ref('/default-avatar.png')
+const currentUserName = ref('You')
+
+// Computed
+const giftPreview = computed(() => {
+  const amount = getSelectedGiftAmount()
+  if (!amount) return null
+  
+  const platformFee = amount * 0.05 // 5% platform fee
+  const total = amount + platformFee
+  
+  return {
+    amount,
+    platformFee: platformFee.toFixed(2),
+    total: total.toFixed(2)
+  }
 })
 
 // Methods
-const formatDate = (dateString: string): string => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
+function formatDate(date) {
+  if (!date) return ''
+  const d = new Date(date)
   const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  const diff = now - d
   
-  return date.toLocaleDateString()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  
+  return d.toLocaleDateString()
 }
 
-const renderPost = (content: string): string => {
-  if (!content) return ''
-  
-  // Escape HTML and convert URLs to links
-  let rendered = content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-  
-  // Convert URLs to clickable links
-  rendered = rendered.replace(
-    /(https?:\/\/[^\s]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-  )
-  
-  // Convert hashtags to clickable links
-  rendered = rendered.replace(
-    /#(\w+)/g,
-    '<a href="/search?q=%23$1" class="hashtag">#$1</a>'
-  )
-  
-  return rendered
+function formatCount(count) {
+  if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M'
+  if (count >= 1000) return (count / 1000).toFixed(1) + 'K'
+  return count.toString()
 }
 
-const loadPosts = async (page: number = 1) => {
+async function loadPosts() {
+  loading.value = true
+  error.value = null
+  
   try {
-    loading.value = true
-    error.value = null
-
-    const { data, error: fetchError } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:profiles(username, avatar_url, is_verified),
-        likes_count:post_likes(count),
-        comments_count:post_comments(count)
-      `)
-      .order('created_at', { ascending: false })
-      .range((page - 1) * 10, page * 10 - 1)
-
-    if (fetchError) throw fetchError
-
-    if (page === 1) {
-      posts.value = data || []
-    } else {
-      posts.value = [...posts.value, ...(data || [])]
-    }
-
-    hasMore.value = (data?.length || 0) === 10
-    currentPage.value = page
-  } catch (err: any) {
-    error.value = err.message || 'Failed to load posts'
+    // Fetch posts from API
+    const response = await $fetch('/api/posts', {
+      query: { page: currentPage.value, limit: 10 }
+    })
+    
+    posts.value = response.data.map(post => ({
+      ...post,
+      showComments: false,
+      newComment: '',
+      commenting: false,
+      liking: false,
+      user_liked: false,
+      hasMoreComments: false
+    }))
+    
+    hasMore.value = response.hasMore
+  } catch (err) {
+    error.value = 'Failed to load posts. Please try again.'
     console.error('Error loading posts:', err)
   } finally {
     loading.value = false
   }
 }
 
-const loadMorePosts = async () => {
-  await loadPosts(currentPage.value + 1)
+function loadMorePosts() {
+  currentPage.value++
+  loadPosts()
 }
 
-const retryLoadPosts = async () => {
-  await loadPosts(1)
-}
-
-const onPostCreated = async (newPost: any) => {
-  posts.value.unshift(newPost)
-}
-
-const toggleLike = async (postId: string) => {
+async function toggleLike(post) {
+  post.liking = true
   try {
-    const post = posts.value.find(p => p.id === postId)
-    if (!post) return
-
-    post.isLiking = true
-
-    if (post.liked_by_user) {
-      // Unlike
-      await supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', user.value?.id)
-
-      post.liked_by_user = false
-      post.likes_count = (post.likes_count || 1) - 1
-    } else {
-      // Like
-      await supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: user.value?.id
-        })
-
-      post.liked_by_user = true
-      post.likes_count = (post.likes_count || 0) + 1
-    }
-  } catch (err: any) {
-    error.value = 'Failed to update like'
+    await $fetch(`/api/posts/${post.id}/like`, { method: 'POST' })
+    post.user_liked = !post.user_liked
+    post.likes_count += post.user_liked ? 1 : -1
+  } catch (err) {
     console.error('Error toggling like:', err)
   } finally {
-    const post = posts.value.find(p => p.id === postId)
-    if (post) post.isLiking = false
+    post.liking = false
   }
 }
 
-const navigateToPost = (postId: string) => {
-  router.push(`/post/${postId}`)
+function toggleComments(post) {
+  post.showComments = !post.showComments
 }
 
-const sharePost = async (postId: string) => {
+async function addComment(post) {
+  if (!post.newComment?.trim()) return
+  
+  post.commenting = true
   try {
-    const post = posts.value.find(p => p.id === postId)
-    if (!post) return
-
-    post.isSharing = true
-
-    const shareUrl = `${window.location.origin}/post/${postId}`
+    const response = await $fetch(`/api/posts/${post.id}/comments`, {
+      method: 'POST',
+      body: { content: post.newComment }
+    })
     
+    if (!post.comments) post.comments = []
+    post.comments.push(response)
+    post.newComment = ''
+    post.comments_count++
+  } catch (err) {
+    console.error('Error adding comment:', err)
+  } finally {
+    post.commenting = false
+  }
+}
+
+async function toggleCommentLike(comment) {
+  try {
+    await $fetch(`/api/comments/${comment.id}/like`, { method: 'POST' })
+    comment.user_liked = !comment.user_liked
+    comment.likes_count += comment.user_liked ? 1 : -1
+  } catch (err) {
+    console.error('Error toggling comment like:', err)
+  }
+}
+
+function loadMoreComments(post) {
+  // Load more comments logic
+}
+
+async function sharePost(post) {
+  try {
     if (navigator.share) {
       await navigator.share({
         title: 'Check out this post on SocialVerse',
-        url: shareUrl
+        text: post.content,
+        url: window.location.href
       })
     } else {
       // Fallback: copy to clipboard
-      await navigator.clipboard.writeText(shareUrl)
+      await navigator.clipboard.writeText(window.location.href)
       alert('Link copied to clipboard!')
     }
-
-    post.shares_count = (post.shares_count || 0) + 1
-  } catch (err: any) {
+    post.shares_count++
+  } catch (err) {
     console.error('Error sharing post:', err)
+  }
+}
+
+function openPewGiftModal(post) {
+  selectedPost.value = post
+  selectedGiftAmount.value = null
+  customGiftAmount.value = null
+  showPewGiftModal.value = true
+}
+
+function closePewGiftModal() {
+  showPewGiftModal.value = false
+  selectedPost.value = null
+}
+
+function getSelectedGiftAmount() {
+  return customGiftAmount.value || selectedGiftAmount.value
+}
+
+async function sendPewGift() {
+  const amount = getSelectedGiftAmount()
+  if (!amount || !selectedPost.value) return
+  
+  sendingGift.value = true
+  try {
+    await $fetch(`/api/posts/${selectedPost.value.id}/pewgift`, {
+      method: 'POST',
+      body: { amount }
+    })
+    
+    selectedPost.value.pewgifts_count++
+    closePewGiftModal()
+    alert(`Successfully sent ${amount} PEW!`)
+  } catch (err) {
+    console.error('Error sending PewGift:', err)
+    alert('Failed to send PewGift. Please try again.')
   } finally {
-    const post = posts.value.find(p => p.id === postId)
-    if (post) post.isSharing = false
+    sendingGift.value = false
   }
 }
 
-const togglePostMenu = (postId: string) => {
-  activePostMenu.value = activePostMenu.value === postId ? null : postId
+function togglePostOptions(postId) {
+  // Toggle post options menu
 }
 
-const isPostOwner = (post: any): boolean => {
-  return post.user_id === user.value?.id
+function openMediaViewer(url) {
+  // Open media viewer modal
 }
 
-const deletePost = async (postId: string) => {
-  if (!confirm('Are you sure you want to delete this post?')) return
-
-  try {
-    const { error: deleteError } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', postId)
-      .eq('user_id', user.value?.id)
-
-    if (deleteError) throw deleteError
-
-    posts.value = posts.value.filter(p => p.id !== postId)
-    activePostMenu.value = null
-  } catch (err: any) {
-    error.value = 'Failed to delete post'
-    console.error('Error deleting post:', err)
-  }
+function onPostCreated(newPost) {
+  posts.value.unshift(newPost)
 }
 
-const reportPost = async (postId: string) => {
-  const reason = prompt('Please provide a reason for reporting this post:')
-  if (!reason) return
-
-  try {
-    await supabase
-      .from('post_reports')
-      .insert({
-        post_id: postId,
-        user_id: user.value?.id,
-        reason
-      })
-
-    alert('Post reported successfully')
-    activePostMenu.value = null
-  } catch (err: any) {
-    error.value = 'Failed to report post'
-    console.error('Error reporting post:', err)
-  }
+function retryLoadPosts() {
+  currentPage.value = 1
+  loadPosts()
 }
 
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = '/default-avatar.png'
-}
-
-const loadTrendingTopics = async () => {
-  try {
-    // Fetch trending hashtags/topics
-    const { data } = await supabase
-      .from('trending_topics')
-      .select('*')
-      .order('count', { ascending: false })
-      .limit(5)
-
-    trendingTopics.value = data || []
-  } catch (err) {
-    console.error('Error loading trending topics:', err)
-  }
-}
-
-const loadSuggestedUsers = async () => {
-  try {
-    // Fetch suggested users
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .neq('id', user.value?.id)
-      .limit(5)
-
-    suggestedUsers.value = (data || []).map(user => ({
-      ...user,
-      isFollowing: false
-    }))
-  } catch (err) {
-    console.error('Error loading suggested users:', err)
-  }
-}
-
-const navigateToTrend = (trend: any) => {
-  router.push(`/search?q=${encodeURIComponent(trend.name)}`)
-}
-
-const followUser = async (userId: string) => {
-  try {
-    const followUser = suggestedUsers.value.find(u => u.id === userId)
-    if (!followUser) return
-
-    await supabase
-      .from('follows')
-      .insert({
-        follower_id: user.value?.id,
-        following_id: userId
-      })
-
-    followUser.isFollowing = true
-  } catch (err: any) {
-    console.error('Error following user:', err)
-  }
-}
-
-// Lifecycle Hooks
-onMounted(async () => {
-  await loadPosts(1)
-  await loadTrendingTopics()
-  await loadSuggestedUsers()
-})
-
-onUnmounted(() => {
-  activePostMenu.value = null
-})
-
-// Page Meta
-definePageMeta({
-  middleware: 'auth',
-  layout: 'default'
-})
-
-useHead({
-  title: 'Feed - SocialVerse',
-  meta: [
-    { name: 'description', content: 'Your personalized social feed on SocialVerse' }
-  ]
+// Lifecycle
+onMounted(() => {
+  loadPosts()
 })
 </script>
 
 <style scoped>
-.feed-container {
+.homefeed-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: #f5f5f5;
 }
 
-.feed-main {
+.feed-body {
   flex: 1;
-  padding: 2rem 1rem;
+  padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -559,608 +577,739 @@ useHead({
 
 .feed-wrapper {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  gap: 2rem;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
 }
 
-@media (max-width: 1024px) {
-  .feed-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .feed-sidebar-left,
-  .feed-sidebar-right {
-    display: none;
-  }
+.posts-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* Welcome Section */
-.welcome-section {
+.posts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-item {
   background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s;
 }
 
-.welcome-header h1 {
-  font-size: 1.8rem;
-  color: #333;
-  margin: 0 0 0.5rem 0;
+.post-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.welcome-subtitle {
-  color: #666;
-  margin: 0;
-  font-size: 0.95rem;
+.post-item.sponsored {
+  border-left: 4px solid #ffc107;
 }
 
-/* Create Post Section */
-.create-post-section {
-  margin-bottom: 2rem;
+.post-item.ad {
+  border-left: 4px solid #2196f3;
+  background: #f0f7ff;
 }
 
-/* Posts Section */
-.posts-section {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Loading State */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  color: #666;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Error State */
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  color: #e74c3c;
-}
-
-.error-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.retry-btn {
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.3s;
-}
-
-.retry-btn:hover {
-  background: #2980b9;
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  color: #666;
-}
-
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-}
-
-.empty-state p {
-  margin: 0 0 1.5rem 0;
-}
-
-.explore-btn {
-  padding: 0.75rem 1.5rem;
-  background: #3498db;
-  color: white;
-  text-decoration: none;
-  border-radius: 6px;
-  font-weight: 600;
-  transition: background 0.3s;
-}
-
-.explore-btn:hover {
-  background: #2980b9;
-}
-
-/* Posts List */
-.posts-list {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Post Card */
-.post-card {
-  border-bottom: 1px solid #eee;
-  padding: 1.5rem;
-  transition: background 0.2s;
-}
-
-.post-card:hover {
-  background: #f9f9f9;
-}
-
-.post-card:last-child {
-  border-bottom: none;
-}
-
-.post-card.post-loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-/* Post Header */
 .post-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
-.author-section {
-  display: flex;
-  gap: 0.75rem;
-  flex: 1;
-}
-
-.author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #eee;
+  margin-bottom: 12px;
 }
 
 .author-info {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  gap: 12px;
+  flex: 1;
 }
 
-.author-name-row {
+.author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.author-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.author-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.post-author {
-  font-weight: 600;
-  color: #333;
+  gap: 4px;
 }
 
 .verified-badge {
-  color: #3498db;
-  font-size: 0.9rem;
+  color: #1976d2;
 }
 
-.post-date {
-  font-size: 0.85rem;
+.post-timestamp {
+  margin: 0;
+  font-size: 12px;
   color: #999;
 }
 
-/* Post Menu */
-.post-menu {
-  position: relative;
-}
-
-.menu-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #999;
-  padding: 0;
-  width: 32px;
-  height: 32px;
+.post-badges {
   display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.menu-btn:hover {
-  background: #f0f0f0;
+.sponsored-badge {
+  background: #fff3cd;
+  color: #856404;
 }
 
-.post-menu-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 10;
-  min-width: 150px;
+.ad-badge {
+  background: #cfe2ff;
+  color: #084298;
 }
 
-.post-menu-dropdown button {
-  display: block;
-  width: 100%;
-  padding: 0.75rem 1rem;
+.pinned-badge {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.more-options-btn {
   background: none;
   border: none;
-  text-align: left;
   cursor: pointer;
+  padding: 4px;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.more-options-btn:hover {
   color: #333;
-  font-size: 0.9rem;
-  transition: background 0.2s;
 }
 
-.post-menu-dropdown button:hover {
-  background: #f5f5f5;
-}
-
-/* Post Content */
 .post-content {
-  margin-bottom: 1rem;
+  margin-bottom: 12px;
 }
 
 .post-text {
-  margin: 0;
-  color: #333;
+  margin: 0 0 12px 0;
+  font-size: 14px;
   line-height: 1.5;
-  word-wrap: break-word;
+  color: #333;
 }
 
-.post-text a {
-  color: #3498db;
-  text-decoration: none;
-}
-
-.post-text a:hover {
-  text-decoration: underline;
-}
-
-.post-text .hashtag {
-  color: #3498db;
-}
-
-/* Post Media */
 .post-media {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .post-image {
   width: 100%;
-  height: 300px;
+  height: 200px;
   object-fit: cover;
-  background: #eee;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s;
 }
 
-/* Post Stats */
-.post-stats {
+.post-image:hover {
+  transform: scale(1.02);
+}
+
+.engagement-stats {
   display: flex;
-  gap: 1.5rem;
-  padding: 0.75rem 0;
+  gap: 16px;
+  padding: 8px 0;
   border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
+  font-size: 12px;
   color: #666;
+  margin-bottom: 12px;
 }
 
 .stat {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 4px;
 }
 
-/* Post Actions */
-.post-actions {
+.interaction-bar {
   display: flex;
-  gap: 1rem;
+  gap: 8px;
+  justify-content: space-around;
 }
 
-.action-btn {
+.interaction-btn {
   flex: 1;
-  padding: 0.75rem;
-  background: none;
-  border: none;
-  color: #666;
-  cursor: pointer;
-  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
   transition: all 0.2s;
 }
 
-.action-btn:hover:not(:disabled) {
-  background: #f0f0f0;
+.interaction-btn:hover {
+  background: #e8e8e8;
   color: #333;
 }
 
-.action-btn.liked {
-  color: #e74c3c;
+.interaction-btn.active {
+  background: #ffe0e0;
+  color: #d32f2f;
 }
 
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.like-btn.active {
+  background: #ffe0e0;
+  color: #d32f2f;
 }
 
-/* Load More */
-.load-more {
-  padding: 1.5rem;
-  text-align: center;
+.pewgift-btn {
+  color: #ff9800;
+}
+
+.pewgift-btn.has-gifts {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.comments-section {
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #eee;
 }
 
-.load-more-btn {
-  padding: 0.75rem 2rem;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.3s;
-}
-
-.load-more-btn:hover {
-  background: #2980b9;
-}
-
-/* End of Feed */
-.end-of-feed {
-  padding: 2rem;
-  text-align: center;
-  color: #999;
-  font-size: 0.9rem;
-}
-
-/* Sidebars */
-.feed-sidebar-left,
-.feed-sidebar-right {
+.comment-input-wrapper {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-/* Trending Widget */
-.trending-widget,
-.suggestions-widget {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.trending-widget h3,
-.suggestions-widget h3 {
-  margin: 0 0 1rem 0;
-  color: #333;
-  font-size: 1.1rem;
-}
-
-.trending-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.trending-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.trending-item:hover {
-  background: #f5f5f5;
-}
-
-.trend-rank {
-  font-weight: 700;
-  color: #3498db;
-  font-size: 1.1rem;
-  min-width: 30px;
-}
-
-.trend-info {
-  flex: 1;
-}
-
-.trend-name {
-  margin: 0;
-  color: #333;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.trend-count {
-  margin: 0.25rem 0 0 0;
-  color: #999;
-  font-size: 0.85rem;
-}
-
-/* Suggestions List */
-.suggestions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.suggestion-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 6px;
-  transition: background 0.2s;
-}
-
-.suggestion-item:hover {
-  background: #f5f5f5;
-}
-
-.suggestion-avatar {
-  width: 40px;
-  height: 40px;
+.comment-input-avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  background: #eee;
 }
 
-.suggestion-info {
+.comment-input-group {
   flex: 1;
+  display: flex;
+  gap: 6px;
 }
 
-.suggestion-name {
-  margin: 0;
-  color: #333;
-  font-weight: 600;
-  font-size: 0.9rem;
+.comment-field {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
 }
 
-.suggestion-bio {
-  margin: 0.25rem 0 0 0;
-  color: #999;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.comment-field:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
 }
 
-.follow-btn {
-  padding: 0.5rem 1rem;
-  background: #3498db;
+.comment-submit-btn {
+  padding: 8px 16px;
+  background: #1976d2;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 13px;
   font-weight: 600;
-  font-size: 0.85rem;
-  transition: background 0.3s;
-  white-space: nowrap;
+  transition: background 0.2s;
 }
 
-.follow-btn:hover:not(:disabled) {
-  background: #2980b9;
+.comment-submit-btn:hover:not(:disabled) {
+  background: #1565c0;
 }
 
-.follow-btn:disabled {
-  background: #95a5a6;
+.comment-submit-btn:disabled {
+  background: #ccc;
   cursor: not-allowed;
 }
 
-/* Responsive Design */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.comment-content {
+  flex: 1;
+  background: #f5f5f5;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.comment-date {
+  font-size: 11px;
+  color: #999;
+}
+
+.comment-text {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.comment-like-btn,
+.comment-reply-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+
+.comment-like-btn:hover,
+.comment-reply-btn:hover {
+  color: #333;
+}
+
+.comment-like-btn.liked {
+  color: #d32f2f;
+}
+
+.load-more-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.load-more-btn {
+  padding: 10px 24px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+.load-more-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.feed-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ad-slot {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.trending-section {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.trending-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.trend-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.trend-item:last-child {
+  border-bottom: none;
+}
+
+.trend-item:hover {
+  background: #f5f5f5;
+  padding: 8px 4px;
+}
+
+.trend-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.trend-count {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #999;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.pewgift-modal {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-description {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 8px;
+}
+
+.amount-btn {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.amount-btn:hover {
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+.amount-btn.selected {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+.custom-amount-section {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-amount-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.custom-amount-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.currency-label {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.gift-preview {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.preview-row.total {
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+  margin-top: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.amount,
+.fee,
+.total-amount {
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cancel-btn,
+.send-gift-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.cancel-btn:hover {
+  background: #e8e8e8;
+}
+
+.send-gift-btn {
+  background: #ff9800;
+  color: white;
+}
+
+.send-gift-btn:hover:not(:disabled) {
+  background: #f57c00;
+}
+
+.send-gift-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Loading & Error States */
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f5f5f5;
+  border-top-color: #1976d2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-state p {
+  margin: 16px 0 0 0;
+  color: #d32f2f;
+  font-size: 14px;
+}
+
+.retry-btn {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.retry-btn:hover {
+  background: #1565c0;
+}
+
+/* Footer */
+.homefeed-footer {
+  background: #333;
+  color: white;
+  text-align: center;
+  padding: 20px;
+  margin-top: 40px;
+  font-size: 13px;
+}
+
+.homefeed-footer p {
+  margin: 0;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .feed-main {
-    padding: 1rem;
+  .feed-wrapper {
+    grid-template-columns: 1fr;
   }
 
-  .welcome-section {
-    padding: 1.5rem;
+  .feed-sidebar {
+    display: none;
   }
 
-  .welcome-header h1 {
-    font-size: 1.4rem;
+  .post-item {
+    padding: 12px;
   }
 
-  .post-card {
-    padding: 1rem;
+  .interaction-bar {
+    gap: 4px;
   }
 
-  .author-avatar {
-    width: 40px;
-    height: 40px;
+  .interaction-btn {
+    padding: 6px 8px;
+    font-size: 12px;
   }
 
-  .post-stats {
-    font-size: 0.85rem;
-  }
-
-  .action-btn {
-    font-size: 0.8rem;
-    padding: 0.5rem;
+  .pewgift-modal {
+    max-width: 90%;
   }
 }
 
 @media (max-width: 480px) {
-  .feed-main {
-    padding: 0.5rem;
+  .feed-body {
+    padding: 12px;
   }
 
-  .welcome-header h1 {
-    font-size: 1.2rem;
+  .post-header {
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .post-card {
-    padding: 0.75rem;
+  .post-badges {
+    width: 100%;
   }
 
-  .post-media {
-    grid-template-columns: 1fr;
-  }
-
-  .post-image {
-    height: 200px;
-  }
-
-  .post-stats {
+  .engagement-stats {
     flex-wrap: wrap;
-    gap: 1rem;
   }
 
-  .action-btn {
-    font-size: 0.75rem;
-    padding: 0.4rem;
-  }
-
-  .action-btn span {
-    display: none;
+  .quick-amounts {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
