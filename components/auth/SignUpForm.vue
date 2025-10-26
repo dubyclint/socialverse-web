@@ -33,6 +33,18 @@
           </span>
         </div>
 
+        <!-- PHONE NUMBER FIELD - ADDED -->
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input 
+            id="phone"
+            v-model="formData.phone" 
+            type="tel" 
+            required 
+            placeholder="+1 (555) 000-0000"
+          />
+        </div>
+
         <div class="form-group">
           <label for="password">Password</label>
           <input 
@@ -200,6 +212,7 @@ const usernameStatus = ref(null)
 const formData = ref({
   email: '',
   username: '',
+  phone: '', // ADDED PHONE FIELD
   password: '',
   confirmPassword: '',
   displayName: '',
@@ -219,6 +232,7 @@ const passwordMismatch = computed(() => {
 const canProceedStep1 = computed(() => {
   return formData.value.email && 
          formData.value.username && 
+         formData.value.phone && // ADDED PHONE VALIDATION
          formData.value.password.length >= 8 && 
          !passwordMismatch.value &&
          (!usernameStatus.value || usernameStatus.value.type === 'success')
@@ -261,7 +275,13 @@ const completeSignup = async () => {
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
-        ...formData.value,
+        email: formData.value.email,
+        username: formData.value.username,
+        phone: formData.value.phone, // SEND PHONE TO API
+        fullName: formData.value.displayName,
+        password: formData.value.password,
+        bio: formData.value.bio,
+        location: formData.value.location,
         interests: selectedInterests.value
       }
     })
@@ -314,57 +334,5 @@ onMounted(() => {
 .interest-card.selected {
   border-color: #3b82f6;
   background: #eff6ff;
-}
-
-.interest-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.step-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2rem;
-}
-
-.btn-primary, .btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.error {
-  color: #ef4444;
-  font-size: 0.875rem;
-}
-
-.success {
-  color: #10b981;
-  font-size: 0.875rem;
 }
 </style>
