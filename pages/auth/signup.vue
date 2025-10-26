@@ -1,187 +1,188 @@
-import { serverSupabaseClient } from '#supabase/server'
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+      <div class="bg-white rounded-lg shadow-xl p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+        <p class="text-gray-600 mb-8">Join SocialVerse today</p>
 
-interface SignupRequest {
-  email: string
-  password: string
-  username: string
-  fullName: string
-  phone: string
-  interests?: string[]
-  profile?: {
-    bio?: string
-    avatar_url?: string
+        <form @submit.prevent="handleSignup" class="space-y-4">
+          <!-- Full Name Field -->
+          <div>
+            <label for="fullName" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+            <input
+              id="fullName"
+              v-model="fullName"
+              type="text"
+              required
+              placeholder="John Doe"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :disabled="loading"
+            />
+          </div>
+
+          <!-- Username Field -->
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+            <input
+              id="username"
+              v-model="username"
+              type="text"
+              required
+              placeholder="johndoe"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :disabled="loading"
+            />
+          </div>
+
+          <!-- Email Field -->
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <input
+              id="email"
+              v-model="email"
+              type="email"
+              required
+              placeholder="you@example.com"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :disabled="loading"
+            />
+          </div>
+
+          <!-- Phone Number Field -->
+          <div>
+            <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+            <input
+              id="phone"
+              v-model="phone"
+              type="tel"
+              required
+              placeholder="+1 (555) 000-0000"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :disabled="loading"
+            />
+          </div>
+
+          <!-- Password Field -->
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <input
+              id="password"
+              v-model="password"
+              type="password"
+              required
+              placeholder="••••••••"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :disabled="loading"
+            />
+          </div>
+
+          <!-- Confirm Password Field -->
+          <div>
+            <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+            <input
+              id="confirmPassword"
+              v-model="confirmPassword"
+              type="password"
+              required
+              placeholder="••••••••"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :disabled="loading"
+            />
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {{ error }}
+          </div>
+
+          <!-- Success Message -->
+          <div v-if="success" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+            {{ success }}
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            :disabled="loading"
+            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
+          >
+            {{ loading ? 'Creating Account...' : 'Create Account' }}
+          </button>
+        </form>
+
+        <!-- Login Link -->
+        <p class="text-center text-gray-600 mt-6">
+          Already have an account?
+          <NuxtLink to="/auth/login" class="text-blue-600 hover:text-blue-700 font-semibold">
+            Sign In
+          </NuxtLink>
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const fullName = ref('')
+const username = ref('')
+const email = ref('')
+const phone = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const loading = ref(false)
+const error = ref('')
+const success = ref('')
+
+const handleSignup = async () => {
+  error.value = ''
+  success.value = ''
+
+  // Validation
+  if (!fullName.value || !username.value || !email.value || !phone.value || !password.value) {
+    error.value = 'All fields are required'
+    return
+  }
+
+  if (password.value !== confirmPassword.value) {
+    error.value = 'Passwords do not match'
+    return
+  }
+
+  if (password.value.length < 8) {
+    error.value = 'Password must be at least 8 characters'
+    return
+  }
+
+  loading.value = true
+
+  try {
+    const response = await $fetch('/api/auth/signup', {
+      method: 'POST',
+      body: {
+        fullName: fullName.value,
+        username: username.value,
+        email: email.value,
+        phone: phone.value,
+        password: password.value
+      }
+    })
+
+    success.value = 'Account created successfully! Redirecting to login...'
+    setTimeout(() => {
+      router.push('/auth/login')
+    }, 2000)
+  } catch (err) {
+    error.value = err.data?.message || err.message || 'Signup failed'
+  } finally {
+    loading.value = false
   }
 }
+</script>
 
-export default defineEventHandler(async (event) => {
-  try {
-    const supabase = await serverSupabaseClient(event)
-    const body = await readBody<SignupRequest>(event)
-    
-    // Validate required fields
-    if (!body.email || !body.password || !body.username || !body.fullName || !body.phone) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email, password, username, full name, and phone number are required'
-      })
-    }
-    
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(body.email)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid email format'
-      })
-    }
-    
-    // Validate phone format (basic validation)
-    const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/
-    if (!phoneRegex.test(body.phone.replace(/\s/g, ''))) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid phone number format'
-      })
-    }
-    
-    // Check if username is already taken
-    const { data: existingUsername } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', body.username)
-      .single()
-    
-    if (existingUsername) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Username already taken'
-      })
-    }
-    
-    // Check if email is already taken
-    const { data: existingEmail } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('email', body.email)
-      .single()
-    
-    if (existingEmail) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Email already registered'
-      })
-    }
-    
-    // Check if phone is already taken
-    const { data: existingPhone } = await supabase
-      .from('profiles')
-      .select('phone_number')
-      .eq('phone_number', body.phone)
-      .single()
-    
-    if (existingPhone) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Phone number already registered'
-      })
-    }
-    
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: body.email,
-      password: body.password
-    })
-    
-    if (authError) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: authError.message,
-        data: authError
-      })
-    }
-    
-    if (!authData.user) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to create user'
-      })
-    }
-    
-    // Create user profile with all required fields
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        username: body.username,
-        email: body.email,
-        full_name: body.fullName,
-        phone_number: body.phone,
-        bio: body.profile?.bio || '',
-        avatar_url: body.profile?.avatar_url || null,
-        role: 'user', // Default role
-        is_verified: false,
-        rank: 'bronze', // Default rank
-        rank_points: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-    
-    if (profileError) {
-      // If profile creation fails, delete the auth user
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to create profile',
-        data: profileError
-      })
-    }
-    
-    // Add user interests if provided
-    if (body.interests && body.interests.length > 0) {
-      const userInterests = body.interests.map(interestId => ({
-        user_id: authData.user.id,
-        interest_id: interestId,
-        created_at: new Date().toISOString()
-      }))
-      
-      const { error: interestsError } = await supabase
-        .from('user_interests')
-        .insert(userInterests)
-      
-      if (interestsError) {
-        console.error('Failed to add user interests:', interestsError)
-        // Don't fail the signup if interests fail to save
-      }
-    }
-    
-    // Return success response with user ID and profile data
-    return {
-      success: true,
-      data: {
-        user: {
-          id: authData.user.id,
-          email: authData.user.email,
-          username: body.username,
-          fullName: body.fullName,
-          phone: body.phone
-        },
-        session: authData.session
-      },
-      message: 'Account created successfully. Please verify your email.'
-    }
-    
-  } catch (error) {
-    console.error('Signup error:', error)
-    
-    if (error.statusCode) {
-      throw error
-    }
-    
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal server error during signup',
-      data: error
-    })
-  }
-})
+<style scoped>
+/* Add any additional styles here */
+</style>
