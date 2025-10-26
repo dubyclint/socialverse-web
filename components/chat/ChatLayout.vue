@@ -1,396 +1,349 @@
-<!-- components/chat/ChatLayout.vue (Enhanced) -->
-<template>
-  <div class="chat-layout">
-    <!-- Chat Header -->
-    <ChatHeader 
-      :user="currentUser"
-      :unreadCount="totalUnreadCount"
-      :onlineCount="onlinePalsCount"
-      @search="handleSearch"
-      @openSettings="showSettings = true"
-      @openStatus="showStatusCreator = true"
-    />
+// stores/chat.ts - UPDATED WITH TRANSLATION & GIFT STATE
+// =========================================================
 
-    <!-- Chat Content -->
-    <div class="chat-content">
-      <!-- Chat List Sidebar -->
-      <div class="chat-sidebar" :class="{ 'hidden': showChatSession }">
-        <ChatSidebar
-          :chats="chats"
-          :selectedChatId="selectedChatId"
-          :searchQuery="searchQuery"
-          :onlinePals="onlinePals"
-          :statusUsers="statusUsers"
-          @selectChat="selectChat"
-          @createGroup="showGroupCreator = true"
-          @newAnnouncement="showAnnouncementCreator = true"
-        />
-      </div>
+import { defineStore } from 'pinia'
 
-      <!-- Chat Session -->
-      <div class="chat-session" :class="{ 'hidden': !showChatSession }">
-        <ChatSession
-          v-if="selectedChat"
-          :chat="selectedChat"
-          :currentUser="currentUser"
-          :messages="messages"
-          :isLoading="loadingMessages"
-          @sendMessage="sendMessage"
-          @editMessage="editMessage"
-          @deleteMessage="deleteMessage"
-          @markAsRead="markAsRead"
-          @startCall="startCall"
-          @back="backToList"
-          @uploadFiles="handleFileUpload"
-          @openMediaGallery="showMediaGallery = true"
-        />
-        <div v-else class="no-chat-selected">
-          <div class="welcome-message">
-            <h3>Welcome to SocialVerse Chat</h3>
-            <p>Select a chat to start messaging</p>
-          </div>
-        </div>
-      </div>
-    </div>
+export interface ChatMessage {
+  id: string
+  chatId: string
+  senderId: string
+  senderName: string
+  senderAvatar?: string
+  content: string
+  timestamp: number
+  isEdited: boolean
+  isDeleted: boolean
+  messageType: 'text' | 'image' | 'file' | 'system'
+  attachments?: any[]
+}
 
-    <!-- File Upload Progress -->
-    <FileUploadProgress
-      :uploads="uploads"
-      @cancel="cancelUpload"
-      @cancelAll="cancelAllUploads"
-      @clearCompleted="clearCompletedUploads"
-    />
+export interface Chat {
+  id: string
+  type: 'direct' | 'group'
+  name: string
+  avatar?: string
+  description?: string
+  lastMessage?: string
+  lastMessageTime?: number
+  unreadCount: number
+  isPinned: boolean
+  isMuted: boolean
+  participants: string[]
+  createdAt: number
+  updatedAt: number
+}
 
-    <!-- Media Gallery -->
-    <MediaGallery
-      :show="showMediaGallery"
-      :chatId="selectedChatId"
-      :mediaList="mediaGallery"
-      @close="showMediaGallery = false"
-    />
+export interface TypingUser {
+  userId: string
+  username: string
+  roomId: string
+}
 
-    <!-- Modals -->
-    <GroupCreator
-      v-if="showGroupCreator"
-      :contacts="contacts"
-      @close="showGroupCreator = false"
-      @created="handleGroupCreated"
-    />
+export interface User {
+  id: string
+  username: string
+  avatar?: string
+  status: 'online' | 'offline' | 'away'
+}
 
-    <AnnouncementCreator
-      v-if="showAnnouncementCreator"
-      :pals="pals"
-      @close="showAnnouncementCreator = false"
-      @sent="handleAnnouncementSent"
-    />
+export interface Translation {
+  messageId: string
+  originalText: string
+  translatedText: string
+  targetLanguage: string
+  timestamp: number
+}
 
-    <StatusCreator
-      v-if="showStatusCreator"
-      @close="showStatusCreator = false"
-      @created="handleStatusCreated"
-    />
+export interface Gift {
+  id: string
+  giftId: string
+  senderId: string
+  senderName: string
+  senderAvatar?: string
+  recipientId: string
+  amount: number
+  message?: string
+  messageId?: string
+  timestamp: number
+}
 
-    <ChatSettings
-      v-if="showSettings"
-      :settings="userSettings"
-      @close="showSettings = false"
-      @updated="handleSettingsUpdated"
-    />
-
-    <!-- Call Interface -->
-    <CallInterface
-      v-if="activeCall"
-      :call="activeCall"
-      @endCall="endCall"
-      @toggleMute="toggleMute"
-      @toggleVideo="toggleVideo"
-    />
-  </div>
-</template>
-
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useSocket } from '@/composables/useSocket'
-import { useChatStore } from '@/stores/chat'
-import { useUserStore } from '@/stores/user'
-
-// Components
-import ChatHeader from './ChatHeader.vue'
-import ChatSidebar from './ChatSidebar.vue'
-import ChatSession from './ChatSession.vue'
-import GroupCreator from './GroupCreator.vue'
-import AnnouncementCreator from './AnnouncementCreator.vue'
-import StatusCreator from './StatusCreator.vue'
-import ChatSettings from './ChatSettings.vue'
-import CallInterface from './CallInterface.vue'
-import FileUploadProgress from './FileUploadProgress.vue'
-import MediaGallery from './MediaGallery.vue'
-
-// Stores
-const chatStore = useChatStore()
-const userStore = useUserStore()
-
-// Socket
-const { socket, isConnected } = useSocket()
-
-// Reactive data
-const showChatSession = ref(false)
-const showGroupCreator = ref(false)
-const showAnnouncementCreator = ref(false)
-const showStatusCreator = ref(false)
-const showSettings = ref(false)
-const showMediaGallery = ref(false)
-const searchQuery = ref('')
-const loadingMessages = ref(false)
-const activeCall = ref(null)
-
-// Computed properties
-const currentUser = computed(() => userStore.user)
-const chats = computed(() => chatStore.chats)
-const selectedChat = computed(() => chatStore.selectedChat)
-const selectedChatId = computed(() => chatStore.selectedChatId)
-const messages = computed(() => chatStore.messages)
-const contacts = computed(() => chatStore.contacts)
-const pals = computed(() => chatStore.pals)
-const onlinePals = computed(() => chatStore.onlinePals)
-const statusUsers = computed(() => chatStore.statusUsers)
-const userSettings = computed(() => userStore.settings)
-const uploads = computed(() => chatStore.uploads)
-const mediaGallery = computed(() => chatStore.mediaGallery)
-
-const totalUnreadCount = computed(() => {
-  return chats.value.reduce((total, chat) => total + (chat.unreadCount || 0), 0)
-})
-
-const onlinePalsCount = computed(() => onlinePals.value.length)
-
-// Methods
-const selectChat = async (chatId) => {
-  showChatSession.value = true
-  loadingMessages.value = true
-  
-  try {
-    await chatStore.selectChat(chatId)
-    await Promise.all([
-      chatStore.loadMessages(chatId),
-      chatStore.loadMediaGallery(chatId)
-    ])
+export const useChatStore = defineStore('chat', {
+  state: () => ({
+    // Messages
+    messages: new Map<string, ChatMessage[]>(), // roomId -> messages
     
-    // Join chat room via socket
-    socket.emit('join_chat', { chatId })
+    // Chats
+    chats: new Map<string, Chat>(), // chatId -> chat
+    chatList: [] as string[], // ordered list of chat IDs
     
-    // Mark messages as read
-    await markAsRead(chatId)
-  } catch (error) {
-    console.error('Error selecting chat:', error)
-  } finally {
-    loadingMessages.value = false
-  }
-}
+    // Users
+    onlineUsers: new Map<string, User>(), // userId -> user
+    typingUsers: new Map<string, TypingUser>(), // userId -> typing user
+    
+    // Translations
+    translations: new Map<string, Translation>(), // messageId -> translation
+    
+    // Gifts
+    gifts: new Map<string, Gift>(), // giftId -> gift
+    userBalance: 0, // Current user's PEW balance
+    
+    // UI State
+    currentChatId: null as string | null,
+    isConnected: false,
+    isLoading: false,
+    error: null as string | null,
+    
+    // Settings
+    unreadCounts: new Map<string, number>() // chatId -> unread count
+  }),
 
-const backToList = () => {
-  showChatSession.value = false
-  chatStore.clearSelectedChat()
-}
+  getters: {
+    // Get messages for current chat
+    currentChatMessages: (state) => {
+      if (!state.currentChatId) return []
+      return state.messages.get(state.currentChatId) || []
+    },
 
-const sendMessage = async (messageData) => {
-  try {
-    await chatStore.sendMessage(messageData)
-  } catch (error) {
-    console.error('Error sending message:', error)
-  }
-}
+    // Get sorted chat list
+    sortedChats: (state) => {
+      return state.chatList
+        .map(id => state.chats.get(id))
+        .filter(Boolean)
+        .sort((a, b) => {
+          // Pinned chats first
+          if (a?.isPinned !== b?.isPinned) {
+            return (b?.isPinned ? 1 : 0) - (a?.isPinned ? 1 : 0)
+          }
+          // Then by last message time
+          return (b?.lastMessageTime || 0) - (a?.lastMessageTime || 0)
+        })
+    },
 
-const editMessage = async (messageId, content) => {
-  try {
-    await chatStore.editMessage(messageId, content)
-  } catch (error) {
-    console.error('Error editing message:', error)
-  }
-}
+    // Get unread count
+    totalUnreadCount: (state) => {
+      let total = 0
+      state.unreadCounts.forEach(count => {
+        total += count
+      })
+      return total
+    },
 
-const deleteMessage = async (messageId) => {
-  try {
-    await chatStore.deleteMessage(messageId)
-  } catch (error) {
-    console.error('Error deleting message:', error)
-  }
-}
+    // Get online users count
+    onlineUsersCount: (state) => {
+      return state.onlineUsers.size
+    },
 
-const markAsRead = async (chatId) => {
-  try {
-    await chatStore.markAsRead(chatId)
-    socket.emit('mark_messages_read', { chatId })
-  } catch (error) {
-    console.error('Error marking as read:', error)
-  }
-}
+    // Get typing users for current chat
+    currentChatTypingUsers: (state) => {
+      if (!state.currentChatId) return []
+      return Array.from(state.typingUsers.values()).filter(
+        user => user.roomId === state.currentChatId
+      )
+    },
 
-const handleFileUpload = async (files) => {
-  if (!selectedChatId.value) return
-  
-  try {
-    await chatStore.uploadFiles(files, selectedChatId.value)
-  } catch (error) {
-    console.error('Error uploading files:', error)
-  }
-}
+    // Get translations for current chat
+    currentChatTranslations: (state) => {
+      if (!state.currentChatId) return []
+      const messages = state.messages.get(state.currentChatId) || []
+      return messages
+        .map(msg => state.translations.get(msg.id))
+        .filter(Boolean)
+    },
 
-const cancelUpload = (uploadId) => {
-  chatStore.cancelUpload(uploadId)
-}
-
-const cancelAllUploads = () => {
-  chatStore.cancelAllUploads()
-}
-
-const clearCompletedUploads = () => {
-  chatStore.clearCompletedUploads()
-}
-
-const handleSearch = (query) => {
-  searchQuery.value = query
-}
-
-const handleGroupCreated = (group) => {
-  chatStore.addChat(group)
-  showGroupCreator.value = false
-}
-
-const handleAnnouncementSent = () => {
-  showAnnouncementCreator.value = false
-}
-
-const handleStatusCreated = (status) => {
-  chatStore.addStatus(status)
-  showStatusCreator.value = false
-}
-
-const handleSettingsUpdated = (settings) => {
-  userStore.updateSettings(settings)
-  showSettings.value = false
-}
-
-const startCall = (callData) => {
-  activeCall.value = callData
-  socket.emit('initiate_call', callData)
-}
-
-const endCall = () => {
-  if (activeCall.value) {
-    socket.emit('end_call', { callId: activeCall.value.id })
-    activeCall.value = null
-  }
-}
-
-const toggleMute = () => {
-  if (activeCall.value) {
-    activeCall.value.isMuted = !activeCall.value.isMuted
-  }
-}
-
-const toggleVideo = () => {
-  if (activeCall.value) {
-    activeCall.value.isVideoEnabled = !activeCall.value.isVideoEnabled
-  }
-}
-
-// Socket event handlers
-const setupSocketListeners = () => {
-  socket.on('new_message', (message) => {
-    chatStore.addMessage(message)
-  })
-
-  socket.on('message_edited', (data) => {
-    chatStore.updateMessage(data.messageId, { 
-      content: data.content, 
-      isEdited: true, 
-      editedAt: data.editedAt 
-    })
-  })
-
-  socket.on('message_deleted', (data) => {
-    chatStore.updateMessage(data.messageId, { 
-      isDeleted: true, 
-      deletedAt: data.deletedAt 
-    })
-  })
-
-  socket.on('user_typing', (data) => {
-    chatStore.setTypingUser(data.chatId, data.userId, data.isTyping)
-  })
-
-  socket.on('messages_read', (data) => {
-    chatStore.markMessagesAsRead(data.chatId, data.readBy.id)
-  })
-
-  socket.on('pal_online_status', (data) => {
-    chatStore.updateUserOnlineStatus(data.userId, data.isOnline)
-  })
-
-  socket.on('incoming_call', (data) => {
-    activeCall.value = {
-      ...data,
-      isIncoming: true,
-      isActive: false
+    // Get gifts for current chat
+    currentChatGifts: (state) => {
+      if (!state.currentChatId) return []
+      return Array.from(state.gifts.values()).filter(
+        gift => gift.messageId && state.messages.get(state.currentChatId)?.some(m => m.id === gift.messageId)
+      )
     }
-  })
+  },
 
-  socket.on('call_accepted', (data) => {
-    if (activeCall.value && activeCall.value.callId === data.callId) {
-      activeCall.value.isActive = true
+  actions: {
+    // ===== CONNECTION =====
+    setConnected(connected: boolean) {
+      this.isConnected = connected
+    },
+
+    // ===== MESSAGES =====
+    addMessage(message: ChatMessage) {
+      if (!this.messages.has(message.chatId)) {
+        this.messages.set(message.chatId, [])
+      }
+      const messages = this.messages.get(message.chatId)!
+      
+      // Prevent duplicates
+      if (!messages.find(m => m.id === message.id)) {
+        messages.push(message)
+        messages.sort((a, b) => a.timestamp - b.timestamp)
+      }
+    },
+
+    addMessages(chatId: string, messages: ChatMessage[]) {
+      this.messages.set(chatId, messages.sort((a, b) => a.timestamp - b.timestamp))
+    },
+
+    updateMessage(message: ChatMessage) {
+      const messages = this.messages.get(message.chatId)
+      if (messages) {
+        const index = messages.findIndex(m => m.id === message.id)
+        if (index !== -1) {
+          messages[index] = message
+        }
+      }
+    },
+
+    deleteMessage(messageId: string) {
+      this.messages.forEach(messages => {
+        const index = messages.findIndex(m => m.id === messageId)
+        if (index !== -1) {
+          messages[index].isDeleted = true
+        }
+      })
+    },
+
+    clearMessages(chatId: string) {
+      this.messages.delete(chatId)
+    },
+
+    // ===== CHATS =====
+    addChat(chat: Chat) {
+      this.chats.set(chat.id, chat)
+      if (!this.chatList.includes(chat.id)) {
+        this.chatList.push(chat.id)
+      }
+    },
+
+    addChats(chats: Chat[]) {
+      chats.forEach(chat => this.addChat(chat))
+    },
+
+    updateChat(chat: Chat) {
+      this.chats.set(chat.id, chat)
+    },
+
+    removeChat(chatId: string) {
+      this.chats.delete(chatId)
+      this.chatList = this.chatList.filter(id => id !== chatId)
+      this.messages.delete(chatId)
+      this.unreadCounts.delete(chatId)
+    },
+
+    setCurrentChat(chatId: string | null) {
+      this.currentChatId = chatId
+      if (chatId) {
+        // Clear unread count
+        this.unreadCounts.set(chatId, 0)
+      }
+    },
+
+    // ===== USERS =====
+    setOnlineUsers(users: User[]) {
+      this.onlineUsers.clear()
+      users.forEach(user => {
+        this.onlineUsers.set(user.id, user)
+      })
+    },
+
+    addOnlineUser(user: User) {
+      this.onlineUsers.set(user.id, user)
+    },
+
+    removeOnlineUser(userId: string) {
+      this.onlineUsers.delete(userId)
+    },
+
+    // ===== TYPING INDICATORS =====
+    addTypingUser(data: TypingUser) {
+      this.typingUsers.set(data.userId, data)
+      
+      // Auto-remove after 3 seconds
+      setTimeout(() => {
+        this.typingUsers.delete(data.userId)
+      }, 3000)
+    },
+
+    removeTypingUser(userId: string) {
+      this.typingUsers.delete(userId)
+    },
+
+    // ===== TRANSLATIONS =====
+    addTranslation(translation: Translation) {
+      this.translations.set(translation.messageId, translation)
+    },
+
+    getTranslation(messageId: string): Translation | undefined {
+      return this.translations.get(messageId)
+    },
+
+    clearTranslations() {
+      this.translations.clear()
+    },
+
+    // ===== GIFTS =====
+    addGift(gift: Gift) {
+      this.gifts.set(gift.id, gift)
+    },
+
+    addGifts(gifts: Gift[]) {
+      gifts.forEach(gift => this.addGift(gift))
+    },
+
+    getGift(giftId: string): Gift | undefined {
+      return this.gifts.get(giftId)
+    },
+
+    removeGift(giftId: string) {
+      this.gifts.delete(giftId)
+    },
+
+    setUserBalance(balance: number) {
+      this.userBalance = balance
+    },
+
+    updateUserBalance(amount: number) {
+      this.userBalance += amount
+    },
+
+    // ===== UNREAD COUNTS =====
+    incrementUnreadCount(chatId: string) {
+      const current = this.unreadCounts.get(chatId) || 0
+      this.unreadCounts.set(chatId, current + 1)
+    },
+
+    setUnreadCount(chatId: string, count: number) {
+      this.unreadCounts.set(chatId, count)
+    },
+
+    clearUnreadCount(chatId: string) {
+      this.unreadCounts.set(chatId, 0)
+    },
+
+    // ===== UI STATE =====
+    setLoading(loading: boolean) {
+      this.isLoading = loading
+    },
+
+    setError(error: string | null) {
+      this.error = error
+    },
+
+    // ===== BULK OPERATIONS =====
+    reset() {
+      this.messages.clear()
+      this.chats.clear()
+      this.chatList = []
+      this.onlineUsers.clear()
+      this.typingUsers.clear()
+      this.translations.clear()
+      this.gifts.clear()
+      this.currentChatId = null
+      this.isConnected = false
+      this.isLoading = false
+      this.error = null
+      this.unreadCounts.clear()
+      this.userBalance = 0
     }
-  })
-
-  socket.on('call_rejected', (data) => {
-    if (activeCall.value && activeCall.value.callId === data.callId) {
-      activeCall.value = null
-    }
-  })
-
-  socket.on('call_ended', (data) => {
-    if (activeCall.value && activeCall.value.callId === data.callId) {
-      activeCall.value = null
-    }
-  })
-}
-
-// Lifecycle
-onMounted(async () => {
-  try {
-    // Load initial data
-    await Promise.all([
-      chatStore.loadChats(),
-      chatStore.loadContacts(),
-      chatStore.loadOnlinePals(),
-      chatStore.loadStatusUsers()
-    ])
-
-    // Setup socket listeners
-    if (isConnected.value) {
-      setupSocketListeners()
-    }
-  } catch (error) {
-    console.error('Error initializing chat:', error)
   }
 })
-
-onUnmounted(() => {
-  // Clean up socket listeners
-  socket.off('new_message')
-  socket.off('message_edited')
-  socket.off('message_deleted')
-  socket.off('user_typing')
-  socket.off('messages_read')
-  socket.off('pal_online_status')
-  socket.off('incoming_call')
-  socket.off('call_accepted')
-  socket.off('call_rejected')
-  socket.off('call_ended')
-})
-</script>
-
-<style scoped>
-/* Same styles as before */
-</style>
 
