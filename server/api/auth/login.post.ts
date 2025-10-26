@@ -1,3 +1,4 @@
+// server/api/auth/login.post.ts - FIXED VERSION
 import { serverSupabaseClient } from '#supabase/server'
 
 interface LoginRequest {
@@ -62,20 +63,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Create JWT token with user ID and role for RBAC
-    const token = await generateJWT({
-      userId: authData.user.id,
-      email: authData.user.email,
-      role: profile.role || 'user',
-      username: profile.username
-    })
-
     // Return authenticated user data with profile and user ID
     return {
       success: true,
       data: {
         user: {
-          id: authData.user.id, // User ID from auth
+          id: authData.user.id,
           email: authData.user.email,
           username: profile.username,
           fullName: profile.full_name,
@@ -86,8 +79,8 @@ export default defineEventHandler(async (event) => {
           rank: profile.rank,
           rank_points: profile.rank_points
         },
-        session: authData.session,
-        token: token
+        profile: profile,
+        session: authData.session
       },
       message: 'Login successful'
     }
@@ -106,10 +99,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
-// Helper function to generate JWT token
-async function generateJWT(payload: any) {
-  // This should use your JWT library (jsonwebtoken)
-  // For now, returning a placeholder - implement with your JWT setup
-  return `jwt_token_${payload.userId}`
-}
