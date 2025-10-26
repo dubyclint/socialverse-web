@@ -2,14 +2,17 @@ import { ref, computed } from 'vue'
 
 interface UniverseMessage {
   id: string
-  userId: string
+  user_id: string
   username: string
   avatar?: string
   content: string
-  timestamp: string
+  created_at: string
   likes: number
   replies: number
   liked: boolean
+  country?: string
+  interest?: string
+  language?: string
 }
 
 export const useUniverseMessage = () => {
@@ -18,28 +21,45 @@ export const useUniverseMessage = () => {
   const error = ref<string | null>(null)
   const currentUserId = ref<string | null>(null)
 
-  // Fetch universe messages
-  const fetchMessages = async (limit: number = 50, offset: number = 0) => {
+  // Fetch universe messages with filters
+  const fetchMessages = async (filters: {
+    country?: string
+    interest?: string
+    language?: string
+    limit?: number
+    offset?: number
+  } = {}) => {
     loading.value = true
     error.value = null
 
     try {
+      const { country, interest, language = 'en', limit = 50, offset = 0 } = filters
+      
+      const query: any = { limit, offset, language }
+      if (country) query.country = country
+      if (interest) query.interest = interest
+
       const { data } = await $fetch('/api/universe/messages', {
-        query: { limit, offset }
+        query
       })
 
-      messages.value = data.messages || []
+      messages.value = data || []
       return data
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch messages'
       console.error('Fetch messages error:', err)
+      return []
     } finally {
       loading.value = false
     }
   }
 
   // Post universe message
-  const postMessage = async (content: string) => {
+  const postMessage = async (content: string, metadata?: {
+    country?: string
+    interest?: string
+    language?: string
+  }) => {
     if (!content.trim()) {
       error.value = 'Message cannot be empty'
       return null
@@ -49,13 +69,19 @@ export const useUniverseMessage = () => {
     error.value = null
 
     try {
-      const { data } = await $fetch('/api/universe/messages', {
+      const { data } = await $fetch('/api/universe/send', {
         method: 'POST',
-        body: { content }
+        body: {
+          content: content.trim(),
+          country: metadata?.country,
+          interest: metadata?.interest,
+          language: metadata?.language || 'en'
+        }
       })
 
-      messages.value.unshift(data.message)
-      return data.message
+      // Fetch updated messages
+      await fetchMessages()
+      return data
     } catch (err: any) {
       error.value = err.message || 'Failed to post message'
       console.error('Post message error:', err)
@@ -133,6 +159,22 @@ export const useUniverseMessage = () => {
     }
   }
 
+  // Add reaction/emoji
+  const addReaction = async (messageId: string, emoji: string) => {
+    try {
+      const { data } = await $fetch(`/api/universe/messages/${messageId}/reaction`, {
+        method: 'POST',
+        body: { emoji }
+      })
+
+      return data
+    } catch (err: any) {
+      error.value = err.message || 'Failed to add reaction'
+      console.error('Add reaction error:', err)
+      throw err
+    }
+  }
+
   // Computed
   const messageCount = computed(() => messages.value.length)
 
@@ -146,6 +188,7 @@ export const useUniverseMessage = () => {
     likeMessage,
     deleteMessage,
     replyToMessage,
+    addReaction,
     messageCount
   }
 }
