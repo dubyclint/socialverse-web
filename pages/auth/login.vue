@@ -71,32 +71,32 @@
           <div class="feature-card">
             <div class="feature-icon">🌐</div>
             <h3>Universe Match Meet & Chat</h3>
-            <p>Connect with people from around the world and expand your circle based on your interests, lists, and likes. Match for jobs, skills, gigs, orientation, country, denominations, religion, race, occupation, age, and more.</p>
+            <p>Connect with people from around the world and expand your circle based on your interests, lists, and likes.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🔒</div>
             <h3>Secure & Private Escrow</h3>
-            <p>No problem if the other party is unknown. Leave the trust and security to us. Create deals today and submit your terms and conditions. Our dedicated team and system will implement and deliver it strictly according to T&Cs.</p>
+            <p>Leave the trust and security to us. Create deals today and submit your terms and conditions.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">⚡</div>
             <h3>P2P & SOXM Features</h3>
-            <p>Experience the P2P feature and the incoming SOXM Feature with a new world definition of what payment, ecommerce, and outsourcing should be like in the era of AI, Web3, and computing.</p>
+            <p>Experience the P2P feature with a new world definition of payment, ecommerce, and outsourcing.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">💬</div>
             <h3>Real-time Chat</h3>
-            <p>Society and civilization are changing fast. Let's think beyond what is available today with real-time chats and more. Check it out and stay updated with more features.</p>
+            <p>Think beyond what is available today with real-time chats and more features.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">📱</div>
             <h3>Wallet</h3>
-            <p>Your private chats, post contents, live streams, universe matches, group chats, and comments are all revenue streams. With PewGift, you can gift and receive gifts with instant reflection on your wallet balance. Withdraw by swapping to crypto or trade in the P2P section for local currency.</p>
+            <p>Your chats, posts, and comments are revenue streams. Withdraw by swapping to crypto or trade in P2P.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
             <h3>Discover & Customize</h3>
-            <p>Discover other features including live streams, post content, the Ad Center, monetization, and more. T&Cs apply.</p>
+            <p>Discover live streams, post content, Ad Center, monetization, and more.</p>
           </div>
         </div>
       </div>
@@ -324,7 +324,7 @@ const signupForm = ref({
   error: ''
 })
 
-// Handle Login - CORRECTED VERSION
+// Handle Login
 const handleLogin = async () => {
   loginForm.value.error = ''
   loginForm.value.loading = true
@@ -336,7 +336,7 @@ const handleLogin = async () => {
       return
     }
 
-    // Call your custom login API endpoint
+    // Call login API endpoint
     const response = await $fetch('/api/auth/login', {
       method: 'POST',
       body: {
@@ -356,10 +356,10 @@ const handleLogin = async () => {
       // Initialize auth store with profile
       await authStore.initialize()
 
-      // Close modal FIRST
+      // Close modal
       showLoginModal.value = false
       
-      // Then redirect with a small delay to ensure state updates
+      // Redirect to feed
       await new Promise(resolve => setTimeout(resolve, 100))
       await router.push('/feed')
     } else {
@@ -373,7 +373,7 @@ const handleLogin = async () => {
   }
 }
 
-// Handle Signup - CORRECTED VERSION
+// Handle Signup - CORRECTED: Only creates account in database, does NOT auto-login
 const handleSignup = async () => {
   signupForm.value.error = ''
   signupForm.value.loading = true
@@ -395,7 +395,7 @@ const handleSignup = async () => {
       return
     }
 
-    // Call your custom signup API endpoint
+    // Call signup API endpoint - creates account in database
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -403,27 +403,35 @@ const handleSignup = async () => {
         password: signupForm.value.password,
         fullName: signupForm.value.name,
         username: signupForm.value.name.toLowerCase().replace(/\s+/g, ''),
-        phone: '' // User will add phone in profile later
+        phone: ''
       }
     })
 
     if (response.success) {
-      console.log('[Signup] User created successfully')
+      console.log('[Signup] Account created successfully')
 
-      // Store user data
-      localStorage.setItem('auth_token', response.data?.session?.access_token || '')
-      localStorage.setItem('user', JSON.stringify(response.data?.user))
-      localStorage.setItem('profile', JSON.stringify(response.data?.profile))
-
-      // Initialize auth store
-      await authStore.initialize()
-
-      // Close modal FIRST
+      // Show success message
+      signupForm.value.error = ''
+      
+      // Close signup modal
       showSignupModal.value = false
       
-      // Then redirect with a small delay to ensure state updates
-      await new Promise(resolve => setTimeout(resolve, 100))
-      await router.push('/feed')
+      // Open login modal for user to sign in
+      await new Promise(resolve => setTimeout(resolve, 300))
+      showLoginModal.value = true
+      
+      // Reset signup form
+      signupForm.value = {
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        loading: false,
+        error: ''
+      }
+      
+      // Pre-fill login email
+      loginForm.value.email = signupForm.value.email
     } else {
       signupForm.value.error = 'Signup failed. Please try again.'
     }
@@ -459,12 +467,12 @@ watch(user, (newUser) => {
 <style scoped>
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html,
 body {
-  margin: 0;
-  padding: 0;
   overflow-x: hidden;
 }
 
@@ -473,17 +481,20 @@ body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   flex-direction: column;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Header Styles */
 .header {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  padding: 1rem 2rem;
+  padding: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
 }
 
 .header-content {
@@ -493,6 +504,7 @@ body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  padding: 0 1rem;
 }
 
 .logo-container {
@@ -508,25 +520,29 @@ body {
 }
 
 .logo-text {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: bold;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .features-badge {
   background: rgba(255, 255, 255, 0.2);
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  display: none;
 }
 
 .features-link {
@@ -534,6 +550,7 @@ body {
   text-decoration: none;
   font-weight: 500;
   transition: opacity 0.3s;
+  font-size: 0.9rem;
 }
 
 .features-link:hover {
@@ -544,12 +561,13 @@ body {
   background: none;
   border: none;
   color: white;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
   transition: all 0.3s;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .btn-login {
@@ -585,24 +603,27 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
+  padding: 2rem 1rem;
   text-align: center;
+  width: 100%;
 }
 
 .hero-content {
   max-width: 600px;
+  width: 100%;
 }
 
 .hero-title {
-  font-size: 3.5rem;
+  font-size: 2.5rem;
   color: white;
   margin: 0 0 1rem 0;
   font-weight: bold;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  line-height: 1.2;
 }
 
 .hero-subtitle {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: rgba(255, 255, 255, 0.9);
   margin: 0 0 2rem 0;
 }
@@ -615,18 +636,21 @@ body {
 }
 
 .btn-hero {
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s;
+  white-space: nowrap;
 }
 
 .btn-hero-primary {
   background: white;
   color: #667eea;
+  flex: 1;
+  min-width: 150px;
 }
 
 .btn-hero-primary:hover {
@@ -638,6 +662,8 @@ body {
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: 2px solid white;
+  flex: 1;
+  min-width: 150px;
 }
 
 .btn-hero-secondary:hover {
@@ -646,33 +672,36 @@ body {
 
 /* Features Section */
 .features {
-  padding: 4rem 2rem;
+  padding: 3rem 1rem;
   background: rgba(255, 255, 255, 0.05);
+  width: 100%;
 }
 
 .features-container {
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .features-title {
-  font-size: 2.5rem;
+  font-size: 2rem;
   color: white;
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   font-weight: bold;
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
 }
 
 .feature-card {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s;
@@ -685,42 +714,45 @@ body {
 }
 
 .feature-icon {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 1rem;
 }
 
 .feature-card h3 {
   color: white;
   margin: 1rem 0;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
 }
 
 .feature-card p {
   color: rgba(255, 255, 255, 0.8);
   line-height: 1.6;
   margin: 0;
+  font-size: 0.9rem;
 }
 
 /* CTA Section */
 .cta-section {
-  padding: 4rem 2rem;
+  padding: 3rem 1rem;
   text-align: center;
   background: rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
 .cta-content {
   max-width: 600px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .cta-content h2 {
-  font-size: 2.5rem;
+  font-size: 2rem;
   color: white;
   margin-bottom: 1rem;
 }
 
 .cta-content p {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: rgba(255, 255, 255, 0.9);
   margin-bottom: 2rem;
 }
@@ -728,13 +760,14 @@ body {
 .btn-cta {
   background: white;
   color: #667eea;
-  padding: 1rem 2.5rem;
-  font-size: 1.1rem;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s;
+  white-space: nowrap;
 }
 
 .btn-cta:hover {
@@ -746,22 +779,30 @@ body {
 .footer {
   background: rgba(0, 0, 0, 0.3);
   color: rgba(255, 255, 255, 0.8);
-  padding: 3rem 2rem 1rem;
+  padding: 2rem 1rem 1rem;
   margin-top: auto;
+  width: 100%;
 }
 
 .footer-content {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .footer-section h4 {
   color: white;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.footer-section p {
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 .footer-section ul {
@@ -778,6 +819,7 @@ body {
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   transition: color 0.3s;
+  font-size: 0.85rem;
 }
 
 .footer-section a:hover {
@@ -786,19 +828,19 @@ body {
 
 .social-links {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .social-link {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
+  display: inline-flex;
+  width: 35px;
+  height: 35px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s;
+  font-size: 0.75rem;
 }
 
 .social-link:hover {
@@ -807,8 +849,9 @@ body {
 
 .footer-bottom {
   text-align: center;
-  padding-top: 2rem;
+  padding-top: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.8rem;
 }
 
 /* Modal Styles */
@@ -823,16 +866,20 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .modal-content {
   background: white;
   border-radius: 12px;
-  padding: 2rem;
+  padding: 1.5rem;
   max-width: 400px;
-  width: 90%;
+  width: 100%;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .close-btn {
@@ -844,6 +891,11 @@ body {
   font-size: 1.5rem;
   cursor: pointer;
   color: #666;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {
@@ -853,12 +905,12 @@ body {
 .modal-content h2 {
   margin-top: 0;
   color: #333;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .form-group label {
@@ -866,6 +918,7 @@ body {
   margin-bottom: 0.5rem;
   color: #333;
   font-weight: 500;
+  font-size: 0.95rem;
 }
 
 .form-group input {
@@ -875,6 +928,7 @@ body {
   border-radius: 6px;
   font-size: 1rem;
   transition: border-color 0.3s;
+  font-family: inherit;
 }
 
 .form-group input:focus {
@@ -895,6 +949,7 @@ body {
   border-radius: 6px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  word-break: break-word;
 }
 
 .btn-submit {
@@ -908,6 +963,7 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  font-family: inherit;
 }
 
 .btn-submit:hover:not(:disabled) {
@@ -925,6 +981,7 @@ body {
   text-align: center;
   margin-top: 1.5rem;
   color: #666;
+  font-size: 0.9rem;
 }
 
 .link-button {
@@ -935,6 +992,9 @@ body {
   font-weight: 600;
   text-decoration: underline;
   transition: color 0.3s;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
 }
 
 .link-button:hover {
@@ -943,28 +1003,262 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .header-content {
+    padding: 0 0.5rem;
+  }
+
+  .logo-text {
+    font-size: 1rem;
+  }
+
+  .nav-link {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
   .hero-title {
-    font-size: 2.5rem;
+    font-size: 1.8rem;
   }
 
   .hero-subtitle {
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 
   .hero-buttons {
+    gap: 0.5rem;
+  }
+
+  .btn-hero {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    min-width: 120px;
+  }
+
+  .features-title {
+    font-size: 1.5rem;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .feature-card {
+    padding: 1rem;
+  }
+
+  .feature-icon {
+    font-size: 2rem;
+  }
+
+  .feature-card h3 {
+    font-size: 1rem;
+  }
+
+  .feature-card p {
+    font-size: 0.85rem;
+  }
+
+  .cta-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .cta-content p {
+    font-size: 1rem;
+  }
+
+  .btn-cta {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .modal-content {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+
+  .modal-content h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-group input {
+    padding: 0.65rem;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0.75rem;
+  }
+
+  .header-content {
+    padding: 0;
+  }
+
+  .logo-box {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .logo-text {
+    font-size: 0.9rem;
+  }
+
+  .nav-link {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .hero {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .hero-title {
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-buttons {
+    gap: 0.5rem;
     flex-direction: column;
   }
 
   .btn-hero {
     width: 100%;
+    padding: 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .features {
+    padding: 2rem 0.75rem;
   }
 
   .features-title {
-    font-size: 2rem;
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .features-grid {
+    gap: 0.75rem;
+  }
+
+  .feature-card {
+    padding: 0.75rem;
+  }
+
+  .feature-icon {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .feature-card h3 {
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+  }
+
+  .feature-card p {
+    font-size: 0.8rem;
+  }
+
+  .cta-section {
+    padding: 2rem 0.75rem;
+  }
+
+  .cta-content h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .cta-content p {
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-cta {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .footer {
+    padding: 1.5rem 0.75rem 0.75rem;
+  }
+
+  .footer-content {
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .footer-section h4 {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-section p {
+    font-size: 0.8rem;
+  }
+
+  .footer-section a {
+    font-size: 0.8rem;
+  }
+
+  .social-link {
+    width: 30px;
+    height: 30px;
+    font-size: 0.7rem;
+  }
+
+  .modal-overlay {
+    padding: 0.75rem;
   }
 
   .modal-content {
-    width: 95%;
+    padding: 1rem;
+    border-radius: 8px;
+  }
+
+  .close-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 1.3rem;
+  }
+
+  .modal-content h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.85rem;
+  }
+
+  .form-group label {
+    font-size: 0.9rem;
+  }
+
+  .form-group input {
+    padding: 0.6rem;
+    font-size: 16px;
+  }
+
+  .btn-submit {
+    padding: 0.65rem;
+    font-size: 0.95rem;
+  }
+
+  .signup-link,
+  .login-link {
+    font-size: 0.85rem;
+    margin-top: 1rem;
   }
 }
 </style>
