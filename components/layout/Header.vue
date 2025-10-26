@@ -34,11 +34,17 @@
           <span class="nav-label">Post</span>
         </NuxtLink>
 
-        <!-- Live Stream Link -->
-        <NuxtLink to="/universe" class="nav-icon" :class="{ active: $route.path === '/universe' }">
+        <!-- CORRECTED: Live Stream Link - Points to /streaming (streaming components) -->
+        <NuxtLink to="/streaming" class="nav-icon" :class="{ active: $route.path === '/streaming' }">
           <Icon name="radio" size="24" />
           <span class="nav-label">Live</span>
           <span v-if="isLiveStreaming" class="live-badge">LIVE</span>
+        </NuxtLink>
+
+        <!-- Universe Link - Added to center navigation -->
+        <NuxtLink to="/universe" class="nav-icon" :class="{ active: $route.path === '/universe' }">
+          <Icon name="globe" size="24" />
+          <span class="nav-label">Universe</span>
         </NuxtLink>
       </div>
 
@@ -68,17 +74,17 @@
           </div>
         </div>
 
-        <!-- Profile Picture with Status -->
+        <!-- Profile Picture with Status - DYNAMIC USER DATA -->
         <div class="profile-container">
           <div class="profile-avatar" @click="toggleProfileMenu">
-            <img :src="user.avatar || '/default-avatar.png'" :alt="user.name" />
+            <img :src="user.avatar" :alt="user.name" />
             <div class="status-dot" :class="user.status"></div>
           </div>
           
-          <!-- Profile Dropdown -->
+          <!-- Profile Dropdown - DYNAMIC USER DATA -->
           <div v-if="showProfileMenu" class="profile-dropdown">
             <div class="profile-info">
-              <img :src="user.avatar || '/default-avatar.png'" :alt="user.name" />
+              <img :src="user.avatar" :alt="user.name" />
               <div>
                 <h4>{{ user.name }}</h4>
                 <p>@{{ user.username }}</p>
@@ -150,9 +156,13 @@
             <Icon name="plus-square" size="20" />
             <span>Create Post</span>
           </NuxtLink>
-          <NuxtLink to="/universe" class="sidebar-item">
+          <NuxtLink to="/streaming" class="sidebar-item">
             <Icon name="radio" size="20" />
             <span>Live Stream</span>
+          </NuxtLink>
+          <NuxtLink to="/universe" class="sidebar-item">
+            <Icon name="globe" size="20" />
+            <span>Universe</span>
           </NuxtLink>
 
           <hr class="sidebar-divider" />
@@ -176,7 +186,7 @@
           <!-- Community & Matching -->
           <NuxtLink to="/cross-meet" class="sidebar-item">
             <Icon name="heart" size="20" />
-            <span>Universe Match</span>
+            <span>Cross Meet</span>
           </NuxtLink>
           <NuxtLink to="/explore" class="sidebar-item">
             <Icon name="compass" size="20" />
@@ -207,8 +217,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '~/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // Reactive data
 const showSidebar = ref(false)
@@ -218,13 +230,13 @@ const unreadMessages = ref(3)
 const walletBalance = ref(1250.50)
 const isLiveStreaming = ref(false)
 
-// User data (would come from your auth store)
-const user = ref({
-  name: 'John Doe',
-  username: 'johndoe',
-  avatar: '/default-avatar.png',
+// Computed properties from auth store - DYNAMIC USER DATA
+const user = computed(() => ({
+  name: authStore.userDisplayName,
+  username: authStore.profile?.username || 'user',
+  avatar: authStore.profile?.avatar_url || '/default-avatar.png',
   status: 'online' // online, away, busy, offline
-})
+}))
 
 // Media items for horizontal scroll
 const mediaItems = ref([
@@ -296,7 +308,7 @@ const openMediaItem = (item) => {
 const handleLogout = async () => {
   try {
     // Call your logout function from auth store
-    // await authStore.logout()
+    await authStore.logout()
     router.push('/auth/login')
   } catch (err) {
     console.error('Logout error:', err)
@@ -347,12 +359,11 @@ onMounted(() => {
   padding: 0.5rem;
   color: white;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .menu-btn:hover {
   background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
 }
 
 .logo {
@@ -361,13 +372,17 @@ onMounted(() => {
   gap: 0.5rem;
   text-decoration: none;
   color: white;
-  font-weight: 700;
-  font-size: 1.5rem;
 }
 
 .logo-img {
-  width: 32px;
   height: 32px;
+  width: 32px;
+}
+
+.logo-text {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
 }
 
 .header-center {
@@ -381,19 +396,21 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.5rem 1rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  cursor: pointer;
+  transition: all 0.3s;
   position: relative;
 }
 
-.nav-icon:hover,
+.nav-icon:hover {
+  color: white;
+}
+
 .nav-icon.active {
   color: white;
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+  border-bottom: 3px solid white;
+  padding-bottom: 0.5rem;
 }
 
 .nav-label {
@@ -403,8 +420,8 @@ onMounted(() => {
 
 .notification-badge {
   position: absolute;
-  top: -5px;
-  right: 5px;
+  top: -8px;
+  right: -8px;
   background: #ff4757;
   color: white;
   border-radius: 50%;
@@ -414,21 +431,20 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: bold;
 }
 
-/* Live Badge Style */
 .live-badge {
   position: absolute;
   top: -8px;
   right: -8px;
   background: #ff4757;
   color: white;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  padding: 0.2rem 0.4rem;
-  font-size: 0.6rem;
-  font-weight: 700;
-  animation: pulse 1.5s infinite;
+  font-size: 0.65rem;
+  font-weight: bold;
+  animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
@@ -436,35 +452,31 @@ onMounted(() => {
     opacity: 1;
   }
   50% {
-    opacity: 0.6;
+    opacity: 0.7;
   }
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 2rem;
 }
 
 .wallet-container {
   position: relative;
+  cursor: pointer;
 }
 
 .wallet-icon {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
   color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .wallet-icon:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+  transform: scale(1.05);
 }
 
 .wallet-balance {
@@ -477,9 +489,8 @@ onMounted(() => {
   top: 100%;
   right: 0;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  padding: 0.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 200px;
   margin-top: 0.5rem;
   z-index: 1001;
@@ -489,15 +500,18 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  padding: 0.75rem 1rem;
   color: #333;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
 }
 
 .wallet-option:hover {
-  background: #f8f9fa;
+  background: #f5f5f5;
 }
 
 .profile-container {
@@ -505,46 +519,59 @@ onMounted(() => {
 }
 
 .profile-avatar {
-  position: relative;
-  cursor: pointer;
-}
-
-.profile-avatar img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
-.profile-avatar:hover img {
+.profile-avatar:hover {
   border-color: white;
-  transform: scale(1.05);
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .status-dot {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  bottom: 0;
+  right: 0;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   border: 2px solid white;
 }
 
-.status-dot.online { background: #2ed573; }
-.status-dot.away { background: #ffa502; }
-.status-dot.busy { background: #ff4757; }
-.status-dot.offline { background: #747d8c; }
+.status-dot.online {
+  background: #2ecc71;
+}
+
+.status-dot.away {
+  background: #f39c12;
+}
+
+.status-dot.busy {
+  background: #e74c3c;
+}
+
+.status-dot.offline {
+  background: #95a5a6;
+}
 
 .profile-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 250px;
   margin-top: 0.5rem;
   z-index: 1001;
@@ -553,85 +580,81 @@ onMounted(() => {
 .profile-info {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .profile-info img {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .profile-info h4 {
   margin: 0;
   color: #333;
+  font-size: 0.95rem;
 }
 
 .profile-info p {
   margin: 0;
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+
+.profile-dropdown hr {
+  margin: 0;
+  border: none;
+  border-top: 1px solid #eee;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  text-decoration: none;
+  padding: 0.75rem 1rem;
   color: #333;
-  transition: background-color 0.2s;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s;
   border: none;
   background: none;
-  cursor: pointer;
   width: 100%;
   text-align: left;
+  font-size: 0.9rem;
 }
 
 .dropdown-item:hover {
-  background: #f8f9fa;
+  background: #f5f5f5;
 }
 
 .logout-btn {
-  color: #ff4757;
-  font-weight: 600;
+  color: #e74c3c;
 }
 
-/* Media Container */
 .media-container {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 1rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem 2rem;
+  overflow-x: auto;
 }
 
 .media-scroll {
   display: flex;
   gap: 1rem;
-  overflow-x: auto;
-  padding: 0 2rem;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.media-scroll::-webkit-scrollbar {
-  display: none;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .media-item {
   flex-shrink: 0;
-  width: 200px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 1rem;
+  width: 150px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .media-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
 }
 
 .media-thumbnail {
@@ -640,7 +663,7 @@ onMounted(() => {
   height: 100px;
   border-radius: 8px;
   overflow: hidden;
-  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .media-thumbnail img {
@@ -651,165 +674,154 @@ onMounted(() => {
 
 .media-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  border-radius: 50%;
-  padding: 0.5rem;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s;
+  color: white;
 }
 
 .media-item:hover .media-overlay {
   opacity: 1;
 }
 
+.media-info {
+  padding: 0.5rem 0;
+}
+
 .media-info h5 {
+  margin: 0.25rem 0;
   color: white;
-  margin: 0 0 0.25rem 0;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .media-info p {
-  color: rgba(255, 255, 255, 0.8);
-  margin: 0 0 0.25rem 0;
-  font-size: 0.8rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.7rem;
 }
 
 .media-type {
+  display: inline-block;
   background: rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  margin-top: 0.25rem;
 }
 
-/* Sidebar */
 .sidebar-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 2000;
+  z-index: 999;
 }
 
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 300px;
-  height: 100%;
+  width: 280px;
+  height: 100vh;
   background: white;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-  transform: translateX(0);
-  transition: transform 0.3s ease;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
+  z-index: 1000;
 }
 
 .sidebar-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #e1e5e9;
-  position: sticky;
-  top: 0;
-  background: white;
+  border-bottom: 1px solid #eee;
 }
 
 .sidebar-header h3 {
   margin: 0;
   color: #333;
+  font-size: 1.2rem;
 }
 
 .close-btn {
   background: none;
   border: none;
+  color: #666;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  transition: background-color 0.2s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {
-  background: #f8f9fa;
+  color: #333;
 }
 
 .sidebar-nav {
-  padding: 1rem;
-}
-
-.sidebar-divider {
-  border: none;
-  border-top: 1px solid #e1e5e9;
-  margin: 1rem 0;
+  padding: 1rem 0;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  border-radius: 8px;
-  text-decoration: none;
+  padding: 0.75rem 1.5rem;
   color: #333;
-  transition: all 0.2s;
-  margin-bottom: 0.5rem;
+  text-decoration: none;
+  transition: all 0.3s;
 }
 
 .sidebar-item:hover {
-  background: #f8f9fa;
-  transform: translateX(4px);
+  background: #f5f5f5;
+  padding-left: 2rem;
 }
 
-/* Responsive Design */
+.sidebar-item.router-link-active {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border-left: 3px solid #667eea;
+  padding-left: calc(1.5rem - 3px);
+}
+
+.sidebar-divider {
+  margin: 1rem 0;
+  border: none;
+  border-top: 1px solid #eee;
+}
+
 @media (max-width: 768px) {
   .header-top {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
   }
-  
+
   .header-center {
     gap: 1rem;
   }
-  
+
   .nav-label {
     display: none;
   }
-  
-  .wallet-balance {
-    display: none;
-  }
-  
-  .media-scroll {
-    padding: 0 1rem;
-  }
-  
-  .media-item {
-    width: 150px;
-  }
-  
-  .sidebar {
-    width: 280px;
-  }
-}
 
-@media (max-width: 480px) {
-  .header-center {
-    gap: 0.5rem;
+  .header-right {
+    gap: 1rem;
   }
-  
-  .nav-icon {
-    padding: 0.5rem;
-  }
-  
-  .media-item {
-    width: 120px;
+
+  .media-container {
+    padding: 0.75rem 1rem;
   }
 }
 </style>
