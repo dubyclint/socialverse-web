@@ -12,6 +12,7 @@ const CallEvents = require('./callEvents');
 const NotificationEvents = require('./notificationEvents');
 const GiftEvents = require('./giftEvents'); // NEW
 const TranslationEvents = require('./translationEvents'); // NEW
+const UniverseEvents = require('./universeEvents'); // NEW
 
 class SocketServer {
   constructor(httpServer) {
@@ -139,6 +140,7 @@ class SocketServer {
     CallEvents.setupCallEvents(this.io, socket);
     NotificationEvents.setupNotificationEvents(this.io, socket);
     GiftEvents.setupGiftEvents(this.io, socket); // NEW - Gift events
+    UniverseEvents.setupUniverseEvents(this.io, socket); // NEW - Universe events
     TranslationEvents.setupTranslationEvents(this.io, socket); // NEW - Translation events
 
     // General events
