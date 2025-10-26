@@ -145,9 +145,7 @@
           <h4>Follow Us</h4>
           <div class="social-links">
             <a href="#" class="social-link" target="_blank">Twitter</a>
-            
             <a href="#" class="social-link" target="_blank">Facebook</a>
-            
             <a href="#" class="social-link" target="_blank">Instagram</a>
           </div>
         </div>
@@ -250,6 +248,19 @@
             />
           </div>
 
+          <!-- ADDED: Phone Number Field -->
+          <div class="form-group">
+            <label for="signup-phone">Phone Number</label>
+            <input
+              id="signup-phone"
+              v-model="signupForm.phone"
+              type="tel"
+              required
+              placeholder="+1 (555) 000-0000"
+              :disabled="signupForm.loading"
+            />
+          </div>
+
           <div class="form-group">
             <label for="signup-password">Password</label>
             <input
@@ -320,6 +331,7 @@ const loginForm = ref({
 const signupForm = ref({
   name: '',
   email: '',
+  phone: '', // ADDED: Phone field
   password: '',
   confirmPassword: '',
   loading: false,
@@ -375,14 +387,14 @@ const handleLogin = async () => {
   }
 }
 
-// Handle Signup - CORRECTED: Only creates account in database, does NOT auto-login
+// Handle Signup - CORRECTED: Collects phone number from user
 const handleSignup = async () => {
   signupForm.value.error = ''
   signupForm.value.loading = true
 
   try {
-    // Validate inputs
-    if (!signupForm.value.email || !signupForm.value.password || !signupForm.value.name) {
+    // Validate inputs - UPDATED: Include phone validation
+    if (!signupForm.value.email || !signupForm.value.password || !signupForm.value.name || !signupForm.value.phone) {
       signupForm.value.error = 'All fields are required'
       return
     }
@@ -397,7 +409,14 @@ const handleSignup = async () => {
       return
     }
 
-    // Call signup API endpoint - creates account in database
+    // Validate phone format (basic validation - at least 10 digits)
+    const phoneDigits = signupForm.value.phone.replace(/\D/g, '')
+    if (phoneDigits.length < 10) {
+      signupForm.value.error = 'Phone number must have at least 10 digits'
+      return
+    }
+
+    // Call signup API endpoint - creates account in database with phone number
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -405,7 +424,7 @@ const handleSignup = async () => {
         password: signupForm.value.password,
         fullName: signupForm.value.name,
         username: signupForm.value.name.toLowerCase().replace(/\s+/g, ''),
-        phone: ''
+        phone: signupForm.value.phone // FIXED: Send user's phone number
       }
     })
 
@@ -426,6 +445,7 @@ const handleSignup = async () => {
       signupForm.value = {
         name: '',
         email: '',
+        phone: '',
         password: '',
         confirmPassword: '',
         loading: false,
