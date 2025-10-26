@@ -59,13 +59,6 @@
           >
             Sign In
           </button>
-          <NuxtLink
-            v-if="user"
-            to="/feed"
-            class="btn-hero btn-hero-primary"
-          >
-            Go to Feed
-          </NuxtLink>
         </div>
       </div>
     </section>
@@ -103,7 +96,7 @@
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
             <h3>Discover & Customize</h3>
-            <p>Discover other features including live streams,post content ,the Ad Center, monetization, and more. T&Cs apply.</p>
+            <p>Discover other features including live streams, post content, the Ad Center, monetization, and more. T&Cs apply.</p>
           </div>
         </div>
       </div>
@@ -121,13 +114,6 @@
         >
           Create Account Now
         </button>
-        <NuxtLink
-          v-if="user"
-          to="/feed"
-          class="btn-cta"
-        >
-          Go to Your Feed
-        </NuxtLink>
       </div>
     </section>
 
@@ -149,18 +135,18 @@
         <div class="footer-section">
           <h4>Support</h4>
           <ul>
-            <li><a href="#">Help Center</a></li>
-            <li><a href="#">Contact Us</a></li>
-            <li><a href="#">Privacy Policy</a></li>
-            <li><a href="#">Terms of Service</a></li>
+            <li><a href="#" target="_blank">Help Center</a></li>
+            <li><a href="#" target="_blank">Contact Us</a></li>
+            <li><NuxtLink to="/privacy">Privacy Policy</NuxtLink></li>
+            <li><NuxtLink to="/terms">Terms of Service</NuxtLink></li>
           </ul>
         </div>
         <div class="footer-section">
           <h4>Follow Us</h4>
           <div class="social-links">
-            <a href="#" class="social-link">Twitter</a>
-            <a href="#" class="social-link">Facebook</a>
-            <a href="#" class="social-link">Instagram</a>
+            <a href="#" class="social-link" target="_blank">Twitter</a>
+            <a href="#" class="social-link" target="_blank">Facebook</a>
+            <a href="#" class="social-link" target="_blank">Instagram</a>
           </div>
         </div>
       </div>
@@ -310,11 +296,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
+import { useAuthStore } from '~/stores/auth'
 
 const user = useSupabaseUser()
-const supabaseClient = useSupabaseClient()
-const userStore = useUserStore()
+const authStore = useAuthStore()
 const router = useRouter()
 
 // Modal state
@@ -338,42 +324,37 @@ const signupForm = ref({
   error: ''
 })
 
-// Handle Login - FIXED VERSION
+// Handle Login - CORRECTED VERSION
 const handleLogin = async () => {
   loginForm.value.error = ''
   loginForm.value.loading = true
 
   try {
-    if (!supabaseClient) {
-      loginForm.value.error = 'Authentication service not available'
-      return
-    }
-
     // Validate inputs
     if (!loginForm.value.email || !loginForm.value.password) {
       loginForm.value.error = 'Email and password are required'
       return
     }
 
-    const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-      email: loginForm.value.email,
-      password: loginForm.value.password
+    // Call your custom login API endpoint
+    const response = await $fetch('/api/auth/login', {
+      method: 'POST',
+      body: {
+        email: loginForm.value.email,
+        password: loginForm.value.password
+      }
     })
 
-    if (signInError) {
-      loginForm.value.error = signInError.message || 'Failed to sign in'
-      return
-    }
+    if (response.success && response.data?.user?.id) {
+      console.log('[Login] User authenticated with ID:', response.data.user.id)
 
-    if (data.user?.id) {
-      console.log('[Login] User authenticated with ID:', data.user.id)
+      // Store user data and profile
+      localStorage.setItem('auth_token', response.data.session?.access_token || '')
+      localStorage.setItem('user', JSON.stringify(response.data.user))
+      localStorage.setItem('profile', JSON.stringify(response.data.profile))
 
-      // Store user data
-      localStorage.setItem('auth_token', data.session?.access_token || '')
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      // Initialize user store with profile
-      await userStore.initializeSession()
+      // Initialize auth store with profile
+      await authStore.initialize()
 
       // Close modal FIRST
       showLoginModal.value = false
@@ -382,30 +363,25 @@ const handleLogin = async () => {
       await new Promise(resolve => setTimeout(resolve, 100))
       await router.push('/feed')
     } else {
-      loginForm.value.error = 'User ID not available from authentication'
+      loginForm.value.error = 'Login failed. Please try again.'
     }
   } catch (err: any) {
     console.error('Login error:', err)
-    loginForm.value.error = err.message || 'An error occurred during sign in'
+    loginForm.value.error = err.data?.statusMessage || err.message || 'An error occurred during sign in'
   } finally {
     loginForm.value.loading = false
   }
 }
 
-// Handle Signup - FIXED VERSION
+// Handle Signup - CORRECTED VERSION
 const handleSignup = async () => {
   signupForm.value.error = ''
   signupForm.value.loading = true
 
   try {
-    if (!supabaseClient) {
-      signupForm.value.error = 'Authentication service not available'
-      return
-    }
-
     // Validate inputs
-    if (!signupForm.value.email || !signupForm.value.password) {
-      signupForm.value.error = 'Email and password are required'
+    if (!signupForm.value.email || !signupForm.value.password || !signupForm.value.name) {
+      signupForm.value.error = 'All fields are required'
       return
     }
 
@@ -414,30 +390,33 @@ const handleSignup = async () => {
       return
     }
 
-    if (signupForm.value.password.length < 6) {
-      signupForm.value.error = 'Password must be at least 6 characters'
+    if (signupForm.value.password.length < 8) {
+      signupForm.value.error = 'Password must be at least 8 characters'
       return
     }
 
-    const { data, error: signUpError } = await supabaseClient.auth.signUp({
-      email: signupForm.value.email,
-      password: signupForm.value.password
+    // Call your custom signup API endpoint
+    const response = await $fetch('/api/auth/signup', {
+      method: 'POST',
+      body: {
+        email: signupForm.value.email,
+        password: signupForm.value.password,
+        fullName: signupForm.value.name,
+        username: signupForm.value.name.toLowerCase().replace(/\s+/g, ''),
+        phone: '' // User will add phone in profile later
+      }
     })
 
-    if (signUpError) {
-      signupForm.value.error = signUpError.message || 'Failed to sign up'
-      return
-    }
-
-    if (data.user?.id) {
-      console.log('[Signup] User created with ID:', data.user.id)
+    if (response.success) {
+      console.log('[Signup] User created successfully')
 
       // Store user data
-      localStorage.setItem('auth_token', data.session?.access_token || '')
-      localStorage.setItem('user', JSON.stringify(data.user))
+      localStorage.setItem('auth_token', response.data?.session?.access_token || '')
+      localStorage.setItem('user', JSON.stringify(response.data?.user))
+      localStorage.setItem('profile', JSON.stringify(response.data?.profile))
 
-      // Initialize user store
-      await userStore.initializeSession()
+      // Initialize auth store
+      await authStore.initialize()
 
       // Close modal FIRST
       showSignupModal.value = false
@@ -446,11 +425,11 @@ const handleSignup = async () => {
       await new Promise(resolve => setTimeout(resolve, 100))
       await router.push('/feed')
     } else {
-      signupForm.value.error = 'User ID not available from authentication'
+      signupForm.value.error = 'Signup failed. Please try again.'
     }
   } catch (err: any) {
     console.error('Signup error:', err)
-    signupForm.value.error = err.message || 'An error occurred during sign up'
+    signupForm.value.error = err.data?.statusMessage || err.message || 'An error occurred during sign up'
   } finally {
     signupForm.value.loading = false
   }
@@ -459,10 +438,10 @@ const handleSignup = async () => {
 // Handle Logout
 const handleLogout = async () => {
   try {
-    await supabaseClient.auth.signOut()
-    userStore.clearProfile()
+    await authStore.logout()
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user')
+    localStorage.removeItem('profile')
     await router.push('/')
   } catch (err) {
     console.error('Logout error:', err)
@@ -525,47 +504,52 @@ body {
   background: white;
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .logo-text {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #667eea;
-  white-space: nowrap;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .nav {
   display: flex;
-  gap: 1rem;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  gap: 1.5rem;
 }
 
 .features-badge {
   background: rgba(255, 255, 255, 0.2);
   padding: 0.5rem 1rem;
   border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .features-link {
   color: white;
   text-decoration: none;
   font-weight: 500;
-  font-size: 0.95rem;
+  transition: opacity 0.3s;
+}
+
+.features-link:hover {
+  opacity: 0.8;
 }
 
 .nav-link {
   background: none;
   border: none;
   color: white;
-  cursor: pointer;
   font-size: 1rem;
+  cursor: pointer;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-  white-space: nowrap;
+  border-radius: 8px;
+  transition: all 0.3s;
+  font-weight: 500;
 }
 
 .btn-login {
@@ -573,62 +557,54 @@ body {
 }
 
 .btn-login:hover {
-  background: white;
-  color: #667eea;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .btn-signup {
   background: white;
   color: #667eea;
-  font-weight: 600;
 }
 
 .btn-signup:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .btn-logout {
   background: rgba(255, 255, 255, 0.2);
-  border: 2px solid white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn-logout:hover {
-  background: white;
-  color: #667eea;
+  background: rgba(255, 255, 255, 0.3);
 }
 
-/* Hero Section Styles */
+/* Hero Section */
 .hero {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 80px);
-  padding: 2rem;
+  padding: 4rem 2rem;
   text-align: center;
-  flex: 1;
 }
 
 .hero-content {
   max-width: 600px;
-  color: white;
-  width: 100%;
 }
 
 .hero-title {
   font-size: 3.5rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
+  color: white;
+  margin: 0 0 1rem 0;
+  font-weight: bold;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  line-height: 1.2;
 }
 
 .hero-subtitle {
   font-size: 1.5rem;
-  margin-bottom: 2rem;
-  opacity: 0.95;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
-  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 2rem 0;
 }
 
 .hero-buttons {
@@ -641,14 +617,11 @@ body {
 .btn-hero {
   padding: 1rem 2rem;
   font-size: 1.1rem;
-  font-weight: 600;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-block;
-  min-width: 150px;
+  font-weight: 600;
+  transition: all 0.3s;
 }
 
 .btn-hero-primary {
@@ -658,46 +631,41 @@ body {
 
 .btn-hero-primary:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .btn-hero-secondary {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.2);
   color: white;
   border: 2px solid white;
 }
 
 .btn-hero-secondary:hover {
-  background: white;
-  color: #667eea;
-  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.3);
 }
 
-/* Features Section Styles */
+/* Features Section */
 .features {
   padding: 4rem 2rem;
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
 }
 
 .features-container {
   max-width: 1200px;
   margin: 0 auto;
-  width: 100%;
 }
 
 .features-title {
   font-size: 2.5rem;
-  font-weight: 800;
   color: white;
   text-align: center;
   margin-bottom: 3rem;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-weight: bold;
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
 }
 
@@ -707,15 +675,13 @@ body {
   padding: 2rem;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  text-align: center;
-  color: white;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .feature-card:hover {
   transform: translateY(-5px);
   background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .feature-icon {
@@ -724,23 +690,22 @@ body {
 }
 
 .feature-card h3 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
+  color: white;
+  margin: 1rem 0;
+  font-size: 1.3rem;
 }
 
 .feature-card p {
-  font-size: 0.95rem;
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.8);
   line-height: 1.6;
+  margin: 0;
 }
 
 /* CTA Section */
 .cta-section {
-  padding: 3rem 2rem;
-  background: rgba(255, 255, 255, 0.08);
+  padding: 4rem 2rem;
   text-align: center;
-  color: white;
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .cta-content {
@@ -749,40 +714,38 @@ body {
 }
 
 .cta-content h2 {
-  font-size: 2rem;
+  font-size: 2.5rem;
+  color: white;
   margin-bottom: 1rem;
-  font-weight: 700;
 }
 
 .cta-content p {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 2rem;
-  opacity: 0.9;
 }
 
 .btn-cta {
-  padding: 1rem 2.5rem;
-  font-size: 1rem;
-  font-weight: 600;
   background: white;
   color: #667eea;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-block;
+  font-weight: 600;
+  transition: all 0.3s;
 }
 
 .btn-cta:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* Footer Styles */
+/* Footer */
 .footer {
   background: rgba(0, 0, 0, 0.3);
-  color: white;
+  color: rgba(255, 255, 255, 0.8);
   padding: 3rem 2rem 1rem;
   margin-top: auto;
 }
@@ -797,15 +760,8 @@ body {
 }
 
 .footer-section h4 {
-  font-size: 1.1rem;
+  color: white;
   margin-bottom: 1rem;
-  font-weight: 600;
-}
-
-.footer-section p {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  line-height: 1.6;
 }
 
 .footer-section ul {
@@ -814,35 +770,35 @@ body {
   margin: 0;
 }
 
-.footer-section ul li {
+.footer-section li {
   margin-bottom: 0.5rem;
 }
 
 .footer-section a {
-  color: white;
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
-  font-size: 0.9rem;
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
+  transition: color 0.3s;
 }
 
 .footer-section a:hover {
-  opacity: 1;
-  text-decoration: underline;
+  color: white;
 }
 
 .social-links {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .social-link {
   display: inline-block;
-  padding: 0.5rem 1rem;
+  width: 40px;
+  height: 40px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  transition: all 0.3s ease;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
 }
 
 .social-link:hover {
@@ -853,8 +809,6 @@ body {
   text-align: center;
   padding-top: 2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.85rem;
-  opacity: 0.7;
 }
 
 /* Modal Styles */
@@ -869,8 +823,6 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
-  overflow-y: auto;
 }
 
 .modal-content {
@@ -878,10 +830,9 @@ body {
   border-radius: 12px;
   padding: 2rem;
   max-width: 400px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   position: relative;
-  margin: auto;
 }
 
 .close-btn {
@@ -892,31 +843,29 @@ body {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #999;
-  transition: color 0.3s ease;
+  color: #666;
 }
 
 .close-btn:hover {
-  color: #333;
+  color: #000;
 }
 
 .modal-content h2 {
-  margin-bottom: 1.5rem;
+  margin-top: 0;
   color: #333;
-  text-align: center;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: #555;
+  color: #333;
   font-weight: 500;
-  font-size: 0.95rem;
 }
 
 .form-group input {
@@ -925,8 +874,7 @@ body {
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.3s ease;
-  font-family: inherit;
+  transition: border-color 0.3s;
 }
 
 .form-group input:focus {
@@ -959,13 +907,12 @@ body {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
+  transition: all 0.3s;
 }
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .btn-submit:disabled {
@@ -976,9 +923,8 @@ body {
 .signup-link,
 .login-link {
   text-align: center;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   color: #666;
-  font-size: 0.9rem;
 }
 
 .link-button {
@@ -988,392 +934,37 @@ body {
   cursor: pointer;
   font-weight: 600;
   text-decoration: underline;
-  transition: color 0.3s ease;
+  transition: color 0.3s;
 }
 
 .link-button:hover {
   color: #764ba2;
 }
 
-/* Mobile Responsive Styles */
-@media (max-width: 1024px) {
-  .header-content {
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .nav {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .hero-title {
-    font-size: 2.5rem;
-  }
-
-  .hero-subtitle {
-    font-size: 1.2rem;
-  }
-
-  .features-title {
-    font-size: 2rem;
-  }
-
-  .feature-card {
-    padding: 1.5rem;
-  }
-}
-
+/* Responsive */
 @media (max-width: 768px) {
-  .header {
-    padding: 0.75rem 1rem;
-  }
-
-  .logo-text {
-    font-size: 1.2rem;
-  }
-
-  .nav {
-    gap: 0.5rem;
-  }
-
-  .nav-link {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
-  }
-
-  .features-badge {
-    padding: 0.4rem 0.8rem;
-  }
-
-  .features-link {
-    font-size: 0.85rem;
-  }
-
-  .hero {
-    min-height: auto;
-    padding: 2rem 1rem;
-  }
-
   .hero-title {
-    font-size: 2rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .hero-subtitle {
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .hero-buttons {
-    gap: 0.75rem;
-  }
-
-  .btn-hero {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.95rem;
-    min-width: 120px;
-  }
-
-  .features {
-    padding: 2rem 1rem;
-  }
-
-  .features-title {
-    font-size: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .features-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .feature-card {
-    padding: 1.5rem;
-  }
-
-  .feature-icon {
     font-size: 2.5rem;
   }
 
-  .feature-card h3 {
-    font-size: 1.2rem;
-  }
-
-  .feature-card p {
-    font-size: 0.9rem;
-  }
-
-  .cta-section {
-    padding: 2rem 1rem;
-  }
-
-  .cta-content h2 {
-    font-size: 1.5rem;
-  }
-
-  .cta-content p {
-    font-size: 1rem;
-  }
-
-  .btn-cta {
-    padding: 0.75rem 2rem;
-    font-size: 0.95rem;
-  }
-
-  .footer {
-    padding: 2rem 1rem 1rem;
-  }
-
-  .footer-content {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .footer-section h4 {
-    font-size: 1rem;
-  }
-
-  .footer-section p {
-    font-size: 0.85rem;
-  }
-
-  .modal-content {
-    padding: 1.5rem;
-    max-width: 90%;
-  }
-
-  .modal-content h2 {
-    font-size: 1.3rem;
-    margin-bottom: 1rem;
-  }
-
-  .form-group label {
-    font-size: 0.9rem;
-  }
-
-  .form-group input {
-    padding: 0.65rem;
-    font-size: 0.95rem;
-  }
-
-  .btn-submit {
-    padding: 0.65rem;
-    font-size: 0.95rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .header {
-    padding: 0.5rem 0.75rem;
-  }
-
-  .logo-box {
-    padding: 0.4rem 0.75rem;
-  }
-
-  .logo-text {
-    font-size: 1rem;
-  }
-
-  .nav {
-    gap: 0.25rem;
-  }
-
-  .nav-link {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-  }
-
-  .features-badge {
-    padding: 0.3rem 0.6rem;
-  }
-
-  .features-link {
-    font-size: 0.75rem;
-  }
-
-  .hero {
-    padding: 1.5rem 1rem;
-  }
-
-  .hero-title {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-  }
-
   .hero-subtitle {
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
+    font-size: 1.2rem;
   }
 
   .hero-buttons {
     flex-direction: column;
-    gap: 0.5rem;
   }
 
   .btn-hero {
     width: 100%;
-    padding: 0.65rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  .features {
-    padding: 1.5rem 1rem;
   }
 
   .features-title {
-    font-size: 1.3rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .features-grid {
-    gap: 1rem;
-  }
-
-  .feature-card {
-    padding: 1rem;
-  }
-
-  .feature-icon {
     font-size: 2rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .feature-card h3 {
-    font-size: 1rem;
-    margin-bottom: 0.3rem;
-  }
-
-  .feature-card p {
-    font-size: 0.8rem;
-  }
-
-  .cta-section {
-    padding: 1.5rem 1rem;
-  }
-
-  .cta-content h2 {
-    font-size: 1.3rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .cta-content p {
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-  }
-
-  .btn-cta {
-    padding: 0.65rem 1.5rem;
-    font-size: 0.9rem;
-  }
-
-  .footer {
-    padding: 1.5rem 1rem 0.75rem;
-  }
-
-  .footer-content {
-    gap: 1rem;
-  }
-
-  .footer-section h4 {
-    font-size: 0.95rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .footer-section p {
-    font-size: 0.8rem;
-  }
-
-  .footer-section ul li {
-    margin-bottom: 0.4rem;
-  }
-
-  .footer-section a {
-    font-size: 0.8rem;
-  }
-
-  .social-links {
-    gap: 0.5rem;
-  }
-
-  .social-link {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-
-  .footer-bottom {
-    font-size: 0.75rem;
-    padding-top: 1rem;
-  }
-
-  .modal-overlay {
-    padding: 0.5rem;
   }
 
   .modal-content {
-    padding: 1.25rem;
-    max-width: 95%;
-  }
-
-  .close-btn {
-    font-size: 1.25rem;
-  }
-
-  .modal-content h2 {
-    font-size: 1.2rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .form-group {
-    margin-bottom: 0.75rem;
-  }
-
-  .form-group label {
-    font-size: 0.85rem;
-    margin-bottom: 0.3rem;
-  }
-
-  .form-group input {
-    padding: 0.6rem;
-    font-size: 0.9rem;
-  }
-
-  .btn-submit {
-    padding: 0.6rem;
-    font-size: 0.9rem;
-    margin-top: 0.75rem;
-  }
-
-  .signup-link,
-  .login-link {
-    font-size: 0.85rem;
-    margin-top: 0.75rem;
-  }
-}
-
-/* Landscape Mobile */
-@media (max-height: 600px) and (orientation: landscape) {
-  .hero {
-    min-height: auto;
-    padding: 1rem;
-  }
-
-  .hero-title {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .hero-subtitle {
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-  }
-
-  .btn-hero {
-    padding: 0.6rem 1.2rem;
-    font-size: 0.9rem;
+    width: 95%;
   }
 }
 </style>
-
