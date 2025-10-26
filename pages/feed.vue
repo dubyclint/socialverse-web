@@ -329,9 +329,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '~/stores/auth'
 import Header from '~/components/layout/Header.vue'
 import CreatePost from '~/components/posts/CreatePost.vue'
 import AdSlot from '~/components/AdSlot.vue'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 // State
 const posts = ref([])
@@ -350,8 +355,10 @@ const adSlots = ref([])
 const trendingTopics = ref([])
 
 const quickGiftAmounts = [1, 5, 10, 25, 50]
-const currentUserAvatar = ref('/default-avatar.png')
-const currentUserName = ref('You')
+
+// CORRECTED: Get current user from auth store - DYNAMIC USER DATA
+const currentUserAvatar = computed(() => authStore.profile?.avatar_url || '/default-avatar.png')
+const currentUserName = computed(() => authStore.userDisplayName || 'You')
 
 // Computed
 const giftPreview = computed(() => {
@@ -555,12 +562,16 @@ function retryLoadPosts() {
 
 // Lifecycle
 onMounted(() => {
+  // Initialize auth store if not already done
+  if (!authStore.isAuthenticated) {
+    authStore.initialize()
+  }
   loadPosts()
 })
 </script>
 
 <style scoped>
-.homefeed-container {
+.feed-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -605,15 +616,6 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.post-item.sponsored {
-  border-left: 4px solid #ffc107;
-}
-
-.post-item.ad {
-  border-left: 4px solid #2196f3;
-  background: #f0f7ff;
-}
-
 .post-header {
   display: flex;
   justify-content: space-between;
@@ -635,13 +637,12 @@ onMounted(() => {
 }
 
 .author-details {
-  display: flex;
-  flex-direction: column;
+  flex: 1;
 }
 
 .author-name {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.95rem;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -649,19 +650,19 @@ onMounted(() => {
 }
 
 .verified-badge {
-  color: #1976d2;
+  color: #3b82f6;
 }
 
 .post-timestamp {
-  margin: 0;
-  font-size: 12px;
-  color: #999;
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+  color: #666;
 }
 
 .post-badges {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
 .badge {
@@ -670,32 +671,31 @@ onMounted(() => {
   gap: 4px;
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
 .sponsored-badge {
-  background: #fff3cd;
-  color: #856404;
+  background: #fef3c7;
+  color: #d97706;
 }
 
 .ad-badge {
-  background: #cfe2ff;
-  color: #084298;
+  background: #dbeafe;
+  color: #0284c7;
 }
 
 .pinned-badge {
-  background: #d1ecf1;
-  color: #0c5460;
+  background: #fce7f3;
+  color: #be185d;
 }
 
 .more-options-btn {
   background: none;
   border: none;
+  color: #999;
   cursor: pointer;
   padding: 4px;
-  color: #999;
-  transition: color 0.2s;
 }
 
 .more-options-btn:hover {
@@ -708,7 +708,7 @@ onMounted(() => {
 
 .post-text {
   margin: 0 0 12px 0;
-  font-size: 14px;
+  font-size: 0.95rem;
   line-height: 1.5;
   color: #333;
 }
@@ -724,7 +724,7 @@ onMounted(() => {
   width: 100%;
   height: 200px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: transform 0.2s;
 }
@@ -736,12 +736,11 @@ onMounted(() => {
 .engagement-stats {
   display: flex;
   gap: 16px;
-  padding: 8px 0;
+  padding: 12px 0;
   border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
-  font-size: 12px;
+  font-size: 0.85rem;
   color: #666;
-  margin-bottom: 12px;
 }
 
 .stat {
@@ -753,7 +752,7 @@ onMounted(() => {
 .interaction-bar {
   display: flex;
   gap: 8px;
-  justify-content: space-around;
+  margin-top: 12px;
 }
 
 .interaction-btn {
@@ -765,47 +764,38 @@ onMounted(() => {
   padding: 8px 12px;
   border: none;
   background: #f5f5f5;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
   color: #666;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
   transition: all 0.2s;
 }
 
-.interaction-btn:hover {
+.interaction-btn:hover:not(:disabled) {
   background: #e8e8e8;
   color: #333;
 }
 
 .interaction-btn.active {
-  background: #ffe0e0;
-  color: #d32f2f;
+  background: #ffe0e6;
+  color: #e74c3c;
 }
 
-.like-btn.active {
-  background: #ffe0e0;
-  color: #d32f2f;
-}
-
-.pewgift-btn {
-  color: #ff9800;
-}
-
-.pewgift-btn.has-gifts {
-  background: #fff3e0;
-  color: #e65100;
+.interaction-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .comments-section {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
   border-top: 1px solid #eee;
 }
 
 .comment-input-wrapper {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .comment-input-avatar {
@@ -818,42 +808,39 @@ onMounted(() => {
 .comment-input-group {
   flex: 1;
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .comment-field {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
 .comment-field:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  border-color: #667eea;
 }
 
 .comment-submit-btn {
   padding: 8px 16px;
-  background: #1976d2;
+  background: #667eea;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
   font-weight: 600;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .comment-submit-btn:hover:not(:disabled) {
-  background: #1565c0;
+  background: #764ba2;
 }
 
 .comment-submit-btn:disabled {
-  background: #ccc;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -865,44 +852,38 @@ onMounted(() => {
 
 .comment-item {
   display: flex;
-  gap: 8px;
+  gap: 12px;
 }
 
 .comment-avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0;
 }
 
 .comment-content {
   flex: 1;
-  background: #f5f5f5;
-  padding: 8px 12px;
-  border-radius: 4px;
 }
 
 .comment-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
+  gap: 8px;
+  font-size: 0.85rem;
 }
 
 .comment-author {
   font-weight: 600;
-  font-size: 12px;
+  color: #333;
 }
 
 .comment-date {
-  font-size: 11px;
   color: #999;
 }
 
 .comment-text {
   margin: 4px 0;
-  font-size: 13px;
+  font-size: 0.9rem;
   color: #333;
 }
 
@@ -910,15 +891,15 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .comment-like-btn,
 .comment-reply-btn {
   background: none;
   border: none;
+  color: #999;
   cursor: pointer;
-  color: #666;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -931,46 +912,60 @@ onMounted(() => {
 }
 
 .comment-like-btn.liked {
-  color: #d32f2f;
+  color: #e74c3c;
+}
+
+.load-more-comments-btn {
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 6px;
+  color: #667eea;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  margin-top: 12px;
+}
+
+.load-more-comments-btn:hover {
+  background: #e8e8e8;
 }
 
 .load-more-wrapper {
-  display: flex;
-  justify-content: center;
+  text-align: center;
   padding: 20px;
 }
 
 .load-more-btn {
-  padding: 10px 24px;
-  background: #1976d2;
+  padding: 12px 24px;
+  background: #667eea;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
   font-weight: 600;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .load-more-btn:hover:not(:disabled) {
-  background: #1565c0;
+  background: #764ba2;
 }
 
 .load-more-btn:disabled {
-  background: #ccc;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .feed-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .ad-slot {
   background: white;
   border-radius: 8px;
-  padding: 12px;
+  padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -983,40 +978,75 @@ onMounted(() => {
 
 .trending-section h3 {
   margin: 0 0 12px 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 1rem;
+  color: #333;
 }
 
 .trend-item {
   padding: 8px 0;
   border-bottom: 1px solid #eee;
-  cursor: pointer;
-  transition: background 0.2s;
 }
 
 .trend-item:last-child {
   border-bottom: none;
 }
 
-.trend-item:hover {
-  background: #f5f5f5;
-  padding: 8px 4px;
-}
-
 .trend-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #333;
 }
 
 .trend-count {
-  margin: 2px 0 0 0;
-  font-size: 11px;
+  margin: 4px 0 0 0;
+  font-size: 0.8rem;
   color: #999;
 }
 
-/* Modal Styles */
+.loading-state,
+.error-state {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f5f5f5;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-state p {
+  margin: 0 0 16px 0;
+  color: #e74c3c;
+}
+
+.retry-btn {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.retry-btn:hover {
+  background: #764ba2;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1032,33 +1062,33 @@ onMounted(() => {
 
 .pewgift-modal {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 24px;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 1.3rem;
+  color: #333;
 }
 
 .close-btn {
   background: none;
   border: none;
-  cursor: pointer;
   color: #999;
-  padding: 4px;
-  transition: color 0.2s;
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: 0;
 }
 
 .close-btn:hover {
@@ -1066,114 +1096,103 @@ onMounted(() => {
 }
 
 .modal-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .modal-description {
-  margin: 0;
-  font-size: 14px;
+  margin: 0 0 16px 0;
   color: #666;
+  font-size: 0.95rem;
 }
 
 .quick-amounts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 8px;
+  margin-bottom: 16px;
 }
 
 .amount-btn {
-  padding: 8px 12px;
+  padding: 10px;
+  background: #f5f5f5;
   border: 2px solid #ddd;
-  background: white;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
   font-weight: 600;
   transition: all 0.2s;
 }
 
 .amount-btn:hover {
-  border-color: #1976d2;
-  color: #1976d2;
+  border-color: #667eea;
+  background: #f0f0ff;
 }
 
 .amount-btn.selected {
-  background: #1976d2;
+  background: #667eea;
   color: white;
-  border-color: #1976d2;
+  border-color: #667eea;
 }
 
 .custom-amount-section {
   display: flex;
   gap: 8px;
+  margin-bottom: 16px;
 }
 
 .custom-amount-input {
   flex: 1;
-  padding: 8px 12px;
+  padding: 10px;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
+  border-radius: 6px;
+  font-size: 0.95rem;
 }
 
 .custom-amount-input:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  border-color: #667eea;
 }
 
 .currency-label {
   display: flex;
   align-items: center;
   padding: 0 12px;
-  font-weight: 600;
   color: #666;
+  font-weight: 600;
 }
 
 .gift-preview {
   background: #f5f5f5;
+  border-radius: 6px;
   padding: 12px;
-  border-radius: 4px;
-  font-size: 13px;
+  margin-bottom: 16px;
 }
 
 .preview-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  padding: 8px 0;
+  font-size: 0.9rem;
 }
 
 .preview-row.total {
   border-top: 1px solid #ddd;
-  padding-top: 8px;
-  margin-top: 8px;
+  padding-top: 12px;
   font-weight: 600;
   color: #333;
 }
 
-.amount,
-.fee,
-.total-amount {
-  font-weight: 600;
-  color: #1976d2;
-}
-
 .modal-actions {
   display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: 12px;
 }
 
 .cancel-btn,
 .send-gift-btn {
-  padding: 10px 16px;
+  flex: 1;
+  padding: 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
   font-weight: 600;
   transition: all 0.2s;
 }
@@ -1188,81 +1207,26 @@ onMounted(() => {
 }
 
 .send-gift-btn {
-  background: #ff9800;
+  background: #667eea;
   color: white;
 }
 
 .send-gift-btn:hover:not(:disabled) {
-  background: #f57c00;
+  background: #764ba2;
 }
 
 .send-gift-btn:disabled {
-  background: #ccc;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* Loading & Error States */
-.loading-state,
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  background: white;
-  border-radius: 8px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f5f5f5;
-  border-top-color: #1976d2;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.error-state p {
-  margin: 16px 0 0 0;
-  color: #d32f2f;
-  font-size: 14px;
-}
-
-.retry-btn {
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: #1976d2;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.retry-btn:hover {
-  background: #1565c0;
-}
-
-/* Footer */
 .homefeed-footer {
-  background: #333;
-  color: white;
   text-align: center;
   padding: 20px;
-  margin-top: 40px;
-  font-size: 13px;
+  color: #999;
+  font-size: 0.85rem;
 }
 
-.homefeed-footer p {
-  margin: 0;
-}
-
-/* Responsive */
 @media (max-width: 768px) {
   .feed-wrapper {
     grid-template-columns: 1fr;
@@ -1272,50 +1236,17 @@ onMounted(() => {
     display: none;
   }
 
-  .post-item {
-    padding: 12px;
+  .post-media {
+    grid-template-columns: 1fr;
   }
 
   .interaction-bar {
-    gap: 4px;
-  }
-
-  .interaction-btn {
-    padding: 6px 8px;
-    font-size: 12px;
-  }
-
-  .pewgift-modal {
-    max-width: 90%;
-  }
-}
-
-@media (max-width: 480px) {
-  .feed-body {
-    padding: 12px;
-  }
-
-  .post-header {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .post-badges {
-    width: 100%;
-  }
-
-  .engagement-stats {
     flex-wrap: wrap;
   }
 
-  .quick-amounts {
-    grid-template-columns: repeat(2, 1fr);
+  .interaction-btn {
+    flex: 1 1 calc(50% - 4px);
   }
 }
 </style>
-
-
-
-
-
 
