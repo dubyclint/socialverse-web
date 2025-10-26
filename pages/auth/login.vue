@@ -98,12 +98,12 @@
           <div class="feature-card">
             <div class="feature-icon">📱</div>
             <h3>Wallet</h3>
-            <p>Your private chats, live streams, universe matches, group chats, posts, and comments are all revenue streams. With PewGift, you can gift and receive gifts with instant reflection on your wallet balance. Withdraw by swapping to crypto or trade in the P2P section for local currency.</p>
+            <p>Your private chats, post contents, live streams, universe matches, group chats, and comments are all revenue streams. With PewGift, you can gift and receive gifts with instant reflection on your wallet balance. Withdraw by swapping to crypto or trade in the P2P section for local currency.</p>
           </div>
           <div class="feature-card">
             <div class="feature-icon">🎨</div>
             <h3>Discover & Customize</h3>
-            <p>Discover other features including live streams, the Ad Center, monetization, and more. T&Cs apply.</p>
+            <p>Discover other features including live streams,post content ,the Ad Center, monetization, and more. T&Cs apply.</p>
           </div>
         </div>
       </div>
