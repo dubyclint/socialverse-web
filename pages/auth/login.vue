@@ -145,7 +145,9 @@
           <h4>Follow Us</h4>
           <div class="social-links">
             <a href="#" class="social-link" target="_blank">Twitter</a>
+            
             <a href="#" class="social-link" target="_blank">Facebook</a>
+            
             <a href="#" class="social-link" target="_blank">Instagram</a>
           </div>
         </div>
