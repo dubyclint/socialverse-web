@@ -1,4 +1,6 @@
 export default defineNuxtPlugin(async (nuxtApp) => {
+  console.log('[Plugin] Translation plugin initializing...')
+  
   try {
     const { loadTranslations, detectBrowserLanguage, t, setLanguage, getCurrentLang } = await import('~/composables/useI18n')
     
@@ -7,8 +9,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     
     try {
       await loadTranslations(browserLang)
+      console.log('[Plugin] Translation plugin initialized successfully')
     } catch (err) {
-      console.warn('Failed to load translations, using defaults:', err)
+      console.warn('[Plugin] Failed to load translations, using defaults:', err)
       // Continue without translations - don't break the app
     }
     
@@ -21,7 +24,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       },
     }
   } catch (err) {
-    console.error('Translation plugin initialization failed:', err)
+    console.error('[Plugin] Translation plugin initialization failed:', err)
     // Provide dummy translation functions so app doesn't break
     return {
       provide: {
