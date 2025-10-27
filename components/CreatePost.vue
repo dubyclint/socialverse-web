@@ -262,7 +262,7 @@
       </form>
     </div>
   </div>
-  </template>
+</template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -295,7 +295,8 @@ const tags = ref<string[]>([])
 const loading = ref(false)
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement>()
-  // ============================================================================
+
+// ============================================================================
 // COMPOSABLES
 // ============================================================================
 
@@ -339,7 +340,8 @@ const privacyOptions = [
     description: 'Only you can see'
   }
 ]
-  // ============================================================================
+
+// ============================================================================
 // METHODS
 // ============================================================================
 
@@ -370,8 +372,9 @@ const handleDrop = async (event: DragEvent) => {
 
   clearError()
   await uploadFiles(Array.from(files))
-    }
-  /**
+}
+
+/**
  * Upload files
  */
 const uploadFiles = async (files: File[]) => {
@@ -412,9 +415,8 @@ const addTag = () => {
     tags.value.push(tag)
     tagInput.value = ''
   }
-  }
-  
-     
+}
+
 /**
  * Remove tag
  */
@@ -448,8 +450,9 @@ const truncateFilename = (filename: string, maxLength: number = 20): string => {
   const ext = filename.split('.').pop()
   const name = filename.substring(0, maxLength - ext!.length - 4)
   return `${name}...${ext}`
-    }
-  /**
+}
+
+/**
  * Submit post
  */
 const submitPost = async () => {
@@ -494,8 +497,9 @@ const submitPost = async () => {
   } finally {
     loading.value = false
   }
-  }
-  /**
+}
+
+/**
  * Close modal
  */
 const closeModal = () => {
@@ -530,6 +534,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleEscapeKey)
 })
 </script>
+
 <style scoped>
 /* ============================================================================
    MODAL OVERLAY & CONTAINER
@@ -580,7 +585,8 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
-  /* ============================================================================
+
+/* ============================================================================
    MODAL HEADER
    ============================================================================ */
 
@@ -653,7 +659,8 @@ onUnmounted(() => {
   background: #f3f4f6;
   color: #1f2937;
 }
-  /* ============================================================================
+
+/* ============================================================================
    FORM
    ============================================================================ */
 
@@ -719,8 +726,8 @@ onUnmounted(() => {
 
 .char-max {
   color: #d1d5db;
-    }
-  
+}
+
 /* ============================================================================
    MEDIA SECTION
    ============================================================================ */
@@ -780,7 +787,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
 }
-  .upload-icon {
+
+.upload-icon {
   color: #2563eb;
   opacity: 0.8;
 }
@@ -850,7 +858,7 @@ onUnmounted(() => {
   border-radius: 3px;
   overflow: hidden;
 }
-  
+
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #2563eb, #7c3aed);
@@ -909,7 +917,8 @@ onUnmounted(() => {
 .error-close:hover {
   color: #991b1b;
 }
-  /* ============================================================================
+
+/* ============================================================================
    UPLOADED FILES GRID
    ============================================================================ */
 
@@ -963,8 +972,8 @@ onUnmounted(() => {
 
 .video-preview {
   display: none;
-  }
-  
+}
+
 .file-badge {
   position: absolute;
   top: 6px;
@@ -1031,7 +1040,8 @@ onUnmounted(() => {
   font-size: 11px;
   color: #6b7280;
 }
-  /* ============================================================================
+
+/* ============================================================================
    PRIVACY OPTIONS
    ============================================================================ */
 
@@ -1085,7 +1095,8 @@ onUnmounted(() => {
   font-size: 12px;
   color: #6b7280;
 }
-  /* ============================================================================
+
+/* ============================================================================
    TAGS
    ============================================================================ */
 
@@ -1137,8 +1148,8 @@ onUnmounted(() => {
 .tag-add-btn:hover:not(:disabled) {
   background: #1d4ed8;
   transform: scale(1.05);
-  }
-  
+}
+
 .tag-add-btn:disabled {
   background: #d1d5db;
   cursor: not-allowed;
@@ -1214,8 +1225,8 @@ onUnmounted(() => {
   justify-content: center;
   gap: 8px;
   min-width: 100px;
-    }
-  
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: white;
@@ -1257,8 +1268,9 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
-    }
-  /* ============================================================================
+}
+
+/* ============================================================================
    RESPONSIVE
    ============================================================================ */
 
@@ -1308,8 +1320,9 @@ onUnmounted(() => {
   .privacy-label {
     font-size: 13px;
   }
-    }
-  @media (max-width: 480px) {
+}
+
+@media (max-width: 480px) {
   .modal-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1341,11 +1354,9 @@ onUnmounted(() => {
   }
 }
 
-/* 
-  ============================================================================
+/* ============================================================================
    SCROLLBAR STYLING
    ============================================================================ */
-*/
 
 .modal-content::-webkit-scrollbar {
   width: 8px;
