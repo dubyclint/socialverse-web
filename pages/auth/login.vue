@@ -28,13 +28,6 @@
           >
             Sign Up
           </button>
-          <button
-            v-else
-            @click="handleLogout"
-            class="nav-link btn-logout"
-          >
-            Logout
-          </button>
         </nav>
       </div>
     </header>
@@ -465,19 +458,6 @@ const handleSignup = async () => {
   }
 }
 
-// Handle Logout
-const handleLogout = async () => {
-  try {
-    await authStore.logout()
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('user')
-    localStorage.removeItem('profile')
-    await router.push('/')
-  } catch (err) {
-    console.error('Logout error:', err)
-  }
-}
-
 // Redirect to feed if already logged in
 watch(user, (newUser) => {
   if (newUser?.id) {
@@ -608,15 +588,6 @@ body {
 .btn-signup:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.btn-logout {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.btn-logout:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Hero Section */
