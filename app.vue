@@ -38,6 +38,7 @@ const globalError = ref<string | null>(null)
 // Lifecycle
 onMounted(async () => {
   try {
+    console.log('[App] Initializing application...')
     isLoading.value = true
     
     // Initialize user session if user is authenticated
@@ -46,9 +47,14 @@ onMounted(async () => {
       await userStore.initializeSession()
     }
     
-    // Initialize socket connection if authenticated
+    // Initialize socket connection if authenticated (optional)
     if (userStore.isAuthenticated) {
-      initializeSocket()
+      try {
+        initializeSocket()
+      } catch (err) {
+        console.warn('[App] Socket initialization failed (non-critical):', err)
+        // Don't break the app if socket fails
+      }
     }
   } catch (err: any) {
     console.error('[App] Initialization error:', err)
@@ -64,8 +70,12 @@ watch(
   async (newUserId) => {
     if (newUserId) {
       console.log('[App] User authenticated, initializing...')
-      await userStore.initializeSession()
-      initializeSocket()
+      try {
+        await userStore.initializeSession()
+        initializeSocket()
+      } catch (err) {
+        console.warn('[App] Initialization error (non-critical):', err)
+      }
     } else {
       console.log('[App] User logged out')
       userStore.clearProfile()
@@ -90,21 +100,21 @@ const clearError = () => {
   right: 20px;
   background: #fee;
   color: #c33;
-  padding: 1rem;
+  padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 9999;
   max-width: 400px;
 }
 
 .global-error button {
+  margin-top: 10px;
+  padding: 8px 16px;
   background: #c33;
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
-  margin-top: 0.5rem;
 }
 
 .global-error button:hover {
