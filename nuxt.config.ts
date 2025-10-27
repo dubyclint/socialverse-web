@@ -43,6 +43,8 @@ export default defineNuxtConfig({
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       apiBase: process.env.API_BASE || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
+      // ✅ NEW: Socket.IO Configuration
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       rbac: {
         protectedRoutes: ['/dashboard', '/admin', '/settings', '/profile', '/chat', '/post'],
       },
@@ -158,7 +160,7 @@ export default defineNuxtConfig({
           })
           console.log('✅ Supabase types generated')
         } catch (error) {
-          console.warn('⚠️ Could not generate Supabase types (this is optional)')
+          console.warn('⚠️ Supabase types generation skipped (optional)')
         }
       } catch (error) {
         console.error('❌ Build hook error:', error)
@@ -166,3 +168,5 @@ export default defineNuxtConfig({
     },
   },
 })
+
+    
