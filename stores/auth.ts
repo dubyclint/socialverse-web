@@ -32,6 +32,7 @@ interface AuthState {
   lastRoleCheck: Date | null
   sessionValid: boolean
   supabaseAvailable: boolean
+  socketConnected: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -42,7 +43,8 @@ export const useAuthStore = defineStore('auth', {
     permissions: [],
     lastRoleCheck: null,
     sessionValid: false,
-    supabaseAvailable: false
+    supabaseAvailable: false,
+    socketConnected: false
   }),
 
   getters: {
@@ -116,6 +118,8 @@ export const useAuthStore = defineStore('auth', {
           this.user = session.user
           await this.fetchProfile()
           this.sessionValid = true
+          // ✅ NEW: Connect socket.io after auth is ready
+          await this.connectSocket()
         }
         
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -123,11 +127,17 @@ export const useAuthStore = defineStore('auth', {
             this.user = session.user
             await this.fetchProfile()
             this.sessionValid = true
+            // ✅ NEW: Connect socket.io on sign in
+            await this.connectSocket()
           } else if (event === 'SIGNED_OUT') {
             this.clearAuth()
+            // ✅ NEW: Disconnect socket.io on sign out
+            this.disconnectSocket()
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
             this.user = session.user
             this.sessionValid = true
+            // ✅ NEW: Reconnect socket.io with new token
+            await this.connectSocket()
           }
         })
         
@@ -336,6 +346,70 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
+    // ✅ NEW: Socket.IO Connection Management
+    async connectSocket() {
+      try {
+        if (!process.client) return
+        
+        // Get socket instance from global
+        const socket = window.$socket
+        if (!socket) {
+          console.warn('[Auth Store] Socket.IO not available')
+          return
+        }
+
+        // Get JWT token from Supabase session
+        let supabase = null
+        try {
+          supabase = useSupabaseClient()
+        } catch (error) {
+          console.warn('[Auth Store] Supabase client not available:', error)
+          return
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error || !session?.access_token) {
+          console.warn('[Auth Store] No session token available')
+          return
+        }
+
+        // Update socket auth with JWT token
+        socket.auth = {
+          token: session.access_token
+        }
+
+        // Disconnect and reconnect to send new auth
+        if (socket.connected) {
+          socket.disconnect()
+        }
+
+        socket.connect()
+        this.socketConnected = true
+        console.log('[Auth Store] Socket.IO connected with authentication')
+
+      } catch (error) {
+        console.error('[Auth Store] Socket connection error:', error)
+        this.socketConnected = false
+      }
+    },
+
+    // ✅ NEW: Socket.IO Disconnection
+    disconnectSocket() {
+      try {
+        if (!process.client) return
+
+        const socket = window.$socket
+        if (socket && socket.connected) {
+          socket.disconnect()
+          this.socketConnected = false
+          console.log('[Auth Store] Socket.IO disconnected')
+        }
+      } catch (error) {
+        console.error('[Auth Store] Socket disconnection error:', error)
+      }
+    },
+
     async assignManagerRole(userId: string, permissions: string[] = []) {
       if (!this.isAdmin || !this.supabaseAvailable) {
         throw new Error('Only admins can assign manager roles')
@@ -482,6 +556,9 @@ export const useAuthStore = defineStore('auth', {
       this.lastRoleCheck = null
       this.sessionValid = false
       this.loading = false
+      this.socketConnected = false
+      // ✅ NEW: Disconnect socket on auth clear
+      this.disconnectSocket()
     },
 
     needsEmailVerification(): boolean {
