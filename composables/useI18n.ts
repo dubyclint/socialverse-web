@@ -23,7 +23,13 @@ export async function loadTranslations(lang: string = 'en') {
       return
     }
 
-    const entries = data.value || []
+    let entries = data.value || []
+    
+    // Handle case where data is not an array
+    if (!Array.isArray(entries)) {
+      console.warn('Translation data is not an array, using empty array')
+      entries = []
+    }
     
     if (!entries.length && lang !== 'en') {
       return loadTranslations('en')
@@ -48,8 +54,14 @@ export async function loadTranslations(lang: string = 'en') {
 function flattenTranslations(entries: any[]): Record<string, string> {
   const result: Record<string, string> = {}
   
-  entries.forEach(entry => {
-    if (entry.key && entry.value) {
+  // Ensure entries is an array before calling forEach
+  if (!Array.isArray(entries)) {
+    console.warn('flattenTranslations: entries is not an array', entries)
+    return result
+  }
+  
+  entries.forEach((entry: any) => {
+    if (entry && entry.key && entry.value) {
       result[entry.key] = entry.value
     }
   })
@@ -88,12 +100,3 @@ export function detectBrowserLanguage(): string {
   return 'en'
 }
 
-/**
- * Get all available languages
- */
-export const availableLanguages = [
-  { code: 'en', name: 'English' },
-  { code: 'fr', name: 'Français' },
-  { code: 'es', name: 'Español' },
-  { code: 'de', name: 'Deutsch' },
-]
