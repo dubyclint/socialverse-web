@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
 export const currentLang = ref('en')
 export const translations = ref<Record<string, any>>({})
@@ -13,36 +13,40 @@ export async function loadTranslations(lang: string = 'en') {
   
   isLoadingTranslations.value = true
   try {
-    const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
+    console.log('[i18n] Loading translations for language:', lang)
     
-    if (error.value) {
-      console.error('Translation load failed:', error.value)
-      if (lang !== 'en') {
-        return loadTranslations('en')
+    try {
+      const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
+      
+      if (error.value) {
+        console.warn('[i18n] Translation API error:', error.value)
+        // Set empty translations and continue - don't break the app
+        translations.value = {}
+        currentLang.value = lang
+        return
       }
-      return
-    }
 
-    let entries = data.value || []
-    
-    // Handle case where data is not an array
-    if (!Array.isArray(entries)) {
-      console.warn('Translation data is not an array, using empty array')
-      entries = []
+      let entries = data.value || []
+      
+      // Handle case where data is not an array
+      if (!Array.isArray(entries)) {
+        console.warn('[i18n] Translation data is not an array, using empty object')
+        entries = []
+      }
+      
+      // Flatten nested translation object
+      translations.value = flattenTranslations(entries)
+      currentLang.value = lang
+      console.log('[i18n] Translations loaded successfully')
+    } catch (fetchErr) {
+      console.warn('[i18n] Failed to fetch translations:', fetchErr)
+      // Set empty translations and continue
+      translations.value = {}
+      currentLang.value = lang
     }
-    
-    if (!entries.length && lang !== 'en') {
-      return loadTranslations('en')
-    }
-
-    // Flatten nested translation object
-    translations.value = flattenTranslations(entries)
-    currentLang.value = lang
   } catch (err) {
-    console.error('Translation load failed:', err)
-    if (lang !== 'en') {
-      await loadTranslations('en')
-    }
+    console.error('[i18n] Translation load failed:', err)
+    translations.value = {}
   } finally {
     isLoadingTranslations.value = false
   }
@@ -56,15 +60,19 @@ function flattenTranslations(entries: any[]): Record<string, string> {
   
   // Ensure entries is an array before calling forEach
   if (!Array.isArray(entries)) {
-    console.warn('flattenTranslations: entries is not an array', entries)
+    console.warn('[i18n] flattenTranslations: entries is not an array', typeof entries)
     return result
   }
   
-  entries.forEach((entry: any) => {
-    if (entry && entry.key && entry.value) {
-      result[entry.key] = entry.value
-    }
-  })
+  try {
+    entries.forEach((entry: any) => {
+      if (entry && typeof entry === 'object' && entry.key && entry.value) {
+        result[entry.key] = String(entry.value)
+      }
+    })
+  } catch (err) {
+    console.error('[i18n] Error flattening translations:', err)
+  }
   
   return result
 }
@@ -95,8 +103,9 @@ export async function setLanguage(lang: string) {
  */
 export function detectBrowserLanguage(): string {
   if (process.client) {
-    return navigator.language?.split('-')[0] || 'en'
+    const lang = navigator.language?.split('-')[0] || 'en'
+    console.log('[i18n] Detected browser language:', lang)
+    return lang
   }
   return 'en'
 }
-
