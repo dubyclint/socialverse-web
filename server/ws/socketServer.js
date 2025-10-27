@@ -1,4 +1,5 @@
-// server/ws/socketServer.js - COMPLETE UPDATED VERSION
+// server/ws/socketServer.js - FIXED VERSION
+// ALLOWS UNAUTHENTICATED CONNECTIONS FOR NEW USERS
 // WITH GIFT AND TRANSLATION EVENTS
 
 const { Server } = require('socket.io');
@@ -10,20 +11,26 @@ const StatusEvents = require('./statusEvents');
 const ContactEvents = require('./contactEvents');
 const CallEvents = require('./callEvents');
 const NotificationEvents = require('./notificationEvents');
-const GiftEvents = require('./giftEvents'); // NEW
-const TranslationEvents = require('./translationEvents'); // NEW
-const UniverseEvents = require('./universeEvents'); // NEW
+const GiftEvents = require('./giftEvents');
+const TranslationEvents = require('./translationEvents');
+const UniverseEvents = require('./universeEvents');
 
 class SocketServer {
   constructor(httpServer) {
     this.io = new Server(httpServer, {
       cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:3000",
+        origin: process.env.NUXT_PUBLIC_SITE_URL || process.env.CLIENT_URL || "http://localhost:3000",
         methods: ["GET", "POST"],
-        credentials: true
+        credentials: true,
+        allowEIO3: true
       },
+      transports: ['websocket', 'polling'],
       pingTimeout: 60000,
-      pingInterval: 25000
+      pingInterval: 25000,
+      // ✅ ALLOW UNAUTHENTICATED CONNECTIONS
+      allowRequest: (req, callback) => {
+        callback(null, true);
+      }
     });
 
     this.connectedUsers = new Map(); // userId -> socketId mapping
@@ -33,40 +40,78 @@ class SocketServer {
   }
 
   setupMiddleware() {
-    // Authentication middleware
+    // ✅ FIXED: Authentication middleware - ALLOW UNAUTHENTICATED CONNECTIONS
     this.io.use(async (socket, next) => {
       try {
-        const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
+        const token = socket.handshake.auth.token || 
+                     socket.handshake.headers.authorization?.split(' ')[1];
         
+        // ✅ ALLOW UNAUTHENTICATED CONNECTIONS (for new users, guests, etc.)
         if (!token) {
-          return next(new Error('Authentication token required'));
+          console.log('[Socket.IO] Unauthenticated connection allowed:', socket.id);
+          socket.userId = null;
+          socket.username = 'Guest';
+          socket.userEmail = null;
+          socket.userAvatar = null;
+          socket.isVerified = false;
+          socket.isAuthenticated = false;
+          return next();
         }
 
-        // Verify JWT token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        // Get user details from Supabase
-        const { data: user, error } = await supabase
-          .from('profiles')
-          .select('id, username, email, avatar_url, is_verified')
-          .eq('id', decoded.userId)
-          .single();
+        // Verify JWT token if provided
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          
+          // Get user details from Supabase
+          const { data: user, error } = await supabase
+            .from('profiles')
+            .select('id, username, email, avatar_url, is_verified')
+            .eq('id', decoded.userId)
+            .single();
 
-        if (error || !user) {
-          return next(new Error('Invalid user'));
+          if (error || !user) {
+            console.warn('[Socket.IO] Invalid user from token:', decoded.userId);
+            // Allow connection but mark as unauthenticated
+            socket.userId = null;
+            socket.username = 'Guest';
+            socket.userEmail = null;
+            socket.userAvatar = null;
+            socket.isVerified = false;
+            socket.isAuthenticated = false;
+            return next();
+          }
+
+          // Attach authenticated user data to socket
+          socket.userId = user.id;
+          socket.username = user.username;
+          socket.userEmail = user.email;
+          socket.userAvatar = user.avatar_url;
+          socket.isVerified = user.is_verified;
+          socket.isAuthenticated = true;
+
+          console.log('[Socket.IO] Authenticated user connected:', user.username);
+          next();
+        } catch (tokenError) {
+          console.warn('[Socket.IO] Token verification failed:', tokenError.message);
+          // Allow connection but mark as unauthenticated
+          socket.userId = null;
+          socket.username = 'Guest';
+          socket.userEmail = null;
+          socket.userAvatar = null;
+          socket.isVerified = false;
+          socket.isAuthenticated = false;
+          next();
         }
-
-        // Attach user data to socket
-        socket.userId = user.id;
-        socket.username = user.username;
-        socket.userEmail = user.email;
-        socket.userAvatar = user.avatar_url;
-        socket.isVerified = user.is_verified;
-
-        next();
       } catch (error) {
-        console.error('Socket authentication error:', error);
-        next(new Error('Authentication failed'));
+        console.error('[Socket.IO] Middleware error:', error);
+        // ✅ ALLOW CONNECTION EVEN IF MIDDLEWARE FAILS
+        socket.userId = null;
+        socket.username = 'Guest';
+        socket.userEmail = null;
+        socket.userAvatar = null;
+        socket.isVerified = false;
+        socket.isAuthenticated = false;
+        next();
       }
     });
 
@@ -91,34 +136,49 @@ class SocketServer {
     try {
       const userId = socket.userId;
       const username = socket.username;
+      const isAuthenticated = socket.isAuthenticated;
 
-      console.log(`User connected: ${username} (${userId})`);
+      console.log(`[Socket.IO] User connected: ${username} (${userId || 'guest'}) - Authenticated: ${isAuthenticated}`);
 
-      // Store user connection
-      this.connectedUsers.set(userId, socket.id);
+      // Store user connection (even if unauthenticated)
+      if (userId) {
+        this.connectedUsers.set(userId, socket.id);
+      }
+
       this.userSockets.set(socket.id, {
         userId,
         username,
         email: socket.userEmail,
         avatar: socket.userAvatar,
         isVerified: socket.isVerified,
+        isAuthenticated,
         connectedAt: new Date()
       });
 
-      // Update user online status
-      await this.updateUserOnlineStatus(userId, true);
+      // Only perform authenticated user operations if user is authenticated
+      if (isAuthenticated && userId) {
+        // Update user online status
+        await this.updateUserOnlineStatus(userId, true);
 
-      // Join user's personal room
-      socket.join(`user_${userId}`);
+        // Join user's personal room
+        socket.join(`user_${userId}`);
 
-      // Join user's chat rooms
-      await this.joinUserChatRooms(socket, userId);
+        // Join user's chat rooms
+        await this.joinUserChatRooms(socket, userId);
 
-      // Send initial data
-      await this.sendInitialData(socket, userId);
+        // Send initial data
+        await this.sendInitialData(socket, userId);
 
-      // Notify user's pals that they're online
-      await this.notifyPalsOnlineStatus(userId, true);
+        // Notify user's pals that they're online
+        await this.notifyPalsOnlineStatus(userId, true);
+      } else {
+        // For unauthenticated users, just send a welcome message
+        socket.emit('connection_established', {
+          message: 'Connected to server',
+          authenticated: false,
+          socketId: socket.id
+        });
+      }
 
       // Handle disconnection
       socket.on('disconnect', () => {
@@ -126,7 +186,7 @@ class SocketServer {
       });
 
     } catch (error) {
-      console.error('Handle connection error:', error);
+      console.error('[Socket.IO] Handle connection error:', error);
       socket.emit('connection_error', { error: error.message });
     }
   }
@@ -139,9 +199,9 @@ class SocketServer {
     ContactEvents.setupContactEvents(this.io, socket);
     CallEvents.setupCallEvents(this.io, socket);
     NotificationEvents.setupNotificationEvents(this.io, socket);
-    GiftEvents.setupGiftEvents(this.io, socket); // NEW - Gift events
-    UniverseEvents.setupUniverseEvents(this.io, socket); // NEW - Universe events
-    TranslationEvents.setupTranslationEvents(this.io, socket); // NEW - Translation events
+    GiftEvents.setupGiftEvents(this.io, socket);
+    UniverseEvents.setupUniverseEvents(this.io, socket);
+    TranslationEvents.setupTranslationEvents(this.io, socket);
 
     // General events
     this.setupGeneralEvents(socket);
@@ -155,26 +215,34 @@ class SocketServer {
       socket.emit('pong', { timestamp: Date.now() });
     });
 
-    // User activity tracking
+    // User activity tracking (only for authenticated users)
     socket.on('user_activity', async (data) => {
       try {
+        if (!socket.isAuthenticated || !socket.userId) {
+          return;
+        }
         const { activity, metadata } = data;
         await this.trackUserActivity(socket.userId, activity, metadata);
       } catch (error) {
-        console.error('User activity tracking error:', error);
+        console.error('[Socket.IO] User activity tracking error:', error);
       }
     });
 
     // Error handling
     socket.on('error', (error) => {
-      console.error(`Socket error for user ${socket.username}:`, error);
+      console.error(`[Socket.IO] Socket error for user ${socket.username}:`, error);
     });
   }
 
   setupPresenceEvents(socket) {
-    // Update user presence
+    // Update user presence (only for authenticated users)
     socket.on('update_presence', async (data) => {
       try {
+        if (!socket.isAuthenticated || !socket.userId) {
+          socket.emit('error', { message: 'Authentication required' });
+          return;
+        }
+
         const { status, customMessage } = data;
         
         // Update in database
@@ -194,26 +262,32 @@ class SocketServer {
           customMessage: customMessage
         });
       } catch (error) {
-        console.error('Update presence error:', error);
+        console.error('[Socket.IO] Update presence error:', error);
       }
     });
 
     // Get online users
     socket.on('get_online_users', () => {
-      const onlineUsers = Array.from(this.userSockets.values()).map(user => ({
-        userId: user.userId,
-        username: user.username,
-        avatar: user.avatar,
-        isVerified: user.isVerified
-      }));
+      const onlineUsers = Array.from(this.userSockets.values())
+        .filter(user => user.isAuthenticated)
+        .map(user => ({
+          userId: user.userId,
+          username: user.username,
+          avatar: user.avatar,
+          isVerified: user.isVerified
+        }));
 
       socket.emit('online_users', onlineUsers);
     });
   }
 
   setupTypingEvents(socket) {
-    // User is typing
+    // User is typing (only for authenticated users)
     socket.on('user_typing', (data) => {
+      if (!socket.isAuthenticated || !socket.userId) {
+        return;
+      }
+
       const { chatId, isTyping } = data;
       
       this.io.to(`chat:${chatId}`).emit('user_typing', {
@@ -242,7 +316,7 @@ class SocketServer {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Update online status error:', error);
+      console.error('[Socket.IO] Update online status error:', error);
     }
   }
 
@@ -255,7 +329,7 @@ class SocketServer {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('Error fetching user chats:', error);
+        console.error('[Socket.IO] Error fetching user chats:', error);
         return;
       }
 
@@ -266,7 +340,7 @@ class SocketServer {
         });
       }
     } catch (error) {
-      console.error('Join user chat rooms error:', error);
+      console.error('[Socket.IO] Join user chat rooms error:', error);
     }
   }
 
@@ -294,7 +368,7 @@ class SocketServer {
         username: socket.username
       });
     } catch (error) {
-      console.error('Send initial data error:', error);
+      console.error('[Socket.IO] Send initial data error:', error);
     }
   }
 
@@ -317,7 +391,7 @@ class SocketServer {
         });
       }
     } catch (error) {
-      console.error('Notify pals online status error:', error);
+      console.error('[Socket.IO] Notify pals online status error:', error);
     }
   }
 
@@ -325,30 +399,36 @@ class SocketServer {
     try {
       const userId = socket.userId;
       const username = socket.username;
+      const isAuthenticated = socket.isAuthenticated;
 
-      console.log(`User disconnected: ${username} (${userId})`);
+      console.log(`[Socket.IO] User disconnected: ${username} (${userId || 'guest'}) - Authenticated: ${isAuthenticated}`);
 
       // Remove from connected users
-      this.connectedUsers.delete(userId);
+      if (userId) {
+        this.connectedUsers.delete(userId);
+      }
       this.userSockets.delete(socket.id);
 
-      // Update user online status
-      await this.updateUserOnlineStatus(userId, false);
+      // Only perform authenticated user operations if user was authenticated
+      if (isAuthenticated && userId) {
+        // Update user online status
+        await this.updateUserOnlineStatus(userId, false);
 
-      // Notify pals that user is offline
-      await this.notifyPalsOnlineStatus(userId, false);
+        // Notify pals that user is offline
+        await this.notifyPalsOnlineStatus(userId, false);
+      }
 
     } catch (error) {
-      console.error('Handle disconnection error:', error);
+      console.error('[Socket.IO] Handle disconnection error:', error);
     }
   }
 
   async trackUserActivity(userId, activity, metadata) {
     try {
       // Track user activity in database if needed
-      console.log(`User ${userId} activity: ${activity}`, metadata);
+      console.log(`[Socket.IO] User ${userId} activity: ${activity}`, metadata);
     } catch (error) {
-      console.error('Track user activity error:', error);
+      console.error('[Socket.IO] Track user activity error:', error);
     }
   }
 
