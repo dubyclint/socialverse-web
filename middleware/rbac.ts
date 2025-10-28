@@ -1,5 +1,12 @@
-// middleware/rbac.ts
+// middleware/rbac.ts - SKIP AUTH ROUTES
 export default defineNuxtRouteMiddleware((to) => {
+  // ✅ SKIP MIDDLEWARE ON AUTH ROUTES - NO RBAC CHECKS
+  const authRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email', '/auth/reset-password', '/auth/confirm']
+  if (authRoutes.some(route => to.path.startsWith(route))) {
+    console.log('[RBAC] Skipping auth route:', to.path)
+    return
+  }
+
   let user = null
   let hasPermission: any = null
   let getUserRole: any = null
@@ -61,9 +68,10 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 })
 
-// Helper function to determine required role for route
+// Helper function to get required role for a route
 function getRequiredRoleForRoute(path: string): string {
   if (path.startsWith('/admin')) return 'admin'
   if (path.startsWith('/manager')) return 'manager'
   return 'user'
 }
+
