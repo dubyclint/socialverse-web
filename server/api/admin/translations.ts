@@ -5,10 +5,10 @@ export default defineEventHandler(async (event) => {
     try {
       const { lang } = getQuery(event)
       
+      console.log('[Translations] GET request for language:', lang || 'en')
+      
       // ✅ FIX: Use Supabase instead of MongoDB
       const supabase = await serverSupabaseClient(event)
-      
-      console.log('[Translations] Fetching translations for language:', lang || 'en')
       
       const { data, error } = await supabase
         .from('translations')
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
       return data || []
       
     } catch (err) {
-      console.error('[Translations] Error:', err)
+      console.error('[Translations] GET Error:', err)
       return []
     }
   }
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
       const supabase = await serverSupabaseClient(event)
       const entry = await readBody(event)
 
-      console.log('[Translations] Saving translation:', entry.key, 'for language:', entry.language)
+      console.log('[Translations] POST request for key:', entry.key, 'language:', entry.language)
 
       if (!entry.key || !entry.language || !entry.value) {
         console.error('[Translations] Missing required fields')
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
       return { success: true, message: 'Translation saved.' }
       
     } catch (err) {
-      console.error('[Translations] Error:', err)
+      console.error('[Translations] POST Error:', err)
       return { success: false, message: (err as any).message }
     }
   }
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
       const supabase = await serverSupabaseClient(event)
       const { key, lang } = getQuery(event)
 
-      console.log('[Translations] Deleting translation:', key, 'for language:', lang)
+      console.log('[Translations] DELETE request for key:', key, 'language:', lang)
 
       if (!key || !lang) {
         return { success: false, message: 'Missing key or lang parameter' }
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
       return { success: true, message: 'Translation deleted.' }
       
     } catch (err) {
-      console.error('[Translations] Error:', err)
+      console.error('[Translations] DELETE Error:', err)
       return { success: false, message: (err as any).message }
     }
   }
