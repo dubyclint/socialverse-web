@@ -1,4 +1,3 @@
-// composables/useI18n.ts - FIXED VERSION
 import { ref } from 'vue'
 
 export const currentLang = ref('en')
@@ -16,42 +15,30 @@ export async function loadTranslations(lang: string = 'en') {
   try {
     console.log('[i18n] Loading translations for language:', lang)
     
+    // ✅ Try API first, but don't block if it fails
+    let apiSuccess = false
     try {
-      // ✅ Try to load from API first
       const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
       
-      if (error.value || !data.value) {
-        console.warn('[i18n] Translation API returned no data, falling back to local files')
-        await loadLocalTranslations(lang)
-        return
+      if (!error.value && data.value && Array.isArray(data.value) && data.value.length > 0) {
+        translations.value = flattenTranslations(data.value)
+        currentLang.value = lang
+        apiSuccess = true
+        console.log('[i18n] Translations loaded from API:', Object.keys(translations.value).length, 'keys')
       }
-
-      let entries = data.value || []
-      
-      // ✅ Ensure entries is an array
-      if (!Array.isArray(entries)) {
-        console.warn('[i18n] Translation data is not an array, falling back to local files')
-        await loadLocalTranslations(lang)
-        return
-      }
-      
-      // ✅ If array is empty, use local files
-      if (entries.length === 0) {
-        console.log('[i18n] Translation API returned empty array, using local files')
-        await loadLocalTranslations(lang)
-        return
-      }
-      
-      translations.value = flattenTranslations(entries)
-      currentLang.value = lang
-      console.log('[i18n] Translations loaded successfully from API:', Object.keys(translations.value).length, 'keys')
     } catch (fetchErr) {
-      console.warn('[i18n] Failed to fetch translations from API, falling back to local files:', fetchErr)
+      console.warn('[i18n] API fetch failed, using local files:', fetchErr)
+    }
+    
+    // ✅ If API didn't work, use local files
+    if (!apiSuccess) {
       await loadLocalTranslations(lang)
     }
+    
   } catch (err) {
     console.error('[i18n] Translation load failed:', err)
-    translations.value = {}
+    // ✅ Always load local files as last resort
+    await loadLocalTranslations(lang)
   } finally {
     isLoadingTranslations.value = false
   }
@@ -64,7 +51,6 @@ async function loadLocalTranslations(lang: string = 'en') {
   try {
     console.log('[i18n] Loading translations from local files for language:', lang)
     
-    // ✅ Import local JSON files
     const localeMap: Record<string, any> = {
       'en': () => import('~/locales/en.json'),
       'es': () => import('~/locales/es.json'),
@@ -78,7 +64,7 @@ async function loadLocalTranslations(lang: string = 'en') {
     
     translations.value = flattenLocalTranslations(data)
     currentLang.value = lang
-    console.log('[i18n] Local translations loaded successfully:', Object.keys(translations.value).length, 'keys')
+    console.log('[i18n] Local translations loaded:', Object.keys(translations.value).length, 'keys')
   } catch (err) {
     console.warn('[i18n] Failed to load local translations:', err)
     translations.value = {}
@@ -98,7 +84,6 @@ function flattenLocalTranslations(obj: any, prefix: string = ''): Record<string,
         const fullKey = prefix ? `${prefix}.${key}` : key
         
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          // Recursively flatten nested objects
           Object.assign(result, flattenLocalTranslations(value, fullKey))
         } else {
           result[fullKey] = String(value)
@@ -118,9 +103,8 @@ function flattenLocalTranslations(obj: any, prefix: string = ''): Record<string,
 function flattenTranslations(entries: any[]): Record<string, string> {
   const result: Record<string, string> = {}
   
-  // Ensure entries is an array before calling forEach
   if (!Array.isArray(entries)) {
-    console.warn('[i18n] flattenTranslations: entries is not an array', typeof entries)
+    console.warn('[i18n] flattenTranslations: entries is not an array')
     return result
   }
   
@@ -137,30 +121,18 @@ function flattenTranslations(entries: any[]): Record<string, string> {
   return result
 }
 
-/**
- * Translate a given key with fallback support
- */
 export function t(key: string, defaultValue?: string): string {
   return translations.value[key] || defaultValue || key
 }
 
-/**
- * Get current language
- */
 export function getCurrentLang(): string {
   return currentLang.value
 }
 
-/**
- * Set language and load translations
- */
 export async function setLanguage(lang: string) {
   await loadTranslations(lang)
 }
 
-/**
- * Detect browser language
- */
 export function detectBrowserLanguage(): string {
   if (typeof window === 'undefined') return 'en'
   
