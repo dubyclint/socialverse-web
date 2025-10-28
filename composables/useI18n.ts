@@ -20,7 +20,6 @@ export async function loadTranslations(lang: string = 'en') {
       
       if (error.value) {
         console.warn('[i18n] Translation API error:', error.value)
-        // Set empty translations and continue - don't break the app
         translations.value = {}
         currentLang.value = lang
         return
@@ -28,19 +27,26 @@ export async function loadTranslations(lang: string = 'en') {
 
       let entries = data.value || []
       
-      // Handle case where data is not an array
+      // ✅ FIX: Handle both array and object responses
+      if (typeof entries === 'object' && !Array.isArray(entries)) {
+        console.warn('[i18n] Translation data is an object, converting to array')
+        // Convert object to array format: [{key: 'x', value: 'y'}, ...]
+        entries = Object.entries(entries).map(([key, value]) => ({
+          key,
+          value
+        }))
+      }
+      
       if (!Array.isArray(entries)) {
         console.warn('[i18n] Translation data is not an array, using empty object')
         entries = []
       }
       
-      // Flatten nested translation object
       translations.value = flattenTranslations(entries)
       currentLang.value = lang
       console.log('[i18n] Translations loaded successfully')
     } catch (fetchErr) {
       console.warn('[i18n] Failed to fetch translations:', fetchErr)
-      // Set empty translations and continue
       translations.value = {}
       currentLang.value = lang
     }
@@ -109,3 +115,4 @@ export function detectBrowserLanguage(): string {
   }
   return 'en'
 }
+
