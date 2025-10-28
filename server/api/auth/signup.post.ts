@@ -20,16 +20,16 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] Request received:', { email: body.email, username: body.username, phone: body.phone })
     
-    // Validate required fields
+    // ✅ STEP 1: Validate required fields
     if (!body.email || !body.password || !body.username || !body.fullName || !body.phone) {
-      console.error('[Signup] Missing required fields:', { email: !!body.email, password: !!body.password, username: !!body.username, fullName: !!body.fullName, phone: !!body.phone })
+      console.error('[Signup] Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, username, full name, and phone number are required'
       })
     }
     
-    // Validate email format
+    // ✅ STEP 2: Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(body.email)) {
       console.error('[Signup] Invalid email format:', body.email)
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Validate phone format (basic validation)
+    // ✅ STEP 3: Validate phone format
     const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/
     if (!phoneRegex.test(body.phone.replace(/\s/g, ''))) {
       console.error('[Signup] Invalid phone format:', body.phone)
@@ -49,80 +49,8 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Check if username is already taken
-    console.log('[Signup] Checking if username exists:', body.username)
-    const { data: existingUsername, error: usernameCheckError } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', body.username)
-      .single()
-    
-    if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Error checking username:', usernameCheckError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error checking username: ${usernameCheckError.message}`
-      })
-    }
-    
-    if (existingUsername) {
-      console.error('[Signup] Username already taken:', body.username)
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Username already taken'
-      })
-    }
-    
-    // Check if email is already taken
-    console.log('[Signup] Checking if email exists:', body.email)
-    const { data: existingEmail, error: emailCheckError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('email', body.email)
-      .single()
-    
-    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Error checking email:', emailCheckError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error checking email: ${emailCheckError.message}`
-      })
-    }
-    
-    if (existingEmail) {
-      console.error('[Signup] Email already registered:', body.email)
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Email already registered'
-      })
-    }
-    
-    // Check if phone is already taken
-    console.log('[Signup] Checking if phone exists:', body.phone)
-    const { data: existingPhone, error: phoneCheckError } = await supabase
-      .from('profiles')
-      .select('phone_number')
-      .eq('phone_number', body.phone)
-      .single()
-    
-    if (phoneCheckError && phoneCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Error checking phone:', phoneCheckError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error checking phone: ${phoneCheckError.message}`
-      })
-    }
-    
-    if (existingPhone) {
-      console.error('[Signup] Phone already registered:', body.phone)
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Phone number already registered'
-      })
-    }
-    
-    // Create auth user
-    console.log('[Signup] Creating auth user for:', body.email)
+    // ✅ STEP 4: CREATE SUPABASE AUTH USER FIRST (NO CHECKS)
+    console.log('[Signup] Creating Supabase auth user for:', body.email)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: body.email,
       password: body.password
@@ -144,9 +72,87 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    console.log('[Signup] Auth user created:', authData.user.id)
+    console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    // Create user profile with all required fields
+    // ✅ STEP 5: NOW CHECK FOR DUPLICATES IN DATABASE
+    console.log('[Signup] Checking for duplicate username:', body.username)
+    const { data: existingUsername, error: usernameCheckError } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', body.username)
+      .single()
+    
+    if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
+      console.error('[Signup] Error checking username:', usernameCheckError)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error checking username: ${usernameCheckError.message}`
+      })
+    }
+    
+    if (existingUsername) {
+      console.error('[Signup] Username already taken:', body.username)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Username already taken'
+      })
+    }
+    
+    // Check for duplicate email in profiles
+    console.log('[Signup] Checking for duplicate email:', body.email)
+    const { data: existingEmail, error: emailCheckError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('email', body.email)
+      .single()
+    
+    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
+      console.error('[Signup] Error checking email:', emailCheckError)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error checking email: ${emailCheckError.message}`
+      })
+    }
+    
+    if (existingEmail) {
+      console.error('[Signup] Email already registered:', body.email)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Email already registered'
+      })
+    }
+    
+    // Check for duplicate phone
+    console.log('[Signup] Checking for duplicate phone:', body.phone)
+    const { data: existingPhone, error: phoneCheckError } = await supabase
+      .from('profiles')
+      .select('phone_number')
+      .eq('phone_number', body.phone)
+      .single()
+    
+    if (phoneCheckError && phoneCheckError.code !== 'PGRST116') {
+      console.error('[Signup] Error checking phone:', phoneCheckError)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error checking phone: ${phoneCheckError.message}`
+      })
+    }
+    
+    if (existingPhone) {
+      console.error('[Signup] Phone already registered:', body.phone)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Phone number already registered'
+      })
+    }
+    
+    // ✅ STEP 6: CREATE USER PROFILE
     console.log('[Signup] Creating user profile for ID:', authData.user.id)
     const { error: profileError } = await supabase
       .from('profiles')
@@ -172,18 +178,16 @@ export default defineEventHandler(async (event) => {
     
     if (profileError) {
       console.error('[Signup] Profile creation failed:', profileError)
-      // If profile creation fails, delete the auth user
       await supabase.auth.admin.deleteUser(authData.user.id)
-      
       throw createError({
         statusCode: 500,
         statusMessage: `Profile creation failed: ${profileError.message}`
       })
     }
     
-    console.log('[Signup] User profile created successfully')
+    console.log('[Signup] ✅ User profile created successfully')
     
-    // Add user interests if provided
+    // ✅ STEP 7: ADD USER INTERESTS IF PROVIDED
     if (body.interests && body.interests.length > 0) {
       console.log('[Signup] Adding user interests:', body.interests)
       const userInterests = body.interests.map(interestId => ({
@@ -202,9 +206,9 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-    console.log('[Signup] Signup completed successfully for:', body.email)
+    console.log('[Signup] ✅ Signup completed successfully for:', body.email)
     
-    // Return success response with user ID and profile data
+    // ✅ STEP 8: RETURN SUCCESS WITH SESSION
     return {
       success: true,
       statusMessage: 'Account created successfully. Please verify your email.',
@@ -220,18 +224,19 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-  } catch (error) {
-    console.error('[Signup] Error caught:', error)
+  } catch (error: any) {
+    console.error('[Signup] Error:', error)
     
-    if ((error as any).statusCode) {
-      console.error('[Signup] Throwing error with status:', (error as any).statusCode, (error as any).statusMessage)
+    // If it's already a createError, rethrow it
+    if (error.statusCode) {
       throw error
     }
     
-    console.error('[Signup] Unexpected error:', (error as any).message || error)
+    // Otherwise, create a generic error
     throw createError({
       statusCode: 500,
-      statusMessage: `Internal server error: ${(error as any).message || 'Unknown error during signup'}`
+      statusMessage: error.message || 'Signup failed. Please try again.'
     })
   }
 })
+
