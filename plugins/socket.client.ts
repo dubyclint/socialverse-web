@@ -1,8 +1,8 @@
 // ============================================================================
 // plugins/socket.client.ts - SOCKET.IO CLIENT PLUGIN
 // ============================================================================
-// This plugin initializes Socket.io client connection for real-time features
-// DISABLED BY DEFAULT - Enable only when Socket.io server is ready
+// Socket.io is DISABLED during sign-up/login
+// Socket.io initializes ONLY after user is authenticated
 
 import { io, Socket } from 'socket.io-client'
 
@@ -12,101 +12,76 @@ declare global {
   }
 }
 
+let socketInstance: Socket | null = null
+
 export default defineNuxtPlugin(() => {
-  console.log('[Socket.io] Plugin loaded')
+  console.log('[Socket.io] Plugin loaded - Socket.io will initialize after authentication')
   
-  try {
-    const config = useRuntimeConfig()
-    
-    // DISABLED: Socket.io is disabled by default
-    // Enable this when you have a Socket.io server running
-    const SOCKET_ENABLED = false
-    
-    if (!SOCKET_ENABLED) {
-      console.log('[Socket.io] Socket.io is disabled (not configured)')
-      return {
-        provide: {
-          socket: null,
-        },
+  // Socket.io is disabled by default - will be enabled by auth store after sign-in
+  return {
+    provide: {
+      socket: null,
+      // Function to initialize Socket.io after auth
+      initializeSocket: (socketUrl?: string) => {
+        try {
+          const config = useRuntimeConfig()
+          
+          // Get socket URL from parameter or config
+          let url = socketUrl || config.public.socketUrl
+          
+          if (!url && process.client) {
+            url = window.location.origin
+          }
+          
+          // Don't connect to localhost in production
+          if (url?.includes('localhost') && process.env.NODE_ENV === 'production') {
+            console.warn('[Socket.io] Skipping localhost connection in production')
+            return null
+          }
+          
+          if (!url) {
+            console.warn('[Socket.io] No socket URL configured')
+            return null
+          }
+
+          console.log('[Socket.io] Initializing connection to:', url)
+
+          // Initialize Socket.io connection
+          socketInstance = io(url, {
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 3,
+            transports: ['websocket', 'polling'],
+            autoConnect: false,
+            secure: url.startsWith('https'),
+          })
+
+          // Set up event listeners
+          socketInstance.on('connect', () => {
+            console.log('[Socket.io] Connected successfully')
+          })
+
+          socketInstance.on('disconnect', () => {
+            console.log('[Socket.io] Disconnected')
+          })
+
+          socketInstance.on('error', (error) => {
+            console.error('[Socket.io] Error:', error)
+          })
+
+          if (process.client) {
+            window.$socket = socketInstance
+          }
+
+          console.log('[Socket.io] Socket.io initialized successfully')
+          return socketInstance
+          
+        } catch (error) {
+          console.error('[Socket.io] Initialization failed:', error)
+          return null
+        }
       }
-    }
-
-    // Get socket URL from config
-    let socketUrl = config.public.socketUrl
-    
-    // If no socketUrl configured, use current origin
-    if (!socketUrl && process.client) {
-      socketUrl = window.location.origin
-    }
-    
-    // Don't connect to localhost in production
-    if (socketUrl?.includes('localhost') && process.env.NODE_ENV === 'production') {
-      console.warn('[Socket.io] Skipping localhost connection in production')
-      return {
-        provide: {
-          socket: null,
-        },
-      }
-    }
-    
-    if (!socketUrl) {
-      console.warn('[Socket.io] No socket URL configured')
-      return {
-        provide: {
-          socket: null,
-        },
-      }
-    }
-
-    console.log('[Socket.io] Initializing connection to:', socketUrl)
-
-    // Initialize Socket.io connection with timeout
-    const socket: Socket = io(socketUrl, {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 3,
-      transports: ['websocket', 'polling'],
-      autoConnect: false, // Don't auto-connect
-      secure: socketUrl.startsWith('https'),
-      rejectUnauthorized: false,
-      timeout: 5000,
-    })
-
-    // Connection event handlers
-    socket.on('connect', () => {
-      console.log('[Socket.io] Connected successfully')
-    })
-
-    socket.on('disconnect', () => {
-      console.log('[Socket.io] Disconnected')
-    })
-
-    socket.on('error', (error: any) => {
-      console.error('[Socket.io] Connection error:', error)
-    })
-
-    socket.on('connect_error', (error: any) => {
-      console.error('[Socket.io] Connection error:', error)
-    })
-
-    // Make socket available globally
-    if (process.client) {
-      window.$socket = socket
-    }
-
-    return {
-      provide: {
-        socket,
-      },
-    }
-  } catch (err) {
-    console.error('[Socket.io] Plugin initialization failed:', err)
-    // Don't break the app if socket fails
-    return {
-      provide: {
-        socket: null,
-      },
     }
   }
 })
