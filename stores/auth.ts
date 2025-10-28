@@ -33,6 +33,7 @@ interface AuthState {
   sessionValid: boolean
   supabaseAvailable: boolean
   socketConnected: boolean
+  gunInitialized: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -44,7 +45,8 @@ export const useAuthStore = defineStore('auth', {
     lastRoleCheck: null,
     sessionValid: false,
     supabaseAvailable: false,
-    socketConnected: false
+    socketConnected: false,
+    gunInitialized: false
   }),
 
   getters: {
@@ -118,8 +120,8 @@ export const useAuthStore = defineStore('auth', {
           this.user = session.user
           await this.fetchProfile()
           this.sessionValid = true
-          // ✅ NEW: Connect socket.io after auth is ready
-          await this.connectSocket()
+          // ✅ NEW: Initialize real-time services after auth is ready
+          await this.initializeRealTimeServices()
         }
         
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -127,17 +129,17 @@ export const useAuthStore = defineStore('auth', {
             this.user = session.user
             await this.fetchProfile()
             this.sessionValid = true
-            // ✅ NEW: Connect socket.io on sign in
-            await this.connectSocket()
+            // ✅ NEW: Initialize real-time services on sign in
+            await this.initializeRealTimeServices()
           } else if (event === 'SIGNED_OUT') {
             this.clearAuth()
-            // ✅ NEW: Disconnect socket.io on sign out
-            this.disconnectSocket()
+            // ✅ NEW: Disconnect real-time services on sign out
+            this.disconnectRealTimeServices()
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
             this.user = session.user
             this.sessionValid = true
-            // ✅ NEW: Reconnect socket.io with new token
-            await this.connectSocket()
+            // ✅ NEW: Reconnect real-time services with new token
+            await this.initializeRealTimeServices()
           }
         })
         
@@ -346,18 +348,72 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
-    // ✅ NEW: Socket.IO Connection Management
+    // ============================================================================
+    // ✅ NEW: Real-Time Services Management (Gun + Socket.io)
+    // ============================================================================
+
+    async initializeRealTimeServices() {
+      try {
+        if (!process.client) return
+        
+        console.log('[Auth Store] Initializing real-time services after authentication...')
+        
+        // Initialize Gun
+        await this.initializeGun()
+        
+        // Initialize Socket.io
+        await this.connectSocket()
+        
+        console.log('[Auth Store] Real-time services initialized successfully')
+      } catch (error) {
+        console.error('[Auth Store] Failed to initialize real-time services:', error)
+      }
+    },
+
+    async initializeGun() {
+      try {
+        if (!process.client) return
+        
+        const { $initializeGun } = useNuxtApp()
+        
+        if (!$initializeGun) {
+          console.warn('[Auth Store] Gun initialization function not available')
+          return
+        }
+        
+        const gunInstance = $initializeGun({
+          peers: ['https://gun-messaging-peer.herokuapp.com/gun']
+        })
+        
+        if (gunInstance) {
+          this.gunInitialized = true
+          console.log('[Auth Store] Gun initialized successfully')
+        }
+      } catch (error) {
+        console.error('[Auth Store] Gun initialization error:', error)
+        this.gunInitialized = false
+      }
+    },
+
     async connectSocket() {
       try {
         if (!process.client) return
         
-        // Get socket instance from global
-        const socket = window.$socket
-        if (!socket) {
-          console.warn('[Auth Store] Socket.IO not available')
+        const { $initializeSocket } = useNuxtApp()
+        
+        if (!$initializeSocket) {
+          console.warn('[Auth Store] Socket.io initialization function not available')
           return
         }
-
+        
+        // Initialize Socket.io
+        const socket = $initializeSocket()
+        
+        if (!socket) {
+          console.warn('[Auth Store] Socket.io initialization returned null')
+          return
+        }
+        
         // Get JWT token from Supabase session
         let supabase = null
         try {
@@ -386,7 +442,7 @@ export const useAuthStore = defineStore('auth', {
 
         socket.connect()
         this.socketConnected = true
-        console.log('[Auth Store] Socket.IO connected with authentication')
+        console.log('[Auth Store] Socket.io connected with authentication')
 
       } catch (error) {
         console.error('[Auth Store] Socket connection error:', error)
@@ -394,7 +450,21 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // ✅ NEW: Socket.IO Disconnection
+    disconnectRealTimeServices() {
+      try {
+        if (!process.client) return
+        
+        console.log('[Auth Store] Disconnecting real-time services...')
+        
+        // Disconnect Socket.io
+        this.disconnectSocket()
+        
+        console.log('[Auth Store] Real-time services disconnected')
+      } catch (error) {
+        console.error('[Auth Store] Error disconnecting real-time services:', error)
+      }
+    },
+
     disconnectSocket() {
       try {
         if (!process.client) return
@@ -403,7 +473,7 @@ export const useAuthStore = defineStore('auth', {
         if (socket && socket.connected) {
           socket.disconnect()
           this.socketConnected = false
-          console.log('[Auth Store] Socket.IO disconnected')
+          console.log('[Auth Store] Socket.io disconnected')
         }
       } catch (error) {
         console.error('[Auth Store] Socket disconnection error:', error)
@@ -557,8 +627,9 @@ export const useAuthStore = defineStore('auth', {
       this.sessionValid = false
       this.loading = false
       this.socketConnected = false
-      // ✅ NEW: Disconnect socket on auth clear
-      this.disconnectSocket()
+      this.gunInitialized = false
+      // ✅ NEW: Disconnect real-time services on auth clear
+      this.disconnectRealTimeServices()
     },
 
     needsEmailVerification(): boolean {
