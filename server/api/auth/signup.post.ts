@@ -6,11 +6,9 @@ interface SignupRequest {
   username: string
   fullName: string
   phone: string
+  bio?: string
+  location?: string
   interests?: string[]
-  profile?: {
-    bio?: string
-    avatar_url?: string
-  }
 }
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +16,12 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<SignupRequest>(event)
     
-    console.log('[Signup] Request received:', { email: body.email, username: body.username, phone: body.phone })
+    console.log('[Signup] Request received:', { 
+      email: body.email, 
+      username: body.username, 
+      phone: body.phone,
+      interestsCount: body.interests?.length || 0
+    })
     
     // ✅ STEP 1: Validate required fields
     if (!body.email || !body.password || !body.username || !body.fullName || !body.phone) {
@@ -49,11 +52,17 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ STEP 4: CREATE SUPABASE AUTH USER FIRST (NO CHECKS)
+    // ✅ STEP 4: CREATE SUPABASE AUTH USER
     console.log('[Signup] Creating Supabase auth user for:', body.email)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: body.email,
-      password: body.password
+      password: body.password,
+      options: {
+        data: {
+          username: body.username,
+          full_name: body.fullName
+        }
+      }
     })
     
     if (authError) {
@@ -74,20 +83,20 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    // ✅ STEP 5: NOW CHECK FOR DUPLICATES IN DATABASE
+    // ✅ STEP 5: CHECK FOR DUPLICATES
     console.log('[Signup] Checking for duplicate username:', body.username)
     const { data: existingUsername, error: usernameCheckError } = await supabase
       .from('profiles')
       .select('username')
       .eq('username', body.username)
-      .single()
+      .maybeSingle()
     
     if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
       console.error('[Signup] Error checking username:', usernameCheckError)
       await supabase.auth.admin.deleteUser(authData.user.id)
       throw createError({
         statusCode: 500,
-        statusMessage: `Database error checking username: ${usernameCheckError.message}`
+        statusMessage: `Database error: ${usernameCheckError.message}`
       })
     }
     
@@ -97,58 +106,6 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 409,
         statusMessage: 'Username already taken'
-      })
-    }
-    
-    // Check for duplicate email in profiles
-    console.log('[Signup] Checking for duplicate email:', body.email)
-    const { data: existingEmail, error: emailCheckError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('email', body.email)
-      .single()
-    
-    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Error checking email:', emailCheckError)
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error checking email: ${emailCheckError.message}`
-      })
-    }
-    
-    if (existingEmail) {
-      console.error('[Signup] Email already registered:', body.email)
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Email already registered'
-      })
-    }
-    
-    // Check for duplicate phone
-    console.log('[Signup] Checking for duplicate phone:', body.phone)
-    const { data: existingPhone, error: phoneCheckError } = await supabase
-      .from('profiles')
-      .select('phone_number')
-      .eq('phone_number', body.phone)
-      .single()
-    
-    if (phoneCheckError && phoneCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Error checking phone:', phoneCheckError)
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error checking phone: ${phoneCheckError.message}`
-      })
-    }
-    
-    if (existingPhone) {
-      console.error('[Signup] Phone already registered:', body.phone)
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Phone number already registered'
       })
     }
     
@@ -162,18 +119,20 @@ export default defineEventHandler(async (event) => {
         email: body.email,
         full_name: body.fullName,
         phone_number: body.phone,
-        bio: body.profile?.bio || '',
-        avatar_url: body.profile?.avatar_url || null,
+        bio: body.bio || '',
+        avatar_url: null,
         role: 'user',
         status: 'active',
         is_verified: false,
         rank: 'bronze',
         rank_points: 0,
         email_verified: false,
-        preferences: {},
-        metadata: {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        preferences: {
+          location: body.location || '',
+          emailNotifications: true,
+          profilePrivate: false
+        },
+        metadata: {}
       })
     
     if (profileError) {
@@ -202,13 +161,15 @@ export default defineEventHandler(async (event) => {
       
       if (interestsError) {
         console.error('[Signup] Failed to add user interests:', interestsError)
-        // Don't fail the signup if interests fail to save
+        // Don't fail the signup if interests fail - they can be added later
+      } else {
+        console.log('[Signup] ✅ User interests added successfully')
       }
     }
     
     console.log('[Signup] ✅ Signup completed successfully for:', body.email)
     
-    // ✅ STEP 8: RETURN SUCCESS WITH SESSION
+    // ✅ STEP 8: RETURN SUCCESS
     return {
       success: true,
       statusMessage: 'Account created successfully. Please verify your email.',
@@ -239,4 +200,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
