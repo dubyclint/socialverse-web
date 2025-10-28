@@ -179,6 +179,23 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] User profile created successfully')
     
+    // ✅ FIX #2: Assign user role in RBAC system
+    console.log('[Signup] Assigning user role in RBAC system')
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: authData.user.id,
+        role_id: 'user', // or get the actual role ID from roles table
+        assigned_at: new Date().toISOString(),
+        assigned_by: 'system'
+      })
+
+    if (roleError && roleError.code !== 'PGRST116') {
+      console.error('[Signup] Failed to assign user role:', roleError)
+      // Don't fail signup if role assignment fails, but log it
+      console.warn('[Signup] Continuing despite role assignment failure')
+    }
+    
     // Add user interests if provided
     if (body.interests && body.interests.length > 0) {
       console.log('[Signup] Adding user interests:', body.interests)
