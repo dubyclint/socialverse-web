@@ -1,9 +1,41 @@
+import { serverSupabaseClient } from '#supabase/server'
+
 export default defineEventHandler(async (event) => {
-  // Clear auth token from client side (handled by frontend)
-  // Optionally invalidate token on server side if using token blacklist
-  
-  return {
-    success: true,
-    message: 'Logged out successfully'
+  try {
+    const supabase = await serverSupabaseClient(event)
+
+    console.log('[Logout] Processing logout request')
+
+    // ✅ FIX: Sign out user from Supabase
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('[Logout] Signout error:', error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Logout failed: ${error.message}`
+      })
+    }
+
+    console.log('[Logout] User logged out successfully')
+
+    // Return success response
+    return {
+      success: true,
+      message: 'Logged out successfully'
+    }
+
+  } catch (error) {
+    console.error('[Logout] Error:', error)
+    
+    if ((error as any).statusCode) {
+      throw error
+    }
+    
+    throw createError({
+      statusCode: 500,
+      statusMessage: `Logout failed: ${(error as any).message || 'Unknown error'}`
+    })
   }
 })
+
