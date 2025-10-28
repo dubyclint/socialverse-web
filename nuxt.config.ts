@@ -56,16 +56,19 @@ export default defineNuxtConfig({
     }
   },
 
-  // ✅ Nitro Configuration (Server)
+  // ✅ Nitro Configuration (Server) - FIXED: Disable prerender
   nitro: {
     prerender: {
       crawlLinks: false,
-      routes: ['/sitemap.xml', '/robots.txt']
+      routes: [],  // ✅ FIXED: Empty routes - don't prerender anything
+      failOnError: false  // ✅ FIXED: Don't fail on prerender errors
     },
-    // ✅ FIX: Disable prerender for dynamic routes
+    // ✅ FIX: Disable caching for dynamic routes
     routeRules: {
       '/api/**': { cache: false },
-      '/auth/**': { cache: false }
+      '/auth/**': { cache: false },
+      '/robots.txt': { cache: false },
+      '/sitemap.xml': { cache: false }
     }
   },
 
@@ -143,4 +146,3 @@ export default defineNuxtConfig({
     classSuffix: ''
   }
 })
-
