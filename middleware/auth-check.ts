@@ -1,19 +1,20 @@
-// middleware/auth-check.ts - FIXED VERSION
+// middleware/auth-check.ts - SKIP AUTH ROUTES
 export default defineNuxtRouteMiddleware(async (to, from) => {
   // Skip middleware on server-side
   if (process.server) return
+
+  // ✅ SKIP MIDDLEWARE ON AUTH ROUTES - NO CHECKS
+  const authRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email', '/auth/reset-password', '/auth/confirm']
+  if (authRoutes.some(route => to.path.startsWith(route))) {
+    console.log('[Auth-Check] Skipping auth route:', to.path)
+    return
+  }
 
   const user = useSupabaseUser()
   const userStore = useUserStore()
 
   // Define public routes that don't require authentication
   const publicRoutes = [
-    '/auth/login',
-    '/auth/signup',
-    '/auth/forgot-password',
-    '/auth/verify-email',
-    '/auth/reset-password',
-    '/auth/confirm',
     '/',
     '/terms',
     '/privacy',
@@ -48,3 +49,4 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     return navigateTo('/auth/login')
   }
 })
+
