@@ -1,5 +1,4 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
-import { execSync } from 'child_process'
+mport { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
@@ -36,7 +35,6 @@ export default defineNuxtConfig({
     emailServiceKey: process.env.EMAIL_SERVICE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     
     // Public keys - accessible client-side
     public: {
@@ -54,9 +52,10 @@ export default defineNuxtConfig({
 
   // ✅ Nitro Server Configuration - DYNAMIC SSR (NOT STATIC)
   nitro: {
+    preset: 'node-server',
     prerender: {
       crawlLinks: false,
-      routes: [],
+      routes: ['/sitemap.xml', '/robots.txt'],
       ignore: ['/admin', '/api', '/auth'],
       failOnError: false,  // ✅ ADDED: Don't fail build if prerender errors occur
     },
@@ -70,7 +69,7 @@ export default defineNuxtConfig({
 
   // ✅ Build Configuration
   build: {
-    transpile: ['@vueuse/nuxt', 'gun'],
+    transpile: ['@vueuse/nuxt'],
   },
 
   // ✅ CSS Configuration
@@ -141,7 +140,7 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ Hooks - Clear cache and generate types
+  // ✅ Hooks - Clear cache
   hooks: {
     'build:before': async () => {
       try {
@@ -169,3 +168,4 @@ export default defineNuxtConfig({
   },
 })
 
+    
