@@ -422,8 +422,8 @@ const handleLogin = async () => {
     }
   } catch (err: any) {
     console.error('Login error:', err)
-    loginForm.value.error = err.data?.statusMessage || err.message || 'An error occurred during sign in'
-  } finally {
+    loginForm.value.error = err.data?.statusMessage || err.statusMessage || err.message || 'An error occurred during sign in'
+ } finally {
     loginForm.value.loading = false
   }
 }
@@ -500,7 +500,7 @@ const handleSignup = async () => {
     }
   } catch (err: any) {
     console.error('Signup error:', err)
-    signupForm.value.error = err.data?.statusMessage || err.message || 'An error occurred during sign up'
+    signupForm.value.error = err.data?.statusMessage || err.statusMessage || err.message || 'An error occurred during sign up'
   } finally {
     signupForm.value.loading = false
   }
