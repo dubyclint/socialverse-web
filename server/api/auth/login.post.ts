@@ -82,18 +82,65 @@ export default defineEventHandler(async (event) => {
           statusMessage: 'Failed to create user profile'
         })
       }
+
+      // ✅ FIX: Fetch the newly created profile
+      const { data: newProfile, error: newProfileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single()
+
+      if (newProfileError) {
+        console.error('[Login] Failed to fetch newly created profile:', newProfileError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Failed to fetch user profile'
+        })
+      }
+
+      console.log('[Login] Login successful for:', body.email)
+
+      // ✅ CRITICAL FIX: Return COMPLETE profile data
+      return {
+        success: true,
+        data: {
+          user: {
+            id: authData.user.id,
+            email: authData.user.email,
+            username: newProfile?.username,
+            fullName: newProfile?.full_name,
+            phone: newProfile?.phone_number,
+            role: newProfile?.role,
+            status: newProfile?.status,
+            avatar_url: newProfile?.avatar_url,
+            bio: newProfile?.bio,
+            email_verified: newProfile?.email_verified
+          },
+          profile: newProfile,
+          session: authData.session
+        }
+      }
     }
 
     console.log('[Login] Login successful for:', body.email)
 
-    // Return authenticated user data
+    // ✅ CRITICAL FIX: Return COMPLETE profile data
     return {
       success: true,
       data: {
         user: {
           id: authData.user.id,
-          email: authData.user.email
+          email: authData.user.email,
+          username: profile?.username,
+          fullName: profile?.full_name,
+          phone: profile?.phone_number,
+          role: profile?.role,
+          status: profile?.status,
+          avatar_url: profile?.avatar_url,
+          bio: profile?.bio,
+          email_verified: profile?.email_verified
         },
+        profile: profile,
         session: authData.session
       }
     }
@@ -111,3 +158,4 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
