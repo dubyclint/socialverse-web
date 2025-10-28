@@ -1,8 +1,8 @@
 // ============================================================================
 // plugins/socket.client.ts - SOCKET.IO CLIENT PLUGIN
 // ============================================================================
-// Socket.io is DISABLED during sign-up/login
-// Socket.io initializes ONLY after user is authenticated
+// ✅ Socket.io is DISABLED during sign-up/login
+// ✅ Socket.io initializes ONLY after user is authenticated
 
 import { io, Socket } from 'socket.io-client'
 
@@ -15,9 +15,9 @@ declare global {
 let socketInstance: Socket | null = null
 
 export default defineNuxtPlugin(() => {
-  console.log('[Socket.io] Plugin loaded - Socket.io will initialize after authentication')
+  console.log('[Socket.io] Plugin loaded - waiting for authentication')
   
-  // Socket.io is disabled by default - will be enabled by auth store after sign-in
+  // ✅ Socket.io is disabled by default - will be enabled by auth store after sign-in
   return {
     provide: {
       socket: null,
@@ -44,44 +44,46 @@ export default defineNuxtPlugin(() => {
             return null
           }
 
-          console.log('[Socket.io] Initializing connection to:', url)
-
-          // Initialize Socket.io connection
+          console.log('[Socket.io] Initializing Socket.io connection to:', url)
+          
           socketInstance = io(url, {
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: 3,
-            transports: ['websocket', 'polling'],
-            autoConnect: false,
-            secure: url.startsWith('https'),
+            reconnectionAttempts: 5,
+            transports: ['websocket', 'polling']
           })
 
-          // Set up event listeners
           socketInstance.on('connect', () => {
-            console.log('[Socket.io] Connected successfully')
+            console.log('[Socket.io] ✅ Connected to server')
           })
 
           socketInstance.on('disconnect', () => {
-            console.log('[Socket.io] Disconnected')
+            console.log('[Socket.io] Disconnected from server')
           })
 
           socketInstance.on('error', (error) => {
             console.error('[Socket.io] Error:', error)
           })
 
-          if (process.client) {
-            window.$socket = socketInstance
-          }
-
-          console.log('[Socket.io] Socket.io initialized successfully')
+          window.$socket = socketInstance
           return socketInstance
-          
         } catch (error) {
-          console.error('[Socket.io] Initialization failed:', error)
+          console.error('[Socket.io] Failed to initialize:', error)
           return null
+        }
+      },
+      
+      // Function to disconnect Socket.io
+      disconnectSocket: () => {
+        if (socketInstance) {
+          console.log('[Socket.io] Disconnecting...')
+          socketInstance.disconnect()
+          socketInstance = null
+          window.$socket = undefined
         }
       }
     }
   }
 })
+
