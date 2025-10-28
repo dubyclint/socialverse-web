@@ -362,48 +362,86 @@ export const useAuthStore = defineStore('auth', {
       this.lastRoleCheck = null
     },
 
+    // ✅ NEW: Handshake after signup - Initialize profile and plugins
+    async performSignupHandshake() {
+      console.log('[Auth] Performing signup handshake...')
+      
+      try {
+        // Step 1: Fetch profile
+        await this.fetchProfile()
+        
+        if (!this.profile) {
+          throw new Error('Profile not found after signup')
+        }
+        
+        console.log('[Auth] ✅ Profile loaded:', this.profile.id)
+        
+        // Step 2: Load permissions
+        await this.loadPermissions()
+        console.log('[Auth] ✅ Permissions loaded')
+        
+        // Step 3: Initialize real-time services (Socket.io & Gun)
+        await this.initializeRealTimeServices()
+        console.log('[Auth] ✅ Real-time services initialized')
+        
+        this.sessionValid = true
+        console.log('[Auth] ✅ Signup handshake complete')
+        
+        return { success: true }
+      } catch (error) {
+        console.error('[Auth] Signup handshake failed:', error)
+        return { success: false, error: (error as any).message }
+      }
+    },
+
+    // ✅ UPDATED: Initialize real-time services with plugin access
     async initializeRealTimeServices() {
       if (!this.user || !this.profile) {
-        console.warn('Cannot initialize real-time services: user or profile not ready')
+        console.warn('[Auth] Cannot initialize real-time services: user or profile not ready')
         return
       }
 
       try {
+        const nuxtApp = useNuxtApp()
+        
         // Initialize Gun
-        if (!this.gunInitialized) {
+        if (!this.gunInitialized && nuxtApp.$initializeGun) {
           console.log('[Auth] Initializing Gun with user context')
-          // Gun initialization logic here
+          nuxtApp.$initializeGun()
           this.gunInitialized = true
         }
 
         // Initialize Socket.io
-        if (!this.socketConnected) {
+        if (!this.socketConnected && nuxtApp.$initializeSocket) {
           console.log('[Auth] Initializing Socket.io with user context')
-          // Socket.io initialization logic here
+          nuxtApp.$initializeSocket()
           this.socketConnected = true
         }
       } catch (error) {
-        console.error('Real-time services initialization error:', error)
+        console.error('[Auth] Real-time services initialization error:', error)
       }
     },
 
+    // ✅ UPDATED: Disconnect real-time services
     async disconnectRealTimeServices() {
       try {
+        const nuxtApp = useNuxtApp()
+        
         // Disconnect Gun
-        if (this.gunInitialized) {
+        if (this.gunInitialized && nuxtApp.$disconnectGun) {
           console.log('[Auth] Disconnecting Gun')
-          // Gun disconnection logic here
+          nuxtApp.$disconnectGun()
           this.gunInitialized = false
         }
 
         // Disconnect Socket.io
-        if (this.socketConnected) {
+        if (this.socketConnected && nuxtApp.$disconnectSocket) {
           console.log('[Auth] Disconnecting Socket.io')
-          // Socket.io disconnection logic here
+          nuxtApp.$disconnectSocket()
           this.socketConnected = false
         }
       } catch (error) {
-        console.error('Real-time services disconnection error:', error)
+        console.error('[Auth] Real-time services disconnection error:', error)
       }
     },
 
