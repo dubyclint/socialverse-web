@@ -1,3 +1,4 @@
+// composables/useI18n.ts - FIXED VERSION
 import { ref } from 'vue'
 
 export const currentLang = ref('en')
@@ -19,42 +20,29 @@ export async function loadTranslations(lang: string = 'en') {
       // ✅ Try to load from API first
       const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
       
-      if (error.value) {
-        console.warn('[i18n] Translation API error, falling back to local files:', error.value)
-        // Fall back to local JSON files
+      if (error.value || !data.value) {
+        console.warn('[i18n] Translation API returned no data, falling back to local files')
         await loadLocalTranslations(lang)
         return
       }
 
       let entries = data.value || []
       
-      // ✅ Handle both array and object responses
-      if (typeof entries === 'object' && !Array.isArray(entries)) {
-        console.warn('[i18n] Translation data is an object, converting to array')
-        entries = Object.entries(entries).map(([key, value]) => ({
-          key,
-          value
-        }))
-      }
-      
+      // ✅ Ensure entries is an array
       if (!Array.isArray(entries)) {
         console.warn('[i18n] Translation data is not an array, falling back to local files')
         await loadLocalTranslations(lang)
         return
       }
       
-      // ✅ Filter out entries with extra fields
-      const cleanedEntries = entries.map((entry: any) => {
-        if (entry && typeof entry === 'object') {
-          return {
-            key: entry.key,
-            value: entry.value
-          }
-        }
-        return null
-      }).filter((entry: any) => entry !== null)
+      // ✅ If array is empty, use local files
+      if (entries.length === 0) {
+        console.log('[i18n] Translation API returned empty array, using local files')
+        await loadLocalTranslations(lang)
+        return
+      }
       
-      translations.value = flattenTranslations(cleanedEntries)
+      translations.value = flattenTranslations(entries)
       currentLang.value = lang
       console.log('[i18n] Translations loaded successfully from API:', Object.keys(translations.value).length, 'keys')
     } catch (fetchErr) {
@@ -171,13 +159,13 @@ export async function setLanguage(lang: string) {
 }
 
 /**
- * Detect language from browser settings
+ * Detect browser language
  */
 export function detectBrowserLanguage(): string {
-  if (process.client) {
-    const lang = navigator.language?.split('-')[0] || 'en'
-    console.log('[i18n] Detected browser language:', lang)
-    return lang
-  }
-  return 'en'
+  if (typeof window === 'undefined') return 'en'
+  
+  const browserLang = navigator.language?.split('-')[0] || 'en'
+  const supportedLangs = ['en', 'es', 'fr', 'de']
+  
+  return supportedLangs.includes(browserLang) ? browserLang : 'en'
 }
