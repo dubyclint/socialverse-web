@@ -6,7 +6,7 @@ export const isLoadingTranslations = ref(false)
 
 /**
  * Load translations for a given language from API.
- * Falls back to English if none are found.
+ * Falls back to local JSON files if API fails.
  */
 export async function loadTranslations(lang: string = 'en') {
   if (isLoadingTranslations.value) return
@@ -16,21 +16,21 @@ export async function loadTranslations(lang: string = 'en') {
     console.log('[i18n] Loading translations for language:', lang)
     
     try {
+      // ✅ Try to load from API first
       const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
       
       if (error.value) {
-        console.warn('[i18n] Translation API error:', error.value)
-        translations.value = {}
-        currentLang.value = lang
+        console.warn('[i18n] Translation API error, falling back to local files:', error.value)
+        // Fall back to local JSON files
+        await loadLocalTranslations(lang)
         return
       }
 
       let entries = data.value || []
       
-      // ✅ FIX: Handle both array and object responses
+      // ✅ Handle both array and object responses
       if (typeof entries === 'object' && !Array.isArray(entries)) {
         console.warn('[i18n] Translation data is an object, converting to array')
-        // Convert object to array format: [{key: 'x', value: 'y'}, ...]
         entries = Object.entries(entries).map(([key, value]) => ({
           key,
           value
@@ -38,11 +38,12 @@ export async function loadTranslations(lang: string = 'en') {
       }
       
       if (!Array.isArray(entries)) {
-        console.warn('[i18n] Translation data is not an array, using empty object')
-        entries = []
+        console.warn('[i18n] Translation data is not an array, falling back to local files')
+        await loadLocalTranslations(lang)
+        return
       }
       
-      // ✅ FIX: Filter out entries with extra fields (like 'language')
+      // ✅ Filter out entries with extra fields
       const cleanedEntries = entries.map((entry: any) => {
         if (entry && typeof entry === 'object') {
           return {
@@ -55,11 +56,10 @@ export async function loadTranslations(lang: string = 'en') {
       
       translations.value = flattenTranslations(cleanedEntries)
       currentLang.value = lang
-      console.log('[i18n] Translations loaded successfully:', Object.keys(translations.value).length, 'keys')
+      console.log('[i18n] Translations loaded successfully from API:', Object.keys(translations.value).length, 'keys')
     } catch (fetchErr) {
-      console.warn('[i18n] Failed to fetch translations:', fetchErr)
-      translations.value = {}
-      currentLang.value = lang
+      console.warn('[i18n] Failed to fetch translations from API, falling back to local files:', fetchErr)
+      await loadLocalTranslations(lang)
     }
   } catch (err) {
     console.error('[i18n] Translation load failed:', err)
@@ -67,6 +67,61 @@ export async function loadTranslations(lang: string = 'en') {
   } finally {
     isLoadingTranslations.value = false
   }
+}
+
+/**
+ * Load translations from local JSON files as fallback
+ */
+async function loadLocalTranslations(lang: string = 'en') {
+  try {
+    console.log('[i18n] Loading translations from local files for language:', lang)
+    
+    // ✅ Import local JSON files
+    const localeMap: Record<string, any> = {
+      'en': () => import('~/locales/en.json'),
+      'es': () => import('~/locales/es.json'),
+      'fr': () => import('~/locales/fr.json'),
+      'de': () => import('~/locales/de.json'),
+    }
+    
+    const loader = localeMap[lang] || localeMap['en']
+    const module = await loader()
+    const data = module.default || module
+    
+    translations.value = flattenLocalTranslations(data)
+    currentLang.value = lang
+    console.log('[i18n] Local translations loaded successfully:', Object.keys(translations.value).length, 'keys')
+  } catch (err) {
+    console.warn('[i18n] Failed to load local translations:', err)
+    translations.value = {}
+  }
+}
+
+/**
+ * Flatten local translation object into dot-notation keys
+ */
+function flattenLocalTranslations(obj: any, prefix: string = ''): Record<string, string> {
+  const result: Record<string, string> = {}
+  
+  try {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key]
+        const fullKey = prefix ? `${prefix}.${key}` : key
+        
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          // Recursively flatten nested objects
+          Object.assign(result, flattenLocalTranslations(value, fullKey))
+        } else {
+          result[fullKey] = String(value)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[i18n] Error flattening local translations:', err)
+  }
+  
+  return result
 }
 
 /**
@@ -126,4 +181,3 @@ export function detectBrowserLanguage(): string {
   }
   return 'en'
 }
-
