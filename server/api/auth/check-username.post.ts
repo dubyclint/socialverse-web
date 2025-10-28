@@ -26,3 +26,4 @@ export default defineEventHandler(async (event) => {
     return { available: false }
   }
 })
+
