@@ -67,6 +67,11 @@
             <p>Connect with people from around the world and expand your circle based on your interests, lists, and likes.</p>
           </div>
           <div class="feature-card">
+            <div class="feature-icon">💼</div>
+            <h3>Business & Trade</h3>
+            <p>Manage your business, create listings, and trade with confidence in our secure marketplace.</p>
+          </div>
+          <div class="feature-card">
             <div class="feature-icon">🔒</div>
             <h3>Secure & Private Escrow</h3>
             <p>Leave the trust and security to us. Create deals today and submit your terms and conditions.</p>
@@ -120,7 +125,7 @@
         <div class="footer-section">
           <h4>Quick Links</h4>
           <ul>
-            <li><a href="#features">Features</a></li>
+            <li><NuxtLink to="/">Home</NuxtLink></li>
             <li><a href="#" @click.prevent="showLoginModal = true">Sign In</a></li>
             <li><a href="#" @click.prevent="showSignupModal = true">Sign Up</a></li>
           </ul>
@@ -241,7 +246,7 @@
             />
           </div>
 
-          <!-- ADDED: Phone Number Field -->
+          <!-- Phone Number Field -->
           <div class="form-group">
             <label for="signup-phone">Phone Number</label>
             <input
@@ -298,6 +303,42 @@
         </p>
       </div>
     </div>
+
+    <!-- Email Verification Modal -->
+    <div v-if="showEmailVerificationModal" class="modal-overlay" @click="showEmailVerificationModal = false">
+      <div class="modal-content" @click.stop>
+        <button class="close-btn" @click="showEmailVerificationModal = false">×</button>
+
+        <div class="verification-content">
+          <div class="verification-icon">✉️</div>
+          <h2>Verify Your Email</h2>
+          <p>We've sent a verification link to:</p>
+          <p class="email-display">{{ verificationEmail }}</p>
+          
+          <p class="verification-message">
+            Please check your email and click the verification link to complete your account setup.
+          </p>
+
+          <button
+            @click="handleResendVerification"
+            class="btn-resend"
+            :disabled="resendLoading"
+          >
+            {{ resendLoading ? 'Sending...' : 'Resend Verification Email' }}
+          </button>
+
+          <p class="verification-footer">
+            Already verified?
+            <button
+              @click="showEmailVerificationModal = false; showLoginModal = true"
+              class="link-button"
+            >
+              Sign in
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -312,6 +353,7 @@ const router = useRouter()
 // Modal state
 const showLoginModal = ref(false)
 const showSignupModal = ref(false)
+const showEmailVerificationModal = ref(false)
 
 // Form state
 const loginForm = ref({
@@ -324,14 +366,20 @@ const loginForm = ref({
 const signupForm = ref({
   name: '',
   email: '',
-  phone: '', // ADDED: Phone field
+  phone: '',
   password: '',
   confirmPassword: '',
   loading: false,
   error: ''
 })
 
-// Handle Login
+// Email verification state
+const verificationEmail = ref('')
+const resendLoading = ref(false)
+
+// ============================================================================
+// ✅ FIXED: Handle Login - Removed localStorage redundancy
+// ============================================================================
 const handleLogin = async () => {
   loginForm.value.error = ''
   loginForm.value.loading = true
@@ -355,12 +403,12 @@ const handleLogin = async () => {
     if (response.success && response.data?.user?.id) {
       console.log('[Login] User authenticated with ID:', response.data.user.id)
 
-      // Store user data and profile
-      localStorage.setItem('auth_token', response.data.session?.access_token || '')
-      localStorage.setItem('user', JSON.stringify(response.data.user))
-      localStorage.setItem('profile', JSON.stringify(response.data.profile))
+      // ✅ REMOVED: localStorage usage - Supabase manages session automatically
+      // localStorage.setItem('auth_token', response.data.session?.access_token || '')
+      // localStorage.setItem('user', JSON.stringify(response.data.user))
+      // localStorage.setItem('profile', JSON.stringify(response.data.profile))
 
-      // Initialize auth store with profile
+      // ✅ KEEP ONLY: Initialize auth store which uses Supabase session
       await authStore.initialize()
 
       // Close modal
@@ -380,13 +428,15 @@ const handleLogin = async () => {
   }
 }
 
-// Handle Signup - CORRECTED: Collects phone number from user
+// ============================================================================
+// ✅ FIXED: Handle Signup - Added email verification step
+// ============================================================================
 const handleSignup = async () => {
   signupForm.value.error = ''
   signupForm.value.loading = true
 
   try {
-    // Validate inputs - UPDATED: Include phone validation
+    // Validate inputs
     if (!signupForm.value.email || !signupForm.value.password || !signupForm.value.name || !signupForm.value.phone) {
       signupForm.value.error = 'All fields are required'
       return
@@ -409,7 +459,7 @@ const handleSignup = async () => {
       return
     }
 
-    // Call signup API endpoint - creates account in database with phone number
+    // Call signup API endpoint
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -417,22 +467,23 @@ const handleSignup = async () => {
         password: signupForm.value.password,
         fullName: signupForm.value.name,
         username: signupForm.value.name.toLowerCase().replace(/\s+/g, ''),
-        phone: signupForm.value.phone // FIXED: Send user's phone number
+        phone: signupForm.value.phone
       }
     })
 
     if (response.success) {
       console.log('[Signup] Account created successfully')
 
-      // Show success message
+      // ✅ NEW: Show email verification modal instead of directly opening login
+      verificationEmail.value = signupForm.value.email
       signupForm.value.error = ''
       
       // Close signup modal
       showSignupModal.value = false
       
-      // Open login modal for user to sign in
+      // Show email verification modal
       await new Promise(resolve => setTimeout(resolve, 300))
-      showLoginModal.value = true
+      showEmailVerificationModal.value = true
       
       // Reset signup form
       signupForm.value = {
@@ -444,9 +495,6 @@ const handleSignup = async () => {
         loading: false,
         error: ''
       }
-      
-      // Pre-fill login email
-      loginForm.value.email = signupForm.value.email
     } else {
       signupForm.value.error = 'Signup failed. Please try again.'
     }
@@ -455,6 +503,30 @@ const handleSignup = async () => {
     signupForm.value.error = err.data?.statusMessage || err.message || 'An error occurred during sign up'
   } finally {
     signupForm.value.loading = false
+  }
+}
+
+// ============================================================================
+// ✅ NEW: Handle Resend Verification Email
+// ============================================================================
+const handleResendVerification = async () => {
+  resendLoading.value = true
+
+  try {
+    const result = await authStore.sendEmailVerification()
+    
+    if (result.success) {
+      console.log('[Email Verification] Verification email resent successfully')
+      // Show success message
+      alert('Verification email sent! Please check your inbox.')
+    } else {
+      alert('Failed to resend verification email. Please try again.')
+    }
+  } catch (error) {
+    console.error('Resend verification error:', error)
+    alert('An error occurred. Please try again.')
+  } finally {
+    resendLoading.value = false
   }
 }
 
@@ -781,27 +853,26 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
   width: 100%;
+  margin-bottom: 1rem;
 }
 
 .footer-section h4 {
   color: white;
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
 }
 
 .footer-section p {
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 .footer-section ul {
   list-style: none;
   padding: 0;
-  margin: 0;
 }
 
 .footer-section li {
@@ -809,10 +880,9 @@ body {
 }
 
 .footer-section a {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
   transition: color 0.3s;
-  font-size: 0.85rem;
 }
 
 .footer-section a:hover {
@@ -821,19 +891,15 @@ body {
 
 .social-links {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .social-link {
-  display: inline-flex;
-  width: 35px;
-  height: 35px;
+  display: inline-block;
+  padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  align-items: center;
-  justify-content: center;
+  border-radius: 6px;
   transition: all 0.3s;
-  font-size: 0.75rem;
 }
 
 .social-link:hover {
@@ -842,9 +908,9 @@ body {
 
 .footer-bottom {
   text-align: center;
-  padding-top: 1.5rem;
+  padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 /* Modal Styles */
@@ -860,19 +926,28 @@ body {
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
-  overflow-y: auto;
 }
 
 .modal-content {
   background: white;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 2rem;
   max-width: 400px;
   width: 100%;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   position: relative;
-  max-height: 90vh;
-  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .close-btn {
@@ -884,11 +959,7 @@ body {
   font-size: 1.5rem;
   cursor: pointer;
   color: #666;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: color 0.3s;
 }
 
 .close-btn:hover {
@@ -896,14 +967,13 @@ body {
 }
 
 .modal-content h2 {
-  margin-top: 0;
   color: #333;
-  font-size: 1.5rem;
   margin-bottom: 1.5rem;
+  font-size: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .form-group label {
@@ -911,7 +981,7 @@ body {
   margin-bottom: 0.5rem;
   color: #333;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .form-group input {
@@ -921,7 +991,6 @@ body {
   border-radius: 6px;
   font-size: 1rem;
   transition: border-color 0.3s;
-  font-family: inherit;
 }
 
 .form-group input:focus {
@@ -942,7 +1011,7 @@ body {
   border-radius: 6px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
-  word-break: break-word;
+  border-left: 4px solid #c33;
 }
 
 .btn-submit {
@@ -956,7 +1025,7 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-  font-family: inherit;
+  margin-top: 1rem;
 }
 
 .btn-submit:hover:not(:disabled) {
@@ -972,7 +1041,7 @@ body {
 .signup-link,
 .login-link {
   text-align: center;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   color: #666;
   font-size: 0.9rem;
 }
@@ -985,30 +1054,85 @@ body {
   font-weight: 600;
   text-decoration: underline;
   transition: color 0.3s;
-  font-family: inherit;
-  font-size: inherit;
-  padding: 0;
 }
 
 .link-button:hover {
   color: #764ba2;
 }
 
-/* Responsive */
+/* ============================================================================
+   ✅ NEW: Email Verification Modal Styles
+   ============================================================================ */
+
+.verification-content {
+  text-align: center;
+}
+
+.verification-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.verification-content h2 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.verification-content p {
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.email-display {
+  background: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 6px;
+  color: #333;
+  font-weight: 600;
+  margin: 1rem 0;
+}
+
+.verification-message {
+  color: #666;
+  line-height: 1.6;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+
+.btn-resend {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 1rem;
+}
+
+.btn-resend:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-resend:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.verification-footer {
+  margin-top: 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
-  .header-content {
-    padding: 0 0.5rem;
-  }
-
-  .logo-text {
-    font-size: 1rem;
-  }
-
-  .nav-link {
-    padding: 0.4rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
   .hero-title {
     font-size: 1.8rem;
   }
@@ -1017,241 +1141,18 @@ body {
     font-size: 1rem;
   }
 
-  .hero-buttons {
-    gap: 0.5rem;
-  }
-
-  .btn-hero {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-    min-width: 120px;
-  }
-
   .features-title {
     font-size: 1.5rem;
   }
 
-  .features-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .feature-card {
-    padding: 1rem;
-  }
-
-  .feature-icon {
-    font-size: 2rem;
-  }
-
-  .feature-card h3 {
-    font-size: 1rem;
-  }
-
-  .feature-card p {
-    font-size: 0.85rem;
-  }
-
-  .cta-content h2 {
-    font-size: 1.5rem;
-  }
-
-  .cta-content p {
-    font-size: 1rem;
-  }
-
-  .btn-cta {
-    padding: 0.6rem 1.5rem;
-    font-size: 0.9rem;
-  }
-
   .modal-content {
-    padding: 1.25rem;
-    border-radius: 10px;
-  }
-
-  .modal-content h2 {
-    font-size: 1.3rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .form-group {
-    margin-bottom: 1rem;
-  }
-
-  .form-group input {
-    padding: 0.65rem;
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .header {
-    padding: 0.75rem;
-  }
-
-  .header-content {
-    padding: 0;
-  }
-
-  .logo-box {
-    padding: 0.4rem 0.75rem;
-  }
-
-  .logo-text {
-    font-size: 0.9rem;
-  }
-
-  .nav-link {
-    padding: 0.35rem 0.4rem;
-    font-size: 0.75rem;
-  }
-
-  .hero {
-    padding: 1.5rem 0.75rem;
-  }
-
-  .hero-title {
-    font-size: 1.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .hero-subtitle {
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .hero-buttons {
-    gap: 0.5rem;
-    flex-direction: column;
+    max-width: 90%;
+    padding: 1.5rem;
   }
 
   .btn-hero {
-    width: 100%;
-    padding: 0.6rem;
-    font-size: 0.85rem;
-  }
-
-  .features {
-    padding: 2rem 0.75rem;
-  }
-
-  .features-title {
-    font-size: 1.3rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .features-grid {
-    gap: 0.75rem;
-  }
-
-  .feature-card {
-    padding: 0.75rem;
-  }
-
-  .feature-icon {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .feature-card h3 {
+    padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
-    margin: 0.5rem 0;
-  }
-
-  .feature-card p {
-    font-size: 0.8rem;
-  }
-
-  .cta-section {
-    padding: 2rem 0.75rem;
-  }
-
-  .cta-content h2 {
-    font-size: 1.3rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .cta-content p {
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .btn-cta {
-    padding: 0.6rem 1rem;
-    font-size: 0.85rem;
-  }
-
-  .footer {
-    padding: 1.5rem 0.75rem 0.75rem;
-  }
-
-  .footer-content {
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .footer-section h4 {
-    font-size: 0.85rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .footer-section p {
-    font-size: 0.8rem;
-  }
-
-  .footer-section a {
-    font-size: 0.8rem;
-  }
-
-  .social-link {
-    width: 30px;
-    height: 30px;
-    font-size: 0.7rem;
-  }
-
-  .modal-overlay {
-    padding: 0.75rem;
-  }
-
-  .modal-content {
-    padding: 1rem;
-    border-radius: 8px;
-  }
-
-  .close-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 1.3rem;
-  }
-
-  .modal-content h2 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-  }
-
-  .form-group {
-    margin-bottom: 0.85rem;
-  }
-
-  .form-group label {
-    font-size: 0.9rem;
-  }
-
-  .form-group input {
-    padding: 0.6rem;
-    font-size: 16px;
-  }
-
-  .btn-submit {
-    padding: 0.65rem;
-    font-size: 0.95rem;
-  }
-
-  .signup-link,
-  .login-link {
-    font-size: 0.85rem;
-    margin-top: 1rem;
   }
 }
 </style>
