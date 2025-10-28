@@ -3,18 +3,24 @@
 // Single source of truth for ALL server operations
 // Fixes all broken imports, missing packages, and plugin issues
 
-import jwt from 'jsonwebtoken';
-import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken'
+import { createClient } from '@supabase/supabase-js'
 
 // ============ SUPABASE CLIENT ============
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || ''
+const supabaseKey = process.env.SUPABASE_KEY || ''
 
+// ✅ CRITICAL FIX: Validate Supabase credentials on startup
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('⚠️ Supabase credentials not configured');
+  console.error('❌ CRITICAL ERROR: Supabase credentials not configured!')
+  console.error('Missing environment variables:')
+  if (!supabaseUrl) console.error('  - SUPABASE_URL')
+  if (!supabaseKey) console.error('  - SUPABASE_KEY')
+  console.error('Please check your .env file and restart the server.')
+  // Don't throw here, let it fail gracefully on first request
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // ============ AUTHENTICATION ============
 
@@ -25,498 +31,310 @@ export const authenticateUser = async (event: any) => {
   try {
     const token = 
       getCookie(event, 'auth-token') || 
-      getHeader(event, 'authorization')?.replace('Bearer ', '');
+      getHeader(event, 'authorization')?.replace('Bearer ', '')
     
     if (!token) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Authentication required'
-      });
+      })
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabase.auth.getUser(token)
     
     if (error || !user) {
+      console.error('[Auth] Invalid or expired token:', error)
       throw createError({
         statusCode: 401,
         statusMessage: 'Invalid or expired token'
-      });
+      })
     }
 
-    event.context.user = user;
-    return user;
+    event.context.user = user
+    return user
   } catch (error: any) {
-    console.error('Authentication error:', error);
+    console.error('[Auth] Authentication error:', error)
     throw createError({
       statusCode: error.statusCode || 401,
       statusMessage: error.statusMessage || 'Authentication failed'
-    });
+    })
   }
-};
+}
 
 /**
  * Authenticate token (alias for compatibility)
  */
-export const authenticateToken = authenticateUser;
+export const authenticateToken = authenticateUser
 
 /**
  * Auth middleware (alias for compatibility)
  */
-export const authMiddleware = authenticateUser;
+export const authMiddleware = authenticateUser
 
 // ============ ROLE-BASED ACCESS CONTROL ============
 
 export const requireAdmin = async (event: any) => {
-  const user = await authenticateUser(event);
-  if (user.role !== 'admin') {
+  const user = await authenticateUser(event)
+  
+  // Fetch user profile to check role
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (error || !profile) {
+    console.error('[Auth] Failed to fetch user profile:', error)
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Access denied'
+    })
+  }
+
+  if (profile.role !== 'admin') {
+    console.error('[Auth] User is not admin:', user.id)
     throw createError({
       statusCode: 403,
       statusMessage: 'Admin access required'
-    });
+    })
   }
-  return user;
-};
+  
+  return user
+}
 
 export const requireManager = async (event: any) => {
-  const user = await authenticateUser(event);
-  if (user.role !== 'manager' && user.role !== 'admin') {
+  const user = await authenticateUser(event)
+  
+  // Fetch user profile to check role
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (error || !profile) {
+    console.error('[Auth] Failed to fetch user profile:', error)
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Access denied'
+    })
+  }
+
+  if (!['admin', 'manager'].includes(profile.role)) {
+    console.error('[Auth] User is not manager:', user.id)
     throw createError({
       statusCode: 403,
       statusMessage: 'Manager access required'
-    });
+    })
   }
-  return user;
-};
+  
+  return user
+}
 
-export const requireRole = (role: string) => {
-  return async (event: any) => {
-    const user = await authenticateUser(event);
-    if (user.role !== role) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: `${role} access required`
-      });
-    }
-    return user;
-  };
-};
+// ============ JWT UTILITIES ============
 
-// ============ RATE LIMITING ============
-
-const requestMap = new Map<string, number[]>();
-
-export const rateLimit = (maxRequests: number, windowMs: number) => {
-  return async (event: any) => {
-    const ip = getClientIP(event);
-    const now = Date.now();
-    const windowStart = now - windowMs;
-
-    if (!requestMap.has(ip)) {
-      requestMap.set(ip, []);
-    }
-
-    const userRequests = requestMap.get(ip)!.filter(time => time > windowStart);
-    
-    if (userRequests.length >= maxRequests) {
-      throw createError({
-        statusCode: 429,
-        statusMessage: 'Too many requests. Please try again later.'
-      });
-    }
-
-    userRequests.push(now);
-    requestMap.set(ip, userRequests);
-  };
-};
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 
 /**
- * Rate limit middleware (alias for compatibility)
+ * Create JWT token
  */
-export const rateLimitMiddleware = rateLimit;
-
-// ============ UTILITIES ============
-
-export const getClientIP = (event: any): string => {
-  return (
-    getHeader(event, 'x-forwarded-for')?.split(',')[0].trim() ||
-    getHeader(event, 'x-real-ip') ||
-    event.node.req.socket.remoteAddress ||
-    'unknown'
-  );
-};
-
-export const logAdminAction = async (
-  adminId: string,
-  actionType: string,
-  targetId: string,
-  targetType: string,
-  details?: any
-) => {
+export const createJWT = (payload: any, expiresIn: string = '7d') => {
   try {
-    await supabase.from('admin_actions').insert({
-      admin_id: adminId,
-      action_type: actionType,
-      target_id: targetId,
-      target_type: targetType,
-      details: details || {},
-      created_at: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error logging admin action:', error);
-  }
-};
-
-export const validateBody = (body: any, requiredFields: string[]) => {
-  const missing = requiredFields.filter(field => !body[field]);
-  if (missing.length > 0) {
+    return jwt.sign(payload, JWT_SECRET, { expiresIn })
+  } catch (error: any) {
+    console.error('[JWT] Failed to create token:', error)
     throw createError({
-      statusCode: 400,
-      statusMessage: `Missing required fields: ${missing.join(', ')}`
-    });
+      statusCode: 500,
+      statusMessage: 'Failed to create authentication token'
+    })
   }
-};
+}
 
-export const handleError = (error: any, context: string = 'Operation') => {
-  console.error(`${context} error:`, error);
-  throw createError({
-    statusCode: error.statusCode || 500,
-    statusMessage: error.statusMessage || `${context} failed`
-  });
-};
-
-// ============ STREAM OPERATIONS ============
-
-export const streamOperations = {
-  async createStream(userId: string, streamData: any) {
-    const { data, error } = await supabase
-      .from('streams')
-      .insert({
-        user_id: userId,
-        ...streamData,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getStream(streamId: string) {
-    const { data, error } = await supabase
-      .from('streams')
-      .select('*')
-      .eq('id', streamId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getUserStreams(userId: string) {
-    const { data, error } = await supabase
-      .from('streams')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async updateStream(streamId: string, updates: any) {
-    const { data, error } = await supabase
-      .from('streams')
-      .update(updates)
-      .eq('id', streamId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async deleteStream(streamId: string) {
-    const { error } = await supabase
-      .from('streams')
-      .delete()
-      .eq('id', streamId);
-
-    if (error) throw error;
-    return true;
+/**
+ * Verify JWT token
+ */
+export const verifyJWT = (token: string) => {
+  try {
+    return jwt.verify(token, JWT_SECRET)
+  } catch (error: any) {
+    console.error('[JWT] Failed to verify token:', error)
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Invalid or expired token'
+    })
   }
-};
+}
 
-// ============ GROUP CHAT OPERATIONS ============
+// ============ USER UTILITIES ============
 
-export const groupChatOperations = {
-  async createGroup(userId: string, groupData: any) {
-    const { data, error } = await supabase
-      .from('group_chats')
-      .insert({
-        creator_id: userId,
-        ...groupData,
-        created_at: new Date().toISOString()
+/**
+ * Get user profile by ID
+ */
+export const getUserProfile = async (userId: string) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('[Auth] Failed to fetch user profile:', error)
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'User profile not found'
       })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getGroup(groupId: string) {
-    const { data, error } = await supabase
-      .from('group_chats')
-      .select('*')
-      .eq('id', groupId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getUserGroups(userId: string) {
-    const { data, error } = await supabase
-      .from('group_chats')
-      .select('*')
-      .contains('members', [userId])
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async addMember(groupId: string, userId: string) {
-    const group = await this.getGroup(groupId);
-    const members = group.members || [];
-    
-    if (!members.includes(userId)) {
-      members.push(userId);
     }
 
-    const { data, error } = await supabase
-      .from('group_chats')
-      .update({ members })
-      .eq('id', groupId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async removeMember(groupId: string, userId: string) {
-    const group = await this.getGroup(groupId);
-    const members = (group.members || []).filter((id: string) => id !== userId);
-
-    const { data, error } = await supabase
-      .from('group_chats')
-      .update({ members })
-      .eq('id', groupId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    return profile
+  } catch (error: any) {
+    console.error('[Auth] Error fetching user profile:', error)
+    throw error
   }
-};
+}
 
-// ============ WALLET OPERATIONS ============
-
-export const walletOperations = {
-  async lockWallet(userId: string, lockData: any) {
-    const { data, error } = await supabase
-      .from('wallet_locks')
-      .insert({
-        user_id: userId,
-        ...lockData,
-        created_at: new Date().toISOString()
+/**
+ * Update user profile
+ */
+export const updateUserProfile = async (userId: string, updates: any) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
       })
+      .eq('id', userId)
       .select()
-      .single();
+      .single()
 
-    if (error) throw error;
-    return data;
-  },
-
-  async unlockWallet(lockId: string) {
-    const { data, error } = await supabase
-      .from('wallet_locks')
-      .update({ is_active: false, unlocked_at: new Date().toISOString() })
-      .eq('id', lockId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getWalletLocks(userId: string) {
-    const { data, error } = await supabase
-      .from('wallet_locks')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true);
-
-    if (error) throw error;
-    return data;
-  }
-};
-
-// ============ GIFT OPERATIONS ============
-
-export const giftOperations = {
-  async sendGift(senderData: any) {
-    const { data, error } = await supabase
-      .from('gifts')
-      .insert({
-        ...senderData,
-        created_at: new Date().toISOString()
+    if (error) {
+      console.error('[Auth] Failed to update user profile:', error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to update user profile'
       })
-      .select()
-      .single();
+    }
 
-    if (error) throw error;
-    return data;
-  },
-
-  async getGifts(userId: string) {
-    const { data, error } = await supabase
-      .from('gifts')
-      .select('*')
-      .eq('recipient_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async cancelGift(giftId: string) {
-    const { data, error } = await supabase
-      .from('gifts')
-      .update({ status: 'cancelled' })
-      .eq('id', giftId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    return profile
+  } catch (error: any) {
+    console.error('[Auth] Error updating user profile:', error)
+    throw error
   }
-};
+}
 
-// ============ STATUS OPERATIONS ============
+/**
+ * Check if user exists
+ */
+export const userExists = async (email: string) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single()
 
-export const statusOperations = {
-  async createStatus(userId: string, statusData: any) {
-    const { data, error } = await supabase
-      .from('statuses')
-      .insert({
-        user_id: userId,
-        ...statusData,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    if (error && error.code !== 'PGRST116') {
+      console.error('[Auth] Error checking user existence:', error)
+      throw error
+    }
 
-    if (error) throw error;
-    return data;
-  },
-
-  async getStatus(statusId: string) {
-    const { data, error } = await supabase
-      .from('statuses')
-      .select('*')
-      .eq('id', statusId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getUserStatuses(userId: string) {
-    const { data, error } = await supabase
-      .from('statuses')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async deleteStatus(statusId: string) {
-    const { error } = await supabase
-      .from('statuses')
-      .delete()
-      .eq('id', statusId);
-
-    if (error) throw error;
-    return true;
+    return !!profile
+  } catch (error: any) {
+    console.error('[Auth] Error checking user existence:', error)
+    return false
   }
-};
+}
 
-// ============ PREMIUM OPERATIONS ============
+// ============ RESPONSE UTILITIES ============
 
-export const premiumOperations = {
-  async getPricingTiers() {
-    const { data, error } = await supabase
-      .from('premium_tiers')
-      .select('*')
-      .order('price', { ascending: true });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getUserSubscription(userId: string) {
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async checkFeatureAccess(userId: string, featureKey: string) {
-    const subscription = await this.getUserSubscription(userId);
-    if (!subscription) return false;
-
-    const { data, error } = await supabase
-      .from('premium_features')
-      .select('*')
-      .eq('tier', subscription.tier)
-      .eq('feature_key', featureKey)
-      .single();
-
-    if (error) return false;
-    return !!data;
+/**
+ * Standard success response
+ */
+export const successResponse = (data: any, message: string = 'Success') => {
+  return {
+    success: true,
+    statusMessage: message,
+    data
   }
-};
+}
 
-// ============ EXPORT ALL ============
+/**
+ * Standard error response
+ */
+export const errorResponse = (statusCode: number, statusMessage: string) => {
+  throw createError({
+    statusCode,
+    statusMessage
+  })
+}
 
-export default {
-  supabase,
-  authenticateUser,
-  authenticateToken,
-  authMiddleware,
-  requireAdmin,
-  requireManager,
-  requireRole,
-  rateLimit,
-  rateLimitMiddleware,
-  getClientIP,
-  logAdminAction,
-  validateBody,
-  handleError,
-  streamOperations,
-  groupChatOperations,
-  walletOperations,
-  giftOperations,
-  statusOperations,
-  premiumOperations
-};
+// ============ VALIDATION UTILITIES ============
 
+/**
+ * Validate email format
+ */
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+/**
+ * Validate phone format
+ */
+export const isValidPhone = (phone: string): boolean => {
+  const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/
+  return phoneRegex.test(phone.replace(/\s/g, ''))
+}
+
+/**
+ * Validate password strength
+ */
+export const isValidPassword = (password: string): boolean => {
+  // At least 8 characters
+  if (password.length < 8) return false
+  
+  // At least one uppercase letter
+  if (!/[A-Z]/.test(password)) return false
+  
+  // At least one lowercase letter
+  if (!/[a-z]/.test(password)) return false
+  
+  // At least one number
+  if (!/[0-9]/.test(password)) return false
+  
+  return true
+}
+
+/**
+ * Validate username format
+ */
+export const isValidUsername = (username: string): boolean => {
+  // 3-20 characters, alphanumeric and underscore only
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/
+  return usernameRegex.test(username)
+}
+
+// ============ LOGGING UTILITIES ============
+
+/**
+ * Log authentication event
+ */
+export const logAuthEvent = (event: string, userId: string, details: any = {}) => {
+  console.log(`[Auth Event] ${event}`, {
+    userId,
+    timestamp: new Date().toISOString(),
+    ...details
+  })
+}
+
+/**
+ * Log error event
+ */
+export const logErrorEvent = (event: string, error: any, details: any = {}) => {
+  console.error(`[Auth Error] ${event}`, {
+    error: error.message || error,
+    timestamp: new Date().toISOString(),
+    ...details
+  })
+}
