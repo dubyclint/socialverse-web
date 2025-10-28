@@ -161,7 +161,7 @@ export default defineEventHandler(async (event) => {
       
       if (interestsError) {
         console.error('[Signup] Failed to add user interests:', interestsError)
-        // Don't fail the signup if interests fail - they can be added later
+        // Don't fail the signup if interests fail
       } else {
         console.log('[Signup] ✅ User interests added successfully')
       }
@@ -188,12 +188,10 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.error('[Signup] Error:', error)
     
-    // If it's already a createError, rethrow it
     if (error.statusCode) {
       throw error
     }
     
-    // Otherwise, create a generic error
     throw createError({
       statusCode: 500,
       statusMessage: error.message || 'Signup failed. Please try again.'
