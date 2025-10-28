@@ -21,3 +21,4 @@ export default defineNitroPlugin((nitroApp) => {
   console.log('[Supabase Plugin] Supabase URL:', supabaseUrl)
   console.log('[Supabase Plugin] Supabase plugin initialized successfully')
 })
+
