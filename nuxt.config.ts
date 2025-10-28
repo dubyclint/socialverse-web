@@ -1,4 +1,5 @@
-mport { execSync } from 'child_process'
+// https://nuxt.com/docs/api/configuration/nuxt-config
+import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
