@@ -1,4 +1,3 @@
-// server/api/auth/login.post.ts - FIXED VERSION
 import { serverSupabaseClient } from '#supabase/server'
 
 interface LoginRequest {
@@ -19,6 +18,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    console.log('[Login] Attempting login for:', body.email)
+
     // Authenticate user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: body.email,
@@ -26,10 +27,10 @@ export default defineEventHandler(async (event) => {
     })
 
     if (authError) {
+      console.error('[Login] Auth error:', authError)
       throw createError({
         statusCode: 401,
-        statusMessage: 'Invalid email or password',
-        data: authError
+        statusMessage: 'Invalid email or password'
       })
     }
 
@@ -40,62 +41,73 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Fetch user profile with all details
+    console.log('[Login] User authenticated:', authData.user.id)
+
+    // ✅ FIX: Fetch user profile with error handling
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', authData.user.id)
       .single()
 
-    if (profileError || !profile) {
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('[Login] Profile fetch error:', profileError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to fetch user profile',
-        data: profileError
+        statusMessage: 'Failed to fetch user profile'
       })
     }
 
-    // Verify user has proper authentication (profile exists and is linked to user ID)
-    if (profile.id !== authData.user.id) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'User authentication mismatch'
-      })
+    // ✅ FIX: If profile doesn't exist, create it
+    if (!profile) {
+      console.log('[Login] Profile not found, creating default profile')
+      const { error: profileCreateError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: authData.user.email,
+          role: 'user',
+          status: 'active',
+          email_verified: !!authData.user.email_confirmed_at,
+          preferences: {},
+          metadata: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+
+      if (profileCreateError) {
+        console.error('[Login] Profile creation error:', profileCreateError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Failed to create user profile'
+        })
+      }
     }
 
-    // Return authenticated user data with profile and user ID
+    console.log('[Login] Login successful for:', body.email)
+
+    // Return authenticated user data
     return {
       success: true,
       data: {
         user: {
           id: authData.user.id,
-          email: authData.user.email,
-          username: profile.username,
-          fullName: profile.full_name,
-          phone: profile.phone_number,
-          role: profile.role,
-          avatar_url: profile.avatar_url,
-          is_verified: profile.is_verified,
-          rank: profile.rank,
-          rank_points: profile.rank_points
+          email: authData.user.email
         },
-        profile: profile,
         session: authData.session
-      },
-      message: 'Login successful'
+      }
     }
 
   } catch (error) {
-    console.error('Login error:', error)
-
-    if (error.statusCode) {
+    console.error('[Login] Error caught:', error)
+    
+    if ((error as any).statusCode) {
       throw error
     }
-
+    
     throw createError({
       statusCode: 500,
-      statusMessage: 'Internal server error during login',
-      data: error
+      statusMessage: `Internal server error: ${(error as any).message || 'Unknown error'}`
     })
   }
 })
