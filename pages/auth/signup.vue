@@ -122,7 +122,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -167,6 +167,7 @@ const handleSignup = async () => {
       phone: phone.value
     })
 
+    // ✅ STEP 1: Call signup endpoint
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -181,17 +182,36 @@ const handleSignup = async () => {
     console.log('[Signup] Response received:', response)
 
     if (response.success) {
-      success.value = response.statusMessage || 'Account created successfully! Redirecting to login...'
-      setTimeout(() => {
-        router.push('/auth/login')
-      }, 2000)
+      success.value = response.statusMessage || 'Account created successfully!'
+      
+      // ✅ STEP 2: Get auth store
+      const authStore = useAuthStore()
+      
+      // ✅ STEP 3: Perform handshake (fetch profile, load permissions, init plugins)
+      console.log('[Signup] Performing auth handshake...')
+      const handshakeResult = await authStore.performSignupHandshake()
+      
+      if (handshakeResult.success) {
+        console.log('[Signup] ✅ Handshake complete, redirecting to dashboard...')
+        // Redirect to dashboard after handshake
+        setTimeout(() => {
+          router.push('/feed')
+        }, 1000)
+      } else {
+        console.error('[Signup] Handshake failed:', handshakeResult.error)
+        error.value = 'Failed to initialize account. Please try logging in.'
+        // Still redirect to login to try manual login
+        setTimeout(() => {
+          router.push('/auth/login')
+        }, 2000)
+      }
     } else {
       error.value = response.statusMessage || 'Signup failed. Please try again.'
     }
   } catch (err) {
     console.error('[Signup] Error caught:', err)
     
-    // ✅ CRITICAL FIX: Handle both statusMessage and message fields
+    // ✅ Handle both statusMessage and message fields
     const errorMessage = 
       err.data?.statusMessage || 
       err.statusMessage || 
