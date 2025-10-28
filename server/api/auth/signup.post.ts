@@ -158,10 +158,10 @@ export default defineEventHandler(async (event) => {
         phone_number: body.phone,
         bio: body.profile?.bio || '',
         avatar_url: body.profile?.avatar_url || null,
-        role: 'user', // Default role
+        role: 'user',
         status: 'active',
         is_verified: false,
-        rank: 'bronze', // Default rank
+        rank: 'bronze',
         rank_points: 0,
         email_verified: false,
         preferences: {},
@@ -182,10 +182,6 @@ export default defineEventHandler(async (event) => {
     }
     
     console.log('[Signup] User profile created successfully')
-    
-    // ✅ REMOVED: user_roles insertion - not needed for basic auth
-    // The role is already set in the profiles table
-    console.log('[Signup] User profile created with role: user')
     
     // Add user interests if provided
     if (body.interests && body.interests.length > 0) {
@@ -211,6 +207,7 @@ export default defineEventHandler(async (event) => {
     // Return success response with user ID and profile data
     return {
       success: true,
+      statusMessage: 'Account created successfully. Please verify your email.',
       data: {
         user: {
           id: authData.user.id,
@@ -220,8 +217,7 @@ export default defineEventHandler(async (event) => {
           phone: body.phone
         },
         session: authData.session
-      },
-      message: 'Account created successfully. Please verify your email.'
+      }
     }
     
   } catch (error) {
@@ -239,4 +235,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
