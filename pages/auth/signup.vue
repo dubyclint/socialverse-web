@@ -160,6 +160,13 @@ const handleSignup = async () => {
   loading.value = true
 
   try {
+    console.log('[Signup] Sending request with:', {
+      email: email.value,
+      username: username.value,
+      fullName: fullName.value,
+      phone: phone.value
+    })
+
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -171,12 +178,29 @@ const handleSignup = async () => {
       }
     })
 
-    success.value = 'Account created successfully! Redirecting to login...'
-    setTimeout(() => {
-      router.push('/auth/login')
-    }, 2000)
+    console.log('[Signup] Response received:', response)
+
+    if (response.success) {
+      success.value = response.statusMessage || 'Account created successfully! Redirecting to login...'
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 2000)
+    } else {
+      error.value = response.statusMessage || 'Signup failed. Please try again.'
+    }
   } catch (err) {
-    error.value = err.data?.message || err.message || 'Signup failed'
+    console.error('[Signup] Error caught:', err)
+    
+    // ✅ CRITICAL FIX: Handle both statusMessage and message fields
+    const errorMessage = 
+      err.data?.statusMessage || 
+      err.statusMessage || 
+      err.data?.message || 
+      err.message || 
+      'Signup failed. Please try again.'
+    
+    error.value = errorMessage
+    console.error('[Signup] Error message displayed:', error.value)
   } finally {
     loading.value = false
   }
