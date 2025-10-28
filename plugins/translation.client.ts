@@ -6,13 +6,13 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     
     const browserLang = detectBrowserLanguage()
     
-    try {
-      await loadTranslations(browserLang)
-      console.log('[Plugin] Translation plugin initialized successfully')
-    } catch (err) {
-      console.warn('[Plugin] Failed to load translations, using defaults:', err)
-      // ✅ FIX: Don't break the app, continue with fallback
-    }
+    // ✅ CRITICAL: Load translations in background, don't block app initialization
+    loadTranslations(browserLang).catch((err) => {
+      console.warn('[Plugin] Failed to load translations in background:', err)
+      // Continue anyway - app should work without translations
+    })
+    
+    console.log('[Plugin] Translation plugin initialized successfully')
     
     return {
       provide: {
@@ -23,7 +23,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     }
   } catch (err) {
     console.error('[Plugin] Translation plugin initialization failed:', err)
-    // ✅ FIX: Provide safe fallback functions
+    // ✅ CRITICAL: Provide safe fallback functions so app doesn't break
     return {
       provide: {
         t: (key: string, defaultValue?: string) => defaultValue || key,
