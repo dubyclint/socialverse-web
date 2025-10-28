@@ -12,6 +12,7 @@ export const useRBAC = () => {
   const getUserRole = (user?: any): string => {
     if (!user && !authStore.profile) return 'user'
     const profile = user || authStore.profile
+    // ✅ FIX: Ensure role always has a value
     return profile?.role || 'user'
   }
 
@@ -25,7 +26,18 @@ export const useRBAC = () => {
   const getUserPermissions = (user?: any): string[] => {
     if (!user && !authStore.profile) return []
     const profile = user || authStore.profile
-    return authStore.permissions || []
+    // ✅ FIX: Return default permissions if none found
+    return authStore.permissions || getDefaultPermissions(profile?.role || 'user')
+  }
+
+  // ✅ NEW: Default permissions by role
+  const getDefaultPermissions = (role: string): string[] => {
+    const defaultPerms = {
+      admin: ['*'], // All permissions
+      manager: ['read', 'write', 'moderate', 'manage_users'],
+      user: ['read', 'write', 'comment', 'like']
+    }
+    return defaultPerms[role] || defaultPerms['user']
   }
 
   const hasPermission = (permission: string, user?: any): boolean => {
@@ -33,7 +45,7 @@ export const useRBAC = () => {
     if (userRole === 'admin') return true
     
     const permissions = getUserPermissions(user)
-    return permissions.includes(permission)
+    return permissions.includes(permission) || permissions.includes('*')
   }
 
   const hasAnyPermission = (permissionList: string[], user?: any): boolean => {
