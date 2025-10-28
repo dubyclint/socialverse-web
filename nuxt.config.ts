@@ -72,10 +72,9 @@ export default defineNuxtConfig({
     }
   },
 
-  // ✅ CSS Configuration
+  // ✅ CSS Configuration - FIXED: Removed non-existent files
   css: [
-    '~/assets/css/main.css',
-    '~/assets/css/tailwind.css'
+    '~/assets/css/main.css'
   ],
 
   // ✅ Vite Configuration
@@ -119,4 +118,5 @@ export default defineNuxtConfig({
     classSuffix: ''
   }
 })
+
 
