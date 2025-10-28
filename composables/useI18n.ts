@@ -42,9 +42,20 @@ export async function loadTranslations(lang: string = 'en') {
         entries = []
       }
       
-      translations.value = flattenTranslations(entries)
+      // ✅ FIX: Filter out entries with extra fields (like 'language')
+      const cleanedEntries = entries.map((entry: any) => {
+        if (entry && typeof entry === 'object') {
+          return {
+            key: entry.key,
+            value: entry.value
+          }
+        }
+        return null
+      }).filter((entry: any) => entry !== null)
+      
+      translations.value = flattenTranslations(cleanedEntries)
       currentLang.value = lang
-      console.log('[i18n] Translations loaded successfully')
+      console.log('[i18n] Translations loaded successfully:', Object.keys(translations.value).length, 'keys')
     } catch (fetchErr) {
       console.warn('[i18n] Failed to fetch translations:', fetchErr)
       translations.value = {}
