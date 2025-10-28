@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
 
     // Validate required fields
     if (!body.email || !body.password) {
+      console.error('[Login] Missing required fields:', { email: !!body.email, password: !!body.password })
       throw createError({
         statusCode: 400,
         statusMessage: 'Email and password are required'
@@ -35,6 +36,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!authData.user) {
+      console.error('[Login] No user returned from auth')
       throw createError({
         statusCode: 401,
         statusMessage: 'Authentication failed'
@@ -103,6 +105,7 @@ export default defineEventHandler(async (event) => {
       // ✅ CRITICAL FIX: Return COMPLETE profile data
       return {
         success: true,
+        statusMessage: 'Login successful',
         data: {
           user: {
             id: authData.user.id,
@@ -127,6 +130,7 @@ export default defineEventHandler(async (event) => {
     // ✅ CRITICAL FIX: Return COMPLETE profile data
     return {
       success: true,
+      statusMessage: 'Login successful',
       data: {
         user: {
           id: authData.user.id,
@@ -149,13 +153,14 @@ export default defineEventHandler(async (event) => {
     console.error('[Login] Error caught:', error)
     
     if ((error as any).statusCode) {
+      console.error('[Login] Throwing error with status:', (error as any).statusCode, (error as any).statusMessage)
       throw error
     }
     
+    console.error('[Login] Unexpected error:', (error as any).message || error)
     throw createError({
       statusCode: 500,
-      statusMessage: `Internal server error: ${(error as any).message || 'Unknown error'}`
+      statusMessage: `Internal server error: ${(error as any).message || 'Unknown error during login'}`
     })
   }
 })
-
