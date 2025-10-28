@@ -1,8 +1,8 @@
 // ============================================================================
 // plugins/gun-client.ts - GUN DATABASE CLIENT PLUGIN
 // ============================================================================
-// Gun is DISABLED during sign-up/login
-// Gun initializes ONLY after user is authenticated
+// ✅ Gun is DISABLED during sign-up/login
+// ✅ Gun initializes ONLY after user is authenticated
 
 import Gun from 'gun/gun'
 import 'gun/sea'
@@ -16,9 +16,9 @@ declare global {
 let gunInstance: any = null
 
 export default defineNuxtPlugin(() => {
-  console.log('[Gun] Plugin loaded - Gun will initialize after authentication')
+  console.log('[Gun] Plugin loaded - waiting for authentication')
   
-  // Gun is disabled by default - will be enabled by auth store after sign-in
+  // ✅ Gun is disabled by default - will be enabled by auth store after sign-in
   gunInstance = {
     get: (key: string) => ({
       on: (callback: Function) => {},
@@ -43,25 +43,39 @@ export default defineNuxtPlugin(() => {
   return {
     provide: {
       gun: gunInstance,
-      // Function to initialize Gun after auth
+      // ✅ Function to initialize Gun after auth
       initializeGun: (config?: any) => {
         try {
           console.log('[Gun] Initializing Gun after authentication...')
           gunInstance = Gun({
             peers: config?.peers || ['https://gun-messaging-peer.herokuapp.com/gun'],
             localStorage: false,
-            radisk: false,
+            radisk: false
           })
-          if (process.client) {
-            window.$gun = gunInstance
-          }
-          console.log('[Gun] Gun initialized successfully')
+
+          console.log('[Gun] ✅ Gun initialized')
+          window.$gun = gunInstance
           return gunInstance
-        } catch (err) {
-          console.error('[Gun] Initialization failed:', err)
+        } catch (error) {
+          console.error('[Gun] Failed to initialize:', error)
           return null
+        }
+      },
+      
+      // ✅ Function to disconnect Gun
+      disconnectGun: () => {
+        if (gunInstance) {
+          console.log('[Gun] Disconnecting...')
+          try {
+            gunInstance.off()
+          } catch (error) {
+            console.warn('[Gun] Error during disconnect:', error)
+          }
+          gunInstance = null
+          window.$gun = undefined
         }
       }
     }
   }
 })
+
