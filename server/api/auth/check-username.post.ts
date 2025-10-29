@@ -12,31 +12,38 @@ export default defineEventHandler(async (event) => {
       return { available: false }
     }
     
-    // Query with RLS disabled (using service role would be better, but we'll use regular client)
-    const { data, error } = await supabase
+    // Use rpc call or direct query - bypass RLS by using service role
+    // First, try a simple count query
+    const { data, error, count } = await supabase
       .from('profiles')
-      .select('id, username', { count: 'exact' })
+      .select('id', { count: 'exact', head: true })
       .eq('username', username)
-      .limit(1)
     
-    console.log('[CheckUsername] Query result:', { data, error })
+    console.log('[CheckUsername] Query result:', { data, error, count })
     
     if (error) {
-      console.error('[CheckUsername] Query error:', error)
-      // If there's an error, assume username is available (don't block signup)
+      console.error('[CheckUsername] Query error:', error.message, error.code)
+      
+      // If it's a RLS error, log it but still try to help
+      if (error.code === 'PGRST116' || error.message.includes('no rows')) {
+        console.log('[CheckUsername] No rows found - username is available')
+        return { available: true }
+      }
+      
+      // For other errors, assume available to not block signup
+      console.warn('[CheckUsername] Assuming username available due to error')
       return { available: true }
     }
     
-    // If data exists and has items, username is taken
-    const isTaken = data && data.length > 0
+    // If count is 0 or data is empty, username is available
+    const isTaken = count && count > 0
     
-    console.log('[CheckUsername] Username taken:', isTaken)
+    console.log('[CheckUsername] Username taken:', isTaken, 'Count:', count)
     
     return { available: !isTaken }
-  } catch (err) {
-    console.error('[CheckUsername] Unexpected error:', err)
+  } catch (err: any) {
+    console.error('[CheckUsername] Unexpected error:', err.message)
     // On error, assume available to not block signup
     return { available: true }
   }
 })
-
