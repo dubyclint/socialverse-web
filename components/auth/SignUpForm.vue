@@ -205,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -239,21 +239,28 @@ const passwordMismatch = computed(() => {
 const canProceedStep1 = computed(() => {
   return formData.value.email && 
          formData.value.username && 
+         formData.value.username.length >= 3 &&
          formData.value.phone && 
          formData.value.password.length >= 8 && 
-         !passwordMismatch.value &&
-         (!usernameStatus.value || usernameStatus.value.type === 'success')
+         !passwordMismatch.value
+  // REMOVED: username status check - we'll validate on signup instead
 })
 
 // Methods
 const checkUsernameAvailability = async () => {
-  if (formData.value.username.length < 3) return
+  if (formData.value.username.length < 3) {
+    usernameStatus.value = null
+    return
+  }
   
   try {
+    console.log('[SignUp] Checking username availability:', formData.value.username)
     const response = await $fetch('/api/auth/check-username', {
       method: 'POST',
       body: { username: formData.value.username }
     })
+    
+    console.log('[SignUp] Username check response:', response)
     
     if (response.available) {
       usernameStatus.value = { type: 'success', message: '✓ Username available!' }
@@ -262,7 +269,8 @@ const checkUsernameAvailability = async () => {
     }
   } catch (error) {
     console.error('[SignUp] Username check error:', error)
-    usernameStatus.value = { type: 'warning', message: 'Could not verify username' }
+    // On error, don't block the form - let signup validation handle it
+    usernameStatus.value = null
   }
 }
 
@@ -298,6 +306,13 @@ const completeSignup = async () => {
   signupError.value = ''
   
   try {
+    // Validate username one more time before signup
+    if (usernameStatus.value && usernameStatus.value.type === 'error') {
+      signupError.value = 'Username is already taken. Please choose another.'
+      isSigningUp.value = false
+      return
+    }
+
     console.log('[SignUp] Submitting form with interests:', selectedInterests.value)
     
     // Create user account
@@ -320,7 +335,7 @@ const completeSignup = async () => {
     if (response.success) {
       console.log('[SignUp] ✅ Account created successfully')
       // Redirect to verify email page
-      await router.push('/auth/verify-email')
+      await navigateTo('/auth/verify-email')
     } else {
       throw new Error(response.statusMessage || 'Signup failed')
     }
@@ -343,6 +358,11 @@ const completeSignup = async () => {
 // Lifecycle
 onMounted(() => {
   loadInterests()
+})
+
+// Watch username changes
+watch(() => formData.value.username, () => {
+  checkUsernameAvailability()
 })
 </script>
 
