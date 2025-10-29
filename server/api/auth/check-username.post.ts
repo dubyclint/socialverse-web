@@ -7,24 +7,37 @@ export default defineEventHandler(async (event) => {
     
     console.log('[CheckUsername] Checking username:', username)
     
-    if (!username || username.length < 3) {
+    // Validate input
+    if (!username || typeof username !== 'string') {
+      console.log('[CheckUsername] Invalid username input')
+      return { available: false, reason: 'Invalid username' }
+    }
+    
+    const trimmedUsername = username.trim().toLowerCase()
+    
+    if (trimmedUsername.length < 3) {
       console.log('[CheckUsername] Username too short')
       return { available: false, reason: 'Username must be at least 3 characters' }
     }
     
+    if (trimmedUsername.length > 30) {
+      console.log('[CheckUsername] Username too long')
+      return { available: false, reason: 'Username must be less than 30 characters' }
+    }
+    
     // Validate username format (alphanumeric, underscore, hyphen only)
-    const usernameRegex = /^[a-zA-Z0-9_-]+$/
-    if (!usernameRegex.test(username)) {
-      console.log('[CheckUsername] Invalid username format')
+    const usernameRegex = /^[a-z0-9_-]+$/
+    if (!usernameRegex.test(trimmedUsername)) {
+      console.log('[CheckUsername] Invalid username format:', trimmedUsername)
       return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
     }
     
     // Query the profiles table to check if username exists
-    // Convert to lowercase for case-insensitive comparison
+    // Use ilike for case-insensitive search
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
-      .ilike('username', username)  // Use ilike for case-insensitive search
+      .ilike('username', trimmedUsername)
     
     console.log('[CheckUsername] Query result:', { 
       count, 
@@ -33,9 +46,12 @@ export default defineEventHandler(async (event) => {
       errorCode: error?.code 
     })
     
+    // Handle database errors
     if (error) {
-      console.error('[CheckUsername] Query error:', error.message)
-      // If query fails, return error instead of assuming available
+      console.error('[CheckUsername] Database query error:', error.message, error.code)
+      
+      // Don't silently return available: true on error
+      // Instead, throw an error so the frontend knows something went wrong
       throw createError({
         statusCode: 500,
         statusMessage: `Database error: ${error.message}`
@@ -43,16 +59,26 @@ export default defineEventHandler(async (event) => {
     }
     
     // Check if username is taken
+    // count should be reliable when no error occurs
     const isTaken = count !== null && count > 0
     
     console.log('[CheckUsername] Result - Username taken:', isTaken, '| Count:', count)
     
     return { 
       available: !isTaken,
-      count: count || 0
+      count: count || 0,
+      username: trimmedUsername
     }
+    
   } catch (err: any) {
     console.error('[CheckUsername] Unexpected error:', err.message)
+    
+    // If it's already a formatted error, throw it
+    if (err.statusCode) {
+      throw err
+    }
+    
+    // Otherwise, throw a generic error
     throw createError({
       statusCode: 500,
       statusMessage: `Username check failed: ${err.message}`
