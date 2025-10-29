@@ -1,7 +1,0 @@
-CREATE TABLE IF NOT EXISTS posts (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  content TEXT,
-  pews INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
