@@ -7,6 +7,9 @@
       <h3>Create Your Account</h3>
       
       <form @submit.prevent="nextStep">
+        <!-- Error display -->
+        <div v-if="error" class="error-message">{{ error }}</div>
+        
         <div class="form-group">
           <label for="email">Email</label>
           <input 
@@ -15,6 +18,7 @@
             type="email" 
             required 
             placeholder="your@email.com"
+            :disabled="loading"
           />
         </div>
 
@@ -27,25 +31,14 @@
             required 
             placeholder="@username"
             @input="onUsernameInput"
+            :disabled="loading"
           />
-          <span v-if="usernameStatus" :class="usernameStatus.type">
-            {{ usernameStatus.message }}
-          </span>
           <span v-if="checkingUsername" class="checking">
             Checking availability...
           </span>
-        </div>
-
-        <!-- PHONE NUMBER FIELD -->
-        <div class="form-group">
-          <label for="phone">Phone Number</label>
-          <input 
-            id="phone"
-            v-model="formData.phone" 
-            type="tel" 
-            required 
-            placeholder="+1 (555) 000-0000"
-          />
+          <span v-else-if="usernameStatus" :class="['status', usernameStatus.type]">
+            {{ usernameStatus.message }}
+          </span>
         </div>
 
         <div class="form-group">
@@ -57,6 +50,8 @@
             required 
             minlength="8"
             placeholder="At least 8 characters"
+            @input="validatePasswords"
+            :disabled="loading"
           />
         </div>
 
@@ -68,64 +63,53 @@
             type="password" 
             required 
             placeholder="Confirm your password"
+            @input="validatePasswords"
+            :disabled="loading"
           />
-          <span v-if="passwordMismatch" class="error">
-            Passwords don't match
+          <span v-if="passwordMismatch" class="error-text">
+            Passwords do not match
           </span>
         </div>
 
-        <button type="submit" :disabled="!canProceedStep1" class="btn-primary">
-          Continue
+        <button 
+          type="submit" 
+          class="submit-button" 
+          :disabled="!canProceedStep1 || loading"
+        >
+          {{ loading ? 'Processing...' : 'Next' }}
         </button>
       </form>
     </div>
 
-    <!-- Step 2: Interests Selection -->
+    <!-- Step 2: Additional Info -->
     <div v-if="currentStep === 2" class="step">
-      <h3>What interests you?</h3>
-      <p>Select at least 3 interests to personalize your experience</p>
-      
-      <div class="interests-grid">
-        <div 
-          v-for="interest in interests" 
-          :key="interest.id"
-          class="interest-card"
-          :class="{ selected: selectedInterests.includes(interest.id) }"
-          @click="toggleInterest(interest.id)"
-        >
-          <div class="interest-icon">{{ interest.icon || '📌' }}</div>
-          <h4>{{ interest.name }}</h4>
-          <p>{{ interest.description }}</p>
-        </div>
-      </div>
-
-      <div class="step-actions">
-        <button @click="currentStep = 1" class="btn-secondary">
-          Back
-        </button>
-        <button 
-          @click="nextStep" 
-          :disabled="selectedInterests.length < 3"
-          class="btn-primary"
-        >
-          Continue ({{ selectedInterests.length }}/3+ selected)
-        </button>
-      </div>
-    </div>
-
-    <!-- Step 3: Profile Details -->
-    <div v-if="currentStep === 3" class="step">
       <h3>Complete Your Profile</h3>
       
-      <form @submit.prevent="completeSignup">
+      <form @submit.prevent="handleSubmit">
+        <!-- Error display -->
+        <div v-if="error" class="error-message">{{ error }}</div>
+
         <div class="form-group">
-          <label for="displayName">Display Name</label>
+          <label for="fullName">Full Name</label>
           <input 
-            id="displayName"
-            v-model="formData.displayName" 
+            id="fullName"
+            v-model="formData.fullName" 
             type="text" 
             required 
-            placeholder="How should others see you?"
+            placeholder="John Doe"
+            :disabled="loading"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input 
+            id="phone"
+            v-model="formData.phone" 
+            type="tel" 
+            required 
+            placeholder="+1 (555) 000-0000"
+            :disabled="loading"
           />
         </div>
 
@@ -133,9 +117,10 @@
           <label for="bio">Bio (Optional)</label>
           <textarea 
             id="bio"
-            v-model="formData.bio"
-            placeholder="Tell us about yourself..."
+            v-model="formData.bio" 
+            placeholder="Tell us about yourself"
             rows="3"
+            :disabled="loading"
           ></textarea>
         </div>
 
@@ -145,279 +130,229 @@
             id="location"
             v-model="formData.location" 
             type="text" 
-            placeholder="Where are you from?"
+            placeholder="City, Country"
+            :disabled="loading"
           />
         </div>
 
-        <div class="privacy-settings">
-          <h4>Privacy Settings</h4>
-          <label class="checkbox-label">
-            <input 
-              v-model="formData.profilePrivate" 
-              type="checkbox"
-            />
-            Make my profile private
-          </label>
-          
-          <label class="checkbox-label">
-            <input 
-              v-model="formData.emailNotifications" 
-              type="checkbox"
-            />
-            Send me email notifications
-          </label>
-        </div>
-
-        <div class="terms-agreement">
-          <label class="checkbox-label required">
-            <input 
-              v-model="formData.agreeToTerms" 
-              type="checkbox" 
-              required
-            />
-            I agree to the <a href="/terms" target="_blank">Terms of Service</a> 
-            and <a href="/privacy" target="_blank">Privacy Policy</a>
-          </label>
-        </div>
-
-        <div v-if="signupError" class="error-message">
-          {{ signupError }}
-        </div>
-
-        <div class="step-actions">
-          <button @click="currentStep = 2" class="btn-secondary">
+        <div class="form-actions">
+          <button 
+            type="button" 
+            class="back-button" 
+            @click="previousStep"
+            :disabled="loading"
+          >
             Back
           </button>
           <button 
             type="submit" 
-            :disabled="isSigningUp || !formData.agreeToTerms"
-            class="btn-primary"
+            class="submit-button" 
+            :disabled="!canProceedStep2 || loading"
           >
-            {{ isSigningUp ? 'Creating Account...' : 'Create Account' }}
+            {{ loading ? 'Creating Account...' : 'Sign Up' }}
           </button>
         </div>
       </form>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="isSigningUp" class="loading-overlay">
-      <div class="spinner"></div>
-      <p>Setting up your account...</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-const currentStep = ref(1)
-const isSigningUp = ref(false)
-const interests = ref([])
-const selectedInterests = ref([])
-const usernameStatus = ref(null)
-const checkingUsername = ref(false)
-const signupError = ref('')
-let debounceTimer = null
+import { ref, computed, watch } from 'vue'
 
 const formData = ref({
   email: '',
   username: '',
-  phone: '',
   password: '',
   confirmPassword: '',
-  displayName: '',
+  fullName: '',
+  phone: '',
   bio: '',
   location: '',
-  profilePrivate: false,
-  emailNotifications: true,
-  agreeToTerms: false
+  interests: []
 })
 
-// Computed properties
-const passwordMismatch = computed(() => {
-  return formData.value.password !== formData.value.confirmPassword && 
-         formData.value.confirmPassword.length > 0
-})
+const currentStep = ref(1)
+const loading = ref(false)
+const error = ref('')
+const checkingUsername = ref(false)
+const usernameStatus = ref<{ type: string; message: string } | null>(null)
+const passwordMismatch = ref(false)
 
-const canProceedStep1 = computed(() => {
-  return formData.value.email && 
-         formData.value.username && 
-         formData.value.username.length >= 3 &&
-         formData.value.phone && 
-         formData.value.password.length >= 8 && 
-         !passwordMismatch.value &&
-         usernameStatus.value?.type === 'success'  // ✅ CRITICAL: Only allow if username is confirmed available
-})
+// Debounce timer for username check
+let usernameCheckTimer: NodeJS.Timeout
 
-// Methods
+// Username validation with debounce
 const onUsernameInput = () => {
-  // Clear previous timer
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-  }
-  
-  // Reset status while typing
+  clearTimeout(usernameCheckTimer)
+  checkingUsername.value = true
   usernameStatus.value = null
+  error.value = ''
   
-  // Only check if username is at least 3 characters
-  if (formData.value.username.length < 3) {
-    return
-  }
-  
-  // Set a new timer - wait 800ms after user stops typing
-  debounceTimer = setTimeout(() => {
-    checkUsernameAvailability()
-  }, 800)
+  usernameCheckTimer = setTimeout(async () => {
+    await checkUsernameAvailability()
+  }, 500)
 }
 
+// Check username availability
 const checkUsernameAvailability = async () => {
-  const username = formData.value.username.toLowerCase().trim()
+  const username = formData.value.username.trim().toLowerCase()
   
-  if (username.length < 3) {
+  // Client-side validation first
+  if (!username) {
     usernameStatus.value = null
+    checkingUsername.value = false
     return
   }
   
-  checkingUsername.value = true
+  if (username.length < 3) {
+    usernameStatus.value = { type: 'error', message: 'Username must be at least 3 characters' }
+    checkingUsername.value = false
+    return
+  }
+  
+  if (username.length > 30) {
+    usernameStatus.value = { type: 'error', message: 'Username must be less than 30 characters' }
+    checkingUsername.value = false
+    return
+  }
+  
+  const usernameRegex = /^[a-z0-9_-]+$/
+  if (!usernameRegex.test(username)) {
+    usernameStatus.value = { type: 'error', message: 'Only letters, numbers, underscores, and hyphens allowed' }
+    checkingUsername.value = false
+    return
+  }
   
   try {
-    console.log('[SignUp] Checking username availability:', username)
     const response = await $fetch('/api/auth/check-username', {
       method: 'POST',
       body: { username }
     })
     
-    console.log('[SignUp] Username check response:', response)
-    
     if (response.available) {
-      usernameStatus.value = { type: 'success', message: '✓ Username available!' }
+      usernameStatus.value = { type: 'success', message: '✓ Username available' }
     } else {
       usernameStatus.value = { type: 'error', message: '✗ Username already taken' }
     }
-  } catch (error: any) {
-    console.error('[SignUp] Username check error:', error)
-    // Show error message instead of silently failing
-    usernameStatus.value = { 
-      type: 'error', 
-      message: error.data?.statusMessage || 'Error checking username availability' 
-    }
+  } catch (err) {
+    console.error('Error checking username:', err)
+    usernameStatus.value = { type: 'error', message: 'Error checking availability' }
   } finally {
     checkingUsername.value = false
   }
 }
 
-const toggleInterest = (interestId) => {
-  const index = selectedInterests.value.indexOf(interestId)
-  if (index > -1) {
-    selectedInterests.value.splice(index, 1)
-  } else {
-    selectedInterests.value.push(interestId)
-  }
+// Password validation
+const validatePasswords = () => {
+  passwordMismatch.value = formData.value.password !== formData.value.confirmPassword
 }
 
+watch(() => formData.value.confirmPassword, validatePasswords)
+
+// Step 1 validation
+const canProceedStep1 = computed(() => {
+  return (
+    formData.value.email &&
+    formData.value.username &&
+    formData.value.password &&
+    formData.value.confirmPassword &&
+    !passwordMismatch.value &&
+    usernameStatus.value?.type === 'success' &&
+    !checkingUsername.value
+  )
+})
+
+// Step 2 validation
+const canProceedStep2 = computed(() => {
+  return formData.value.fullName && formData.value.phone
+})
+
+// Next step
 const nextStep = () => {
-  if (currentStep.value < 3) {
-    currentStep.value++
+  if (currentStep.value === 1 && canProceedStep1.value) {
+    currentStep.value = 2
+    error.value = ''
   }
 }
 
-const loadInterests = async () => {
-  try {
-    console.log('[SignUp] Loading interests...')
-    const response = await $fetch('/api/interests')
-    interests.value = response.data || []
-    console.log('[SignUp] Loaded', interests.value.length, 'interests')
-  } catch (error) {
-    console.error('[SignUp] Failed to load interests:', error)
-    interests.value = []
+// Previous step
+const previousStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--
+    error.value = ''
   }
 }
 
-const completeSignup = async () => {
-  isSigningUp.value = true
-  signupError.value = ''
+// Submit form
+const handleSubmit = async () => {
+  if (!canProceedStep2.value) {
+    error.value = 'Please fill in all required fields'
+    return
+  }
+  
+  loading.value = true
+  error.value = ''
   
   try {
-    // Validate username one more time before signup
-    if (usernameStatus.value && usernameStatus.value.type === 'error') {
-      signupError.value = 'Username is already taken. Please choose another.'
-      isSigningUp.value = false
-      return
-    }
-
-    console.log('[SignUp] Submitting form with interests:', selectedInterests.value)
-    
-    // Create user account - use lowercase username
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
-        email: formData.value.email,
-        username: formData.value.username.toLowerCase().trim(),
-        phone: formData.value.phone,
-        fullName: formData.value.displayName,
+        email: formData.value.email.toLowerCase().trim(),
         password: formData.value.password,
+        username: formData.value.username.trim().toLowerCase(),
+        fullName: formData.value.fullName,
+        phone: formData.value.phone,
         bio: formData.value.bio,
         location: formData.value.location,
-        interests: selectedInterests.value
+        interests: formData.value.interests
       }
     })
     
-    console.log('[SignUp] Response:', response)
-    
     if (response.success) {
-      console.log('[SignUp] ✅ Account created successfully')
-      // Redirect to verify email page
-      await navigateTo('/auth/verify-email')
-    } else {
-      throw new Error(response.statusMessage || 'Signup failed')
+      // Redirect to verification or login page
+      await navigateTo('/verify-email')
     }
-  } catch (error: any) {
-    console.error('[SignUp] Error:', error)
+  } catch (err: any) {
+    console.error('Signup error:', err)
     
-    // Handle error message
-    const errorMessage = 
-      error.data?.statusMessage || 
-      error.statusMessage || 
-      error.message || 
-      'Signup failed. Please try again.'
-    
-    signupError.value = errorMessage
+    // Handle specific errors
+    if (err.status === 409) {
+      error.value = 'Username already taken. Please choose another.'
+      usernameStatus.value = { type: 'error', message: '✗ Username already taken' }
+      currentStep.value = 1
+    } else if (err.data?.statusMessage) {
+      error.value = err.data.statusMessage
+    } else {
+      error.value = 'Signup failed. Please try again.'
+    }
   } finally {
-    isSigningUp.value = false
+    loading.value = false
   }
 }
-
-// Lifecycle
-onMounted(() => {
-  loadInterests()
-})
 </script>
 
 <style scoped>
 .signup-form {
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
   padding: 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 h2 {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 2rem;
   text-align: center;
-  color: #1f2937;
+  margin-bottom: 2rem;
+  color: #333;
+  font-size: 1.8rem;
 }
 
 h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: #1f2937;
+  margin-bottom: 1.5rem;
+  color: #555;
+  font-size: 1.3rem;
 }
 
 .step {
@@ -435,239 +370,66 @@ h3 {
   }
 }
 
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
 .form-group {
+  margin-bottom: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
-.form-group label {
+label {
+  margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #374151;
+  color: #333;
   font-size: 0.95rem;
 }
 
-.form-group input,
-.form-group textarea {
+input,
+textarea {
   padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   font-size: 1rem;
   font-family: inherit;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.3s ease;
 }
 
-.form-group input:focus,
-.form-group textarea:focus {
+input:focus,
+textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-.form-group input:disabled,
-.form-group textarea:disabled {
-  background: #f3f4f6;
+input:disabled,
+textarea:disabled {
+  background-color: #f5f5f5;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
-.form-group > span {
-  font-size: 0.875rem;
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.checking {
+  font-size: 0.85rem;
+  color: #ff9800;
   margin-top: 0.25rem;
-}
-
-.form-group > span.success {
-  color: #10b981;
-  font-weight: 500;
-}
-
-.form-group > span.error {
-  color: #ef4444;
-  font-weight: 500;
-}
-
-.form-group > span.checking {
-  color: #f59e0b;
-  font-style: italic;
-}
-
-.interests-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
-  margin: 2rem 0;
-}
-
-.interest-card {
-  padding: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
-
-.interest-card:hover {
-  border-color: #667eea;
-  background: #f3f4f6;
-}
-
-.interest-card.selected {
-  border-color: #667eea;
-  background: #eef2ff;
-}
-
-.interest-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.interest-card h4 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: #1f2937;
-}
-
-.interest-card p {
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-.privacy-settings {
-  background: #f9fafb;
-  padding: 1rem;
-  border-radius: 8px;
-  margin: 1rem 0;
-}
-
-.privacy-settings h4 {
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: #1f2937;
-}
-
-.checkbox-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  cursor: pointer;
-  font-size: 0.95rem;
-  color: #374151;
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.checkbox-label.required {
-  font-weight: 500;
-}
-
-.checkbox-label a {
-  color: #667eea;
-  text-decoration: none;
-}
-
-.checkbox-label a:hover {
-  text-decoration: underline;
-}
-
-.terms-agreement {
-  background: #fef3c7;
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 4px solid #f59e0b;
-  margin: 1rem 0;
-}
-
-.error-message {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 0.75rem;
-  border-radius: 6px;
-  border: 1px solid #fecaca;
-  font-size: 0.9rem;
-}
-
-.step-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  flex: 1;
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-secondary {
-  background: #e5e7eb;
-  color: #1f2937;
-  flex: 1;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #d1d5db;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+.checking::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #ff9800;
+  border-top-color: transparent;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 0.6s linear infinite;
 }
 
 @keyframes spin {
@@ -676,27 +438,112 @@ form {
   }
 }
 
-.loading-overlay p {
-  color: white;
-  margin-top: 1rem;
-  font-size: 1.1rem;
+.status {
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
 }
 
-@media (max-width: 640px) {
+.status.success {
+  color: #28a745;
+}
+
+.status.error {
+  color: #dc3545;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border: 1px solid #f5c6cb;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.submit-button,
+.back-button {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.submit-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.back-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.back-button:hover:not(:disabled) {
+  background-color: #5a6268;
+  transform: translateY(-2px);
+}
+
+.back-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 600px) {
   .signup-form {
-    padding: 1rem;
+    padding: 1.5rem;
   }
 
   h2 {
     font-size: 1.5rem;
+    margin-bottom: 1.5rem;
   }
 
-  .interests-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
   }
 
-  .step-actions {
+  .form-actions {
     flex-direction: column;
+  }
+
+  .submit-button,
+  .back-button {
+    width: 100%;
   }
 }
 </style>
