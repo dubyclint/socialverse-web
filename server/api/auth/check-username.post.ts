@@ -30,7 +30,8 @@ export default defineEventHandler(async (event) => {
       return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
     }
     
-    // Query database for exact match
+    // ✅ CRITICAL FIX: Query ONLY profiles table (NOT users table)
+    console.log('[CheckUsername] Querying profiles table for username:', trimmedUsername)
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
@@ -58,7 +59,8 @@ export default defineEventHandler(async (event) => {
     return { 
       available: !isTaken,
       count: count || 0,
-      username: trimmedUsername
+      username: trimmedUsername,
+      message: isTaken ? 'Username already taken' : 'Username is available'
     }
     
   } catch (err) {
