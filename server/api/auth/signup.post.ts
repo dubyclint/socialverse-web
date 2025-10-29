@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
         statusMessage: `Authentication error: ${authError.message}`
       })
     }
-    
+   
     if (!authData.user) {
       console.error('[Signup] No user returned from auth signup')
       throw createError({
@@ -161,21 +161,16 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-    console.log('[Signup] ✅ Signup completed successfully for:', body.email)
+    console.log('[Signup] ✅ Signup completed successfully for user:', authData.user.id)
     
     return {
       success: true,
-      statusMessage: 'Account created successfully. Please verify your email.',
-      data: {
-        user: {
-          id: authData.user.id,
-          email: authData.user.email,
-          username: trimmedUsername,
-          fullName: body.fullName,
-          phone: body.phone
-        },
-        session: authData.session
-      }
+      user: {
+        id: authData.user.id,
+        email: authData.user.email,
+        username: trimmedUsername
+      },
+      message: 'Account created successfully. Please check your email to verify your account.'
     }
     
   } catch (error: any) {
