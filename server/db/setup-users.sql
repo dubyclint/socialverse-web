@@ -1,7 +1,0 @@
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  username TEXT NOT NULL,
-  email TEXT,
-  avatar TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
