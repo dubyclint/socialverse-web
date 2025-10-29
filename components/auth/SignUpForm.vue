@@ -26,10 +26,13 @@
             type="text" 
             required 
             placeholder="@username"
-            @input="checkUsernameAvailability"
+            @input="onUsernameInput"
           />
           <span v-if="usernameStatus" :class="usernameStatus.type">
             {{ usernameStatus.message }}
+          </span>
+          <span v-if="checkingUsername" class="checking">
+            Checking availability...
           </span>
         </div>
 
@@ -205,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -214,7 +217,9 @@ const isSigningUp = ref(false)
 const interests = ref([])
 const selectedInterests = ref([])
 const usernameStatus = ref(null)
+const checkingUsername = ref(false)
 const signupError = ref('')
+let debounceTimer = null
 
 const formData = ref({
   email: '',
@@ -243,21 +248,44 @@ const canProceedStep1 = computed(() => {
          formData.value.phone && 
          formData.value.password.length >= 8 && 
          !passwordMismatch.value
-  // REMOVED: username status check - we'll validate on signup instead
 })
 
 // Methods
-const checkUsernameAvailability = async () => {
+const onUsernameInput = () => {
+  // Clear previous timer
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+  
+  // Reset status while typing
+  usernameStatus.value = null
+  
+  // Only check if username is at least 3 characters
   if (formData.value.username.length < 3) {
+    return
+  }
+  
+  // Set a new timer - wait 800ms after user stops typing
+  debounceTimer = setTimeout(() => {
+    checkUsernameAvailability()
+  }, 800)
+}
+
+const checkUsernameAvailability = async () => {
+  const username = formData.value.username.toLowerCase().trim()
+  
+  if (username.length < 3) {
     usernameStatus.value = null
     return
   }
   
+  checkingUsername.value = true
+  
   try {
-    console.log('[SignUp] Checking username availability:', formData.value.username)
+    console.log('[SignUp] Checking username availability:', username)
     const response = await $fetch('/api/auth/check-username', {
       method: 'POST',
-      body: { username: formData.value.username }
+      body: { username }
     })
     
     console.log('[SignUp] Username check response:', response)
@@ -269,8 +297,10 @@ const checkUsernameAvailability = async () => {
     }
   } catch (error) {
     console.error('[SignUp] Username check error:', error)
-    // On error, don't block the form - let signup validation handle it
+    // On error, don't show status - let signup validation handle it
     usernameStatus.value = null
+  } finally {
+    checkingUsername.value = false
   }
 }
 
@@ -315,12 +345,12 @@ const completeSignup = async () => {
 
     console.log('[SignUp] Submitting form with interests:', selectedInterests.value)
     
-    // Create user account
+    // Create user account - use lowercase username
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
         email: formData.value.email,
-        username: formData.value.username,
+        username: formData.value.username.toLowerCase().trim(),
         phone: formData.value.phone,
         fullName: formData.value.displayName,
         password: formData.value.password,
@@ -358,11 +388,6 @@ const completeSignup = async () => {
 // Lifecycle
 onMounted(() => {
   loadInterests()
-})
-
-// Watch username changes
-watch(() => formData.value.username, () => {
-  checkUsernameAvailability()
 })
 </script>
 
@@ -462,7 +487,7 @@ textarea:disabled {
   font-size: 0.875rem;
 }
 
-.warning {
+.checking {
   color: #f59e0b;
   font-size: 0.875rem;
 }
