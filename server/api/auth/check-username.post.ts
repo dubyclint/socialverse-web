@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
       return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
     }
     
+    // Query database for exact match
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
@@ -60,16 +61,8 @@ export default defineEventHandler(async (event) => {
       username: trimmedUsername
     }
     
-  } catch (err: any) {
-    console.error('[CheckUsername] Unexpected error:', err.message)
-    
-    if (err.statusCode) {
-      throw err
-    }
-    
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Username check failed: ${err.message}`
-    })
+  } catch (err) {
+    console.error('[CheckUsername] Unexpected error:', err)
+    throw err
   }
 })
