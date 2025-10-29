@@ -80,9 +80,9 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Check for duplicate username BEFORE creating auth user
-    console.log('[Signup] Checking for duplicate username:', trimmedUsername)
-    const { data: existingUsername, error: usernameCheckError } = await supabase
+    // ✅ CRITICAL FIX: Check for duplicate username ONLY in profiles table
+    console.log('[Signup] Checking for duplicate username in profiles table:', trimmedUsername)
+    const { data: existingUsername, error: usernameCheckError, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
       .eq('username', trimmedUsername)
@@ -95,11 +95,35 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    if (existingUsername && existingUsername.length > 0) {
+    // Check if username is taken
+    if (count && count > 0) {
       console.error('[Signup] Username already taken:', trimmedUsername)
       throw createError({
         statusCode: 409,
         statusMessage: 'Username already taken'
+      })
+    }
+    
+    // ✅ CRITICAL FIX: Check for duplicate email ONLY in profiles table
+    console.log('[Signup] Checking for duplicate email in profiles table:', body.email)
+    const { data: existingEmail, error: emailCheckError, count: emailCount } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact' })
+      .eq('email', body.email.toLowerCase().trim())
+    
+    if (emailCheckError) {
+      console.error('[Signup] Error checking email:', emailCheckError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error: ${emailCheckError.message}`
+      })
+    }
+    
+    if (emailCount && emailCount > 0) {
+      console.error('[Signup] Email already registered:', body.email)
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Email already registered'
       })
     }
     
@@ -134,8 +158,8 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    // Create user profile
-    console.log('[Signup] Creating user profile for ID:', authData.user.id)
+    // ✅ CRITICAL FIX: Create user profile in profiles table (NOT users table)
+    console.log('[Signup] Creating user profile in profiles table for ID:', authData.user.id)
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -152,8 +176,10 @@ export default defineEventHandler(async (event) => {
         rank: 'bronze',
         rank_points: 0,
         email_verified: false,
+        location: body.location || '',
+        interests: body.interests || [],
+        profile_completed: false,
         preferences: {
-          location: body.location || '',
           emailNotifications: true,
           profilePrivate: false
         },
@@ -162,14 +188,15 @@ export default defineEventHandler(async (event) => {
     
     if (profileError) {
       console.error('[Signup] Profile creation failed:', profileError)
-      // Delete the auth user if profile creation fails
+      
+      // Delete auth user if profile creation fails
       await supabase.auth.admin.deleteUser(authData.user.id)
       
       // Handle unique constraint violation
       if (profileError.code === '23505') {
         throw createError({
           statusCode: 409,
-          statusMessage: 'Username already taken'
+          statusMessage: 'Username or email already taken'
         })
       }
       
@@ -179,7 +206,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    console.log('[Signup] ✅ User profile created successfully')
+    console.log('[Signup] ✅ User profile created successfully in profiles table')
     
     return {
       success: true,
