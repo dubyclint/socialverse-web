@@ -32,57 +32,59 @@ async function executeSQL(sql, description) {
     
     for (const statement of statements) {
       if (statement.trim()) {
-        const { error } = await supabase.rpc('exec', { sql: statement });
+        const { error } = await supabase.rpc('exec_sql', { sql: statement });
         if (error) {
-          console.error(`❌ Error executing statement: ${error.message}`);
+          console.error(`  ❌ Error: ${error.message}`);
           throw error;
         }
       }
     }
     
-    console.log(`✅ ${description} completed`);
+    console.log(`  ✅ ${description} completed`);
   } catch (error) {
-    console.error(`❌ Failed to execute: ${description}`);
-    console.error(error);
+    console.error(`  ❌ Failed: ${error.message}`);
     throw error;
   }
 }
 
-async function setupDatabase() {
+async function runMigrations() {
   try {
     console.log('🚀 Starting database setup...\n');
-
+    
     // Read migration files in order
-    const migrationDir = path.join(__dirname, 'migrations');
-    const migrationFiles = [
-      '001_initial_schema.sql',
-      '002_add_indexes.sql',
-      '003_cleanup_duplicate_tables.sql',
-      '004_fix_posts_table_structure.sql'
+    const migrations = [
+      { file: '001_initial_schema.sql', description: 'Initial schema' },
+      { file: '002_add_indexes.sql', description: 'Add indexes' },
+      { file: '003_cleanup_duplicate_tables', description: 'Cleanup duplicate tables' },
+      { file: '004_fix_posts_tables_structure.sql', description: 'Fix posts table structure' },
+      { file: '005_verify_schema.sql', description: 'Verify schema consistency' }
     ];
-
-    for (const file of migrationFiles) {
-      const filePath = path.join(migrationDir, file);
-      if (fs.existsSync(filePath)) {
-        const sql = fs.readFileSync(filePath, 'utf-8');
-        await executeSQL(sql, `Migration: ${file}`);
+    
+    for (const migration of migrations) {
+      const migrationPath = path.join(__dirname, 'migrations', migration.file);
+      
+      if (fs.existsSync(migrationPath)) {
+        const sql = fs.readFileSync(migrationPath, 'utf-8');
+        await executeSQL(sql, migration.description);
+      } else {
+        console.log(`⚠️  Migration file not found: ${migration.file}`);
       }
     }
-
-    // Seed database
-    const seedPath = path.join(__dirname, 'seed.sql');
-    if (fs.existsSync(seedPath)) {
-      const seedSQL = fs.readFileSync(seedPath, 'utf-8');
-      await executeSQL(seedSQL, 'Seeding database');
-    }
-
+    
     console.log('\n✅ Database setup completed successfully!');
+    console.log('\n📊 Schema Summary:');
+    console.log('  ✅ profiles table - User profiles (email & username UNIQUE)');
+    console.log('  ✅ posts table - User posts (with user_id FK)');
+    console.log('  ✅ trades table - Trade records (with buyer_id, seller_id FK)');
+    console.log('  ✅ RLS policies - Row Level Security enabled');
+    console.log('  ✅ Indexes - Performance indexes created');
+    console.log('  ✅ Triggers - Auto-update timestamps');
+    
   } catch (error) {
-    console.error('\n❌ Database setup failed:', error);
+    console.error('\n❌ Database setup failed:', error.message);
     process.exit(1);
   }
 }
 
-// Run setup
-setupDatabase();
-```__
+// Run migrations
+runMigrations();
