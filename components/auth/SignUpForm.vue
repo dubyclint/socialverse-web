@@ -247,7 +247,8 @@ const canProceedStep1 = computed(() => {
          formData.value.username.length >= 3 &&
          formData.value.phone && 
          formData.value.password.length >= 8 && 
-         !passwordMismatch.value
+         !passwordMismatch.value &&
+         usernameStatus.value?.type === 'success'  // ✅ CRITICAL: Only allow if username is confirmed available
 })
 
 // Methods
@@ -295,10 +296,13 @@ const checkUsernameAvailability = async () => {
     } else {
       usernameStatus.value = { type: 'error', message: '✗ Username already taken' }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('[SignUp] Username check error:', error)
-    // On error, don't show status - let signup validation handle it
-    usernameStatus.value = null
+    // Show error message instead of silently failing
+    usernameStatus.value = { 
+      type: 'error', 
+      message: error.data?.statusMessage || 'Error checking username availability' 
+    }
   } finally {
     checkingUsername.value = false
   }
@@ -409,6 +413,13 @@ h2 {
   color: #1f2937;
 }
 
+h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #1f2937;
+}
+
 .step {
   animation: fadeIn 0.3s ease-in;
 }
@@ -424,18 +435,6 @@ h2 {
   }
 }
 
-h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #1f2937;
-}
-
-.step > p {
-  color: #6b7280;
-  margin-bottom: 1.5rem;
-}
-
 form {
   display: flex;
   flex-direction: column;
@@ -448,55 +447,60 @@ form {
   gap: 0.5rem;
 }
 
-label {
-  font-weight: 500;
+.form-group label {
+  font-weight: 600;
   color: #374151;
   font-size: 0.95rem;
 }
 
-input,
-textarea {
+.form-group input,
+.form-group textarea {
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   font-size: 1rem;
   font-family: inherit;
-  transition: all 0.2s;
+  transition: border-color 0.2s ease;
 }
 
-input:focus,
-textarea:focus {
+.form-group input:focus,
+.form-group textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-input:disabled,
-textarea:disabled {
-  background-color: #f3f4f6;
+.form-group input:disabled,
+.form-group textarea:disabled {
+  background: #f3f4f6;
   cursor: not-allowed;
 }
 
-.error {
-  color: #ef4444;
+.form-group > span {
   font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
-.success {
+.form-group > span.success {
   color: #10b981;
-  font-size: 0.875rem;
+  font-weight: 500;
 }
 
-.checking {
+.form-group > span.error {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.form-group > span.checking {
   color: #f59e0b;
-  font-size: 0.875rem;
+  font-style: italic;
 }
 
 .interests-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin: 2rem 0;
 }
 
 .interest-card {
@@ -504,18 +508,18 @@ textarea:disabled {
   border: 2px solid #e5e7eb;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   text-align: center;
 }
 
 .interest-card:hover {
-  border-color: #3b82f6;
-  background-color: #f0f9ff;
+  border-color: #667eea;
+  background: #f3f4f6;
 }
 
 .interest-card.selected {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
+  border-color: #667eea;
+  background: #eef2ff;
 }
 
 .interest-icon {
@@ -524,21 +528,22 @@ textarea:disabled {
 }
 
 .interest-card h4 {
+  font-size: 0.95rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
   color: #1f2937;
 }
 
 .interest-card p {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: #6b7280;
 }
 
 .privacy-settings {
-  background-color: #f9fafb;
+  background: #f9fafb;
   padding: 1rem;
   border-radius: 8px;
-  margin-bottom: 1rem;
+  margin: 1rem 0;
 }
 
 .privacy-settings h4 {
@@ -551,9 +556,10 @@ textarea:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-bottom: 0.75rem;
   cursor: pointer;
-  margin-bottom: 0.5rem;
-  font-weight: 400;
+  font-size: 0.95rem;
+  color: #374151;
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -562,35 +568,39 @@ textarea:disabled {
   cursor: pointer;
 }
 
-.terms-agreement {
-  background-color: #fef3c7;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+.checkbox-label.required {
+  font-weight: 500;
 }
 
-.terms-agreement a {
-  color: #3b82f6;
+.checkbox-label a {
+  color: #667eea;
   text-decoration: none;
 }
 
-.terms-agreement a:hover {
+.checkbox-label a:hover {
   text-decoration: underline;
 }
 
-.error-message {
-  background-color: #fee2e2;
-  color: #991b1b;
-  padding: 0.75rem;
+.terms-agreement {
+  background: #fef3c7;
+  padding: 1rem;
   border-radius: 8px;
-  font-size: 0.875rem;
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid #f59e0b;
+  margin: 1rem 0;
+}
+
+.error-message {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  font-size: 0.9rem;
 }
 
 .step-actions {
   display: flex;
   gap: 1rem;
-  justify-content: flex-end;
   margin-top: 2rem;
 }
 
@@ -599,35 +609,42 @@ textarea:disabled {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1rem;
+  transition: all 0.2s ease;
 }
 
 .btn-primary {
-  background-color: #3b82f6;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  flex: 1;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:disabled {
-  background-color: #d1d5db;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-secondary {
-  background-color: #e5e7eb;
+  background: #e5e7eb;
   color: #1f2937;
+  flex: 1;
 }
 
-.btn-secondary:hover {
-  background-color: #d1d5db;
+.btn-secondary:hover:not(:disabled) {
+  background: #d1d5db;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .loading-overlay {
@@ -636,7 +653,7 @@ textarea:disabled {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -650,7 +667,7 @@ textarea:disabled {
   border: 4px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -663,5 +680,23 @@ textarea:disabled {
   color: white;
   margin-top: 1rem;
   font-size: 1.1rem;
+}
+
+@media (max-width: 640px) {
+  .signup-form {
+    padding: 1rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  .interests-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .step-actions {
+    flex-direction: column;
+  }
 }
 </style>
