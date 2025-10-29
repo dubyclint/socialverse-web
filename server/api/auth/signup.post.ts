@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
       interestsCount: body.interests?.length || 0
     })
     
+    // Validate required fields
     if (!body.email || !body.password || !body.username || !body.fullName || !body.phone) {
       console.error('[Signup] Missing required fields')
       throw createError({
@@ -31,6 +32,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(body.email)) {
       console.error('[Signup] Invalid email format:', body.email)
@@ -40,6 +42,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Validate phone format
     const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/
     if (!phoneRegex.test(body.phone.replace(/\s/g, ''))) {
       console.error('[Signup] Invalid phone format:', body.phone)
@@ -49,13 +52,65 @@ export default defineEventHandler(async (event) => {
       })
     }
     
+    // Normalize and validate username
+    const trimmedUsername = body.username.trim().toLowerCase()
+    
+    if (trimmedUsername.length < 3) {
+      console.error('[Signup] Username too short:', trimmedUsername)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Username must be at least 3 characters'
+      })
+    }
+    
+    if (trimmedUsername.length > 30) {
+      console.error('[Signup] Username too long:', trimmedUsername)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Username must be less than 30 characters'
+      })
+    }
+    
+    const usernameRegex = /^[a-z0-9_-]+$/
+    if (!usernameRegex.test(trimmedUsername)) {
+      console.error('[Signup] Invalid username format:', trimmedUsername)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Username can only contain letters, numbers, underscores, and hyphens'
+      })
+    }
+    
+    // Check for duplicate username BEFORE creating auth user
+    console.log('[Signup] Checking for duplicate username:', trimmedUsername)
+    const { data: existingUsername, error: usernameCheckError } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact' })
+      .eq('username', trimmedUsername)
+    
+    if (usernameCheckError) {
+      console.error('[Signup] Error checking username:', usernameCheckError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error: ${usernameCheckError.message}`
+      })
+    }
+    
+    if (existingUsername && existingUsername.length > 0) {
+      console.error('[Signup] Username already taken:', trimmedUsername)
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Username already taken'
+      })
+    }
+    
+    // Create Supabase auth user
     console.log('[Signup] Creating Supabase auth user for:', body.email)
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: body.email,
+      email: body.email.toLowerCase().trim(),
       password: body.password,
       options: {
         data: {
-          username: body.username,
+          username: trimmedUsername,
           full_name: body.fullName
         }
       }
@@ -68,7 +123,7 @@ export default defineEventHandler(async (event) => {
         statusMessage: `Authentication error: ${authError.message}`
       })
     }
-   
+    
     if (!authData.user) {
       console.error('[Signup] No user returned from auth signup')
       throw createError({
@@ -79,33 +134,7 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    const trimmedUsername = body.username.trim().toLowerCase()
-    
-    console.log('[Signup] Checking for duplicate username:', trimmedUsername)
-    const { data: existingUsername, error: usernameCheckError } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', trimmedUsername)
-      .maybeSingle()
-    
-    if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Error checking username:', usernameCheckError)
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error: ${usernameCheckError.message}`
-      })
-    }
-    
-    if (existingUsername) {
-      console.error('[Signup] Username already taken:', trimmedUsername)
-      await supabase.auth.admin.deleteUser(authData.user.id)
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Username already taken'
-      })
-    }
-    
+    // Create user profile
     console.log('[Signup] Creating user profile for ID:', authData.user.id)
     const { error: profileError } = await supabase
       .from('profiles')
@@ -133,35 +162,24 @@ export default defineEventHandler(async (event) => {
     
     if (profileError) {
       console.error('[Signup] Profile creation failed:', profileError)
+      // Delete the auth user if profile creation fails
       await supabase.auth.admin.deleteUser(authData.user.id)
+      
+      // Handle unique constraint violation
+      if (profileError.code === '23505') {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Username already taken'
+        })
+      }
+      
       throw createError({
         statusCode: 500,
-        statusMessage: `Profile creation failed: ${profileError.message}`
+        statusMessage: `Profile creation error: ${profileError.message}`
       })
     }
     
     console.log('[Signup] ✅ User profile created successfully')
-    
-    if (body.interests && body.interests.length > 0) {
-      console.log('[Signup] Adding user interests:', body.interests)
-      const userInterests = body.interests.map(interestId => ({
-        user_id: authData.user.id,
-        interest_id: interestId,
-        created_at: new Date().toISOString()
-      }))
-      
-      const { error: interestsError } = await supabase
-        .from('user_interests')
-        .insert(userInterests)
-      
-      if (interestsError) {
-        console.error('[Signup] Failed to add user interests:', interestsError)
-      } else {
-        console.log('[Signup] ✅ User interests added successfully')
-      }
-    }
-    
-    console.log('[Signup] ✅ Signup completed successfully for user:', authData.user.id)
     
     return {
       success: true,
@@ -170,19 +188,11 @@ export default defineEventHandler(async (event) => {
         email: authData.user.email,
         username: trimmedUsername
       },
-      message: 'Account created successfully. Please check your email to verify your account.'
+      message: 'Account created successfully. Please verify your email.'
     }
     
-  } catch (error: any) {
-    console.error('[Signup] Error:', error)
-    
-    if (error.statusCode) {
-      throw error
-    }
-    
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Signup failed. Please try again.'
-    })
+  } catch (err) {
+    console.error('[Signup] Unexpected error:', err)
+    throw err
   }
 })
