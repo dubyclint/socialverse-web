@@ -23,7 +23,6 @@ export default defineEventHandler(async (event) => {
       interestsCount: body.interests?.length || 0
     })
     
-    // ✅ STEP 1: Validate required fields
     if (!body.email || !body.password || !body.username || !body.fullName || !body.phone) {
       console.error('[Signup] Missing required fields')
       throw createError({
@@ -32,7 +31,6 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ STEP 2: Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(body.email)) {
       console.error('[Signup] Invalid email format:', body.email)
@@ -42,7 +40,6 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ STEP 3: Validate phone format
     const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/
     if (!phoneRegex.test(body.phone.replace(/\s/g, ''))) {
       console.error('[Signup] Invalid phone format:', body.phone)
@@ -52,7 +49,6 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ STEP 4: CREATE SUPABASE AUTH USER
     console.log('[Signup] Creating Supabase auth user for:', body.email)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: body.email,
@@ -83,12 +79,13 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    // ✅ STEP 5: CHECK FOR DUPLICATES
-    console.log('[Signup] Checking for duplicate username:', body.username)
+    const trimmedUsername = body.username.trim().toLowerCase()
+    
+    console.log('[Signup] Checking for duplicate username:', trimmedUsername)
     const { data: existingUsername, error: usernameCheckError } = await supabase
       .from('profiles')
       .select('username')
-      .eq('username', body.username)
+      .eq('username', trimmedUsername)
       .maybeSingle()
     
     if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
@@ -101,7 +98,7 @@ export default defineEventHandler(async (event) => {
     }
     
     if (existingUsername) {
-      console.error('[Signup] Username already taken:', body.username)
+      console.error('[Signup] Username already taken:', trimmedUsername)
       await supabase.auth.admin.deleteUser(authData.user.id)
       throw createError({
         statusCode: 409,
@@ -109,14 +106,13 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ STEP 6: CREATE USER PROFILE
     console.log('[Signup] Creating user profile for ID:', authData.user.id)
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
         id: authData.user.id,
-        username: body.username,
-        email: body.email,
+        username: trimmedUsername,
+        email: body.email.toLowerCase().trim(),
         full_name: body.fullName,
         phone_number: body.phone,
         bio: body.bio || '',
@@ -146,7 +142,6 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ User profile created successfully')
     
-    // ✅ STEP 7: ADD USER INTERESTS IF PROVIDED
     if (body.interests && body.interests.length > 0) {
       console.log('[Signup] Adding user interests:', body.interests)
       const userInterests = body.interests.map(interestId => ({
@@ -161,7 +156,6 @@ export default defineEventHandler(async (event) => {
       
       if (interestsError) {
         console.error('[Signup] Failed to add user interests:', interestsError)
-        // Don't fail the signup if interests fail
       } else {
         console.log('[Signup] ✅ User interests added successfully')
       }
@@ -169,7 +163,6 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Signup completed successfully for:', body.email)
     
-    // ✅ STEP 8: RETURN SUCCESS
     return {
       success: true,
       statusMessage: 'Account created successfully. Please verify your email.',
@@ -177,7 +170,7 @@ export default defineEventHandler(async (event) => {
         user: {
           id: authData.user.id,
           email: authData.user.email,
-          username: body.username,
+          username: trimmedUsername,
           fullName: body.fullName,
           phone: body.phone
         },
