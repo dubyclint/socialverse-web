@@ -12,38 +12,33 @@ export default defineEventHandler(async (event) => {
       return { available: false }
     }
     
-    // Use rpc call or direct query - bypass RLS by using service role
-    // First, try a simple count query
+    // Query the profiles table to check if username exists
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
-      .eq('username', username)
+      .eq('username', username.toLowerCase())
     
-    console.log('[CheckUsername] Query result:', { data, error, count })
+    console.log('[CheckUsername] Query result:', { 
+      count, 
+      error: error?.message, 
+      errorCode: error?.code 
+    })
     
     if (error) {
-      console.error('[CheckUsername] Query error:', error.message, error.code)
-      
-      // If it's a RLS error, log it but still try to help
-      if (error.code === 'PGRST116' || error.message.includes('no rows')) {
-        console.log('[CheckUsername] No rows found - username is available')
-        return { available: true }
-      }
-      
-      // For other errors, assume available to not block signup
-      console.warn('[CheckUsername] Assuming username available due to error')
+      console.error('[CheckUsername] Query error:', error.message)
+      // If query fails, assume username is available (don't block signup)
       return { available: true }
     }
     
-    // If count is 0 or data is empty, username is available
-    const isTaken = count && count > 0
+    // Username is taken if count > 0
+    const isTaken = (count && count > 0) || (data && data.length > 0)
     
-    console.log('[CheckUsername] Username taken:', isTaken, 'Count:', count)
+    console.log('[CheckUsername] Result - Username taken:', isTaken)
     
     return { available: !isTaken }
   } catch (err: any) {
     console.error('[CheckUsername] Unexpected error:', err.message)
-    // On error, assume available to not block signup
     return { available: true }
   }
 })
+
