@@ -1,4 +1,4 @@
-// stores/user.ts - FIXED VERSION
+// stores/user.ts - UPDATED VERSION WITH PERMISSIONS AND REAL-TIME SERVICES
 import { defineStore } from 'pinia'
 import { ref, computed, watch, readonly } from 'vue'
 
@@ -7,6 +7,7 @@ export const useUserStore = defineStore('user', () => {
   const user = useSupabaseUser()
   
   const profile = ref<any>(null)
+  const permissions = ref<string[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
   
@@ -23,6 +24,10 @@ export const useUserStore = defineStore('user', () => {
       
       if (session?.user?.id) {
         await fetchProfile(session.user.id)
+        // ✅ NEW: Load permissions after profile
+        await loadPermissions()
+        // ✅ NEW: Initialize real-time services
+        await initializeRealTimeServices()
       }
     } catch (err: any) {
       console.error('Session initialization error:', err)
@@ -87,6 +92,68 @@ export const useUserStore = defineStore('user', () => {
     }
   }
   
+  // ✅ NEW: Load permissions based on user role
+  const loadPermissions = async () => {
+    if (!profile.value) return
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('roles')
+        .select('permissions')
+        .eq('name', profile.value.role)
+        .single()
+
+      if (fetchError) {
+        console.warn('Permissions load error:', fetchError)
+        permissions.value = getDefaultPermissions(profile.value.role)
+        return
+      }
+
+      permissions.value = (data?.permissions as string[]) || []
+      
+      if (profile.value.role === 'manager' && profile.value.manager_permissions) {
+        permissions.value = [...new Set([...permissions.value, ...profile.value.manager_permissions])]
+      }
+    } catch (err: any) {
+      console.error('Permissions load error:', err)
+      permissions.value = getDefaultPermissions(profile.value?.role || 'user')
+    }
+  }
+
+  // ✅ NEW: Default permissions by role
+  const getDefaultPermissions = (role: string): string[] => {
+    const defaultPerms: Record<string, string[]> = {
+      admin: ['*'],
+      manager: ['read', 'write', 'moderate', 'manage_users'],
+      user: ['read', 'write', 'comment', 'like']
+    }
+    return defaultPerms[role] || defaultPerms['user']
+  }
+
+  // ✅ NEW: Initialize real-time services
+  const initializeRealTimeServices = async () => {
+    if (!user.value?.id || !profile.value) {
+      console.warn('[User Store] Cannot initialize real-time services: user or profile not ready')
+      return
+    }
+
+    try {
+      const nuxtApp = useNuxtApp()
+      
+      if (nuxtApp.$initializeGun) {
+        console.log('[User Store] Initializing Gun with user context')
+        nuxtApp.$initializeGun()
+      }
+
+      if (nuxtApp.$initializeSocket) {
+        console.log('[User Store] Initializing Socket.io with user context')
+        nuxtApp.$initializeSocket()
+      }
+    } catch (err: any) {
+      console.error('[User Store] Real-time services initialization error:', err)
+    }
+  }
+  
   const updateProfile = async (updates: any) => {
     const userId = user.value?.id
     
@@ -111,6 +178,8 @@ export const useUserStore = defineStore('user', () => {
       
       // Refresh profile after update
       await fetchProfile(userId)
+      // ✅ NEW: Reload permissions after profile update
+      await loadPermissions()
     } catch (err: any) {
       console.error('[User Store] Profile update error:', err)
       error.value = err.message || 'Failed to update profile'
@@ -122,6 +191,7 @@ export const useUserStore = defineStore('user', () => {
   
   const clearProfile = () => {
     profile.value = null
+    permissions.value = []
     error.value = null
   }
   
@@ -141,16 +211,16 @@ export const useUserStore = defineStore('user', () => {
   return {
     user: readonly(user),
     profile: readonly(profile),
+    permissions: readonly(permissions),
     loading: readonly(loading),
     error: readonly(error),
     isAdmin,
     isAuthenticated,
     initializeSession,
     fetchProfile,
+    loadPermissions,
     updateProfile,
-    clearProfile
+    clearProfile,
+    initializeRealTimeServices
   }
 })
-        
-
-
