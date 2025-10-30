@@ -81,12 +81,14 @@
       
       <form @submit.prevent="handleSubmit">
         <!-- Error display -->
-        <div v-if="error" class="error-message">{{ error }}</div>
+        <div v-if="error" class="error-message">
+          <strong>Error:</strong> {{ error }}
+        </div>
         
-        <!-- ✅ DEBUG INFO DISPLAY -->
+        <!-- ✅ FULL DEBUG INFO - ALWAYS VISIBLE DURING SIGNUP -->
         <div v-if="debugInfo" class="debug-panel">
-          <details>
-            <summary>🔍 Debug Info (Click to expand)</summary>
+          <details open>
+            <summary>🔍 Full Debug Info</summary>
             <pre>{{ debugInfo }}</pre>
           </details>
         </div>
@@ -181,60 +183,61 @@ const error = ref('')
 const passwordMismatch = ref(false)
 const debugInfo = ref('')
 
-// ✅ DIAGNOSTIC FUNCTION - Captures all debug info
-const captureDebugInfo = (stage: string, data: any) => {
+// ✅ COMPREHENSIVE DEBUG CAPTURE
+const captureDebugInfo = (stage: string, data: any, isError = false) => {
   const info = {
     timestamp: new Date().toISOString(),
     stage,
+    isError,
     data,
     environment: {
       hasAuthStore: !!useAuthStore,
       hasSupabaseClient: !!useSupabaseClient,
       hasNavigateTo: !!navigateTo,
-      hasFetch: !!$fetch
+      hasFetch: !!$fetch,
+      nodeEnv: process.env.NODE_ENV,
+      publicUrl: process.env.NUXT_PUBLIC_SITE_URL
     }
   }
   
   debugInfo.value = JSON.stringify(info, null, 2)
-  console.log(`[SignUp Debug - ${stage}]`, info)
+  
+  if (isError) {
+    console.error(`❌ [SignUp Debug - ${stage}]`, info)
+  } else {
+    console.log(`✅ [SignUp Debug - ${stage}]`, info)
+  }
+  
   return info
 }
 
-// Password validation
 const validatePasswords = () => {
   passwordMismatch.value = formData.value.password !== formData.value.confirmPassword
 }
 
-// Step 1 validation
 const canProceedStep1 = computed(() => {
   const email = formData.value.email.trim()
   const username = formData.value.username.trim().toLowerCase()
   const password = formData.value.password
   const confirmPassword = formData.value.confirmPassword
   
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   const emailValid = emailRegex.test(email)
   
-  // Username validation
   const usernameRegex = /^[a-z0-9_-]+$/
   const usernameValid = username.length >= 3 && username.length <= 30 && usernameRegex.test(username)
   
-  // Validate passwords when this computed property is evaluated
   validatePasswords()
   
-  // Check: password length >= 8, passwords match, and no mismatch flag
   const passwordValid = password.length >= 8 && password === confirmPassword
   
   return emailValid && usernameValid && passwordValid
 })
 
-// Step 2 validation
 const canProceedStep2 = computed(() => {
   return formData.value.fullName.trim() !== '' && formData.value.phone.trim() !== ''
 })
 
-// Next step
 const nextStep = () => {
   if (currentStep.value === 1 && canProceedStep1.value) {
     currentStep.value = 2
@@ -242,7 +245,6 @@ const nextStep = () => {
   }
 }
 
-// Previous step
 const previousStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
@@ -256,46 +258,7 @@ const previousStep = () => {
   }
 }
 
-// ✅ WAIT FOR SESSION WITH POLLING - More reliable than fixed timeout
-const waitForSession = async (maxAttempts = 30, delayMs = 500) => {
-  const supabase = useSupabaseClient()
-  let attempts = 0
-  
-  console.log('[SignUp] Starting session polling...')
-  captureDebugInfo('SESSION_POLLING_START', { maxAttempts, delayMs })
-  
-  while (attempts < maxAttempts) {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session?.user?.id) {
-        console.log('[SignUp] ✅ Session found on attempt', attempts + 1)
-        captureDebugInfo('SESSION_FOUND', { 
-          attempts: attempts + 1, 
-          userId: session.user.id 
-        })
-        return { success: true, session }
-      }
-      
-      attempts++
-      console.log(`[SignUp] Session not ready, attempt ${attempts}/${maxAttempts}`)
-      
-      // Wait before next attempt
-      await new Promise(resolve => setTimeout(resolve, delayMs))
-      
-    } catch (err: any) {
-      console.error('[SignUp] Error checking session:', err)
-      attempts++
-      await new Promise(resolve => setTimeout(resolve, delayMs))
-    }
-  }
-  
-  console.error('[SignUp] ❌ Session not established after', maxAttempts, 'attempts')
-  captureDebugInfo('SESSION_POLLING_FAILED', { maxAttempts, attempts })
-  return { success: false, error: 'Session establishment timeout' }
-}
-
-// ✅ FIXED: Proper signup flow with session polling
+// ✅ MAIN SIGNUP HANDLER WITH DETAILED ERROR CAPTURE
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -306,107 +269,169 @@ const handleSubmit = async () => {
   error.value = ''
   debugInfo.value = ''
   
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('🚀 SIGNUP PROCESS STARTED')
+  console.log('═══════════════════════════════════════════════════════════')
+  
   try {
-    console.log('[SignUp] Submitting form...')
-    captureDebugInfo('FORM_SUBMIT_START', { email: formData.value.email })
+    const signupPayload = {
+      email: formData.value.email.toLowerCase().trim(),
+      password: formData.value.password,
+      username: formData.value.username.trim().toLowerCase(),
+      fullName: formData.value.fullName,
+      phone: formData.value.phone,
+      bio: formData.value.bio,
+      location: formData.value.location,
+      interests: formData.value.interests
+    }
     
-    // Step 1: Call signup API
-    const response = await $fetch('/api/auth/signup', {
-      method: 'POST',
-      body: {
-        email: formData.value.email.toLowerCase().trim(),
-        password: formData.value.password,
-        username: formData.value.username.trim().toLowerCase(),
-        fullName: formData.value.fullName,
-        phone: formData.value.phone,
-        bio: formData.value.bio,
-        location: formData.value.location,
-        interests: formData.value.interests
+    console.log('📤 Sending payload to /api/auth/signup:', signupPayload)
+    captureDebugInfo('PAYLOAD_PREPARED', signupPayload)
+    
+    // ✅ CALL API WITH DETAILED ERROR HANDLING
+    let response
+    try {
+      response = await $fetch('/api/auth/signup', {
+        method: 'POST',
+        body: signupPayload
+      })
+      console.log('✅ API Response received:', response)
+      captureDebugInfo('API_RESPONSE_SUCCESS', response)
+    } catch (apiErr: any) {
+      console.error('❌ API Call Failed:', apiErr)
+      console.error('Error details:', {
+        status: apiErr.status,
+        statusCode: apiErr.statusCode,
+        message: apiErr.message,
+        data: apiErr.data,
+        response: apiErr.response,
+        cause: apiErr.cause
+      })
+      
+      captureDebugInfo('API_CALL_FAILED', {
+        status: apiErr.status,
+        statusCode: apiErr.statusCode,
+        message: apiErr.message,
+        statusMessage: apiErr.data?.statusMessage,
+        fullData: apiErr.data
+      }, true)
+      
+      // Set error and return
+      if (apiErr.data?.statusMessage) {
+        error.value = apiErr.data.statusMessage
+      } else if (apiErr.message) {
+        error.value = apiErr.message
+      } else {
+        error.value = 'Signup failed. Please check the debug info above.'
       }
-    })
+      
+      return
+    }
     
-    console.log('[SignUp] API Response:', response)
-    captureDebugInfo('API_RESPONSE_RECEIVED', response)
+    // ✅ CHECK RESPONSE
+    if (!response || !response.success) {
+      console.error('❌ API returned non-success response:', response)
+      captureDebugInfo('API_RESPONSE_NOT_SUCCESS', response, true)
+      error.value = response?.message || 'Signup failed. Please try again.'
+      return
+    }
     
-    if (response.success) {
-      try {
-        // Step 2: Initialize auth store
-        const authStore = useAuthStore()
-        const supabase = useSupabaseClient()
-        
-        captureDebugInfo('STORES_INITIALIZED', {
-          authStoreExists: !!authStore,
-          supabaseExists: !!supabase
-        })
-        
-        console.log('[SignUp] Waiting for Supabase session to be established...')
-        
-        // ✅ CRITICAL FIX: Poll for session instead of fixed timeout
-        // This waits up to 15 seconds (30 attempts × 500ms) for the session
-        const sessionResult = await waitForSession(30, 500)
-        
-        if (!sessionResult.success) {
-          error.value = 'Failed to establish session. Please try again.'
-          console.error('[SignUp] Session polling failed:', sessionResult.error)
-          captureDebugInfo('SESSION_POLLING_FAILED', sessionResult)
-          return
-        }
-        
-        console.log('[SignUp] Performing signup handshake...')
-        captureDebugInfo('HANDSHAKE_START', {
-          hasPerformSignupHandshake: typeof authStore.performSignupHandshake,
-          sessionUserId: sessionResult.session?.user?.id
-        })
-        
-        // Step 3: Perform signup handshake (profile + permissions + real-time services)
-        const handshakeResult = await authStore.performSignupHandshake()
-        
-        captureDebugInfo('HANDSHAKE_RESULT', handshakeResult)
-        
-        if (handshakeResult.success) {
-          console.log('[SignUp] ✅ Session initialized successfully')
-          captureDebugInfo('HANDSHAKE_SUCCESS', { redirecting: true })
+    console.log('✅ API signup successful, initializing session...')
+    
+    // ✅ INITIALIZE STORES
+    try {
+      const authStore = useAuthStore()
+      const supabase = useSupabaseClient()
+      
+      console.log('✅ Stores initialized')
+      captureDebugInfo('STORES_READY', {
+        authStoreExists: !!authStore,
+        supabaseExists: !!supabase
+      })
+      
+      // ✅ WAIT FOR SESSION
+      console.log('⏳ Waiting for Supabase session...')
+      let sessionFound = false
+      let attempts = 0
+      const maxAttempts = 60
+      
+      while (attempts < maxAttempts && !sessionFound) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
           
-          // Success! Redirect to verification or feed
-          await navigateTo('/auth/verify-email')
-        } else {
-          error.value = handshakeResult.error || 'Failed to initialize session. Please try again.'
-          console.error('[SignUp] Handshake failed:', handshakeResult.error)
-          captureDebugInfo('HANDSHAKE_FAILED', handshakeResult)
+          if (session?.user?.id) {
+            console.log(`✅ Session found on attempt ${attempts + 1}`)
+            captureDebugInfo('SESSION_FOUND', {
+              userId: session.user.id,
+              attempts: attempts + 1
+            })
+            sessionFound = true
+            break
+          }
+        } catch (sessionErr) {
+          console.warn(`⚠️ Session check attempt ${attempts + 1} failed:`, sessionErr)
         }
-      } catch (handshakeErr: any) {
-        console.error('[SignUp] Handshake error:', handshakeErr)
-        captureDebugInfo('HANDSHAKE_ERROR', {
-          message: handshakeErr.message,
-          stack: handshakeErr.stack
-        })
         
-        error.value = `Session initialization error: ${handshakeErr.message}`
+        attempts++
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
-    } else {
-      error.value = response.message || 'Signup failed. Please try again.'
-      console.error('[SignUp] API returned success: false')
-      captureDebugInfo('API_SUCCESS_FALSE', response)
+      
+      if (!sessionFound) {
+        console.error(`❌ Session not found after ${maxAttempts} attempts`)
+        captureDebugInfo('SESSION_NOT_FOUND', { maxAttempts, attempts }, true)
+        error.value = 'Session establishment failed. Please try again.'
+        return
+      }
+      
+      // ✅ PERFORM HANDSHAKE
+      console.log('🤝 Performing signup handshake...')
+      const handshakeResult = await authStore.performSignupHandshake()
+      
+      console.log('Handshake result:', handshakeResult)
+      captureDebugInfo('HANDSHAKE_RESULT', handshakeResult)
+      
+      if (handshakeResult.success) {
+        console.log('═══════════════════════════════════════════════════════════')
+        console.log('✅ SIGNUP PROCESS COMPLETED SUCCESSFULLY')
+        console.log('═══════════════════════════════════════════════════════════')
+        
+        await navigateTo('/auth/verify-email')
+      } else {
+        console.error('❌ Handshake failed:', handshakeResult.error)
+        captureDebugInfo('HANDSHAKE_FAILED', handshakeResult, true)
+        error.value = handshakeResult.error || 'Failed to initialize session.'
+      }
+    } catch (storeErr: any) {
+      console.error('❌ Store/Handshake error:', storeErr)
+      captureDebugInfo('STORE_ERROR', {
+        message: storeErr.message,
+        stack: storeErr.stack
+      }, true)
+      error.value = `Session error: ${storeErr.message}`
     }
   } catch (err: any) {
-    console.error('[SignUp] Error:', err)
-    captureDebugInfo('API_ERROR', {
-      status: err.status,
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('❌ SIGNUP PROCESS FAILED')
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('Error:', err)
+    console.error('Full error object:', {
+      name: err.name,
       message: err.message,
-      statusMessage: err.data?.statusMessage
+      status: err.status,
+      statusCode: err.statusCode,
+      data: err.data,
+      stack: err.stack
     })
     
-    // Handle specific errors
-    if (err.status === 409) {
-      error.value = err.data?.statusMessage || 'Username or email already taken. Please try different ones.'
-      currentStep.value = 1
-    } else if (err.data?.statusMessage) {
-      error.value = err.data.statusMessage
-    } else if (err.message) {
-      error.value = err.message
-    } else {
-      error.value = 'Signup failed. Please try again.'
-    }
+    captureDebugInfo('FATAL_ERROR', {
+      name: err.name,
+      message: err.message,
+      status: err.status,
+      statusCode: err.statusCode,
+      data: err.data
+    }, true)
+    
+    error.value = err.message || 'An unexpected error occurred. Check console for details.'
   } finally {
     loading.value = false
   }
@@ -503,21 +528,21 @@ textarea:disabled {
 }
 
 .error-message {
-  padding: 0.75rem;
+  padding: 1rem;
   margin-bottom: 1rem;
   background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
+  border: 2px solid #f5c6cb;
   border-radius: 4px;
   color: #721c24;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
-/* ✅ DEBUG PANEL STYLES */
 .debug-panel {
   padding: 1rem;
   margin-bottom: 1rem;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
+  background-color: #fff3cd;
+  border: 2px solid #ffc107;
   border-radius: 4px;
   font-size: 0.85rem;
 }
@@ -527,22 +552,27 @@ textarea:disabled {
   font-weight: 600;
   color: #333;
   user-select: none;
+  padding: 0.5rem;
+  background-color: #ffeaa7;
+  border-radius: 3px;
 }
 
 .debug-panel summary:hover {
-  color: #007bff;
+  background-color: #ffdb58;
 }
 
 .debug-panel pre {
   margin-top: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.75rem;
   background-color: #fff;
-  border: 1px solid #ddd;
+  border: 1px solid #ffc107;
   border-radius: 4px;
   overflow-x: auto;
   font-size: 0.75rem;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .submit-button,
