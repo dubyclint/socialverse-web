@@ -2,7 +2,7 @@ import { serverSupabaseClient } from '#supabase/server'
 
 interface VerifyEmailRequest {
   token: string
-  type: string
+  verifyType?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<VerifyEmailRequest>(event)
     
-    const { token, type = 'signup' } = body
+    const { token, verifyType = 'signup' } = body
 
     if (!token) {
       throw createError({
@@ -19,12 +19,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[Verify Email] Attempting to verify email with token, type:', type)
+    console.log('[Verify Email] Attempting to verify email with token, type:', verifyType)
 
     // ✅ FIX: Use correct OTP type for signup verification
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: token,
-      type: type as 'signup' | 'email_change' | 'phone_change'
+      type: verifyType as 'signup' | 'email_change' | 'phone_change'
     })
 
     if (error) {
