@@ -256,7 +256,46 @@ const previousStep = () => {
   }
 }
 
-// ✅ FIXED: Proper signup flow with better error handling
+// ✅ WAIT FOR SESSION WITH POLLING - More reliable than fixed timeout
+const waitForSession = async (maxAttempts = 30, delayMs = 500) => {
+  const supabase = useSupabaseClient()
+  let attempts = 0
+  
+  console.log('[SignUp] Starting session polling...')
+  captureDebugInfo('SESSION_POLLING_START', { maxAttempts, delayMs })
+  
+  while (attempts < maxAttempts) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session?.user?.id) {
+        console.log('[SignUp] ✅ Session found on attempt', attempts + 1)
+        captureDebugInfo('SESSION_FOUND', { 
+          attempts: attempts + 1, 
+          userId: session.user.id 
+        })
+        return { success: true, session }
+      }
+      
+      attempts++
+      console.log(`[SignUp] Session not ready, attempt ${attempts}/${maxAttempts}`)
+      
+      // Wait before next attempt
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+      
+    } catch (err: any) {
+      console.error('[SignUp] Error checking session:', err)
+      attempts++
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
+  
+  console.error('[SignUp] ❌ Session not established after', maxAttempts, 'attempts')
+  captureDebugInfo('SESSION_POLLING_FAILED', { maxAttempts, attempts })
+  return { success: false, error: 'Session establishment timeout' }
+}
+
+// ✅ FIXED: Proper signup flow with session polling
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -291,7 +330,7 @@ const handleSubmit = async () => {
     
     if (response.success) {
       try {
-        // Step 2: Initialize auth store and perform handshake
+        // Step 2: Initialize auth store
         const authStore = useAuthStore()
         const supabase = useSupabaseClient()
         
@@ -302,34 +341,24 @@ const handleSubmit = async () => {
         
         console.log('[SignUp] Waiting for Supabase session to be established...')
         
-        // ✅ CRITICAL: Wait for Supabase to establish the session
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // ✅ CRITICAL FIX: Poll for session instead of fixed timeout
+        // This waits up to 15 seconds (30 attempts × 500ms) for the session
+        const sessionResult = await waitForSession(30, 500)
         
-        // Step 3: Get the current session
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        captureDebugInfo('SESSION_CHECK', {
-          sessionExists: !!session,
-          userId: session?.user?.id || 'NO_USER'
-        })
-        
-        if (!session?.user) {
-          console.warn('[SignUp] No session found, attempting to refresh...')
-          captureDebugInfo('SESSION_REFRESH_ATTEMPT', { reason: 'NO_SESSION' })
-          
-          // Try to refresh the session
-          const { error: refreshError } = await supabase.auth.refreshSession()
-          if (refreshError) {
-            console.error('[SignUp] Session refresh failed:', refreshError)
-          }
+        if (!sessionResult.success) {
+          error.value = 'Failed to establish session. Please try again.'
+          console.error('[SignUp] Session polling failed:', sessionResult.error)
+          captureDebugInfo('SESSION_POLLING_FAILED', sessionResult)
+          return
         }
         
         console.log('[SignUp] Performing signup handshake...')
         captureDebugInfo('HANDSHAKE_START', {
-          hasPerformSignupHandshake: typeof authStore.performSignupHandshake
+          hasPerformSignupHandshake: typeof authStore.performSignupHandshake,
+          sessionUserId: sessionResult.session?.user?.id
         })
         
-        // Step 4: Perform signup handshake (profile + permissions + real-time services)
+        // Step 3: Perform signup handshake (profile + permissions + real-time services)
         const handshakeResult = await authStore.performSignupHandshake()
         
         captureDebugInfo('HANDSHAKE_RESULT', handshakeResult)
