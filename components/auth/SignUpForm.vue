@@ -255,7 +255,33 @@ const handleSubmit = async () => {
       }
     })
     
-    console.log('[SignUp] Response:', response)
+    console.log('[SignUp] Response:', response)console.log('=== SIGNUP DIAGNOSTIC ===')
+console.log('Response object:', response)
+console.log('Response.success:', response?.success)
+console.log('Response type:', typeof response)
+console.log('Response keys:', Object.keys(response || {}))
+console.log('Response.user:', response?.user)
+console.log('Response.needsConfirmation:', response?.needsConfirmation)
+console.log('=== END DIAGNOSTIC ===')
+
+// Also check if useAuthStore is available
+try {
+  const authStore = useAuthStore()
+  console.log('✅ useAuthStore available')
+  console.log('authStore methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(authStore)))
+  console.log('performSignupHandshake exists:', typeof authStore.performSignupHandshake)
+} catch (e) {
+  console.error('❌ useAuthStore error:', e)
+}
+
+// Check if useSupabaseClient is available
+try {
+  const supabase = useSupabaseClient()
+  console.log('✅ useSupabaseClient available')
+} catch (e) {
+  console.error('❌ useSupabaseClient error:', e)
+}
+    
     
     if (response.success) {
       // ✅ FINAL FIX: Wait for Supabase session to be established
