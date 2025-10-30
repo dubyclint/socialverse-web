@@ -82,6 +82,14 @@
       <form @submit.prevent="handleSubmit">
         <!-- Error display -->
         <div v-if="error" class="error-message">{{ error }}</div>
+        
+        <!-- ✅ DEBUG INFO DISPLAY -->
+        <div v-if="debugInfo" class="debug-panel">
+          <details>
+            <summary>🔍 Debug Info (Click to expand)</summary>
+            <pre>{{ debugInfo }}</pre>
+          </details>
+        </div>
 
         <div class="form-group">
           <label for="fullName">Full Name</label>
@@ -171,6 +179,26 @@ const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
 const passwordMismatch = ref(false)
+const debugInfo = ref('')
+
+// ✅ DIAGNOSTIC FUNCTION - Captures all debug info
+const captureDebugInfo = (stage: string, data: any) => {
+  const info = {
+    timestamp: new Date().toISOString(),
+    stage,
+    data,
+    environment: {
+      hasAuthStore: !!useAuthStore,
+      hasSupabaseClient: !!useSupabaseClient,
+      hasNavigateTo: !!navigateTo,
+      hasFetch: !!$fetch
+    }
+  }
+  
+  debugInfo.value = JSON.stringify(info, null, 2)
+  console.log(`[SignUp Debug - ${stage}]`, info)
+  return info
+}
 
 // Password validation
 const validatePasswords = () => {
@@ -228,7 +256,7 @@ const previousStep = () => {
   }
 }
 
-// ✅ FINAL FIX: Ensure Supabase user is available before handshake
+// ✅ FINAL FIX WITH PROPER DEBUGGING
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -237,9 +265,11 @@ const handleSubmit = async () => {
   
   loading.value = true
   error.value = ''
+  debugInfo.value = ''
   
   try {
     console.log('[SignUp] Submitting form...')
+    captureDebugInfo('FORM_SUBMIT_START', { email: formData.value.email })
     
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
@@ -255,67 +285,78 @@ const handleSubmit = async () => {
       }
     })
     
-    console.log('[SignUp] Response:', response)console.log('=== SIGNUP DIAGNOSTIC ===')
-console.log('Response object:', response)
-console.log('Response.success:', response?.success)
-console.log('Response type:', typeof response)
-console.log('Response keys:', Object.keys(response || {}))
-console.log('Response.user:', response?.user)
-console.log('Response.needsConfirmation:', response?.needsConfirmation)
-console.log('=== END DIAGNOSTIC ===')
-
-// Also check if useAuthStore is available
-try {
-  const authStore = useAuthStore()
-  console.log('✅ useAuthStore available')
-  console.log('authStore methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(authStore)))
-  console.log('performSignupHandshake exists:', typeof authStore.performSignupHandshake)
-} catch (e) {
-  console.error('❌ useAuthStore error:', e)
-}
-
-// Check if useSupabaseClient is available
-try {
-  const supabase = useSupabaseClient()
-  console.log('✅ useSupabaseClient available')
-} catch (e) {
-  console.error('❌ useSupabaseClient error:', e)
-}
-    
+    console.log('[SignUp] Response:', response)
+    captureDebugInfo('API_RESPONSE_RECEIVED', response)
     
     if (response.success) {
-      // ✅ FINAL FIX: Wait for Supabase session to be established
-      const authStore = useAuthStore()
-      const supabase = useSupabaseClient()
-      
-      console.log('[SignUp] Waiting for Supabase session...')
-      
-      // Wait a moment for Supabase to establish the session
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Get the current session
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.user) {
-        console.warn('[SignUp] No session found, attempting to refresh...')
-        // Try to refresh the session
-        await supabase.auth.refreshSession()
-      }
-      
-      console.log('[SignUp] Performing signup handshake...')
-      const handshakeResult = await authStore.performSignupHandshake()
-      
-      if (handshakeResult.success) {
-        console.log('[SignUp] ✅ Session initialized successfully')
-        // Redirect to verification or login page
-        await navigateTo('/auth/verify-email')
-      } else {
-        error.value = 'Failed to initialize session. Please try again.'
-        console.error('[SignUp] Handshake failed:', handshakeResult.error)
+      try {
+        // ✅ FINAL FIX: Wait for Supabase session to be established
+        const authStore = useAuthStore()
+        const supabase = useSupabaseClient()
+        
+        captureDebugInfo('STORES_INITIALIZED', {
+          authStoreExists: !!authStore,
+          supabaseExists: !!supabase
+        })
+        
+        console.log('[SignUp] Waiting for Supabase session...')
+        
+        // Wait a moment for Supabase to establish the session
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Get the current session
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        captureDebugInfo('SESSION_CHECK', {
+          sessionExists: !!session,
+          userId: session?.user?.id || 'NO_USER'
+        })
+        
+        if (!session?.user) {
+          console.warn('[SignUp] No session found, attempting to refresh...')
+          captureDebugInfo('SESSION_REFRESH_ATTEMPT', { reason: 'NO_SESSION' })
+          
+          // Try to refresh the session
+          await supabase.auth.refreshSession()
+        }
+        
+        console.log('[SignUp] Performing signup handshake...')
+        captureDebugInfo('HANDSHAKE_START', {
+          hasPerformSignupHandshake: typeof authStore.performSignupHandshake
+        })
+        
+        const handshakeResult = await authStore.performSignupHandshake()
+        
+        captureDebugInfo('HANDSHAKE_RESULT', handshakeResult)
+        
+        if (handshakeResult.success) {
+          console.log('[SignUp] ✅ Session initialized successfully')
+          captureDebugInfo('HANDSHAKE_SUCCESS', { redirecting: true })
+          
+          // Redirect to verification or login page
+          await navigateTo('/auth/verify-email')
+        } else {
+          error.value = 'Failed to initialize session. Please try again.'
+          console.error('[SignUp] Handshake failed:', handshakeResult.error)
+          captureDebugInfo('HANDSHAKE_FAILED', handshakeResult)
+        }
+      } catch (handshakeErr: any) {
+        console.error('[SignUp] Handshake error:', handshakeErr)
+        captureDebugInfo('HANDSHAKE_ERROR', {
+          message: handshakeErr.message,
+          stack: handshakeErr.stack
+        })
+        
+        error.value = `Session initialization error: ${handshakeErr.message}`
       }
     }
   } catch (err: any) {
     console.error('[SignUp] Error:', err)
+    captureDebugInfo('API_ERROR', {
+      status: err.status,
+      message: err.message,
+      statusMessage: err.data?.statusMessage
+    })
     
     // Handle specific errors
     if (err.status === 409) {
@@ -423,6 +464,39 @@ textarea:focus {
   border-radius: 4px;
   color: #721c24;
   font-size: 0.9rem;
+}
+
+/* ✅ DEBUG PANEL STYLES */
+.debug-panel {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.debug-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #333;
+  user-select: none;
+}
+
+.debug-panel summary:hover {
+  color: #007bff;
+}
+
+.debug-panel pre {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .submit-button,
