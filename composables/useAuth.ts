@@ -1,10 +1,11 @@
+// composables/useAuth.ts - UPDATED VERSION
 import { ref, computed } from 'vue'
 import type { User } from '@supabase/supabase-js'
 
 export const useAuth = () => {
   const supabase = useSupabaseClient()
   const user = useSupabaseUser()
-  const userStore = useUserStore()
+  const authStore = useAuthStore()
   
   const loading = ref(false)
   const error = ref('')
@@ -29,7 +30,8 @@ export const useAuth = () => {
 
       console.log('[useAuth] User logged in with ID:', data.user.id)
       
-      await userStore.initializeSession()
+      // ✅ FIXED: Use authStore instead of userStore
+      await authStore.initialize()
       
       return { success: true, user: data.user }
     } catch (err: any) {
@@ -65,6 +67,13 @@ export const useAuth = () => {
       
       console.log('[useAuth] User signed up with ID:', data.user.id)
       
+      // ✅ FIXED: Use authStore to perform signup handshake
+      const handshakeResult = await authStore.performSignupHandshake()
+      
+      if (!handshakeResult.success) {
+        throw new Error(handshakeResult.error || 'Signup handshake failed')
+      }
+      
       return { 
         success: true, 
         user: data.user,
@@ -85,7 +94,9 @@ export const useAuth = () => {
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
       
-      await userStore.clearSession()
+      // ✅ FIXED: Use authStore to clear auth
+      authStore.clearAuth()
+      
       return { success: true }
     } catch (err: any) {
       error.value = err.message
