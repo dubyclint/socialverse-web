@@ -66,10 +66,31 @@ onMounted(async () => {
     })
     
     if (result.success) {
+      // ✅ FIX #2: Ensure session is fully initialized after email verification
+      const authStore = useAuthStore()
+      
+      console.log('[VerifyEmail] Email verified, checking session status...')
+      
+      // Check if session is already initialized
+      if (!authStore.sessionValid) {
+        console.log('[VerifyEmail] Session not initialized, performing handshake...')
+        const handshakeResult = await authStore.performSignupHandshake()
+        
+        if (handshakeResult.success) {
+          console.log('[VerifyEmail] ✅ Session initialized after email verification')
+        } else {
+          console.warn('[VerifyEmail] Handshake failed but email is verified:', handshakeResult.error)
+          // Continue anyway since email is verified
+        }
+      } else {
+        console.log('[VerifyEmail] ✅ Session already initialized')
+      }
+      
       success.value = true
       setTimeout(() => navigateTo('/feed'), 2000)
     }
   } catch (err: any) {
+    console.error('[VerifyEmail] Error:', err)
     error.value = err.data?.statusMessage || err.message || 'Verification failed'
   } finally {
     loading.value = false
@@ -87,6 +108,8 @@ const resendEmail = async () => {
       return
     }
     
+    console.log('[VerifyEmail] Resending verification email to:', email.value)
+    
     await $fetch('/api/auth/resend-verification', {
       method: 'POST',
       body: { email: email.value }
@@ -94,6 +117,7 @@ const resendEmail = async () => {
     
     error.value = 'Verification email sent! Check your inbox.'
   } catch (err: any) {
+    console.error('[VerifyEmail] Resend error:', err)
     error.value = err.data?.statusMessage || 'Failed to resend email'
   } finally {
     loading.value = false
@@ -108,6 +132,7 @@ const resendEmail = async () => {
   align-items: center;
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1rem;
 }
 
 .verify-card {
@@ -139,8 +164,12 @@ const resendEmail = async () => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .success-icon,
@@ -156,13 +185,13 @@ const resendEmail = async () => {
 }
 
 .success-icon {
-  background-color: #efe;
-  color: #3c3;
+  background-color: #d4edda;
+  color: #155724;
 }
 
 .error-icon {
-  background-color: #fee;
-  color: #c33;
+  background-color: #f8d7da;
+  color: #721c24;
 }
 
 h2 {
@@ -182,35 +211,53 @@ p {
   flex-direction: column;
   gap: 0.75rem;
   width: 100%;
+  margin-top: 1rem;
 }
 
 .action-button,
 .secondary-button {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 5px;
-  font-size: 0.95rem;
+  border-radius: 6px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
+  width: 100%;
 }
 
 .action-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #667eea;
   color: white;
 }
 
 .action-button:hover {
+  background-color: #5568d3;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
 .secondary-button {
-  background-color: #f0f0f0;
+  background-color: #e9ecef;
   color: #333;
 }
 
 .secondary-button:hover {
-  background-color: #e0e0e0;
+  background-color: #dee2e6;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 480px) {
+  .verify-card {
+    padding: 2rem 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  p {
+    font-size: 0.9rem;
+  }
 }
 </style>
