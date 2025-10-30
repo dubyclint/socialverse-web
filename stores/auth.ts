@@ -362,11 +362,32 @@ export const useAuthStore = defineStore('auth', {
       this.lastRoleCheck = null
     },
 
-    // ✅ NEW: Handshake after signup - Initialize profile and plugins
+    // ✅ CRITICAL FIX: Handshake after signup - Initialize profile and plugins
     async performSignupHandshake() {
       console.log('[Auth] Performing signup handshake...')
       
       try {
+        let supabase = null
+        try {
+          supabase = useSupabaseClient()
+        } catch (error) {
+          console.warn('Supabase client not available:', error)
+          throw new Error('Supabase client not available')
+        }
+        
+        // ✅ CRITICAL FIX: Get current user from Supabase directly
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        
+        if (!currentUser) {
+          throw new Error('No authenticated user found')
+        }
+        
+        console.log('[Auth] ✅ Current user found:', currentUser.id)
+        
+        // ✅ CRITICAL FIX: Set this.user before fetching profile
+        this.user = currentUser
+        this.supabaseAvailable = true
+        
         // Step 1: Fetch profile
         await this.fetchProfile()
         
