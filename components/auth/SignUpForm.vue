@@ -171,17 +171,12 @@ const loading = ref(false)
 const error = ref('')
 const passwordMismatch = ref(false)
 
-// ISSUE 1 & 2 FIX: Import navigateTo and $fetch
-// These are auto-imported in Nuxt 3, but explicitly using them here
-// navigateTo is available globally in Nuxt 3
-// $fetch is available globally in Nuxt 3
-
 // Password validation
 const validatePasswords = () => {
   passwordMismatch.value = formData.value.password !== formData.value.confirmPassword
 }
 
-// Step 1 validation - NO username check, just basic validation
+// Step 1 validation
 const canProceedStep1 = computed(() => {
   const email = formData.value.email.trim()
   const username = formData.value.username.trim().toLowerCase()
@@ -196,8 +191,7 @@ const canProceedStep1 = computed(() => {
   const usernameRegex = /^[a-z0-9_-]+$/
   const usernameValid = username.length >= 3 && username.length <= 30 && usernameRegex.test(username)
   
-  // ISSUE 4 FIX: Simplified password validation logic
-  // Always validate passwords when this computed property is evaluated
+  // Validate passwords when this computed property is evaluated
   validatePasswords()
   
   // Check: password length >= 8, passwords match, and no mismatch flag
@@ -215,7 +209,6 @@ const canProceedStep2 = computed(() => {
 const nextStep = () => {
   if (currentStep.value === 1 && canProceedStep1.value) {
     currentStep.value = 2
-    // ISSUE 5 FIX: Clear error when moving to next step
     error.value = ''
   }
 }
@@ -224,9 +217,7 @@ const nextStep = () => {
 const previousStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
-    // ISSUE 5 FIX: Clear error when moving to previous step
     error.value = ''
-    // ISSUE 5 FIX: Reset form data when going back to step 1
     if (currentStep.value === 1) {
       formData.value.fullName = ''
       formData.value.phone = ''
@@ -236,7 +227,7 @@ const previousStep = () => {
   }
 }
 
-// Submit form - DIRECT signup without pre-check
+// ✅ FIX #1: Call performSignupHandshake() after successful signup
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -249,7 +240,6 @@ const handleSubmit = async () => {
   try {
     console.log('[SignUp] Submitting form...')
     
-    // ISSUE 2 FIX: $fetch is now properly used (auto-imported in Nuxt 3)
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -267,9 +257,20 @@ const handleSubmit = async () => {
     console.log('[SignUp] Response:', response)
     
     if (response.success) {
-      // ISSUE 1 FIX: navigateTo is now properly used (auto-imported in Nuxt 3)
-      // Redirect to verification or login page
-      await navigateTo('/verify-email')
+      // ✅ FIX #1: Initialize session immediately after signup
+      const authStore = useAuthStore()
+      
+      console.log('[SignUp] Performing signup handshake...')
+      const handshakeResult = await authStore.performSignupHandshake()
+      
+      if (handshakeResult.success) {
+        console.log('[SignUp] ✅ Session initialized successfully')
+        // Redirect to verification or login page
+        await navigateTo('/auth/verify-email')
+      } else {
+        error.value = 'Failed to initialize session. Please try again.'
+        console.error('[SignUp] Handshake failed:', handshakeResult.error)
+      }
     }
   } catch (err: any) {
     console.error('[SignUp] Error:', err)
@@ -356,37 +357,30 @@ input:focus,
 textarea:focus {
   outline: none;
   border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-
-input:disabled,
-textarea:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
 }
 
 .hint {
   display: block;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   font-size: 0.85rem;
   color: #666;
 }
 
 .error-text {
   display: block;
-  margin-top: 0.5rem;
-  color: #dc3545;
+  margin-top: 0.25rem;
   font-size: 0.85rem;
+  color: #dc3545;
 }
 
 .error-message {
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
   background-color: #f8d7da;
   border: 1px solid #f5c6cb;
   border-radius: 4px;
   color: #721c24;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .submit-button,
@@ -397,7 +391,7 @@ textarea:disabled {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background-color 0.3s;
 }
 
 .submit-button {
@@ -409,8 +403,6 @@ textarea:disabled {
 
 .submit-button:hover:not(:disabled) {
   background-color: #0056b3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
 .submit-button:disabled {
@@ -421,7 +413,7 @@ textarea:disabled {
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 .back-button {
@@ -434,7 +426,12 @@ textarea:disabled {
   background-color: #5a6268;
 }
 
+.back-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 .submit-button {
-  flex: 2;
+  flex: 1;
 }
 </style>
