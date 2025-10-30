@@ -19,8 +19,7 @@ export default defineEventHandler(async (event) => {
     console.log('[Signup] Request received:', { 
       email: body.email, 
       username: body.username, 
-      phone: body.phone,
-      interestsCount: body.interests?.length || 0
+      phone: body.phone
     })
     
     // Validate required fields
@@ -52,9 +51,11 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Normalize and validate username
+    // Normalize username and email
     const trimmedUsername = body.username.trim().toLowerCase()
+    const normalizedEmail = body.email.toLowerCase().trim()
     
+    // Validate username
     if (trimmedUsername.length < 3) {
       console.error('[Signup] Username too short:', trimmedUsername)
       throw createError({
@@ -80,40 +81,23 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Normalize email
-    const normalizedEmail = body.email.toLowerCase().trim()
-    
-    // ✅ CRITICAL FIX: Check for duplicate username using LOWER() function
-    console.log('[Signup] Checking for duplicate username in profiles table:', trimmedUsername)
-    const { data: existingUsername, error: usernameCheckError, count } = await supabase
+    // ✅ SIMPLE FIX: Direct query - no complex migrations needed
+    console.log('[Signup] Checking for duplicate username:', trimmedUsername)
+    const { data: existingUsers, error: checkError } = await supabase
       .from('profiles')
-      .select('id', { count: 'exact' })
-      .filter('username_lower', 'eq', trimmedUsername)
+      .select('id')
+      .ilike('username', trimmedUsername)  // Case-insensitive search
+      .limit(1)
     
-    if (usernameCheckError) {
-      console.error('[Signup] Error checking username:', usernameCheckError)
-      
-      // Fallback to RPC if generated column doesn't exist
-      console.log('[Signup] Fallback: Using RPC for username check')
-      const { data: rpcResult, error: rpcError } = await supabase
-        .rpc('check_username_available', { p_username: trimmedUsername })
-      
-      if (rpcError) {
-        console.error('[Signup] RPC error:', rpcError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: `Database error: ${rpcError.message}`
-        })
-      }
-      
-      if (rpcResult && !rpcResult.available) {
-        console.error('[Signup] Username already taken (via RPC):', trimmedUsername)
-        throw createError({
-          statusCode: 409,
-          statusMessage: 'Username already taken'
-        })
-      }
-    } else if (count && count > 0) {
+    if (checkError) {
+      console.error('[Signup] Error checking username:', checkError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error: ${checkError.message}`
+      })
+    }
+    
+    if (existingUsers && existingUsers.length > 0) {
       console.error('[Signup] Username already taken:', trimmedUsername)
       throw createError({
         statusCode: 409,
@@ -121,37 +105,23 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ CRITICAL FIX: Check for duplicate email using LOWER() function
-    console.log('[Signup] Checking for duplicate email in profiles table:', normalizedEmail)
-    const { data: existingEmail, error: emailCheckError, count: emailCount } = await supabase
+    // Check for duplicate email
+    console.log('[Signup] Checking for duplicate email:', normalizedEmail)
+    const { data: existingEmails, error: emailCheckError } = await supabase
       .from('profiles')
-      .select('id', { count: 'exact' })
-      .filter('email_lower', 'eq', normalizedEmail)
+      .select('id')
+      .ilike('email', normalizedEmail)  // Case-insensitive search
+      .limit(1)
     
     if (emailCheckError) {
       console.error('[Signup] Error checking email:', emailCheckError)
-      
-      // Fallback to RPC if generated column doesn't exist
-      console.log('[Signup] Fallback: Using RPC for email check')
-      const { data: rpcResult, error: rpcError } = await supabase
-        .rpc('check_email_available', { p_email: normalizedEmail })
-      
-      if (rpcError) {
-        console.error('[Signup] RPC error:', rpcError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: `Database error: ${rpcError.message}`
-        })
-      }
-      
-      if (rpcResult && !rpcResult.available) {
-        console.error('[Signup] Email already registered (via RPC):', normalizedEmail)
-        throw createError({
-          statusCode: 409,
-          statusMessage: 'Email already registered'
-        })
-      }
-    } else if (emailCount && emailCount > 0) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error: ${emailCheckError.message}`
+      })
+    }
+    
+    if (existingEmails && existingEmails.length > 0) {
       console.error('[Signup] Email already registered:', normalizedEmail)
       throw createError({
         statusCode: 409,
@@ -190,8 +160,8 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    // ✅ CRITICAL FIX: Create user profile in profiles table (NOT users table)
-    console.log('[Signup] Creating user profile in profiles table for ID:', authData.user.id)
+    // Create user profile
+    console.log('[Signup] Creating user profile for ID:', authData.user.id)
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -210,7 +180,6 @@ export default defineEventHandler(async (event) => {
         email_verified: false,
         location: body.location || '',
         interests: body.interests || [],
-        profile_completed: false,
         preferences: {
           emailNotifications: true,
           profilePrivate: false
@@ -222,7 +191,11 @@ export default defineEventHandler(async (event) => {
       console.error('[Signup] Profile creation failed:', profileError)
       
       // Delete auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id)
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id)
+      } catch (deleteErr) {
+        console.error('[Signup] Failed to delete orphaned auth user:', deleteErr)
+      }
       
       // Handle unique constraint violation
       if (profileError.code === '23505') {
@@ -238,7 +211,7 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    console.log('[Signup] ✅ User profile created successfully in profiles table')
+    console.log('[Signup] ✅ User profile created successfully')
     
     return {
       success: true,
