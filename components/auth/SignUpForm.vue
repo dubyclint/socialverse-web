@@ -153,6 +153,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useAuthStore } from '~/stores/auth'
 
 const formData = ref({
   email: '',
@@ -227,7 +228,7 @@ const previousStep = () => {
   }
 }
 
-// ✅ FIX #1: Call performSignupHandshake() after successful signup
+// ✅ FIX #1 (CORRECTED): Call performSignupHandshake() after successful signup
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -257,7 +258,7 @@ const handleSubmit = async () => {
     console.log('[SignUp] Response:', response)
     
     if (response.success) {
-      // ✅ FIX #1: Initialize session immediately after signup
+      // ✅ FIX #1 (CORRECTED): Import useAuthStore and initialize session immediately after signup
       const authStore = useAuthStore()
       
       console.log('[SignUp] Performing signup handshake...')
