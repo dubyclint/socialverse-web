@@ -281,15 +281,15 @@ const handleSubmit = async () => {
     console.log('📤 Sending registration request:', payload)
     debugInfo.value = JSON.stringify({
       stage: 'SENDING_REQUEST',
-      endpoint: '/api/auth/register',
+      endpoint: '/auth-register',
       payload,
       timestamp: new Date().toISOString()
     }, null, 2)
     
     let response
     try {
-      // ✅ CALL THE ENDPOINT
-      response = await $fetch('/api/auth/register', {
+      // ✅ CALL NEW ENDPOINT
+      response = await $fetch('/auth-register', {
         method: 'POST',
         body: payload
       })
