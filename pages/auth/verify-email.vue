@@ -1,82 +1,216 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
-    <div class="w-full max-w-md">
-      <div class="bg-white rounded-lg shadow-xl p-8 text-center">
-        <div class="mb-6">
-          <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-        </div>
-
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
-        <p class="text-gray-600 mb-8">We've sent a verification link to {{ userEmail }}</p>
-
-        <div v-if="error" class="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
-          {{ error }}
-        </div>
-
-        <div v-if="success" class="p-3 bg-green-100 border border-green-400 text-green-700 rounded mb-4">
-          {{ success }}
-        </div>
-
-        <button
-          @click="resendEmail"
-          :disabled="loading || resendCooldown > 0"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
-        >
-          {{ loading ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Email' }}
+  <div class="verify-container">
+    <div class="verify-card">
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <h2>Verifying your email...</h2>
+        <p>Please wait while we confirm your email address.</p>
+      </div>
+      
+      <div v-else-if="success" class="success-state">
+        <div class="success-icon">✓</div>
+        <h2>Email Verified!</h2>
+        <p>Your email has been successfully verified.</p>
+        <button @click="navigateTo('/feed')" class="action-button">
+          Go to Feed
         </button>
-
-        <p class="text-center text-gray-600 mt-6">
-          <NuxtLink to="/auth/login" class="text-blue-600 hover:text-blue-700 font-semibold">
-            Back to login
-          </NuxtLink>
-        </p>
+      </div>
+      
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">✕</div>
+        <h2>Verification Failed</h2>
+        <p>{{ error }}</p>
+        <div class="action-buttons">
+          <button @click="resendEmail" class="action-button">
+            Resend Verification Email
+          </button>
+          <button @click="navigateTo('/auth')" class="secondary-button">
+            Back to Sign In
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue'
 
-const userEmail = ref('')
-const loading = ref(false)
-const error = ref('')
-const success = ref('')
-const resendCooldown = ref(0)
+definePageMeta({
+  layout: 'default'
+})
 
-onMounted(() => {
-  const user = localStorage.getItem('user')
-  if (user) {
-    userEmail.value = JSON.parse(user).email
+const loading = ref(true)
+const success = ref(false)
+const error = ref('')
+const email = ref('')
+
+onMounted(async () => {
+  try {
+    const route = useRoute()
+    const token = route.query.token_hash || route.query.token
+    
+    if (!token) {
+      error.value = 'No verification token found. Please check your email link.'
+      loading.value = false
+      return
+    }
+    
+    // Call verification endpoint
+    const result = await $fetch('/api/auth/verify-email', {
+      method: 'POST',
+      body: {
+        token: token as string,
+        type: 'signup'
+      }
+    })
+    
+    if (result.success) {
+      success.value = true
+      setTimeout(() => navigateTo('/feed'), 2000)
+    }
+  } catch (err: any) {
+    error.value = err.data?.statusMessage || err.message || 'Verification failed'
+  } finally {
+    loading.value = false
   }
 })
 
 const resendEmail = async () => {
-  error.value = ''
-  success.value = ''
-  loading.value = true
-
   try {
+    loading.value = true
+    error.value = ''
+    
+    if (!email.value) {
+      error.value = 'Please enter your email address'
+      loading.value = false
+      return
+    }
+    
     await $fetch('/api/auth/resend-verification', {
       method: 'POST',
-      body: { email: userEmail.value }
+      body: { email: email.value }
     })
-
-    success.value = 'Verification email sent!'
-    resendCooldown.value = 60
-
-    const interval = setInterval(() => {
-      resendCooldown.value--
-      if (resendCooldown.value <= 0) clearInterval(interval)
-    }, 1000)
+    
+    error.value = 'Verification email sent! Check your inbox.'
   } catch (err: any) {
-    error.value = err.data?.message || 'Failed to resend email'
+    error.value = err.data?.statusMessage || 'Failed to resend email'
   } finally {
     loading.value = false
   }
 }
 </script>
+
+<style scoped>
+.verify-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.verify-card {
+  background: white;
+  padding: 3rem 2rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.loading-state,
+.success-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.success-icon,
+.error-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.success-icon {
+  background-color: #efe;
+  color: #3c3;
+}
+
+.error-icon {
+  background-color: #fee;
+  color: #c33;
+}
+
+h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+p {
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.action-button,
+.secondary-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.action-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.secondary-button {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.secondary-button:hover {
+  background-color: #e0e0e0;
+}
+</style>
