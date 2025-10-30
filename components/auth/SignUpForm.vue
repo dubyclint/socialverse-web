@@ -228,7 +228,7 @@ const previousStep = () => {
   }
 }
 
-// ✅ FIX #1 (CORRECTED): Call performSignupHandshake() after successful signup
+// ✅ FINAL FIX: Ensure Supabase user is available before handshake
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -258,8 +258,23 @@ const handleSubmit = async () => {
     console.log('[SignUp] Response:', response)
     
     if (response.success) {
-      // ✅ FIX #1 (CORRECTED): Import useAuthStore and initialize session immediately after signup
+      // ✅ FINAL FIX: Wait for Supabase session to be established
       const authStore = useAuthStore()
+      const supabase = useSupabaseClient()
+      
+      console.log('[SignUp] Waiting for Supabase session...')
+      
+      // Wait a moment for Supabase to establish the session
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.user) {
+        console.warn('[SignUp] No session found, attempting to refresh...')
+        // Try to refresh the session
+        await supabase.auth.refreshSession()
+      }
       
       console.log('[SignUp] Performing signup handshake...')
       const handshakeResult = await authStore.performSignupHandshake()
