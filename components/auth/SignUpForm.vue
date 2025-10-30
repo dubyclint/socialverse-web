@@ -256,7 +256,7 @@ const previousStep = () => {
   }
 }
 
-// ✅ FINAL FIX WITH PROPER DEBUGGING
+// ✅ FIXED: Proper signup flow with better error handling
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -271,6 +271,7 @@ const handleSubmit = async () => {
     console.log('[SignUp] Submitting form...')
     captureDebugInfo('FORM_SUBMIT_START', { email: formData.value.email })
     
+    // Step 1: Call signup API
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -285,12 +286,12 @@ const handleSubmit = async () => {
       }
     })
     
-    console.log('[SignUp] Response:', response)
+    console.log('[SignUp] API Response:', response)
     captureDebugInfo('API_RESPONSE_RECEIVED', response)
     
     if (response.success) {
       try {
-        // ✅ FINAL FIX: Wait for Supabase session to be established
+        // Step 2: Initialize auth store and perform handshake
         const authStore = useAuthStore()
         const supabase = useSupabaseClient()
         
@@ -299,12 +300,12 @@ const handleSubmit = async () => {
           supabaseExists: !!supabase
         })
         
-        console.log('[SignUp] Waiting for Supabase session...')
+        console.log('[SignUp] Waiting for Supabase session to be established...')
         
-        // Wait a moment for Supabase to establish the session
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // ✅ CRITICAL: Wait for Supabase to establish the session
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
-        // Get the current session
+        // Step 3: Get the current session
         const { data: { session } } = await supabase.auth.getSession()
         
         captureDebugInfo('SESSION_CHECK', {
@@ -317,7 +318,10 @@ const handleSubmit = async () => {
           captureDebugInfo('SESSION_REFRESH_ATTEMPT', { reason: 'NO_SESSION' })
           
           // Try to refresh the session
-          await supabase.auth.refreshSession()
+          const { error: refreshError } = await supabase.auth.refreshSession()
+          if (refreshError) {
+            console.error('[SignUp] Session refresh failed:', refreshError)
+          }
         }
         
         console.log('[SignUp] Performing signup handshake...')
@@ -325,6 +329,7 @@ const handleSubmit = async () => {
           hasPerformSignupHandshake: typeof authStore.performSignupHandshake
         })
         
+        // Step 4: Perform signup handshake (profile + permissions + real-time services)
         const handshakeResult = await authStore.performSignupHandshake()
         
         captureDebugInfo('HANDSHAKE_RESULT', handshakeResult)
@@ -333,10 +338,10 @@ const handleSubmit = async () => {
           console.log('[SignUp] ✅ Session initialized successfully')
           captureDebugInfo('HANDSHAKE_SUCCESS', { redirecting: true })
           
-          // Redirect to verification or login page
+          // Success! Redirect to verification or feed
           await navigateTo('/auth/verify-email')
         } else {
-          error.value = 'Failed to initialize session. Please try again.'
+          error.value = handshakeResult.error || 'Failed to initialize session. Please try again.'
           console.error('[SignUp] Handshake failed:', handshakeResult.error)
           captureDebugInfo('HANDSHAKE_FAILED', handshakeResult)
         }
@@ -349,6 +354,10 @@ const handleSubmit = async () => {
         
         error.value = `Session initialization error: ${handshakeErr.message}`
       }
+    } else {
+      error.value = response.message || 'Signup failed. Please try again.'
+      console.error('[SignUp] API returned success: false')
+      captureDebugInfo('API_SUCCESS_FALSE', response)
     }
   } catch (err: any) {
     console.error('[SignUp] Error:', err)
@@ -434,12 +443,20 @@ textarea {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s;
+  box-sizing: border-box;
 }
 
 input:focus,
 textarea:focus {
   outline: none;
   border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+input:disabled,
+textarea:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
 }
 
 .hint {
@@ -511,10 +528,9 @@ textarea:focus {
 }
 
 .submit-button {
-  width: 100%;
+  flex: 1;
   background-color: #007bff;
   color: white;
-  margin-top: 1rem;
 }
 
 .submit-button:hover:not(:disabled) {
@@ -545,9 +561,5 @@ textarea:focus {
 .back-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
-}
-
-.submit-button {
-  flex: 1;
 }
 </style>
