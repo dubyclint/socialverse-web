@@ -30,47 +30,25 @@ export default defineEventHandler(async (event) => {
       return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
     }
     
-    // ✅ CRITICAL FIX: Use LOWER() function for case-insensitive query
+    // ✅ SIMPLE FIX: Use ilike for case-insensitive search
     console.log('[CheckUsername] Querying profiles table for username:', trimmedUsername)
-    
-    // Method 1: Using RPC for case-insensitive query
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
-      .filter('username_lower', 'eq', trimmedUsername)
+      .ilike('username', trimmedUsername)  // Case-insensitive
     
     console.log('[CheckUsername] Query result:', { 
       count, 
       dataLength: data?.length,
-      error: error?.message, 
-      errorCode: error?.code 
+      error: error?.message
     })
     
     if (error) {
-      console.error('[CheckUsername] Database query error:', error.message, error.code)
-      
-      // Fallback: Try direct lowercase comparison if generated column doesn't exist
-      console.log('[CheckUsername] Fallback: Using LOWER() function')
-      const { data: fallbackData, error: fallbackError, count: fallbackCount } = await supabase
-        .rpc('check_username_available', { p_username: trimmedUsername })
-      
-      if (fallbackError) {
-        console.error('[CheckUsername] Fallback query also failed:', fallbackError.message)
-        throw createError({
-          statusCode: 500,
-          statusMessage: `Database error: ${fallbackError.message}`
-        })
-      }
-      
-      const isTaken = fallbackData && !fallbackData.available
-      console.log('[CheckUsername] Fallback result - Username taken:', isTaken)
-      
-      return { 
-        available: !isTaken,
-        count: isTaken ? 1 : 0,
-        username: trimmedUsername,
-        message: isTaken ? 'Username already taken' : 'Username is available'
-      }
+      console.error('[CheckUsername] Database query error:', error.message)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Database error: ${error.message}`
+      })
     }
     
     const isTaken = count !== null && count > 0
