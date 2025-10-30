@@ -7,7 +7,6 @@
       <h3>Create Your Account</h3>
       
       <form @submit.prevent="nextStep">
-        <!-- Error display -->
         <div v-if="error" class="error-message">{{ error }}</div>
         
         <div class="form-group">
@@ -80,17 +79,17 @@
       <h3>Complete Your Profile</h3>
       
       <form @submit.prevent="handleSubmit">
-        <!-- Error display -->
-        <div v-if="error" class="error-message">
-          <strong>Error:</strong> {{ error }}
+        <div v-if="error" class="error-message-large">
+          <div class="error-title">❌ Error</div>
+          <div class="error-content">{{ error }}</div>
+          <div v-if="errorDetails" class="error-details">
+            <pre>{{ errorDetails }}</pre>
+          </div>
         </div>
         
-        <!-- ✅ FULL DEBUG INFO - ALWAYS VISIBLE DURING SIGNUP -->
-        <div v-if="debugInfo" class="debug-panel">
-          <details open>
-            <summary>🔍 Full Debug Info</summary>
-            <pre>{{ debugInfo }}</pre>
-          </details>
+        <div v-if="debugInfo" class="debug-panel-large">
+          <div class="debug-title">🔍 Debug Info</div>
+          <pre class="debug-content">{{ debugInfo }}</pre>
         </div>
 
         <div class="form-group">
@@ -180,36 +179,9 @@ const formData = ref({
 const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
+const errorDetails = ref('')
 const passwordMismatch = ref(false)
 const debugInfo = ref('')
-
-// ✅ COMPREHENSIVE DEBUG CAPTURE
-const captureDebugInfo = (stage: string, data: any, isError = false) => {
-  const info = {
-    timestamp: new Date().toISOString(),
-    stage,
-    isError,
-    data,
-    environment: {
-      hasAuthStore: !!useAuthStore,
-      hasSupabaseClient: !!useSupabaseClient,
-      hasNavigateTo: !!navigateTo,
-      hasFetch: !!$fetch,
-      nodeEnv: process.env.NODE_ENV,
-      publicUrl: process.env.NUXT_PUBLIC_SITE_URL
-    }
-  }
-  
-  debugInfo.value = JSON.stringify(info, null, 2)
-  
-  if (isError) {
-    console.error(`❌ [SignUp Debug - ${stage}]`, info)
-  } else {
-    console.log(`✅ [SignUp Debug - ${stage}]`, info)
-  }
-  
-  return info
-}
 
 const validatePasswords = () => {
   passwordMismatch.value = formData.value.password !== formData.value.confirmPassword
@@ -242,6 +214,7 @@ const nextStep = () => {
   if (currentStep.value === 1 && canProceedStep1.value) {
     currentStep.value = 2
     error.value = ''
+    errorDetails.value = ''
   }
 }
 
@@ -249,16 +222,10 @@ const previousStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
     error.value = ''
-    if (currentStep.value === 1) {
-      formData.value.fullName = ''
-      formData.value.phone = ''
-      formData.value.bio = ''
-      formData.value.location = ''
-    }
+    errorDetails.value = ''
   }
 }
 
-// ✅ MAIN SIGNUP HANDLER WITH DETAILED ERROR CAPTURE
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -267,171 +234,92 @@ const handleSubmit = async () => {
   
   loading.value = true
   error.value = ''
+  errorDetails.value = ''
   debugInfo.value = ''
   
-  console.log('═══════════════════════════════════════════════════════════')
-  console.log('🚀 SIGNUP PROCESS STARTED')
-  console.log('═══════════════════════════════════════════════════════════')
-  
   try {
-    const signupPayload = {
+    const payload = {
       email: formData.value.email.toLowerCase().trim(),
       password: formData.value.password,
       username: formData.value.username.trim().toLowerCase(),
       fullName: formData.value.fullName,
       phone: formData.value.phone,
       bio: formData.value.bio,
-      location: formData.value.location,
-      interests: formData.value.interests
+      location: formData.value.location
     }
     
-    console.log('📤 Sending payload to /api/auth/signup:', signupPayload)
-    captureDebugInfo('PAYLOAD_PREPARED', signupPayload)
+    console.log('📤 Calling /api/auth/register with payload:', payload)
     
-    // ✅ CALL API WITH DETAILED ERROR HANDLING
-    let response
-    try {
-      response = await $fetch('/api/auth/signup', {
-        method: 'POST',
-        body: signupPayload
-      })
-      console.log('✅ API Response received:', response)
-      captureDebugInfo('API_RESPONSE_SUCCESS', response)
-    } catch (apiErr: any) {
-      console.error('❌ API Call Failed:', apiErr)
-      console.error('Error details:', {
-        status: apiErr.status,
-        statusCode: apiErr.statusCode,
-        message: apiErr.message,
-        data: apiErr.data,
-        response: apiErr.response,
-        cause: apiErr.cause
-      })
-      
-      captureDebugInfo('API_CALL_FAILED', {
-        status: apiErr.status,
-        statusCode: apiErr.statusCode,
-        message: apiErr.message,
-        statusMessage: apiErr.data?.statusMessage,
-        fullData: apiErr.data
-      }, true)
-      
-      // Set error and return
-      if (apiErr.data?.statusMessage) {
-        error.value = apiErr.data.statusMessage
-      } else if (apiErr.message) {
-        error.value = apiErr.message
-      } else {
-        error.value = 'Signup failed. Please check the debug info above.'
-      }
-      
-      return
-    }
-    
-    // ✅ CHECK RESPONSE
-    if (!response || !response.success) {
-      console.error('❌ API returned non-success response:', response)
-      captureDebugInfo('API_RESPONSE_NOT_SUCCESS', response, true)
-      error.value = response?.message || 'Signup failed. Please try again.'
-      return
-    }
-    
-    console.log('✅ API signup successful, initializing session...')
-    
-    // ✅ INITIALIZE STORES
-    try {
-      const authStore = useAuthStore()
-      const supabase = useSupabaseClient()
-      
-      console.log('✅ Stores initialized')
-      captureDebugInfo('STORES_READY', {
-        authStoreExists: !!authStore,
-        supabaseExists: !!supabase
-      })
-      
-      // ✅ WAIT FOR SESSION
-      console.log('⏳ Waiting for Supabase session...')
-      let sessionFound = false
-      let attempts = 0
-      const maxAttempts = 60
-      
-      while (attempts < maxAttempts && !sessionFound) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession()
-          
-          if (session?.user?.id) {
-            console.log(`✅ Session found on attempt ${attempts + 1}`)
-            captureDebugInfo('SESSION_FOUND', {
-              userId: session.user.id,
-              attempts: attempts + 1
-            })
-            sessionFound = true
-            break
-          }
-        } catch (sessionErr) {
-          console.warn(`⚠️ Session check attempt ${attempts + 1} failed:`, sessionErr)
-        }
-        
-        attempts++
-        await new Promise(resolve => setTimeout(resolve, 500))
-      }
-      
-      if (!sessionFound) {
-        console.error(`❌ Session not found after ${maxAttempts} attempts`)
-        captureDebugInfo('SESSION_NOT_FOUND', { maxAttempts, attempts }, true)
-        error.value = 'Session establishment failed. Please try again.'
-        return
-      }
-      
-      // ✅ PERFORM HANDSHAKE
-      console.log('🤝 Performing signup handshake...')
-      const handshakeResult = await authStore.performSignupHandshake()
-      
-      console.log('Handshake result:', handshakeResult)
-      captureDebugInfo('HANDSHAKE_RESULT', handshakeResult)
-      
-      if (handshakeResult.success) {
-        console.log('═══════════════════════════════════════════════════════════')
-        console.log('✅ SIGNUP PROCESS COMPLETED SUCCESSFULLY')
-        console.log('═══════════════════════════════════════════════════════════')
-        
-        await navigateTo('/auth/verify-email')
-      } else {
-        console.error('❌ Handshake failed:', handshakeResult.error)
-        captureDebugInfo('HANDSHAKE_FAILED', handshakeResult, true)
-        error.value = handshakeResult.error || 'Failed to initialize session.'
-      }
-    } catch (storeErr: any) {
-      console.error('❌ Store/Handshake error:', storeErr)
-      captureDebugInfo('STORE_ERROR', {
-        message: storeErr.message,
-        stack: storeErr.stack
-      }, true)
-      error.value = `Session error: ${storeErr.message}`
-    }
-  } catch (err: any) {
-    console.error('═══════════════════════════════════════════════════════════')
-    console.error('❌ SIGNUP PROCESS FAILED')
-    console.error('═══════════════════════════════════════════════════════════')
-    console.error('Error:', err)
-    console.error('Full error object:', {
-      name: err.name,
-      message: err.message,
-      status: err.status,
-      statusCode: err.statusCode,
-      data: err.data,
-      stack: err.stack
+    // ✅ CALL NEW REGISTER ENDPOINT
+    const response = await $fetch('/api/auth/register', {
+      method: 'POST',
+      body: payload
     })
     
-    captureDebugInfo('FATAL_ERROR', {
-      name: err.name,
-      message: err.message,
-      status: err.status,
-      statusCode: err.statusCode,
-      data: err.data
-    }, true)
+    console.log('✅ Register response:', response)
+    debugInfo.value = JSON.stringify(response, null, 2)
     
-    error.value = err.message || 'An unexpected error occurred. Check console for details.'
+    if (!response?.success) {
+      error.value = response?.message || 'Registration failed'
+      errorDetails.value = JSON.stringify(response, null, 2)
+      return
+    }
+    
+    console.log('✅ Registration successful, initializing session...')
+    
+    // Initialize auth
+    const authStore = useAuthStore()
+    const supabase = useSupabaseClient()
+    
+    // Wait for session
+    console.log('⏳ Waiting for session...')
+    let sessionFound = false
+    
+    for (let i = 0; i < 60; i++) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.id) {
+          console.log(`✅ Session found on attempt ${i + 1}`)
+          sessionFound = true
+          break
+        }
+      } catch (e) {
+        console.warn(`Session check ${i + 1} failed`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    
+    if (!sessionFound) {
+      error.value = 'Session not established'
+      return
+    }
+    
+    console.log('🤝 Performing handshake...')
+    const handshakeResult = await authStore.performSignupHandshake()
+    
+    if (handshakeResult.success) {
+      console.log('✅ SUCCESS - Redirecting to verify email')
+      await navigateTo('/auth/verify-email')
+    } else {
+      error.value = handshakeResult.error || 'Session initialization failed'
+      errorDetails.value = JSON.stringify(handshakeResult, null, 2)
+    }
+    
+  } catch (err: any) {
+    console.error('❌ Error:', err)
+    
+    // Check if response is HTML (redirect)
+    if (err.message && err.message.includes('<!DOCTYPE') || err.message.includes('<html')) {
+      error.value = 'API endpoint not found - received HTML instead of JSON. Check server configuration.'
+      errorDetails.value = 'The server is redirecting to the landing page instead of processing the API request.'
+    } else {
+      error.value = err.message || 'An error occurred'
+      errorDetails.value = JSON.stringify({
+        message: err.message,
+        status: err.status,
+        statusCode: err.statusCode
+      }, null, 2)
+    }
   } finally {
     loading.value = false
   }
@@ -440,7 +328,7 @@ const handleSubmit = async () => {
 
 <style scoped>
 .signup-form {
-  max-width: 500px;
+  max-width: 600px;
   margin: 0 auto;
   padding: 2rem;
   background: #fff;
@@ -528,51 +416,81 @@ textarea:disabled {
 }
 
 .error-message {
-  padding: 1rem;
+  padding: 0.75rem;
   margin-bottom: 1rem;
   background-color: #f8d7da;
-  border: 2px solid #f5c6cb;
+  border: 1px solid #f5c6cb;
   border-radius: 4px;
   color: #721c24;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.9rem;
 }
 
-.debug-panel {
-  padding: 1rem;
+.error-message-large {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background-color: #f8d7da;
+  border: 3px solid #dc3545;
+  border-radius: 8px;
+  color: #721c24;
+}
+
+.error-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+  color: #dc3545;
+}
+
+.error-content {
+  font-size: 1rem;
   margin-bottom: 1rem;
-  background-color: #fff3cd;
-  border: 2px solid #ffc107;
-  border-radius: 4px;
-  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
-.debug-panel summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: #333;
-  user-select: none;
-  padding: 0.5rem;
-  background-color: #ffeaa7;
-  border-radius: 3px;
+.error-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #dc3545;
 }
 
-.debug-panel summary:hover {
-  background-color: #ffdb58;
-}
-
-.debug-panel pre {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
+.error-details pre {
   background-color: #fff;
-  border: 1px solid #ffc107;
+  padding: 0.75rem;
   border-radius: 4px;
   overflow-x: auto;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #dc3545;
+}
+
+.debug-panel-large {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background-color: #fff3cd;
+  border: 3px solid #ffc107;
+  border-radius: 8px;
+}
+
+.debug-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #856404;
+}
+
+.debug-content {
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.85rem;
   max-height: 400px;
   overflow-y: auto;
+  border: 1px solid #ffc107;
   white-space: pre-wrap;
   word-wrap: break-word;
+  font-family: 'Courier New', monospace;
 }
 
 .submit-button,
