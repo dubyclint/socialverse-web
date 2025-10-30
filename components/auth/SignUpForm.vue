@@ -10,7 +10,7 @@
         <div v-if="error" class="error-message">{{ error }}</div>
         
         <div class="form-group">
-          <label for="email">Email</label>
+          <label for="email">Email Address</label>
           <input 
             id="email"
             v-model="formData.email" 
@@ -28,7 +28,7 @@
             v-model="formData.username" 
             type="text" 
             required 
-            placeholder="@username"
+            placeholder="username"
             :disabled="loading"
           />
           <span class="hint">3-30 characters, letters, numbers, underscores, hyphens only</span>
@@ -74,7 +74,7 @@
       </form>
     </div>
 
-    <!-- Step 2: Additional Info -->
+    <!-- Step 2: Profile Info -->
     <div v-if="currentStep === 2" class="step">
       <h3>Complete Your Profile</h3>
       
@@ -82,62 +82,69 @@
         <div v-if="error" class="error-message-large">
           <div class="error-title">❌ Error</div>
           <div class="error-content">{{ error }}</div>
-          <div v-if="errorDetails" class="error-details">
-            <pre>{{ errorDetails }}</pre>
-          </div>
         </div>
         
         <div v-if="debugInfo" class="debug-panel-large">
-          <div class="debug-title">🔍 Debug Info</div>
+          <div class="debug-title">✅ Success Info</div>
           <pre class="debug-content">{{ debugInfo }}</pre>
         </div>
 
+        <!-- Full Name - REQUIRED -->
         <div class="form-group">
-          <label for="fullName">Full Name</label>
+          <label for="fullName">Full Name <span class="required">*</span></label>
           <input 
             id="fullName"
             v-model="formData.fullName" 
             type="text" 
             required 
-            placeholder="John Doe"
+            placeholder="e.g., Pech love"
             :disabled="loading"
           />
+          <span class="hint">Your full name as it appears on your ID</span>
         </div>
 
+        <!-- Phone Number - REQUIRED -->
         <div class="form-group">
-          <label for="phone">Phone Number</label>
+          <label for="phone">Phone Number <span class="required">*</span></label>
           <input 
             id="phone"
             v-model="formData.phone" 
             type="tel" 
             required 
-            placeholder="+1 (555) 000-0000"
+            placeholder="e.g., +2349059010737"
             :disabled="loading"
           />
+          <span class="hint">Include country code (e.g., +234 for Nigeria)</span>
         </div>
 
+        <!-- Bio - OPTIONAL -->
         <div class="form-group">
-          <label for="bio">Bio (Optional)</label>
+          <label for="bio">Bio <span class="optional">(Optional)</span></label>
           <textarea 
             id="bio"
             v-model="formData.bio" 
-            placeholder="Tell us about yourself"
+            placeholder="Tell us about yourself (max 500 characters)"
             rows="3"
+            maxlength="500"
             :disabled="loading"
           ></textarea>
+          <span class="hint">{{ formData.bio.length }}/500 characters</span>
         </div>
 
+        <!-- Location - OPTIONAL -->
         <div class="form-group">
-          <label for="location">Location (Optional)</label>
+          <label for="location">Location <span class="optional">(Optional)</span></label>
           <input 
             id="location"
             v-model="formData.location" 
             type="text" 
-            placeholder="City, Country"
+            placeholder="e.g., Lagos, Nigeria"
             :disabled="loading"
           />
+          <span class="hint">City, Country</span>
         </div>
 
+        <!-- Form Actions -->
         <div class="form-actions">
           <button 
             type="button" 
@@ -145,15 +152,36 @@
             @click="previousStep"
             :disabled="loading"
           >
-            Back
+            ← Back
           </button>
           <button 
             type="submit" 
             class="submit-button" 
             :disabled="!canProceedStep2 || loading"
           >
-            {{ loading ? 'Creating Account...' : 'Sign Up' }}
+            {{ loading ? 'Creating Account...' : 'Create Account' }}
           </button>
+        </div>
+
+        <!-- Summary -->
+        <div class="profile-summary">
+          <h4>Profile Summary</h4>
+          <div class="summary-item">
+            <span class="label">Full Name:</span>
+            <span class="value">{{ formData.fullName || '—' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Phone:</span>
+            <span class="value">{{ formData.phone || '—' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Bio:</span>
+            <span class="value">{{ formData.bio || '—' }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Location:</span>
+            <span class="value">{{ formData.location || '—' }}</span>
+          </div>
         </div>
       </form>
     </div>
@@ -172,14 +200,12 @@ const formData = ref({
   fullName: '',
   phone: '',
   bio: '',
-  location: '',
-  interests: []
+  location: ''
 })
 
 const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
-const errorDetails = ref('')
 const passwordMismatch = ref(false)
 const debugInfo = ref('')
 
@@ -207,14 +233,17 @@ const canProceedStep1 = computed(() => {
 })
 
 const canProceedStep2 = computed(() => {
-  return formData.value.fullName.trim() !== '' && formData.value.phone.trim() !== ''
+  const fullName = formData.value.fullName.trim()
+  const phone = formData.value.phone.trim()
+  
+  // Full name and phone are required
+  return fullName.length > 0 && phone.length > 0
 })
 
 const nextStep = () => {
   if (currentStep.value === 1 && canProceedStep1.value) {
     currentStep.value = 2
     error.value = ''
-    errorDetails.value = ''
   }
 }
 
@@ -222,19 +251,17 @@ const previousStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
     error.value = ''
-    errorDetails.value = ''
   }
 }
 
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
-    error.value = 'Please fill in all required fields'
+    error.value = 'Please fill in Full Name and Phone Number'
     return
   }
   
   loading.value = true
   error.value = ''
-  errorDetails.value = ''
   debugInfo.value = ''
   
   try {
@@ -242,28 +269,31 @@ const handleSubmit = async () => {
       email: formData.value.email.toLowerCase().trim(),
       password: formData.value.password,
       username: formData.value.username.trim().toLowerCase(),
-      fullName: formData.value.fullName,
-      phone: formData.value.phone,
-      bio: formData.value.bio,
-      location: formData.value.location
+      fullName: formData.value.fullName.trim(),
+      phone: formData.value.phone.trim(),
+      bio: formData.value.bio.trim(),
+      location: formData.value.location.trim()
     }
     
-    console.log('📤 Calling /api/auth/register with payload:', payload)
+    console.log('📤 Sending registration request:', payload)
     
-    // ✅ CALL NEW REGISTER ENDPOINT
     const response = await $fetch('/api/auth/register', {
       method: 'POST',
       body: payload
     })
     
-    console.log('✅ Register response:', response)
-    debugInfo.value = JSON.stringify(response, null, 2)
+    console.log('✅ Registration response:', response)
     
     if (!response?.success) {
       error.value = response?.message || 'Registration failed'
-      errorDetails.value = JSON.stringify(response, null, 2)
       return
     }
+    
+    debugInfo.value = JSON.stringify({
+      message: 'Account created successfully!',
+      user: response.user,
+      profile: response.profile
+    }, null, 2)
     
     console.log('✅ Registration successful, initializing session...')
     
@@ -302,24 +332,11 @@ const handleSubmit = async () => {
       await navigateTo('/auth/verify-email')
     } else {
       error.value = handshakeResult.error || 'Session initialization failed'
-      errorDetails.value = JSON.stringify(handshakeResult, null, 2)
     }
     
   } catch (err: any) {
     console.error('❌ Error:', err)
-    
-    // Check if response is HTML (redirect)
-    if (err.message && err.message.includes('<!DOCTYPE') || err.message.includes('<html')) {
-      error.value = 'API endpoint not found - received HTML instead of JSON. Check server configuration.'
-      errorDetails.value = 'The server is redirecting to the landing page instead of processing the API request.'
-    } else {
-      error.value = err.message || 'An error occurred'
-      errorDetails.value = JSON.stringify({
-        message: err.message,
-        status: err.status,
-        statusCode: err.statusCode
-      }, null, 2)
-    }
+    error.value = err.message || 'An error occurred during registration'
   } finally {
     loading.value = false
   }
@@ -374,6 +391,17 @@ label {
   font-weight: 600;
   color: #333;
   font-size: 0.95rem;
+}
+
+.required {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.optional {
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-weight: normal;
 }
 
 input,
@@ -443,32 +471,14 @@ textarea:disabled {
 
 .error-content {
   font-size: 1rem;
-  margin-bottom: 1rem;
   line-height: 1.5;
-}
-
-.error-details {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 2px solid #dc3545;
-}
-
-.error-details pre {
-  background-color: #fff;
-  padding: 0.75rem;
-  border-radius: 4px;
-  overflow-x: auto;
-  font-size: 0.85rem;
-  max-height: 300px;
-  overflow-y: auto;
-  border: 1px solid #dc3545;
 }
 
 .debug-panel-large {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  background-color: #fff3cd;
-  border: 3px solid #ffc107;
+  background-color: #d4edda;
+  border: 3px solid #28a745;
   border-radius: 8px;
 }
 
@@ -476,7 +486,7 @@ textarea:disabled {
   font-size: 1.2rem;
   font-weight: bold;
   margin-bottom: 1rem;
-  color: #856404;
+  color: #155724;
 }
 
 .debug-content {
@@ -485,12 +495,49 @@ textarea:disabled {
   border-radius: 4px;
   overflow-x: auto;
   font-size: 0.85rem;
-  max-height: 400px;
+  max-height: 300px;
   overflow-y: auto;
-  border: 1px solid #ffc107;
+  border: 1px solid #28a745;
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'Courier New', monospace;
+}
+
+.profile-summary {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.profile-summary h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.9rem;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-item .label {
+  font-weight: 600;
+  color: #555;
+}
+
+.summary-item .value {
+  color: #666;
+  text-align: right;
+  word-break: break-word;
 }
 
 .submit-button,
@@ -522,7 +569,7 @@ textarea:disabled {
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .back-button {
@@ -538,5 +585,28 @@ textarea:disabled {
 .back-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .signup-form {
+    padding: 1rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .submit-button,
+  .back-button {
+    width: 100%;
+  }
 }
 </style>
