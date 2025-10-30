@@ -2,6 +2,7 @@ import { serverSupabaseClient } from '#supabase/server'
 
 interface VerifyEmailRequest {
   token: string
+  type: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -9,7 +10,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<VerifyEmailRequest>(event)
     
-    const { token } = body
+    const { token, type = 'signup' } = body
 
     if (!token) {
       throw createError({
@@ -18,13 +19,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[Verify Email] Attempting to verify email with token')
+    console.log('[Verify Email] Attempting to verify email with token, type:', type)
 
-    // ✅ FIX: Use Supabase auth to verify email
-    // The token comes from the email link: /auth/confirm?token_hash=xxx&type=email_change
+    // ✅ FIX: Use correct OTP type for signup verification
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: token,
-      type: 'email_change'
+      type: type as 'signup' | 'email_change' | 'phone_change'
     })
 
     if (error) {
@@ -36,54 +36,39 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!data.user) {
-      console.error('[Verify Email] No user returned from verification')
       throw createError({
-        statusCode: 500,
+        statusCode: 400,
         statusMessage: 'Email verification failed: No user found'
       })
     }
 
-    console.log('[Verify Email] User email verified:', data.user.id)
-
-    // ✅ FIX: Update profile to mark email as verified
+    // ✅ FIX: Update profile email_verified status
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({
-        email_verified: true,
-        updated_at: new Date().toISOString()
-      })
+      .update({ email_verified: true })
       .eq('id', data.user.id)
 
     if (updateError) {
-      console.error('[Verify Email] Profile update error:', updateError)
-      // Don't fail verification if profile update fails
-      console.warn('[Verify Email] Continuing despite profile update failure')
+      console.error('[Verify Email] Failed to update profile:', updateError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Failed to update profile: ${updateError.message}`
+      })
     }
 
-    console.log('[Verify Email] Email verified successfully')
+    console.log('[Verify Email] ✅ Email verified successfully for user:', data.user.id)
 
     return {
       success: true,
-      message: 'Email verified successfully',
-      data: {
-        user: {
-          id: data.user.id,
-          email: data.user.email
-        }
-      }
+      user: {
+        id: data.user.id,
+        email: data.user.email
+      },
+      message: 'Email verified successfully!'
     }
 
-  } catch (error) {
-    console.error('[Verify Email] Error:', error)
-    
-    if ((error as any).statusCode) {
-      throw error
-    }
-    
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Email verification failed: ${(error as any).message || 'Unknown error'}`
-    })
+  } catch (err: any) {
+    console.error('[Verify Email] Error:', err)
+    throw err
   }
 })
-
