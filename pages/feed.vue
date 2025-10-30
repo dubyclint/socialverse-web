@@ -31,55 +31,32 @@
               :class="[post.type, { 'sponsored': post.sponsored, 'ad': post.isAd }]"
             >
               <!-- Post Header -->
-              <header class="post-header">
-                <div class="author-info">
-                  <img 
-                    :src="post.author_avatar || '/default-avatar.png'" 
-                    :alt="post.author"
-                    class="author-avatar"
-                  />
-                  <div class="author-details">
-                    <h4 class="author-name">
-                      {{ post.author }}
-                      <Icon v-if="post.verified" name="check-circle" size="16" class="verified-badge" />
-                    </h4>
-                    <p class="post-timestamp">{{ formatDate(post.created_at) }}</p>
+              <div class="post-header">
+                <div class="user-info">
+                  <img :src="post.user_avatar" :alt="post.user_name" class="user-avatar" />
+                  <div class="user-details">
+                    <h4 class="user-name">{{ post.user_name }}</h4>
+                    <span class="post-time">{{ formatDate(post.created_at) }}</span>
                   </div>
                 </div>
-
-                <div class="post-badges">
-                  <span v-if="post.sponsored" class="badge sponsored-badge">
-                    <Icon name="dollar-sign" size="14" />
-                    Sponsored
-                  </span>
-                  <span v-if="post.isAd" class="badge ad-badge">
-                    <Icon name="megaphone" size="14" />
-                    Ad
-                  </span>
-                  <span v-if="post.pinned" class="badge pinned-badge">
-                    <Icon name="pin" size="14" />
-                    Pinned
-                  </span>
-                </div>
-
-                <button class="more-options-btn" @click="togglePostOptions(post.id)">
-                  <Icon name="more-horizontal" size="20" />
+                <button @click="togglePostOptions(post.id)" class="options-btn">
+                  <Icon name="more-vertical" size="20" />
                 </button>
-              </header>
+              </div>
 
               <!-- Post Content -->
               <div class="post-content">
                 <p class="post-text">{{ post.content }}</p>
                 
                 <!-- Post Media -->
-                <div v-if="post.media_urls && post.media_urls.length > 0" class="post-media">
+                <div v-if="post.media && post.media.length > 0" class="post-media">
                   <img 
-                    v-for="(url, index) in post.media_urls" 
+                    v-for="(media, index) in post.media" 
                     :key="index"
-                    :src="url" 
-                    :alt="`Post media ${index + 1}`"
+                    :src="media.url" 
+                    :alt="post.content"
                     class="post-image"
-                    @click="openMediaViewer(url)"
+                    @click="openMediaViewer(media.url)"
                   />
                 </div>
               </div>
@@ -87,20 +64,16 @@
               <!-- Engagement Stats -->
               <div class="engagement-stats">
                 <span class="stat">
-                  <Icon name="heart" size="14" />
-                  {{ formatCount(post.likes_count || 0) }} likes
+                  <Icon name="heart" size="16" />
+                  {{ formatCount(post.likes_count) }} Likes
                 </span>
                 <span class="stat">
-                  <Icon name="message-circle" size="14" />
-                  {{ formatCount(post.comments_count || 0) }} comments
+                  <Icon name="message-circle" size="16" />
+                  {{ formatCount(post.comments_count) }} Comments
                 </span>
                 <span class="stat">
-                  <Icon name="share-2" size="14" />
-                  {{ formatCount(post.shares_count || 0) }} shares
-                </span>
-                <span class="stat">
-                  <Icon name="gift" size="14" />
-                  {{ formatCount(post.pewgifts_count || 0) }} gifts
+                  <Icon name="share-2" size="16" />
+                  {{ formatCount(post.shares_count) }} Shares
                 </span>
               </div>
 
@@ -109,12 +82,13 @@
                 <!-- Like Button -->
                 <button 
                   @click="toggleLike(post)"
-                  :class="['interaction-btn', 'like-btn', { 'active': post.user_liked }]"
+                  class="interaction-btn like-btn"
+                  :class="{ 'liked': post.user_liked }"
                   :disabled="post.liking"
-                  :title="`${post.user_liked ? 'Unlike' : 'Like'} this post`"
+                  title="Like this post"
                 >
                   <Icon :name="post.user_liked ? 'heart' : 'heart'" size="20" />
-                  <span>{{ post.user_liked ? 'Liked' : 'Like' }}</span>
+                  <span>Like</span>
                 </button>
 
                 <!-- Comment Button -->
@@ -155,49 +129,39 @@
                 <div class="comment-input-wrapper">
                   <img 
                     :src="currentUserAvatar" 
-                    :alt="currentUserName"
-                    class="comment-input-avatar"
+                    :alt="currentUserName" 
+                    class="comment-user-avatar" 
                   />
                   <div class="comment-input-group">
                     <input 
                       v-model="post.newComment"
-                      @keyup.enter="addComment(post)"
+                      type="text"
                       placeholder="Write a comment..."
-                      class="comment-field"
+                      class="comment-input"
+                      @keyup.enter="addComment(post)"
                     />
                     <button 
                       @click="addComment(post)"
                       :disabled="!post.newComment?.trim() || post.commenting"
                       class="comment-submit-btn"
                     >
-                      {{ post.commenting ? '...' : 'Post' }}
+                      {{ post.commenting ? 'Posting...' : 'Post' }}
                     </button>
                   </div>
                 </div>
 
                 <!-- Comments List -->
                 <div v-if="post.comments && post.comments.length > 0" class="comments-list">
-                  <div 
-                    v-for="comment in post.comments" 
-                    :key="comment.id"
-                    class="comment-item"
-                  >
-                    <img 
-                      :src="comment.author_avatar || '/default-avatar.png'" 
-                      :alt="comment.author"
-                      class="comment-avatar"
-                    />
+                  <div v-for="comment in post.comments" :key="comment.id" class="comment-item">
+                    <img :src="comment.user_avatar" :alt="comment.user_name" class="comment-avatar" />
                     <div class="comment-content">
                       <div class="comment-header">
-                        <span class="comment-author">{{ comment.author }}</span>
-                        <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
+                        <strong class="comment-user-name">{{ comment.user_name }}</strong>
+                        <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
                       </div>
                       <p class="comment-text">{{ comment.content }}</p>
                       <div class="comment-actions">
-                        <button 
-                          @click="toggleCommentLike(comment)"
-                          :class="['comment-like-btn', { 'liked': comment.user_liked }]"
-                        >
+                        <button class="comment-like-btn">
                           <Icon :name="comment.user_liked ? 'heart' : 'heart'" size="14" />
                           {{ comment.likes_count || 0 }}
                         </button>
@@ -231,19 +195,19 @@
           </div>
         </section>
 
-        <!-- Sidebar (Optional - for ads/sponsored content) -->
-        <aside class="feed-sidebar">
-          <!-- Ad Slots -->
-          <div v-for="ad in adSlots" :key="ad.id" class="ad-slot">
-            <AdSlot :ad="ad" />
-          </div>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+          <!-- Ad Slot -->
+          <AdSlot v-if="adSlots.length > 0" :ad="adSlots[0]" />
 
-          <!-- Trending Section -->
+          <!-- Trending Topics -->
           <div class="trending-section">
-            <h3>Trending</h3>
-            <div v-for="trend in trendingTopics" :key="trend.id" class="trend-item">
-              <p class="trend-title">{{ trend.title }}</p>
-              <p class="trend-count">{{ formatCount(trend.count) }} posts</p>
+            <h3>Trending Topics</h3>
+            <div class="trending-list">
+              <div v-for="topic in trendingTopics" :key="topic.id" class="trending-item">
+                <span class="topic-name">{{ topic.name }}</span>
+                <span class="topic-count">{{ formatCount(topic.count) }} posts</span>
+              </div>
             </div>
           </div>
         </aside>
@@ -252,9 +216,9 @@
 
     <!-- PewGift Modal -->
     <div v-if="showPewGiftModal" class="modal-overlay" @click="closePewGiftModal">
-      <div class="pewgift-modal" @click.stop>
+      <div class="modal-content-wrapper" @click.stop>
         <div class="modal-header">
-          <h3>Send PewGift</h3>
+          <h3>Send a PewGift</h3>
           <button @click="closePewGiftModal" class="close-btn">
             <Icon name="x" size="20" />
           </button>
@@ -311,23 +275,18 @@
             <button 
               @click="sendPewGift" 
               :disabled="!getSelectedGiftAmount() || sendingGift"
-              class="send-gift-btn"
+              class="send-btn"
             >
-              {{ sendingGift ? 'Sending...' : `Send ${getSelectedGiftAmount()} PEW` }}
+              {{ sendingGift ? 'Sending...' : 'Send PewGift' }}
             </button>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Footer -->
-    <footer class="homefeed-footer">
-      <p>&copy; 2024 SocialVerse. All rights reserved.</p>
-    </footer>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
@@ -482,8 +441,16 @@ async function toggleCommentLike(comment) {
   }
 }
 
-function loadMoreComments(post) {
-  // Load more comments logic
+async function loadMoreComments(post) {
+  try {
+    const response = await $fetch(`/api/posts/${post.id}/comments`, {
+      query: { limit: 10 }
+    })
+    post.comments = [...(post.comments || []), ...response.data]
+    post.hasMoreComments = response.hasMore
+  } catch (err) {
+    console.error('Error loading more comments:', err)
+  }
 }
 
 async function sharePost(post) {
@@ -560,12 +527,39 @@ function retryLoadPosts() {
   loadPosts()
 }
 
-// Lifecycle
-onMounted(() => {
-  // Initialize auth store if not already done
-  if (!authStore.isAuthenticated) {
-    authStore.initialize()
+// ✅ FIX #3: Add session check in onMounted hook
+onMounted(async () => {
+  console.log('[Feed] Page mounted, checking authentication...')
+  
+  // ✅ Ensure session is fully initialized before rendering feed
+  if (authStore.isAuthenticated && !authStore.sessionValid) {
+    console.warn('[Feed] User authenticated but session not initialized, performing handshake...')
+    
+    try {
+      const handshakeResult = await authStore.performSignupHandshake()
+      
+      if (handshakeResult.success) {
+        console.log('[Feed] ✅ Session initialized successfully')
+      } else {
+        console.warn('[Feed] Handshake failed:', handshakeResult.error)
+        // Continue anyway - user is authenticated
+      }
+    } catch (err) {
+      console.error('[Feed] Error during handshake:', err)
+      // Continue anyway - user is authenticated
+    }
+  } else if (!authStore.isAuthenticated) {
+    console.log('[Feed] User not authenticated, initializing auth store...')
+    try {
+      await authStore.initialize()
+    } catch (err) {
+      console.error('[Feed] Error initializing auth store:', err)
+    }
+  } else {
+    console.log('[Feed] ✅ Session already initialized')
   }
+  
+  // Load posts after session is ready
   loadPosts()
 })
 </script>
@@ -619,86 +613,49 @@ onMounted(() => {
 .post-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 12px;
 }
 
-.author-info {
+.user-info {
   display: flex;
+  align-items: center;
   gap: 12px;
-  flex: 1;
 }
 
-.author-avatar {
+.user-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.author-details {
-  flex: 1;
+.user-details {
+  display: flex;
+  flex-direction: column;
 }
 
-.author-name {
+.user-name {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  color: #333;
 }
 
-.verified-badge {
-  color: #3b82f6;
+.post-time {
+  font-size: 0.8rem;
+  color: #999;
 }
 
-.post-timestamp {
-  margin: 4px 0 0 0;
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.post-badges {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.sponsored-badge {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.ad-badge {
-  background: #dbeafe;
-  color: #0284c7;
-}
-
-.pinned-badge {
-  background: #fce7f3;
-  color: #be185d;
-}
-
-.more-options-btn {
+.options-btn {
   background: none;
   border: none;
-  color: #999;
   cursor: pointer;
+  color: #999;
   padding: 4px;
 }
 
-.more-options-btn:hover {
+.options-btn:hover {
   color: #333;
 }
 
@@ -776,9 +733,9 @@ onMounted(() => {
   color: #333;
 }
 
-.interaction-btn.active {
-  background: #ffe0e6;
+.interaction-btn.liked {
   color: #e74c3c;
+  background: #ffe8e8;
 }
 
 .interaction-btn:disabled {
@@ -798,7 +755,7 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.comment-input-avatar {
+.comment-user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -811,15 +768,16 @@ onMounted(() => {
   gap: 8px;
 }
 
-.comment-field {
+.comment-input {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 0.9rem;
+  font-family: inherit;
 }
 
-.comment-field:focus {
+.comment-input:focus {
   outline: none;
   border-color: #667eea;
 }
@@ -831,12 +789,13 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.9rem;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: background 0.2s;
 }
 
 .comment-submit-btn:hover:not(:disabled) {
-  background: #764ba2;
+  background: #5568d3;
 }
 
 .comment-submit-btn:disabled {
@@ -856,8 +815,8 @@ onMounted(() => {
 }
 
 .comment-avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -868,30 +827,31 @@ onMounted(() => {
 
 .comment-header {
   display: flex;
+  align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  margin-bottom: 4px;
 }
 
-.comment-author {
-  font-weight: 600;
+.comment-user-name {
+  font-size: 0.9rem;
   color: #333;
 }
 
-.comment-date {
+.comment-time {
+  font-size: 0.8rem;
   color: #999;
 }
 
 .comment-text {
   margin: 4px 0;
   font-size: 0.9rem;
-  color: #333;
+  color: #666;
 }
 
 .comment-actions {
   display: flex;
   gap: 12px;
   margin-top: 4px;
-  font-size: 0.8rem;
 }
 
 .comment-like-btn,
@@ -900,6 +860,7 @@ onMounted(() => {
   border: none;
   color: #999;
   cursor: pointer;
+  font-size: 0.8rem;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -911,20 +872,17 @@ onMounted(() => {
   color: #333;
 }
 
-.comment-like-btn.liked {
-  color: #e74c3c;
-}
-
 .load-more-comments-btn {
-  padding: 8px 16px;
+  padding: 8px 12px;
   background: #f5f5f5;
   border: none;
   border-radius: 6px;
   color: #667eea;
   cursor: pointer;
+  font-size: 0.85rem;
   font-weight: 600;
-  transition: all 0.2s;
-  margin-top: 12px;
+  transition: background 0.2s;
+  margin-top: 8px;
 }
 
 .load-more-comments-btn:hover {
@@ -932,8 +890,9 @@ onMounted(() => {
 }
 
 .load-more-wrapper {
-  text-align: center;
-  padding: 20px;
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
 }
 
 .load-more-btn {
@@ -943,12 +902,13 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.95rem;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: background 0.2s;
 }
 
 .load-more-btn:hover:not(:disabled) {
-  background: #764ba2;
+  background: #5568d3;
 }
 
 .load-more-btn:disabled {
@@ -956,17 +916,59 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.feed-sidebar {
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.error-state p {
+  color: #e74c3c;
+  margin-bottom: 16px;
+}
+
+.retry-btn {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.retry-btn:hover {
+  background: #5568d3;
+}
+
+.sidebar {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.ad-slot {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .trending-section {
@@ -982,69 +984,39 @@ onMounted(() => {
   color: #333;
 }
 
-.trend-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+.trending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.trend-item:last-child {
+.trending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.trending-item:last-child {
   border-bottom: none;
 }
 
-.trend-title {
-  margin: 0;
+.trending-item:hover {
+  background: #f9f9f9;
+}
+
+.topic-name {
   font-size: 0.9rem;
   font-weight: 600;
   color: #333;
 }
 
-.trend-count {
-  margin: 4px 0 0 0;
+.topic-count {
   font-size: 0.8rem;
   color: #999;
-}
-
-.loading-state,
-.error-state {
-  text-align: center;
-  padding: 40px 20px;
-  background: white;
-  border-radius: 8px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f5f5f5;
-  border-top-color: #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.error-state p {
-  margin: 0 0 16px 0;
-  color: #e74c3c;
-}
-
-.retry-btn {
-  padding: 8px 16px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.retry-btn:hover {
-  background: #764ba2;
 }
 
 .modal-overlay {
@@ -1060,35 +1032,36 @@ onMounted(() => {
   z-index: 1000;
 }
 
-.pewgift-modal {
+.modal-content-wrapper {
   background: white;
   border-radius: 12px;
-  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
   max-width: 400px;
-  width: 90%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   color: #333;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #999;
   cursor: pointer;
-  font-size: 1.5rem;
-  padding: 0;
+  color: #999;
+  padding: 4px;
 }
 
 .close-btn:hover {
@@ -1096,18 +1069,18 @@ onMounted(() => {
 }
 
 .modal-content {
-  margin-bottom: 20px;
+  padding: 20px;
 }
 
 .modal-description {
   margin: 0 0 16px 0;
-  color: #666;
   font-size: 0.95rem;
+  color: #666;
 }
 
 .quick-amounts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -1115,16 +1088,17 @@ onMounted(() => {
 .amount-btn {
   padding: 10px;
   background: #f5f5f5;
-  border: 2px solid #ddd;
+  border: 2px solid transparent;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.9rem;
   font-weight: 600;
+  color: #666;
   transition: all 0.2s;
 }
 
 .amount-btn:hover {
-  border-color: #667eea;
-  background: #f0f0ff;
+  background: #e8e8e8;
 }
 
 .amount-btn.selected {
@@ -1156,12 +1130,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   padding: 0 12px;
-  color: #666;
+  color: #999;
   font-weight: 600;
 }
 
 .gift-preview {
-  background: #f5f5f5;
+  background: #f9f9f9;
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 16px;
@@ -1172,13 +1146,22 @@ onMounted(() => {
   justify-content: space-between;
   padding: 8px 0;
   font-size: 0.9rem;
+  color: #666;
 }
 
 .preview-row.total {
   border-top: 1px solid #ddd;
   padding-top: 12px;
+  margin-top: 8px;
   font-weight: 600;
   color: #333;
+}
+
+.amount,
+.fee,
+.total-amount {
+  color: #333;
+  font-weight: 600;
 }
 
 .modal-actions {
@@ -1187,44 +1170,38 @@ onMounted(() => {
 }
 
 .cancel-btn,
-.send-gift-btn {
+.send-btn {
   flex: 1;
   padding: 12px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.95rem;
   font-weight: 600;
   transition: all 0.2s;
 }
 
 .cancel-btn {
-  background: #f5f5f5;
+  background: #e8e8e8;
   color: #333;
 }
 
 .cancel-btn:hover {
-  background: #e8e8e8;
+  background: #d8d8d8;
 }
 
-.send-gift-btn {
+.send-btn {
   background: #667eea;
   color: white;
 }
 
-.send-gift-btn:hover:not(:disabled) {
-  background: #764ba2;
+.send-btn:hover:not(:disabled) {
+  background: #5568d3;
 }
 
-.send-gift-btn:disabled {
+.send-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.homefeed-footer {
-  text-align: center;
-  padding: 20px;
-  color: #999;
-  font-size: 0.85rem;
 }
 
 @media (max-width: 768px) {
@@ -1232,12 +1209,8 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .feed-sidebar {
+  .sidebar {
     display: none;
-  }
-
-  .post-media {
-    grid-template-columns: 1fr;
   }
 
   .interaction-bar {
@@ -1245,8 +1218,7 @@ onMounted(() => {
   }
 
   .interaction-btn {
-    flex: 1 1 calc(50% - 4px);
+    flex: 0 1 calc(50% - 4px);
   }
 }
 </style>
-
