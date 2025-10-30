@@ -80,23 +80,40 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ CRITICAL FIX: Check for duplicate username ONLY in profiles table
+    // Normalize email
+    const normalizedEmail = body.email.toLowerCase().trim()
+    
+    // ✅ CRITICAL FIX: Check for duplicate username using LOWER() function
     console.log('[Signup] Checking for duplicate username in profiles table:', trimmedUsername)
     const { data: existingUsername, error: usernameCheckError, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
-      .eq('username', trimmedUsername)
+      .filter('username_lower', 'eq', trimmedUsername)
     
     if (usernameCheckError) {
       console.error('[Signup] Error checking username:', usernameCheckError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error: ${usernameCheckError.message}`
-      })
-    }
-    
-    // Check if username is taken
-    if (count && count > 0) {
+      
+      // Fallback to RPC if generated column doesn't exist
+      console.log('[Signup] Fallback: Using RPC for username check')
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('check_username_available', { p_username: trimmedUsername })
+      
+      if (rpcError) {
+        console.error('[Signup] RPC error:', rpcError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: `Database error: ${rpcError.message}`
+        })
+      }
+      
+      if (rpcResult && !rpcResult.available) {
+        console.error('[Signup] Username already taken (via RPC):', trimmedUsername)
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Username already taken'
+        })
+      }
+    } else if (count && count > 0) {
       console.error('[Signup] Username already taken:', trimmedUsername)
       throw createError({
         statusCode: 409,
@@ -104,23 +121,38 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // ✅ CRITICAL FIX: Check for duplicate email ONLY in profiles table
-    console.log('[Signup] Checking for duplicate email in profiles table:', body.email)
+    // ✅ CRITICAL FIX: Check for duplicate email using LOWER() function
+    console.log('[Signup] Checking for duplicate email in profiles table:', normalizedEmail)
     const { data: existingEmail, error: emailCheckError, count: emailCount } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
-      .eq('email', body.email.toLowerCase().trim())
+      .filter('email_lower', 'eq', normalizedEmail)
     
     if (emailCheckError) {
       console.error('[Signup] Error checking email:', emailCheckError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error: ${emailCheckError.message}`
-      })
-    }
-    
-    if (emailCount && emailCount > 0) {
-      console.error('[Signup] Email already registered:', body.email)
+      
+      // Fallback to RPC if generated column doesn't exist
+      console.log('[Signup] Fallback: Using RPC for email check')
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('check_email_available', { p_email: normalizedEmail })
+      
+      if (rpcError) {
+        console.error('[Signup] RPC error:', rpcError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: `Database error: ${rpcError.message}`
+        })
+      }
+      
+      if (rpcResult && !rpcResult.available) {
+        console.error('[Signup] Email already registered (via RPC):', normalizedEmail)
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Email already registered'
+        })
+      }
+    } else if (emailCount && emailCount > 0) {
+      console.error('[Signup] Email already registered:', normalizedEmail)
       throw createError({
         statusCode: 409,
         statusMessage: 'Email already registered'
@@ -128,9 +160,9 @@ export default defineEventHandler(async (event) => {
     }
     
     // Create Supabase auth user
-    console.log('[Signup] Creating Supabase auth user for:', body.email)
+    console.log('[Signup] Creating Supabase auth user for:', normalizedEmail)
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: body.email.toLowerCase().trim(),
+      email: normalizedEmail,
       password: body.password,
       options: {
         data: {
@@ -165,7 +197,7 @@ export default defineEventHandler(async (event) => {
       .insert({
         id: authData.user.id,
         username: trimmedUsername,
-        email: body.email.toLowerCase().trim(),
+        email: normalizedEmail,
         full_name: body.fullName,
         phone_number: body.phone,
         bio: body.bio || '',
