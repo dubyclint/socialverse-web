@@ -33,7 +33,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
 definePageMeta({
@@ -61,7 +61,7 @@ onMounted(async () => {
       method: 'POST',
       body: {
         token: token as string,
-        type: 'signup'
+        verifyType: 'signup'  // ✅ FIX: Changed from 'type' to 'verifyType' (avoid reserved keyword)
       }
     })
     
