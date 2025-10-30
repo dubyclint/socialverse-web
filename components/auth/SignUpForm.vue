@@ -30,15 +30,9 @@
             type="text" 
             required 
             placeholder="@username"
-            @input="onUsernameInput"
             :disabled="loading"
           />
-          <span v-if="checkingUsername" class="checking">
-            Checking availability...
-          </span>
-          <span v-else-if="usernameStatus" :class="['status', usernameStatus.type]">
-            {{ usernameStatus.message }}
-          </span>
+          <span class="hint">3-30 characters, letters, numbers, underscores, hyphens only</span>
         </div>
 
         <div class="form-group">
@@ -158,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 
 const formData = ref({
   email: '',
@@ -175,92 +169,32 @@ const formData = ref({
 const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
-const checkingUsername = ref(false)
-const usernameStatus = ref<{ type: string; message: string } | null>(null)
 const passwordMismatch = ref(false)
-
-// Debounce timer for username check
-let usernameCheckTimer: NodeJS.Timeout
-
-// Username validation with debounce
-const onUsernameInput = () => {
-  clearTimeout(usernameCheckTimer)
-  checkingUsername.value = true
-  usernameStatus.value = null
-  error.value = ''
-  
-  usernameCheckTimer = setTimeout(async () => {
-    await checkUsernameAvailability()
-  }, 500)
-}
-
-// Check username availability
-const checkUsernameAvailability = async () => {
-  const username = formData.value.username.trim().toLowerCase()
-  
-  // Client-side validation first
-  if (!username) {
-    usernameStatus.value = null
-    checkingUsername.value = false
-    return
-  }
-  
-  if (username.length < 3) {
-    usernameStatus.value = { type: 'error', message: 'Username must be at least 3 characters' }
-    checkingUsername.value = false
-    return
-  }
-  
-  if (username.length > 30) {
-    usernameStatus.value = { type: 'error', message: 'Username must be less than 30 characters' }
-    checkingUsername.value = false
-    return
-  }
-  
-  const usernameRegex = /^[a-z0-9_-]+$/
-  if (!usernameRegex.test(username)) {
-    usernameStatus.value = { type: 'error', message: 'Only letters, numbers, underscores, and hyphens allowed' }
-    checkingUsername.value = false
-    return
-  }
-  
-  try {
-    const response = await $fetch('/api/auth/check-username', {
-      method: 'POST',
-      body: { username }
-    })
-    
-    if (response.available) {
-      usernameStatus.value = { type: 'success', message: '✓ Username available' }
-    } else {
-      usernameStatus.value = { type: 'error', message: '✗ Username already taken' }
-    }
-  } catch (err) {
-    console.error('Error checking username:', err)
-    usernameStatus.value = { type: 'error', message: 'Error checking availability' }
-  } finally {
-    checkingUsername.value = false
-  }
-}
 
 // Password validation
 const validatePasswords = () => {
   passwordMismatch.value = formData.value.password !== formData.value.confirmPassword
 }
 
-watch(() => formData.value.confirmPassword, validatePasswords)
-
-// Step 1 validation
+// Step 1 validation - NO username check, just basic validation
 const canProceedStep1 = computed(() => {
-  return (
-    formData.value.email &&
-    formData.value.username &&
-    formData.value.password &&
-    formData.value.confirmPassword &&
-    !passwordMismatch.value &&
-    usernameStatus.value?.type === 'success' &&
-    !checkingUsername.value
-  )
+  const email = formData.value.email.trim()
+  const username = formData.value.username.trim().toLowerCase()
+  const password = formData.value.password
+  const confirmPassword = formData.value.confirmPassword
+  
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailValid = emailRegex.test(email)
+  
+  // Username validation
+  const usernameRegex = /^[a-z0-9_-]+$/
+  const usernameValid = username.length >= 3 && username.length <= 30 && usernameRegex.test(username)
+  
+  // Password validation
+  const passwordValid = password.length >= 8 && password === confirmPassword && !passwordMismatch.value
+  
+  return emailValid && usernameValid && passwordValid
 })
 
 // Step 2 validation
@@ -284,7 +218,7 @@ const previousStep = () => {
   }
 }
 
-// Submit form
+// Submit form - DIRECT signup without pre-check
 const handleSubmit = async () => {
   if (!canProceedStep2.value) {
     error.value = 'Please fill in all required fields'
@@ -295,6 +229,8 @@ const handleSubmit = async () => {
   error.value = ''
   
   try {
+    console.log('[SignUp] Submitting form...')
+    
     const response = await $fetch('/api/auth/signup', {
       method: 'POST',
       body: {
@@ -309,20 +245,23 @@ const handleSubmit = async () => {
       }
     })
     
+    console.log('[SignUp] Response:', response)
+    
     if (response.success) {
       // Redirect to verification or login page
       await navigateTo('/verify-email')
     }
   } catch (err: any) {
-    console.error('Signup error:', err)
+    console.error('[SignUp] Error:', err)
     
     // Handle specific errors
     if (err.status === 409) {
-      error.value = 'Username already taken. Please choose another.'
-      usernameStatus.value = { type: 'error', message: '✗ Username already taken' }
+      error.value = err.data?.statusMessage || 'Username or email already taken. Please try different ones.'
       currentStep.value = 1
     } else if (err.data?.statusMessage) {
       error.value = err.data.statusMessage
+    } else if (err.message) {
+      error.value = err.message
     } else {
       error.value = 'Signup failed. Please try again.'
     }
@@ -372,11 +311,10 @@ h3 {
 
 .form-group {
   margin-bottom: 1.5rem;
-  display: flex;
-  flex-direction: column;
 }
 
 label {
+  display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
   color: #333;
@@ -385,12 +323,13 @@ label {
 
 input,
 textarea {
+  width: 100%;
   padding: 0.75rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
   font-family: inherit;
-  transition: border-color 0.3s ease;
+  transition: border-color 0.3s;
 }
 
 input:focus,
@@ -404,146 +343,78 @@ input:disabled,
 textarea:disabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.checking {
+.hint {
+  display: block;
+  margin-top: 0.5rem;
   font-size: 0.85rem;
-  color: #ff9800;
-  margin-top: 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.checking::before {
-  content: '';
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid #ff9800;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.status {
-  font-size: 0.85rem;
-  margin-top: 0.25rem;
-  font-weight: 500;
-}
-
-.status.success {
-  color: #28a745;
-}
-
-.status.error {
-  color: #dc3545;
-}
-
-.error-message {
-  background-color: #f8d7da;
-  color: #721c24;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  border: 1px solid #f5c6cb;
+  color: #666;
 }
 
 .error-text {
+  display: block;
+  margin-top: 0.5rem;
   color: #dc3545;
   font-size: 0.85rem;
-  margin-top: 0.25rem;
 }
 
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
+.error-message {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  color: #721c24;
+  font-size: 0.95rem;
 }
 
 .submit-button,
 .back-button {
-  flex: 1;
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 4px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .submit-button {
+  width: 100%;
   background-color: #007bff;
   color: white;
+  margin-top: 1rem;
 }
 
 .submit-button:hover:not(:disabled) {
   background-color: #0056b3;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
 .submit-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
-  opacity: 0.6;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
 .back-button {
+  flex: 1;
   background-color: #6c757d;
   color: white;
 }
 
 .back-button:hover:not(:disabled) {
   background-color: #5a6268;
-  transform: translateY(-2px);
 }
 
-.back-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-form {
-  display: flex;
-  flex-direction: column;
-}
-
-@media (max-width: 600px) {
-  .signup-form {
-    padding: 1.5rem;
-  }
-
-  h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  h3 {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-  }
-
-  .form-actions {
-    flex-direction: column;
-  }
-
-  .submit-button,
-  .back-button {
-    width: 100%;
-  }
+.submit-button {
+  flex: 2;
 }
 </style>
