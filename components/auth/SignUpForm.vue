@@ -310,6 +310,7 @@ const handleSubmit = async () => {
       debugInfo.value = JSON.stringify({
         stage: 'AUTH_ERROR',
         error: authError.message,
+        code: authError.code,
         timestamp: new Date().toISOString()
       }, null, 2)
       error.value = authError.message
@@ -327,103 +328,122 @@ const handleSubmit = async () => {
       timestamp: new Date().toISOString()
     }, null, 2)
     
-    // ✅ STEP 2: CREATE PROFILE
-    console.log('[Signup] Creating profile...')
-    const { error: profileError, data: profileData } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email,
-        username,
-        full_name: fullName,
-        phone_number: phone,
-        bio,
-        location,
-        avatar_url: null,
-        role: 'user',
-        status: 'active',
-        email_verified: false,
-        is_verified: false,
-        rank: 'bronze',
-        rank_points: 0,
-        preferences: {
-          emailNotifications: true,
-          profilePrivate: false,
-          showOnlineStatus: true
-        },
-        metadata: {
-          signupDate: new Date().toISOString(),
-          signupMethod: 'email'
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single()
+    // ✅ STEP 2: WAIT FOR AUTH TO SETTLE
+    console.log('[Signup] Waiting for auth to settle...')
+    await new Promise(resolve => setTimeout(resolve, 2000))
     
-    if (profileError) {
-      console.error('[Signup] Profile error:', profileError)
+    // ✅ STEP 3: GET CURRENT SESSION
+    console.log('[Signup] Getting current session...')
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error('[Signup] Session error:', sessionError)
       debugInfo.value = JSON.stringify({
-        stage: 'PROFILE_ERROR',
-        error: profileError.message,
+        stage: 'SESSION_ERROR',
+        error: sessionError.message,
         timestamp: new Date().toISOString()
       }, null, 2)
-      error.value = profileError.message
-      
-      // Try to delete auth user if profile creation fails
-      try {
-        await supabase.auth.admin.deleteUser(authData.user.id)
-        console.log('[Signup] Deleted orphaned auth user')
-      } catch (deleteErr) {
-        console.error('[Signup] Delete error:', deleteErr)
-      }
+      error.value = 'Failed to get session'
       return
     }
     
-    console.log('[Signup] ✅ Profile created successfully')
+    if (!session) {
+      console.error('[Signup] No session available')
+      debugInfo.value = JSON.stringify({
+        stage: 'NO_SESSION',
+        message: 'Session not available after signup',
+        timestamp: new Date().toISOString()
+      }, null, 2)
+      error.value = 'Session not available. Please try logging in.'
+      return
+    }
+    
+    console.log('[Signup] ✅ Session obtained:', session.user.id)
+    
+    // ✅ STEP 4: CREATE PROFILE USING RPC FUNCTION (BETTER APPROACH)
+    console.log('[Signup] Creating profile via RPC function...')
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('create_user_profile', {
+      p_user_id: session.user.id,
+      p_email: email,
+      p_username: username,
+      p_full_name: fullName,
+      p_phone_number: phone,
+      p_bio: bio,
+      p_location: location
+    })
+    
+    if (rpcError) {
+      console.error('[Signup] RPC error:', rpcError)
+      debugInfo.value = JSON.stringify({
+        stage: 'RPC_ERROR',
+        error: rpcError.message,
+        code: rpcError.code,
+        details: rpcError.details,
+        hint: rpcError.hint,
+        timestamp: new Date().toISOString()
+      }, null, 2)
+      
+      // ✅ FALLBACK: Try direct insert if RPC fails
+      console.log('[Signup] RPC failed, trying direct insert...')
+      const { error: directError, data: directData } = await supabase
+        .from('profiles')
+        .insert({
+          id: session.user.id,
+          email,
+          username,
+          full_name: fullName,
+          phone_number: phone,
+          bio,
+          location,
+          avatar_url: null,
+          role: 'user',
+          status: 'active',
+          email_verified: false,
+          is_verified: false,
+          rank: 'bronze',
+          rank_points: 0,
+          preferences: {
+            emailNotifications: true,
+            profilePrivate: false,
+            showOnlineStatus: true
+          },
+          metadata: {
+            signupDate: new Date().toISOString(),
+            signupMethod: 'email'
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+      
+      if (directError) {
+        console.error('[Signup] Direct insert error:', directError)
+        debugInfo.value = JSON.stringify({
+          stage: 'DIRECT_INSERT_ERROR',
+          error: directError.message,
+          code: directError.code,
+          details: directError.details,
+          hint: directError.hint,
+          timestamp: new Date().toISOString()
+        }, null, 2)
+        error.value = `Profile creation failed: ${directError.message}`
+        return
+      }
+      
+      console.log('[Signup] ✅ Profile created via direct insert')
+    } else {
+      console.log('[Signup] ✅ Profile created via RPC')
+    }
+    
     debugInfo.value = JSON.stringify({
       stage: 'PROFILE_CREATED',
-      profileId: profileData?.id,
       timestamp: new Date().toISOString()
     }, null, 2)
     
-    // ✅ STEP 3: INITIALIZE AUTH STORE
+    // ✅ STEP 5: INITIALIZE AUTH STORE
     console.log('[Signup] Initializing auth store...')
     const authStore = useAuthStore()
-    
-    // Wait for session
-    console.log('⏳ Waiting for session...')
-    let sessionFound = false
-    
-    for (let i = 0; i < 60; i++) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id) {
-          console.log(`✅ Session found on attempt ${i + 1}`)
-          sessionFound = true
-          break
-        }
-      } catch (e) {
-        console.warn(`Session check ${i + 1} failed`)
-      }
-      await new Promise(resolve => setTimeout(resolve, 500))
-    }
-    
-    if (!sessionFound) {
-      error.value = 'Session not established'
-      debugInfo.value = JSON.stringify({
-        stage: 'SESSION_NOT_FOUND',
-        message: 'Session polling failed after 30 seconds',
-        timestamp: new Date().toISOString()
-      }, null, 2)
-      return
-    }
-    
-    console.log('🤝 Performing handshake...')
-    debugInfo.value = JSON.stringify({
-      stage: 'PERFORMING_HANDSHAKE',
-      timestamp: new Date().toISOString()
-    }, null, 2)
     
     const handshakeResult = await authStore.performSignupHandshake()
     
