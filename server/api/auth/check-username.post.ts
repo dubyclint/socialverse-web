@@ -30,12 +30,14 @@ export default defineEventHandler(async (event) => {
       return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
     }
     
-    // ✅ CRITICAL FIX: Query ONLY profiles table (NOT users table)
+    // ✅ CRITICAL FIX: Use LOWER() function for case-insensitive query
     console.log('[CheckUsername] Querying profiles table for username:', trimmedUsername)
+    
+    // Method 1: Using RPC for case-insensitive query
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
-      .eq('username', trimmedUsername)
+      .filter('username_lower', 'eq', trimmedUsername)
     
     console.log('[CheckUsername] Query result:', { 
       count, 
@@ -46,10 +48,29 @@ export default defineEventHandler(async (event) => {
     
     if (error) {
       console.error('[CheckUsername] Database query error:', error.message, error.code)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error: ${error.message}`
-      })
+      
+      // Fallback: Try direct lowercase comparison if generated column doesn't exist
+      console.log('[CheckUsername] Fallback: Using LOWER() function')
+      const { data: fallbackData, error: fallbackError, count: fallbackCount } = await supabase
+        .rpc('check_username_available', { p_username: trimmedUsername })
+      
+      if (fallbackError) {
+        console.error('[CheckUsername] Fallback query also failed:', fallbackError.message)
+        throw createError({
+          statusCode: 500,
+          statusMessage: `Database error: ${fallbackError.message}`
+        })
+      }
+      
+      const isTaken = fallbackData && !fallbackData.available
+      console.log('[CheckUsername] Fallback result - Username taken:', isTaken)
+      
+      return { 
+        available: !isTaken,
+        count: isTaken ? 1 : 0,
+        username: trimmedUsername,
+        message: isTaken ? 'Username already taken' : 'Username is available'
+      }
     }
     
     const isTaken = count !== null && count > 0
