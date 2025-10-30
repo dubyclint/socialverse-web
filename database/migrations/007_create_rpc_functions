@@ -1,0 +1,34 @@
+-- Create RPC functions for username and email availability checks
+-- Migration: 007_create_rpc_functions
+-- Created: 2024-01-21
+-- Purpose: Provide case-insensitive availability checks via RPC
+
+-- Function to check if username is available
+CREATE OR REPLACE FUNCTION check_username_available(p_username VARCHAR)
+RETURNS TABLE(available BOOLEAN) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT NOT EXISTS(
+    SELECT 1 FROM profiles 
+    WHERE LOWER(username) = LOWER(p_username)
+  ) as available;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to check if email is available
+CREATE OR REPLACE FUNCTION check_email_available(p_email VARCHAR)
+RETURNS TABLE(available BOOLEAN) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT NOT EXISTS(
+    SELECT 1 FROM profiles 
+    WHERE LOWER(email) = LOWER(p_email)
+  ) as available;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permissions to authenticated and anonymous users
+GRANT EXECUTE ON FUNCTION check_username_available(VARCHAR) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION check_email_available(VARCHAR) TO authenticated, anon;
+
+SELECT 'Migration 007 completed: Created RPC functions for availability checks' as status;
