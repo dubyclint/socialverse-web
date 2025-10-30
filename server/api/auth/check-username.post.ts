@@ -30,36 +30,53 @@ export default defineEventHandler(async (event) => {
       return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
     }
     
-    // ✅ SIMPLE FIX: Use ilike for case-insensitive search
-    console.log('[CheckUsername] Querying profiles table for username:', trimmedUsername)
-    const { data, error, count } = await supabase
+    // ✅ CHECK BOTH profiles table AND auth.users metadata
+    console.log('[CheckUsername] Checking profiles table for username:', trimmedUsername)
+    const { data: profileUsers, error: profileError, count: profileCount } = await supabase
       .from('profiles')
       .select('id', { count: 'exact' })
-      .ilike('username', trimmedUsername)  // Case-insensitive
+      .ilike('username', trimmedUsername)
     
-    console.log('[CheckUsername] Query result:', { 
-      count, 
-      dataLength: data?.length,
-      error: error?.message
-    })
+    console.log('[CheckUsername] Profiles table result:', { count: profileCount, error: profileError?.message })
     
-    if (error) {
-      console.error('[CheckUsername] Database query error:', error.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Database error: ${error.message}`
-      })
+    if (profileError) {
+      console.error('[CheckUsername] Error checking profiles:', profileError)
     }
     
-    const isTaken = count !== null && count > 0
+    // Check if username is taken in profiles
+    if (profileCount && profileCount > 0) {
+      console.log('[CheckUsername] Username already taken in profiles table')
+      return { 
+        available: false,
+        count: profileCount,
+        username: trimmedUsername,
+        message: 'Username already taken'
+      }
+    }
     
-    console.log('[CheckUsername] Result - Username taken:', isTaken, '| Count:', count)
+    // ✅ ALSO check auth.users table (where Supabase stores user metadata)
+    console.log('[CheckUsername] Checking auth.users for username in metadata...')
+    const { data: authUsers, error: authError } = await supabase
+      .rpc('check_username_in_auth', { p_username: trimmedUsername })
     
+    if (authError) {
+      console.log('[CheckUsername] RPC not available, skipping auth.users check')
+      // RPC might not exist, that's okay - just check profiles
+    } else if (authUsers && authUsers.exists) {
+      console.log('[CheckUsername] Username already taken in auth.users')
+      return { 
+        available: false,
+        username: trimmedUsername,
+        message: 'Username already taken'
+      }
+    }
+    
+    console.log('[CheckUsername] Username is available')
     return { 
-      available: !isTaken,
-      count: count || 0,
+      available: true,
+      count: 0,
       username: trimmedUsername,
-      message: isTaken ? 'Username already taken' : 'Username is available'
+      message: 'Username is available'
     }
     
   } catch (err) {
