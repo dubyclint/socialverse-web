@@ -79,13 +79,13 @@
       <h3>Complete Your Profile</h3>
       
       <form @submit.prevent="handleSubmit">
-        <!-- ✅ ERROR MESSAGE - ALWAYS VISIBLE -->
+        <!-- ✅ ERROR MESSAGE -->
         <div v-if="error" class="error-message-large">
           <div class="error-title">❌ Error</div>
           <div class="error-content">{{ error }}</div>
         </div>
         
-        <!-- ✅ DEBUG INFO - ALWAYS VISIBLE -->
+        <!-- ✅ DEBUG INFO -->
         <div v-if="debugInfo" class="debug-panel-large">
           <div class="debug-title">🔍 Debug Information</div>
           <pre class="debug-content">{{ debugInfo }}</pre>
@@ -102,7 +102,7 @@
             placeholder="e.g., Pech love"
             :disabled="loading"
           />
-          <span class="hint">Your full name as it appears on your ID</span>
+          <span class="hint">Your full name</span>
         </div>
 
         <!-- Phone Number - REQUIRED -->
@@ -116,7 +116,7 @@
             placeholder="e.g., +2349059010737"
             :disabled="loading"
           />
-          <span class="hint">Include country code (e.g., +234 for Nigeria)</span>
+          <span class="hint">Include country code</span>
         </div>
 
         <!-- Bio - OPTIONAL -->
@@ -125,7 +125,7 @@
           <textarea 
             id="bio"
             v-model="formData.bio" 
-            placeholder="Tell us about yourself (max 500 characters)"
+            placeholder="Tell us about yourself"
             rows="3"
             maxlength="500"
             :disabled="loading"
@@ -268,80 +268,128 @@ const handleSubmit = async () => {
   debugInfo.value = ''
   
   try {
-    const payload = {
-      email: formData.value.email.toLowerCase().trim(),
-      password: formData.value.password,
-      username: formData.value.username.trim().toLowerCase(),
-      fullName: formData.value.fullName.trim(),
-      phone: formData.value.phone.trim(),
-      bio: formData.value.bio.trim(),
-      location: formData.value.location.trim()
-    }
+    // ✅ DIRECT SUPABASE CONNECTION
+    const supabase = useSupabaseClient()
     
-    console.log('📤 Sending registration request:', payload)
+    const email = formData.value.email.toLowerCase().trim()
+    const username = formData.value.username.trim().toLowerCase()
+    const fullName = formData.value.fullName.trim()
+    const phone = formData.value.phone.trim()
+    const bio = formData.value.bio.trim()
+    const location = formData.value.location.trim()
+    
+    console.log('📤 Direct Supabase signup:', { email, username, fullName, phone })
     debugInfo.value = JSON.stringify({
-      stage: 'SENDING_REQUEST',
-      endpoint: '/auth-register',
-      payload,
+      stage: 'SUPABASE_SIGNUP_START',
+      email,
+      username,
+      fullName,
+      phone,
       timestamp: new Date().toISOString()
     }, null, 2)
     
-    let response
-    try {
-      // ✅ CALL NEW ENDPOINT
-      response = await $fetch('/auth-register', {
-        method: 'POST',
-        body: payload
-      })
-      console.log('✅ Registration response:', response)
-    } catch (apiErr: any) {
-      console.error('❌ API Error:', apiErr)
+    // ✅ STEP 1: CREATE AUTH USER
+    console.log('[Signup] Creating auth user...')
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password: formData.value.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/verify-email`,
+        data: {
+          username,
+          full_name: fullName,
+          phone,
+          bio,
+          location
+        }
+      }
+    })
+    
+    if (authError) {
+      console.error('[Signup] Auth error:', authError)
       debugInfo.value = JSON.stringify({
-        stage: 'API_ERROR',
-        error: {
-          status: apiErr.status,
-          statusCode: apiErr.statusCode,
-          message: apiErr.message,
-          statusMessage: apiErr.data?.statusMessage,
-          fullData: apiErr.data
-        },
+        stage: 'AUTH_ERROR',
+        error: authError.message,
         timestamp: new Date().toISOString()
       }, null, 2)
+      error.value = authError.message
+      return
+    }
+    
+    if (!authData.user) {
+      throw new Error('No user returned from signup')
+    }
+    
+    console.log('[Signup] ✅ Auth user created:', authData.user.id)
+    debugInfo.value = JSON.stringify({
+      stage: 'AUTH_USER_CREATED',
+      userId: authData.user.id,
+      timestamp: new Date().toISOString()
+    }, null, 2)
+    
+    // ✅ STEP 2: CREATE PROFILE
+    console.log('[Signup] Creating profile...')
+    const { error: profileError, data: profileData } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email,
+        username,
+        full_name: fullName,
+        phone_number: phone,
+        bio,
+        location,
+        avatar_url: null,
+        role: 'user',
+        status: 'active',
+        email_verified: false,
+        is_verified: false,
+        rank: 'bronze',
+        rank_points: 0,
+        preferences: {
+          emailNotifications: true,
+          profilePrivate: false,
+          showOnlineStatus: true
+        },
+        metadata: {
+          signupDate: new Date().toISOString(),
+          signupMethod: 'email'
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (profileError) {
+      console.error('[Signup] Profile error:', profileError)
+      debugInfo.value = JSON.stringify({
+        stage: 'PROFILE_ERROR',
+        error: profileError.message,
+        timestamp: new Date().toISOString()
+      }, null, 2)
+      error.value = profileError.message
       
-      if (apiErr.data?.statusMessage) {
-        error.value = apiErr.data.statusMessage
-      } else if (apiErr.message) {
-        error.value = apiErr.message
-      } else {
-        error.value = 'API request failed'
+      // Try to delete auth user if profile creation fails
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id)
+        console.log('[Signup] Deleted orphaned auth user')
+      } catch (deleteErr) {
+        console.error('[Signup] Delete error:', deleteErr)
       }
       return
     }
     
-    if (!response?.success) {
-      console.error('❌ Response not successful:', response)
-      debugInfo.value = JSON.stringify({
-        stage: 'RESPONSE_NOT_SUCCESS',
-        response,
-        timestamp: new Date().toISOString()
-      }, null, 2)
-      error.value = response?.message || 'Registration failed'
-      return
-    }
-    
+    console.log('[Signup] ✅ Profile created successfully')
     debugInfo.value = JSON.stringify({
-      stage: 'REGISTRATION_SUCCESS',
-      message: 'Account created successfully!',
-      user: response.user,
-      profile: response.profile,
+      stage: 'PROFILE_CREATED',
+      profileId: profileData?.id,
       timestamp: new Date().toISOString()
     }, null, 2)
     
-    console.log('✅ Registration successful, initializing session...')
-    
-    // Initialize auth
+    // ✅ STEP 3: INITIALIZE AUTH STORE
+    console.log('[Signup] Initializing auth store...')
     const authStore = useAuthStore()
-    const supabase = useSupabaseClient()
     
     // Wait for session
     console.log('⏳ Waiting for session...')
@@ -382,8 +430,8 @@ const handleSubmit = async () => {
     if (handshakeResult.success) {
       console.log('✅ SUCCESS - Redirecting to verify email')
       debugInfo.value = JSON.stringify({
-        stage: 'HANDSHAKE_SUCCESS',
-        message: 'Redirecting to email verification...',
+        stage: 'SIGNUP_SUCCESS',
+        message: 'Account created successfully! Redirecting to email verification...',
         timestamp: new Date().toISOString()
       }, null, 2)
       await navigateTo('/auth/verify-email')
@@ -524,7 +572,6 @@ textarea:disabled {
   font-size: 0.9rem;
 }
 
-/* ✅ LARGE ERROR DISPLAY - ALWAYS VISIBLE */
 .error-message-large {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -547,7 +594,6 @@ textarea:disabled {
   word-break: break-word;
 }
 
-/* ✅ LARGE DEBUG DISPLAY - ALWAYS VISIBLE */
 .debug-panel-large {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
