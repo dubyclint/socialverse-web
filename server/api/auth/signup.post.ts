@@ -127,12 +127,13 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    // Create Supabase auth user
+    // ✅ FIX: Create Supabase auth user WITH email verification
     console.log('[Signup] Creating Supabase auth user for:', normalizedEmail)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: normalizedEmail,
       password: body.password,
       options: {
+        emailRedirectTo: `${process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/verify-email`,
         data: {
           username: trimmedUsername,
           full_name: body.fullName
@@ -142,7 +143,6 @@ export default defineEventHandler(async (event) => {
     
     if (authError) {
       console.error('[Signup] Auth creation failed:', authError)
-      // Check if error is due to duplicate username/email
       if (authError.message.includes('already registered') || authError.message.includes('duplicate')) {
         throw createError({
           statusCode: 409,
@@ -165,7 +165,7 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ Supabase auth user created:', authData.user.id)
     
-    // Create user profile
+    // ✅ FIX: Create user profile
     console.log('[Signup] Creating user profile for ID:', authData.user.id)
     const { error: profileError } = await supabase
       .from('profiles')
@@ -202,7 +202,6 @@ export default defineEventHandler(async (event) => {
         console.error('[Signup] Failed to delete orphaned auth user:', deleteErr)
       }
       
-      // Handle unique constraint violation
       if (profileError.code === '23505') {
         throw createError({
           statusCode: 409,
@@ -218,6 +217,7 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Signup] ✅ User profile created successfully')
     
+    // ✅ FIX: Return success with email verification status
     return {
       success: true,
       user: {
@@ -225,11 +225,12 @@ export default defineEventHandler(async (event) => {
         email: authData.user.email,
         username: trimmedUsername
       },
-      message: 'Account created successfully. Please verify your email.'
+      needsConfirmation: !authData.session, // If no session, email confirmation required
+      message: 'Account created successfully. Please check your email to verify your account.'
     }
     
-  } catch (err) {
-    console.error('[Signup] Unexpected error:', err)
+  } catch (err: any) {
+    console.error('[Signup] Error:', err)
     throw err
   }
 })
