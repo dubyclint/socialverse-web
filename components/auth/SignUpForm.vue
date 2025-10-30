@@ -79,13 +79,15 @@
       <h3>Complete Your Profile</h3>
       
       <form @submit.prevent="handleSubmit">
+        <!-- ✅ ERROR MESSAGE - ALWAYS VISIBLE -->
         <div v-if="error" class="error-message-large">
           <div class="error-title">❌ Error</div>
           <div class="error-content">{{ error }}</div>
         </div>
         
+        <!-- ✅ DEBUG INFO - ALWAYS VISIBLE -->
         <div v-if="debugInfo" class="debug-panel-large">
-          <div class="debug-title">✅ Success Info</div>
+          <div class="debug-title">🔍 Debug Information</div>
           <pre class="debug-content">{{ debugInfo }}</pre>
         </div>
 
@@ -236,7 +238,6 @@ const canProceedStep2 = computed(() => {
   const fullName = formData.value.fullName.trim()
   const phone = formData.value.phone.trim()
   
-  // Full name and phone are required
   return fullName.length > 0 && phone.length > 0
 })
 
@@ -244,6 +245,7 @@ const nextStep = () => {
   if (currentStep.value === 1 && canProceedStep1.value) {
     currentStep.value = 2
     error.value = ''
+    debugInfo.value = ''
   }
 }
 
@@ -251,6 +253,7 @@ const previousStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
     error.value = ''
+    debugInfo.value = ''
   }
 }
 
@@ -276,23 +279,60 @@ const handleSubmit = async () => {
     }
     
     console.log('📤 Sending registration request:', payload)
+    debugInfo.value = JSON.stringify({
+      stage: 'SENDING_REQUEST',
+      payload,
+      timestamp: new Date().toISOString()
+    }, null, 2)
     
-    const response = await $fetch('/api/auth/register', {
-      method: 'POST',
-      body: payload
-    })
-    
-    console.log('✅ Registration response:', response)
+    let response
+    try {
+      response = await $fetch('/api/auth/register', {
+        method: 'POST',
+        body: payload
+      })
+      console.log('✅ Registration response:', response)
+    } catch (apiErr: any) {
+      console.error('❌ API Error:', apiErr)
+      debugInfo.value = JSON.stringify({
+        stage: 'API_ERROR',
+        error: {
+          status: apiErr.status,
+          statusCode: apiErr.statusCode,
+          message: apiErr.message,
+          statusMessage: apiErr.data?.statusMessage,
+          fullData: apiErr.data
+        },
+        timestamp: new Date().toISOString()
+      }, null, 2)
+      
+      if (apiErr.data?.statusMessage) {
+        error.value = apiErr.data.statusMessage
+      } else if (apiErr.message) {
+        error.value = apiErr.message
+      } else {
+        error.value = 'API request failed'
+      }
+      return
+    }
     
     if (!response?.success) {
+      console.error('❌ Response not successful:', response)
+      debugInfo.value = JSON.stringify({
+        stage: 'RESPONSE_NOT_SUCCESS',
+        response,
+        timestamp: new Date().toISOString()
+      }, null, 2)
       error.value = response?.message || 'Registration failed'
       return
     }
     
     debugInfo.value = JSON.stringify({
+      stage: 'REGISTRATION_SUCCESS',
       message: 'Account created successfully!',
       user: response.user,
-      profile: response.profile
+      profile: response.profile,
+      timestamp: new Date().toISOString()
     }, null, 2)
     
     console.log('✅ Registration successful, initializing session...')
@@ -321,22 +361,51 @@ const handleSubmit = async () => {
     
     if (!sessionFound) {
       error.value = 'Session not established'
+      debugInfo.value = JSON.stringify({
+        stage: 'SESSION_NOT_FOUND',
+        message: 'Session polling failed after 30 seconds',
+        timestamp: new Date().toISOString()
+      }, null, 2)
       return
     }
     
     console.log('🤝 Performing handshake...')
+    debugInfo.value = JSON.stringify({
+      stage: 'PERFORMING_HANDSHAKE',
+      timestamp: new Date().toISOString()
+    }, null, 2)
+    
     const handshakeResult = await authStore.performSignupHandshake()
     
     if (handshakeResult.success) {
       console.log('✅ SUCCESS - Redirecting to verify email')
+      debugInfo.value = JSON.stringify({
+        stage: 'HANDSHAKE_SUCCESS',
+        message: 'Redirecting to email verification...',
+        timestamp: new Date().toISOString()
+      }, null, 2)
       await navigateTo('/auth/verify-email')
     } else {
       error.value = handshakeResult.error || 'Session initialization failed'
+      debugInfo.value = JSON.stringify({
+        stage: 'HANDSHAKE_FAILED',
+        error: handshakeResult.error,
+        timestamp: new Date().toISOString()
+      }, null, 2)
     }
     
   } catch (err: any) {
-    console.error('❌ Error:', err)
+    console.error('❌ Fatal Error:', err)
     error.value = err.message || 'An error occurred during registration'
+    debugInfo.value = JSON.stringify({
+      stage: 'FATAL_ERROR',
+      error: {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      },
+      timestamp: new Date().toISOString()
+    }, null, 2)
   } finally {
     loading.value = false
   }
@@ -453,6 +522,7 @@ textarea:disabled {
   font-size: 0.9rem;
 }
 
+/* ✅ LARGE ERROR DISPLAY - ALWAYS VISIBLE */
 .error-message-large {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -472,13 +542,15 @@ textarea:disabled {
 .error-content {
   font-size: 1rem;
   line-height: 1.5;
+  word-break: break-word;
 }
 
+/* ✅ LARGE DEBUG DISPLAY - ALWAYS VISIBLE */
 .debug-panel-large {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  background-color: #d4edda;
-  border: 3px solid #28a745;
+  background-color: #d1ecf1;
+  border: 3px solid #0c5460;
   border-radius: 8px;
 }
 
@@ -486,7 +558,7 @@ textarea:disabled {
   font-size: 1.2rem;
   font-weight: bold;
   margin-bottom: 1rem;
-  color: #155724;
+  color: #0c5460;
 }
 
 .debug-content {
@@ -495,12 +567,13 @@ textarea:disabled {
   border-radius: 4px;
   overflow-x: auto;
   font-size: 0.85rem;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
-  border: 1px solid #28a745;
+  border: 1px solid #0c5460;
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'Courier New', monospace;
+  color: #0c5460;
 }
 
 .profile-summary {
@@ -607,6 +680,10 @@ textarea:disabled {
   .submit-button,
   .back-button {
     width: 100%;
+  }
+
+  .debug-content {
+    font-size: 0.75rem;
   }
 }
 </style>
