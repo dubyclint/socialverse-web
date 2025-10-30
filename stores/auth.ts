@@ -321,6 +321,51 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    // ✅ NEW: Update profile after signup with all required fields
+    async updateProfileAfterSignup(profileData: Partial<Profile>) {
+      if (!this.user || !this.supabaseAvailable) {
+        return { success: false, error: 'Not authenticated' }
+      }
+
+      let supabase = null
+      try {
+        supabase = useSupabaseClient()
+      } catch (error) {
+        console.warn('Supabase client not available:', error)
+        return { success: false, error: 'Supabase not available' }
+      }
+      
+      try {
+        this.loading = true
+        
+        // Update profile with signup data
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({
+            ...profileData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.user.id)
+          .select()
+          .single()
+
+        if (error) throw error
+
+        this.profile = { ...this.profile, ...data } as Profile
+        
+        // Reload permissions after profile update
+        await this.loadPermissions()
+        
+        return { success: true, data }
+        
+      } catch (error) {
+        console.error('Profile update after signup error:', error)
+        return { success: false, error: (error as any).message }
+      } finally {
+        this.loading = false
+      }
+    },
+
     async updateLastLogin() {
       if (!this.user || !this.supabaseAvailable) return
 
