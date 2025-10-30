@@ -57,7 +57,9 @@ async function runMigrations() {
       { file: '002_add_indexes.sql', description: 'Add indexes' },
       { file: '003_cleanup_duplicate_tables', description: 'Cleanup duplicate tables' },
       { file: '004_fix_posts_tables_structure.sql', description: 'Fix posts table structure' },
-      { file: '005_verify_schema.sql', description: 'Verify schema consistency' }
+      { file: '005_verify_schema.sql', description: 'Verify schema consistency' },
+      { file: '006_fix_case_sensitivity.sql', description: 'Fix case sensitivity' },
+      { file: '007_create_rpc_functions.sql', description: 'Create RPC functions' }
     ];
     
     for (const migration of migrations) {
@@ -78,7 +80,8 @@ async function runMigrations() {
     console.log('  ✅ trades table - Trade records (with buyer_id, seller_id FK)');
     console.log('  ✅ RLS policies - Row Level Security enabled');
     console.log('  ✅ Indexes - Performance indexes created');
-    console.log('  ✅ Triggers - Auto-update timestamps');
+    console.log('  ✅ Triggers - Auto-update timestamps + username/email normalization');
+    console.log('  ✅ RPC Functions - Case-insensitive availability checks');
     
   } catch (error) {
     console.error('\n❌ Database setup failed:', error.message);
