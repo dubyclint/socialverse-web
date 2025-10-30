@@ -1,4 +1,3 @@
-// composables/useAuth.ts - FIXED VERSION
 import { ref, computed } from 'vue'
 import type { User } from '@supabase/supabase-js'
 
@@ -24,14 +23,12 @@ export const useAuth = () => {
       
       if (signInError) throw signInError
       
-      // CRITICAL: Verify user ID exists
       if (!data.user?.id) {
         throw new Error('User ID not available from authentication')
       }
 
       console.log('[useAuth] User logged in with ID:', data.user.id)
       
-      // Initialize user store
       await userStore.initializeSession()
       
       return { success: true, user: data.user }
@@ -44,33 +41,39 @@ export const useAuth = () => {
     }
   }
   
-  const signup = async (email: string, password: string) => {
+  // ✅ FIX: Updated signup to accept all required fields
+  const signup = async (signupData: {
+    email: string
+    password: string
+    username: string
+    fullName: string
+    phone: string
+    bio?: string
+    location?: string
+  }) => {
     try {
       loading.value = true
       error.value = ''
       
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password
+      // Call backend signup endpoint
+      const { data, error: signupError } = await $fetch('/api/auth/signup', {
+        method: 'POST',
+        body: signupData
       })
       
-      if (signUpError) throw signUpError
+      if (signupError) throw signupError
       
-      // CRITICAL: Verify user ID exists
-      if (!data.user?.id) {
-        throw new Error('User ID not available from authentication')
-      }
-
       console.log('[useAuth] User signed up with ID:', data.user.id)
       
-      // Initialize user store
-      await userStore.initializeSession()
-      
-      return { success: true, user: data.user }
+      return { 
+        success: true, 
+        user: data.user,
+        needsConfirmation: data.needsConfirmation
+      }
     } catch (err: any) {
-      error.value = err.message
+      error.value = err.message || err.data?.statusMessage
       console.error('[useAuth] Signup error:', err)
-      return { success: false, error: err.message }
+      return { success: false, error: error.value }
     } finally {
       loading.value = false
     }
@@ -79,17 +82,13 @@ export const useAuth = () => {
   const logout = async () => {
     try {
       loading.value = true
-      error.value = ''
+      const { error: signOutError } = await supabase.auth.signOut()
+      if (signOutError) throw signOutError
       
-      await supabase.auth.signOut()
-      userStore.clearProfile()
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user')
-      
+      await userStore.clearSession()
       return { success: true }
     } catch (err: any) {
       error.value = err.message
-      console.error('[useAuth] Logout error:', err)
       return { success: false, error: err.message }
     } finally {
       loading.value = false
@@ -97,12 +96,12 @@ export const useAuth = () => {
   }
   
   return {
-    user,
-    loading,
-    error,
-    isAuthenticated,
     login,
     signup,
-    logout
+    logout,
+    isAuthenticated,
+    loading,
+    error,
+    user
   }
 }
