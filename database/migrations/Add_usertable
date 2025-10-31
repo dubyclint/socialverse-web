@@ -1,0 +1,49 @@
+-- USER TABLE (Security & Auth Only)
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role_id VARCHAR(50) DEFAULT 'user',
+  is_active BOOLEAN DEFAULT TRUE,
+  email_verified BOOLEAN DEFAULT FALSE,
+  email_verification_token VARCHAR(255),
+  email_verification_expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- PROFILE TABLE (Personal & Public Data)
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  phone_number VARCHAR(20),
+  bio TEXT,
+  avatar_url TEXT,
+  address TEXT,
+  verification_badge JSONB,
+  wallet_lock_enabled BOOLEAN DEFAULT FALSE,
+  rank VARCHAR(50) DEFAULT 'bronze',
+  rank_points INTEGER DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'active',
+  settings JSONB DEFAULT '{}',
+  profile_completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ROLES TABLE (RBAC)
+CREATE TABLE roles (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  permissions TEXT[] DEFAULT '{}',
+  level INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+INSERT INTO roles (id, name, permissions, level) VALUES
+  ('user', 'User', ARRAY['read:profile', 'create:post', 'read:posts', 'manage:interests'], 1),
+  ('manager', 'Manager', ARRAY['read:profile', 'create:post', 'read:posts', 'moderate:posts', 'manage:users', 'manage:interests'], 2),
+  ('admin', 'Admin', ARRAY['*'], 3);
