@@ -24,6 +24,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(body.email)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid email format'
+      })
+    }
+
+    // Validate password strength
+    if (body.password.length < 8) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Password must be at least 8 characters long'
+      })
+    }
+
+    // Validate username
+    if (body.username.length < 3) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Username must be at least 3 characters long'
+      })
+    }
+
     console.log('[Signup] Creating auth user:', body.email)
 
     // Create auth user
