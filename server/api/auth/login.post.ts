@@ -1,4 +1,7 @@
+// /server/api/auth/login.post.ts - NEW IMPLEMENTATION
 import { serverSupabaseClient } from '#supabase/server'
+import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
 
 interface LoginRequest {
   email: string
@@ -12,155 +15,113 @@ export default defineEventHandler(async (event) => {
 
     // Validate required fields
     if (!body.email || !body.password) {
-      console.error('[Login] Missing required fields:', { email: !!body.email, password: !!body.password })
       throw createError({
         statusCode: 400,
         statusMessage: 'Email and password are required'
       })
     }
 
-    console.log('[Login] Attempting login for:', body.email)
+    // Get user by email (case-insensitive)
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .ilike('email', body.email)
+      .single()
 
-    // Authenticate user with Supabase
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: body.email,
-      password: body.password
-    })
-
-    if (authError) {
-      console.error('[Login] Auth error:', authError)
+    if (userError || !user) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Invalid email or password'
       })
     }
 
-    if (!authData.user) {
-      console.error('[Login] No user returned from auth')
+    // Check if email is verified
+    if (!user.email_verified) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Please verify your email before logging in'
+      })
+    }
+
+    // Check if account is active
+    if (!user.is_active) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Your account has been deactivated'
+      })
+    }
+
+    // Verify password
+    const passwordMatch = await bcrypt.compare(body.password, user.password_hash)
+    if (!passwordMatch) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Authentication failed'
+        statusMessage: 'Invalid email or password'
       })
     }
 
-    console.log('[Login] User authenticated:', authData.user.id)
-
-    // ✅ FIX: Fetch user profile with error handling
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+    // Get user role and permissions
+    const { data: role } = await supabase
+      .from('roles')
       .select('*')
-      .eq('id', authData.user.id)
+      .eq('id', user.role_id)
       .single()
 
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error('[Login] Profile fetch error:', profileError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to fetch user profile'
-      })
-    }
+    // Get user profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
 
-    // ✅ FIX: If profile doesn't exist, create it
-    if (!profile) {
-      console.log('[Login] Profile not found, creating default profile')
-      const { error: profileCreateError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          email: authData.user.email,
-          role: 'user',
-          status: 'active',
-          email_verified: !!authData.user.email_confirmed_at,
-          preferences: {},
-          metadata: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+    // Get user interests
+    const { data: userInterests } = await supabase
+      .from('user_interests')
+      .select('interest_id, interests(name, category)')
+      .eq('user_id', user.id)
 
-      if (profileCreateError) {
-        console.error('[Login] Profile creation error:', profileCreateError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Failed to create user profile'
-        })
-      }
+    // Create JWT token
+    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key'
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role_id,
+        permissions: role?.permissions || []
+      },
+      jwtSecret,
+      { expiresIn: '7d' }
+    )
 
-      // ✅ FIX: Fetch the newly created profile
-      const { data: newProfile, error: newProfileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single()
+    // Update last login
+    await supabase
+      .from('users')
+      .update({ last_login: new Date() })
+      .eq('id', user.id)
 
-      if (newProfileError) {
-        console.error('[Login] Failed to fetch newly created profile:', newProfileError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Failed to fetch user profile'
-        })
-      }
-
-      console.log('[Login] Login successful for:', body.email)
-
-      // ✅ CRITICAL FIX: Return COMPLETE profile data
-      return {
-        success: true,
-        statusMessage: 'Login successful',
-        data: {
-          user: {
-            id: authData.user.id,
-            email: authData.user.email,
-            username: newProfile?.username,
-            fullName: newProfile?.full_name,
-            phone: newProfile?.phone_number,
-            role: newProfile?.role,
-            status: newProfile?.status,
-            avatar_url: newProfile?.avatar_url,
-            bio: newProfile?.bio,
-            email_verified: newProfile?.email_verified
-          },
-          profile: newProfile,
-          session: authData.session
-        }
-      }
-    }
-
-    console.log('[Login] Login successful for:', body.email)
-
-    // ✅ CRITICAL FIX: Return COMPLETE profile data
     return {
       success: true,
-      statusMessage: 'Login successful',
-      data: {
-        user: {
-          id: authData.user.id,
-          email: authData.user.email,
-          username: profile?.username,
-          fullName: profile?.full_name,
-          phone: profile?.phone_number,
-          role: profile?.role,
-          status: profile?.status,
-          avatar_url: profile?.avatar_url,
-          bio: profile?.bio,
-          email_verified: profile?.email_verified
-        },
-        profile: profile,
-        session: authData.session
-      }
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role_id,
+        permissions: role?.permissions || []
+      },
+      profile: {
+        username: profile?.username,
+        firstName: profile?.first_name,
+        lastName: profile?.last_name,
+        avatar: profile?.avatar_url,
+        bio: profile?.bio,
+        rank: profile?.rank,
+        rankPoints: profile?.rank_points,
+        profileCompleted: profile?.profile_completed
+      },
+      interests: userInterests?.map(ui => ui.interests?.name) || []
     }
-
   } catch (error) {
-    console.error('[Login] Error caught:', error)
-    
-    if ((error as any).statusCode) {
-      console.error('[Login] Throwing error with status:', (error as any).statusCode, (error as any).statusMessage)
-      throw error
-    }
-    
-    console.error('[Login] Unexpected error:', (error as any).message || error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Internal server error: ${(error as any).message || 'Unknown error during login'}`
-    })
+    console.error('[Login] Error:', error)
+    throw error
   }
 })
