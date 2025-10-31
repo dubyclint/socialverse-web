@@ -5,7 +5,7 @@ interface SignupRequest {
   password: string
   username: string
   fullName: string
-  phone: string
+  phone?: string
   bio?: string
   location?: string
 }
@@ -33,8 +33,8 @@ export default defineEventHandler(async (event) => {
       options: {
         data: {
           username: body.username,
-          full_name: body.fullName,
-          phone: body.phone,
+          full_name: body.fullName || '',
+          phone: body.phone || '',
           bio: body.bio || '',
           location: body.location || ''
         }
@@ -59,54 +59,82 @@ export default defineEventHandler(async (event) => {
     const userId = authData.user.id
     console.log('[Signup] Auth user created:', userId)
 
-    // Create profile with minimal data first
+    // Create profile with all required fields
     try {
-      const { error: profileError } = await supabase
+      const profileData = {
+        id: userId,
+        email: body.email,
+        email_lower: body.email.toLowerCase(),
+        username: body.username,
+        username_lower: body.username.toLowerCase(),
+        full_name: body.fullName || '',
+        phone: body.phone || '',
+        bio: body.bio || '',
+        location: body.location || '',
+        avatar_url: null,
+        role: 'user',
+        status: 'active',
+        email_verified: false,
+        profile_completed: false,
+        preferences: {},
+        metadata: {},
+        privacy_settings: {}
+      }
+
+      console.log('[Signup] Inserting profile with data:', profileData)
+
+      const { data: profileResult, error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: userId,
-          email: body.email,
-          username: body.username,
-          full_name: body.fullName || '',
-          phone: body.phone || '',
-          bio: body.bio || '',
-          location: body.location || '',
-          role: 'user',
-          status: 'active',
-          email_verified: false
-        })
+        .insert([profileData])
+        .select()
 
       if (profileError) {
-        console.error('[Signup] Profile error:', profileError)
-        throw profileError
+        console.error('[Signup] Profile insertion error:', {
+          message: profileError.message,
+          code: profileError.code,
+          details: profileError.details,
+          hint: profileError.hint,
+          status: profileError.status
+        })
+
+        // Rollback: Delete the auth user
+        await supabase.auth.admin.deleteUser(userId).catch(err => {
+          console.error('[Signup] Rollback failed:', err.message)
+        })
+
+        throw createError({
+          statusCode: 500,
+          statusMessage: `Database error: ${profileError.message}`
+        })
       }
 
       console.log('[Signup] ✅ Profile created successfully')
+
+      return {
+        success: true,
+        message: 'Signup successful. Please verify your email.',
+        user: {
+          id: userId,
+          email: authData.user.email,
+          username: body.username
+        }
+      }
     } catch (dbError: any) {
-      console.error('[Signup] Database error details:', {
-        message: dbError.message,
-        code: dbError.code,
-        details: dbError.details,
-        hint: dbError.hint
+      console.error('[Signup] Database error:', dbError.message)
+
+      // Rollback
+      await supabase.auth.admin.deleteUser(userId).catch(err => {
+        console.error('[Signup] Rollback failed:', err.message)
       })
+
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database error saving new user'
+        statusMessage: dbError.message || 'Database error saving new user'
       })
     }
-
-    return {
-      success: true,
-      message: 'Signup successful. Please verify your email.',
-      user: {
-        id: userId,
-        email: authData.user.email
-      }
-    }
-
   } catch (error: any) {
     console.error('[Signup] Error:', error.message)
-    
+
     if (error.statusCode) {
       throw error
     }
