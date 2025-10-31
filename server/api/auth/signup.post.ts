@@ -1,13 +1,12 @@
+// /server/api/auth/signup.post.ts - NEW IMPLEMENTATION
 import { serverSupabaseClient } from '#supabase/server'
+import bcrypt from 'bcrypt'
+import crypto from 'crypto'
 
 interface SignupRequest {
   email: string
   password: string
   username: string
-  fullName: string
-  phone?: string
-  bio?: string
-  location?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -17,7 +16,6 @@ export default defineEventHandler(async (event) => {
 
     // Validate required fields
     if (!body.email || !body.password || !body.username) {
-      console.error('[Signup] Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
@@ -33,140 +31,139 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate password strength
-    if (body.password.length < 8) {
+    // Validate password strength (min 8 chars, 1 uppercase, 1 number, 1 special char)
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
+    if (!passwordRegex.test(body.password)) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Password must be at least 8 characters long'
+        statusMessage: 'Password must be at least 8 characters with uppercase, number, and special character'
       })
     }
 
-    // Validate username
-    if (body.username.length < 3) {
+    // Validate username (3-30 chars, alphanumeric, underscore, hyphen)
+    const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/
+    if (!usernameRegex.test(body.username)) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Username must be at least 3 characters long'
+        statusMessage: 'Username must be 3-30 characters (letters, numbers, underscore, hyphen only)'
       })
     }
 
-    console.log('[Signup] Creating auth user:', body.email)
+    // Check if email already exists (case-insensitive)
+    const { data: existingEmail } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('email', body.email)
+      .single()
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: body.email,
-      password: body.password,
-      options: {
-        data: {
-          username: body.username,
-          full_name: body.fullName || '',
-          phone: body.phone || '',
-          bio: body.bio || '',
-          location: body.location || ''
-        }
-      }
-    })
-
-    if (authError) {
-      console.error('[Signup] Auth error:', authError)
+    if (existingEmail) {
       throw createError({
         statusCode: 400,
-        statusMessage: authError.message || 'Signup failed'
+        statusMessage: 'Email already registered'
       })
     }
 
-    if (!authData.user) {
+    // Check if username already exists (case-insensitive)
+    const { data: existingUsername } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('username', body.username)
+      .single()
+
+    if (existingUsername) {
       throw createError({
-        statusCode: 500,
-        statusMessage: 'User creation failed'
+        statusCode: 400,
+        statusMessage: 'Username already taken'
       })
     }
 
-    const userId = authData.user.id
-    console.log('[Signup] Auth user created:', userId)
+    // Hash password
+    const passwordHash = await bcrypt.hash(body.password, 10)
 
-    // Create profile with all required fields
-    try {
-      const profileData = {
-        id: userId,
-        email: body.email,
-        email_lower: body.email.toLowerCase(),
-        username: body.username,
-        username_lower: body.username.toLowerCase(),
-        full_name: body.fullName || '',
-        phone: body.phone || '',
-        bio: body.bio || '',
-        location: body.location || '',
-        avatar_url: null,
-        role: 'user',
-        status: 'active',
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+    // Create user
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .insert({
+        email: body.email.toLowerCase(),
+        password_hash: passwordHash,
+        role_id: 'user',
+        is_active: true,
         email_verified: false,
-        profile_completed: false,
-        preferences: {},
-        metadata: {},
-        privacy_settings: {}
-      }
-
-      console.log('[Signup] Inserting profile with data:', profileData)
-
-      const { data: profileResult, error: profileError } = await supabase
-        .from('profiles')
-        .insert([profileData])
-        .select()
-
-      if (profileError) {
-        console.error('[Signup] Profile insertion error:', {
-          message: profileError.message,
-          code: profileError.code,
-          details: profileError.details,
-          hint: profileError.hint,
-          status: profileError.status
-        })
-
-        // Rollback: Delete the auth user
-        await supabase.auth.admin.deleteUser(userId).catch(err => {
-          console.error('[Signup] Rollback failed:', err.message)
-        })
-
-        throw createError({
-          statusCode: 500,
-          statusMessage: `Database error: ${profileError.message}`
-        })
-      }
-
-      console.log('[Signup] ✅ Profile created successfully')
-
-      return {
-        success: true,
-        message: 'Signup successful. Please verify your email.',
-        user: {
-          id: userId,
-          email: authData.user.email,
-          username: body.username
-        }
-      }
-    } catch (dbError: any) {
-      console.error('[Signup] Database error:', dbError.message)
-
-      // Rollback
-      await supabase.auth.admin.deleteUser(userId).catch(err => {
-        console.error('[Signup] Rollback failed:', err.message)
+        email_verification_token: verificationToken,
+        email_verification_expires_at: tokenExpiry
       })
+      .select()
+      .single()
 
+    if (userError) {
       throw createError({
-        statusCode: 500,
-        statusMessage: dbError.message || 'Database error saving new user'
+        statusCode: 400,
+        statusMessage: 'Failed to create user'
       })
     }
-  } catch (error: any) {
-    console.error('[Signup] Error:', error.message)
 
-    if (error.statusCode) {
-      throw error
+    // Create profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: user.id,
+        username: body.username,
+        rank: 'bronze',
+        rank_points: 0,
+        status: 'active',
+        profile_completed: false
+      })
+
+    if (profileError) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Failed to create profile'
+      })
     }
 
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'An unexpected error occurred'
-    })
+    // Create wallet
+    const { error: walletError } = await supabase
+      .from('wallets')
+      .insert({
+        user_id: user.id,
+        is_locked: false
+      })
+
+    if (walletError) {
+      console.warn('Wallet creation warning:', walletError)
+    }
+
+    // Initialize rank
+    const { error: rankError } = await supabase
+      .from('user_ranks')
+      .insert({
+        user_id: user.id,
+        category: 'overall',
+        current_rank: 'Bronze I',
+        rank_level: 1,
+        points: 0
+      })
+
+    if (rankError) {
+      console.warn('Rank initialization warning:', rankError)
+    }
+
+    // Send verification email
+    // TODO: Implement email sending service
+    console.log('[Signup] Verification token:', verificationToken)
+
+    return {
+      success: true,
+      message: 'Signup successful. Please check your email to verify your account.',
+      userId: user.id,
+      email: user.email
+    }
+  } catch (error) {
+    console.error('[Signup] Error:', error)
+    throw error
   }
 })
