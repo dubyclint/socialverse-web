@@ -1,74 +1,70 @@
+// /server/api/auth/verify-email.post.ts - NEW IMPLEMENTATION
 import { serverSupabaseClient } from '#supabase/server'
 
 interface VerifyEmailRequest {
   token: string
-  verifyType?: string
 }
 
 export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<VerifyEmailRequest>(event)
-    
-    const { token, verifyType = 'signup' } = body
 
-    if (!token) {
+    if (!body.token) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Verification token is required'
       })
     }
 
-    console.log('[Verify Email] Attempting to verify email with token, type:', verifyType)
+    // Find user with this token
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email_verification_token', body.token)
+      .single()
 
-    // ✅ FIX: Use correct OTP type for signup verification
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: token,
-      type: verifyType as 'signup' | 'email_change' | 'phone_change'
-    })
-
-    if (error) {
-      console.error('[Verify Email] Verification error:', error)
+    if (userError || !user) {
       throw createError({
         statusCode: 400,
-        statusMessage: `Email verification failed: ${error.message}`
+        statusMessage: 'Invalid verification token'
       })
     }
 
-    if (!data.user) {
+    // Check if token has expired
+    const tokenExpiry = new Date(user.email_verification_expires_at)
+    if (tokenExpiry < new Date()) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Email verification failed: No user found'
+        statusMessage: 'Verification token has expired'
       })
     }
 
-    // ✅ FIX: Update profile email_verified status
+    // Mark email as verified
     const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ email_verified: true })
-      .eq('id', data.user.id)
+      .from('users')
+      .update({
+        email_verified: true,
+        email_verification_token: null,
+        email_verification_expires_at: null
+      })
+      .eq('id', user.id)
 
     if (updateError) {
-      console.error('[Verify Email] Failed to update profile:', updateError)
       throw createError({
         statusCode: 500,
-        statusMessage: `Failed to update profile: ${updateError.message}`
+        statusMessage: 'Failed to verify email'
       })
     }
-
-    console.log('[Verify Email] ✅ Email verified successfully for user:', data.user.id)
 
     return {
       success: true,
-      user: {
-        id: data.user.id,
-        email: data.user.email
-      },
-      message: 'Email verified successfully!'
+      message: 'Email verified successfully. You can now log in.',
+      userId: user.id,
+      email: user.email
     }
-
-  } catch (err: any) {
-    console.error('[Verify Email] Error:', err)
-    throw err
+  } catch (error) {
+    console.error('[Verify Email] Error:', error)
+    throw error
   }
 })
