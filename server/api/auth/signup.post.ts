@@ -24,9 +24,9 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[Signup] Creating user:', body.email)
+    console.log('[Signup] Step 1: Creating auth user:', body.email)
 
-    // Create auth user with metadata
+    // Step 1: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: body.email,
       password: body.password,
@@ -56,19 +56,55 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[Signup] ✅ User created successfully:', authData.user.id)
+    const userId = authData.user.id
+    console.log('[Signup] Step 2: Auth user created:', userId)
+
+    // Step 2: Manually create profile (don't rely on trigger)
+    console.log('[Signup] Step 3: Creating profile in database')
+    
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: body.email,
+        username: body.username,
+        full_name: body.fullName,
+        phone: body.phone,
+        bio: body.bio || '',
+        location: body.location || '',
+        email_verified: false,
+        role: 'user',
+        status: 'active'
+      })
+      .select()
+      .single()
+
+    if (profileError) {
+      console.error('[Signup] Profile creation error:', profileError)
+      console.error('[Signup] Error details:', {
+        message: profileError.message,
+        code: profileError.code,
+        details: profileError.details
+      })
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Database error saving new user'
+      })
+    }
+
+    console.log('[Signup] ✅ Profile created successfully:', profileData)
 
     return {
       success: true,
       message: 'Signup successful. Please verify your email.',
       user: {
-        id: authData.user.id,
+        id: userId,
         email: authData.user.email
       }
     }
 
   } catch (error: any) {
-    console.error('[Signup] Error:', error)
+    console.error('[Signup] Catch block error:', error)
     
     if (error.statusCode) {
       throw error
