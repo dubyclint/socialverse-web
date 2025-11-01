@@ -1,3 +1,6 @@
+<!-- FILE: /pages/auth/complete-profile.vue - UPDATED -->
+<!-- Complete profile after email verification with username creation -->
+
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
@@ -16,7 +19,7 @@
 <script setup lang="ts">
 definePageMeta({
   layout: 'blank',
-  middleware: 'guest'
+  middleware: 'auth'
 })
 
 const router = useRouter()
