@@ -1,4 +1,7 @@
-// /server/api/profile/update.post.ts - NEW
+// FILE: /server/api/profile/update.post.ts - UPDATE
+// Update user profile
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 
 interface UpdateProfileRequest {
@@ -8,6 +11,7 @@ interface UpdateProfileRequest {
   bio?: string
   address?: string
   avatarUrl?: string
+  website?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -15,6 +19,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const userId = event.context.user?.id
 
+    // STEP 1: VERIFY AUTHENTICATION
     if (!userId) {
       throw createError({
         statusCode: 401,
@@ -24,33 +29,44 @@ export default defineEventHandler(async (event) => {
 
     const body = await readBody<UpdateProfileRequest>(event)
 
-    // Build update object (only include provided fields)
-    const updateData: any = {}
-    if (body.firstName) updateData.first_name = body.firstName
-    if (body.lastName) updateData.last_name = body.lastName
-    if (body.phone !== undefined) updateData.phone_number = body.phone
-    if (body.bio !== undefined) updateData.bio = body.bio
-    if (body.address !== undefined) updateData.address = body.address
-    if (body.avatarUrl !== undefined) updateData.avatar_url = body.avatarUrl
+    // STEP 2: BUILD UPDATE OBJECT (only include provided fields)
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
 
-    const { error: updateError } = await supabase
+    if (body.firstName && body.lastName) {
+      updateData.full_name = `${body.firstName} ${body.lastName}`
+    }
+    if (body.phone !== undefined) updateData.phone = body.phone || null
+    if (body.bio !== undefined) updateData.bio = body.bio || null
+    if (body.address !== undefined) updateData.location = body.address || null
+    if (body.avatarUrl !== undefined) updateData.avatar_url = body.avatarUrl || null
+    if (body.website !== undefined) updateData.website = body.website || null
+
+    // STEP 3: UPDATE PROFILE
+    const { data: updatedProfile, error: updateError } = await supabase
       .from('profiles')
       .update(updateData)
-      .eq('user_id', userId)
+      .eq('id', userId)
+      .select()
+      .single()
 
     if (updateError) {
       throw createError({
-        statusCode: 400,
+        statusCode: 500,
         statusMessage: 'Failed to update profile'
       })
     }
 
+    // STEP 4: RETURN SUCCESS
     return {
       success: true,
-      message: 'Profile updated successfully'
+      message: 'Profile updated successfully',
+      profile: updatedProfile
     }
+
   } catch (error) {
-    console.error('[Update Profile] Error:', error)
+    console.error('[UpdateProfile] Error:', error)
     throw error
   }
 })
