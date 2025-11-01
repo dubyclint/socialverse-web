@@ -1,4 +1,4 @@
-// FILE: /composables/useAuth.ts - UPDATE
+// FILE: /composables/useAuth.ts - CORRECTED
 // Authentication composable
 // ============================================================================
 
@@ -24,7 +24,9 @@ export const useAuth = () => {
       loading.value = true
       error.value = ''
 
-      const response = await $fetch<AuthResponse>('/api/auth/signup', {
+      console.log('[useAuth] Signup attempt:', { email, username })
+
+      const response = await $fetch('/api/auth/signup', {
         method: 'POST',
         body: {
           email,
@@ -33,21 +35,44 @@ export const useAuth = () => {
         }
       })
 
-      if (!response.success) {
+      console.log('[useAuth] Signup response:', response)
+
+      // Check if response has success property
+      if (response && response.success === true) {
+        console.log('[useAuth] Signup successful')
+        return {
+          success: true,
+          message: response.message || 'Account created successfully',
+          nextStep: response.nextStep || 'email_verification',
+          userId: response.userId,
+          email: response.email
+        }
+      } else if (response && response.success === false) {
         throw new Error(response.message || 'Signup failed')
+      } else {
+        // Response might not have success property, assume it's an error
+        throw new Error(response?.message || 'Signup failed - invalid response')
       }
 
-      return {
-        success: true,
-        message: response.message,
-        nextStep: response.nextStep
-      }
     } catch (err: any) {
-      error.value = err.message || 'Signup failed'
       console.error('[useAuth] Signup error:', err)
+      
+      // Extract error message
+      let errorMessage = 'Signup failed'
+      
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      }
+
+      error.value = errorMessage
+      
       return {
         success: false,
-        error: error.value
+        error: errorMessage
       }
     } finally {
       loading.value = false
@@ -165,26 +190,6 @@ export const useAuth = () => {
   }
 
   /**
-   * Check username availability
-   */
-  const checkUsername = async (username: string) => {
-    try {
-      const response = await $fetch('/api/auth/check-username', {
-        method: 'POST',
-        body: { username }
-      })
-
-      return response
-    } catch (err: any) {
-      console.error('[useAuth] Check username error:', err)
-      return {
-        available: false,
-        reason: 'Error checking username'
-      }
-    }
-  }
-
-  /**
    * Logout
    */
   const logout = async () => {
@@ -225,7 +230,6 @@ export const useAuth = () => {
     login,
     verifyEmail,
     resendVerification,
-    checkUsername,
     logout
   }
 }
