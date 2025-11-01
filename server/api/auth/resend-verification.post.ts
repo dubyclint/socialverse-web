@@ -1,4 +1,10 @@
+: /server/api/auth/resend-verification.post.ts - CREATE
+// Resend verification email
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
+import { generateEmailVerificationToken } from '~/server/utils/token'
+import { sendVerificationEmail } from '~/server/utils/email'
 
 interface ResendVerificationRequest {
   email: string
@@ -8,71 +14,84 @@ export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<ResendVerificationRequest>(event)
-    
-    const { email } = body
 
-    if (!email) {
+    // STEP 1: VALIDATE EMAIL
+    if (!body.email) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Email is required'
       })
     }
 
-    console.log('[Resend Verification] Request for email:', email)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(body.email)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid email format'
+      })
+    }
 
-    // ✅ FIX: Use Supabase to fetch user
+    // STEP 2: FIND PROFILE BY EMAIL
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, email, email_verified')
-      .eq('email', email)
+      .select('*')
+      .ilike('email', body.email)
       .single()
 
     if (profileError || !profile) {
-      console.error('[Resend Verification] User not found:', email)
       throw createError({
         statusCode: 404,
-        statusMessage: 'User not found'
+        statusMessage: 'Email not found'
       })
     }
 
+    // STEP 3: CHECK IF ALREADY VERIFIED
     if (profile.email_verified) {
-      console.log('[Resend Verification] Email already verified:', email)
-      return { success: true, message: 'Email already verified' }
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Email is already verified'
+      })
     }
 
-    // ✅ FIX: Use Supabase auth to resend verification email
-    console.log('[Resend Verification] Resending verification email to:', email)
-    
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup',
-      email: email
-    })
+    // STEP 4: GENERATE NEW VERIFICATION TOKEN
+    const { token: verificationToken, expiresAt: tokenExpiry } = generateEmailVerificationToken()
 
-    if (resendError) {
-      console.error('[Resend Verification] Resend error:', resendError)
+    // STEP 5: UPDATE PROFILE WITH NEW TOKEN
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        email_verification_token: verificationToken,
+        email_verification_expires_at: tokenExpiry,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', profile.id)
+
+    if (updateError) {
       throw createError({
         statusCode: 500,
-        statusMessage: `Failed to resend verification email: ${resendError.message}`
+        statusMessage: 'Failed to generate verification token'
       })
     }
 
-    console.log('[Resend Verification] Verification email sent successfully')
+    // STEP 6: SEND VERIFICATION EMAIL
+    try {
+      await sendVerificationEmail(profile.email, profile.username, verificationToken)
+    } catch (emailError) {
+      console.warn('[ResendVerification] Email sending failed:', emailError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to send verification email'
+      })
+    }
 
-    return { 
-      success: true, 
-      message: 'Verification email sent. Please check your inbox.' 
+    // STEP 7: RETURN SUCCESS
+    return {
+      success: true,
+      message: 'Verification email sent. Check your inbox.'
     }
 
   } catch (error) {
-    console.error('[Resend Verification] Error:', error)
-    
-    if ((error as any).statusCode) {
-      throw error
-    }
-    
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Failed to resend verification email: ${(error as any).message || 'Unknown error'}`
-    })
+    console.error('[ResendVerification] Error:', error)
+    throw error
   }
 })
