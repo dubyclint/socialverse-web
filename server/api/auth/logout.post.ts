@@ -1,3 +1,7 @@
+ /server/api/auth/logout.post.ts - VERIFY
+// User logout endpoint
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
@@ -6,7 +10,7 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Logout] Processing logout request')
 
-    // ✅ FIX: Sign out user from Supabase
+    // Sign out user from Supabase
     const { error } = await supabase.auth.signOut()
 
     if (error) {
@@ -19,7 +23,6 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Logout] User logged out successfully')
 
-    // Return success response
     return {
       success: true,
       message: 'Logged out successfully'
@@ -38,4 +41,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
