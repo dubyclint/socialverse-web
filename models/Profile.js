@@ -34,18 +34,22 @@ export class Profile {
       return {
         ...profile,
         // Apply privacy filters
-        display_name: privacy.show_name ? profile.display_name : 'Anonymous',
+        display_name: privacy.show_name ? profile.full_name : 'Anonymous',
         bio: privacy.show_bio ? profile.bio : '',
         location: privacy.show_location ? profile.location : '',
+        occupation: privacy.show_occupation ? profile.occupation : '',
         social_links: privacy.show_social_links ? profile.user_social_links : [],
-        verification_badges: privacy.show_badges ? profile.user_verification_badges : []
+        verification_badges: privacy.show_badges ? profile.user_verification_badges : [],
+        email: privacy.show_email ? profile.email : '',
+        phone: privacy.show_phone ? profile.phone : '',
+        website: privacy.show_website ? profile.website : ''
       }
     }
 
     return profile
   }
 
-  // Update profile
+  // Update profile - COMPLETE VERSION WITH ALL FIELDS
   static async updateProfile(userId, updates) {
     // Validate username if being updated
     if (updates.username) {
@@ -54,6 +58,19 @@ export class Profile {
         throw new Error(validation.error)
       }
       updates.username = validation.username
+    }
+
+    // Ensure arrays are properly formatted
+    if (updates.skills && !Array.isArray(updates.skills)) {
+      updates.skills = typeof updates.skills === 'string' ? JSON.parse(updates.skills) : []
+    }
+    if (updates.interests && !Array.isArray(updates.interests)) {
+      updates.interests = typeof updates.interests === 'string' ? JSON.parse(updates.interests) : []
+    }
+
+    // Ensure social_links is an object
+    if (updates.social_links && typeof updates.social_links !== 'object') {
+      updates.social_links = typeof updates.social_links === 'string' ? JSON.parse(updates.social_links) : {}
     }
 
     const { data, error } = await supabase
@@ -69,279 +86,140 @@ export class Profile {
 
   // Validate username - comprehensive validation
   static async validateUsername(username, excludeUserId = null) {
-    if (!username || typeof username !== 'string') {
-      return { valid: false, error: 'Invalid username' }
-    }
-
-    const trimmed = username.trim().toLowerCase()
-
-    // Length validation
-    if (trimmed.length < 3) {
-      return { valid: false, error: 'Username must be at least 3 characters' }
-    }
-
-    if (trimmed.length > 30) {
-      return { valid: false, error: 'Username must be less than 30 characters' }
-    }
-
-    // Format validation
-    const usernameRegex = /^[a-z0-9_-]+$/
-    if (!usernameRegex.test(trimmed)) {
-      return { 
-        valid: false, 
-        error: 'Username can only contain letters, numbers, underscores, and hyphens' 
+    // Username rules: 3-30 chars, alphanumeric + underscore, starts with letter
+    const usernameRegex = /^[a-zA-Z][a-zA-Z0-9_]{2,29}$/
+    
+    if (!usernameRegex.test(username)) {
+      return {
+        valid: false,
+        error: 'Username must be 3-30 characters, start with a letter, and contain only letters, numbers, and underscores'
       }
     }
 
-    // Reserved usernames
-    const reservedUsernames = [
-      'admin',
-      'root',
-      'system',
-      'support',
-      'help',
-      'api',
-      'www',
-      'mail',
-      'ftp',
-      'localhost',
-      'test',
-      'demo',
-      'guest',
-      'socialverse',
-      'app',
-      'web'
-    ]
-
-    if (reservedUsernames.includes(trimmed)) {
-      return { valid: false, error: 'This username is reserved' }
-    }
-
-    // Check database for duplicates
-    try {
-      let query = supabase
-        .from('profiles')
-        .select('id', { count: 'exact' })
-        .eq('username', trimmed)
-
-      // If updating existing user, exclude their own ID
-      if (excludeUserId) {
-        query = query.neq('id', excludeUserId)
-      }
-
-      const { data, error, count } = await query
-
-      if (error) {
-        return { valid: false, error: 'Database error checking username' }
-      }
-
-      if (count !== null && count > 0) {
-        return { valid: false, error: 'Username already taken' }
-      }
-
-      return { valid: true, username: trimmed }
-    } catch (err) {
-      console.error('Error validating username:', err)
-      return { valid: false, error: 'Error validating username' }
-    }
-  }
-
-  // Check if username is available
-  static async isUsernameAvailable(username, excludeUserId = null) {
-    const validation = await this.validateUsername(username, excludeUserId)
-    return validation.valid
-  }
-
-  // Create new profile
-  static async createProfile(userId, profileData) {
-    // Validate username
-    const usernameValidation = await this.validateUsername(profileData.username)
-    if (!usernameValidation.valid) {
-      throw new Error(usernameValidation.error)
-    }
-
-    const { data, error } = await supabase
+    // Check if username is already taken
+    let query = supabase
       .from('profiles')
-      .insert({
-        id: userId,
-        username: usernameValidation.username,
-        email: profileData.email?.toLowerCase().trim(),
-        full_name: profileData.fullName,
-        phone_number: profileData.phone,
-        bio: profileData.bio || '',
-        location: profileData.location || '',
-        avatar_url: null,
-        role: 'user',
-        status: 'active',
-        is_verified: false,
-        rank: 'bronze',
-        rank_points: 0,
-        email_verified: false,
-        preferences: {
-          location: profileData.location || '',
-          emailNotifications: true,
-          profilePrivate: false
-        },
-        metadata: {}
-      })
-      .select()
-      .single()
+      .select('id')
+      .eq('username_lower', username.toLowerCase())
 
-    if (error) {
-      // Handle unique constraint violation
-      if (error.code === '23505') {
-        throw new Error('Username already taken')
-      }
-      throw error
+    if (excludeUserId) {
+      query = query.neq('id', excludeUserId)
     }
 
-    return data
+    const { data, error } = await query.limit(1)
+    
+    if (error) throw error
+    
+    if (data && data.length > 0) {
+      return {
+        valid: false,
+        error: 'Username is already taken'
+      }
+    }
+
+    return {
+      valid: true,
+      username: username.toLowerCase()
+    }
   }
 
   // Get profile by username
   static async getProfileByUsername(username) {
-    const trimmed = username.trim().toLowerCase()
-
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('username', trimmed)
+      .eq('username_lower', username.toLowerCase())
       .single()
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null // Not found
-      }
-      throw error
-    }
-
+    if (error) throw error
     return data
   }
 
-  // Search profiles by username
+  // Search profiles
   static async searchProfiles(query, limit = 10) {
-    if (!query || query.length < 2) {
-      return []
-    }
-
-    const searchTerm = query.trim().toLowerCase()
-
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url')
-      .ilike('username', `%${searchTerm}%`)
+      .select('id, full_name, username, avatar_url, bio, status')
+      .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
+      .eq('status', 'active')
       .limit(limit)
 
     if (error) throw error
-    return data || []
-  }
-
-  // Update username
-  static async updateUsername(userId, newUsername) {
-    // Validate new username
-    const validation = await this.validateUsername(newUsername, userId)
-    if (!validation.valid) {
-      throw new Error(validation.error)
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ username: validation.username })
-      .eq('id', userId)
-      .select()
-      .single()
-
-    if (error) {
-      // Handle unique constraint violation
-      if (error.code === '23505') {
-        throw new Error('Username already taken')
-      }
-      throw error
-    }
-
     return data
   }
 
-  // Delete profile
-  static async deleteProfile(userId) {
+  // Get user stats
+  static async getUserStats(userId) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single()
+
+    if (error) throw error
+
+    // Get followers count
+    const { count: followersCount } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', userId)
+
+    // Get following count
+    const { count: followingCount } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', userId)
+
+    // Get posts count
+    const { count: postsCount } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    return {
+      followers: followersCount || 0,
+      following: followingCount || 0,
+      posts: postsCount || 0
+    }
+  }
+
+  // Update last login
+  static async updateLastLogin(userId) {
     const { error } = await supabase
       .from('profiles')
-      .delete()
+      .update({ last_login: new Date().toISOString() })
       .eq('id', userId)
 
     if (error) throw error
-    return true
   }
 
-  // Get profile statistics
-  static async getProfileStats(userId) {
+  // Get profile completion percentage
+  static async getProfileCompletionPercentage(userId) {
     const { data, error } = await supabase
       .from('profiles')
-      .select(`
-        id,
-        username,
-        rank,
-        rank_points,
-        is_verified,
-        created_at,
-        posts(count),
-        followers(count),
-        following(count)
-      `)
+      .select('full_name, bio, avatar_url, phone, location, occupation, website, date_of_birth, gender, skills, interests')
       .eq('id', userId)
       .single()
 
     if (error) throw error
-    return data
-  }
 
-  // Batch validate usernames
-  static async validateUsernamesBatch(usernames) {
-    const results = {}
-
-    for (const username of usernames) {
-      results[username] = await this.validateUsername(username)
-    }
-
-    return results
-  }
-
-  // Get available username suggestions
-  static async getSuggestedUsernames(baseUsername) {
-    const trimmed = baseUsername.trim().toLowerCase()
-    const suggestions = []
-
-    // Generate variations
-    const variations = [
-      trimmed,
-      `${trimmed}_`,
-      `${trimmed}1`,
-      `${trimmed}_1`,
-      `${trimmed}_official`,
-      `${trimmed}_real`,
-      `real_${trimmed}`,
-      `official_${trimmed}`
+    const fields = [
+      data.full_name,
+      data.bio,
+      data.avatar_url,
+      data.phone,
+      data.location,
+      data.occupation,
+      data.website,
+      data.date_of_birth,
+      data.gender,
+      data.skills && data.skills.length > 0,
+      data.interests && data.interests.length > 0
     ]
 
-    for (const variation of variations) {
-      const validation = await this.validateUsername(variation)
-      if (validation.valid) {
-        suggestions.push(variation)
-      }
-    }
+    const filledFields = fields.filter(field => field).length
+    const totalFields = fields.length
 
-    return suggestions
-  }
-
-  // Check username history (for audit purposes)
-  static async getUsernameHistory(userId) {
-    const { data, error } = await supabase
-      .from('username_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('changed_at', { ascending: false })
-
-    if (error) throw error
-    return data || []
+    return Math.round((filledFields / totalFields) * 100)
   }
 }
