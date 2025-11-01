@@ -1,76 +1,59 @@
+ /server/api/auth/check-username.post.ts - UPDATE
+// Check username availability
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
+
+interface CheckUsernameRequest {
+  username: string
+}
 
 export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
-    const { username } = await readBody(event)
-    
-    console.log('[CheckUsername] Input:', username)
-    
-    if (!username || typeof username !== 'string') {
-      console.log('[CheckUsername] Invalid input')
+    const body = await readBody<CheckUsernameRequest>(event)
+
+    if (!body.username || typeof body.username !== 'string') {
       return { available: false, reason: 'Invalid username' }
     }
-    
-    const trimmedUsername = username.trim().toLowerCase()
-    console.log('[CheckUsername] Trimmed:', trimmedUsername)
-    
+
+    const trimmedUsername = body.username.trim().toLowerCase()
+
     // Validation
     if (trimmedUsername.length < 3) {
       return { available: false, reason: 'Username must be at least 3 characters' }
     }
-    
+
     if (trimmedUsername.length > 30) {
       return { available: false, reason: 'Username must be less than 30 characters' }
     }
-    
+
     const usernameRegex = /^[a-z0-9_-]+$/
     if (!usernameRegex.test(trimmedUsername)) {
-      return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens' }
+      return { available: false, reason: 'Username can only contain letters, numbers, underscore, and hyphen' }
     }
-    
-    // Query database
-    console.log('[CheckUsername] Querying database...')
-    const { data, error, count } = await supabase
+
+    // Check availability
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id', { count: 'exact' })
-      .eq('username', trimmedUsername)
-    
-    console.log('[CheckUsername] Query result:', {
-      count,
-      error: error?.message,
-      errorCode: error?.code,
-      data
-    })
-    
-    // If there's an error, log it but don't fail
-    if (error) {
-      console.error('[CheckUsername] Database error:', error)
-      // Return available: true as fallback (let signup handle the duplicate check)
-      return { 
-        available: true,
-        username: trimmedUsername,
-        message: 'Username check unavailable, proceeding...'
-      }
+      .select('id')
+      .ilike('username', trimmedUsername)
+      .single()
+
+    if (error && error.code === 'PGRST116') {
+      // No rows found - username is available
+      return { available: true }
     }
-    
-    // Check if username is taken
-    const isTaken = count !== null && count > 0
-    console.log('[CheckUsername] Username taken:', isTaken)
-    
-    return {
-      available: !isTaken,
-      count: count || 0,
-      username: trimmedUsername,
-      message: isTaken ? 'Username already taken' : 'Username is available'
+
+    if (data) {
+      // Username exists
+      return { available: false, reason: 'Username already taken' }
     }
-    
-  } catch (err) {
-    console.error('[CheckUsername] Exception:', err)
-    // On error, return available: true to let signup handle it
-    return { 
-      available: true,
-      message: 'Username check unavailable'
-    }
+
+    return { available: true }
+
+  } catch (error) {
+    console.error('[CheckUsername] Error:', error)
+    return { available: false, reason: 'Error checking username' }
   }
 })
