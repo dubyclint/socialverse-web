@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - UPDATED WITH BETTER ERROR HANDLING
+// FILE: /server/api/auth/signup.post.ts - DIAGNOSTIC VERSION
 // User registration with email verification
 // ============================================================================
 
@@ -15,13 +15,20 @@ interface SignupRequest {
 
 export default defineEventHandler(async (event) => {
   try {
+    console.log('[Signup] ========== SIGNUP REQUEST STARTED ==========')
+    
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<SignupRequest>(event)
 
-    console.log('[Signup] Request received:', { email: body.email, username: body.username })
+    console.log('[Signup] Step 1: Request body received', { 
+      email: body.email, 
+      username: body.username,
+      passwordLength: body.password?.length 
+    })
 
     // STEP 1: VALIDATE INPUT
     if (!body.email || !body.password || !body.username) {
+      console.log('[Signup] Step 1 FAILED: Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
@@ -31,6 +38,7 @@ export default defineEventHandler(async (event) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(body.email)) {
+      console.log('[Signup] Step 1 FAILED: Invalid email format')
       throw createError({
         statusCode: 400,
         statusMessage: 'Invalid email format'
@@ -40,13 +48,17 @@ export default defineEventHandler(async (event) => {
     // Validate password strength
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
     if (!passwordRegex.test(body.password)) {
+      console.log('[Signup] Step 1 FAILED: Password does not meet requirements')
       throw createError({
         statusCode: 400,
         statusMessage: 'Password must be at least 8 characters with uppercase, number, and special character'
       })
     }
 
-    // STEP 2: CHECK EMAIL UNIQUENESS ONLY
+    console.log('[Signup] Step 1 PASSED: Input validation successful')
+
+    // STEP 2: CHECK EMAIL UNIQUENESS
+    console.log('[Signup] Step 2: Checking email uniqueness...')
     const { data: existingEmail, error: emailCheckError } = await supabase
       .from('profiles')
       .select('id')
@@ -54,27 +66,35 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (emailCheckError && emailCheckError.code !== 'PGRST116') {
-      console.error('[Signup] Email check error:', emailCheckError)
+      console.log('[Signup] Step 2 FAILED: Database error', emailCheckError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database error checking email'
+        statusMessage: `Database error: ${emailCheckError.message}`
       })
     }
 
     if (existingEmail) {
+      console.log('[Signup] Step 2 FAILED: Email already exists')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email already registered'
       })
     }
 
+    console.log('[Signup] Step 2 PASSED: Email is unique')
+
     // STEP 3: HASH PASSWORD
+    console.log('[Signup] Step 3: Hashing password...')
     const passwordHash = await bcrypt.hash(body.password, 10)
+    console.log('[Signup] Step 3 PASSED: Password hashed')
 
     // STEP 4: GENERATE VERIFICATION TOKEN
+    console.log('[Signup] Step 4: Generating verification token...')
     const { token: verificationToken, expiresAt: tokenExpiry } = generateEmailVerificationToken()
+    console.log('[Signup] Step 4 PASSED: Token generated')
 
-    // STEP 5: CREATE PROFILE RECORD (username not validated yet)
+    // STEP 5: CREATE PROFILE RECORD
+    console.log('[Signup] Step 5: Creating profile record...')
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -97,16 +117,17 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError) {
-      console.error('[Signup] Profile creation error:', profileError)
+      console.log('[Signup] Step 5 FAILED: Profile creation error', profileError)
       throw createError({
         statusCode: 400,
-        statusMessage: profileError.message || 'Failed to create profile'
+        statusMessage: `Profile creation failed: ${profileError.message}`
       })
     }
 
-    console.log('[Signup] Profile created:', profile.id)
+    console.log('[Signup] Step 5 PASSED: Profile created with ID:', profile.id)
 
-    // STEP 6: INITIALIZE WALLETS (7 currencies)
+    // STEP 6: INITIALIZE WALLETS
+    console.log('[Signup] Step 6: Initializing wallets...')
     const currencies = [
       { code: 'USDT', name: 'Tether' },
       { code: 'USDC', name: 'USD Coin' },
@@ -131,10 +152,13 @@ export default defineEventHandler(async (event) => {
       .insert(walletInserts)
 
     if (walletError) {
-      console.warn('[Signup] Wallet creation warning:', walletError)
+      console.warn('[Signup] Step 6 WARNING: Wallet creation error', walletError)
+    } else {
+      console.log('[Signup] Step 6 PASSED: Wallets initialized')
     }
 
-    // STEP 7: INITIALIZE RANKS (4 categories)
+    // STEP 7: INITIALIZE RANKS
+    console.log('[Signup] Step 7: Initializing ranks...')
     const rankCategories = ['trading', 'social', 'content', 'overall']
     const rankInserts = rankCategories.map(category => ({
       user_id: profile.id,
@@ -153,10 +177,13 @@ export default defineEventHandler(async (event) => {
       .insert(rankInserts)
 
     if (rankError) {
-      console.warn('[Signup] Rank initialization warning:', rankError)
+      console.warn('[Signup] Step 7 WARNING: Rank initialization error', rankError)
+    } else {
+      console.log('[Signup] Step 7 PASSED: Ranks initialized')
     }
 
     // STEP 8: INITIALIZE PRIVACY SETTINGS
+    console.log('[Signup] Step 8: Initializing privacy settings...')
     const { error: privacyError } = await supabase
       .from('profile_privacy_settings')
       .insert({
@@ -173,10 +200,13 @@ export default defineEventHandler(async (event) => {
       })
 
     if (privacyError) {
-      console.warn('[Signup] Privacy settings warning:', privacyError)
+      console.warn('[Signup] Step 8 WARNING: Privacy settings error', privacyError)
+    } else {
+      console.log('[Signup] Step 8 PASSED: Privacy settings initialized')
     }
 
     // STEP 9: INITIALIZE USER SETTINGS
+    console.log('[Signup] Step 9: Initializing user settings...')
     const { error: settingsError } = await supabase
       .from('user_settings_categories')
       .insert({
@@ -191,10 +221,13 @@ export default defineEventHandler(async (event) => {
       })
 
     if (settingsError) {
-      console.warn('[Signup] User settings warning:', settingsError)
+      console.warn('[Signup] Step 9 WARNING: User settings error', settingsError)
+    } else {
+      console.log('[Signup] Step 9 PASSED: User settings initialized')
     }
 
     // STEP 10: INITIALIZE WALLET LOCK SETTINGS
+    console.log('[Signup] Step 10: Initializing wallet lock settings...')
     const { error: lockError } = await supabase
       .from('wallet_lock_settings')
       .insert({
@@ -203,20 +236,22 @@ export default defineEventHandler(async (event) => {
       })
 
     if (lockError) {
-      console.warn('[Signup] Wallet lock settings warning:', lockError)
+      console.warn('[Signup] Step 10 WARNING: Wallet lock settings error', lockError)
+    } else {
+      console.log('[Signup] Step 10 PASSED: Wallet lock settings initialized')
     }
 
     // STEP 11: SEND VERIFICATION EMAIL
+    console.log('[Signup] Step 11: Sending verification email...')
     try {
       await sendVerificationEmail(profile.email, profile.username, verificationToken)
-      console.log('[Signup] Verification email sent to:', profile.email)
+      console.log('[Signup] Step 11 PASSED: Verification email sent')
     } catch (emailError) {
-      console.warn('[Signup] Email sending failed:', emailError)
-      // Don't fail signup if email fails
+      console.warn('[Signup] Step 11 WARNING: Email sending failed', emailError)
     }
 
     // STEP 12: RETURN SUCCESS
-    console.log('[Signup] Account creation successful')
+    console.log('[Signup] ========== SIGNUP COMPLETED SUCCESSFULLY ==========')
     return {
       success: true,
       message: 'Account created. Check your email to verify.',
@@ -226,7 +261,13 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Signup] Error:', error)
+    console.error('[Signup] ========== SIGNUP FAILED ==========')
+    console.error('[Signup] Error details:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      statusMessage: error.statusMessage,
+      stack: error.stack
+    })
     
     // If it's already a createError, re-throw it
     if (error.statusCode) {
