@@ -1,158 +1,231 @@
-// composables/useAuth.ts - FIXED VERSION WITH PROPER ERROR HANDLING
+// FILE: /composables/useAuth.ts - UPDATE
+// Authentication composable
+// ============================================================================
+
 import { ref, computed } from 'vue'
-import type { User } from '@supabase/supabase-js'
+import type { LoginRequest, SignupRequest, AuthResponse, User } from '~/types/auth'
 
 export const useAuth = () => {
-  const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
   const authStore = useAuthStore()
+  const router = useRouter()
   
   const loading = ref(false)
   const error = ref('')
-  
-  const isAuthenticated = computed(() => !!user.value?.id)
-  
+
+  const isAuthenticated = computed(() => !!authStore.token)
+  const user = computed(() => authStore.user)
+  const token = computed(() => authStore.token)
+
+  /**
+   * Sign up with email, password, username
+   */
+  const signup = async (email: string, password: string, username: string) => {
+    try {
+      loading.value = true
+      error.value = ''
+
+      const response = await $fetch<AuthResponse>('/api/auth/signup', {
+        method: 'POST',
+        body: {
+          email,
+          password,
+          username
+        }
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || 'Signup failed')
+      }
+
+      return {
+        success: true,
+        message: response.message,
+        nextStep: response.nextStep
+      }
+    } catch (err: any) {
+      error.value = err.message || 'Signup failed'
+      console.error('[useAuth] Signup error:', err)
+      return {
+        success: false,
+        error: error.value
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Login with email and password
+   */
   const login = async (email: string, password: string) => {
     try {
       loading.value = true
       error.value = ''
-      
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
+
+      const response = await $fetch<AuthResponse>('/api/auth/login', {
+        method: 'POST',
+        body: {
+          email,
+          password
+        }
       })
-      
-      if (signInError) throw signInError
-      
-      if (!data.user?.id) {
-        throw new Error('User ID not available from authentication')
+
+      if (!response.success || !response.token || !response.user) {
+        throw new Error(response.message || 'Login failed')
       }
 
-      console.log('[useAuth] User logged in with ID:', data.user.id)
-      
-      // ✅ FIXED: Use authStore instead of userStore
-      await authStore.initialize()
-      
-      return { success: true, user: data.user }
+      // Store token and user data
+      authStore.setToken(response.token)
+      authStore.setUser(response.user)
+
+      // Set auth header for future requests
+      const headers = useRequestHeaders(['cookie'])
+      headers['Authorization'] = `Bearer ${response.token}`
+
+      return {
+        success: true,
+        user: response.user
+      }
     } catch (err: any) {
-      error.value = err.message
+      error.value = err.message || 'Login failed'
       console.error('[useAuth] Login error:', err)
-      return { success: false, error: err.message }
+      return {
+        success: false,
+        error: error.value
+      }
     } finally {
       loading.value = false
     }
   }
-  
-  // ✅ FIXED: Proper $fetch error handling
-  const signup = async (signupData: {
-    email: string
-    password: string
-    username: string
-    fullName: string
-    phone: string
-    bio?: string
-    location?: string
-  }) => {
+
+  /**
+   * Verify email with token
+   */
+  const verifyEmail = async (token: string) => {
     try {
       loading.value = true
       error.value = ''
-      
-      console.log('[useAuth] Starting signup with data:', {
-        email: signupData.email,
-        username: signupData.username,
-        fullName: signupData.fullName
+
+      const response = await $fetch<AuthResponse>('/api/auth/verify-email', {
+        method: 'POST',
+        body: { token }
       })
-      
-      // ✅ FIXED: $fetch throws errors directly, don't destructure
-      // Use try-catch to handle errors properly
-      let signupResponse
-      try {
-        signupResponse = await $fetch('/api/auth/signup', {
-          method: 'POST',
-          body: signupData
-        })
-      } catch (fetchErr: any) {
-        console.error('[useAuth] Signup API error:', {
-          message: fetchErr.message,
-          statusCode: fetchErr.statusCode,
-          statusMessage: fetchErr.statusMessage,
-          data: fetchErr.data
-        })
-        throw new Error(fetchErr.statusMessage || fetchErr.message || 'Signup failed')
+
+      if (!response.success) {
+        throw new Error(response.message || 'Email verification failed')
       }
-      
-      if (!signupResponse?.success) {
-        throw new Error(signupResponse?.message || 'Signup failed')
-      }
-      
-      if (!signupResponse.user?.id) {
-        throw new Error('User ID not available from signup response')
-      }
-      
-      console.log('[useAuth] User signed up with ID:', signupResponse.user.id)
-      
-      // ✅ FIXED: Verify authStore is available before calling handshake
-      if (!authStore) {
-        throw new Error('Auth store not available')
-      }
-      
-      // ✅ FIXED: Use authStore to perform signup handshake
-      console.log('[useAuth] Performing signup handshake...')
-      const handshakeResult = await authStore.performSignupHandshake()
-      
-      if (!handshakeResult.success) {
-        console.error('[useAuth] Handshake failed:', handshakeResult.error)
-        throw new Error(handshakeResult.error || 'Signup handshake failed')
-      }
-      
-      console.log('[useAuth] ✅ Signup handshake complete')
-      
-      return { 
-        success: true, 
-        user: signupResponse.user,
-        needsConfirmation: signupResponse.needsConfirmation || false
+
+      return {
+        success: true,
+        nextStep: response.nextStep
       }
     } catch (err: any) {
-      error.value = err.message || 'An unexpected error occurred during signup'
-      console.error('[useAuth] Signup error:', {
-        message: err.message,
-        stack: err.stack
-      })
-      return { success: false, error: error.value }
+      error.value = err.message || 'Email verification failed'
+      console.error('[useAuth] Verify email error:', err)
+      return {
+        success: false,
+        error: error.value
+      }
     } finally {
       loading.value = false
     }
   }
-  
+
+  /**
+   * Resend verification email
+   */
+  const resendVerification = async (email: string) => {
+    try {
+      loading.value = true
+      error.value = ''
+
+      const response = await $fetch<AuthResponse>('/api/auth/resend-verification', {
+        method: 'POST',
+        body: { email }
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to resend verification email')
+      }
+
+      return {
+        success: true,
+        message: response.message
+      }
+    } catch (err: any) {
+      error.value = err.message || 'Failed to resend verification email'
+      console.error('[useAuth] Resend verification error:', err)
+      return {
+        success: false,
+        error: error.value
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Check username availability
+   */
+  const checkUsername = async (username: string) => {
+    try {
+      const response = await $fetch('/api/auth/check-username', {
+        method: 'POST',
+        body: { username }
+      })
+
+      return response
+    } catch (err: any) {
+      console.error('[useAuth] Check username error:', err)
+      return {
+        available: false,
+        reason: 'Error checking username'
+      }
+    }
+  }
+
+  /**
+   * Logout
+   */
   const logout = async () => {
     try {
       loading.value = true
       error.value = ''
-      
-      const { error: signOutError } = await supabase.auth.signOut()
-      if (signOutError) throw signOutError
-      
-      // ✅ FIXED: Use authStore to clear auth
+
+      await $fetch('/api/auth/logout', {
+        method: 'POST'
+      })
+
+      // Clear auth data
       authStore.clearAuth()
-      
-      console.log('[useAuth] User logged out successfully')
+
+      // Redirect to login
+      await router.push('/auth/signin')
+
       return { success: true }
     } catch (err: any) {
-      error.value = err.message
+      error.value = err.message || 'Logout failed'
       console.error('[useAuth] Logout error:', err)
-      return { success: false, error: err.message }
+      return {
+        success: false,
+        error: error.value
+      }
     } finally {
       loading.value = false
     }
   }
-  
+
   return {
-    login,
-    signup,
-    logout,
-    isAuthenticated,
     loading,
     error,
-    user
+    isAuthenticated,
+    user,
+    token,
+    signup,
+    login,
+    verifyEmail,
+    resendVerification,
+    checkUsername,
+    logout
   }
 }
