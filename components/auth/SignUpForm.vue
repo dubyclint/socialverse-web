@@ -28,7 +28,7 @@
         <p v-if="errors.email" class="mt-1 text-xs text-red-400">{{ errors.email }}</p>
       </div>
 
-      <!-- Username Field -->
+      <!-- Username Field - NO VALIDATION -->
       <div>
         <label for="username" class="block text-sm font-medium text-slate-300 mb-2">
           Username
@@ -40,19 +40,12 @@
           required
           placeholder="username"
           :disabled="loading"
-          @blur="checkUsernameAvailability"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
         />
         <p class="mt-1 text-xs text-slate-400">
           3-30 characters, letters, numbers, underscores, hyphens only
         </p>
         <p v-if="errors.username" class="mt-1 text-xs text-red-400">{{ errors.username }}</p>
-        <p v-if="usernameAvailable === true" class="mt-1 text-xs text-green-400">
-          ✓ Username available
-        </p>
-        <p v-if="usernameAvailable === false" class="mt-1 text-xs text-red-400">
-          ✗ Username already taken
-        </p>
       </div>
 
       <!-- Password Field -->
@@ -142,12 +135,11 @@ const emit = defineEmits<{
   success: [data: any]
 }>()
 
-const { signup, checkUsername } = useAuth()
+const { signup } = useAuth()
 
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
-const usernameAvailable = ref<boolean | null>(null)
 
 const formData = reactive({
   email: '',
@@ -176,7 +168,7 @@ const validateForm = () => {
     errors.email = 'Please enter a valid email address'
   }
 
-  // Username validation
+  // Username - BASIC FORMAT ONLY (no availability check)
   if (formData.username.length < 3 || formData.username.length > 30) {
     errors.username = 'Username must be 3-30 characters'
   }
@@ -198,31 +190,12 @@ const validateForm = () => {
   return !errors.email && !errors.username && !errors.password && !errors.confirmPassword
 }
 
-const checkUsernameAvailability = async () => {
-  if (formData.username.length < 3) return
-
-  try {
-    const result = await checkUsername(formData.username)
-    usernameAvailable.value = result.available
-    if (!result.available) {
-      errors.username = 'Username already taken'
-    }
-  } catch (err) {
-    console.error('Error checking username:', err)
-  }
-}
-
 const handleSubmit = async () => {
   error.value = ''
   success.value = ''
 
   if (!validateForm()) {
     error.value = 'Please fix the errors above'
-    return
-  }
-
-  if (usernameAvailable.value === false) {
-    error.value = 'Username is already taken'
     return
   }
 
@@ -237,7 +210,6 @@ const handleSubmit = async () => {
 
     if (result.success) {
       success.value = result.message
-      // Emit success event with email for verification page
       setTimeout(() => {
         emit('success', { email: formData.email })
       }, 1000)
@@ -245,14 +217,9 @@ const handleSubmit = async () => {
       error.value = result.error || 'Signup failed'
     }
   } catch (err: any) {
-    error.value = err.message || 'An error occurred during signup'
+    error.value = err.message || 'An error occurred'
   } finally {
     loading.value = false
   }
 }
 </script>
-
-<style scoped>
-/* Minimal scoped styles */
-</style>
-
