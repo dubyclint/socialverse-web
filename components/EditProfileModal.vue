@@ -17,26 +17,31 @@
             
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Display Name</label>
+                <label class="form-label">Full Name *</label>
                 <input
-                  v-model="formData.displayName"
+                  v-model="formData.fullName"
                   type="text"
                   class="form-input"
-                  placeholder="Your display name"
+                  placeholder="Your full name"
+                  required
                 />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.display_name_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
               </div>
               
+              <div class="form-group">
+                <label class="form-label">Username *</label>
+                <input
+                  v-model="formData.username"
+                  type="text"
+                  class="form-input"
+                  placeholder="Your username"
+                  required
+                  @blur="validateUsername"
+                />
+                <span v-if="usernameError" class="error-text">{{ usernameError }}</span>
+              </div>
+            </div>
+
+            <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Bio</label>
                 <textarea
@@ -46,21 +51,62 @@
                   placeholder="Tell us about yourself..."
                   maxlength="500"
                 ></textarea>
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.bio_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
+                <span class="char-count">{{ formData.bio.length }}/500</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Avatar URL</label>
+                <input
+                  v-model="formData.avatarUrl"
+                  type="url"
+                  class="form-input"
+                  placeholder="https://example.com/avatar.jpg"
+                />
               </div>
             </div>
           </div>
-          
+
+          <!-- Contact Information -->
+          <div class="form-section">
+            <h3 class="section-title">Contact Information</h3>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input
+                  v-model="formData.phoneNumber"
+                  type="tel"
+                  class="form-input"
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Website</label>
+                <input
+                  v-model="formData.website"
+                  type="url"
+                  class="form-input"
+                  placeholder="https://yourwebsite.com"
+                />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Location</label>
+                <input
+                  v-model="formData.location"
+                  type="text"
+                  class="form-input"
+                  placeholder="City, Country"
+                />
+              </div>
+            </div>
+          </div>
+
           <!-- Professional Information -->
           <div class="form-section">
             <h3 class="section-title">Professional Information</h3>
@@ -74,164 +120,59 @@
                   class="form-input"
                   placeholder="Your job title or profession"
                 />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.occupation_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
               </div>
               
               <div class="form-group">
                 <label class="form-label">Highest Education</label>
-                <select v-model="formData.highestEducation" class="form-select">
+                <select v-model="formData.highestEducation" class="form-input">
                   <option value="">Select education level</option>
-                  <option value="High School">High School</option>
-                  <option value="Associate Degree">Associate Degree</option>
-                  <option value="Bachelor's Degree">Bachelor's Degree</option>
-                  <option value="Master's Degree">Master's Degree</option>
-                  <option value="Doctorate">Doctorate</option>
-                  <option value="Professional Degree">Professional Degree</option>
-                  <option value="Other">Other</option>
+                  <option value="high_school">High School</option>
+                  <option value="associate">Associate Degree</option>
+                  <option value="bachelor">Bachelor's Degree</option>
+                  <option value="master">Master's Degree</option>
+                  <option value="phd">PhD</option>
+                  <option value="other">Other</option>
                 </select>
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.education_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
               </div>
             </div>
-            
-            <div class="form-group">
-              <label class="form-label">School/University</label>
-              <input
-                v-model="formData.school"
-                type="text"
-                class="form-input"
-                placeholder="Name of your school or university"
-              />
-              <div class="privacy-toggle">
-                <label class="toggle-label">
-                  <input
-                    v-model="privacySettings.school_public"
-                    type="checkbox"
-                    class="toggle-input"
-                  />
-                  <span class="toggle-slider"></span>
-                  Public
-                </label>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Contact Information -->
-          <div class="form-section">
-            <h3 class="section-title">Contact Information</h3>
-            
+
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Phone Number <span class="required">*</span></label>
+                <label class="form-label">School/University</label>
                 <input
-                  v-model="formData.phoneNumber"
-                  type="tel"
+                  v-model="formData.school"
+                  type="text"
                   class="form-input"
-                  placeholder="+1 (555) 123-4567"
-                  required
+                  placeholder="Name of your school or university"
                 />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.phone_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
               </div>
-              
-              <div class="form-group">
-                <label class="form-label">Email</label>
+            </div>
+
+            <!-- Skills -->
+            <div class="form-group">
+              <label class="form-label">Skills</label>
+              <div class="skills-input-wrapper">
                 <input
-                  v-model="formData.email"
-                  type="email"
+                  ref="skillsInput"
+                  type="text"
                   class="form-input"
-                  placeholder="your.email@example.com"
+                  placeholder="Add a skill and press Enter"
+                  @keydown.enter.prevent="addSkill"
                 />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.email_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
+                <button type="button" @click="addSkill" class="add-btn">Add</button>
+              </div>
+              <div class="tags-container">
+                <span v-for="(skill, index) in formData.skills" :key="index" class="tag">
+                  {{ skill }}
+                  <button type="button" @click="removeSkill(index)" class="remove-tag">×</button>
+                </span>
               </div>
             </div>
           </div>
-          
+
           <!-- Personal Information -->
           <div class="form-section">
             <h3 class="section-title">Personal Information</h3>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Location</label>
-                <input
-                  v-model="formData.location"
-                  type="text"
-                  class="form-input"
-                  placeholder="City, Country"
-                />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.location_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">Website</label>
-                <input
-                  v-model="formData.websiteUrl"
-                  type="url"
-                  class="form-input"
-                  placeholder="https://yourwebsite.com"
-                />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.website_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
-              </div>
-            </div>
             
             <div class="form-row">
               <div class="form-group">
@@ -241,216 +182,100 @@
                   type="date"
                   class="form-input"
                 />
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.date_of_birth_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
               </div>
               
               <div class="form-group">
                 <label class="form-label">Gender</label>
-                <select v-model="formData.gender" class="form-select">
+                <select v-model="formData.gender" class="form-input">
                   <option value="">Prefer not to say</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
-                  <option value="non-binary">Non-binary</option>
+                  <option value="non_binary">Non-binary</option>
                   <option value="other">Other</option>
                 </select>
-                <div class="privacy-toggle">
-                  <label class="toggle-label">
-                    <input
-                      v-model="privacySettings.gender_public"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider"></span>
-                    Public
-                  </label>
-                </div>
               </div>
             </div>
           </div>
-          
-          <!-- Skills and Interests -->
+
+          <!-- Interests -->
           <div class="form-section">
-            <h3 class="section-title">Skills & Interests</h3>
+            <h3 class="section-title">Interests</h3>
             
             <div class="form-group">
-              <label class="form-label">Skills</label>
-              <div class="tags-input-container">
+              <label class="form-label">Add Your Interests</label>
+              <div class="skills-input-wrapper">
                 <input
-                  v-model="skillInput"
-                  @keydown.enter.prevent="addSkill"
-                  @keydown.comma.prevent="addSkill"
+                  ref="interestInput"
                   type="text"
                   class="form-input"
-                  placeholder="Add skills (press Enter or comma to add)"
-                />
-                <div v-if="formData.skills.length > 0" class="tags-display">
-                  <span
-                    v-for="(skill, index) in formData.skills"
-                    :key="index"
-                    class="tag-item skill-tag"
-                  >
-                    {{ skill }}
-                    <button
-                      type="button"
-                      @click="removeSkill(index)"
-                      class="remove-tag-btn"
-                    >
-                      <Icon name="x" size="12" />
-                    </button>
-                  </span>
-                </div>
-              </div>
-              <div class="privacy-toggle">
-                <label class="toggle-label">
-                  <input
-                    v-model="privacySettings.skills_public"
-                    type="checkbox"
-                    class="toggle-input"
-                  />
-                  <span class="toggle-slider"></span>
-                  Public
-                </label>
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label">Interests</label>
-              <div class="tags-input-container">
-                <input
-                  v-model="interestInput"
+                  placeholder="Add an interest and press Enter"
                   @keydown.enter.prevent="addInterest"
-                  @keydown.comma.prevent="addInterest"
-                  type="text"
-                  class="form-input"
-                  placeholder="Add interests (press Enter or comma to add)"
                 />
-                <div v-if="formData.interests.length > 0" class="tags-display">
-                  <span
-                    v-for="(interest, index) in formData.interests"
-                    :key="index"
-                    class="tag-item interest-tag"
-                  >
-                    {{ interest }}
-                    <button
-                      type="button"
-                      @click="removeInterest(index)"
-                      class="remove-tag-btn"
-                    >
-                      <Icon name="x" size="12" />
-                    </button>
-                  </span>
-                </div>
+                <button type="button" @click="addInterest" class="add-btn">Add</button>
               </div>
-              <div class="privacy-toggle">
-                <label class="toggle-label">
-                  <input
-                    v-model="privacySettings.interests_public"
-                    type="checkbox"
-                    class="toggle-input"
-                  />
-                  <span class="toggle-slider"></span>
-                  Public
-                </label>
+              <div class="tags-container">
+                <span v-for="(interest, index) in formData.interests" :key="index" class="tag">
+                  {{ interest }}
+                  <button type="button" @click="removeInterest(index)" class="remove-tag">×</button>
+                </span>
               </div>
             </div>
           </div>
-          
-          <!-- Social Media Links -->
+
+          <!-- Privacy Settings -->
           <div class="form-section">
-            <h3 class="section-title">Social Media Links</h3>
+            <h3 class="section-title">Privacy Settings</h3>
             
-            <div class="social-links-editor">
-              <div
-                v-for="platform in availablePlatforms"
-                :key="platform.key"
-                class="social-link-row"
-              >
-                <div class="platform-info">
-                  <Icon :name="platform.icon" size="20" />
-                  <span class="platform-name">{{ platform.name }}</span>
-                </div>
-                <div class="link-input-group">
-                  <input
-                    v-model="socialLinksData[platform.key]"
-                    type="text"
-                    class="form-input"
-                    :placeholder="platform.key === 'website' ? 'https://yourwebsite.com' : `Your ${platform.name} username`"
-                  />
-                  <label class="toggle-label small">
-                    <input
-                      v-model="socialLinksPublic[platform.key]"
-                      type="checkbox"
-                      class="toggle-input"
-                    />
-                    <span class="toggle-slider small"></span>
-                    Public
-                  </label>
-                </div>
-              </div>
-            </div>
-            
-            <div class="privacy-toggle">
+            <div class="privacy-toggles">
               <label class="toggle-label">
                 <input
-                  v-model="privacySettings.social_links_public"
+                  v-model="privacySettings.profile_visibility_public"
                   type="checkbox"
                   class="toggle-input"
                 />
                 <span class="toggle-slider"></span>
-                Show social links section publicly
+                Make profile public
+              </label>
+
+              <label class="toggle-label">
+                <input
+                  v-model="privacySettings.bio_visibility_public"
+                  type="checkbox"
+                  class="toggle-input"
+                />
+                <span class="toggle-slider"></span>
+                Show bio publicly
+              </label>
+
+              <label class="toggle-label">
+                <input
+                  v-model="privacySettings.location_visibility_public"
+                  type="checkbox"
+                  class="toggle-input"
+                />
+                <span class="toggle-slider"></span>
+                Show location publicly
+              </label>
+
+              <label class="toggle-label">
+                <input
+                  v-model="privacySettings.contact_visibility_public"
+                  type="checkbox"
+                  class="toggle-input"
+                />
+                <span class="toggle-slider"></span>
+                Show contact info publicly
               </label>
             </div>
           </div>
-          
-          <!-- Premium Features -->
-          <div v-if="isPremiumUser" class="form-section">
-            <h3 class="section-title">Premium Features</h3>
-            
-            <div class="form-group">
-              <div class="privacy-toggle">
-                <label class="toggle-label">
-                  <input
-                    v-model="privacySettings.rank_hidden"
-                    type="checkbox"
-                    class="toggle-input"
-                  />
-                  <span class="toggle-slider"></span>
-                  Hide my rank from public view
-                </label>
-                <p class="toggle-description">
-                  Only available for premium users. Your rank will be hidden from other users.
-                </p>
-              </div>
-            </div>
+
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="button" @click="closeModal" class="btn-cancel">Cancel</button>
+            <button type="submit" :disabled="saving" class="btn-save">
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
           </div>
-        </div>
-        
-        <div class="modal-actions">
-          <button
-            type="button"
-            @click="$emit('close')"
-            class="btn btn-secondary"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            :disabled="saving"
-            class="btn btn-primary"
-          >
-            <Icon v-if="saving" name="loader" size="16" class="spinning" />
-            {{ saving ? 'Saving...' : 'Save Changes' }}
-          </button>
         </div>
       </form>
     </div>
@@ -458,194 +283,144 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+import { ref, computed } from 'vue'
 import { Profile } from '~/models/Profile'
-import { ProfilePrivacy } from '~/models/ProfilePrivacy'
-import { SocialLinks } from '~/models/SocialLinks'
 
-const props = defineProps({
-  profile: {
-    type: Object,
-    required: true
-  }
-})
-
-const emit = defineEmits(['close', 'updated'])
+const emit = defineEmits(['close', 'profile-updated'])
 const authStore = useAuthStore()
 
-// Form data
-const formData = reactive({
-  displayName: '',
+const saving = ref(false)
+const usernameError = ref('')
+
+const skillsInput = ref(null)
+const interestInput = ref(null)
+
+const formData = ref({
+  fullName: '',
+  username: '',
   bio: '',
+  phoneNumber: '',
+  website: '',
+  location: '',
+  avatarUrl: '',
   occupation: '',
   highestEducation: '',
   school: '',
-  phoneNumber: '',
-  email: '',
-  location: '',
-  websiteUrl: '',
+  skills: [],
   dateOfBirth: '',
   gender: '',
-  skills: [],
   interests: []
 })
 
-const privacySettings = reactive({
-  display_name_public: true,
-  bio_public: true,
-  occupation_public: true,
-  education_public: true,
-  school_public: true,
-  phone_public: false,
-  email_public: false,
-  skills_public: true,
-  interests_public: true,
-  location_public: true,
-  website_public: true,
-  date_of_birth_public: false,
-  gender_public: true,
-  social_links_public: true,
-  rank_hidden: false
+const privacySettings = ref({
+  profile_visibility_public: true,
+  bio_visibility_public: true,
+  location_visibility_public: true,
+  contact_visibility_public: false
 })
 
-const socialLinksData = reactive({})
-const socialLinksPublic = reactive({})
-
-// UI state
-const saving = ref(false)
-const skillInput = ref('')
-const interestInput = ref('')
-const isPremiumUser = ref(false)
-
-// Available social platforms
-const availablePlatforms = computed(() => SocialLinks.getSupportedPlatforms())
-
-// Methods
+// Load current profile data
 const loadProfileData = async () => {
   try {
-    // Load profile data
-    Object.assign(formData, {
-      displayName: props.profile.display_name || '',
-      bio: props.profile.bio || '',
-      occupation: props.profile.occupation || '',
-      highestEducation: props.profile.highest_education || '',
-      school: props.profile.school || '',
-      phoneNumber: props.profile.phone_number || '',
-      email: props.profile.email || '',
-      location: props.profile.location || '',
-      websiteUrl: props.profile.website_url || '',
-      dateOfBirth: props.profile.date_of_birth || '',
-      gender: props.profile.gender || '',
-      skills: props.profile.skills || [],
-      interests: props.profile.interests || []
-    })
+    const profile = await Profile.getProfile(authStore.user.id)
     
-    // Load privacy settings
-    const privacy = await ProfilePrivacy.getPrivacySettings(authStore.user.id)
-    Object.assign(privacySettings, privacy)
-    
-    // Load social links
-    const socialLinks = await SocialLinks.getUserSocialLinks(authStore.user.id, true)
-    socialLinks.forEach(link => {
-      socialLinksData[link.platform] = link.username || link.url
-      socialLinksPublic[link.platform] = link.is_public
-    })
-    
-    // Check premium status
-    isPremiumUser.value = await Profile.isPremiumUser(authStore.user.id)
-    
+    formData.value = {
+      fullName: profile.full_name || '',
+      username: profile.username || '',
+      bio: profile.bio || '',
+      phoneNumber: profile.phone || '',
+      website: profile.website || '',
+      location: profile.location || '',
+      avatarUrl: profile.avatar_url || '',
+      occupation: profile.occupation || '',
+      highestEducation: profile.highest_education || '',
+      school: profile.school || '',
+      skills: profile.skills || [],
+      dateOfBirth: profile.date_of_birth || '',
+      gender: profile.gender || '',
+      interests: profile.interests || []
+    }
+
+    if (profile.privacy_settings) {
+      privacySettings.value = profile.privacy_settings
+    }
   } catch (error) {
-    console.error('Error loading profile data:', error)
+    console.error('Error loading profile:', error)
+  }
+}
+
+const validateUsername = async () => {
+  if (!formData.value.username) {
+    usernameError.value = ''
+    return
+  }
+
+  try {
+    const validation = await Profile.validateUsername(formData.value.username, authStore.user.id)
+    usernameError.value = validation.valid ? '' : validation.error
+  } catch (error) {
+    console.error('Error validating username:', error)
   }
 }
 
 const addSkill = () => {
-  const skill = skillInput.value.trim()
-  if (skill && !formData.skills.includes(skill)) {
-    formData.skills.push(skill)
-    skillInput.value = ''
+  const skill = skillsInput.value?.value?.trim()
+  if (skill && !formData.value.skills.includes(skill)) {
+    formData.value.skills.push(skill)
+    skillsInput.value.value = ''
   }
 }
 
 const removeSkill = (index) => {
-  formData.skills.splice(index, 1)
+  formData.value.skills.splice(index, 1)
 }
 
 const addInterest = () => {
-  const interest = interestInput.value.trim()
-  if (interest && !formData.interests.includes(interest)) {
-    formData.interests.push(interest)
-    interestInput.value = ''
+  const interest = interestInput.value?.value?.trim()
+  if (interest && !formData.value.interests.includes(interest)) {
+    formData.value.interests.push(interest)
+    interestInput.value.value = ''
   }
 }
 
 const removeInterest = (index) => {
-  formData.interests.splice(index, 1)
+  formData.value.interests.splice(index, 1)
 }
 
 const saveProfile = async () => {
   try {
-    saving.value = true
-    
-    // Validate required fields
-    if (!formData.phoneNumber.trim()) {
-      alert('Phone number is required.')
+    if (usernameError.value) {
+      alert('Please fix the username error first')
       return
     }
-    
-    // Update profile
-    const updatedProfile = await Profile.updateProfile(authStore.user.id, {
-      displayName: formData.displayName,
-      bio: formData.bio,
-      occupation: formData.occupation,
-      highestEducation: formData.highestEducation,
-      school: formData.school,
-      phoneNumber: formData.phoneNumber,
-      skills: formData.skills,
-      interests: formData.interests,
-      location: formData.location,
-      websiteUrl: formData.websiteUrl,
-      dateOfBirth: formData.dateOfBirth,
-      gender: formData.gender
-    })
-    
-    // Update privacy settings
-    await ProfilePrivacy.updatePrivacySettings(authStore.user.id, privacySettings)
-    
-    // Update social links
-    for (const platform of availablePlatforms.value) {
-      const value = socialLinksData[platform.key]
-      if (value && value.trim()) {
-        let url = value.trim()
-        let username = value.trim()
-        
-        // Format URL for platforms
-        if (platform.baseUrl && !url.startsWith('http')) {
-          if (platform.key === 'website') {
-            url = url.startsWith('http') ? url : `https://${url}`
-          } else {
-            url = `${platform.baseUrl}${username}`
-          }
-        }
-        
-        await SocialLinks.upsertSocialLink(authStore.user.id, {
-          platform: platform.key,
-          username: platform.key === 'website' ? null : username,
-          url: url,
-          isPublic: socialLinksPublic[platform.key] !== false
-        })
-      } else {
-        // Remove empty social links
-        await SocialLinks.deleteSocialLink(authStore.user.id, platform.key)
-      }
+
+    saving.value = true
+
+    const updates = {
+      full_name: formData.value.fullName,
+      username: formData.value.username,
+      bio: formData.value.bio,
+      phone: formData.value.phoneNumber,
+      website: formData.value.website,
+      location: formData.value.location,
+      avatar_url: formData.value.avatarUrl,
+      occupation: formData.value.occupation,
+      highest_education: formData.value.highestEducation,
+      school: formData.value.school,
+      skills: formData.value.skills,
+      date_of_birth: formData.value.dateOfBirth,
+      gender: formData.value.gender,
+      interests: formData.value.interests,
+      privacy_settings: privacySettings.value
     }
+
+    const updatedProfile = await Profile.updateProfile(authStore.user.id, updates)
     
-    emit('updated', updatedProfile)
-    
+    emit('profile-updated', updatedProfile)
+    closeModal()
   } catch (error) {
     console.error('Error saving profile:', error)
-    alert('Failed to save profile. Please try again.')
+    alert('Error saving profile: ' + error.message)
   } finally {
     saving.value = false
   }
@@ -655,7 +430,6 @@ const closeModal = () => {
   emit('close')
 }
 
-// Lifecycle
 onMounted(() => {
   loadProfileData()
 })
@@ -668,21 +442,21 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
 }
 
 .modal-content {
-  background: white;
+  background: #1e293b;
   border-radius: 12px;
-  width: 100%;
-  max-width: 800px;
+  max-width: 600px;
+  width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid #334155;
 }
 
 .modal-header {
@@ -690,32 +464,32 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #334155;
   position: sticky;
   top: 0;
-  background: white;
-  z-index: 10;
+  background: #1e293b;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  color: white;
+  font-size: 1.5rem;
 }
 
 .close-btn {
   background: none;
   border: none;
+  color: #94a3b8;
   cursor: pointer;
   padding: 0.5rem;
-  border-radius: 6px;
-  color: #6b7280;
-  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s;
 }
 
 .close-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+  color: white;
 }
 
 .profile-form {
@@ -729,320 +503,193 @@ onMounted(() => {
 }
 
 .form-section {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .section-title {
-  font-size: 1.125rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  color: #374151;
-  margin: 0 0 1.5rem 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  color: white;
+  margin: 0;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
 }
 
-.form-row:last-child {
-  margin-bottom: 0;
+.form-row.full {
+  grid-template-columns: 1fr;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
 .form-label {
+  font-size: 0.9rem;
   font-weight: 500;
-  color: #374151;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.required {
-  color: #ef4444;
+  color: #cbd5e1;
 }
 
 .form-input,
-.form-textarea,
-.form-select {
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+.form-textarea {
   padding: 0.75rem;
-  font-size: 1rem;
-  transition: border-color 0.2s;
+  background: #334155;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.3s;
 }
 
 .form-input:focus,
-.form-textarea:focus,
-.form-select:focus {
+.form-textarea:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #3b82f6;
+  background: #1e293b;
 }
 
 .form-textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px;
 }
 
-.privacy-toggle {
-  margin-top: 0.5rem;
+.char-count {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  text-align: right;
 }
 
-.toggle-label {
+.error-text {
+  font-size: 0.8rem;
+  color: #ef4444;
+}
+
+.skills-input-wrapper {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
+}
+
+.skills-input-wrapper .form-input {
+  flex: 1;
+}
+
+.add-btn {
+  padding: 0.75rem 1rem;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.3s;
 }
 
-.toggle-label.small {
-  font-size: 0.75rem;
+.add-btn:hover {
+  background: #2563eb;
 }
 
-.toggle-input {
-  display: none;
-}
-
-.toggle-slider {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  background: #d1d5db;
-  border-radius: 12px;
-  transition: background-color 0.2s;
-}
-
-.toggle-slider.small {
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
-}
-
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.toggle-slider.small::before {
-  width: 16px;
-  height: 16px;
-}
-
-.toggle-input:checked + .toggle-slider {
-  background: #4f46e5;
-}
-
-.toggle-input:checked + .toggle-slider::before {
-  transform: translateX(20px);
-}
-
-.toggle-input:checked + .toggle-slider.small::before {
-  transform: translateX(16px);
-}
-
-.toggle-description {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 0.25rem;
-  margin-left: 3rem;
-}
-
-.tags-input-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.tags-display {
+.tags-container {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.tag-item {
+.tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 16px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: #3b82f6;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.9rem;
 }
 
-.skill-tag {
-  background: #e0e7ff;
-  color: #4338ca;
-}
-
-.interest-tag {
-  background: #fce7f3;
-  color: #be185d;
-}
-
-.remove-tag-btn {
+.remove-tag {
   background: none;
   border: none;
+  color: white;
   cursor: pointer;
+  font-size: 1.2rem;
   padding: 0;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
 }
 
-.skill-tag .remove-tag-btn {
-  color: #4338ca;
+.remove-tag:hover {
+  opacity: 0.8;
 }
 
-.skill-tag .remove-tag-btn:hover {
-  background: rgba(67, 56, 202, 0.1);
-}
-
-.interest-tag .remove-tag-btn {
-  color: #be185d;
-}
-
-.interest-tag .remove-tag-btn:hover {
-  background: rgba(190, 24, 93, 0.1);
-}
-
-.social-links-editor {
+.privacy-toggles {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.social-link-row {
+.toggle-label {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-}
-
-.platform-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 120px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.link-input-group {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-  position: sticky;
-  bottom: 0;
-  background: white;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  border: none;
+  gap: 0.75rem;
   cursor: pointer;
-  font-weight: 500;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.toggle-input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.form-actions {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #334155;
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn-cancel,
+.btn-save {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.95rem;
 }
 
-.btn-primary {
-  background: #4f46e5;
+.btn-cancel {
+  background: #475569;
   color: white;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: #4338ca;
+.btn-cancel:hover {
+  background: #64748b;
 }
 
-.btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
+.btn-save {
+  background: #3b82f6;
+  color: white;
 }
 
-.btn-secondary:hover {
-  background: #e5e7eb;
+.btn-save:hover:not(:disabled) {
+  background: #2563eb;
 }
 
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .modal-content {
-    margin: 0;
-    border-radius: 0;
-    height: 100vh;
-    max-height: 100vh;
-  }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .social-link-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .platform-info {
-    min-width: auto;
-  }
-  
-  .link-input-group {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>
+
