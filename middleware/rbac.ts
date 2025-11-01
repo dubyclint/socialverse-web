@@ -1,77 +1,72 @@
-// middleware/rbac.ts - SKIP AUTH ROUTES
-export default defineNuxtRouteMiddleware((to) => {
-  // ✅ SKIP MIDDLEWARE ON AUTH ROUTES - NO RBAC CHECKS
-  const authRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email', '/auth/reset-password', '/auth/confirm']
+// FILE: /middleware/rbac.ts - UPDATE
+// Role-Based Access Control Middleware
+// ============================================================================
+
+export default defineNuxtRouteMiddleware((to, from) => {
+  // Skip on server-side
+  if (process.server) return
+
+  // Skip middleware on auth routes
+  const authRoutes = [
+    '/auth',
+    '/auth/signin',
+    '/auth/login',
+    '/auth/verify-email',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/complete-profile'
+  ]
+
   if (authRoutes.some(route => to.path.startsWith(route))) {
-    console.log('[RBAC] Skipping auth route:', to.path)
     return
   }
 
-  let user = null
-  let hasPermission: any = null
-  let getUserRole: any = null
-  let canAccessRoute: any = null
-  const { $i18n } = useNuxtApp()
+  // Get user from auth store
+  const authStore = useAuthStore()
+  const user = authStore.user
 
-  // Safely get user with error handling
-  try {
-    user = useSupabaseUser()
-  } catch (error) {
-    console.warn('Supabase user check failed in rbac middleware:', error)
-    return
+  // If not authenticated, redirect to login
+  if (!user) {
+    return navigateTo('/auth/signin')
   }
 
-  // Skip if user is not authenticated (handled by auth-check)
-  if (!user?.value) {
-    return
+  // Define role-based route access
+  const roleBasedRoutes: { [key: string]: string[] } = {
+    admin: ['/admin', '/admin-analytics', '/admin-escrow'],
+    manager: ['/manager', '/manager-analytics'],
+    user: ['/feed', '/profile', '/settings', '/inbox', '/my-pocket', '/explore']
   }
 
-  // Safely get RBAC composable with error handling
-  try {
-    const rbac = useRBAC()
-    hasPermission = rbac.hasPermission
-    getUserRole = rbac.getUserRole
-    canAccessRoute = rbac.canAccessRoute
-  } catch (error) {
-    console.warn('RBAC composable not available:', error)
-    return
+  // Get user role
+  const userRole = user.role || 'user'
+
+  // Check if user has access to the route
+  const allowedRoutes = roleBasedRoutes[userRole] || roleBasedRoutes.user
+  const hasAccess = allowedRoutes.some(route => to.path.startsWith(route))
+
+  // If user doesn't have access to admin/manager routes, redirect to feed
+  if (!hasAccess && (to.path.startsWith('/admin') || to.path.startsWith('/manager'))) {
+    return navigateTo('/feed')
   }
 
-  // Safely get user role with error handling
-  let userRole = 'user'
-  try {
-    userRole = getUserRole(user.value)
-  } catch (error) {
-    console.warn('Failed to get user role:', error)
-    userRole = 'user'
+  // Check profile completion status
+  if (!user.profile?.profile_completed && !to.path.startsWith('/auth/complete-profile')) {
+    // Allow access to certain pages even if profile is not completed
+    const allowedWithoutProfile = ['/auth', '/settings', '/logout']
+    const isAllowed = allowedWithoutProfile.some(route => to.path.startsWith(route))
+
+    if (!isAllowed) {
+      return navigateTo('/auth/complete-profile')
+    }
   }
 
-  // Safely check route access with error handling
-  let canAccess = false
-  try {
-    canAccess = canAccessRoute(to.path, userRole)
-  } catch (error) {
-    console.warn('Failed to check route access:', error)
-    return
-  }
+  // Check email verification status
+  if (!user.email_verified && !to.path.startsWith('/auth/verify-email')) {
+    const allowedWithoutVerification = ['/auth', '/logout', '/settings']
+    const isAllowed = allowedWithoutVerification.some(route => to.path.startsWith(route))
 
-  if (!canAccess) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: $i18n?.t('permissions.denied') || 'Access Denied',
-      data: {
-        requiredRole: getRequiredRoleForRoute(to.path),
-        userRole: userRole,
-        path: to.path
-      }
-    })
+    if (!isAllowed) {
+      return navigateTo('/auth/verify-email')
+    }
   }
 })
-
-// Helper function to get required role for a route
-function getRequiredRoleForRoute(path: string): string {
-  if (path.startsWith('/admin')) return 'admin'
-  if (path.startsWith('/manager')) return 'manager'
-  return 'user'
-}
-
