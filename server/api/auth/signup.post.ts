@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - UPDATED
+// FILE: /server/api/auth/signup.post.ts - UPDATED WITH BETTER ERROR HANDLING
 // User registration with email verification
 // ============================================================================
 
@@ -17,6 +17,8 @@ export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<SignupRequest>(event)
+
+    console.log('[Signup] Request received:', { email: body.email, username: body.username })
 
     // STEP 1: VALIDATE INPUT
     if (!body.email || !body.password || !body.username) {
@@ -44,15 +46,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // REMOVED: Username validation - will be done during profile creation
-    // Just store the username as provided by user
-
     // STEP 2: CHECK EMAIL UNIQUENESS ONLY
-    const { data: existingEmail } = await supabase
+    const { data: existingEmail, error: emailCheckError } = await supabase
       .from('profiles')
       .select('id')
       .ilike('email', body.email)
       .single()
+
+    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
+      console.error('[Signup] Email check error:', emailCheckError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Database error checking email'
+      })
+    }
 
     if (existingEmail) {
       throw createError({
@@ -93,9 +100,11 @@ export default defineEventHandler(async (event) => {
       console.error('[Signup] Profile creation error:', profileError)
       throw createError({
         statusCode: 400,
-        statusMessage: 'Failed to create profile'
+        statusMessage: profileError.message || 'Failed to create profile'
       })
     }
+
+    console.log('[Signup] Profile created:', profile.id)
 
     // STEP 6: INITIALIZE WALLETS (7 currencies)
     const currencies = [
@@ -200,11 +209,14 @@ export default defineEventHandler(async (event) => {
     // STEP 11: SEND VERIFICATION EMAIL
     try {
       await sendVerificationEmail(profile.email, profile.username, verificationToken)
+      console.log('[Signup] Verification email sent to:', profile.email)
     } catch (emailError) {
       console.warn('[Signup] Email sending failed:', emailError)
+      // Don't fail signup if email fails
     }
 
     // STEP 12: RETURN SUCCESS
+    console.log('[Signup] Account creation successful')
     return {
       success: true,
       message: 'Account created. Check your email to verify.',
@@ -213,8 +225,18 @@ export default defineEventHandler(async (event) => {
       nextStep: 'email_verification'
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Signup] Error:', error)
-    throw error
+    
+    // If it's already a createError, re-throw it
+    if (error.statusCode) {
+      throw error
+    }
+    
+    // Otherwise, throw a generic error
+    throw createError({
+      statusCode: 500,
+      statusMessage: error.message || 'Signup failed'
+    })
   }
 })
