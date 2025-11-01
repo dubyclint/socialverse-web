@@ -1,7 +1,11 @@
-// /server/api/auth/signup.post.ts - NEW IMPLEMENTATION
+ /server/api/auth/signup.post.ts - UPDATE
+// User registration with email verification
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 import bcrypt from 'bcrypt'
-import crypto from 'crypto'
+import { generateEmailVerificationToken } from '~/server/utils/token'
+import { sendVerificationEmail } from '~/server/utils/email'
 
 interface SignupRequest {
   email: string
@@ -14,7 +18,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<SignupRequest>(event)
 
-    // Validate required fields
+    // STEP 1: VALIDATE INPUT
     if (!body.email || !body.password || !body.username) {
       throw createError({
         statusCode: 400,
@@ -31,7 +35,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate password strength (min 8 chars, 1 uppercase, 1 number, 1 special char)
+    // Validate password strength
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
     if (!passwordRegex.test(body.password)) {
       throw createError({
@@ -40,7 +44,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate username (3-30 chars, alphanumeric, underscore, hyphen)
+    // Validate username
     const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/
     if (!usernameRegex.test(body.username)) {
       throw createError({
@@ -49,9 +53,9 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Check if email already exists (case-insensitive)
+    // STEP 2: CHECK UNIQUENESS
     const { data: existingEmail } = await supabase
-      .from('users')
+      .from('profiles')
       .select('id')
       .ilike('email', body.email)
       .single()
@@ -63,7 +67,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Check if username already exists (case-insensitive)
     const { data: existingUsername } = await supabase
       .from('profiles')
       .select('id')
@@ -77,91 +80,159 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Hash password
+    // STEP 3: HASH PASSWORD
     const passwordHash = await bcrypt.hash(body.password, 10)
 
-    // Generate email verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex')
-    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    // STEP 4: GENERATE VERIFICATION TOKEN
+    const { token: verificationToken, expiresAt: tokenExpiry } = generateEmailVerificationToken()
 
-    // Create user
-    const { data: user, error: userError } = await supabase
-      .from('users')
+    // STEP 5: CREATE PROFILE RECORD
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
       .insert({
         email: body.email.toLowerCase(),
+        email_lower: body.email.toLowerCase(),
+        username: body.username,
+        username_lower: body.username.toLowerCase(),
         password_hash: passwordHash,
-        role_id: 'user',
-        is_active: true,
+        role: 'user',
+        status: 'active',
         email_verified: false,
+        profile_completed: false,
+        preferences: {},
+        metadata: {},
+        privacy_settings: {},
         email_verification_token: verificationToken,
         email_verification_expires_at: tokenExpiry
       })
       .select()
       .single()
 
-    if (userError) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Failed to create user'
-      })
-    }
-
-    // Create profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        user_id: user.id,
-        username: body.username,
-        rank: 'bronze',
-        rank_points: 0,
-        status: 'active',
-        profile_completed: false
-      })
-
     if (profileError) {
+      console.error('[Signup] Profile creation error:', profileError)
       throw createError({
         statusCode: 400,
         statusMessage: 'Failed to create profile'
       })
     }
 
-    // Create wallet
+    // STEP 6: INITIALIZE WALLETS (7 currencies)
+    const currencies = [
+      { code: 'USDT', name: 'Tether' },
+      { code: 'USDC', name: 'USD Coin' },
+      { code: 'BTC', name: 'Bitcoin' },
+      { code: 'ETH', name: 'Ethereum' },
+      { code: 'SOL', name: 'Solana' },
+      { code: 'MATIC', name: 'Polygon' },
+      { code: 'XAUT', name: 'Tether Gold' }
+    ]
+
+    const walletInserts = currencies.map(currency => ({
+      user_id: profile.id,
+      currency_code: currency.code,
+      currency_name: currency.name,
+      balance: 0.00,
+      locked_balance: 0.00,
+      is_locked: false
+    }))
+
     const { error: walletError } = await supabase
       .from('wallets')
+      .insert(walletInserts)
+
+    if (walletError) {
+      console.warn('[Signup] Wallet creation warning:', walletError)
+    }
+
+    // STEP 7: INITIALIZE RANKS (4 categories)
+    const rankCategories = ['trading', 'social', 'content', 'overall']
+    const rankInserts = rankCategories.map(category => ({
+      user_id: profile.id,
+      category,
+      current_rank: 'Bronze I',
+      rank_level: 1,
+      points: 0,
+      next_rank: 'Bronze II',
+      points_to_next: 100,
+      achievements: [],
+      season_start: new Date().toISOString()
+    }))
+
+    const { error: rankError } = await supabase
+      .from('ranks')
+      .insert(rankInserts)
+
+    if (rankError) {
+      console.warn('[Signup] Rank initialization warning:', rankError)
+    }
+
+    // STEP 8: INITIALIZE PRIVACY SETTINGS
+    const { error: privacyError } = await supabase
+      .from('profile_privacy_settings')
       .insert({
-        user_id: user.id,
+        user_id: profile.id,
+        show_profile_views: true,
+        show_online_status: true,
+        allow_messages: true,
+        allow_friend_requests: true,
+        show_email: false,
+        show_phone: false,
+        show_location: false,
+        show_interests: true,
+        profile_visibility: 'public'
+      })
+
+    if (privacyError) {
+      console.warn('[Signup] Privacy settings warning:', privacyError)
+    }
+
+    // STEP 9: INITIALIZE USER SETTINGS
+    const { error: settingsError } = await supabase
+      .from('user_settings_categories')
+      .insert({
+        user_id: profile.id,
+        notifications_enabled: true,
+        email_notifications: true,
+        push_notifications: true,
+        theme: 'light',
+        language: 'en',
+        two_factor_enabled: false,
+        backup_codes: []
+      })
+
+    if (settingsError) {
+      console.warn('[Signup] User settings warning:', settingsError)
+    }
+
+    // STEP 10: INITIALIZE WALLET LOCK SETTINGS
+    const { error: lockError } = await supabase
+      .from('wallet_lock_settings')
+      .insert({
+        user_id: profile.id,
         is_locked: false
       })
 
-    if (walletError) {
-      console.warn('Wallet creation warning:', walletError)
+    if (lockError) {
+      console.warn('[Signup] Wallet lock settings warning:', lockError)
     }
 
-    // Initialize rank
-    const { error: rankError } = await supabase
-      .from('user_ranks')
-      .insert({
-        user_id: user.id,
-        category: 'overall',
-        current_rank: 'Bronze I',
-        rank_level: 1,
-        points: 0
-      })
-
-    if (rankError) {
-      console.warn('Rank initialization warning:', rankError)
+    // STEP 11: SEND VERIFICATION EMAIL
+    try {
+      await sendVerificationEmail(profile.email, profile.username, verificationToken)
+    } catch (emailError) {
+      console.warn('[Signup] Email sending failed:', emailError)
+      // Don't fail signup if email fails
     }
 
-    // Send verification email
-    // TODO: Implement email sending service
-    console.log('[Signup] Verification token:', verificationToken)
-
+    // STEP 12: RETURN SUCCESS
     return {
       success: true,
-      message: 'Signup successful. Please check your email to verify your account.',
-      userId: user.id,
-      email: user.email
+      message: 'Account created. Check your email to verify.',
+      userId: profile.id,
+      email: profile.email,
+      nextStep: 'email_verification'
     }
+
   } catch (error) {
     console.error('[Signup] Error:', error)
     throw error
