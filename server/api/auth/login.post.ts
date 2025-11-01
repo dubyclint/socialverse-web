@@ -1,7 +1,11 @@
-// /server/api/auth/login.post.ts - NEW IMPLEMENTATION
+
+ /server/api/auth/login.post.ts - UPDATE
+// User login with authentication
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 import bcrypt from 'bcrypt'
-import jwt from 'jsonwebtoken'
+import { generateJWT } from '~/server/utils/token'
 
 interface LoginRequest {
   email: string
@@ -13,7 +17,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<LoginRequest>(event)
 
-    // Validate required fields
+    // STEP 1: VALIDATE INPUT
     if (!body.email || !body.password) {
       throw createError({
         statusCode: 400,
@@ -21,38 +25,22 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get user by email (case-insensitive)
-    const { data: user, error: userError } = await supabase
-      .from('users')
+    // STEP 2: QUERY PROFILE BY EMAIL
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
       .select('*')
       .ilike('email', body.email)
       .single()
 
-    if (userError || !user) {
+    if (profileError || !profile) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Invalid email or password'
       })
     }
 
-    // Check if email is verified
-    if (!user.email_verified) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Please verify your email before logging in'
-      })
-    }
-
-    // Check if account is active
-    if (!user.is_active) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Your account has been deactivated'
-      })
-    }
-
-    // Verify password
-    const passwordMatch = await bcrypt.compare(body.password, user.password_hash)
+    // STEP 3: VERIFY PASSWORD HASH
+    const passwordMatch = await bcrypt.compare(body.password, profile.password_hash)
     if (!passwordMatch) {
       throw createError({
         statusCode: 401,
@@ -60,66 +48,105 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get user role and permissions
-    const { data: role } = await supabase
-      .from('roles')
-      .select('*')
-      .eq('id', user.role_id)
-      .single()
+    // STEP 4: CHECK EMAIL VERIFICATION
+    if (!profile.email_verified) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Please verify your email first'
+      })
+    }
 
-    // Get user profile
-    const { data: profile } = await supabase
+    // STEP 5: CHECK ACCOUNT STATUS
+    if (profile.status !== 'active') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Account is disabled'
+      })
+    }
+
+    // STEP 6: GENERATE JWT TOKEN
+    const token = generateJWT({
+      userId: profile.id,
+      email: profile.email,
+      username: profile.username,
+      role: profile.role
+    })
+
+    // STEP 7: UPDATE LAST LOGIN
+    await supabase
       .from('profiles')
+      .update({
+        last_login: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', profile.id)
+
+    // STEP 8: FETCH COMPLETE USER DATA
+    const { data: ranks } = await supabase
+      .from('ranks')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', profile.id)
+
+    const { data: wallets } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', profile.id)
+
+    const { data: privacySettings } = await supabase
+      .from('profile_privacy_settings')
+      .select('*')
+      .eq('user_id', profile.id)
       .single()
 
-    // Get user interests
+    const { data: userSettings } = await supabase
+      .from('user_settings_categories')
+      .select('*')
+      .eq('user_id', profile.id)
+      .single()
+
+    const { data: walletLock } = await supabase
+      .from('wallet_lock_settings')
+      .select('*')
+      .eq('user_id', profile.id)
+      .single()
+
     const { data: userInterests } = await supabase
       .from('user_interests')
-      .select('interest_id, interests(name, category)')
-      .eq('user_id', user.id)
+      .select('*, interests(*)')
+      .eq('user_id', profile.id)
 
-    // Create JWT token
-    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key'
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        email: user.email,
-        role: user.role_id,
-        permissions: role?.permissions || []
-      },
-      jwtSecret,
-      { expiresIn: '7d' }
-    )
-
-    // Update last login
-    await supabase
-      .from('users')
-      .update({ last_login: new Date() })
-      .eq('id', user.id)
-
+    // STEP 9: RETURN SUCCESS
     return {
       success: true,
       token,
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role_id,
-        permissions: role?.permissions || []
-      },
-      profile: {
-        username: profile?.username,
-        firstName: profile?.first_name,
-        lastName: profile?.last_name,
-        avatar: profile?.avatar_url,
-        bio: profile?.bio,
-        rank: profile?.rank,
-        rankPoints: profile?.rank_points,
-        profileCompleted: profile?.profile_completed
-      },
-      interests: userInterests?.map(ui => ui.interests?.name) || []
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
+        role: profile.role,
+        profile: {
+          full_name: profile.full_name,
+          phone: profile.phone,
+          bio: profile.bio,
+          location: profile.location,
+          avatar_url: profile.avatar_url,
+          website: profile.website,
+          email_verified: profile.email_verified,
+          profile_completed: profile.profile_completed,
+          status: profile.status,
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
+          last_login: profile.last_login
+        },
+        ranks: ranks || [],
+        wallets: wallets || [],
+        privacySettings: privacySettings || {},
+        userSettings: userSettings || {},
+        walletLock: walletLock || {},
+        interests: userInterests?.map(ui => ui.interests) || []
+      }
     }
+
   } catch (error) {
     console.error('[Login] Error:', error)
     throw error
