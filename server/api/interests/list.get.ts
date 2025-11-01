@@ -1,4 +1,7 @@
-// /server/api/interests/list.get.ts - NEW
+// FILE: /server/api/interests/list.get.ts - UPDATE
+// Get all available interests
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
@@ -6,6 +9,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const { category } = getQuery(event)
 
+    // STEP 1: BUILD QUERY
     let query = supabase
       .from('interests')
       .select('*')
@@ -13,10 +17,12 @@ export default defineEventHandler(async (event) => {
       .order('category')
       .order('name')
 
-    if (category) {
-      query = query.eq('category', category as string)
+    // STEP 2: FILTER BY CATEGORY IF PROVIDED
+    if (category && typeof category === 'string') {
+      query = query.eq('category', category)
     }
 
+    // STEP 3: FETCH INTERESTS
     const { data: interests, error } = await query
 
     if (error) {
@@ -26,12 +32,26 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // STEP 4: GROUP BY CATEGORY
+    const groupedInterests = interests?.reduce((acc: any, interest: any) => {
+      const cat = interest.category || 'Other'
+      if (!acc[cat]) {
+        acc[cat] = []
+      }
+      acc[cat].push(interest)
+      return acc
+    }, {}) || {}
+
+    // STEP 5: RETURN SUCCESS
     return {
       success: true,
-      interests
+      interests: interests || [],
+      grouped: groupedInterests,
+      total: interests?.length || 0
     }
+
   } catch (error) {
-    console.error('[Get Interests] Error:', error)
+    console.error('[ListInterests] Error:', error)
     throw error
   }
 })
