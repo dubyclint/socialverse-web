@@ -1,4 +1,4 @@
- /server/api/auth/signup.post.ts - UPDATE
+// FILE: /server/api/auth/signup.post.ts - UPDATED
 // User registration with email verification
 // ============================================================================
 
@@ -44,16 +44,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate username
-    const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/
-    if (!usernameRegex.test(body.username)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username must be 3-30 characters (letters, numbers, underscore, hyphen only)'
-      })
-    }
+    // REMOVED: Username validation - will be done during profile creation
+    // Just store the username as provided by user
 
-    // STEP 2: CHECK UNIQUENESS
+    // STEP 2: CHECK EMAIL UNIQUENESS ONLY
     const { data: existingEmail } = await supabase
       .from('profiles')
       .select('id')
@@ -67,26 +61,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const { data: existingUsername } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('username', body.username)
-      .single()
-
-    if (existingUsername) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username already taken'
-      })
-    }
-
     // STEP 3: HASH PASSWORD
     const passwordHash = await bcrypt.hash(body.password, 10)
 
     // STEP 4: GENERATE VERIFICATION TOKEN
     const { token: verificationToken, expiresAt: tokenExpiry } = generateEmailVerificationToken()
 
-    // STEP 5: CREATE PROFILE RECORD
+    // STEP 5: CREATE PROFILE RECORD (username not validated yet)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -221,7 +202,6 @@ export default defineEventHandler(async (event) => {
       await sendVerificationEmail(profile.email, profile.username, verificationToken)
     } catch (emailError) {
       console.warn('[Signup] Email sending failed:', emailError)
-      // Don't fail signup if email fails
     }
 
     // STEP 12: RETURN SUCCESS
