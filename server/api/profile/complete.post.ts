@@ -1,4 +1,7 @@
-// /server/api/profile/complete.post.ts - NEW
+// FILE: /server/api/profile/complete.post.ts - UPDATE
+// Complete user profile after email verification
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 
 interface CompleteProfileRequest {
@@ -8,7 +11,7 @@ interface CompleteProfileRequest {
   bio?: string
   address?: string
   avatarUrl?: string
-  interests: string[] // array of interest IDs
+  interests: string[]
 }
 
 export default defineEventHandler(async (event) => {
@@ -16,6 +19,7 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event)
     const userId = event.context.user?.id
 
+    // STEP 1: VERIFY AUTHENTICATION
     if (!userId) {
       throw createError({
         statusCode: 401,
@@ -25,7 +29,7 @@ export default defineEventHandler(async (event) => {
 
     const body = await readBody<CompleteProfileRequest>(event)
 
-    // Validate required fields
+    // STEP 2: VALIDATE REQUIRED FIELDS
     if (!body.firstName || !body.lastName) {
       throw createError({
         statusCode: 400,
@@ -33,49 +37,73 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Update profile
+    if (!body.interests || body.interests.length === 0) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'At least one interest must be selected'
+      })
+    }
+
+    // STEP 3: UPDATE PROFILES TABLE
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
-        first_name: body.firstName,
-        last_name: body.lastName,
-        phone_number: body.phone || null,
+        full_name: `${body.firstName} ${body.lastName}`,
+        phone: body.phone || null,
         bio: body.bio || null,
-        address: body.address || null,
+        location: body.address || null,
         avatar_url: body.avatarUrl || null,
-        profile_completed: true
+        profile_completed: true,
+        updated_at: new Date().toISOString()
       })
-      .eq('user_id', userId)
+      .eq('id', userId)
 
     if (profileError) {
       throw createError({
-        statusCode: 400,
+        statusCode: 500,
         statusMessage: 'Failed to update profile'
       })
     }
 
-    // Add interests
-    if (body.interests && body.interests.length > 0) {
-      const interestInserts = body.interests.map(interestId => ({
-        user_id: userId,
-        interest_id: interestId
-      }))
+    // STEP 4: LINK INTERESTS (Many-to-Many)
+    // First delete existing interests
+    await supabase
+      .from('user_interests')
+      .delete()
+      .eq('user_id', userId)
 
-      const { error: interestError } = await supabase
-        .from('user_interests')
-        .insert(interestInserts)
+    // Then insert new interests
+    const interestInserts = body.interests.map(interestId => ({
+      user_id: userId,
+      interest_id: interestId
+    }))
 
-      if (interestError) {
-        console.warn('Interest insertion warning:', interestError)
-      }
+    const { error: interestError } = await supabase
+      .from('user_interests')
+      .insert(interestInserts)
+
+    if (interestError) {
+      console.warn('[CompleteProfile] Interest linking warning:', interestError)
+      // Don't fail if interests fail
     }
 
+    // STEP 5: FETCH UPDATED PROFILE
+    const { data: updatedProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    // STEP 6: RETURN SUCCESS
     return {
       success: true,
-      message: 'Profile completed successfully'
+      message: 'Profile completed successfully',
+      nextStep: 'dashboard',
+      profile: updatedProfile
     }
+
   } catch (error) {
-    console.error('[Complete Profile] Error:', error)
+    console.error('[CompleteProfile] Error:', error)
     throw error
   }
 })
