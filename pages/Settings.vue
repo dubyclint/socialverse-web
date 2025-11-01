@@ -29,7 +29,7 @@
 
       <!-- Tab Content -->
       <div class="space-y-6">
-        <!-- Account Settings -->
+        <!-- Account Settings Tab -->
         <div v-if="activeTab === 'account'" class="space-y-6">
           <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
             <h2 class="text-xl font-bold text-white mb-4">Account Information</h2>
@@ -52,201 +52,333 @@
                   class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 cursor-not-allowed"
                 />
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Settings Tab -->
+        <div v-if="activeTab === 'profile'" class="space-y-6">
+          <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Profile Information</h2>
+            
+            <!-- Profile Completion Progress -->
+            <div class="mb-6">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-medium text-slate-300">Profile Completion</span>
+                <span class="text-sm font-bold text-blue-400">{{ profileCompletion }}%</span>
+              </div>
+              <div class="w-full bg-slate-700 rounded-full h-2">
+                <div
+                  class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  :style="{ width: profileCompletion + '%' }"
+                ></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label class="block text-sm font-medium text-slate-300 mb-2">Account Created</label>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
                 <input
+                  v-model="profileData.fullName"
                   type="text"
-                  :value="formatDate(user?.created_at)"
-                  disabled
-                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 cursor-not-allowed"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="Your full name"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Occupation</label>
+                <input
+                  v-model="profileData.occupation"
+                  type="text"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="Your job title"
                 />
               </div>
             </div>
-          </div>
 
-          <!-- Change Password -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Bio</label>
+              <textarea
+                v-model="profileData.bio"
+                class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                rows="4"
+                placeholder="Tell us about yourself..."
+                maxlength="500"
+              ></textarea>
+              <span class="text-xs text-slate-400">{{ profileData.bio.length }}/500</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Location</label>
+                <input
+                  v-model="profileData.location"
+                  type="text"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="City, Country"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Website</label>
+                <input
+                  v-model="profileData.website"
+                  type="url"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="https://yourwebsite.com"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Education Level</label>
+                <select
+                  v-model="profileData.highestEducation"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Select education level</option>
+                  <option value="high_school">High School</option>
+                  <option value="associate">Associate Degree</option>
+                  <option value="bachelor">Bachelor's Degree</option>
+                  <option value="master">Master's Degree</option>
+                  <option value="phd">PhD</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">School/University</label>
+                <input
+                  v-model="profileData.school"
+                  type="text"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="Name of your school"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Date of Birth</label>
+                <input
+                  v-model="profileData.dateOfBirth"
+                  type="date"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Gender</label>
+                <select
+                  v-model="profileData.gender"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non_binary">Non-binary</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Skills -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Skills</label>
+              <div class="flex gap-2 mb-3">
+                <input
+                  ref="skillInput"
+                  type="text"
+                  class="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="Add a skill"
+                  @keydown.enter="addSkill"
+                />
+                <button
+                  @click="addSkill"
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="(skill, index) in profileData.skills"
+                  :key="index"
+                  class="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-full text-sm"
+                >
+                  {{ skill }}
+                  <button
+                    @click="removeSkill(index)"
+                    class="hover:opacity-70 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <!-- Interests -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Interests</label>
+              <div class="flex gap-2 mb-3">
+                <input
+                  ref="interestInput"
+                  type="text"
+                  class="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  placeholder="Add an interest"
+                  @keydown.enter="addInterest"
+                />
+                <button
+                  @click="addInterest"
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="(interest, index) in profileData.interests"
+                  :key="index"
+                  class="inline-flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded-full text-sm"
+                >
+                  {{ interest }}
+                  <button
+                    @click="removeInterest(index)"
+                    class="hover:opacity-70 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <button
+              @click="saveProfileChanges"
+              :disabled="savingProfile"
+              class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+            >
+              {{ savingProfile ? 'Saving...' : 'Save Profile Changes' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Privacy Settings Tab -->
+        <div v-if="activeTab === 'privacy'" class="space-y-6">
+          <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Privacy Settings</h2>
+            <div class="space-y-4">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input
+                  v-model="privacySettings.profilePublic"
+                  type="checkbox"
+                  class="w-5 h-5 rounded"
+                />
+                <span class="text-slate-300">Make my profile public</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input
+                  v-model="privacySettings.bioPublic"
+                  type="checkbox"
+                  class="w-5 h-5 rounded"
+                />
+                <span class="text-slate-300">Show my bio publicly</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input
+                  v-model="privacySettings.locationPublic"
+                  type="checkbox"
+                  class="w-5 h-5 rounded"
+                />
+                <span class="text-slate-300">Show my location publicly</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input
+                  v-model="privacySettings.contactPublic"
+                  type="checkbox"
+                  class="w-5 h-5 rounded"
+                />
+                <span class="text-slate-300">Show my contact info publicly</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Settings Tab -->
+        <div v-if="activeTab === 'security'" class="space-y-6">
           <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
             <h2 class="text-xl font-bold text-white mb-4">Change Password</h2>
-            <form @submit.prevent="handleChangePassword" class="space-y-4">
+            <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-slate-300 mb-2">Current Password</label>
                 <input
-                  v-model="passwordForm.currentPassword"
+                  v-model="passwordData.current"
                   type="password"
-                  placeholder="Enter current password"
-                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
               <div>
                 <label class="block text-sm font-medium text-slate-300 mb-2">New Password</label>
                 <input
-                  v-model="passwordForm.newPassword"
+                  v-model="passwordData.new"
                   type="password"
-                  placeholder="Enter new password"
-                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-300 mb-2">Confirm Password</label>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Confirm New Password</label>
                 <input
-                  v-model="passwordForm.confirmPassword"
+                  v-model="passwordData.confirm"
                   type="password"
-                  placeholder="Confirm new password"
-                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
               <button
-                type="submit"
-                :disabled="passwordLoading"
-                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+                @click="changePassword"
+                :disabled="changingPassword"
+                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
               >
-                {{ passwordLoading ? 'Updating...' : 'Update Password' }}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <!-- Privacy Settings -->
-        <div v-if="activeTab === 'privacy'" class="space-y-6">
-          <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h2 class="text-xl font-bold text-white mb-4">Privacy Settings</h2>
-            <div class="space-y-4">
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                <input
-                  v-model="privacySettings.profileVisibility"
-                  type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
-                />
-                <div>
-                  <p class="text-sm font-medium text-white">Public Profile</p>
-                  <p class="text-xs text-slate-400">Allow others to view your profile</p>
-                </div>
-              </label>
-
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                <input
-                  v-model="privacySettings.showOnlineStatus"
-                  type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
-                />
-                <div>
-                  <p class="text-sm font-medium text-white">Show Online Status</p>
-                  <p class="text-xs text-slate-400">Let others see when you're online</p>
-                </div>
-              </label>
-
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                <input
-                  v-model="privacySettings.allowMessages"
-                  type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
-                />
-                <div>
-                  <p class="text-sm font-medium text-white">Allow Direct Messages</p>
-                  <p class="text-xs text-slate-400">Allow anyone to send you messages</p>
-                </div>
-              </label>
-
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                <input
-                  v-model="privacySettings.allowFriendRequests"
-                  type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
-                />
-                <div>
-                  <p class="text-sm font-medium text-white">Allow Friend Requests</p>
-                  <p class="text-xs text-slate-400">Allow anyone to send you friend requests</p>
-                </div>
-              </label>
-
-              <button
-                @click="handleSavePrivacy"
-                :disabled="privacyLoading"
-                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors mt-4"
-              >
-                {{ privacyLoading ? 'Saving...' : 'Save Privacy Settings' }}
+                {{ changingPassword ? 'Changing...' : 'Change Password' }}
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Notification Settings -->
+        <!-- Notifications Settings Tab -->
         <div v-if="activeTab === 'notifications'" class="space-y-6">
           <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
             <h2 class="text-xl font-bold text-white mb-4">Notification Preferences</h2>
             <div class="space-y-4">
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
+              <label class="flex items-center gap-3 cursor-pointer">
                 <input
                   v-model="notificationSettings.emailNotifications"
                   type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
+                  class="w-5 h-5 rounded"
                 />
-                <div>
-                  <p class="text-sm font-medium text-white">Email Notifications</p>
-                  <p class="text-xs text-slate-400">Receive email updates about your account</p>
-                </div>
+                <span class="text-slate-300">Email notifications</span>
               </label>
-
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
+              <label class="flex items-center gap-3 cursor-pointer">
                 <input
                   v-model="notificationSettings.pushNotifications"
                   type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
+                  class="w-5 h-5 rounded"
                 />
-                <div>
-                  <p class="text-sm font-medium text-white">Push Notifications</p>
-                  <p class="text-xs text-slate-400">Receive push notifications on your device</p>
-                </div>
+                <span class="text-slate-300">Push notifications</span>
               </label>
-
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input
+                  v-model="notificationSettings.messageNotifications"
+                  type="checkbox"
+                  class="w-5 h-5 rounded"
+                />
+                <span class="text-slate-300">Message notifications</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
                 <input
                   v-model="notificationSettings.likeNotifications"
                   type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
+                  class="w-5 h-5 rounded"
                 />
-                <div>
-                  <p class="text-sm font-medium text-white">Like Notifications</p>
-                  <p class="text-xs text-slate-400">Get notified when someone likes your post</p>
-                </div>
+                <span class="text-slate-300">Like notifications</span>
               </label>
-
-              <label class="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                <input
-                  v-model="notificationSettings.commentNotifications"
-                  type="checkbox"
-                  class="rounded border-slate-600 text-blue-500 focus:ring-blue-500"
-                />
-                <div>
-                  <p class="text-sm font-medium text-white">Comment Notifications</p>
-                  <p class="text-xs text-slate-400">Get notified when someone comments on your post</p>
-                </div>
-              </label>
-
-              <button
-                @click="handleSaveNotifications"
-                :disabled="notificationLoading"
-                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors mt-4"
-              >
-                {{ notificationLoading ? 'Saving...' : 'Save Notification Settings' }}
-              </button>
             </div>
           </div>
-        </div>
-
-        <!-- Danger Zone -->
-        <div v-if="activeTab === 'account'" class="bg-red-900/20 border border-red-500/50 rounded-lg p-6">
-          <h2 class="text-xl font-bold text-red-400 mb-4">⚠️ Danger Zone</h2>
-          <p class="text-sm text-slate-400 mb-4">
-            These actions are irreversible. Please proceed with caution.
-          </p>
-          <button
-            @click="handleDeleteAccount"
-            :disabled="deleteLoading"
-            class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
-          >
-            {{ deleteLoading ? 'Deleting...' : 'Delete Account' }}
-          </button>
         </div>
       </div>
     </main>
@@ -254,7 +386,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { Profile } from '~/models/Profile'
 
 definePageMeta({
   middleware: 'auth-guard'
@@ -263,120 +396,164 @@ definePageMeta({
 const authStore = useAuthStore()
 
 const activeTab = ref('account')
-const passwordLoading = ref(false)
-const privacyLoading = ref(false)
-const notificationLoading = ref(false)
-const deleteLoading = ref(false)
+const profileCompletion = ref(0)
+const savingProfile = ref(false)
+const changingPassword = ref(false)
+
+const skillInput = ref(null)
+const interestInput = ref(null)
 
 const settingsTabs = [
-  { id: 'account', label: '👤 Account' },
-  { id: 'privacy', label: '🔒 Privacy' },
-  { id: 'notifications', label: '🔔 Notifications' }
+  { id: 'account', label: 'Account' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'privacy', label: 'Privacy' },
+  { id: 'security', label: 'Security' },
+  { id: 'notifications', label: 'Notifications' }
 ]
 
-const passwordForm = ref({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
+const user = computed(() => authStore.user)
+
+const profileData = ref({
+  fullName: '',
+  occupation: '',
+  bio: '',
+  location: '',
+  website: '',
+  highestEducation: '',
+  school: '',
+  dateOfBirth: '',
+  gender: '',
+  skills: [],
+  interests: []
 })
 
 const privacySettings = ref({
-  profileVisibility: true,
-  showOnlineStatus: true,
-  allowMessages: true,
-  allowFriendRequests: true
+  profilePublic: true,
+  bioPublic: true,
+  locationPublic: true,
+  contactPublic: false
+})
+
+const passwordData = ref({
+  current: '',
+  new: '',
+  confirm: ''
 })
 
 const notificationSettings = ref({
   emailNotifications: true,
   pushNotifications: true,
-  likeNotifications: true,
-  commentNotifications: true
+  messageNotifications: true,
+  likeNotifications: true
 })
 
-const user = computed(() => authStore.user)
+const loadProfileData = async () => {
+  try {
+    const profile = await Profile.getProfile(authStore.user.id)
+    
+    profileData.value = {
+      fullName: profile.full_name || '',
+      occupation: profile.occupation || '',
+      bio: profile.bio || '',
+      location: profile.location || '',
+      website: profile.website || '',
+      highestEducation: profile.highest_education || '',
+      school: profile.school || '',
+      dateOfBirth: profile.date_of_birth || '',
+      gender: profile.gender || '',
+      skills: profile.skills || [],
+      interests: profile.interests || []
+    }
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+    // Calculate profile completion
+    profileCompletion.value = await Profile.getProfileCompletionPercentage(authStore.user.id)
+  } catch (error) {
+    console.error('Error loading profile:', error)
+  }
 }
 
-const handleChangePassword = async () => {
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+const addSkill = () => {
+  const skill = skillInput.value?.value?.trim()
+  if (skill && !profileData.value.skills.includes(skill)) {
+    profileData.value.skills.push(skill)
+    skillInput.value.value = ''
+  }
+}
+
+const removeSkill = (index) => {
+  profileData.value.skills.splice(index, 1)
+}
+
+const addInterest = () => {
+  const interest = interestInput.value?.value?.trim()
+  if (interest && !profileData.value.interests.includes(interest)) {
+    profileData.value.interests.push(interest)
+    interestInput.value.value = ''
+  }
+}
+
+const removeInterest = (index) => {
+  profileData.value.interests.splice(index, 1)
+}
+
+const saveProfileChanges = async () => {
+  try {
+    savingProfile.value = true
+
+    const updates = {
+      full_name: profileData.value.fullName,
+      occupation: profileData.value.occupation,
+      bio: profileData.value.bio,
+      location: profileData.value.location,
+      website: profileData.value.website,
+      highest_education: profileData.value.highestEducation,
+      school: profileData.value.school,
+      date_of_birth: profileData.value.dateOfBirth,
+      gender: profileData.value.gender,
+      skills: profileData.value.skills,
+      interests: profileData.value.interests,
+      privacy_settings: privacySettings.value
+    }
+
+    await Profile.updateProfile(authStore.user.id, updates)
+    
+    // Recalculate profile completion
+    profileCompletion.value = await Profile.getProfileCompletionPercentage(authStore.user.id)
+    
+    alert('Profile updated successfully!')
+  } catch (error) {
+    console.error('Error saving profile:', error)
+    alert('Error saving profile: ' + error.message)
+  } finally {
+    savingProfile.value = false
+  }
+}
+
+const changePassword = async () => {
+  if (passwordData.value.new !== passwordData.value.confirm) {
     alert('Passwords do not match')
     return
   }
 
-  passwordLoading.value = true
   try {
-    // Call API to change password
-    console.log('Changing password...')
+    changingPassword.value = true
+    // Implement password change logic here
     alert('Password changed successfully!')
-    passwordForm.value = {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    }
+    passwordData.value = { current: '', new: '', confirm: '' }
   } catch (error) {
     console.error('Error changing password:', error)
-    alert('Failed to change password')
+    alert('Error changing password')
   } finally {
-    passwordLoading.value = false
+    changingPassword.value = false
   }
 }
 
-const handleSavePrivacy = async () => {
-  privacyLoading.value = true
-  try {
-    // Call API to save privacy settings
-    console.log('Saving privacy settings...', privacySettings.value)
-    alert('Privacy settings saved!')
-  } catch (error) {
-    console.error('Error saving privacy settings:', error)
-    alert('Failed to save privacy settings')
-  } finally {
-    privacyLoading.value = false
-  }
-}
-
-const handleSaveNotifications = async () => {
-  notificationLoading.value = true
-  try {
-    // Call API to save notification settings
-    console.log('Saving notification settings...', notificationSettings.value)
-    alert('Notification settings saved!')
-  } catch (error) {
-    console.error('Error saving notification settings:', error)
-    alert('Failed to save notification settings')
-  } finally {
-    notificationLoading.value = false
-  }
-}
-
-const handleDeleteAccount = async () => {
-  if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-    return
-  }
-
-  deleteLoading.value = true
-  try {
-    // Call API to delete account
-    console.log('Deleting account...')
-    alert('Account deleted successfully')
-    // Redirect to home
-    navigateTo('/')
-  } catch (error) {
-    console.error('Error deleting account:', error)
-    alert('Failed to delete account')
-  } finally {
-    deleteLoading.value = false
-  }
-}
+onMounted(() => {
+  loadProfileData()
+})
 </script>
 
 <style scoped>
 /* Minimal scoped styles - rely on Tailwind */
 </style>
+
