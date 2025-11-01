@@ -1,3 +1,6 @@
+<!-- FILE: /components/auth/CompleteProfileForm.vue - NEW -->
+<!-- Form to complete profile with username creation -->
+
 <template>
   <div class="bg-slate-800 rounded-lg shadow-xl p-8 border border-slate-700">
     <!-- Error Message -->
@@ -10,61 +13,65 @@
       <p class="text-green-400 text-sm">{{ success }}</p>
     </div>
 
-    <form @submit.prevent="handleSubmit" class="space-y-6">
-      <!-- Avatar Upload -->
-      <AvatarUpload v-model="formData.avatarUrl" />
+    <form @submit.prevent="handleSubmit" class="space-y-4">
+      <!-- Username Field -->
+      <div>
+        <label for="username" class="block text-sm font-medium text-slate-300 mb-2">
+          Username
+        </label>
+        <input
+          id="username"
+          v-model="formData.username"
+          type="text"
+          required
+          placeholder="Choose your username"
+          :disabled="loading"
+          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+        />
+        <p class="mt-1 text-xs text-slate-400">
+          3-30 characters, letters, numbers, underscores, hyphens only
+        </p>
+        <p v-if="errors.username" class="mt-1 text-xs text-red-400">{{ errors.username }}</p>
+        <p v-if="usernameInfo" class="mt-1 text-xs text-blue-400">
+          {{ usernameInfo }}
+        </p>
+      </div>
 
-      <!-- First Name -->
+      <!-- First Name Field -->
       <div>
         <label for="firstName" class="block text-sm font-medium text-slate-300 mb-2">
-          First Name *
+          First Name
         </label>
         <input
           id="firstName"
           v-model="formData.firstName"
           type="text"
           required
-          placeholder="John"
+          placeholder="Your first name"
           :disabled="loading"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
         />
         <p v-if="errors.firstName" class="mt-1 text-xs text-red-400">{{ errors.firstName }}</p>
       </div>
 
-      <!-- Last Name -->
+      <!-- Last Name Field -->
       <div>
         <label for="lastName" class="block text-sm font-medium text-slate-300 mb-2">
-          Last Name *
+          Last Name
         </label>
         <input
           id="lastName"
           v-model="formData.lastName"
           type="text"
           required
-          placeholder="Doe"
+          placeholder="Your last name"
           :disabled="loading"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
         />
         <p v-if="errors.lastName" class="mt-1 text-xs text-red-400">{{ errors.lastName }}</p>
       </div>
 
-      <!-- Phone Number -->
-      <div>
-        <label for="phone" class="block text-sm font-medium text-slate-300 mb-2">
-          Phone Number (Optional)
-        </label>
-        <input
-          id="phone"
-          v-model="formData.phone"
-          type="tel"
-          placeholder="+1 (555) 000-0000"
-          :disabled="loading"
-          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-        />
-        <p v-if="errors.phone" class="mt-1 text-xs text-red-400">{{ errors.phone }}</p>
-      </div>
-
-      <!-- Bio -->
+      <!-- Bio Field -->
       <div>
         <label for="bio" class="block text-sm font-medium text-slate-300 mb-2">
           Bio (Optional)
@@ -72,40 +79,18 @@
         <textarea
           id="bio"
           v-model="formData.bio"
-          placeholder="Tell us about yourself..."
+          placeholder="Tell us about yourself"
           :disabled="loading"
-          maxlength="500"
-          rows="4"
-          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50 resize-none"
-        ></textarea>
-        <p class="mt-1 text-xs text-slate-400">
-          {{ formData.bio.length }}/500 characters
-        </p>
-      </div>
-
-      <!-- Address -->
-      <div>
-        <label for="address" class="block text-sm font-medium text-slate-300 mb-2">
-          Address (Optional)
-        </label>
-        <input
-          id="address"
-          v-model="formData.address"
-          type="text"
-          placeholder="123 Main St, City, State"
-          :disabled="loading"
+          rows="3"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-        />
+        ></textarea>
+        <p v-if="errors.bio" class="mt-1 text-xs text-red-400">{{ errors.bio }}</p>
       </div>
-
-      <!-- Interests -->
-      <InterestsSelector v-model="formData.interests" :disabled="loading" />
-      <p v-if="errors.interests" class="text-xs text-red-400">{{ errors.interests }}</p>
 
       <!-- Submit Button -->
       <button
         type="submit"
-        :disabled="loading || formData.interests.length === 0"
+        :disabled="loading"
         class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
       >
         <span v-if="loading" class="flex items-center justify-center">
@@ -113,9 +98,9 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          Completing profile...
+          Completing Profile...
         </span>
-        <span v-else>Complete Profile & Get Started</span>
+        <span v-else>Complete Profile</span>
       </button>
     </form>
   </div>
@@ -125,60 +110,64 @@
 import { ref, reactive } from 'vue'
 
 const emit = defineEmits<{
-  success: []
+  success: [data: any]
 }>()
-
-const { completeProfile } = useProfile()
 
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
+const usernameInfo = ref('')
 
 const formData = reactive({
+  username: '',
   firstName: '',
   lastName: '',
-  phone: '',
-  bio: '',
-  address: '',
-  avatarUrl: '',
-  interests: [] as string[]
+  bio: ''
 })
 
 const errors = reactive({
+  username: '',
   firstName: '',
   lastName: '',
-  phone: '',
-  interests: ''
+  bio: ''
 })
 
 const validateForm = () => {
+  errors.username = ''
   errors.firstName = ''
   errors.lastName = ''
-  errors.phone = ''
-  errors.interests = ''
+  errors.bio = ''
 
+  // Username validation
+  if (formData.username.length < 3 || formData.username.length > 30) {
+    errors.username = 'Username must be 3-30 characters'
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(formData.username)) {
+    errors.username = 'Username can only contain letters, numbers, underscores, and hyphens'
+  }
+
+  // First name validation
   if (!formData.firstName.trim()) {
     errors.firstName = 'First name is required'
   }
 
+  // Last name validation
   if (!formData.lastName.trim()) {
     errors.lastName = 'Last name is required'
   }
 
-  if (formData.phone && !/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
-    errors.phone = 'Please enter a valid phone number'
+  // Bio validation (optional but if provided, max 500 chars)
+  if (formData.bio && formData.bio.length > 500) {
+    errors.bio = 'Bio must be less than 500 characters'
   }
 
-  if (formData.interests.length === 0) {
-    errors.interests = 'Please select at least one interest'
-  }
-
-  return !errors.firstName && !errors.lastName && !errors.phone && !errors.interests
+  return !errors.username && !errors.firstName && !errors.lastName && !errors.bio
 }
 
 const handleSubmit = async () => {
   error.value = ''
   success.value = ''
+  usernameInfo.value = ''
 
   if (!validateForm()) {
     error.value = 'Please fix the errors above'
@@ -188,32 +177,49 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const result = await completeProfile({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      phone: formData.phone || undefined,
-      bio: formData.bio || undefined,
-      address: formData.address || undefined,
-      avatarUrl: formData.avatarUrl || undefined,
-      interests: formData.interests
+    // Step 1: Create/validate username (with auto-generation if taken)
+    const usernameResponse = await $fetch('/api/profile/create-with-username', {
+      method: 'POST',
+      body: {
+        username: formData.username
+      }
     })
 
-    if (result.success) {
+    if (!usernameResponse.success) {
+      error.value = usernameResponse.message || 'Failed to create username'
+      loading.value = false
+      return
+    }
+
+    // Show info if username was modified
+    if (usernameResponse.wasModified) {
+      usernameInfo.value = `Username "${usernameResponse.username}" was auto-generated (your choice was taken)`
+    }
+
+    // Step 2: Complete profile with other details
+    const profileResponse = await $fetch('/api/profile/complete', {
+      method: 'POST',
+      body: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        bio: formData.bio || null,
+        interests: []
+      }
+    })
+
+    if (profileResponse.success) {
       success.value = 'Profile completed successfully!'
       setTimeout(() => {
-        emit('success')
+        emit('success', { userId: profileResponse.userId })
       }, 1000)
     } else {
-      error.value = result.error || 'Failed to complete profile'
+      error.value = profileResponse.message || 'Failed to complete profile'
     }
   } catch (err: any) {
     error.value = err.message || 'An error occurred'
+    console.error('Profile completion error:', err)
   } finally {
     loading.value = false
   }
 }
 </script>
-
-<style scoped>
-/* Minimal scoped styles */
-</style>
