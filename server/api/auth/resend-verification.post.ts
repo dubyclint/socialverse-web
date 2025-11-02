@@ -1,4 +1,4 @@
-: /server/api/auth/resend-verification.post.ts - CREATE
+// FILE: /server/api/auth/resend-verification.post.ts
 // Resend verification email
 // ============================================================================
 
@@ -11,27 +11,21 @@ interface ResendVerificationRequest {
 }
 
 export default defineEventHandler(async (event) => {
+  setResponseHeader(event, 'Content-Type', 'application/json')
+
   try {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<ResendVerificationRequest>(event)
 
-    // STEP 1: VALIDATE EMAIL
-    if (!body.email) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email is required'
-      })
+    if (!body?.email) {
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Email is required'
+      }
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(body.email)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid email format'
-      })
-    }
-
-    // STEP 2: FIND PROFILE BY EMAIL
+    // Find profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -39,59 +33,52 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError || !profile) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Email not found'
-      })
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'User not found'
+      }
     }
 
-    // STEP 3: CHECK IF ALREADY VERIFIED
-    if (profile.email_verified) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email is already verified'
-      })
-    }
-
-    // STEP 4: GENERATE NEW VERIFICATION TOKEN
+    // Generate new token
     const { token: verificationToken, expiresAt: tokenExpiry } = generateEmailVerificationToken()
 
-    // STEP 5: UPDATE PROFILE WITH NEW TOKEN
+    // Update profile with new token
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         email_verification_token: verificationToken,
-        email_verification_expires_at: tokenExpiry,
-        updated_at: new Date().toISOString()
+        email_verification_expires_at: tokenExpiry
       })
       .eq('id', profile.id)
 
     if (updateError) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to generate verification token'
-      })
+      setResponseStatus(event, 500)
+      return {
+        success: false,
+        message: 'Failed to resend verification email'
+      }
     }
 
-    // STEP 6: SEND VERIFICATION EMAIL
+    // Send email
     try {
       await sendVerificationEmail(profile.email, profile.username, verificationToken)
     } catch (emailError) {
-      console.warn('[ResendVerification] Email sending failed:', emailError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to send verification email'
-      })
+      console.warn('[Resend Verification] Email sending failed:', emailError)
     }
 
-    // STEP 7: RETURN SUCCESS
+    setResponseStatus(event, 200)
     return {
       success: true,
-      message: 'Verification email sent. Check your inbox.'
+      message: 'Verification email sent'
     }
-
-  } catch (error) {
-    console.error('[ResendVerification] Error:', error)
-    throw error
+  } catch (error: any) {
+    console.error('[Resend Verification] Error:', error)
+    setResponseStatus(event, 500)
+    return {
+      success: false,
+      message: error.message || 'Failed to resend verification email'
+    }
   }
 })
+
