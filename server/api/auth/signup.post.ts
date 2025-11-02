@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - DIAGNOSTIC VERSION
+// FILE: /server/api/auth/signup.post.ts - FIXED
 // User registration with email verification
 // ============================================================================
 
