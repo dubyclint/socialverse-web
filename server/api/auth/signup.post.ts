@@ -15,6 +15,9 @@ interface SignupRequest {
 
 export default defineEventHandler(async (event) => {
   try {
+    // Set response header to JSON - CRITICAL FIX
+    setHeader(event, 'Content-Type', 'application/json')
+
     console.log('[Signup] ========== SIGNUP REQUEST STARTED ==========')
     
     const supabase = await serverSupabaseClient(event)
