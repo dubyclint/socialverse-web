@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/login.post.ts - FIXED
+// FILE: /server/api/auth/login.post.ts - COMPLETE WORKING VERSION
 // User login with authentication
 // ============================================================================
 
@@ -12,25 +12,25 @@ interface LoginRequest {
 }
 
 export default defineEventHandler(async (event) => {
-  try {
-    // Set response header to JSON
-    setHeader(event, 'Content-Type', 'application/json')
+  // CRITICAL: Set JSON response header FIRST
+  setResponseHeader(event, 'Content-Type', 'application/json')
 
+  try {
+    console.log('[Login] ========== LOGIN REQUEST STARTED ==========')
+    
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<LoginRequest>(event)
 
-    console.log('[Login] Login attempt:', { email: body.email })
+    console.log('[Login] Request received:', { email: body?.email })
 
-    // STEP 1: VALIDATE INPUT
-    if (!body.email || !body.password) {
+    // VALIDATION
+    if (!body?.email || !body?.password) {
       console.log('[Login] FAILED: Missing email or password')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email and password are required'
-      })
+      return sendError(event, 400, 'Email and password are required')
     }
 
-    // STEP 2: QUERY PROFILE BY EMAIL
+    // Query profile by email
+    console.log('[Login] Querying profile...')
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -39,23 +39,20 @@ export default defineEventHandler(async (event) => {
 
     if (profileError || !profile) {
       console.log('[Login] FAILED: User not found')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Invalid email or password'
-      })
+      return sendError(event, 401, 'Invalid email or password')
     }
 
-    // STEP 3: VERIFY PASSWORD
+    // Verify password
+    console.log('[Login] Verifying password...')
     const passwordMatch = await bcrypt.compare(body.password, profile.password_hash)
+    
     if (!passwordMatch) {
       console.log('[Login] FAILED: Password mismatch')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Invalid email or password'
-      })
+      return sendError(event, 401, 'Invalid email or password')
     }
 
-    // STEP 4: GENERATE JWT TOKEN
+    // Generate JWT token
+    console.log('[Login] Generating JWT token...')
     const token = generateJWT({
       userId: profile.id,
       email: profile.email,
@@ -63,9 +60,10 @@ export default defineEventHandler(async (event) => {
       role: profile.role
     })
 
-    console.log('[Login] SUCCESS: User logged in')
+    console.log('[Login] ========== LOGIN COMPLETED SUCCESSFULLY ==========')
 
-    // STEP 5: RETURN SUCCESS RESPONSE
+    // Return success response
+    setResponseStatus(event, 200)
     return {
       success: true,
       message: 'Login successful',
@@ -83,17 +81,21 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Login] ERROR:', error.message)
-
-    // If it's already a createError, re-throw it
-    if (error.statusCode) {
-      throw error
+    console.error('[Login] CRITICAL ERROR:', error)
+    
+    // Return error response
+    setResponseStatus(event, 500)
+    return {
+      success: false,
+      message: error.message || 'Login failed'
     }
-
-    // Otherwise, throw a generic error
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Login failed'
-    })
   }
 })
+
+function sendError(event: any, statusCode: number, message: string) {
+  setResponseStatus(event, statusCode)
+  return {
+    success: false,
+    message
+  }
+}
