@@ -1,9 +1,9 @@
-// FILE: /composables/useAuth.ts - ENHANCED
+// FILE: /composables/useAuth.ts - COMPLETE WORKING VERSION
 // Authentication composable with robust error handling
 // ============================================================================
 
 import { ref, computed } from 'vue'
-import type { LoginRequest, SignupRequest, AuthResponse, User } from '~/types/auth'
+import type { AuthResponse, User } from '~/types/auth'
 
 export const useAuth = () => {
   const authStore = useAuthStore()
@@ -38,7 +38,7 @@ export const useAuth = () => {
 
       console.log('[useAuth] Signup attempt:', { email, username })
 
-      const response = await $fetch<AuthResponse>('/api/auth/signup', {
+      const response = await $fetch<any>('/api/auth/signup', {
         method: 'POST',
         body: {
           email,
@@ -49,7 +49,6 @@ export const useAuth = () => {
 
       console.log('[useAuth] Signup response:', response)
 
-      // Validate response
       if (!response) {
         throw new Error('No response from server')
       }
@@ -91,7 +90,7 @@ export const useAuth = () => {
 
       console.log('[useAuth] Login attempt:', { email })
 
-      const response = await $fetch<AuthResponse>('/api/auth/login', {
+      const response = await $fetch<any>('/api/auth/login', {
         method: 'POST',
         body: {
           email,
@@ -137,7 +136,7 @@ export const useAuth = () => {
       loading.value = true
       error.value = ''
 
-      const response = await $fetch<AuthResponse>('/api/auth/verify-email', {
+      const response = await $fetch<any>('/api/auth/verify-email', {
         method: 'POST',
         body: { token }
       })
@@ -172,7 +171,7 @@ export const useAuth = () => {
       loading.value = true
       error.value = ''
 
-      const response = await $fetch<AuthResponse>('/api/auth/resend-verification', {
+      const response = await $fetch<any>('/api/auth/resend-verification', {
         method: 'POST',
         body: { email }
       })
@@ -211,10 +210,7 @@ export const useAuth = () => {
         method: 'POST'
       })
 
-      // Clear auth data
       authStore.clearAuth()
-
-      // Redirect to login
       await router.push('/auth/signin')
 
       return { success: true }
@@ -245,4 +241,5 @@ export const useAuth = () => {
     logout
   }
 }
+
 
