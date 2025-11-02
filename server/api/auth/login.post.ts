@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/login.post.ts - COMPLETE REWRITE
+// FILE: /server/api/auth/login.post.ts - FIXED VERSION
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -20,66 +20,67 @@ export default defineEventHandler(async (event) => {
     const { email, password } = body || {}
 
     if (!email || !password) {
-      console.log('[Login] Missing fields')
+      console.log('[Login] Missing credentials')
       setResponseStatus(event, 400)
       return { success: false, message: 'Email and password are required' }
     }
 
+    // Get Supabase client - FIXED IMPORT
     let supabase: any
     try {
-      const { serverSupabaseClient } = await import('#supabase/server')
-      supabase = await serverSupabaseClient(event)
+      const { getSupabaseClient } = await import('~/server/utils/supabase')
+      supabase = getSupabaseClient()
+      console.log('[Login] Supabase client initialized')
     } catch (e) {
       console.error('[Login] Supabase init error:', e)
       setResponseStatus(event, 500)
       return { success: false, message: 'Database connection failed' }
     }
 
-    // Query profile
+    // Get user profile
     let profile: any
     try {
-      const { data: foundProfile } = await supabase
+      const { data: user, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', email.toLowerCase())
         .single()
 
-      if (!foundProfile) {
+      if (error || !user) {
         console.log('[Login] User not found')
         setResponseStatus(event, 401)
         return { success: false, message: 'Invalid email or password' }
       }
 
-      profile = foundProfile
+      profile = user
     } catch (e) {
-      console.error('[Login] Profile query error:', e)
-      setResponseStatus(event, 401)
-      return { success: false, message: 'Invalid email or password' }
+      console.error('[Login] User lookup error:', e)
+      setResponseStatus(event, 500)
+      return { success: false, message: 'Failed to lookup user' }
     }
 
     // Verify password
-    let passwordMatch = false
     try {
       const bcrypt = await import('bcrypt')
-      passwordMatch = await bcrypt.default.compare(password, profile.password_hash)
+      const isValid = await bcrypt.default.compare(password, profile.password_hash)
+
+      if (!isValid) {
+        console.log('[Login] Invalid password')
+        setResponseStatus(event, 401)
+        return { success: false, message: 'Invalid email or password' }
+      }
     } catch (e) {
-      console.error('[Login] Password verify error:', e)
+      console.error('[Login] Password verification error:', e)
       setResponseStatus(event, 500)
       return { success: false, message: 'Failed to verify password' }
     }
 
-    if (!passwordMatch) {
-      console.log('[Login] Password mismatch')
-      setResponseStatus(event, 401)
-      return { success: false, message: 'Invalid email or password' }
-    }
-
-    // Generate JWT
+    // Generate JWT token
     let token: string
     try {
       const jwt = await import('jsonwebtoken')
-      const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-
+      const secret = process.env.JWT_SECRET || 'your-secret-key-change-this'
+      
       token = jwt.default.sign(
         {
           userId: profile.id,
@@ -87,11 +88,11 @@ export default defineEventHandler(async (event) => {
           username: profile.username,
           role: profile.role
         },
-        JWT_SECRET,
-        { expiresIn: '7d', algorithm: 'HS256' }
+        secret,
+        { expiresIn: '7d' }
       )
     } catch (e) {
-      console.error('[Login] JWT generation error:', e)
+      console.error('[Login] Token generation error:', e)
       setResponseStatus(event, 500)
       return { success: false, message: 'Failed to generate token' }
     }
@@ -107,11 +108,7 @@ export default defineEventHandler(async (event) => {
         id: profile.id,
         email: profile.email,
         username: profile.username,
-        role: profile.role,
-        profile: {
-          email_verified: profile.email_verified,
-          profile_completed: profile.profile_completed
-        }
+        role: profile.role
       }
     }
 
