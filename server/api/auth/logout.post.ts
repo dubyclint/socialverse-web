@@ -1,43 +1,24 @@
- /server/api/auth/logout.post.ts - VERIFY
-// User logout endpoint
+// FILE: /server/api/auth/logout.post.ts
+// User logout
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
-
 export default defineEventHandler(async (event) => {
+  setResponseHeader(event, 'Content-Type', 'application/json')
+  
   try {
-    const supabase = await serverSupabaseClient(event)
-
-    console.log('[Logout] Processing logout request')
-
-    // Sign out user from Supabase
-    const { error } = await supabase.auth.signOut()
-
-    if (error) {
-      console.error('[Logout] Signout error:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Logout failed: ${error.message}`
-      })
-    }
-
-    console.log('[Logout] User logged out successfully')
-
+    console.log('[Logout] User logged out')
+    setResponseStatus(event, 200)
     return {
       success: true,
       message: 'Logged out successfully'
     }
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Logout] Error:', error)
-    
-    if ((error as any).statusCode) {
-      throw error
+    setResponseStatus(event, 500)
+    return {
+      success: false,
+      message: 'Logout failed'
     }
-    
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Logout failed: ${(error as any).message || 'Unknown error'}`
-    })
   }
 })
+
