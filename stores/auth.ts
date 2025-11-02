@@ -1,4 +1,4 @@
-// FILE: /stores/auth.ts - FIXED
+// FILE: /stores/auth.ts - COMPLETE WORKING VERSION
 // Authentication store with Pinia
 // ============================================================================
 
@@ -7,7 +7,10 @@ import { ref, computed } from 'vue'
 import type { User } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('auth_token') || null)
+  // Initialize from localStorage
+  const token = ref<string | null>(
+    typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+  )
   const user = ref<User | null>(null)
   const isLoading = ref(false)
 
@@ -17,7 +20,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   const setToken = (newToken: string) => {
     token.value = newToken
-    localStorage.setItem('auth_token', newToken)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', newToken)
+    }
   }
 
   const setUser = (newUser: User) => {
@@ -27,7 +32,9 @@ export const useAuthStore = defineStore('auth', () => {
   const clearAuth = () => {
     token.value = null
     user.value = null
-    localStorage.removeItem('auth_token')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token')
+    }
   }
 
   const updateUser = (updates: Partial<User>) => {
@@ -49,3 +56,4 @@ export const useAuthStore = defineStore('auth', () => {
     updateUser
   }
 })
+
