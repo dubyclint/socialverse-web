@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - COMPLETE REWRITE
+// FILE: /server/api/auth/signup.post.ts - FIXED VERSION
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -42,11 +42,12 @@ export default defineEventHandler(async (event) => {
       return { success: false, message: 'Password must be at least 8 characters with uppercase, number, and special character' }
     }
 
-    // Get Supabase client
+    // Get Supabase client - FIXED IMPORT
     let supabase: any
     try {
-      const { serverSupabaseClient } = await import('#supabase/server')
-      supabase = await serverSupabaseClient(event)
+      const { getSupabaseClient } = await import('~/server/utils/supabase')
+      supabase = getSupabaseClient()
+      console.log('[Signup] Supabase client initialized')
     } catch (e) {
       console.error('[Signup] Supabase init error:', e)
       setResponseStatus(event, 500)
@@ -80,6 +81,7 @@ export default defineEventHandler(async (event) => {
     try {
       const bcrypt = await import('bcrypt')
       passwordHash = await bcrypt.default.hash(password, 10)
+      console.log('[Signup] Password hashed successfully')
     } catch (e) {
       console.error('[Signup] Hash error:', e)
       setResponseStatus(event, 500)
@@ -130,6 +132,7 @@ export default defineEventHandler(async (event) => {
       }
 
       profile = newProfile
+      console.log('[Signup] Profile created:', profile.id)
     } catch (e) {
       console.error('[Signup] Profile creation exception:', e)
       setResponseStatus(event, 500)
@@ -158,6 +161,7 @@ export default defineEventHandler(async (event) => {
           is_locked: false
         }))
       )
+      console.log('[Signup] Wallets initialized')
     } catch (e) {
       console.warn('[Signup] Wallet init warning:', e)
     }
@@ -170,6 +174,7 @@ export default defineEventHandler(async (event) => {
         { user_id: profile.id, category: 'content', current_rank: 'Bronze I', rank_level: 1, points: 0, next_rank: 'Bronze II', points_to_next: 100, achievements: [], season_start: new Date().toISOString() },
         { user_id: profile.id, category: 'overall', current_rank: 'Bronze I', rank_level: 1, points: 0, next_rank: 'Bronze II', points_to_next: 100, achievements: [], season_start: new Date().toISOString() }
       ])
+      console.log('[Signup] Ranks initialized')
     } catch (e) {
       console.warn('[Signup] Rank init warning:', e)
     }
@@ -198,4 +203,3 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
-
