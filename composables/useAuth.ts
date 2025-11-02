@@ -1,5 +1,4 @@
-// FILE: /composables/useAuth.ts - FINAL VERSION
-// Authentication composable
+// FILE: /composables/useAuth.ts
 // ============================================================================
 
 import { ref, computed } from 'vue'
