@@ -5,75 +5,104 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
 
   try {
-    console.log('[Resend Verification] REQUEST RECEIVED')
-    
-    const body = await readBody(event)
+    console.log('[Resend Verification] ========== START ==========')
 
-    if (!body?.email) {
-      console.log('[Resend Verification] VALIDATION FAILED: Missing email')
+    let body: any
+    try {
+      body = await readBody(event)
+    } catch (e) {
+      console.error('[Resend Verification] Body parse error:', e)
       setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'Email is required'
-      }
+      return { success: false, message: 'Invalid request body' }
     }
 
-    const { serverSupabaseClient } = await import('#supabase/server')
-    const crypto = await import('crypto')
-    const supabase = await serverSupabaseClient(event)
+    const { email } = body || {}
+
+    if (!email) {
+      console.log('[Resend Verification] Missing email')
+      setResponseStatus(event, 400)
+      return { success: false, message: 'Email is required' }
+    }
+
+    let supabase: any
+    try {
+      const { serverSupabaseClient } = await import('#supabase/server')
+      supabase = await serverSupabaseClient(event)
+    } catch (e) {
+      console.error('[Resend Verification] Supabase init error:', e)
+      setResponseStatus(event, 500)
+      return { success: false, message: 'Database connection failed' }
+    }
 
     // Find profile
-    console.log('[Resend Verification] Looking up profile...')
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .ilike('email', body.email.toLowerCase())
-      .single()
+    let profile: any
+    try {
+      const { data: foundProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single()
 
-    if (!profile) {
-      console.log('[Resend Verification] User not found')
-      setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'User not found'
+      if (!foundProfile) {
+        console.log('[Resend Verification] User not found')
+        setResponseStatus(event, 400)
+        return { success: false, message: 'User not found' }
       }
+
+      profile = foundProfile
+    } catch (e) {
+      console.error('[Resend Verification] Profile query error:', e)
+      setResponseStatus(event, 400)
+      return { success: false, message: 'User not found' }
     }
 
     // Generate new token
-    const verificationToken = crypto.default.randomBytes(32).toString('hex')
+    let verificationToken: string
+    try {
+      const crypto = await import('crypto')
+      verificationToken = crypto.default.randomBytes(32).toString('hex')
+    } catch (e) {
+      console.error('[Resend Verification] Token generation error:', e)
+      setResponseStatus(event, 500)
+      return { success: false, message: 'Failed to generate token' }
+    }
+
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
     // Update profile
-    console.log('[Resend Verification] Updating token...')
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        email_verification_token: verificationToken,
-        email_verification_expires_at: tokenExpiry
-      })
-      .eq('id', profile.id)
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          email_verification_token: verificationToken,
+          email_verification_expires_at: tokenExpiry
+        })
+        .eq('id', profile.id)
 
-    if (updateError) {
-      console.log('[Resend Verification] Update failed:', updateError)
-      setResponseStatus(event, 500)
-      return {
-        success: false,
-        message: 'Failed to resend verification email'
+      if (updateError) {
+        console.error('[Resend Verification] Update error:', updateError)
+        setResponseStatus(event, 500)
+        return { success: false, message: 'Failed to resend verification email' }
       }
+    } catch (e) {
+      console.error('[Resend Verification] Update exception:', e)
+      setResponseStatus(event, 500)
+      return { success: false, message: 'Failed to resend verification email' }
     }
 
-    console.log('[Resend Verification] SUCCESS')
+    console.log('[Resend Verification] ========== SUCCESS ==========')
     setResponseStatus(event, 200)
-    
+
     return {
       success: true,
       message: 'Verification email sent'
     }
 
   } catch (error: any) {
-    console.error('[Resend Verification] CRITICAL ERROR:', error?.message || error)
+    console.error('[Resend Verification] ========== CRITICAL ERROR ==========')
+    console.error('[Resend Verification] Error:', error?.message || error)
+
     setResponseStatus(event, 500)
-    
     return {
       success: false,
       message: error?.message || 'Failed to resend verification email'
