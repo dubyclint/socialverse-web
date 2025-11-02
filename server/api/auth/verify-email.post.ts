@@ -1,33 +1,16 @@
 // FILE: /server/api/auth/verify-email.post.ts
-// Email verification
 // ============================================================================
-
-import { serverSupabaseClient } from '#supabase/server'
-
-interface VerifyEmailRequest {
-  token: string
-}
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
 
   try {
-    console.log('[Verify Email API] ========== REQUEST START ==========')
+    console.log('[Verify Email] REQUEST RECEIVED')
+    
+    const body = await readBody(event)
 
-    let body: VerifyEmailRequest
-    try {
-      body = await readBody(event)
-    } catch (parseError) {
-      console.error('[Verify Email API] Failed to parse request body:', parseError)
-      setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'Invalid request format'
-      }
-    }
-
-    if (!body?.token?.trim()) {
-      console.log('[Verify Email API] Validation failed: Missing token')
+    if (!body?.token) {
+      console.log('[Verify Email] VALIDATION FAILED: Missing token')
       setResponseStatus(event, 400)
       return {
         success: false,
@@ -35,18 +18,19 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    const { serverSupabaseClient } = await import('#supabase/server')
     const supabase = await serverSupabaseClient(event)
 
-    // Find profile with this token
-    console.log('[Verify Email API] Looking up verification token...')
-    const { data: profile, error: profileError } = await supabase
+    // Find profile with token
+    console.log('[Verify Email] Looking up token...')
+    const { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('email_verification_token', body.token)
       .single()
 
-    if (profileError || !profile) {
-      console.log('[Verify Email API] Invalid verification token')
+    if (!profile) {
+      console.log('[Verify Email] Invalid token')
       setResponseStatus(event, 400)
       return {
         success: false,
@@ -54,10 +38,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Check if token is expired
+    // Check expiry
     const expiresAt = new Date(profile.email_verification_expires_at)
     if (new Date() > expiresAt) {
-      console.log('[Verify Email API] Verification token has expired')
+      console.log('[Verify Email] Token expired')
       setResponseStatus(event, 400)
       return {
         success: false,
@@ -65,8 +49,8 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Update profile to mark email as verified
-    console.log('[Verify Email API] Updating profile...')
+    // Update profile
+    console.log('[Verify Email] Updating profile...')
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
@@ -77,7 +61,7 @@ export default defineEventHandler(async (event) => {
       .eq('id', profile.id)
 
     if (updateError) {
-      console.error('[Verify Email API] Failed to update profile:', updateError)
+      console.log('[Verify Email] Update failed:', updateError)
       setResponseStatus(event, 500)
       return {
         success: false,
@@ -85,19 +69,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    console.log('[Verify Email API] ========== REQUEST SUCCESS ==========')
+    console.log('[Verify Email] SUCCESS')
     setResponseStatus(event, 200)
+    
     return {
       success: true,
       message: 'Email verified successfully',
       nextStep: 'complete_profile'
     }
+
   } catch (error: any) {
-    console.error('[Verify Email API] Error:', error)
+    console.error('[Verify Email] CRITICAL ERROR:', error?.message || error)
     setResponseStatus(event, 500)
+    
     return {
       success: false,
       message: error?.message || 'Verification failed'
     }
   }
 })
+
