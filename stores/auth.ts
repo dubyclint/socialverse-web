@@ -1,5 +1,4 @@
-// FILE: /stores/auth.ts - FINAL VERSION
-// Authentication store
+// FILE: /stores/auth.ts
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -55,4 +54,3 @@ export const useAuthStore = defineStore('auth', () => {
     updateUser
   }
 })
-
