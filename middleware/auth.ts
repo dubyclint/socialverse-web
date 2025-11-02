@@ -1,8 +1,7 @@
-/**
- * ✅ FIXED - Auth Middleware (Non-Global)
- * This middleware is NOT global, so it only runs on routes that explicitly use it
- * Homepage and public routes are NOT affected
- */
+// FILE: /middleware/auth.ts - FIXED
+// Auth Middleware (Non-Global)
+// This middleware is NOT global, so it only runs on routes that explicitly use it
+// ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
   // Skip middleware on server-side
@@ -14,7 +13,9 @@ export default defineNuxtRouteMiddleware((to, from) => {
   // Define public routes that don't require authentication
   const publicRoutes = [
     '/auth/login',
+    '/auth/signin',
     '/auth/signup',
+    '/auth',
     '/auth/forgot-password',
     '/auth/verify-email',
     '/auth/reset-password',
@@ -35,28 +36,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
   // If no token and trying to access protected route, redirect to login
   if (!token) {
-    console.warn(`[Auth Middleware] Unauthorized access to ${to.path}, redirecting to login`)
-    return navigateTo('/auth/login')
-  }
-
-  // If token exists and trying to access auth pages, redirect to feed
-  if (token && (to.path === '/auth/login' || to.path === '/auth/signup')) {
-    console.log(`[Auth Middleware] Already authenticated, redirecting from ${to.path} to feed`)
-    return navigateTo('/feed')
+    console.warn(`[Auth Middleware] Unauthorized access attempt to ${to.path}`)
+    return navigateTo('/auth/signin')
   }
 })
-
-function decodeToken(token: string) {
-  try {
-    const base64Url = token.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-    }).join(''))
-    return JSON.parse(jsonPayload)
-  } catch (error) {
-    console.error('Token decode error:', error)
-    return null
-  }
-}
-                                         
