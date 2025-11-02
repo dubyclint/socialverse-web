@@ -1,5 +1,5 @@
-// FILE: /stores/auth.ts - UPDATE
-// Authentication store
+// FILE: /stores/auth.ts - FIXED
+// Authentication store with Pinia
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -7,7 +7,7 @@ import { ref, computed } from 'vue'
 import type { User } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('auth_token'))
+  const token = ref<string | null>(localStorage.getItem('auth_token') || null)
   const user = ref<User | null>(null)
   const isLoading = ref(false)
 
@@ -30,6 +30,12 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('auth_token')
   }
 
+  const updateUser = (updates: Partial<User>) => {
+    if (user.value) {
+      user.value = { ...user.value, ...updates }
+    }
+  }
+
   return {
     token,
     user,
@@ -39,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
     isProfileCompleted,
     setToken,
     setUser,
-    clearAuth
+    clearAuth,
+    updateUser
   }
 })
