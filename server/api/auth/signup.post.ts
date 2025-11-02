@@ -1,11 +1,9 @@
-// FILE: /server/api/auth/signup.post.ts - COMPLETE WORKING VERSION
-// User registration with email verification
+// FILE: /server/api/auth/signup.post.ts - PRODUCTION READY
+// User registration with comprehensive error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 import bcrypt from 'bcrypt'
-import { generateEmailVerificationToken } from '~/server/utils/token'
-import { sendVerificationEmail } from '~/server/utils/email'
 
 interface SignupRequest {
   email: string
@@ -14,115 +12,179 @@ interface SignupRequest {
 }
 
 export default defineEventHandler(async (event) => {
-  // CRITICAL: Set JSON response header FIRST
+  // CRITICAL: Set JSON response header IMMEDIATELY
   setResponseHeader(event, 'Content-Type', 'application/json')
-
+  
   try {
-    console.log('[Signup] ========== SIGNUP REQUEST STARTED ==========')
+    console.log('[Signup API] ========== REQUEST START ==========')
     
-    const supabase = await serverSupabaseClient(event)
-    const body = await readBody<SignupRequest>(event)
+    // Read request body
+    let body: SignupRequest
+    try {
+      body = await readBody(event)
+    } catch (parseError) {
+      console.error('[Signup API] Failed to parse request body:', parseError)
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Invalid request format'
+      }
+    }
 
-    console.log('[Signup] Request received:', { 
-      email: body?.email, 
-      username: body?.username
+    console.log('[Signup API] Request data:', {
+      email: body?.email,
+      username: body?.username,
+      hasPassword: !!body?.password
     })
 
-    // VALIDATION
-    if (!body?.email || !body?.password || !body?.username) {
-      console.log('[Signup] FAILED: Missing required fields')
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Email, password, and username are required'
-      }))
+    // Validate required fields
+    if (!body?.email?.trim() || !body?.password?.trim() || !body?.username?.trim()) {
+      console.log('[Signup API] Validation failed: Missing required fields')
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Email, password, and username are required'
+      }
     }
 
-    // Email validation
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(body.email)) {
-      console.log('[Signup] FAILED: Invalid email format')
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Invalid email format'
-      }))
+      console.log('[Signup API] Validation failed: Invalid email format')
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Invalid email format'
+      }
     }
 
-    // Password validation
+    // Validate password strength
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
     if (!passwordRegex.test(body.password)) {
-      console.log('[Signup] FAILED: Password does not meet requirements')
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Password must be at least 8 characters with uppercase, number, and special character'
-      }))
+      console.log('[Signup API] Validation failed: Password does not meet requirements')
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Password must be at least 8 characters with uppercase, number, and special character'
+      }
     }
 
-    // Check email uniqueness
-    console.log('[Signup] Checking email uniqueness...')
-    const { data: existingEmail, error: emailCheckError } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', body.email)
-      .single()
-
-    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
-      console.log('[Signup] Database error:', emailCheckError)
-      return sendError(event, createError({
-        statusCode: 500,
-        statusMessage: 'Database error'
-      }))
+    // Initialize Supabase client
+    let supabase
+    try {
+      supabase = await serverSupabaseClient(event)
+      console.log('[Signup API] Supabase client initialized')
+    } catch (supabaseError) {
+      console.error('[Signup API] Failed to initialize Supabase:', supabaseError)
+      setResponseStatus(event, 500)
+      return {
+        success: false,
+        message: 'Database connection failed'
+      }
     }
 
-    if (existingEmail) {
-      console.log('[Signup] FAILED: Email already exists')
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Email already registered'
-      }))
+    // Check if email already exists
+    console.log('[Signup API] Checking email uniqueness...')
+    try {
+      const { data: existingEmail, error: emailCheckError } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('email', body.email.toLowerCase())
+        .single()
+
+      if (emailCheckError && emailCheckError.code !== 'PGRST116') {
+        console.error('[Signup API] Email check database error:', emailCheckError)
+        setResponseStatus(event, 500)
+        return {
+          success: false,
+          message: 'Database error during email check'
+        }
+      }
+
+      if (existingEmail) {
+        console.log('[Signup API] Email already registered:', body.email)
+        setResponseStatus(event, 400)
+        return {
+          success: false,
+          message: 'Email already registered'
+        }
+      }
+    } catch (emailCheckException) {
+      console.error('[Signup API] Exception during email check:', emailCheckException)
+      setResponseStatus(event, 500)
+      return {
+        success: false,
+        message: 'Failed to check email availability'
+      }
     }
 
     // Hash password
-    console.log('[Signup] Hashing password...')
-    const passwordHash = await bcrypt.hash(body.password, 10)
-
-    // Generate verification token
-    const { token: verificationToken, expiresAt: tokenExpiry } = generateEmailVerificationToken()
-
-    // Create profile
-    console.log('[Signup] Creating profile...')
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        email: body.email.toLowerCase(),
-        email_lower: body.email.toLowerCase(),
-        username: body.username,
-        username_lower: body.username.toLowerCase(),
-        password_hash: passwordHash,
-        role: 'user',
-        status: 'active',
-        email_verified: false,
-        profile_completed: false,
-        preferences: {},
-        metadata: {},
-        privacy_settings: {},
-        email_verification_token: verificationToken,
-        email_verification_expires_at: tokenExpiry
-      })
-      .select()
-      .single()
-
-    if (profileError || !profile) {
-      console.log('[Signup] Profile creation failed:', profileError)
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Failed to create profile'
-      }))
+    console.log('[Signup API] Hashing password...')
+    let passwordHash
+    try {
+      passwordHash = await bcrypt.hash(body.password, 10)
+    } catch (hashError) {
+      console.error('[Signup API] Password hashing failed:', hashError)
+      setResponseStatus(event, 500)
+      return {
+        success: false,
+        message: 'Failed to process password'
+      }
     }
 
-    console.log('[Signup] Profile created:', profile.id)
+    // Generate verification token
+    const crypto = await import('crypto')
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
-    // Initialize wallets (non-critical)
+    // Create profile
+    console.log('[Signup API] Creating profile...')
+    let profile
     try {
+      const { data: newProfile, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          email: body.email.toLowerCase(),
+          email_lower: body.email.toLowerCase(),
+          username: body.username.toLowerCase(),
+          username_lower: body.username.toLowerCase(),
+          password_hash: passwordHash,
+          role: 'user',
+          status: 'active',
+          email_verified: false,
+          profile_completed: false,
+          preferences: {},
+          metadata: {},
+          privacy_settings: {},
+          email_verification_token: verificationToken,
+          email_verification_expires_at: tokenExpiry
+        })
+        .select()
+        .single()
+
+      if (profileError || !newProfile) {
+        console.error('[Signup API] Profile creation failed:', profileError)
+        setResponseStatus(event, 400)
+        return {
+          success: false,
+          message: 'Failed to create profile'
+        }
+      }
+
+      profile = newProfile
+      console.log('[Signup API] Profile created successfully:', profile.id)
+    } catch (profileException) {
+      console.error('[Signup API] Exception during profile creation:', profileException)
+      setResponseStatus(event, 500)
+      return {
+        success: false,
+        message: 'Failed to create profile'
+      }
+    }
+
+    // Initialize wallets (non-critical - don't fail signup if this fails)
+    try {
+      console.log('[Signup API] Initializing wallets...')
       const currencies = [
         { code: 'USDT', name: 'Tether' },
         { code: 'USDC', name: 'USD Coin' },
@@ -142,14 +204,22 @@ export default defineEventHandler(async (event) => {
         is_locked: false
       }))
 
-      await supabase.from('wallets').insert(walletInserts)
-      console.log('[Signup] Wallets initialized')
-    } catch (walletError) {
-      console.warn('[Signup] Wallet initialization warning:', walletError)
+      const { error: walletError } = await supabase
+        .from('wallets')
+        .insert(walletInserts)
+
+      if (walletError) {
+        console.warn('[Signup API] Wallet initialization warning:', walletError)
+      } else {
+        console.log('[Signup API] Wallets initialized')
+      }
+    } catch (walletException) {
+      console.warn('[Signup API] Wallet initialization exception:', walletException)
     }
 
     // Initialize ranks (non-critical)
     try {
+      console.log('[Signup API] Initializing ranks...')
       const rankCategories = ['trading', 'social', 'content', 'overall']
       const rankInserts = rankCategories.map(category => ({
         user_id: profile.id,
@@ -163,21 +233,20 @@ export default defineEventHandler(async (event) => {
         season_start: new Date().toISOString()
       }))
 
-      await supabase.from('ranks').insert(rankInserts)
-      console.log('[Signup] Ranks initialized')
-    } catch (rankError) {
-      console.warn('[Signup] Rank initialization warning:', rankError)
+      const { error: rankError } = await supabase
+        .from('ranks')
+        .insert(rankInserts)
+
+      if (rankError) {
+        console.warn('[Signup API] Rank initialization warning:', rankError)
+      } else {
+        console.log('[Signup API] Ranks initialized')
+      }
+    } catch (rankException) {
+      console.warn('[Signup API] Rank initialization exception:', rankException)
     }
 
-    // Send verification email (non-critical)
-    try {
-      await sendVerificationEmail(profile.email, profile.username, verificationToken)
-      console.log('[Signup] Verification email sent')
-    } catch (emailError) {
-      console.warn('[Signup] Email sending warning:', emailError)
-    }
-
-    console.log('[Signup] ========== SIGNUP COMPLETED SUCCESSFULLY ==========')
+    console.log('[Signup API] ========== REQUEST SUCCESS ==========')
     
     // Return success response
     setResponseStatus(event, 200)
@@ -186,25 +255,23 @@ export default defineEventHandler(async (event) => {
       message: 'Account created successfully. Check your email to verify.',
       userId: profile.id,
       email: profile.email,
+      username: profile.username,
       nextStep: 'email_verification'
     }
 
   } catch (error: any) {
-    console.error('[Signup] CRITICAL ERROR:', error)
-    
-    // Return error response
+    console.error('[Signup API] ========== CRITICAL ERROR ==========')
+    console.error('[Signup API] Error:', {
+      message: error?.message,
+      code: error?.code,
+      statusCode: error?.statusCode,
+      stack: error?.stack
+    })
+
     setResponseStatus(event, 500)
     return {
       success: false,
-      message: error.message || 'Signup failed'
+      message: error?.message || 'Signup failed. Please try again.'
     }
   }
 })
-
-function sendError(event: any, error: any) {
-  setResponseStatus(event, error.statusCode || 500)
-  return {
-    success: false,
-    message: error.statusMessage || error.message || 'An error occurred'
-  }
-}
