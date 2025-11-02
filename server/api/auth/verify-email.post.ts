@@ -5,37 +5,55 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
 
   try {
-    console.log('[Verify Email] REQUEST RECEIVED')
-    
-    const body = await readBody(event)
+    console.log('[Verify Email] ========== START ==========')
 
-    if (!body?.token) {
-      console.log('[Verify Email] VALIDATION FAILED: Missing token')
+    let body: any
+    try {
+      body = await readBody(event)
+    } catch (e) {
+      console.error('[Verify Email] Body parse error:', e)
       setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'Verification token is required'
-      }
+      return { success: false, message: 'Invalid request body' }
     }
 
-    const { serverSupabaseClient } = await import('#supabase/server')
-    const supabase = await serverSupabaseClient(event)
+    const { token } = body || {}
+
+    if (!token) {
+      console.log('[Verify Email] Missing token')
+      setResponseStatus(event, 400)
+      return { success: false, message: 'Verification token is required' }
+    }
+
+    let supabase: any
+    try {
+      const { serverSupabaseClient } = await import('#supabase/server')
+      supabase = await serverSupabaseClient(event)
+    } catch (e) {
+      console.error('[Verify Email] Supabase init error:', e)
+      setResponseStatus(event, 500)
+      return { success: false, message: 'Database connection failed' }
+    }
 
     // Find profile with token
-    console.log('[Verify Email] Looking up token...')
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email_verification_token', body.token)
-      .single()
+    let profile: any
+    try {
+      const { data: foundProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email_verification_token', token)
+        .single()
 
-    if (!profile) {
-      console.log('[Verify Email] Invalid token')
-      setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'Invalid verification token'
+      if (!foundProfile) {
+        console.log('[Verify Email] Invalid token')
+        setResponseStatus(event, 400)
+        return { success: false, message: 'Invalid verification token' }
       }
+
+      profile = foundProfile
+    } catch (e) {
+      console.error('[Verify Email] Profile query error:', e)
+      setResponseStatus(event, 400)
+      return { success: false, message: 'Invalid verification token' }
     }
 
     // Check expiry
@@ -43,35 +61,34 @@ export default defineEventHandler(async (event) => {
     if (new Date() > expiresAt) {
       console.log('[Verify Email] Token expired')
       setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'Verification token has expired'
-      }
+      return { success: false, message: 'Verification token has expired' }
     }
 
     // Update profile
-    console.log('[Verify Email] Updating profile...')
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        email_verified: true,
-        email_verification_token: null,
-        email_verification_expires_at: null
-      })
-      .eq('id', profile.id)
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          email_verified: true,
+          email_verification_token: null,
+          email_verification_expires_at: null
+        })
+        .eq('id', profile.id)
 
-    if (updateError) {
-      console.log('[Verify Email] Update failed:', updateError)
-      setResponseStatus(event, 500)
-      return {
-        success: false,
-        message: 'Failed to verify email'
+      if (updateError) {
+        console.error('[Verify Email] Update error:', updateError)
+        setResponseStatus(event, 500)
+        return { success: false, message: 'Failed to verify email' }
       }
+    } catch (e) {
+      console.error('[Verify Email] Update exception:', e)
+      setResponseStatus(event, 500)
+      return { success: false, message: 'Failed to verify email' }
     }
 
-    console.log('[Verify Email] SUCCESS')
+    console.log('[Verify Email] ========== SUCCESS ==========')
     setResponseStatus(event, 200)
-    
+
     return {
       success: true,
       message: 'Email verified successfully',
@@ -79,13 +96,13 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Verify Email] CRITICAL ERROR:', error?.message || error)
+    console.error('[Verify Email] ========== CRITICAL ERROR ==========')
+    console.error('[Verify Email] Error:', error?.message || error)
+
     setResponseStatus(event, 500)
-    
     return {
       success: false,
       message: error?.message || 'Verification failed'
     }
   }
 })
-
