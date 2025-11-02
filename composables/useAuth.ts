@@ -1,9 +1,8 @@
-// FILE: /composables/useAuth.ts - COMPLETE WORKING VERSION
-// Authentication composable with robust error handling
+// FILE: /composables/useAuth.ts - FINAL VERSION
+// Authentication composable
 // ============================================================================
 
 import { ref, computed } from 'vue'
-import type { AuthResponse, User } from '~/types/auth'
 
 export const useAuth = () => {
   const authStore = useAuthStore()
@@ -16,9 +15,6 @@ export const useAuth = () => {
   const user = computed(() => authStore.user)
   const token = computed(() => authStore.token)
 
-  /**
-   * Extract error message from various error formats
-   */
   const extractErrorMessage = (err: any): string => {
     if (typeof err === 'string') return err
     if (err?.data?.statusMessage) return err.data.statusMessage
@@ -28,9 +24,6 @@ export const useAuth = () => {
     return 'An error occurred'
   }
 
-  /**
-   * Sign up with email, password, username
-   */
   const signup = async (email: string, password: string, username: string) => {
     try {
       loading.value = true
@@ -40,11 +33,7 @@ export const useAuth = () => {
 
       const response = await $fetch<any>('/api/auth/signup', {
         method: 'POST',
-        body: {
-          email,
-          password,
-          username
-        }
+        body: { email, password, username }
       })
 
       console.log('[useAuth] Signup response:', response)
@@ -80,9 +69,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Login with email and password
-   */
   const login = async (email: string, password: string) => {
     try {
       loading.value = true
@@ -92,10 +78,7 @@ export const useAuth = () => {
 
       const response = await $fetch<any>('/api/auth/login', {
         method: 'POST',
-        body: {
-          email,
-          password
-        }
+        body: { email, password }
       })
 
       console.log('[useAuth] Login response:', response)
@@ -104,7 +87,6 @@ export const useAuth = () => {
         throw new Error(response?.message || 'Login failed')
       }
 
-      // Store token and user data
       authStore.setToken(response.token)
       authStore.setUser(response.user)
 
@@ -128,9 +110,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Verify email with token
-   */
   const verifyEmail = async (token: string) => {
     try {
       loading.value = true
@@ -163,9 +142,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Resend verification email
-   */
   const resendVerification = async (email: string) => {
     try {
       loading.value = true
@@ -198,17 +174,12 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Logout
-   */
   const logout = async () => {
     try {
       loading.value = true
       error.value = ''
 
-      await $fetch('/api/auth/logout', {
-        method: 'POST'
-      })
+      await $fetch('/api/auth/logout', { method: 'POST' })
 
       authStore.clearAuth()
       await router.push('/auth/signin')
@@ -241,5 +212,3 @@ export const useAuth = () => {
     logout
   }
 }
-
-
