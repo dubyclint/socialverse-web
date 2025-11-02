@@ -1,15 +1,17 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// FILE: /nuxt.config.ts - COMPLETE FIXED VERSION
+// ============================================================================
+
 import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
 export default defineNuxtConfig({
-  // ✅ Core Configuration - DYNAMIC SSR MODE
+  // ✅ Core Configuration - DISABLE SSR (THIS IS THE FIX)
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
-  ssr: true,
+  ssr: false,  // ✅ CRITICAL: Changed from true to false
   
-  // ✅ Modules - REMOVED @nuxtjs/i18n to use custom API
+  // ✅ Modules
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
@@ -17,7 +19,7 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
   ],
 
-  // ✅ Supabase Configuration - Using Environment Variables
+  // ✅ Supabase Configuration
   supabase: {
     url: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     key: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
@@ -43,7 +45,6 @@ export default defineNuxtConfig({
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       apiBase: process.env.API_BASE || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
-      // ✅ NEW: Socket.IO Configuration
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       rbac: {
         protectedRoutes: ['/dashboard', '/admin', '/settings', '/profile', '/chat', '/post'],
@@ -51,14 +52,14 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ Nitro Server Configuration - DYNAMIC SSR (NOT STATIC)
+  // ✅ Nitro Server Configuration
   nitro: {
     preset: 'node-server',
     prerender: {
       crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
       ignore: ['/admin', '/api', '/auth'],
-      failOnError: false,  // ✅ ADDED: Don't fail build if prerender errors occur
+      failOnError: false,
     },
     storage: {
       redis: {
@@ -154,9 +155,8 @@ export default defineNuxtConfig({
 
         console.log('🔄 Generating Supabase types...')
         try {
-          execSync('npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > types/supabase.ts', {
+          execSync('npx supabase gen types typescript --project-id cvzrhucbvezqwbesthek > types/database.types.ts', {
             stdio: 'inherit',
-            shell: true,
           })
           console.log('✅ Supabase types generated')
         } catch (error) {
