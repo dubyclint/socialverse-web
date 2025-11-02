@@ -1,5 +1,5 @@
-// FILE: /composables/useAuth.ts - CORRECTED
-// Authentication composable
+// FILE: /composables/useAuth.ts - FIXED
+// Authentication composable with proper error handling
 // ============================================================================
 
 import { ref, computed } from 'vue'
@@ -26,7 +26,7 @@ export const useAuth = () => {
 
       console.log('[useAuth] Signup attempt:', { email, username })
 
-      const response = await $fetch('/api/auth/signup', {
+      const response = await $fetch<AuthResponse>('/api/auth/signup', {
         method: 'POST',
         body: {
           email,
@@ -102,10 +102,6 @@ export const useAuth = () => {
       // Store token and user data
       authStore.setToken(response.token)
       authStore.setUser(response.user)
-
-      // Set auth header for future requests
-      const headers = useRequestHeaders(['cookie'])
-      headers['Authorization'] = `Bearer ${response.token}`
 
       return {
         success: true,
@@ -233,3 +229,4 @@ export const useAuth = () => {
     logout
   }
 }
+
