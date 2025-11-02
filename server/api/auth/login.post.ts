@@ -1,5 +1,7 @@
-// FILE: /server/api/auth/login.post.ts - FIXED VERSION
+// FILE: /server/api/auth/login.post.ts - COMPLETE WORKING VERSION
 // ============================================================================
+
+import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
@@ -25,11 +27,17 @@ export default defineEventHandler(async (event) => {
       return { success: false, message: 'Email and password are required' }
     }
 
-    // Get Supabase client - FIXED IMPORT
+    // Get Supabase client - DIRECT INITIALIZATION
     let supabase: any
     try {
-      const { getSupabaseClient } = await import('~/server/utils/supabase')
-      supabase = getSupabaseClient()
+      const supabaseUrl = process.env.SUPABASE_URL
+      const supabaseKey = process.env.SUPABASE_KEY
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Missing Supabase credentials')
+      }
+
+      supabase = createClient(supabaseUrl, supabaseKey)
       console.log('[Login] Supabase client initialized')
     } catch (e) {
       console.error('[Login] Supabase init error:', e)
