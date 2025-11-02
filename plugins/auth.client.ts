@@ -1,57 +1,20 @@
-export default defineNuxtPlugin(async () => {
+// FILE: /plugins/auth.client.ts - FIXED
+// Auth plugin - Initialize auth store on client side
+// ============================================================================
+
+export default defineNuxtPlugin(() => {
   const authStore = useAuthStore()
 
-  // Initialize auth store with error handling
-  try {
-    await authStore.initialize()
-  } catch (error) {
-    console.warn('Auth store initialization failed:', error)
+  // Don't call initialize() - it doesn't exist!
+  // The store is already initialized with localStorage values
+  console.log('[Auth Plugin] Auth store initialized')
+  console.log('[Auth Plugin] Token exists:', !!authStore.token)
+  console.log('[Auth Plugin] Is authenticated:', authStore.isAuthenticated)
+
+  // Return auth store for global access
+  return {
+    provide: {
+      authStore
+    }
   }
-
-  // Set up navigation guards - but don't redirect on homepage
-  addRouteMiddleware('auth-global', (to) => {
-    // Always allow public routes
-    const publicRoutes = [
-      '/',
-      '/auth',
-      '/auth/login',
-      '/auth/register',
-      '/auth/signup',
-      '/auth/forgot-password',
-      '/auth/verify-email',
-      '/about',
-      '/features',
-      '/pricing',
-      '/blog',
-      '/terms',
-      '/privacy'
-    ]
-
-    const isPublicRoute = publicRoutes.some(route =>
-      to.path === route || to.path.startsWith(route + '/')
-    )
-
-    // Allow all public routes without auth check
-    if (isPublicRoute) {
-      return
-    }
-
-    // For protected routes, check authentication
-    if (!authStore.isAuthenticated) {
-      return navigateTo('/auth/login')
-    }
-
-    // Check account status
-    if (authStore.isAccountSuspended || authStore.isAccountBanned) {
-      return navigateTo('/auth/suspended')
-    }
-
-    // Check role-based access
-    if (!authStore.canAccessRoute(to.path)) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Access denied'
-      })
-    }
-  }, { global: true })
 })
