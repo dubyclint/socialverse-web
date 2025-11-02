@@ -1,5 +1,4 @@
-// FILE: /plugins/auth.client.ts - FINAL VERSION
-// Auth plugin
+// FILE: /plugins/auth.client.ts
 // ============================================================================
 
 export default defineNuxtPlugin(() => {
