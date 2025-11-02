@@ -1,29 +1,29 @@
-//server/api/auth/verify-email.post.ts - UPDATE
-// Email verification endpoint
+// FILE: /server/api/auth/verify-email.post.ts
+// Email verification
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
-import { isTokenExpired } from '~/server/utils/token'
-import { sendWelcomeEmail } from '~/server/utils/email'
 
 interface VerifyEmailRequest {
   token: string
 }
 
 export default defineEventHandler(async (event) => {
+  setResponseHeader(event, 'Content-Type', 'application/json')
+
   try {
     const supabase = await serverSupabaseClient(event)
     const body = await readBody<VerifyEmailRequest>(event)
 
-    // STEP 1: VALIDATE TOKEN
-    if (!body.token) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Verification token is required'
-      })
+    if (!body?.token) {
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Verification token is required'
+      }
     }
 
-    // STEP 2: FIND USER WITH TOKEN
+    // Find profile with this token
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -31,55 +31,54 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError || !profile) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid verification token'
-      })
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Invalid verification token'
+      }
     }
 
-    // STEP 3: CHECK TOKEN EXPIRY
-    if (isTokenExpired(profile.email_verification_expires_at)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Verification token has expired'
-      })
+    // Check if token is expired
+    const expiresAt = new Date(profile.email_verification_expires_at)
+    if (new Date() > expiresAt) {
+      setResponseStatus(event, 400)
+      return {
+        success: false,
+        message: 'Verification token has expired'
+      }
     }
 
-    // STEP 4: UPDATE PROFILE - MARK EMAIL AS VERIFIED
+    // Update profile to mark email as verified
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         email_verified: true,
         email_verification_token: null,
-        email_verification_expires_at: null,
-        updated_at: new Date().toISOString()
+        email_verification_expires_at: null
       })
       .eq('id', profile.id)
 
     if (updateError) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to verify email'
-      })
+      setResponseStatus(event, 500)
+      return {
+        success: false,
+        message: 'Failed to verify email'
+      }
     }
 
-    // STEP 5: SEND WELCOME EMAIL
-    try {
-      await sendWelcomeEmail(profile.email, profile.username)
-    } catch (emailError) {
-      console.warn('[VerifyEmail] Welcome email failed:', emailError)
-      // Don't fail verification if welcome email fails
-    }
-
-    // STEP 6: RETURN SUCCESS
+    setResponseStatus(event, 200)
     return {
       success: true,
       message: 'Email verified successfully',
-      nextStep: 'profile_completion'
+      nextStep: 'complete_profile'
     }
-
-  } catch (error) {
-    console.error('[VerifyEmail] Error:', error)
-    throw error
+  } catch (error: any) {
+    console.error('[Verify Email] Error:', error)
+    setResponseStatus(event, 500)
+    return {
+      success: false,
+      message: error.message || 'Verification failed'
+    }
   }
 })
+
