@@ -1,40 +1,20 @@
-// FILE: /server/api/auth/login.post.ts - PRODUCTION READY
-// User login with comprehensive error handling
+// FILE: /server/api/auth/login.post.ts - MINIMAL BULLETPROOF VERSION
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
-import bcrypt from 'bcrypt'
-
-interface LoginRequest {
-  email: string
-  password: string
-}
-
 export default defineEventHandler(async (event) => {
-  // CRITICAL: Set JSON response header IMMEDIATELY
+  // STEP 1: Set JSON header FIRST
   setResponseHeader(event, 'Content-Type', 'application/json')
+  setResponseHeader(event, 'Cache-Control', 'no-cache, no-store, must-revalidate')
+  setResponseStatus(event, 200)
 
   try {
-    console.log('[Login API] ========== REQUEST START ==========')
+    console.log('[Login] REQUEST RECEIVED')
+    
+    const body = await readBody(event)
+    console.log('[Login] Body parsed:', { email: body?.email })
 
-    // Read request body
-    let body: LoginRequest
-    try {
-      body = await readBody(event)
-    } catch (parseError) {
-      console.error('[Login API] Failed to parse request body:', parseError)
-      setResponseStatus(event, 400)
-      return {
-        success: false,
-        message: 'Invalid request format'
-      }
-    }
-
-    console.log('[Login API] Request data:', { email: body?.email })
-
-    // Validate required fields
-    if (!body?.email?.trim() || !body?.password?.trim()) {
-      console.log('[Login API] Validation failed: Missing email or password')
+    if (!body?.email || !body?.password) {
+      console.log('[Login] VALIDATION FAILED: Missing fields')
       setResponseStatus(event, 400)
       return {
         success: false,
@@ -42,65 +22,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Initialize Supabase client
-    let supabase
-    try {
-      supabase = await serverSupabaseClient(event)
-      console.log('[Login API] Supabase client initialized')
-    } catch (supabaseError) {
-      console.error('[Login API] Failed to initialize Supabase:', supabaseError)
-      setResponseStatus(event, 500)
-      return {
-        success: false,
-        message: 'Database connection failed'
-      }
-    }
+    const { serverSupabaseClient } = await import('#supabase/server')
+    const bcrypt = await import('bcrypt')
+    const jwt = await import('jsonwebtoken')
 
-    // Query profile by email
-    console.log('[Login API] Querying profile...')
-    let profile
-    try {
-      const { data: foundProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .ilike('email', body.email.toLowerCase())
-        .single()
+    const supabase = await serverSupabaseClient(event)
+    console.log('[Login] Supabase client ready')
 
-      if (profileError || !foundProfile) {
-        console.log('[Login API] User not found:', body.email)
-        setResponseStatus(event, 401)
-        return {
-          success: false,
-          message: 'Invalid email or password'
-        }
-      }
+    // Query profile
+    console.log('[Login] Querying profile...')
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('email', body.email.toLowerCase())
+      .single()
 
-      profile = foundProfile
-    } catch (profileException) {
-      console.error('[Login API] Exception during profile query:', profileException)
-      setResponseStatus(event, 500)
-      return {
-        success: false,
-        message: 'Failed to retrieve user profile'
-      }
-    }
-
-    // Verify password
-    console.log('[Login API] Verifying password...')
-    let passwordMatch = false
-    try {
-      passwordMatch = await bcrypt.compare(body.password, profile.password_hash)
-    } catch (bcryptError) {
-      console.error('[Login API] Password verification failed:', bcryptError)
-      setResponseStatus(event, 500)
-      return {
-        success: false,
-        message: 'Failed to verify password'
-      }
-    }
-
-    if (!passwordMatch) {
-      console.log('[Login API] Password mismatch for user:', body.email)
+    if (!profile) {
+      console.log('[Login] User not found')
       setResponseStatus(event, 401)
       return {
         success: false,
@@ -108,36 +46,36 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Generate JWT token
-    console.log('[Login API] Generating JWT token...')
-    let token
-    try {
-      const jwt = await import('jsonwebtoken')
-      const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-      
-      token = jwt.sign(
-        {
-          userId: profile.id,
-          email: profile.email,
-          username: profile.username,
-          role: profile.role
-        },
-        JWT_SECRET,
-        { expiresIn: '7d', algorithm: 'HS256' }
-      )
-    } catch (jwtError) {
-      console.error('[Login API] JWT generation failed:', jwtError)
-      setResponseStatus(event, 500)
+    // Verify password
+    console.log('[Login] Verifying password...')
+    const passwordMatch = await bcrypt.default.compare(body.password, profile.password_hash)
+
+    if (!passwordMatch) {
+      console.log('[Login] Password mismatch')
+      setResponseStatus(event, 401)
       return {
         success: false,
-        message: 'Failed to generate authentication token'
+        message: 'Invalid email or password'
       }
     }
 
-    console.log('[Login API] ========== REQUEST SUCCESS ==========')
+    // Generate JWT
+    console.log('[Login] Generating JWT...')
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+    const token = jwt.default.sign(
+      {
+        userId: profile.id,
+        email: profile.email,
+        username: profile.username,
+        role: profile.role
+      },
+      JWT_SECRET,
+      { expiresIn: '7d', algorithm: 'HS256' }
+    )
 
-    // Return success response
+    console.log('[Login] SUCCESS')
     setResponseStatus(event, 200)
+
     return {
       success: true,
       message: 'Login successful',
@@ -155,18 +93,12 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Login API] ========== CRITICAL ERROR ==========')
-    console.error('[Login API] Error:', {
-      message: error?.message,
-      code: error?.code,
-      statusCode: error?.statusCode,
-      stack: error?.stack
-    })
-
+    console.error('[Login] CRITICAL ERROR:', error?.message || error)
     setResponseStatus(event, 500)
+    
     return {
       success: false,
-      message: error?.message || 'Login failed. Please try again.'
+      message: error?.message || 'Login failed'
     }
   }
 })
