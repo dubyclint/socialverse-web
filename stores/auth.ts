@@ -1,5 +1,5 @@
-// FILE: /stores/auth.ts - COMPLETE WORKING VERSION
-// Authentication store with Pinia
+// FILE: /stores/auth.ts - FINAL VERSION
+// Authentication store
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -7,7 +7,6 @@ import { ref, computed } from 'vue'
 import type { User } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
-  // Initialize from localStorage
   const token = ref<string | null>(
     typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
   )
