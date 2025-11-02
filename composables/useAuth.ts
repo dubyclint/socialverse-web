@@ -1,5 +1,5 @@
-// FILE: /composables/useAuth.ts - FIXED
-// Authentication composable with proper error handling
+// FILE: /composables/useAuth.ts - ENHANCED
+// Authentication composable with robust error handling
 // ============================================================================
 
 import { ref, computed } from 'vue'
@@ -15,6 +15,18 @@ export const useAuth = () => {
   const isAuthenticated = computed(() => !!authStore.token)
   const user = computed(() => authStore.user)
   const token = computed(() => authStore.token)
+
+  /**
+   * Extract error message from various error formats
+   */
+  const extractErrorMessage = (err: any): string => {
+    if (typeof err === 'string') return err
+    if (err?.data?.statusMessage) return err.data.statusMessage
+    if (err?.statusMessage) return err.statusMessage
+    if (err?.message) return err.message
+    if (err?.error) return err.error
+    return 'An error occurred'
+  }
 
   /**
    * Sign up with email, password, username
@@ -37,8 +49,12 @@ export const useAuth = () => {
 
       console.log('[useAuth] Signup response:', response)
 
-      // Check if response has success property
-      if (response && response.success === true) {
+      // Validate response
+      if (!response) {
+        throw new Error('No response from server')
+      }
+
+      if (response.success === true) {
         console.log('[useAuth] Signup successful')
         return {
           success: true,
@@ -47,27 +63,13 @@ export const useAuth = () => {
           userId: response.userId,
           email: response.email
         }
-      } else if (response && response.success === false) {
-        throw new Error(response.message || 'Signup failed')
       } else {
-        // Response might not have success property, assume it's an error
-        throw new Error(response?.message || 'Signup failed - invalid response')
+        throw new Error(response.message || 'Signup failed')
       }
 
     } catch (err: any) {
       console.error('[useAuth] Signup error:', err)
-      
-      // Extract error message
-      let errorMessage = 'Signup failed'
-      
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      } else if (typeof err === 'string') {
-        errorMessage = err
-      }
-
+      const errorMessage = extractErrorMessage(err)
       error.value = errorMessage
       
       return {
@@ -87,6 +89,8 @@ export const useAuth = () => {
       loading.value = true
       error.value = ''
 
+      console.log('[useAuth] Login attempt:', { email })
+
       const response = await $fetch<AuthResponse>('/api/auth/login', {
         method: 'POST',
         body: {
@@ -95,24 +99,30 @@ export const useAuth = () => {
         }
       })
 
-      if (!response.success || !response.token || !response.user) {
-        throw new Error(response.message || 'Login failed')
+      console.log('[useAuth] Login response:', response)
+
+      if (!response?.success || !response?.token || !response?.user) {
+        throw new Error(response?.message || 'Login failed')
       }
 
       // Store token and user data
       authStore.setToken(response.token)
       authStore.setUser(response.user)
 
+      console.log('[useAuth] Login successful')
+
       return {
         success: true,
         user: response.user
       }
     } catch (err: any) {
-      error.value = err.message || 'Login failed'
       console.error('[useAuth] Login error:', err)
+      const errorMessage = extractErrorMessage(err)
+      error.value = errorMessage
+      
       return {
         success: false,
-        error: error.value
+        error: errorMessage
       }
     } finally {
       loading.value = false
@@ -132,8 +142,8 @@ export const useAuth = () => {
         body: { token }
       })
 
-      if (!response.success) {
-        throw new Error(response.message || 'Email verification failed')
+      if (!response?.success) {
+        throw new Error(response?.message || 'Email verification failed')
       }
 
       return {
@@ -141,11 +151,13 @@ export const useAuth = () => {
         nextStep: response.nextStep
       }
     } catch (err: any) {
-      error.value = err.message || 'Email verification failed'
       console.error('[useAuth] Verify email error:', err)
+      const errorMessage = extractErrorMessage(err)
+      error.value = errorMessage
+      
       return {
         success: false,
-        error: error.value
+        error: errorMessage
       }
     } finally {
       loading.value = false
@@ -165,8 +177,8 @@ export const useAuth = () => {
         body: { email }
       })
 
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to resend verification email')
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to resend verification email')
       }
 
       return {
@@ -174,11 +186,13 @@ export const useAuth = () => {
         message: response.message
       }
     } catch (err: any) {
-      error.value = err.message || 'Failed to resend verification email'
       console.error('[useAuth] Resend verification error:', err)
+      const errorMessage = extractErrorMessage(err)
+      error.value = errorMessage
+      
       return {
         success: false,
-        error: error.value
+        error: errorMessage
       }
     } finally {
       loading.value = false
@@ -205,11 +219,13 @@ export const useAuth = () => {
 
       return { success: true }
     } catch (err: any) {
-      error.value = err.message || 'Logout failed'
       console.error('[useAuth] Logout error:', err)
+      const errorMessage = extractErrorMessage(err)
+      error.value = errorMessage
+      
       return {
         success: false,
-        error: error.value
+        error: errorMessage
       }
     } finally {
       loading.value = false
