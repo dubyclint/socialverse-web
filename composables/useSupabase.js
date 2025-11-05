@@ -1,13 +1,19 @@
 // FILE: /composables/useSupabase.js
-export const useSupabase = () => {
-  if (!process.client) {
-    return null
-  }
+// Supabase client composable - Safe wrapper
 
+export const useSupabase = () => {
   try {
-    return useSupabaseClient()
+    // Get the Supabase client from the plugin
+    const { $supabase } = useNuxtApp()
+    
+    if (!$supabase) {
+      console.warn('[useSupabase] Supabase client not available')
+      return null
+    }
+    
+    return $supabase
   } catch (error) {
-    console.warn('[useSupabase] useSupabaseClient not available yet:', error.message)
+    console.warn('[useSupabase] Error accessing Supabase:', error.message)
     return null
   }
 }
