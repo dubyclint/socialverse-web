@@ -1,4 +1,4 @@
-<!-- app.vue - COMPLETE FIXED VERSION -->
+<!-- app.vue -->
 <template>
   <NuxtLayout>
     <div id="app">
@@ -22,13 +22,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user'
-import { useSocket } from '~/composables/useSocket'
 
 // Stores
 const userStore = useUserStore()
-
-// Composables
-const { initializeSocket } = useSocket()
 
 // Reactive data
 const isLoading = ref(false)
@@ -43,16 +39,10 @@ onMounted(async () => {
     // Initialize user session if user is authenticated
     if (userStore.isAuthenticated) {
       console.log('[App] Initializing session for user')
-      await userStore.initializeSession()
-    }
-    
-    // Initialize socket connection if authenticated (optional)
-    if (userStore.isAuthenticated) {
       try {
-        initializeSocket()
+        await userStore.initializeSession()
       } catch (err) {
-        console.warn('[App] Socket initialization failed (non-critical):', err)
-        // Don't break the app if socket fails
+        console.warn('[App] Session initialization failed:', err)
       }
     }
   } catch (error) {
