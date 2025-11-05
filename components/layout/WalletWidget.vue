@@ -1162,7 +1162,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 // Page meta and composables
 const supabase = useSupabase()
-const user = ref(null)
+const user = ref(null) 
+  
 // Reactive data
 const showWallet = ref(false)
 const showWalletModal = ref(false)
