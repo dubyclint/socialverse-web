@@ -1,36 +1,36 @@
 // middleware/session-check.ts
-// Session check middleware - FIXED VERSION
-// Uses custom Supabase plugin instead of auto-imports
+// Session check middleware - Uses auth store only
 
-export default defineNuxtRouteMiddleware(async (to) => {
-  // Skip for auth routes
-  const authRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email', '/auth/reset-password', '/auth/confirm']
-  if (authRoutes.some(route => to.path.startsWith(route))) {
-    return
-  }
+export default defineNuxtRouteMiddleware((to) => {
+  // Public routes - no auth required
+  const publicRoutes = ['/', '/explore', '/auth/login', '/auth/signup', '/TermsAndPolicy']
+  
+  // Auth routes - only for unauthenticated users
+  const authRoutes = ['/auth/login', '/auth/signup']
+  
+  // Protected routes - require authentication
+  const protectedRoutes = ['/feed', '/chat', '/notifications', '/profile', '/my-pocket', '/inbox']
 
-  // Skip for public routes
-  const publicRoutes = ['/', '/explore', '/feed']
-  if (publicRoutes.some(route => to.path === route || to.path.startsWith(route))) {
-    return
-  }
-
-  // Only check session on client side
+  // Skip on server side
   if (process.server) {
     return
   }
 
   try {
-    // Get auth token from localStorage (using auth store instead of Supabase)
     const authStore = useAuthStore()
-    
-    // If no token and not on public route, redirect to login
-    if (!authStore.isAuthenticated && !publicRoutes.some(route => to.path === route)) {
+    const isAuthenticated = authStore.isAuthenticated
+
+    // If user is authenticated and trying to access auth pages, redirect to feed
+    if (isAuthenticated && authRoutes.some(route => to.path.startsWith(route))) {
+      return navigateTo('/feed')
+    }
+
+    // If user is NOT authenticated and trying to access protected pages, redirect to login
+    if (!isAuthenticated && protectedRoutes.some(route => to.path.startsWith(route))) {
       return navigateTo('/auth/login')
     }
   } catch (error) {
     console.error('[session-check] Middleware error:', error)
-    // Don't break the app if middleware fails
     return
   }
 })
