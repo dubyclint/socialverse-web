@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   ssr: false,
   
   nitro: {
@@ -10,19 +10,9 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
-    '@nuxtjs/supabase',
+    // COMPLETELY REMOVED: '@nuxtjs/supabase'
     '@nuxtjs/color-mode',
   ],
-
-  supabase: {
-    url: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-    key: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
-    redirectOptions: {
-      login: '/auth/login',
-      callback: '/auth/confirm',
-      exclude: ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email'],
-    },
-  },
 
   runtimeConfig: {
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
@@ -49,6 +39,7 @@ export default defineNuxtConfig({
       cssCodeSplit: false,
       minify: 'terser',
       sourcemap: false,
+      chunkSizeWarningLimit: 1000,
     },
   },
 
