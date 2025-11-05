@@ -1,4 +1,4 @@
-<!-- app.vue -->
+<!-- app.vue - COMPLETE FIXED VERSION -->
 <template>
   <NuxtLayout>
     <div id="app">
