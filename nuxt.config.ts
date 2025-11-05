@@ -1,12 +1,8 @@
-// FILE: /nuxt.config.ts - FIXED VERSION
-// Add this nitro configuration to your existing config
-
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
   ssr: false,
   
-  // ADD THIS SECTION - Nitro configuration for API routes
   nitro: {
     srcDir: 'server',
   },
@@ -46,6 +42,28 @@ export default defineNuxtConfig({
 
   build: {
     transpile: ['@supabase/supabase-js'],
+    // ADD THIS SECTION - Fix CSS caching issues
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
+
+  // ADD THIS SECTION - Vite configuration for CSS handling
+  vite: {
+    build: {
+      cssCodeSplit: false,
+      minify: 'terser',
+      sourcemap: false,
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          additionalData: '@import "@/assets/styles/variables.scss";',
+        },
+      },
+    },
   },
 
   app: {
