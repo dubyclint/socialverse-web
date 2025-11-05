@@ -1,4 +1,4 @@
-// FILE: /nuxt.config.ts - SIMPLIFIED NITRO CONFIG
+// FILE: /nuxt.config.ts - COMPLETE FIXED VERSION (BASED ON YOUR ACTUAL REPO)
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -36,21 +36,6 @@ export default defineNuxtConfig({
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       apiBase: process.env.API_BASE || 'https://socialverse-web.zeabur.app',
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
-    },
-  },
-
-  // ✅ CRITICAL: Nitro configuration to ensure API routes are built
-  nitro: {
-    preset: 'node-server',
-    
-    // Ensure server directory is scanned
-    srcDir: 'server',
-    
-    prerender: {
-      crawlLinks: false,
-      routes: ['/sitemap.xml', '/robots.txt'],
-      ignore: ['/admin', '/api', '/auth'],
-      failOnError: false,
     },
   },
 
