@@ -5,6 +5,8 @@
   "version": "1.0.0",
   "description": "SocialVerse - A modern social networking platform",
   "scripts": {
+    "clean": "rm -rf .nuxt .output .nitro node_modules/.cache dist",
+    "clean:build": "npm run clean && npm run build",
     "build": "nuxt build",
     "build:analyze": "nuxt build --analyze",
     "build:report": "nuxi analyze",
@@ -73,5 +75,4 @@
     }
   }
 }
-
 
