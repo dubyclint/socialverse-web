@@ -1,10 +1,15 @@
-// FILE: /nuxt.config.ts - COMPLETE FIXED VERSION (BASED ON YOUR ACTUAL REPO)
-// ============================================================================
+// FILE: /nuxt.config.ts - FIXED VERSION
+// Add this nitro configuration to your existing config
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
   ssr: false,
+  
+  // ADD THIS SECTION - Nitro configuration for API routes
+  nitro: {
+    srcDir: 'server',
+  },
   
   modules: [
     '@nuxtjs/tailwindcss',
