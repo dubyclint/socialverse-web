@@ -1,17 +1,15 @@
-// FILE: /server/api/auth/signup.post.ts - COMPLETE WORKING VERSION
-// ============================================================================
+// FILE: /server/api/auth/signup.post.ts
+// FIXED VERSION - Uses Supabase Auth + profiles table
 
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
-  // CRITICAL: Set headers FIRST
   setResponseHeader(event, 'Content-Type', 'application/json')
   setResponseHeader(event, 'Cache-Control', 'no-cache, no-store, must-revalidate')
   
   try {
     console.log('[Signup] ========== START ==========')
     
-    // Parse body
     let body: any
     try {
       body = await readBody(event)
@@ -21,188 +19,118 @@ export default defineEventHandler(async (event) => {
       return { success: false, message: 'Invalid request body' }
     }
 
-    const { email, password, username } = body || {}
+    const { email, password, username, full_name } = body || {}
 
-    // Validate inputs
     if (!email || !password || !username) {
-      console.log('[Signup] Missing fields')
+      console.log('[Signup] Missing required fields')
       setResponseStatus(event, 400)
       return { success: false, message: 'Email, password, and username are required' }
     }
 
-    // Validate email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      console.log('[Signup] Invalid email')
+      console.log('[Signup] Invalid email format')
       setResponseStatus(event, 400)
       return { success: false, message: 'Invalid email format' }
     }
 
-    // Validate password
-    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
-      console.log('[Signup] Invalid password')
+    if (password.length < 8) {
+      console.log('[Signup] Password too short')
       setResponseStatus(event, 400)
-      return { success: false, message: 'Password must be at least 8 characters with uppercase, number, and special character' }
+      return { success: false, message: 'Password must be at least 8 characters' }
     }
 
-    // Get Supabase client - DIRECT INITIALIZATION
-    let supabase: any
-    try {
-      const supabaseUrl = process.env.SUPABASE_URL
-      const supabaseKey = process.env.SUPABASE_KEY
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
+      console.log('[Signup] Invalid username format')
+      setResponseStatus(event, 400)
+      return { success: false, message: 'Username must be 3-20 characters (alphanumeric, underscore, hyphen only)' }
+    }
 
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error('Missing Supabase credentials')
-      }
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-      supabase = createClient(supabaseUrl, supabaseKey)
-      console.log('[Signup] Supabase client initialized')
-    } catch (e) {
-      console.error('[Signup] Supabase init error:', e)
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[Signup] Missing Supabase credentials')
       setResponseStatus(event, 500)
-      return { success: false, message: 'Database connection failed' }
+      return { success: false, message: 'Server configuration error' }
     }
 
-    // Check if email exists
-    try {
-      const { data: existing, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.toLowerCase())
-        .single()
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('[Signup] Supabase client initialized')
 
-      if (!checkError && existing) {
-        console.log('[Signup] Email already exists')
-        setResponseStatus(event, 400)
-        return { success: false, message: 'Email already registered' }
-      }
-    } catch (e: any) {
-      console.warn('[Signup] Email check warning:', e?.message)
-    }
+    console.log('[Signup] Checking if username exists...')
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .single()
 
-    // Hash password
-    let passwordHash: string
-    try {
-      const bcrypt = await import('bcrypt')
-      passwordHash = await bcrypt.default.hash(password, 10)
-      console.log('[Signup] Password hashed successfully')
-    } catch (e) {
-      console.error('[Signup] Hash error:', e)
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('[Signup] Error checking username:', checkError)
       setResponseStatus(event, 500)
-      return { success: false, message: 'Failed to process password' }
+      return { success: false, message: 'Database error' }
     }
 
-    // Generate token
-    let verificationToken: string
-    try {
-      const crypto = await import('crypto')
-      verificationToken = crypto.default.randomBytes(32).toString('hex')
-    } catch (e) {
-      console.error('[Signup] Token generation error:', e)
-      setResponseStatus(event, 500)
-      return { success: false, message: 'Failed to generate verification token' }
+    if (existingProfile) {
+      console.log('[Signup] Username already exists')
+      setResponseStatus(event, 409)
+      return { success: false, message: 'Username already taken' }
     }
 
-    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    console.log('[Signup] Creating auth user...')
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: false,
+    })
 
-    // Create profile
-    let profile: any
-    try {
-      const { data: newProfile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          email: email.toLowerCase(),
-          email_lower: email.toLowerCase(),
-          username: username.toLowerCase(),
-          username_lower: username.toLowerCase(),
-          password_hash: passwordHash,
-          role: 'user',
-          status: 'active',
-          email_verified: false,
-          profile_completed: false,
-          preferences: {},
-          metadata: {},
-          privacy_settings: {},
-          email_verification_token: verificationToken,
-          email_verification_expires_at: tokenExpiry
-        })
-        .select()
-        .single()
-
-      if (profileError || !newProfile) {
-        console.error('[Signup] Profile creation error:', profileError)
-        setResponseStatus(event, 400)
-        return { success: false, message: 'Failed to create profile' }
-      }
-
-      profile = newProfile
-      console.log('[Signup] Profile created:', profile.id)
-    } catch (e) {
-      console.error('[Signup] Profile creation exception:', e)
-      setResponseStatus(event, 500)
-      return { success: false, message: 'Failed to create profile' }
+    if (authError) {
+      console.error('[Signup] Auth error:', authError)
+      setResponseStatus(event, 400)
+      return { success: false, message: authError.message || 'Failed to create user' }
     }
 
-    // Initialize wallets (non-critical)
-    try {
-      const currencies = [
-        { code: 'USDT', name: 'Tether' },
-        { code: 'USDC', name: 'USD Coin' },
-        { code: 'BTC', name: 'Bitcoin' },
-        { code: 'ETH', name: 'Ethereum' },
-        { code: 'SOL', name: 'Solana' },
-        { code: 'MATIC', name: 'Polygon' },
-        { code: 'XAUT', name: 'Tether Gold' }
-      ]
+    const userId = authData.user.id
+    console.log('[Signup] Auth user created:', userId)
 
-      await supabase.from('wallets').insert(
-        currencies.map(c => ({
-          user_id: profile.id,
-          currency_code: c.code,
-          currency_name: c.name,
-          balance: 0,
-          locked_balance: 0,
-          is_locked: false
-        }))
-      )
-      console.log('[Signup] Wallets initialized')
-    } catch (e) {
-      console.warn('[Signup] Wallet init warning:', e)
-    }
+    console.log('[Signup] Creating profile...')
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        username,
+        full_name: full_name || username,
+        avatar_url: '',
+        bio: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
 
-    // Initialize ranks (non-critical)
-    try {
-      await supabase.from('ranks').insert([
-        { user_id: profile.id, category: 'trading', current_rank: 'Bronze I', rank_level: 1, points: 0, next_rank: 'Bronze II', points_to_next: 100, achievements: [], season_start: new Date().toISOString() },
-        { user_id: profile.id, category: 'social', current_rank: 'Bronze I', rank_level: 1, points: 0, next_rank: 'Bronze II', points_to_next: 100, achievements: [], season_start: new Date().toISOString() },
-        { user_id: profile.id, category: 'content', current_rank: 'Bronze I', rank_level: 1, points: 0, next_rank: 'Bronze II', points_to_next: 100, achievements: [], season_start: new Date().toISOString() },
-        { user_id: profile.id, category: 'overall', current_rank: 'Bronze I', rank_level: 1, points: 0, next_rank: 'Bronze II', points_to_next: 100, achievements: [], season_start: new Date().toISOString() }
-      ])
-      console.log('[Signup] Ranks initialized')
-    } catch (e) {
-      console.warn('[Signup] Rank init warning:', e)
+    if (profileError) {
+      console.error('[Signup] Profile creation error:', profileError)
+      
+      await supabase.auth.admin.deleteUser(userId)
+      console.log('[Signup] Rolled back auth user due to profile error')
+      
+      setResponseStatus(event, 400)
+      return { success: false, message: 'Failed to create user profile' }
     }
 
     console.log('[Signup] ========== SUCCESS ==========')
-    setResponseStatus(event, 200)
-
+    setResponseStatus(event, 201)
     return {
       success: true,
-      message: 'Account created successfully',
-      userId: profile.id,
-      email: profile.email,
-      username: profile.username,
-      nextStep: 'email_verification'
+      message: 'Signup successful. Please check your email to verify your account.',
+      user: {
+        id: userId,
+        email,
+        username,
+      },
     }
-
   } catch (error: any) {
-    console.error('[Signup] ========== CRITICAL ERROR ==========')
-    console.error('[Signup] Error:', error?.message || error)
-    console.error('[Signup] Stack:', error?.stack)
-
+    console.error('[Signup] Unexpected error:', error)
     setResponseStatus(event, 500)
-    return {
-      success: false,
-      message: error?.message || 'Signup failed'
-    }
+    return { success: false, message: 'An unexpected error occurred' }
   }
 })
