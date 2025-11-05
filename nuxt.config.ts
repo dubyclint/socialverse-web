@@ -1,17 +1,11 @@
-// FILE: /nuxt.config.ts - COMPLETE FIXED VERSION
+// FILE: /nuxt.config.ts - SIMPLIFIED NITRO CONFIG
 // ============================================================================
 
-import { execSync } from 'child_process'
-import fs from 'fs'
-import path from 'path'
-
 export default defineNuxtConfig({
-  // ✅ Core Configuration - DISABLE SSR (THIS IS THE FIX)
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
-  ssr: false,  // ✅ CRITICAL: Changed from true to false
+  ssr: false,
   
-  // ✅ Modules
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
@@ -19,7 +13,6 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
   ],
 
-  // ✅ Supabase Configuration
   supabase: {
     url: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     key: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
@@ -30,56 +23,41 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ Runtime Configuration
   runtimeConfig: {
-    // Private keys - only accessible server-side
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     databaseUrl: process.env.DATABASE_URL || '',
-    emailServiceKey: process.env.EMAIL_SERVICE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     
-    // Public keys - accessible client-side
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
-      apiBase: process.env.API_BASE || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
-      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
-      rbac: {
-        protectedRoutes: ['/dashboard', '/admin', '/settings', '/profile', '/chat', '/post'],
-      },
+      apiBase: process.env.API_BASE || 'https://socialverse-web.zeabur.app',
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
     },
   },
 
-  // ✅ Nitro Server Configuration
+  // ✅ CRITICAL: Nitro configuration to ensure API routes are built
   nitro: {
     preset: 'node-server',
+    
+    // Ensure server directory is scanned
+    srcDir: 'server',
+    
     prerender: {
       crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
       ignore: ['/admin', '/api', '/auth'],
       failOnError: false,
     },
-    storage: {
-      redis: {
-        driver: 'redis',
-        connectionString: process.env.REDIS_URL,
-      },
-    },
   },
 
-  // ✅ Build Configuration
   build: {
-    transpile: ['@vueuse/nuxt'],
+    transpile: ['@supabase/supabase-js'],
   },
 
-  // ✅ CSS Configuration
-  css: [
-    '~/assets/css/main.css',
-  ],
-
-  // ✅ App Configuration
   app: {
     head: {
       title: 'SocialVerse - Connect, Share, Grow',
@@ -93,80 +71,5 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       ],
     },
-    pageTransition: { name: 'page', mode: 'out-in' },
-    layoutTransition: { name: 'layout', mode: 'out-in' },
-  },
-
-  // ✅ Tailwind CSS Configuration
-  tailwindcss: {
-    exposeConfig: true,
-    viewer: true,
-    config: {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#2563eb',
-            secondary: '#7c3aed',
-          },
-        },
-      },
-    },
-  },
-
-  // ✅ Color Mode Configuration
-  colorMode: {
-    preference: 'system',
-    fallback: 'light',
-    classSuffix: '',
-  },
-
-  // ✅ Experimental Features
-  experimental: {
-    payloadExtraction: false,
-    renderJsonPayload: true,
-  },
-
-  // ✅ TypeScript Configuration
-  typescript: {
-    strict: true,
-    typeCheck: false,
-  },
-
-  // ✅ Vite Configuration
-  vite: {
-    define: {
-      __DEV__: process.env.NODE_ENV !== 'production',
-    },
-    optimizeDeps: {
-      include: ['vue', 'vue-router', '@pinia/nuxt'],
-    },
-  },
-
-  // ✅ Hooks - Clear cache
-  hooks: {
-    'build:before': async () => {
-      try {
-        console.log('🧹 Clearing Nuxt build cache...')
-        const cacheDir = path.join(process.cwd(), '.nuxt')
-        if (fs.existsSync(cacheDir)) {
-          fs.rmSync(cacheDir, { recursive: true, force: true })
-        }
-        console.log('✅ Cache cleared')
-
-        console.log('🔄 Generating Supabase types...')
-        try {
-          execSync('npx supabase gen types typescript --project-id cvzrhucbvezqwbesthek > types/database.types.ts', {
-            stdio: 'inherit',
-          })
-          console.log('✅ Supabase types generated')
-        } catch (error) {
-          console.warn('⚠️ Supabase types generation skipped (optional)')
-        }
-      } catch (error) {
-        console.error('❌ Build hook error:', error)
-      }
-    },
   },
 })
-
-    
