@@ -42,27 +42,13 @@ export default defineNuxtConfig({
 
   build: {
     transpile: ['@supabase/supabase-js'],
-    // ADD THIS SECTION - Fix CSS caching issues
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
   },
 
-  // ADD THIS SECTION - Vite configuration for CSS handling
   vite: {
     build: {
       cssCodeSplit: false,
       minify: 'terser',
       sourcemap: false,
-    },
-    css: {
-      preprocessorOptions: {
-        scss: {
-          additionalData: '@import "@/assets/styles/variables.scss";',
-        },
-      },
     },
   },
 
@@ -73,11 +59,29 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'SocialVerse - A modern social networking platform' },
-        { name: 'theme-color', content: '#2563eb' },
-      ],
-      link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       ],
     },
   },
 })
+Now here's the COMPLETE FIXED /composables/useSupabase.js:
+
+Dockerfile
+// FILE: /composables/useSupabase.js
+// Supabase client composable - SAFE VERSION
+// Handles cases where useSupabaseClient is not yet available
+
+export const useSupabase = () => {
+  // Check if we're on client side
+  if (!process.client) {
+    return null
+  }
+
+  try {
+    // useSupabaseClient should be auto-imported by @nuxtjs/supabase
+    // If it's not available, this will throw an error which we catch
+    return useSupabaseClient()
+  } catch (error) {
+    console.warn('[useSupabase] useSupabaseClient not available yet:', error.message)
+    return null
+  }
+}
