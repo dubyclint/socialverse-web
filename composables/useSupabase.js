@@ -1,28 +1,19 @@
 // FILE: /composables/useSupabase.js
-// Supabase client composable - FIXED VERSION
-// This composable should NOT be called during app initialization
-
-let supabaseClientCache: any = null
+// Supabase client composable - SAFE VERSION
+// Handles cases where useSupabaseClient is not yet available
 
 export const useSupabase = () => {
-  // Return cached client if available
-  if (supabaseClientCache) {
-    return supabaseClientCache
+  // Check if we're on client side
+  if (!process.client) {
+    return null
   }
 
-  // Only try to get client on client side
-  if (process.client) {
-    try {
-      // Try to access useSupabaseClient from global scope
-      if (typeof useSupabaseClient !== 'undefined') {
-        supabaseClientCache = useSupabaseClient()
-        return supabaseClientCache
-      }
-    } catch (error) {
-      console.warn('[useSupabase] useSupabaseClient not available:', error.message)
-    }
+  try {
+    // useSupabaseClient should be auto-imported by @nuxtjs/supabase
+    // If it's not available, this will throw an error which we catch
+    return useSupabaseClient()
+  } catch (error) {
+    console.warn('[useSupabase] useSupabaseClient not available yet:', error.message)
+    return null
   }
-
-  // Return null if not available
-  return null
 }
