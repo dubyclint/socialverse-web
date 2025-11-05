@@ -1,63 +1,46 @@
 // middleware/session-check.ts
-export default defineNuxtRouteMiddleware(async (to) => {
-  // Safely get Supabase client with error handling
-  let supabase = null
-  let user = null
+// Session check middleware - FIXED VERSION
+// Safely checks Supabase session without breaking app initialization
 
-  try {
-    supabase = useSupabaseClient()
-    user = useSupabaseUser()
-  } catch (error) {
-    console.warn('Supabase client/user check failed:', error)
+export default defineNuxtRouteMiddleware(async (to) => {
+  // Skip for auth routes - don't check session on login/signup pages
+  const authRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/verify-email', '/auth/reset-password', '/auth/confirm']
+  if (authRoutes.some(route => to.path.startsWith(route))) {
     return
   }
 
   // Skip for public routes
-  const publicRoutes = ['/', '/auth', '/explore', '/feed']
-  if (publicRoutes.some(route => to.path === route || to.path.startsWith(route + '/'))) {
+  const publicRoutes = ['/', '/explore', '/feed']
+  if (publicRoutes.some(route => to.path === route || to.path.startsWith(route))) {
     return
   }
 
-  // If no user, skip session check
-  if (!user) {
+  // Only check session on client side
+  if (process.server) {
     return
   }
 
   try {
-    // Validate current session
-    const { data: { session }, error } = await supabase.auth.getSession()
+    // Try to get Supabase client and user
+    // These might not be available during app initialization
+    let supabase = null
+    let user = null
 
-    if (error || !session) {
-      // Session is invalid, clear user and redirect
-      try {
-        await supabase.auth.signOut()
-      } catch (signOutError) {
-        console.warn('Sign out error:', signOutError)
-      }
-      return navigateTo('/auth?reason=session_expired')
+    try {
+      supabase = useSupabaseClient()
+      user = useSupabaseUser()
+    } catch (error) {
+      console.warn('[session-check] Supabase not ready yet:', error.message)
+      return
     }
 
-    // Check if session is about to expire (within 5 minutes)
-    const expiresAt = new Date(session.expires_at! * 1000)
-    const now = new Date()
-    const fiveMinutes = 5 * 60 * 1000
-
-    if (expiresAt.getTime() - now.getTime() < fiveMinutes) {
-      // Attempt to refresh session
-      try {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-
-        if (refreshError || !refreshData.session) {
-          // Refresh failed, redirect to login
-          return navigateTo('/auth?reason=session_expired')
-        }
-      } catch (refreshError) {
-        console.warn('Session refresh error:', refreshError)
-        return navigateTo('/auth?reason=session_expired')
-      }
+    // If no user and not on public route, redirect to login
+    if (!user?.value && !publicRoutes.some(route => to.path === route)) {
+      return navigateTo('/auth/login')
     }
   } catch (error) {
-    console.warn('Session check error:', error)
+    console.error('[session-check] Middleware error:', error)
+    // Don't break the app if middleware fails
     return
   }
 })
