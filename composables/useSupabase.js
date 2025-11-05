@@ -1,7 +1,13 @@
 // FILE: /composables/useSupabase.js
-// Simplified Supabase client composable
-// Works with @nuxtjs/supabase auto-imports
+// Supabase client composable - Safe version
 
 export const useSupabase = () => {
-  return useSupabaseClient()
+  try {
+    // useSupabaseClient is auto-imported by @nuxtjs/supabase
+    // Only call it when actually needed (not at setup time)
+    return useSupabaseClient()
+  } catch (error) {
+    console.error('[useSupabase] Error:', error.message)
+    return null
+  }
 }
