@@ -1,6 +1,10 @@
-// stores/user.ts - MERGED STORE (Individual User + User Management)
+// FILE: /stores/user.ts - MERGED STORE (Individual User + User Management)
+// ✅ FIXED - Uses getSupabaseClient() instead of useSupabaseClient()
+// ============================================================================
+
 import { defineStore } from 'pinia'
 import { ref, computed, watch, readonly } from 'vue'
+import { getSupabaseClient } from '~/lib/supabase-factory'
 
 // ============ INTERFACES ============
 interface UserProfile {
@@ -46,7 +50,7 @@ interface UsersState {
 
 // ============ INDIVIDUAL USER STORE ============
 export const useUserStore = defineStore('user', () => {
-  const supabase = useSupabaseClient()
+  const supabase = getSupabaseClient()
   const user = useSupabaseUser()
   
   const profile = ref<any>(null)
@@ -62,6 +66,12 @@ export const useUserStore = defineStore('user', () => {
       loading.value = true
       error.value = null
       
+      if (!supabase) {
+        console.error('[User Store] Supabase client not available')
+        error.value = 'Supabase client not available'
+        return
+      }
+      
       // Fetch current user session
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -73,7 +83,7 @@ export const useUserStore = defineStore('user', () => {
         await initializeRealTimeServices()
       }
     } catch (err: any) {
-      console.error('Session initialization error:', err)
+      console.error('[User Store] Session initialization error:', err)
       error.value = err.message || 'Failed to initialize session'
     } finally {
       loading.value = false
@@ -87,6 +97,11 @@ export const useUserStore = defineStore('user', () => {
     if (!targetUserId) {
       console.warn('[User Store] User ID is not available for profile fetch')
       profile.value = null
+      return
+    }
+    
+    if (!supabase) {
+      console.error('[User Store] Supabase client not available')
       return
     }
     
@@ -137,7 +152,7 @@ export const useUserStore = defineStore('user', () => {
   
   // ✅ NEW: Load permissions based on user role
   const loadPermissions = async () => {
-    if (!profile.value) return
+    if (!profile.value || !supabase) return
 
     try {
       const { data, error: fetchError } = await supabase
@@ -147,7 +162,7 @@ export const useUserStore = defineStore('user', () => {
         .single()
 
       if (fetchError) {
-        console.warn('Permissions load error:', fetchError)
+        console.warn('[User Store] Permissions load error:', fetchError)
         permissions.value = getDefaultPermissions(profile.value.role)
         return
       }
@@ -158,7 +173,7 @@ export const useUserStore = defineStore('user', () => {
         permissions.value = [...new Set([...permissions.value, ...profile.value.manager_permissions])]
       }
     } catch (err: any) {
-      console.error('Permissions load error:', err)
+      console.error('[User Store] Permissions load error:', err)
       permissions.value = getDefaultPermissions(profile.value?.role || 'user')
     }
   }
@@ -203,6 +218,11 @@ export const useUserStore = defineStore('user', () => {
     if (!userId) {
       error.value = 'User ID is required to update profile'
       throw new Error('User ID is required')
+    }
+    
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      throw new Error('Supabase client not available')
     }
     
     try {
@@ -291,6 +311,12 @@ export const useUserStore = defineStore('user', () => {
   
   // Actions for user management
   const loadUsers = async (filterParams: UserFilters = {}) => {
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      console.error('[User Store] Supabase client not available')
+      return
+    }
+
     try {
       loading.value = true
       error.value = null
@@ -314,7 +340,7 @@ export const useUserStore = defineStore('user', () => {
       users.value = (data || []) as UserProfile[]
       totalUsers.value = count || 0
     } catch (err: any) {
-      console.error('Users load error:', err)
+      console.error('[User Store] Users load error:', err)
       error.value = (err as any).message || 'Failed to load users'
     } finally {
       loading.value = false
@@ -322,6 +348,12 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const loadManagers = async () => {
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      console.error('[User Store] Supabase client not available')
+      return
+    }
+
     try {
       loading.value = true
       error.value = null
@@ -337,7 +369,7 @@ export const useUserStore = defineStore('user', () => {
       managers.value = (data || []) as UserProfile[]
       totalManagers.value = count || 0
     } catch (err: any) {
-      console.error('Managers load error:', err)
+      console.error('[User Store] Managers load error:', err)
       error.value = (err as any).message || 'Failed to load managers'
     } finally {
       loading.value = false
@@ -345,6 +377,12 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const getUserDetails = async (userId: string) => {
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      console.error('[User Store] Supabase client not available')
+      return null
+    }
+
     try {
       loading.value = true
       const { data, error: queryError } = await supabase
@@ -356,7 +394,7 @@ export const useUserStore = defineStore('user', () => {
       if (queryError) throw queryError
       return data as UserProfile
     } catch (err: any) {
-      console.error('User details error:', err)
+      console.error('[User Store] User details error:', err)
       error.value = (err as any).message || 'Failed to load user details'
       return null
     } finally {
@@ -367,6 +405,12 @@ export const useUserStore = defineStore('user', () => {
   const updateUserStatus = async (userId: string, status: string, reason?: string) => {
     const authStore = useAuthStore()
     
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      console.error('[User Store] Supabase client not available')
+      return { success: false, error: 'Supabase client not available' }
+    }
+
     try {
       loading.value = true
       const { data, error: updateError } = await supabase
@@ -388,7 +432,7 @@ export const useUserStore = defineStore('user', () => {
 
       return { success: true }
     } catch (err: any) {
-      console.error('User status update error:', err)
+      console.error('[User Store] User status update error:', err)
       error.value = (err as any).message || 'Failed to update user status'
       return { success: false, error: (err as any).message }
     } finally {
@@ -415,6 +459,11 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const sendUserNotification = async (userId: string, type: string, reason?: string) => {
+    if (!supabase) {
+      console.error('[User Store] Supabase client not available')
+      return
+    }
+
     const messages: Record<string, string> = {
       warned: 'Your account has received a warning.',
       suspended: 'Your account has been temporarily suspended.',
@@ -430,11 +479,16 @@ export const useUserStore = defineStore('user', () => {
         message: messages[type] + (reason ? ` Reason: ${reason}` : '')
       })
     } catch (err: any) {
-      console.error('Notification send error:', err)
+      console.error('[User Store] Notification send error:', err)
     }
   }
 
   const searchUsers = async (query: string) => {
+    if (!supabase) {
+      console.error('[User Store] Supabase client not available')
+      return []
+    }
+
     try {
       const { data, error: queryError } = await supabase
         .from('profiles')
@@ -447,12 +501,17 @@ export const useUserStore = defineStore('user', () => {
       if (queryError) throw queryError
       return data || []
     } catch (err: any) {
-      console.error('User search error:', err)
+      console.error('[User Store] User search error:', err)
       return []
     }
   }
 
   const getManagerActivity = async (managerId: string) => {
+    if (!supabase) {
+      console.error('[User Store] Supabase client not available')
+      return { actionsThisMonth: 0, usersManaged: 0, reportsResolved: 0, recentActions: [] }
+    }
+
     try {
       const { data, error: queryError } = await supabase
         .from('audit_logs')
@@ -477,7 +536,7 @@ export const useUserStore = defineStore('user', () => {
         recentActions: data?.slice(0, 20) || []
       }
     } catch (err: any) {
-      console.error('Manager activity error:', err)
+      console.error('[User Store] Manager activity error:', err)
       return { actionsThisMonth: 0, usersManaged: 0, reportsResolved: 0, recentActions: [] }
     }
   }
