@@ -3,14 +3,13 @@
 </template>
 
 <script setup lang="ts">
-// Redirect to /auth/login
+// ✅ FIXED - Redirect to /auth/login immediately
+// Using navigateTo() which works during setup phase
+
 definePageMeta({
   layout: false,
 })
 
-const router = useRouter()
-
-onMounted(() => {
-  router.push('/auth/login')
-})
+// Redirect immediately during setup, not after mount
+await navigateTo('/auth/login')
 </script>
