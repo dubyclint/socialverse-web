@@ -1,4 +1,9 @@
+// FILE: /stores/roles.ts
+// ✅ FIXED - Uses getSupabaseClient() instead of useSupabaseClient()
+// ============================================================================
+
 import { defineStore } from 'pinia'
+import { getSupabaseClient } from '~/lib/supabase-factory'
 
 interface Role {
   id: string
@@ -60,7 +65,14 @@ export const useRolesStore = defineStore('roles', {
 
   actions: {
     async loadRoles() {
-      const supabase = useSupabaseClient()
+      const supabase = getSupabaseClient()
+      
+      if (!supabase) {
+        this.error = 'Supabase client not available'
+        console.error('[Roles Store] Supabase client not available')
+        return
+      }
+
       try {
         this.loading = true
         this.error = null
@@ -73,8 +85,9 @@ export const useRolesStore = defineStore('roles', {
         if (error) throw error
 
         this.roles = (data || []) as Role[]
+        console.log('[Roles Store] Roles loaded successfully:', this.roles.length)
       } catch (error) {
-        console.error('Roles load error:', error)
+        console.error('[Roles Store] Load error:', error)
         this.error = (error as any).message || 'Failed to load roles'
       } finally {
         this.loading = false
@@ -82,7 +95,14 @@ export const useRolesStore = defineStore('roles', {
     },
 
     async loadPermissions() {
-      const supabase = useSupabaseClient()
+      const supabase = getSupabaseClient()
+      
+      if (!supabase) {
+        this.error = 'Supabase client not available'
+        console.error('[Roles Store] Supabase client not available')
+        return
+      }
+
       try {
         this.loading = true
         this.error = null
@@ -95,8 +115,9 @@ export const useRolesStore = defineStore('roles', {
         if (error) throw error
 
         this.permissions = (data || []) as Permission[]
+        console.log('[Roles Store] Permissions loaded successfully:', this.permissions.length)
       } catch (error) {
-        console.error('Permissions load error:', error)
+        console.error('[Roles Store] Permissions load error:', error)
         this.error = (error as any).message || 'Failed to load permissions'
       } finally {
         this.loading = false
