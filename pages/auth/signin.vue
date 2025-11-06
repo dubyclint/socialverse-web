@@ -14,9 +14,12 @@
       <div class="text-center mt-6">
         <p class="text-slate-400">
           Don't have an account?
-          <NuxtLink to="/auth" class="text-blue-500 hover:text-blue-400 font-semibold">
+          <button 
+            @click="navigateToSignup"
+            class="text-blue-500 hover:text-blue-400 font-semibold cursor-pointer bg-none border-none p-0"
+          >
             Create one here
-          </NuxtLink>
+          </button>
         </p>
       </div>
 
@@ -39,11 +42,16 @@ definePageMeta({
 const router = useRouter()
 
 const handleSigninSuccess = (data: any) => {
-  // Redirect to feed/dashboard
-  router.push('/feed')
+  console.log('[SignIn] Login successful, redirecting to home')
+  router.push('/')
+}
+
+/**
+ * Navigate to signup page with full page replacement
+ * Uses router.push instead of NuxtLink to ensure proper navigation
+ */
+const navigateToSignup = () => {
+  console.log('[SignIn] Navigating to signup page')
+  router.push('/auth/signup')
 }
 </script>
-
-<style scoped>
-/* Minimal scoped styles - rely on Tailwind */
-</style>
