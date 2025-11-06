@@ -1,12 +1,7 @@
-// FILE: /composables/useAuth.ts - COMPLETE FIX
+// FILE: /composables/useAuth.ts - DIAGNOSTIC VERSION
 // ============================================================================
-// FIXES ALL 6 PROBLEMS:
-// 1. Generic "Signup failed" message - now uses proper error extraction
-// 2. Error type object - properly handles $fetch error structure
-// 3. Error constructor - correctly identifies error types
-// 4. Error extraction - complete fallback chain with better handling
-// 5. SYNTAX ERROR - Fixed incomplete throw statement (was "errorMs", now "errorMsg")
-// 6. $fetch throws on non-2xx - Now uses try-catch properly to handle $fetch errors
+// ENHANCED WITH COMPREHENSIVE ERROR LOGGING TO IDENTIFY ROOT CAUSE
+// This version logs the complete error object structure for debugging
 
 import { ref, computed } from 'vue'
 
@@ -22,81 +17,123 @@ export const useAuth = () => {
   const token = computed(() => authStore.token)
 
   /**
-   * PROBLEM #2, #3, #4, #6 FIX: Extract error message from $fetch error response
-   * $fetch throws errors on non-2xx status codes with structure:
-   * {
-   *   data: { success: false, message: 'Actual error' },
-   *   statusCode: 400,
-   *   statusMessage: 'Bad Request',
-   *   ...
-   * }
-   * This function extracts the most specific error message available.
+   * DIAGNOSTIC: Extract error message from $fetch error response
+   * Logs complete error structure to identify root cause
    */
   const extractErrorMessage = (err: any): string => {
-    console.log('[useAuth] Extracting error from:', err)
+    console.log('═══════════════════════════════════════════════════════════')
+    console.log('[useAuth] DIAGNOSTIC: COMPLETE ERROR OBJECT')
+    console.log('═══════════════════════════════════════════════════════════')
+    console.log('[useAuth] Full error object:', err)
     console.log('[useAuth] Error type:', typeof err)
     console.log('[useAuth] Error constructor:', err?.constructor?.name)
+    console.log('[useAuth] Error keys:', Object.keys(err || {}))
+    
+    // Log all properties of the error object
+    if (err) {
+      console.log('[useAuth] Error properties:')
+      for (const key in err) {
+        try {
+          console.log(`  - ${key}:`, err[key])
+        } catch (e) {
+          console.log(`  - ${key}: [Unable to log - circular reference or error]`)
+        }
+      }
+    }
+
+    console.log('───────────────────────────────────────────────────────────')
+    console.log('[useAuth] CHECKING ERROR STRUCTURE PATHS')
+    console.log('───────────────────────────────────────────────────────────')
+    
+    // Check err.data (where $fetch puts the response)
+    console.log('[useAuth] err.data exists:', !!err?.data)
+    if (err?.data) {
+      console.log('[useAuth] err.data:', err.data)
+      console.log('[useAuth] err.data type:', typeof err.data)
+      console.log('[useAuth] err.data keys:', Object.keys(err.data || {}))
+    }
+
+    // Check err.statusCode
+    console.log('[useAuth] err.statusCode:', err?.statusCode)
+    
+    // Check err.statusMessage
+    console.log('[useAuth] err.statusMessage:', err?.statusMessage)
+    
+    // Check err.message
+    console.log('[useAuth] err.message:', err?.message)
+    
+    // Check err.error
+    console.log('[useAuth] err.error:', err?.error)
+    
+    // Check err.response
+    console.log('[useAuth] err.response:', err?.response)
+    
+    // Check err._data (alternative location)
+    console.log('[useAuth] err._data:', err?._data)
+
+    console.log('───────────────────────────────────────────────────────────')
+    console.log('[useAuth] ATTEMPTING ERROR MESSAGE EXTRACTION')
+    console.log('───────────────────────────────────────────────────────────')
     
     // PROBLEM #2 FIX: Check err.data.message FIRST (where $fetch puts the response)
     if (err?.data) {
-      console.log('[useAuth] Error has data property:', err.data)
+      console.log('[useAuth] ✓ Error has data property')
       
       // Check for message property (most common from our API)
       if (err.data.message && typeof err.data.message === 'string') {
-        console.log('[useAuth] Found error message in data.message:', err.data.message)
+        console.log('[useAuth] ✓ Found error message in data.message:', err.data.message)
         return err.data.message
       }
       
       // Check for statusMessage property
       if (err.data.statusMessage && typeof err.data.statusMessage === 'string') {
-        console.log('[useAuth] Found error message in data.statusMessage:', err.data.statusMessage)
+        console.log('[useAuth] ✓ Found error message in data.statusMessage:', err.data.statusMessage)
         return err.data.statusMessage
       }
       
       // Check for error property
       if (err.data.error) {
         if (typeof err.data.error === 'string') {
-          console.log('[useAuth] Found error message in data.error:', err.data.error)
+          console.log('[useAuth] ✓ Found error message in data.error:', err.data.error)
           return err.data.error
         }
         if (err.data.error.message && typeof err.data.error.message === 'string') {
-          console.log('[useAuth] Found error message in data.error.message:', err.data.error.message)
+          console.log('[useAuth] ✓ Found error message in data.error.message:', err.data.error.message)
           return err.data.error.message
         }
       }
     }
 
-    // PROBLEM #4 FIX: Fallback to standard error properties
+    // Fallback to standard error properties
     if (err?.statusMessage && typeof err.statusMessage === 'string') {
-      console.log('[useAuth] Found error message in statusMessage:', err.statusMessage)
+      console.log('[useAuth] ✓ Found error message in statusMessage:', err.statusMessage)
       return err.statusMessage
     }
     
     if (err?.message && typeof err.message === 'string') {
-      console.log('[useAuth] Found error message in message:', err.message)
+      console.log('[useAuth] ✓ Found error message in message:', err.message)
       return err.message
     }
     
     if (err?.error) {
       if (typeof err.error === 'string') {
-        console.log('[useAuth] Found error message in error (string):', err.error)
+        console.log('[useAuth] ✓ Found error message in error (string):', err.error)
         return err.error
       }
       if (err.error.message && typeof err.error.message === 'string') {
-        console.log('[useAuth] Found error message in error.message:', err.error.message)
+        console.log('[useAuth] ✓ Found error message in error.message:', err.error.message)
         return err.error.message
       }
     }
 
-    // Final fallback - should rarely reach here
-    console.log('[useAuth] No specific error message found, using fallback')
+    // Final fallback
+    console.log('[useAuth] ✗ No specific error message found, using fallback')
+    console.log('═══════════════════════════════════════════════════════════')
     return 'An error occurred. Please try again.'
   }
 
   /**
-   * PROBLEM #6 FIX: Signup now properly handles $fetch errors
-   * $fetch throws on non-2xx status codes, so we catch those errors
-   * and extract the message from the error.data object
+   * Signup function with enhanced error logging
    */
   const signup = async (email: string, password: string, username: string) => {
     try {
@@ -114,14 +151,20 @@ export const useAuth = () => {
       console.log('[useAuth] Calling /api/auth/signup endpoint...')
       
       // PROBLEM #6 FIX: $fetch will throw on non-2xx status codes
-      // The response will be in err.data when caught
-      const response = await $fetch<any>('/api/auth/signup', {
-        method: 'POST',
-        body: { email, password, username },
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      let response
+      try {
+        response = await $fetch<any>('/api/auth/signup', {
+          method: 'POST',
+          body: { email, password, username },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      } catch (fetchErr: any) {
+        console.error('[useAuth] $fetch threw an error (expected for non-2xx status)')
+        console.error('[useAuth] Caught fetch error:', fetchErr)
+        throw fetchErr
+      }
 
       console.log('[useAuth] Signup response received:', response)
 
@@ -144,18 +187,17 @@ export const useAuth = () => {
         // Response indicates failure - throw error with real message
         const errorMsg = response.message || 'Signup failed'
         console.error('[useAuth] Signup failed with message:', errorMsg)
-        // PROBLEM #5 FIX: Was "throw new Error(err" - now correctly "throw new Error(errorMsg)"
         throw new Error(errorMsg)
       }
     } catch (err: any) {
       console.error('[useAuth] ========== SIGNUP ERROR ==========')
-      console.error('[useAuth] Full error object:', err)
       
-      // PROBLEM #2, #3, #4 FIX: Use extractErrorMessage to get proper error text
+      // Use diagnostic function to extract error
       const errorMessage = extractErrorMessage(err)
       error.value = errorMessage
       
-      console.error('[useAuth] Final error message:', errorMessage)
+      console.error('[useAuth] Final extracted error message:', errorMessage)
+      console.error('[useAuth] ========== END SIGNUP ERROR ==========')
       
       return {
         success: false,
@@ -180,13 +222,20 @@ export const useAuth = () => {
 
       console.log('[useAuth] Calling /api/auth/login endpoint...')
       
-      const response = await $fetch<any>('/api/auth/login', {
-        method: 'POST',
-        body: { email, password },
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      let response
+      try {
+        response = await $fetch<any>('/api/auth/login', {
+          method: 'POST',
+          body: { email, password },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      } catch (fetchErr: any) {
+        console.error('[useAuth] $fetch threw an error (expected for non-2xx status)')
+        console.error('[useAuth] Caught fetch error:', fetchErr)
+        throw fetchErr
+      }
 
       console.log('[useAuth] Login response received:', response)
 
@@ -222,12 +271,12 @@ export const useAuth = () => {
       }
     } catch (err: any) {
       console.error('[useAuth] ========== LOGIN ERROR ==========')
-      console.error('[useAuth] Full error:', err)
       
       const errorMessage = extractErrorMessage(err)
       error.value = errorMessage
       
-      console.error('[useAuth] Final error message:', errorMessage)
+      console.error('[useAuth] Final extracted error message:', errorMessage)
+      console.error('[useAuth] ========== END LOGIN ERROR ==========')
       
       return {
         success: false,
