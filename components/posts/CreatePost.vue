@@ -54,13 +54,8 @@ const publishing = ref(false)
 const popularEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗']
 const emit = defineEmits(['postCreated'])
 
-// Safely initialize Supabase 
-let supabase = null
-try {
- const supabase = useSupabase()
-} catch (error) {
-  console.warn('Supabase not available:', error)
-}
+// ✅ FIXED - Properly initialize Supabase client
+const supabase = useSupabaseClient()
 
 function addEmoji() {
   showEmojiPicker.value = !showEmojiPicker.value
@@ -271,4 +266,3 @@ async function publishPost() {
   }
 }
 </style>
-
