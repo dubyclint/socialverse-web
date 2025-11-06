@@ -176,55 +176,44 @@ const errors = reactive({
 
 /**
  * Validate form inputs before submission
- * Checks email format, username format, password strength, and password match
  */
 const validateForm = () => {
-  // Reset all errors
   errors.email = ''
   errors.username = ''
   errors.password = ''
   errors.confirmPassword = ''
 
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(formData.email)) {
     errors.email = 'Please enter a valid email address'
   }
 
-  // Username validation - must be 3-20 characters
   if (formData.username.length < 3 || formData.username.length > 20) {
     errors.username = 'Username must be 3-20 characters'
   }
-  // Username format - only alphanumeric, underscore, hyphen
   if (!/^[a-zA-Z0-9_-]+$/.test(formData.username)) {
     errors.username = 'Username can only contain letters, numbers, underscores, and hyphens'
   }
 
-  // Password validation - must have uppercase, number, special char, and be 8+ chars
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
   if (!passwordRegex.test(formData.password)) {
     errors.password = 'Password must be at least 8 characters with 1 uppercase, 1 number, and 1 special character'
   }
 
-  // Confirm password match
   if (formData.password !== formData.confirmPassword) {
     errors.confirmPassword = 'Passwords do not match'
   }
 
-  // Return true if no errors
   return !errors.email && !errors.username && !errors.password && !errors.confirmPassword
 }
 
 /**
- * Handle form submission
- * Validates form, calls signup API, and handles response
+ * Handle form submission with comprehensive logging
  */
 const handleSubmit = async () => {
-  // Clear previous messages
   error.value = ''
   success.value = ''
 
-  // Validate form before submission
   if (!validateForm()) {
     error.value = 'Please fix the errors above'
     return
@@ -233,7 +222,14 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    console.log('[SignUpForm] Submitting signup form...')
+    console.log('═══════════════════════════════════════════════════════════')
+    console.log('[SignUpForm] DIAGNOSTIC: SUBMITTING SIGNUP FORM')
+    console.log('═══════════════════════════════════════════════════════════')
+    console.log('[SignUpForm] Form data:', {
+      email: formData.email,
+      username: formData.username,
+      password: '***'
+    })
     
     // Call the signup composable
     const result = await signup(
@@ -242,26 +238,44 @@ const handleSubmit = async () => {
       formData.username
     )
 
-    console.log('[SignUpForm] Signup result:', result)
+    console.log('───────────────────────────────────────────────────────────')
+    console.log('[SignUpForm] DIAGNOSTIC: SIGNUP RESULT RECEIVED')
+    console.log('───────────────────────────────────────────────────────────')
+    console.log('[SignUpForm] Result object:', result)
+    console.log('[SignUpForm] Result type:', typeof result)
+    console.log('[SignUpForm] Result keys:', Object.keys(result || {}))
+    console.log('[SignUpForm] Result.success:', result?.success)
+    console.log('[SignUpForm] Result.message:', result?.message)
+    console.log('[SignUpForm] Result.message type:', typeof result?.message)
 
     if (result.success) {
-      // Success - show message and emit event
       success.value = result.message || 'Account created successfully!'
-      console.log('[SignUpForm] Signup successful, emitting success event')
+      console.log('[SignUpForm] ✓ Signup successful')
+      console.log('[SignUpForm] Success message:', success.value)
       
-      // Emit success event after a short delay to show the success message
       setTimeout(() => {
+        console.log('[SignUpForm] Emitting success event')
         emit('success', { email: formData.email })
       }, 1500)
     } else {
       // Failure - show error message from backend
-      // PROBLEM #1 FIX: Use result.message which now contains specific error from backend
       error.value = result.message || 'Signup failed. Please try again.'
-      console.error('[SignUpForm] Signup failed:', error.value)
+      console.error('[SignUpForm] ✗ Signup failed')
+      console.error('[SignUpForm] Error message:', error.value)
     }
+    
+    console.log('═══════════════════════════════════════════════════════════')
   } catch (err: any) {
-    // Catch unexpected errors
-    console.error('[SignUpForm] Unexpected error during signup:', err)
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('[SignUpForm] DIAGNOSTIC: UNEXPECTED ERROR CAUGHT')
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('[SignUpForm] Error object:', err)
+    console.error('[SignUpForm] Error type:', typeof err)
+    console.error('[SignUpForm] Error constructor:', err?.constructor?.name)
+    console.error('[SignUpForm] Error message:', err?.message)
+    console.error('[SignUpForm] Error stack:', err?.stack)
+    console.error('═══════════════════════════════════════════════════════════')
+    
     error.value = err.message || 'An unexpected error occurred. Please try again.'
   } finally {
     loading.value = false
