@@ -28,7 +28,7 @@
         <p v-if="errors.email" class="mt-1 text-xs text-red-400">{{ errors.email }}</p>
       </div>
 
-      <!-- Username Field - NO VALIDATION -->
+      <!-- Username Field -->
       <div>
         <label for="username" class="block text-sm font-medium text-slate-300 mb-2">
           Username
@@ -168,7 +168,7 @@ const validateForm = () => {
     errors.email = 'Please enter a valid email address'
   }
 
-  // Username - BASIC FORMAT ONLY (no availability check)
+  // Username validation
   if (formData.username.length < 3 || formData.username.length > 30) {
     errors.username = 'Username must be 3-30 characters'
   }
@@ -214,7 +214,8 @@ const handleSubmit = async () => {
         emit('success', { email: formData.email })
       }, 1000)
     } else {
-      error.value = result.error || 'Signup failed'
+      // ✅ ERROR #2 FIX: Use result.message instead of result.error
+      error.value = result.message || 'Signup failed'
     }
   } catch (err: any) {
     error.value = err.message || 'An error occurred'
