@@ -1,5 +1,5 @@
 // FILE: /stores/user.ts - MERGED STORE (Individual User + User Management)
-// ✅ FIXED - Uses getSupabaseClient() instead of useSupabaseClient()
+// ✅ FIXED - Properly handles useSupabaseUser() and getSupabaseClient()
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -50,16 +50,36 @@ interface UsersState {
 
 // ============ INDIVIDUAL USER STORE ============
 export const useUserStore = defineStore('user', () => {
+  // ✅ FIXED: Don't call useSupabaseUser() at store initialization
+  // Instead, we'll get the user from Supabase auth when needed
   const supabase = getSupabaseClient()
-  const user = useSupabaseUser()
   
   const profile = ref<any>(null)
   const permissions = ref<string[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const currentUser = ref<any>(null)
   
   const isAdmin = computed(() => profile.value?.role === 'admin')
-  const isAuthenticated = computed(() => !!user.value?.id)
+  const isAuthenticated = computed(() => !!currentUser.value?.id)
+  
+  // ✅ NEW: Get current user from Supabase auth
+  const getCurrentUser = async () => {
+    if (!supabase) {
+      console.error('[User Store] Supabase client not available')
+      return null
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      currentUser.value = user
+      return user
+    } catch (err: any) {
+      console.error('[User Store] Failed to get current user:', err)
+      currentUser.value = null
+      return null
+    }
+  }
   
   const initializeSession = async () => {
     try {
@@ -72,14 +92,14 @@ export const useUserStore = defineStore('user', () => {
         return
       }
       
-      // Fetch current user session
-      const { data: { session } } = await supabase.auth.getSession()
+      // ✅ FIXED: Get current user from auth
+      const user = await getCurrentUser()
       
-      if (session?.user?.id) {
-        await fetchProfile(session.user.id)
-        // ✅ NEW: Load permissions after profile
+      if (user?.id) {
+        await fetchProfile(user.id)
+        // ✅ Load permissions after profile
         await loadPermissions()
-        // ✅ NEW: Initialize real-time services
+        // ✅ Initialize real-time services
         await initializeRealTimeServices()
       }
     } catch (err: any) {
@@ -91,7 +111,7 @@ export const useUserStore = defineStore('user', () => {
   }
   
   const fetchProfile = async (userId?: string) => {
-    const targetUserId = userId || user.value?.id
+    const targetUserId = userId || currentUser.value?.id
     
     // CRITICAL: Validate user ID exists and is not undefined
     if (!targetUserId) {
@@ -134,6 +154,7 @@ export const useUserStore = defineStore('user', () => {
       }
       
       profile.value = data
+      console.log('[User Store] Profile fetched successfully')
     } catch (err: any) {
       console.error('[User Store] Profile fetch error:', err)
       error.value = err.message || 'Failed to fetch profile'
@@ -150,7 +171,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
   
-  // ✅ NEW: Load permissions based on user role
+  // ✅ Load permissions based on user role
   const loadPermissions = async () => {
     if (!profile.value || !supabase) return
 
@@ -172,13 +193,15 @@ export const useUserStore = defineStore('user', () => {
       if (profile.value.role === 'manager' && profile.value.manager_permissions) {
         permissions.value = [...new Set([...permissions.value, ...profile.value.manager_permissions])]
       }
+      
+      console.log('[User Store] Permissions loaded:', permissions.value)
     } catch (err: any) {
       console.error('[User Store] Permissions load error:', err)
       permissions.value = getDefaultPermissions(profile.value?.role || 'user')
     }
   }
 
-  // ✅ NEW: Default permissions by role
+  // ✅ Default permissions by role
   const getDefaultPermissions = (role: string): string[] => {
     const defaultPerms: Record<string, string[]> = {
       admin: ['*'],
@@ -188,9 +211,9 @@ export const useUserStore = defineStore('user', () => {
     return defaultPerms[role] || defaultPerms['user']
   }
 
-  // ✅ NEW: Initialize real-time services
+  // ✅ Initialize real-time services
   const initializeRealTimeServices = async () => {
-    if (!user.value?.id || !profile.value) {
+    if (!currentUser.value?.id || !profile.value) {
       console.warn('[User Store] Cannot initialize real-time services: user or profile not ready')
       return
     }
@@ -213,7 +236,7 @@ export const useUserStore = defineStore('user', () => {
   }
   
   const updateProfile = async (updates: any) => {
-    const userId = user.value?.id
+    const userId = currentUser.value?.id
     
     if (!userId) {
       error.value = 'User ID is required to update profile'
@@ -241,8 +264,10 @@ export const useUserStore = defineStore('user', () => {
       
       // Refresh profile after update
       await fetchProfile(userId)
-      // ✅ NEW: Reload permissions after profile update
+      // Reload permissions after profile update
       await loadPermissions()
+      
+      console.log('[User Store] Profile updated successfully')
     } catch (err: any) {
       console.error('[User Store] Profile update error:', err)
       error.value = err.message || 'Failed to update profile'
@@ -255,21 +280,9 @@ export const useUserStore = defineStore('user', () => {
   const clearProfile = () => {
     profile.value = null
     permissions.value = []
+    currentUser.value = null
     error.value = null
   }
-  
-  // Watch for user changes and fetch profile
-  watch(
-    () => user.value?.id,
-    (newUserId) => {
-      if (newUserId) {
-        fetchProfile(newUserId)
-      } else {
-        clearProfile()
-      }
-    },
-    { immediate: true }
-  )
   
   // ============ USER MANAGEMENT FUNCTIONS (from useUsersStore) ============
   
@@ -339,6 +352,8 @@ export const useUserStore = defineStore('user', () => {
 
       users.value = (data || []) as UserProfile[]
       totalUsers.value = count || 0
+      
+      console.log('[User Store] Users loaded:', users.value.length)
     } catch (err: any) {
       console.error('[User Store] Users load error:', err)
       error.value = (err as any).message || 'Failed to load users'
@@ -368,6 +383,8 @@ export const useUserStore = defineStore('user', () => {
 
       managers.value = (data || []) as UserProfile[]
       totalManagers.value = count || 0
+      
+      console.log('[User Store] Managers loaded:', managers.value.length)
     } catch (err: any) {
       console.error('[User Store] Managers load error:', err)
       error.value = (err as any).message || 'Failed to load managers'
@@ -478,6 +495,8 @@ export const useUserStore = defineStore('user', () => {
         title: `Account ${type}`,
         message: messages[type] + (reason ? ` Reason: ${reason}` : '')
       })
+      
+      console.log('[User Store] Notification sent to user:', userId)
     } catch (err: any) {
       console.error('[User Store] Notification send error:', err)
     }
@@ -551,7 +570,7 @@ export const useUserStore = defineStore('user', () => {
   
   return {
     // Individual user properties
-    user: readonly(user),
+    currentUser: readonly(currentUser),
     profile: readonly(profile),
     permissions: readonly(permissions),
     loading: readonly(loading),
@@ -560,6 +579,7 @@ export const useUserStore = defineStore('user', () => {
     isAuthenticated,
     
     // Individual user methods
+    getCurrentUser,
     initializeSession,
     fetchProfile,
     loadPermissions,
