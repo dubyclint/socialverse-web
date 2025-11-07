@@ -144,20 +144,26 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
-const user = ref(null)
 const copyrightText = '©'
+const user = ref(null)
 
-const goToSignin = () => {
+const goToSignin = async () => {
   console.log('Navigating to Sign In...')
-  router.push('/auth/signin')
+  try {
+    await navigateTo('/auth/signin')
+  } catch (error) {
+    console.error('Navigation error:', error)
+  }
 }
 
-const goToSignup = () => {
+const goToSignup = async () => {
   console.log('Navigating to Sign Up...')
-  router.push('/auth/signup')
+  try {
+    await navigateTo('/auth/signup')
+  } catch (error) {
+    console.error('Navigation error:', error)
+  }
 }
 </script>
 
