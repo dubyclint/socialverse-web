@@ -29,9 +29,11 @@
 </template>
 
 <script setup lang="ts">
+// CRITICAL FIX: Disable ALL middleware on this page to allow navigation
+// The 'guest' middleware was causing conflicts with other middleware
 definePageMeta({
   layout: 'blank',
-  middleware: 'guest'
+  middleware: []  // ← EMPTY ARRAY - DISABLES ALL MIDDLEWARE
 })
 
 const handleSignupSuccess = async (data: any) => {
