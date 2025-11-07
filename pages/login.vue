@@ -12,27 +12,17 @@
         <nav class="nav">
           <a href="#features" class="nav-link features-link">✨ Features</a>
           
-          <button
-            v-if="!user"
-            @click="goToSignin"
+          <NuxtLink
+            to="/auth/signin"
             class="nav-link btn-login"
           >
             Sign In
-          </button>
-          <button
-            v-if="!user"
-            @click="goToSignup"
+          </NuxtLink>
+          <NuxtLink
+            to="/auth/signup"
             class="nav-link btn-signup"
           >
             Sign Up
-          </button>
-          
-          <NuxtLink 
-            v-if="user"
-            to="/feed" 
-            class="nav-link btn-dashboard"
-          >
-            Dashboard
           </NuxtLink>
         </nav>
       </div>
@@ -48,26 +38,17 @@
         </p>
         
         <div class="hero-buttons">
-          <button
-            v-if="!user"
-            @click="goToSignup"
+          <NuxtLink
+            to="/auth/signup"
             class="btn-hero btn-hero-primary"
           >
             Get Started Free
-          </button>
-          <button
-            v-if="!user"
-            @click="goToSignin"
+          </NuxtLink>
+          <NuxtLink
+            to="/auth/signin"
             class="btn-hero btn-hero-secondary"
           >
             Sign In
-          </button>
-          <NuxtLink 
-            v-if="user"
-            to="/feed" 
-            class="btn-hero btn-hero-primary"
-          >
-            Go to Feed
           </NuxtLink>
         </div>
       </div>
@@ -161,34 +142,10 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+<script setup lang=\"ts\">
+import { ref } from 'vue'
 
-const router = useRouter()
 const user = ref(null)
-
-/**
- * PROBLEM 1 FIX: Navigate to signup page
- * Uses router.push() for full page navigation to /auth/signup
- */
-const goToSignup = () => {
-  console.log('[Login] Navigating to signup page: /auth/signup')
-  router.push('/auth/signup')
-}
-
-/**
- * PROBLEM 2 FIX: Navigate to signin page
- * Uses router.push() for full page navigation to /auth/signin
- * Removed modal completely
- */
-const goToSignin = () => {
-  console.log('[Login] Navigating to signin page: /auth/signin')
-  router.push('/auth/signin')
-}
-
-onMounted(() => {
-  console.log('[Login] Landing page mounted')
-})
 </script>
 
 <style scoped>
@@ -275,13 +232,6 @@ onMounted(() => {
 .btn-signup:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-dashboard {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
 }
 
 /* Hero Section */
