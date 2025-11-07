@@ -208,7 +208,8 @@ const validateForm = () => {
 }
 
 /**
- * Handle form submission with comprehensive logging
+ * Handle form submission
+ * FIXED: Removed 1500ms setTimeout delay - emit success immediately
  */
 const handleSubmit = async () => {
   error.value = ''
@@ -222,9 +223,7 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    console.log('═══════════════════════════════════════════════════════════')
-    console.log('[SignUpForm] DIAGNOSTIC: SUBMITTING SIGNUP FORM')
-    console.log('═══════════════════════════════════════════════════════════')
+    console.log('[SignUpForm] Submitting signup form')
     console.log('[SignUpForm] Form data:', {
       email: formData.email,
       username: formData.username,
@@ -238,47 +237,29 @@ const handleSubmit = async () => {
       formData.username
     )
 
-    console.log('───────────────────────────────────────────────────────────')
-    console.log('[SignUpForm] DIAGNOSTIC: SIGNUP RESULT RECEIVED')
-    console.log('───────────────────────────────────────────────────────────')
-    console.log('[SignUpForm] Result object:', result)
-    console.log('[SignUpForm] Result type:', typeof result)
-    console.log('[SignUpForm] Result keys:', Object.keys(result || {}))
-    console.log('[SignUpForm] Result.success:', result?.success)
-    console.log('[SignUpForm] Result.message:', result?.message)
-    console.log('[SignUpForm] Result.message type:', typeof result?.message)
+    console.log('[SignUpForm] Signup result received:', result)
 
     if (result.success) {
       success.value = result.message || 'Account created successfully!'
       console.log('[SignUpForm] ✓ Signup successful')
-      console.log('[SignUpForm] Success message:', success.value)
+      console.log('[SignUpForm] Emitting success event immediately')
       
-      setTimeout(() => {
-        console.log('[SignUpForm] Emitting success event')
-        emit('success', { email: formData.email })
-      }, 1500)
+      // CRITICAL FIX: Emit success immediately without delay
+      emit('success', { email: formData.email })
     } else {
       // Failure - show error message from backend
       error.value = result.message || 'Signup failed. Please try again.'
-      console.error('[SignUpForm] ✗ Signup failed')
-      console.error('[SignUpForm] Error message:', error.value)
+      console.error('[SignUpForm] ✗ Signup failed:', error.value)
     }
-    
-    console.log('═══════════════════════════════════════════════════════════')
   } catch (err: any) {
-    console.error('═══════════════════════════════════════════════════════════')
-    console.error('[SignUpForm] DIAGNOSTIC: UNEXPECTED ERROR CAUGHT')
-    console.error('═══════════════════════════════════════════════════════════')
-    console.error('[SignUpForm] Error object:', err)
-    console.error('[SignUpForm] Error type:', typeof err)
-    console.error('[SignUpForm] Error constructor:', err?.constructor?.name)
-    console.error('[SignUpForm] Error message:', err?.message)
-    console.error('[SignUpForm] Error stack:', err?.stack)
-    console.error('═══════════════════════════════════════════════════════════')
-    
+    console.error('[SignUpForm] Error during signup:', err)
     error.value = err.message || 'An unexpected error occurred. Please try again.'
   } finally {
     loading.value = false
   }
 }
 </script>
+
+<style scoped>
+/* Minimal scoped styles */
+</style>
