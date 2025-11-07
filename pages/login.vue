@@ -14,14 +14,14 @@
           
           <button
             v-if="!user"
-            @click="navigateToSignin"
+            @click="goToSignin"
             class="nav-link btn-login"
           >
             Sign In
           </button>
           <button
             v-if="!user"
-            @click="navigateToSignup"
+            @click="goToSignup"
             class="nav-link btn-signup"
           >
             Sign Up
@@ -50,14 +50,14 @@
         <div class="hero-buttons">
           <button
             v-if="!user"
-            @click="navigateToSignup"
+            @click="goToSignup"
             class="btn-hero btn-hero-primary"
           >
             Get Started Free
           </button>
           <button
             v-if="!user"
-            @click="navigateToSignin"
+            @click="goToSignin"
             class="btn-hero btn-hero-secondary"
           >
             Sign In
@@ -158,58 +158,6 @@
         <p>&copy; 2024 SocialVerse. All rights reserved.</p>
       </div>
     </footer>
-
-    <!-- Sign In Modal -->
-    <div v-if="showSigninModal" class="modal-overlay" @click="showSigninModal = false">
-      <div class="modal-content signin-modal" @click.stop>
-        <button class="modal-close" @click="showSigninModal = false">×</button>
-        <div class="signin-form">
-          <h2>Welcome Back</h2>
-          <p>Sign in to your SocialVerse account</p>
-
-          <div v-if="signinError" class="error-message">
-            {{ signinError }}
-          </div>
-
-          <form @submit.prevent="handleSignIn" class="form-group">
-            <div>
-              <label for="signin-email">Email</label>
-              <input
-                id="signin-email"
-                v-model="signinEmail"
-                type="email"
-                required
-                placeholder="you@example.com"
-                :disabled="signinLoading"
-              />
-            </div>
-
-            <div>
-              <label for="signin-password">Password</label>
-              <input
-                id="signin-password"
-                v-model="signinPassword"
-                type="password"
-                required
-                placeholder="••••••••"
-                :disabled="signinLoading"
-              />
-            </div>
-
-            <button type="submit" :disabled="signinLoading" class="btn-signin">
-              {{ signinLoading ? 'Signing In...' : 'Sign In' }}
-            </button>
-          </form>
-
-          <p class="signin-footer">
-            Don't have an account?
-            <button @click="handleSwitchToSignup" class="link-button">
-              Create one
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -218,69 +166,28 @@ import { ref, onMounted } from 'vue'
 
 const router = useRouter()
 const user = ref(null)
-const showSigninModal = ref(false)
-const signinEmail = ref('')
-const signinPassword = ref('')
-const signinLoading = ref(false)
-const signinError = ref('')
 
 /**
- * Navigate to signup page (full page, not modal)
+ * PROBLEM 1 FIX: Navigate to signup page
+ * Uses router.push() for full page navigation to /auth/signup
  */
-const navigateToSignup = () => {
-  console.log('[Login] Navigating to signup page')
-  showSigninModal.value = false
+const goToSignup = () => {
+  console.log('[Login] Navigating to signup page: /auth/signup')
   router.push('/auth/signup')
 }
 
 /**
- * Navigate to signin page (full page, not modal)
+ * PROBLEM 2 FIX: Navigate to signin page
+ * Uses router.push() for full page navigation to /auth/signin
+ * Removed modal completely
  */
-const navigateToSignin = () => {
-  console.log('[Login] Opening signin modal')
-  showSigninModal.value = true
-}
-
-/**
- * Switch from signin modal to signup page
- */
-const handleSwitchToSignup = () => {
-  console.log('[Login] Switching from signin modal to signup page')
-  showSigninModal.value = false
-  router.push('/auth/signup')
-}
-
-const handleSignIn = async () => {
-  signinError.value = ''
-  signinLoading.value = true
-
-  try {
-    const supabase = useSupabaseClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: signinEmail.value,
-      password: signinPassword.value
-    })
-
-    if (error) {
-      signinError.value = error.message
-      return
-    }
-
-    if (data.session) {
-      console.log('[Login] Sign in successful')
-      showSigninModal.value = false
-      await router.push('/feed')
-    }
-  } catch (err: any) {
-    console.error('[Login] Sign in error:', err)
-    signinError.value = err.message || 'An error occurred during sign in'
-  } finally {
-    signinLoading.value = false
-  }
+const goToSignin = () => {
+  console.log('[Login] Navigating to signin page: /auth/signin')
+  router.push('/auth/signin')
 }
 
 onMounted(() => {
-  console.log('[Login] Page mounted')
+  console.log('[Login] Landing page mounted')
 })
 </script>
 
@@ -568,171 +475,6 @@ onMounted(() => {
   padding-top: 2rem;
   border-top: 1px solid rgba(148, 163, 184, 0.1);
   opacity: 0.7;
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-content {
-  background: #1e293b;
-  border-radius: 12px;
-  padding: 2rem;
-  max-width: 500px;
-  width: 90%;
-  position: relative;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.signin-modal {
-  max-width: 450px;
-}
-
-.modal-close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: none;
-  border: none;
-  color: #cbd5e1;
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.modal-close:hover {
-  color: white;
-}
-
-.signin-form h2 {
-  margin-bottom: 0.5rem;
-  font-size: 1.5rem;
-}
-
-.signin-form p {
-  color: #cbd5e1;
-  margin-bottom: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-group div {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.form-group input {
-  padding: 0.75rem;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 6px;
-  background: rgba(30, 41, 59, 0.5);
-  color: white;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: rgba(102, 126, 234, 0.5);
-  background: rgba(30, 41, 59, 0.8);
-}
-
-.form-group input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-signin {
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 0.5rem;
-}
-
-.btn-signin:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-signin:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.error-message {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
-  padding: 0.75rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
-.signin-footer {
-  text-align: center;
-  margin-top: 1.5rem;
-  color: #cbd5e1;
-}
-
-.link-button {
-  background: none;
-  border: none;
-  color: #667eea;
-  cursor: pointer;
-  text-decoration: underline;
-  font-weight: 600;
-  transition: color 0.3s ease;
-  padding: 0;
-}
-
-.link-button:hover {
-  color: #764ba2;
 }
 
 /* Responsive */
