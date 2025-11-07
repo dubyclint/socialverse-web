@@ -3,7 +3,9 @@
     <div class="w-full max-w-md">
       <!-- Logo/Header -->
       <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-white mb-2">SocialVerse</h1>
+        <NuxtLink to="/" class="inline-block">
+          <h1 class="text-4xl font-bold text-white mb-2">SocialVerse</h1>
+        </NuxtLink>
         <p class="text-slate-400">Welcome back to the community</p>
       </div>
 
@@ -16,7 +18,7 @@
           Don't have an account?
           <NuxtLink 
             to="/auth/signup"
-            class="text-blue-500 hover:text-blue-400 font-semibold"
+            class="text-blue-500 hover:text-blue-400 font-semibold transition-colors"
           >
             Create one here
           </NuxtLink>
@@ -25,7 +27,10 @@
 
       <!-- Forgot Password Link -->
       <div class="text-center mt-4">
-        <NuxtLink to="/auth/forgot-password" class="text-slate-500 hover:text-slate-400 text-sm">
+        <NuxtLink 
+          to="/auth/forgot-password" 
+          class="text-slate-500 hover:text-slate-400 text-sm transition-colors"
+        >
           Forgot your password?
         </NuxtLink>
       </div>
@@ -45,10 +50,13 @@ const router = useRouter()
 
 const handleSigninSuccess = (data: any) => {
   console.log('[SignIn] Login successful, redirecting to home')
+  console.log('User data:', data)
+  
+  // Redirect to home page after successful sign in
   router.push('/')
 }
 </script>
 
 <style scoped>
-/* Minimal styles - inherited from global */
+/* Tailwind CSS handles all styling via utility classes */
 </style>
