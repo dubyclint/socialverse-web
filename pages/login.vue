@@ -144,16 +144,19 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const user = ref(null)
 const copyrightText = '©'
 
 const goToSignin = () => {
+  console.log('Navigating to Sign In...')
   router.push('/auth/signin')
 }
 
 const goToSignup = () => {
+  console.log('Navigating to Sign Up...')
   router.push('/auth/signup')
 }
 </script>
@@ -437,11 +440,20 @@ const goToSignup = () => {
   }
 
   .hero-title {
-    font-size: 2rem;
+    font-size: 2.5rem;
   }
 
-  .hero-image {
-    display: none;
+  .hero-subtitle {
+    font-size: 1.2rem;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+  }
+
+  .btn-hero {
+    width: 100%;
+    text-align: center;
   }
 
   .header-content {
@@ -450,8 +462,12 @@ const goToSignup = () => {
   }
 
   .nav {
+    flex-direction: column;
     width: 100%;
-    justify-content: center;
+  }
+
+  .btn-signup {
+    width: 100%;
   }
 }
 </style>
