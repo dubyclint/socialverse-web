@@ -29,24 +29,24 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-
 definePageMeta({
   layout: 'blank',
   middleware: 'guest'
 })
 
-const router = useRouter()
-
-const handleSignupSuccess = (data: any) => {
+const handleSignupSuccess = async (data: any) => {
   console.log('[SignUp] Account created successfully, redirecting to email verification')
   console.log('User email:', data?.email)
   
-  // Redirect to email verification page with email in query params
-  router.push({
-    path: '/auth/verify-email',
-    query: { email: data?.email || '' }
-  })
+  try {
+    // Redirect to email verification page with email in query params
+    await navigateTo({
+      path: '/auth/verify-email',
+      query: { email: data?.email || '' }
+    })
+  } catch (error) {
+    console.error('Navigation error:', error)
+  }
 }
 </script>
 
