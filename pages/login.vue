@@ -146,6 +146,7 @@
 import { ref } from 'vue'
 
 // CRITICAL FIX: Define page meta to disable layout wrapping
+// This prevents the default NuxtLayout from wrapping this page
 definePageMeta({
   layout: false
 })
