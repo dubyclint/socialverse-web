@@ -1,6 +1,5 @@
-// FILE: /nuxt.config.ts
-// ✅ FIXED - @nuxtjs/supabase module re-enabled
-// ============================================================================
+// FILE: /nuxt.config.ts - FIXED
+// Add explicit router configuration to enable auto-routing
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
@@ -14,9 +13,20 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
-    '@nuxtjs/supabase',  // ✅ RE-ENABLED - This was the issue!
+    '@nuxtjs/supabase',
     '@nuxtjs/color-mode',
   ],
+
+  // EXPLICIT ROUTER CONFIGURATION - ENABLE AUTO-ROUTING
+  router: {
+    options: {
+      strict: false,
+      sensitive: false,
+    }
+  },
+
+  // ENABLE FILE-BASED ROUTING
+  pages: true,
 
   runtimeConfig: {
     // Server-side only (not exposed to client)
@@ -37,26 +47,6 @@ export default defineNuxtConfig({
   },
 
   build: {
-    transpile: ['@supabase/supabase-js'],
-  },
-
-  vite: {
-    build: {
-      cssCodeSplit: false,
-      minify: 'terser',
-      sourcemap: false,
-      chunkSizeWarningLimit: 1000,
-    },
-  },
-
-  app: {
-    head: {
-      title: 'SocialVerse - Connect, Share, Grow',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'SocialVerse - A modern social networking platform' },
-      ],
-    },
+    transpile: ['@nuxtjs/supabase'],
   },
 })
