@@ -1,3 +1,4 @@
+<!-- FILE: /pages/login.vue - DEBUG VERSION -->
 <template>
   <div class="landing-page">
     <!-- Header -->
@@ -146,7 +147,6 @@
 import { ref } from 'vue'
 
 // CRITICAL FIX: Define page meta to disable layout wrapping
-// This prevents the default NuxtLayout from wrapping this page
 definePageMeta({
   layout: false
 })
@@ -154,14 +154,41 @@ definePageMeta({
 const copyrightText = '©'
 const user = ref(null)
 
-const goToSignin = () => {
-  console.log('Navigating to Sign In...')
-  navigateTo('/auth/signin')
+// DEBUG: Use useRouter directly instead of relying on auto-import
+const router = useRouter()
+
+const goToSignin = async () => {
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('[Login] goToSignin() called')
+  console.log('[Login] Router instance:', !!router)
+  console.log('[Login] Router type:', typeof router)
+  console.log('[Login] Attempting to navigate to /auth/signin')
+  
+  try {
+    const result = await router.push('/auth/signin')
+    console.log('[Login] Navigation result:', result)
+    console.log('[Login] Current route after push:', router.currentRoute.value.path)
+  } catch (error) {
+    console.error('[Login] Navigation error:', error)
+  }
+  console.log('═══════════════════════════════════════════════════════════')
 }
 
-const goToSignup = () => {
-  console.log('Navigating to Sign Up...')
-  navigateTo('/auth/signup')
+const goToSignup = async () => {
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('[Login] goToSignup() called')
+  console.log('[Login] Router instance:', !!router)
+  console.log('[Login] Router type:', typeof router)
+  console.log('[Login] Attempting to navigate to /auth/signup')
+  
+  try {
+    const result = await router.push('/auth/signup')
+    console.log('[Login] Navigation result:', result)
+    console.log('[Login] Current route after push:', router.currentRoute.value.path)
+  } catch (error) {
+    console.error('[Login] Navigation error:', error)
+  }
+  console.log('═══════════════════════════════════════════════════════════')
 }
 </script>
 
