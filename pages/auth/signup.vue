@@ -3,7 +3,9 @@
     <div class="w-full max-w-md">
       <!-- Logo/Header -->
       <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-white mb-2">SocialVerse</h1>
+        <NuxtLink to="/" class="inline-block">
+          <h1 class="text-4xl font-bold text-white mb-2">SocialVerse</h1>
+        </NuxtLink>
         <p class="text-slate-400">Create your account and join the community</p>
       </div>
 
@@ -16,7 +18,7 @@
           Already have an account?
           <NuxtLink 
             to="/auth/signin"
-            class="text-blue-500 hover:text-blue-400 font-semibold"
+            class="text-blue-500 hover:text-blue-400 font-semibold transition-colors"
           >
             Sign in here
           </NuxtLink>
@@ -38,14 +40,16 @@ const router = useRouter()
 
 const handleSignupSuccess = (data: any) => {
   console.log('[SignUp] Account created successfully, redirecting to email verification')
-  // Redirect to email verification page
+  console.log('User email:', data?.email)
+  
+  // Redirect to email verification page with email in query params
   router.push({
     path: '/auth/verify-email',
-    query: { email: data.email }
+    query: { email: data?.email || '' }
   })
 }
 </script>
 
 <style scoped>
-/* Minimal styles - inherited from global */
+/* Tailwind CSS handles all styling via utility classes */
 </style>
