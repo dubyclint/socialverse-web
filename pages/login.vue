@@ -14,14 +14,14 @@
           
           <button
             v-if="!user"
-            @click="showSigninModal = true"
+            @click="navigateToSignin"
             class="nav-link btn-login"
           >
             Sign In
           </button>
           <button
             v-if="!user"
-            @click="showSignupModal = true"
+            @click="navigateToSignup"
             class="nav-link btn-signup"
           >
             Sign Up
@@ -50,14 +50,14 @@
         <div class="hero-buttons">
           <button
             v-if="!user"
-            @click="showSignupModal = true"
+            @click="navigateToSignup"
             class="btn-hero btn-hero-primary"
           >
             Get Started Free
           </button>
           <button
             v-if="!user"
-            @click="showSigninModal = true"
+            @click="navigateToSignin"
             class="btn-hero btn-hero-secondary"
           >
             Sign In
@@ -105,46 +105,21 @@
 
           <div class="feature-card">
             <div class="feature-icon">🎁</div>
-            <h3>Gifts & Rewards</h3>
-            <p>Send and receive gifts, earn rewards, and unlock exclusive features</p>
+            <h3>Gift & Rewards</h3>
+            <p>Send gifts to creators and earn rewards for your engagement</p>
           </div>
 
           <div class="feature-card">
-            <div class="feature-icon">🤝</div>
-            <h3>P2P Trading</h3>
-            <p>Trade items securely with other users using our escrow system</p>
+            <div class="feature-icon">🔐</div>
+            <h3>Secure & Private</h3>
+            <p>Your privacy and security are our top priorities with end-to-end encryption</p>
           </div>
 
           <div class="feature-card">
-            <div class="feature-icon">⭐</div>
-            <h3>Rank System</h3>
-            <p>Build your reputation and unlock premium features as you grow</p>
+            <div class="feature-icon">📱</div>
+            <h3>Cross-Platform</h3>
+            <p>Access SocialVerse seamlessly on web, mobile, and desktop</p>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta-section">
-      <div class="cta-content">
-        <h2>Ready to Join SocialVerse?</h2>
-        <p>Start connecting with people who share your interests today</p>
-        
-        <div class="cta-buttons">
-          <button
-            v-if="!user"
-            @click="showSignupModal = true"
-            class="btn-cta btn-cta-primary"
-          >
-            Create Account Now
-          </button>
-          <button
-            v-if="!user"
-            @click="showSigninModal = true"
-            class="btn-cta btn-cta-secondary"
-          >
-            Already have an account?
-          </button>
         </div>
       </div>
     </section>
@@ -153,16 +128,20 @@
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-section">
-          <h4>SocialVerse</h4>
-          <p>Connect, Share, and Grow</p>
+          <h4>About</h4>
+          <ul>
+            <li><NuxtLink to="/about">About Us</NuxtLink></li>
+            <li><NuxtLink to="/blog">Blog</NuxtLink></li>
+            <li><NuxtLink to="/careers">Careers</NuxtLink></li>
+          </ul>
         </div>
 
         <div class="footer-section">
-          <h4>Links</h4>
+          <h4>Legal</h4>
           <ul>
-            <li><a href="#features">Features</a></li>
             <li><NuxtLink to="/terms">Terms of Service</NuxtLink></li>
             <li><NuxtLink to="/privacy">Privacy Policy</NuxtLink></li>
+            <li><NuxtLink to="/cookies">Cookie Policy</NuxtLink></li>
           </ul>
         </div>
 
@@ -179,14 +158,6 @@
         <p>&copy; 2024 SocialVerse. All rights reserved.</p>
       </div>
     </footer>
-
-    <!-- Sign Up Modal -->
-    <div v-if="showSignupModal" class="modal-overlay" @click="showSignupModal = false">
-      <div class="modal-content" @click.stop>
-        <button class="modal-close" @click="showSignupModal = false">×</button>
-        <SignUpForm @close="showSignupModal = false" />
-      </div>
-    </div>
 
     <!-- Sign In Modal -->
     <div v-if="showSigninModal" class="modal-overlay" @click="showSigninModal = false">
@@ -232,7 +203,7 @@
 
           <p class="signin-footer">
             Don't have an account?
-            <button @click="showSigninModal = false; showSignupModal = true" class="link-button">
+            <button @click="handleSwitchToSignup" class="link-button">
               Create one
             </button>
           </p>
@@ -244,15 +215,40 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import SignUpForm from '~/components/auth/SignUpForm.vue'
 
+const router = useRouter()
 const user = ref(null)
-const showSignupModal = ref(false)
 const showSigninModal = ref(false)
 const signinEmail = ref('')
 const signinPassword = ref('')
 const signinLoading = ref(false)
 const signinError = ref('')
+
+/**
+ * Navigate to signup page (full page, not modal)
+ */
+const navigateToSignup = () => {
+  console.log('[Login] Navigating to signup page')
+  showSigninModal.value = false
+  router.push('/auth/signup')
+}
+
+/**
+ * Navigate to signin page (full page, not modal)
+ */
+const navigateToSignin = () => {
+  console.log('[Login] Opening signin modal')
+  showSigninModal.value = true
+}
+
+/**
+ * Switch from signin modal to signup page
+ */
+const handleSwitchToSignup = () => {
+  console.log('[Login] Switching from signin modal to signup page')
+  showSigninModal.value = false
+  router.push('/auth/signup')
+}
 
 const handleSignIn = async () => {
   signinError.value = ''
@@ -266,50 +262,41 @@ const handleSignIn = async () => {
     })
 
     if (error) {
-      signinError.value = error.message || 'Failed to sign in'
+      signinError.value = error.message
       return
     }
 
-    if (data.user) {
+    if (data.session) {
+      console.log('[Login] Sign in successful')
       showSigninModal.value = false
-      await navigateTo('/feed')
+      await router.push('/feed')
     }
   } catch (err: any) {
-    signinError.value = err.message || 'An error occurred'
+    console.error('[Login] Sign in error:', err)
+    signinError.value = err.message || 'An error occurred during sign in'
   } finally {
     signinLoading.value = false
   }
 }
 
-onMounted(async () => {
-  try {
-    const supabase = useSupabaseClient()
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-    user.value = authUser
-  } catch (error) {
-    console.error('[Landing] Error checking auth:', error)
-  }
+onMounted(() => {
+  console.log('[Login] Page mounted')
 })
 </script>
 
 <style scoped>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* Landing Page */
 .landing-page {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #333;
+  color: white;
 }
 
 /* Header */
 .header {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(10px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -326,64 +313,56 @@ onMounted(async () => {
 
 .logo-container {
   text-decoration: none;
-  display: flex;
-  align-items: center;
+  color: white;
 }
 
 .logo-box {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: bold;
 }
 
 .logo-text {
-  color: white;
-  font-weight: bold;
-  font-size: 1.3rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .nav {
   display: flex;
-  align-items: center;
   gap: 1.5rem;
+  align-items: center;
 }
 
 .nav-link {
+  color: #cbd5e1;
   text-decoration: none;
-  color: #333;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
-  cursor: pointer;
-  border: none;
   background: none;
-  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .nav-link:hover {
-  color: #667eea;
-}
-
-.features-link {
-  color: #667eea;
+  color: white;
 }
 
 .btn-login {
-  color: #333;
+  color: #cbd5e1;
 }
 
 .btn-login:hover {
-  background-color: #f0f0f0;
+  color: white;
 }
 
 .btn-signup {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
 }
 
 .btn-signup:hover {
@@ -395,6 +374,7 @@ onMounted(async () => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 0.6rem 1.2rem;
+  border-radius: 6px;
 }
 
 /* Hero Section */
@@ -450,62 +430,59 @@ onMounted(async () => {
 }
 
 .btn-hero-primary {
-  background: white;
-  color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .btn-hero-primary:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
 .btn-hero-secondary {
-  background: rgba(255, 255, 255, 0.2);
+  background: transparent;
   color: white;
-  border: 2px solid white;
+  border: 2px solid rgba(102, 126, 234, 0.5);
 }
 
 .btn-hero-secondary:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-3px);
+  border-color: rgba(102, 126, 234, 1);
+  background: rgba(102, 126, 234, 0.1);
 }
 
 .hero-image {
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 }
 
 .hero-placeholder {
   width: 300px;
   height: 300px;
-  background: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
   border-radius: 20px;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   font-size: 5rem;
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(102, 126, 234, 0.3);
 }
 
 /* Features Section */
 .features {
-  background: white;
+  max-width: 1200px;
+  margin: 0 auto;
   padding: 4rem 2rem;
 }
 
 .features-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  text-align: center;
 }
 
 .features-title {
   font-size: 2.5rem;
   font-weight: bold;
-  text-align: center;
   margin-bottom: 3rem;
-  color: #333;
 }
 
 .features-grid {
@@ -515,18 +492,17 @@ onMounted(async () => {
 }
 
 .feature-card {
-  padding: 2rem;
-  background: #f9fafb;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.1);
   border-radius: 12px;
-  text-align: center;
+  padding: 2rem;
   transition: all 0.3s ease;
-  border: 1px solid #e5e7eb;
 }
 
 .feature-card:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(102, 126, 234, 0.3);
   transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border-color: #667eea;
 }
 
 .feature-icon {
@@ -537,127 +513,61 @@ onMounted(async () => {
 .feature-card h3 {
   font-size: 1.3rem;
   margin-bottom: 0.5rem;
-  color: #333;
 }
 
 .feature-card p {
-  color: #666;
+  opacity: 0.8;
   line-height: 1.6;
-}
-
-/* CTA Section */
-.cta-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 4rem 2rem;
-  text-align: center;
-  color: white;
-}
-
-.cta-content {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.cta-content h2 {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
-
-.cta-content p {
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-  opacity: 0.95;
-}
-
-.cta-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.btn-cta {
-  padding: 0.9rem 2rem;
-  border-radius: 8px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  display: inline-block;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.btn-cta-primary {
-  background: white;
-  color: #667eea;
-}
-
-.btn-cta-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-}
-
-.btn-cta-secondary {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid white;
-}
-
-.btn-cta-secondary:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Footer */
 .footer {
-  background: #1f2937;
-  color: white;
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
   padding: 3rem 2rem 1rem;
+  margin-top: 4rem;
 }
 
 .footer-content {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 2rem;
   margin-bottom: 2rem;
 }
 
 .footer-section h4 {
-  font-size: 1.1rem;
   margin-bottom: 1rem;
-  color: #667eea;
-}
-
-.footer-section p {
-  color: #d1d5db;
-  line-height: 1.6;
+  color: white;
 }
 
 .footer-section ul {
   list-style: none;
+  padding: 0;
 }
 
-.footer-section ul li {
+.footer-section li {
   margin-bottom: 0.5rem;
 }
 
-.footer-section a {
-  color: #d1d5db;
+.footer-section a,
+.footer-section :deep(a) {
+  color: #cbd5e1;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
-.footer-section a:hover {
-  color: #667eea;
+.footer-section a:hover,
+.footer-section :deep(a:hover) {
+  color: white;
 }
 
 .footer-bottom {
   text-align: center;
   padding-top: 2rem;
-  border-top: 1px solid #374151;
-  color: #9ca3af;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  opacity: 0.7;
 }
 
 /* Modal Styles */
@@ -667,28 +577,46 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
-  padding: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
-  background: white;
-  border-radius: 16px;
+  background: #1e293b;
+  border-radius: 12px;
   padding: 2rem;
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 500px;
+  width: 90%;
   position: relative;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .signin-modal {
-  max-width: 400px;
+  max-width: 450px;
 }
 
 .modal-close {
@@ -697,25 +625,23 @@ onMounted(async () => {
   right: 1rem;
   background: none;
   border: none;
-  font-size: 2rem;
+  color: #cbd5e1;
+  font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
   transition: color 0.3s ease;
 }
 
 .modal-close:hover {
-  color: #333;
+  color: white;
 }
 
-/* Sign In Form */
 .signin-form h2 {
-  font-size: 1.8rem;
-  color: #1f2937;
   margin-bottom: 0.5rem;
+  font-size: 1.5rem;
 }
 
 .signin-form p {
-  color: #6b7280;
+  color: #cbd5e1;
   margin-bottom: 1.5rem;
 }
 
@@ -728,26 +654,32 @@ onMounted(async () => {
 .form-group div {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
 .form-group label {
-  font-weight: 600;
-  color: #374151;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
 }
 
 .form-group input {
   padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  background: rgba(30, 41, 59, 0.5);
+  color: white;
   font-size: 1rem;
   transition: all 0.3s ease;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.form-group input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-signin {
@@ -755,44 +687,48 @@ onMounted(async () => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 0.5rem;
 }
 
 .btn-signin:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-signin:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .error-message {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
   padding: 0.75rem;
-  border-radius: 8px;
+  border-radius: 6px;
   margin-bottom: 1rem;
-  border-left: 4px solid #dc2626;
+  font-size: 0.9rem;
 }
 
 .signin-footer {
   text-align: center;
   margin-top: 1.5rem;
-  color: #6b7280;
+  color: #cbd5e1;
 }
 
 .link-button {
   background: none;
   border: none;
   color: #667eea;
-  font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
+  font-weight: 600;
+  transition: color 0.3s ease;
+  padding: 0;
 }
 
 .link-button:hover {
@@ -807,26 +743,11 @@ onMounted(async () => {
   }
 
   .hero-title {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
 
-  .hero-subtitle {
-    font-size: 1.2rem;
-  }
-
-  .hero-buttons {
-    flex-direction: column;
-  }
-
-  .btn-hero {
-    width: 100%;
-    text-align: center;
-  }
-
-  .hero-placeholder {
-    width: 200px;
-    height: 200px;
-    font-size: 3rem;
+  .hero-image {
+    display: none;
   }
 
   .header-content {
@@ -837,27 +758,6 @@ onMounted(async () => {
   .nav {
     width: 100%;
     justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .features-title {
-    font-size: 2rem;
-  }
-
-  .cta-content h2 {
-    font-size: 2rem;
-  }
-
-  .cta-buttons {
-    flex-direction: column;
-  }
-
-  .btn-cta {
-    width: 100%;
-  }
-
-  .modal-content {
-    max-width: 90%;
   }
 }
 </style>
