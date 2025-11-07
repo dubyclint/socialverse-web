@@ -39,21 +39,21 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-
 definePageMeta({
   layout: 'blank',
   middleware: 'guest'
 })
 
-const router = useRouter()
-
-const handleSigninSuccess = (data: any) => {
+const handleSigninSuccess = async (data: any) => {
   console.log('[SignIn] Login successful, redirecting to home')
   console.log('User data:', data)
   
-  // Redirect to home page after successful sign in
-  router.push('/')
+  try {
+    // Redirect to home page after successful sign in
+    await navigateTo('/')
+  } catch (error) {
+    console.error('Navigation error:', error)
+  }
 }
 </script>
 
