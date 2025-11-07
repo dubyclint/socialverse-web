@@ -14,12 +14,12 @@
       <div class="text-center mt-6">
         <p class="text-slate-400">
           Already have an account?
-          <button 
-            @click="navigateToSignin"
-            class="text-blue-500 hover:text-blue-400 font-semibold cursor-pointer bg-none border-none p-0"
+          <NuxtLink 
+            to="/auth/signin"
+            class="text-blue-500 hover:text-blue-400 font-semibold"
           >
             Sign in here
-          </button>
+          </NuxtLink>
         </p>
       </div>
     </div>
@@ -27,6 +27,8 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+
 definePageMeta({
   layout: 'blank',
   middleware: 'guest'
@@ -42,13 +44,8 @@ const handleSignupSuccess = (data: any) => {
     query: { email: data.email }
   })
 }
-
-/**
- * Navigate to signin page with full page replacement
- * Uses router.push instead of NuxtLink to ensure proper navigation
- */
-const navigateToSignin = () => {
-  console.log('[SignUp] Navigating to signin page')
-  router.push('/auth/signin')
-}
 </script>
+
+<style scoped>
+/* Minimal styles - inherited from global */
+</style>
