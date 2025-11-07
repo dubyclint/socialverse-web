@@ -145,25 +145,22 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// CRITICAL FIX: Define page meta to disable layout wrapping
+definePageMeta({
+  layout: false
+})
+
 const copyrightText = '©'
 const user = ref(null)
 
-const goToSignin = async () => {
+const goToSignin = () => {
   console.log('Navigating to Sign In...')
-  try {
-    await navigateTo('/auth/signin')
-  } catch (error) {
-    console.error('Navigation error:', error)
-  }
+  navigateTo('/auth/signin')
 }
 
-const goToSignup = async () => {
+const goToSignup = () => {
   console.log('Navigating to Sign Up...')
-  try {
-    await navigateTo('/auth/signup')
-  } catch (error) {
-    console.error('Navigation error:', error)
-  }
+  navigateTo('/auth/signup')
 }
 </script>
 
