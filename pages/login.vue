@@ -136,7 +136,7 @@
       </div>
 
       <div class="footer-bottom">
-        <p>&copy; 2024 SocialVerse. All rights reserved.</p>
+        <p>{{ copyrightText }} 2024 SocialVerse. All rights reserved.</p>
       </div>
     </footer>
   </div>
@@ -146,6 +146,7 @@
 import { ref } from 'vue'
 
 const user = ref(null)
+const copyrightText = '©'
 </script>
 
 <style scoped>
