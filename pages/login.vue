@@ -12,18 +12,18 @@
         <nav class="nav">
           <a href="#features" class="nav-link features-link">✨ Features</a>
           
-          <NuxtLink
-            to="/auth/signin"
+          <button
+            @click="goToSignin"
             class="nav-link btn-login"
           >
             Sign In
-          </NuxtLink>
-          <NuxtLink
-            to="/auth/signup"
+          </button>
+          <button
+            @click="goToSignup"
             class="nav-link btn-signup"
           >
             Sign Up
-          </NuxtLink>
+          </button>
         </nav>
       </div>
     </header>
@@ -38,18 +38,18 @@
         </p>
         
         <div class="hero-buttons">
-          <NuxtLink
-            to="/auth/signup"
+          <button
+            @click="goToSignup"
             class="btn-hero btn-hero-primary"
           >
             Get Started Free
-          </NuxtLink>
-          <NuxtLink
-            to="/auth/signin"
+          </button>
+          <button
+            @click="goToSignin"
             class="btn-hero btn-hero-secondary"
           >
             Sign In
-          </NuxtLink>
+          </button>
         </div>
       </div>
 
@@ -145,19 +145,26 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+const router = useRouter()
 const user = ref(null)
 const copyrightText = '©'
+
+const goToSignin = () => {
+  router.push('/auth/signin')
+}
+
+const goToSignup = () => {
+  router.push('/auth/signup')
+}
 </script>
 
 <style scoped>
-/* Landing Page */
 .landing-page {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   min-height: 100vh;
   color: white;
 }
 
-/* Header */
 .header {
   background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(10px);
@@ -235,7 +242,6 @@ const copyrightText = '©'
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-/* Hero Section */
 .hero {
   max-width: 1200px;
   margin: 0 auto;
@@ -326,7 +332,6 @@ const copyrightText = '©'
   border: 2px solid rgba(102, 126, 234, 0.3);
 }
 
-/* Features Section */
 .features {
   max-width: 1200px;
   margin: 0 auto;
@@ -378,7 +383,6 @@ const copyrightText = '©'
   line-height: 1.6;
 }
 
-/* Footer */
 .footer {
   background: rgba(15, 23, 42, 0.9);
   border-top: 1px solid rgba(148, 163, 184, 0.1);
@@ -409,15 +413,13 @@ const copyrightText = '©'
   margin-bottom: 0.5rem;
 }
 
-.footer-section a,
-.footer-section :deep(a) {
+.footer-section a {
   color: #cbd5e1;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
-.footer-section a:hover,
-.footer-section :deep(a:hover) {
+.footer-section a:hover {
   color: white;
 }
 
@@ -428,7 +430,6 @@ const copyrightText = '©'
   opacity: 0.7;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .hero {
     grid-template-columns: 1fr;
