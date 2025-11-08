@@ -1,3 +1,4 @@
+<!-- FILE: /pages/auth/signin.vue - COMPLETE REPLACEMENT -->
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -6,48 +7,57 @@
         <NuxtLink to="/" class="inline-block">
           <h1 class="text-4xl font-bold text-white mb-2">SocialVerse</h1>
         </NuxtLink>
-        <p class="text-slate-400">Create your account and join the community</p>
+        <p class="text-slate-400">Welcome back to the community</p>
       </div>
 
-      <!-- Sign-Up Form Component -->
-      <SignUpForm @success="handleSignupSuccess" />
+      <!-- Sign-In Form Component -->
+      <SignInForm @success="handleSigninSuccess" />
 
-      <!-- Sign-In Link -->
+      <!-- Sign-Up Link -->
       <div class="text-center mt-6">
         <p class="text-slate-400">
-          Already have an account?
+          Don't have an account?
           <NuxtLink 
-            to="/auth/signin"
+            to="/auth/signup"
             class="text-blue-500 hover:text-blue-400 font-semibold transition-colors"
           >
-            Sign in here
+            Create one here
           </NuxtLink>
         </p>
+      </div>
+
+      <!-- Forgot Password Link -->
+      <div class="text-center mt-4">
+        <NuxtLink 
+          to="/auth/forgot-password" 
+          class="text-slate-500 hover:text-slate-400 text-sm transition-colors"
+        >
+          Forgot your password?
+        </NuxtLink>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// CRITICAL FIX: Disable ALL middleware on this page to allow navigation
-// The 'guest' middleware was causing conflicts with other middleware
+// FILE: /pages/auth/signin.vue - SCRIPT SECTION
+// Sign-in page - for unauthenticated users only
+
 definePageMeta({
   layout: 'blank',
-  middleware: []  // ← EMPTY ARRAY - DISABLES ALL MIDDLEWARE
+  middleware: ['guest']  // Redirect authenticated users to /feed
 })
 
-const handleSignupSuccess = async (data: any) => {
-  console.log('[SignUp] Account created successfully, redirecting to email verification')
-  console.log('User email:', data?.email)
+const router = useRouter()
+
+const handleSigninSuccess = async (data: any) => {
+  console.log('[SignIn] Login successful, redirecting to home')
+  console.log('[SignIn] User data:', data)
   
   try {
-    // Redirect to email verification page with email in query params
-    await navigateTo({
-      path: '/auth/verify-email',
-      query: { email: data?.email || '' }
-    })
+    await router.push('/')
   } catch (error) {
-    console.error('Navigation error:', error)
+    console.error('[SignIn] Navigation error:', error)
   }
 }
 </script>
