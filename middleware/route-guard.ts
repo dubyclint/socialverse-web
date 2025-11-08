@@ -1,64 +1,73 @@
-// middleware/route-guard.ts
-export default defineNuxtRouteMiddleware((to) => {
-  // Safely get user with error handling
-  let user = null
-  try {
-    user = useSupabaseUser()
-  } catch (error) {
-    console.warn('Supabase user check failed:', error)
+// FILE: /middleware/route-guard.ts - CONSOLIDATED & FIXED
+// ============================================================================
+// ROLE-BASED ACCESS CONTROL FOR PROTECTED ROUTES
+// This is a NON-GLOBAL middleware - only applied to admin/manager routes
+// Purpose: Enforce role-based access control
+// ============================================================================
+
+export default defineNuxtRouteMiddleware((to, from) => {
+  // Skip middleware on server-side rendering
+  if (process.server) return
+
+  console.log(`[Route Guard Middleware] Checking route: ${to.path}`)
+
+  // Skip for public/auth routes
+  const publicRoutes = [
+    '/',
+    '/login',
+    '/auth',
+    '/auth/signin',
+    '/auth/signup',
+    '/auth/forgot-password',
+    '/auth/verify-email',
+    '/terms',
+    '/privacy',
+  ]
+
+  const isPublicRoute = publicRoutes.some(route => 
+    to.path === route || to.path.startsWith(route + '/')
+  )
+
+  if (isPublicRoute) {
     return
   }
 
-  // If no user, skip this middleware
+  // Get user from auth store
+  const authStore = useAuthStore()
+  const user = authStore.user
+
+  // If not authenticated, redirect to signin
   if (!user) {
-    return
+    console.warn(`[Route Guard Middleware] ✗ Unauthenticated user blocked from: ${to.path}`)
+    return navigateTo('/auth/signin')
   }
 
-  // Try to get RBAC composable with error handling
-  let getUserRole: (user: any) => string
-  let canAccessRoute: (path: string, role: string) => boolean
-
-  try {
-    const rbac = useRBAC()
-    getUserRole = rbac.getUserRole
-    canAccessRoute = rbac.canAccessRoute
-  } catch (error) {
-    console.warn('RBAC composable not available:', error)
-    return
-  }
-
-  const userRole = getUserRole(user)
-  const rbacConfig = useRuntimeConfig().public.rbac
+  // Get user role
+  const userRole = user.role || 'user'
 
   // Check admin routes
   if (to.path.startsWith('/admin')) {
     if (userRole !== 'admin') {
+      console.warn(`[Route Guard Middleware] ✗ Non-admin user blocked from: ${to.path}`)
       throw createError({
         statusCode: 403,
-        statusMessage: 'Admin access required'
+        statusMessage: 'Admin access required',
       })
     }
+    console.log(`[Route Guard Middleware] ✓ Admin user allowed on: ${to.path}`)
   }
 
   // Check manager routes
   if (to.path.startsWith('/manager')) {
     if (userRole !== 'manager' && userRole !== 'admin') {
+      console.warn(`[Route Guard Middleware] ✗ Non-manager user blocked from: ${to.path}`)
       throw createError({
         statusCode: 403,
-        statusMessage: 'Manager access required'
+        statusMessage: 'Manager access required',
       })
     }
+    console.log(`[Route Guard Middleware] ✓ Manager user allowed on: ${to.path}`)
   }
 
-  // Protected routes based on existing pages structure
-  const protectedRoutes = ['/profile', '/chat', '/inbox', '/trade', '/p2p', '/cross-meet', '/universe', '/my-pocket', '/notifications', '/settings']
-
-  if (protectedRoutes.some(route => to.path.startsWith(route))) {
-    if (!canAccessRoute(to.path, userRole)) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Access denied'
-      })
-    }
-  }
+  console.log(`[Route Guard Middleware] ✓ User allowed on: ${to.path}`)
 })
