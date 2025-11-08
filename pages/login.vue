@@ -479,3 +479,4 @@ const goToSignup = async () => {
     justify-content: center;
   }
 }
+</style>
