@@ -1,9 +1,7 @@
-// FILE: /middleware/guest.ts - CONSOLIDATED & FIXED
-// ============================================================================
+// FILE: /middleware/guest.ts - FIXED
 // GUEST-ONLY MIDDLEWARE FOR AUTH PAGES
 // This is a NON-GLOBAL middleware - only applied to auth routes
 // Purpose: Ensure only unauthenticated users can access auth pages
-// ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
   // Skip middleware on server-side rendering
