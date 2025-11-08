@@ -1,37 +1,47 @@
-// FILE: /middleware/auth-guard.ts - UPDATE
-// Middleware for protected routes
+// FILE: /middleware/auth-guard.ts - CONSOLIDATED & FIXED
+// ============================================================================
+// REDIRECT AUTHENTICATED USERS AWAY FROM AUTH PAGES
+// This is a NON-GLOBAL middleware - only applied to auth routes
+// Purpose: Redirect logged-in users from auth pages to feed
 // ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
-  // Skip on server-side
+  // Skip middleware on server-side rendering
   if (process.server) return
 
-  // Get auth token from localStorage
-  const token = localStorage.getItem('auth_token')
+  console.log(`[Auth Guard Middleware] Checking route: ${to.path}`)
 
-  // Define public routes that don't require authentication
-  const publicRoutes = [
+  // Only apply this middleware to auth routes
+  const authRoutes = [
     '/auth',
     '/auth/signin',
+    '/auth/signup',
     '/auth/login',
-    '/auth/verify-email',
     '/auth/forgot-password',
+    '/auth/verify-email',
     '/auth/reset-password',
-    '/terms',
-    '/privacy',
-    '/'
+    '/auth/confirm',
   ]
 
-  // Check if current route is public
-  const isPublicRoute = publicRoutes.some(route => to.path.startsWith(route))
+  const isAuthRoute = authRoutes.some(route => 
+    to.path === route || to.path.startsWith(route + '/')
+  )
 
-  // If route requires auth and user is not authenticated
-  if (!isPublicRoute && !token) {
-    return navigateTo('/auth/signin')
+  // If not an auth route, skip this middleware
+  if (!isAuthRoute) {
+    return
   }
 
-  // If user is authenticated and trying to access auth pages
-  if (isPublicRoute && token && to.path.startsWith('/auth')) {
+  // Check if user is already authenticated
+  const token = typeof window !== 'undefined' 
+    ? localStorage.getItem('auth_token') 
+    : null
+
+  // If authenticated user tries to access auth pages, redirect to feed
+  if (token) {
+    console.log(`[Auth Guard Middleware] ✓ Authenticated user redirected from ${to.path} to /feed`)
     return navigateTo('/feed')
   }
+
+  console.log(`[Auth Guard Middleware] ✓ Unauthenticated user allowed on: ${to.path}`)
 })
