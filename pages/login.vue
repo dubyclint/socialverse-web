@@ -1,4 +1,4 @@
-<!-- FILE: /pages/login.vue - COMPLETE REPLACEMENT -->
+<!-- FILE: /pages/login.vue - COMPLETE FIX -->
 <!-- LANDING PAGE - MARKETING/ONBOARDING PAGE -->
 <!-- This is the public landing page, NOT the auth page -->
 
@@ -144,26 +144,34 @@
 
 definePageMeta({
   layout: 'blank',
-  middleware: ['auth-guard']  // Redirect authenticated users to /feed
+  middleware: []  // NO MIDDLEWARE - this is a public landing page
 })
 
 const router = useRouter()
 
 const goToSignin = async () => {
-  console.log('[Login Page] Navigating to /auth/signin')
+  console.log('[Login Page] goToSignin() called')
+  console.log('[Login Page] Current route:', router.currentRoute.value.path)
+  
   try {
+    console.log('[Login Page] Pushing to /auth/signin')
     await router.push('/auth/signin')
+    console.log('[Login Page] ✓ Navigation successful')
   } catch (error) {
-    console.error('[Login Page] Navigation error:', error)
+    console.error('[Login Page] ✗ Navigation error:', error)
   }
 }
 
 const goToSignup = async () => {
-  console.log('[Login Page] Navigating to /auth/signup')
+  console.log('[Login Page] goToSignup() called')
+  console.log('[Login Page] Current route:', router.currentRoute.value.path)
+  
   try {
+    console.log('[Login Page] Pushing to /auth/signup')
     await router.push('/auth/signup')
+    console.log('[Login Page] ✓ Navigation successful')
   } catch (error) {
-    console.error('[Login Page] Navigation error:', error)
+    console.error('[Login Page] ✗ Navigation error:', error)
   }
 }
 </script>
@@ -471,4 +479,3 @@ const goToSignup = async () => {
     justify-content: center;
   }
 }
-</style>
