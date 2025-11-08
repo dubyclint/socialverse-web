@@ -1,3 +1,4 @@
+<!-- FILE: /pages/auth/signin.vue - COMPLETE REPLACEMENT -->
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -39,22 +40,24 @@
 </template>
 
 <script setup lang="ts">
-// CRITICAL FIX: Disable ALL middleware on this page to allow navigation
-// The 'guest' middleware was causing conflicts with other middleware
+// FILE: /pages/auth/signin.vue - SCRIPT SECTION
+// Sign-in page - for unauthenticated users only
+
 definePageMeta({
   layout: 'blank',
-  middleware: []  // ← EMPTY ARRAY - DISABLES ALL MIDDLEWARE
+  middleware: ['guest']  // Redirect authenticated users to /feed
 })
+
+const router = useRouter()
 
 const handleSigninSuccess = async (data: any) => {
   console.log('[SignIn] Login successful, redirecting to home')
-  console.log('User data:', data)
+  console.log('[SignIn] User data:', data)
   
   try {
-    // Redirect to home page after successful sign in
-    await navigateTo('/')
+    await router.push('/')
   } catch (error) {
-    console.error('Navigation error:', error)
+    console.error('[SignIn] Navigation error:', error)
   }
 }
 </script>
