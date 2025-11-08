@@ -1,4 +1,7 @@
-<!-- FILE: /pages/login.vue - DEBUG VERSION -->
+<!-- FILE: /pages/login.vue - COMPLETE REPLACEMENT -->
+<!-- LANDING PAGE - MARKETING/ONBOARDING PAGE -->
+<!-- This is the public landing page, NOT the auth page -->
+
 <template>
   <div class="landing-page">
     <!-- Header -->
@@ -56,51 +59,45 @@
 
       <div class="hero-image">
         <div class="hero-placeholder">
-          <span>🎬</span>
+          🚀
         </div>
       </div>
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="features">
+    <section class="features" id="features">
       <div class="features-container">
         <h2 class="features-title">Why Choose SocialVerse?</h2>
-        
         <div class="features-grid">
           <div class="feature-card">
-            <div class="feature-icon">🌐</div>
-            <h3>Universe Match</h3>
-            <p>Connect with people from around the world based on your interests and preferences</p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon">🎬</div>
-            <h3>Live Streaming</h3>
-            <p>Stream your moments live and engage with your audience in real-time</p>
-          </div>
-
-          <div class="feature-card">
             <div class="feature-icon">💬</div>
-            <h3>Real-Time Chat</h3>
-            <p>Chat instantly with friends and new connections using our advanced messaging system</p>
+            <h3>Real-time Chat</h3>
+            <p>Connect instantly with friends and communities</p>
           </div>
-
           <div class="feature-card">
-            <div class="feature-icon">🎁</div>
-            <h3>Gift & Rewards</h3>
-            <p>Send gifts to creators and earn rewards for your engagement</p>
+            <div class="feature-icon">🎥</div>
+            <h3>Live Streaming</h3>
+            <p>Share your moments with the world in real-time</p>
           </div>
-
           <div class="feature-card">
-            <div class="feature-icon">🔐</div>
+            <div class="feature-icon">🤝</div>
+            <h3>Community</h3>
+            <p>Build and grow your community with like-minded people</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔒</div>
             <h3>Secure & Private</h3>
-            <p>Your privacy and security are our top priorities with end-to-end encryption</p>
+            <p>Your data is encrypted and protected</p>
           </div>
-
           <div class="feature-card">
-            <div class="feature-icon">📱</div>
-            <h3>Cross-Platform</h3>
-            <p>Access SocialVerse seamlessly on web, mobile, and desktop</p>
+            <div class="feature-icon">⚡</div>
+            <h3>Fast & Reliable</h3>
+            <p>Lightning-fast performance on any device</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🌍</div>
+            <h3>Global Reach</h3>
+            <p>Connect with people from around the world</p>
           </div>
         </div>
       </div>
@@ -110,121 +107,78 @@
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-section">
-          <h4>About</h4>
+          <h4>Product</h4>
           <ul>
-            <li><NuxtLink to="/about">About Us</NuxtLink></li>
-            <li><NuxtLink to="/blog">Blog</NuxtLink></li>
-            <li><NuxtLink to="/careers">Careers</NuxtLink></li>
+            <li><NuxtLink to="/">Home</NuxtLink></li>
+            <li><a href="#features">Features</a></li>
+            <li><NuxtLink to="/terms">Terms</NuxtLink></li>
           </ul>
         </div>
-
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Careers</a></li>
+          </ul>
+        </div>
         <div class="footer-section">
           <h4>Legal</h4>
           <ul>
-            <li><NuxtLink to="/terms">Terms of Service</NuxtLink></li>
-            <li><NuxtLink to="/privacy">Privacy Policy</NuxtLink></li>
-            <li><NuxtLink to="/cookies">Cookie Policy</NuxtLink></li>
-          </ul>
-        </div>
-
-        <div class="footer-section">
-          <h4>Support</h4>
-          <ul>
-            <li><a href="mailto:support@socialverse.com">Contact Us</a></li>
-            <li><NuxtLink to="/support">Help Center</NuxtLink></li>
+            <li><NuxtLink to="/privacy">Privacy</NuxtLink></li>
+            <li><NuxtLink to="/terms">Terms</NuxtLink></li>
+            <li><a href="#">Contact</a></li>
           </ul>
         </div>
       </div>
-
       <div class="footer-bottom">
-        <p>{{ copyrightText }} 2024 SocialVerse. All rights reserved.</p>
+        <p>&copy; 2024 SocialVerse. All rights reserved.</p>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+// FILE: /pages/login.vue - SCRIPT SECTION
+// Landing page - public page for unauthenticated users
 
-// CRITICAL FIX: Define page meta to disable layout wrapping
 definePageMeta({
   layout: 'blank',
-  middleware: ['auth-guard']  // ← ADD THIS: Redirect authenticated users to /feed
+  middleware: ['auth-guard']  // Redirect authenticated users to /feed
 })
 
 const router = useRouter()
 
 const goToSignin = async () => {
-  console.log('[Login] goToSignin() called')
+  console.log('[Login Page] Navigating to /auth/signin')
   try {
     await router.push('/auth/signin')
   } catch (error) {
-    console.error('[Login] Navigation error:', error)
+    console.error('[Login Page] Navigation error:', error)
   }
 }
 
 const goToSignup = async () => {
-  console.log('[Login] goToSignup() called')
+  console.log('[Login Page] Navigating to /auth/signup')
   try {
     await router.push('/auth/signup')
   } catch (error) {
-    console.error('[Login] Navigation error:', error)
+    console.error('[Login Page] Navigation error:', error)
   }
-}
-})
-
-const copyrightText = '©'
-const user = ref(null)
-
-// DEBUG: Use useRouter directly instead of relying on auto-import
-const router = useRouter()
-
-const goToSignin = async () => {
-  console.log('═══════════════════════════════════════════════════════════')
-  console.log('[Login] goToSignin() called')
-  console.log('[Login] Router instance:', !!router)
-  console.log('[Login] Router type:', typeof router)
-  console.log('[Login] Attempting to navigate to /auth/signin')
-  
-  try {
-    const result = await router.push('/auth/signin')
-    console.log('[Login] Navigation result:', result)
-    console.log('[Login] Current route after push:', router.currentRoute.value.path)
-  } catch (error) {
-    console.error('[Login] Navigation error:', error)
-  }
-  console.log('═══════════════════════════════════════════════════════════')
-}
-
-const goToSignup = async () => {
-  console.log('═══════════════════════════════════════════════════════════')
-  console.log('[Login] goToSignup() called')
-  console.log('[Login] Router instance:', !!router)
-  console.log('[Login] Router type:', typeof router)
-  console.log('[Login] Attempting to navigate to /auth/signup')
-  
-  try {
-    const result = await router.push('/auth/signup')
-    console.log('[Login] Navigation result:', result)
-    console.log('[Login] Current route after push:', router.currentRoute.value.path)
-  } catch (error) {
-    console.error('[Login] Navigation error:', error)
-  }
-  console.log('═══════════════════════════════════════════════════════════')
 }
 </script>
 
 <style scoped>
 .landing-page {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  min-height: 100vh;
   color: white;
+  min-height: 100vh;
 }
 
 .header {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.95);
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 1rem 2rem;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -233,10 +187,10 @@ const goToSignup = async () => {
 .header-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 2rem;
 }
 
 .logo-container {
@@ -245,15 +199,14 @@ const goToSignup = async () => {
 }
 
 .logo-box {
-  font-size: 1.5rem;
-  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .logo-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 1.5rem;
+  font-weight: bold;
 }
 
 .nav {
@@ -263,14 +216,15 @@ const goToSignup = async () => {
 }
 
 .nav-link {
-  color: #cbd5e1;
-  text-decoration: none;
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
   background: none;
   border: none;
+  color: #cbd5e1;
   cursor: pointer;
-  padding: 0;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: color 0.3s ease;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
 }
 
 .nav-link:hover {
@@ -278,24 +232,21 @@ const goToSignup = async () => {
 }
 
 .btn-login {
-  color: #cbd5e1;
+  color: #667eea;
 }
 
 .btn-login:hover {
-  color: white;
+  background: rgba(102, 126, 234, 0.1);
 }
 
 .btn-signup {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  transition: all 0.3s ease;
+  padding: 0.5rem 1.5rem;
 }
 
 .btn-signup:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  opacity: 0.9;
 }
 
 .hero {
@@ -304,31 +255,31 @@ const goToSignup = async () => {
   padding: 4rem 2rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3rem;
+  gap: 4rem;
   align-items: center;
 }
 
 .hero-content {
-  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .hero-title {
   font-size: 3.5rem;
   font-weight: bold;
-  margin-bottom: 1rem;
   line-height: 1.2;
 }
 
 .hero-subtitle {
   font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  opacity: 0.95;
+  color: #cbd5e1;
 }
 
 .hero-description {
   font-size: 1.1rem;
-  margin-bottom: 2rem;
-  opacity: 0.9;
+  color: #94a3b8;
+  line-height: 1.6;
 }
 
 .hero-buttons {
@@ -469,7 +420,8 @@ const goToSignup = async () => {
   margin-bottom: 0.5rem;
 }
 
-.footer-section a {
+.footer-section a,
+.footer-section a:visited {
   color: #cbd5e1;
   text-decoration: none;
   transition: color 0.3s ease;
@@ -515,12 +467,8 @@ const goToSignup = async () => {
   }
 
   .nav {
-    flex-direction: column;
     width: 100%;
-  }
-
-  .btn-signup {
-    width: 100%;
+    justify-content: center;
   }
 }
 </style>
