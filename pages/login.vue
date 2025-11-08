@@ -148,7 +148,29 @@ import { ref } from 'vue'
 
 // CRITICAL FIX: Define page meta to disable layout wrapping
 definePageMeta({
-  layout: false
+  layout: 'blank',
+  middleware: ['auth-guard']  // ← ADD THIS: Redirect authenticated users to /feed
+})
+
+const router = useRouter()
+
+const goToSignin = async () => {
+  console.log('[Login] goToSignin() called')
+  try {
+    await router.push('/auth/signin')
+  } catch (error) {
+    console.error('[Login] Navigation error:', error)
+  }
+}
+
+const goToSignup = async () => {
+  console.log('[Login] goToSignup() called')
+  try {
+    await router.push('/auth/signup')
+  } catch (error) {
+    console.error('[Login] Navigation error:', error)
+  }
+}
 })
 
 const copyrightText = '©'
