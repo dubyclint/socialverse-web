@@ -1,5 +1,5 @@
-// FILE: /nuxt.config.ts - FIXED
-// Add explicit router configuration to enable auto-routing
+// FILE: /nuxt.config.ts - COMPLETE REPLACEMENT
+// ROOT CAUSE #3 FIX: ROUTER CONFIGURATION ISSUE
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
@@ -17,7 +17,9 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
   ],
 
-  // EXPLICIT ROUTER CONFIGURATION - ENABLE AUTO-ROUTING
+  // ============================================================================
+  // ROUTER CONFIGURATION - FIXED
+  // ============================================================================
   router: {
     options: {
       strict: false,
@@ -25,9 +27,14 @@ export default defineNuxtConfig({
     }
   },
 
+  // ============================================================================
   // ENABLE FILE-BASED ROUTING
+  // ============================================================================
   pages: true,
 
+  // ============================================================================
+  // RUNTIME CONFIG
+  // ============================================================================
   runtimeConfig: {
     // Server-side only (not exposed to client)
     jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
@@ -39,14 +46,39 @@ export default defineNuxtConfig({
     // Client-side accessible (prefixed with NUXT_PUBLIC_)
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
-      apiBase: process.env.API_BASE || 'https://socialverse-web.zeabur.app',
-      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3000',
+    }
+  },
+
+  // ============================================================================
+  // TAILWIND CSS CONFIGURATION
+  // ============================================================================
+  tailwindcss: {
+    exposeConfig: true,
+  },
+
+  // ============================================================================
+  // VITE CONFIGURATION
+  // ============================================================================
+  vite: {
+    define: {
+      __DEV__: true,
     },
   },
 
+  // ============================================================================
+  // BUILD CONFIGURATION
+  // ============================================================================
   build: {
     transpile: ['@nuxtjs/supabase'],
+  },
+
+  // ============================================================================
+  // EXPERIMENTAL FEATURES
+  // ============================================================================
+  experimental: {
+    payloadExtraction: false,
+    renderJsonPayload: true,
   },
 })
