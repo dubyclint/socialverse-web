@@ -130,7 +130,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Creating account...</span>
+          Creating account...
         </span>
         <span v-else>Create Account</span>
       </button>
@@ -174,9 +174,6 @@ const errors = reactive({
   confirmPassword: ''
 })
 
-/**
- * Validate form inputs before submission
- */
 const validateForm = () => {
   errors.email = ''
   errors.username = ''
@@ -207,10 +204,6 @@ const validateForm = () => {
   return !errors.email && !errors.username && !errors.password && !errors.confirmPassword
 }
 
-/**
- * Handle form submission
- * FIXED: Removed 1500ms setTimeout delay - emit success immediately
- */
 const handleSubmit = async () => {
   error.value = ''
   success.value = ''
@@ -230,7 +223,6 @@ const handleSubmit = async () => {
       password: '***'
     })
     
-    // Call the signup composable
     const result = await signup(
       formData.email,
       formData.password,
@@ -242,18 +234,18 @@ const handleSubmit = async () => {
     if (result.success) {
       success.value = result.message || 'Account created successfully!'
       console.log('[SignUpForm] ✓ Signup successful')
-      console.log('[SignUpForm] Emitting success event immediately')
+      console.log('[SignUpForm] Emitting success event')
       
-      // CRITICAL FIX: Emit success immediately without delay
-      emit('success', { email: formData.email })
+      setTimeout(() => {
+        emit('success', { email: formData.email })
+      }, 500)
     } else {
-      // Failure - show error message from backend
-      error.value = result.message || 'Signup failed. Please try again.'
+      error.value = result.message || 'Signup failed'
       console.error('[SignUpForm] ✗ Signup failed:', error.value)
     }
   } catch (err: any) {
-    console.error('[SignUpForm] Error during signup:', err)
-    error.value = err.message || 'An unexpected error occurred. Please try again.'
+    error.value = err.message || 'An error occurred during signup'
+    console.error('[SignUpForm] ✗ Exception:', error.value)
   } finally {
     loading.value = false
   }
