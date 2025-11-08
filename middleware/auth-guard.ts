@@ -1,9 +1,7 @@
-// FILE: /middleware/auth-guard.ts - CONSOLIDATED & FIXED
-// ============================================================================
+// FILE: /middleware/auth-guard.ts - FIXED
 // REDIRECT AUTHENTICATED USERS AWAY FROM AUTH PAGES
 // This is a NON-GLOBAL middleware - only applied to auth routes
 // Purpose: Redirect logged-in users from auth pages to feed
-// ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
   // Skip middleware on server-side rendering
@@ -29,6 +27,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
   // If not an auth route, skip this middleware
   if (!isAuthRoute) {
+    console.log(`[Auth Guard Middleware] Not an auth route, skipping: ${to.path}`)
     return
   }
 
