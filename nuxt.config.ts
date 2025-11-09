@@ -26,6 +26,28 @@ export default defineNuxtConfig({
       sensitive: false,
     }
   },
+============================================================================
+  // ROUTER CONFIGURATION - COMPLETE FIX
+  // ============================================================================
+  router: {
+    options: {
+      strict: false,
+      sensitive: false,
+      history: 'history', // Use history mode instead of hash mode
+    },
+    scrollBehavior(to, from, savedPosition) {
+      if (savedPosition) {
+        return savedPosition
+      } else {
+        return { left: 0, top: 0 }
+      }
+    }
+  },
+
+  // ============================================================================
+  // ENABLE FILE-BASED ROUTING
+  // ============================================================================
+  pages: true,
 
   // ============================================================================
   // ENABLE FILE-BASED ROUTING
