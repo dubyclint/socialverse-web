@@ -1,4 +1,4 @@
-// models/Verification.js - Enhanced Verification System Model
+// server/models/verification.js - Enhanced Verification System Model
 import { supabase } from '../utils/supabase.js';
 
 export class Verification {
