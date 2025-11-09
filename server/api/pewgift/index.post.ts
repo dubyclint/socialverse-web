@@ -1,4 +1,4 @@
-// server/api/pew-gift/index.post.ts
+// server/api/pewgift/index.post.ts
 import { 
   authenticateUser, 
   rateLimit, 
