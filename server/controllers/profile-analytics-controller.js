@@ -1,4 +1,4 @@
- // controllers/profileAnalyticsController.js - Profile Analytics Management Controller
+ // server/controllers/profile-analytics-controller.js - Profile Analytics Management Controller
 import { ProfileView } from '../models/profileView.js';
 import { ProfileAnalytics } from '../models/profileAnalytics.js';
 import { ProfilePrivacySettings } from '../models/profilePrivacySettings.js';
