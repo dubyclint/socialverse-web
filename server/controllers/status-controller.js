@@ -1,4 +1,4 @@
-// controllers/statusController.js
+// server/controllers/status-controller.js
 const UserStatus = require('../models/userStatus');
 const StatusView = require('../models/statusView');
 const UserContact = require('../models/userContact');
