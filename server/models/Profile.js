@@ -1,4 +1,4 @@
-// models/Profile.js - Enhanced Profile Model with comprehensive bio and privacy
+// server/models/Profile.js - Enhanced Profile Model with comprehensive bio and privacy
 import { supabase } from '../utils/supabase.js'
 
 export class Profile {
