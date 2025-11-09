@@ -1,7 +1,7 @@
-// models/gift.js - Supabase PostgreSQL Gift System Model
+// models/pewgift.js - Supabase PostgreSQL Gift System Model
 import { supabase } from '../utils/supabase.js';
 
-export class Gift {
+export class pewgift {
   static async getAllGifts() {
     const { data, error } = await supabase
       .from('gifts')
@@ -13,7 +13,7 @@ export class Gift {
     return data;
   }
 
-  static async getGiftsByCategory(category) {
+  static async getpewgiftsByCategory(category) {
     const { data, error } = await supabase
       .from('gifts')
       .select('*')
@@ -25,7 +25,7 @@ export class Gift {
     return data;
   }
 
-  static async sendGift(giftData) {
+  static async sendpewgift(giftData) {
     const { data, error } = await supabase
       .from('pew_gifts')
       .insert([{
