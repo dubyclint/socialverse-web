@@ -1,4 +1,4 @@
-// controllers/streamController.js
+// server/controllers/stream-controller.js
 const Stream = require('../models/Stream')
 const StreamViewer = require('../models/StreamViewer')
 const StreamChat = require('../models/StreamChat')
