@@ -1,6 +1,6 @@
 import { supabase } from '~/server/db'
 
-export interface premium-accessRule {
+export interface PremiumAccessRule {
   id: string
   target: 'country' | 'region' | 'geo' | 'all'
   value: string
