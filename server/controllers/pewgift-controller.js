@@ -1,4 +1,4 @@
-// controllers/pewGiftController.js - Enhanced PewGift Controller
+// server/controllers/pewgift-controller.js - Enhanced PewGift Controller
 import { PewGiftEconomy } from '../models/PewGiftEconomy.js';
 import { supabase } from '../utils/supabase.js';
 
