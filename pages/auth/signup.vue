@@ -1,4 +1,4 @@
-<!-- FILE: /pages/auth/signup.vue - COMPLETE REPLACEMENT -->
+<!-- FILE: /pages/auth/signup.vue - COMPLETE FIXED VERSION -->
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -32,20 +32,21 @@
 <script setup lang="ts">
 // FILE: /pages/auth/signup.vue - SCRIPT SECTION
 // Sign-up page - for unauthenticated users only
+// ============================================================================
 
 definePageMeta({
   layout: 'blank',
   middleware: ['guest']  // Redirect authenticated users to /feed
 })
 
-const router = useRouter()
-
+// ✅ FIXED: Use navigateTo() instead of useRouter().push()
+// navigateTo() is Nuxt 3's native navigation method that works better with middleware
 const handleSignupSuccess = async (data: any) => {
   console.log('[SignUp] Account created successfully, redirecting to email verification')
   console.log('[SignUp] User email:', data?.email)
   
   try {
-    await router.push({
+    await navigateTo({
       path: '/auth/verify-email',
       query: { email: data?.email || '' }
     })
