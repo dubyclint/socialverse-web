@@ -1,4 +1,4 @@
-// models/UserSession.js - User Session Management Model
+// server/models/user-session.js - User Session Management Model
 import { supabase } from '../utils/supabase.js';
 import crypto from 'crypto';
 
