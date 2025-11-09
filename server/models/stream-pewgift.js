@@ -1,4 +1,4 @@
-// models/StreamPewGift.js
+// server/models/stream-pewgift.js
 const mongoose = require('mongoose')
 
 const streamPewGiftSchema = new mongoose.Schema({
