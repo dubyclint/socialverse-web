@@ -1,4 +1,4 @@
-// controllers/walletLockController.js - Wallet Lock Management Controller
+// server/controllers/wallet-lock-controller.js - Wallet Lock Management Controller
 import { Wallet } from '../Wallet.js';
 import { supabase } from '../utils/supabase.js';
 
