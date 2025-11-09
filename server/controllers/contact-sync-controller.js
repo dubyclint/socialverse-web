@@ -1,4 +1,4 @@
-// controllers/contactSyncController.js
+// server/controllers/contact-sync-controller.js
 const UserContact = require('../models/userContact');
 const { User } = require('../models/user');
 const { Pal } = require('../models/pal');
