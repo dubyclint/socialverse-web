@@ -1,4 +1,4 @@
-// controllers/premiumController.js - Premium Subscription Management Controller
+// server/controllers/ premium-controller.js- Premium Subscription Management Controller
 import { PremiumSubscription } from '../models/premiumSubscription.js';
 import { PremiumFeature } from '../models/premiumFeature.js';
 import { UserPremiumRestriction } from '../models/userPremiumRestriction.js';
