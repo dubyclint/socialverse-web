@@ -1,4 +1,4 @@
-// models/pew.js - Supabase PostgreSQL Model
+// server/models/pew.js - Supabase PostgreSQL Model
 import { supabase } from '../utils/supabase.js';
 
 export class Pew {
