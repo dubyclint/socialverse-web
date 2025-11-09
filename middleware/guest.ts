@@ -1,7 +1,9 @@
-// FILE: /middleware/guest.ts - FIXED VERSION
+// FILE: /middleware/guest.ts - COMPLETE FIXED VERSION
+// ============================================================================
 // GUEST-ONLY MIDDLEWARE FOR AUTH PAGES
 // This is a NON-GLOBAL middleware - only applied to auth routes
 // Purpose: Ensure only unauthenticated users can access auth pages
+// ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
   // Skip middleware on server-side rendering
@@ -14,14 +16,16 @@ export default defineNuxtRouteMiddleware((to, from) => {
     ? localStorage.getItem('auth_token') 
     : null
 
+  console.log(`[Guest Middleware] Token exists: ${!!token}`)
+
   // If user is authenticated, redirect to feed
   if (token) {
-    console.log(`[Guest Middleware] ✓ Authenticated user redirected from ${to.path} to /feed`)
+    console.log(`[Guest Middleware] ✓ Authenticated user detected, redirecting from ${to.path} to /feed`)
     // Use return with navigateTo to prevent further execution
     return navigateTo('/feed')
   }
 
   console.log(`[Guest Middleware] ✓ Guest user allowed on: ${to.path}`)
-  // Explicitly return undefined to allow navigation
+  // Explicitly return undefined to allow navigation to proceed
   return undefined
 })
