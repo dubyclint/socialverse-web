@@ -1,4 +1,4 @@
-// models/StreamChat.js
+// server/models/stream-chat.js
 const mongoose = require('mongoose')
 
 const streamChatSchema = new mongoose.Schema({
