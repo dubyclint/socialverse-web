@@ -1,4 +1,4 @@
-// server/models/SocialLinks.js - User Social Media Links Model
+// server/models/social-links.js - User Social Media Links Model
 import { supabase } from '../utils/supabase.js';
 
 export class SocialLinks {
