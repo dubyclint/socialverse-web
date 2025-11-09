@@ -1,4 +1,4 @@
-// controllers/groupChatController.js
+// server/controllers/group-chat-controller.js
 const Chat = require('../models/chat');
 const ChatMessage = require('../models/chatMessage');
 const ChatParticipant = require('../models/chatParticipant');
