@@ -144,18 +144,17 @@
 
 definePageMeta({
   layout: 'blank',
-  middleware: []  // NO MIDDLEWARE - this is a public landing page
+   middleware: []  // NO MIDDLEWARE - this is a public landing page
 })
 
-const router = useRouter()
-
+// ✅ CHANGE: Use navigateTo() instead of useRouter().push()
 const goToSignin = async () => {
   console.log('[Login Page] goToSignin() called')
-  console.log('[Login Page] Current route:', router.currentRoute.value.path)
+  console.log('[Login Page] Current route:', useRoute().path)
   
   try {
-    console.log('[Login Page] Pushing to /auth/signin')
-    await router.push('/auth/signin')
+    console.log('[Login Page] Navigating to /auth/signin')
+    await navigateTo('/auth/signin')
     console.log('[Login Page] ✓ Navigation successful')
   } catch (error) {
     console.error('[Login Page] ✗ Navigation error:', error)
@@ -164,11 +163,11 @@ const goToSignin = async () => {
 
 const goToSignup = async () => {
   console.log('[Login Page] goToSignup() called')
-  console.log('[Login Page] Current route:', router.currentRoute.value.path)
+  console.log('[Login Page] Current route:', useRoute().path)
   
   try {
-    console.log('[Login Page] Pushing to /auth/signup')
-    await router.push('/auth/signup')
+    console.log('[Login Page] Navigating to /auth/signup')
+    await navigateTo('/auth/signup')
     console.log('[Login Page] ✓ Navigation successful')
   } catch (error) {
     console.error('[Login Page] ✗ Navigation error:', error)
