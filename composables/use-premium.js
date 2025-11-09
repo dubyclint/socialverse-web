@@ -1,4 +1,4 @@
-// composables/usePremium.js - 
+// composables/use-premium.js - 
 import { ref, computed, readonly } from 'vue'
 
 export const usePremium = () => {
