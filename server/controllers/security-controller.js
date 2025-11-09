@@ -1,4 +1,4 @@
-// controllers/securityController.js - Security Management Controller
+// server/controllers/security-controller.js - Security Management Controller
 import { UserSession } from '../models/userSession.js';
 import { SecurityEvent } from '../models/securityEvent.js';
 import { SecurityRestriction } from '../models/securityRestriction.js';
