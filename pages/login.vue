@@ -1,4 +1,4 @@
-<!-- FILE: /pages/login.vue - COMPLETE FIX -->
+<!-- FILE: /pages/login.vue - COMPLETE FIXED VERSION -->
 <!-- LANDING PAGE - MARKETING/ONBOARDING PAGE -->
 <!-- This is the public landing page, NOT the auth page -->
 
@@ -141,13 +141,15 @@
 <script setup lang="ts">
 // FILE: /pages/login.vue - SCRIPT SECTION
 // Landing page - public page for unauthenticated users
+// ============================================================================
 
 definePageMeta({
   layout: 'blank',
-   middleware: []  // NO MIDDLEWARE - this is a public landing page
+  middleware: []  // NO MIDDLEWARE - this is a public landing page
 })
 
-// ✅ CHANGE: Use navigateTo() instead of useRouter().push()
+// ✅ FIXED: Use navigateTo() instead of useRouter().push()
+// navigateTo() is Nuxt 3's native navigation method that works better with middleware
 const goToSignin = async () => {
   console.log('[Login Page] goToSignin() called')
   console.log('[Login Page] Current route:', useRoute().path)
@@ -225,13 +227,11 @@ const goToSignup = async () => {
 .nav-link {
   background: none;
   border: none;
-  color: #cbd5e1;
+  color: rgba(226, 232, 240, 0.7);
   cursor: pointer;
-  text-decoration: none;
   font-size: 1rem;
   transition: color 0.3s ease;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  text-decoration: none;
 }
 
 .nav-link:hover {
@@ -239,21 +239,22 @@ const goToSignup = async () => {
 }
 
 .btn-login {
-  color: #667eea;
+  color: rgba(226, 232, 240, 0.7);
 }
 
 .btn-login:hover {
-  background: rgba(102, 126, 234, 0.1);
+  color: #3b82f6;
 }
 
 .btn-signup {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: white;
   padding: 0.5rem 1.5rem;
+  border-radius: 0.375rem;
 }
 
 .btn-signup:hover {
-  opacity: 0.9;
+  background: #2563eb;
 }
 
 .hero {
@@ -280,52 +281,50 @@ const goToSignup = async () => {
 
 .hero-subtitle {
   font-size: 1.5rem;
-  color: #cbd5e1;
+  color: rgba(226, 232, 240, 0.8);
 }
 
 .hero-description {
-  font-size: 1.1rem;
-  color: #94a3b8;
+  font-size: 1.125rem;
+  color: rgba(226, 232, 240, 0.6);
   line-height: 1.6;
 }
 
 .hero-buttons {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap;
+  margin-top: 1rem;
 }
 
 .btn-hero {
   padding: 1rem 2rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  display: inline-block;
+  font-size: 1.125rem;
   border: none;
+  border-radius: 0.5rem;
   cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .btn-hero-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: white;
 }
 
 .btn-hero-primary:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  background: #2563eb;
+  transform: translateY(-2px);
 }
 
 .btn-hero-secondary {
   background: transparent;
-  color: white;
-  border: 2px solid rgba(102, 126, 234, 0.5);
+  color: #3b82f6;
+  border: 2px solid #3b82f6;
 }
 
 .btn-hero-secondary:hover {
-  border-color: rgba(102, 126, 234, 1);
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
 }
 
 .hero-image {
@@ -337,8 +336,8 @@ const goToSignup = async () => {
 .hero-placeholder {
   width: 300px;
   height: 300px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-  border-radius: 20px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.1);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -414,8 +413,8 @@ const goToSignup = async () => {
 }
 
 .footer-section h4 {
+  font-size: 1.125rem;
   margin-bottom: 1rem;
-  color: white;
 }
 
 .footer-section ul {
@@ -428,21 +427,22 @@ const goToSignup = async () => {
 }
 
 .footer-section a,
-.footer-section a:visited {
-  color: #cbd5e1;
+.footer-section :deep(a) {
+  color: rgba(226, 232, 240, 0.6);
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
-.footer-section a:hover {
-  color: white;
+.footer-section a:hover,
+.footer-section :deep(a:hover) {
+  color: rgba(226, 232, 240, 1);
 }
 
 .footer-bottom {
   text-align: center;
   padding-top: 2rem;
   border-top: 1px solid rgba(148, 163, 184, 0.1);
-  opacity: 0.7;
+  color: rgba(226, 232, 240, 0.5);
 }
 
 @media (max-width: 768px) {
@@ -452,11 +452,7 @@ const goToSignup = async () => {
   }
 
   .hero-title {
-    font-size: 2.5rem;
-  }
-
-  .hero-subtitle {
-    font-size: 1.2rem;
+    font-size: 2rem;
   }
 
   .hero-buttons {
@@ -465,7 +461,6 @@ const goToSignup = async () => {
 
   .btn-hero {
     width: 100%;
-    text-align: center;
   }
 
   .header-content {
@@ -476,6 +471,7 @@ const goToSignup = async () => {
   .nav {
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
   }
 }
 </style>
