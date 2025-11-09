@@ -1,4 +1,4 @@
-// models/StreamViewer.js
+// server/models/stream-viewer.js
 const mongoose = require('mongoose')
 
 const streamViewerSchema = new mongoose.Schema({
