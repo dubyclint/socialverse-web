@@ -1,4 +1,4 @@
-// models/UserSettings.js - Enhanced User Settings with Categories
+// server/models/user-settings.js - Enhanced User Settings with Categories
 import { supabase } from '../utils/supabase.js';
 
 export class UserSettings {
