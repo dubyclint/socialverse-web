@@ -1,4 +1,4 @@
-// models/Stream.js
+// server/models/Stream.js
 const mongoose = require('mongoose')
 
 const streamSchema = new mongoose.Schema({
