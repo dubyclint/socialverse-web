@@ -1,4 +1,4 @@
-// models/report.js - Supabase PostgreSQL Report Model
+// server/models/report.js - Supabase PostgreSQL Report Model
 import { supabase } from '../utils/supabase.js';
 
 export class Report {
