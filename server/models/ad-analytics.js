@@ -1,4 +1,4 @@
-// models/adAnalytics.js - Supabase PostgreSQL Ad Analytics Model
+// server/models/ad-analytics.js - Supabase PostgreSQL Ad Analytics Model
 import { supabase } from '../utils/supabase.js';
 
 export class AdAnalytics {
