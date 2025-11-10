@@ -1,4 +1,4 @@
-// models/universeMessage.js - Supabase PostgreSQL Universe Message Model
+// server/models/universe-message.js - Supabase PostgreSQL Universe Message Model
 import { supabase } from '../utils/supabase.js';
 
 export class UniverseMessage {
