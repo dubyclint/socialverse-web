@@ -1,4 +1,4 @@
-// models/swapTransaction.js - Supabase PostgreSQL Swap Transaction Model
+// server/models/swap-transaction.js - Supabase PostgreSQL Swap Transaction Model
 import { supabase } from '../utils/supabase.js';
 
 export class SwapTransaction {
