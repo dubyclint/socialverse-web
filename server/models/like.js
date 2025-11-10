@@ -1,4 +1,4 @@
-// models/like.js - Supabase PostgreSQL Likes Model
+// server/models/like.js - Supabase PostgreSQL Likes Model
 import { supabase } from '../utils/supabase.js';
 
 export class Like {
