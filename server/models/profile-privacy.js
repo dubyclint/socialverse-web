@@ -1,4 +1,4 @@
-// models/ProfilePrivacy.js - Profile Privacy Settings Model
+// server/models/profile-privacy.js - Profile Privacy Settings Model
 import { supabase } from '../utils/supabase.js'
 
 export class ProfilePrivacy {
