@@ -1,4 +1,4 @@
-// models/notification.js - Supabase PostgreSQL Notification Model
+// server/models/notification.js - Supabase PostgreSQL Notification Model
 import { supabase } from '../utils/supabase.js';
 
 export class Notification {
