@@ -1,4 +1,4 @@
-// models/pewgift.js - Supabase PostgreSQL Gift System Model
+// server/models/pewgift.js - Supabase PostgreSQL Gift System Model
 import { supabase } from '../utils/supabase.js';
 
 export class pewgift {
