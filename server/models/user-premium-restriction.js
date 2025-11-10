@@ -1,4 +1,4 @@
-// models/userPremiumRestriction.js - User Premium Restrictions Model
+// server/models/user-premium-restriction.js - User Premium Restrictions Model
 import { supabase } from '../utils/supabase.js';
 
 export class UserPremiumRestriction {
