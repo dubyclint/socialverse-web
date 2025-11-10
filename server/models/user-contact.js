@@ -1,4 +1,4 @@
-// models/userContact.js
+// server/models/user-contact.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../database/connection');
 
