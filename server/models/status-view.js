@@ -1,4 +1,4 @@
-// models/statusView.js
+// server/models/status-view.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../database/connection');
 
