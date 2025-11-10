@@ -1,4 +1,4 @@
-// models/trade.js - Supabase PostgreSQL Trading Model
+// server/models/trade.js - Supabase PostgreSQL Trading Model
 import { supabase } from '../utils/supabase.js';
 
 export class Trade {
