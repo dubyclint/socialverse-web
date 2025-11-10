@@ -1,4 +1,4 @@
-// models/verifiedBadge.js - Supabase PostgreSQL Verified Badge Model
+// server/models/verified-badge.js - Supabase PostgreSQL Verified Badge Model
 import { supabase } from '../utils/supabase.js';
 
 export class VerifiedBadge {
