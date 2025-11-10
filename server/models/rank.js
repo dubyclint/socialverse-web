@@ -1,4 +1,4 @@
-// models/rank.js - Supabase PostgreSQL Rank Model
+// server/models/rank.js - Supabase PostgreSQL Rank Model
 import { supabase } from '../utils/supabase.js';
 
 export class Rank {
