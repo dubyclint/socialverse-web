@@ -1,4 +1,4 @@
-// models/profileAnalytics.js - Profile Analytics Management Model
+// server/models/profile-analytics.js - Profile Analytics Management Model
 import { supabase } from '../utils/supabase.js';
 
 export class ProfileAnalytics {
