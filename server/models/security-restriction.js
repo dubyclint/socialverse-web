@@ -1,4 +1,4 @@
-// models/securityRestriction.js - Security Restrictions Management Model
+// server/models/security-restriction.js - Security Restrictions Management Model
 import { supabase } from '../utils/supabase.js';
 
 export class SecurityRestriction {
