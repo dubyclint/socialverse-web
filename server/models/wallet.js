@@ -1,4 +1,4 @@
-// models/wallet.js - Supabase PostgreSQL Wallet Model
+// server/models/wallet.js - Supabase PostgreSQL Wallet Model
 import { supabase } from '../utils/supabase.js';
 
 export class Wallet {
