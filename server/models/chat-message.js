@@ -1,4 +1,4 @@
-// models/chatMessage.js
+// server/models/chat-message.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../database/connection');
 
