@@ -1,4 +1,4 @@
-// models/userStatus.js
+// server/models/userStatus.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../database/connection');
 
