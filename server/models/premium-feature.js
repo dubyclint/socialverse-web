@@ -1,4 +1,4 @@
-// models/premiumFeature.js - Premium Features Management Model
+// server/models/premium-feature.js - Premium Features Management Model
 import { supabase } from '../utils/supabase.js';
 
 export class PremiumFeature {
