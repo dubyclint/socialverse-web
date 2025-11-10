@@ -1,4 +1,4 @@
-// models/mediaFile.js - Supabase PostgreSQL Media Files Model
+// server/models/media-file.js - Supabase PostgreSQL Media Files Model
 import { supabase } from '../utils/supabase.js';
 
 export class MediaFile {
