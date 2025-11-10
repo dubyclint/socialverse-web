@@ -1,4 +1,4 @@
-// models/PewGiftEconomy.js - Enhanced PewGift Economy System
+// server/models/pewgift-economy.js - Enhanced PewGift Economy System
 import { supabase } from '../utils/supabase.js';
 
 export class PewGiftEconomy {
