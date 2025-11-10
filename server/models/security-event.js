@@ -1,4 +1,4 @@
-// models/securityEvent.js - Security Events Management Model
+// server/models/security-event.js - Security Events Management Model
 import { supabase } from '../utils/supabase.js';
 
 export class SecurityEvent {
