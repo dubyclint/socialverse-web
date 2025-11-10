@@ -1,4 +1,4 @@
-// models/premiumSubscription.js - Premium Subscription Management Model
+// server/models/premium-subscription.js - Premium Subscription Management Model
 import { supabase } from '../utils/supabase.js';
 
 export class PremiumSubscription {
