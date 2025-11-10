@@ -1,4 +1,4 @@
-// models/matchRequest.js - Supabase PostgreSQL Match Request Model
+// server/models/match-request.js - Supabase PostgreSQL Match Request Model
 import { supabase } from '../utils/supabase.js';
 
 export class MatchRequest {
