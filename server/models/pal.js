@@ -1,4 +1,4 @@
-// models/pal.js - Supabase PostgreSQL Friend System Model
+// server/models/pal.js - Supabase PostgreSQL Friend System Model
 import { supabase } from '../utils/supabase.js';
 
 export class Pal {
