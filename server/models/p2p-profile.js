@@ -1,4 +1,4 @@
-// models/p2pProfile.js - Supabase PostgreSQL P2P Profile Model
+// server/models/p2p-profile.js - Supabase PostgreSQL P2P Profile Model
 import { supabase } from '../utils/supabase.js';
 
 export class P2PProfile {
