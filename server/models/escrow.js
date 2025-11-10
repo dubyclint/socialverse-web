@@ -1,4 +1,4 @@
-// models/escrow.js - Supabase PostgreSQL Escrow Model
+// server/models/escrow.js - Supabase PostgreSQL Escrow Model
 import { supabase } from '../utils/supabase.js';
 
 export class Escrow {
