@@ -1,4 +1,4 @@
-// models/profileView.js - Profile Views Tracking Model
+// server/models/profile-view.js - Profile Views Tracking Model
 import { supabase } from '../utils/supabase.js';
 
 export class ProfileView {
