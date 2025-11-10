@@ -1,4 +1,4 @@
-// models/comment.js - Supabase PostgreSQL Comments Model
+// server/models/comment.js - Supabase PostgreSQL Comments Model
 import { supabase } from '../utils/supabase.js';
 
 export class Comment {
