@@ -1,6 +1,6 @@
 <!-- components/Admin/User/List.vue - FIXED -->
 <template>
-  <div class="admin/user/list">
+  <div class="admin/user-list">
     <h3>Users</h3>
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
