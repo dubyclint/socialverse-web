@@ -1,8 +1,8 @@
 <template>
-  <div class="admin/post">
+  <div class="admin-post">  <!-- Also fixed: removed slash in class name -->
     <h3>Flagged Post</h3>
     <ul>
-      <li v-for="post in post" :key="post._id">
+      <li v-for="post in posts" :key="post._id">  <!-- Fixed: 'posts' instead of 'post' -->
         {{ post.content }}
         <button @click="flag(post._id)">Flag</button>
       </li>
@@ -30,8 +30,8 @@ async function flag(postId) {
 </script>
 
 <style scoped>
-.admin-post 
+.admin-post {
   border: 1px solid #aaa;
   padding: 1rem;
 }
-
+</style>
