@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-escrow">
+  <div class="admin/escrow">
     <h3>Escrow Deals</h3>
     <ul>
       <li v-for="deal in deals" :key="deal.id">
@@ -13,7 +13,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useEscrowContract } from '@/composables/useEscrowContract'
+import { useEscrowContract } from '@/composables/use-escrow-contract'
 
 const deals = ref([])
 const escrow = useEscrowContract()
