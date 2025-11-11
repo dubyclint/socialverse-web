@@ -30,7 +30,7 @@ async function flag(postId) {
 </script>
 
 <style scoped>
-.admin/post {
+.admin-post 
   border: 1px solid #aaa;
   padding: 1rem;
 }
