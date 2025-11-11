@@ -1,6 +1,6 @@
 <template>
   <div class="pal-request">
-    <h3>Pal Requests</h3>
+    <h3>pal requests</h3>
     <div v-for="request in requests" :key="request._id" class="request">
       <span>{{ request.requesterName }}</span>
       <button @click="accept(request._id)">Accept</button>
