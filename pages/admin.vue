@@ -1,10 +1,10 @@
 <template>
   <div>
-    <AdminUserList />
-    <AdminPostModeration />
-    <AdminMatchApproval />
-    <AdminEscrowControl />
-    <AdminFeeManager />
+    <adminuserlist />
+    <adminpostmoderation />
+    <adminmatchapproval />
+    <adminescrowcontrol />
+    <adminfeemanager />
   </div>
 </template>
 
