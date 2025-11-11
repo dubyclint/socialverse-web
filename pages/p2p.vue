@@ -1,13 +1,13 @@
 <template>
   <div>
-    <P2PTradeForm />
-    <TradeChat />
-    <EscrowStatus />
+    <p2ptradeform />
+    <tradechat />
+    <escrowstatus />
   </div>
 </template>
 
 <script setup>
-import P2PTradeForm from '@/components/P2PTradeForm.vue'
-import TradeChat from '@/components/TradeChat.vue'
-import EscrowStatus from '@/components/EscrowStatus.vue'
+import p2ptradeform from '@/components/p2p-trade-form.vue'
+import tradechat from '@/components/trade-chat.vue'
+import escrowstatus from '@/components/escrow-status.vue'
 </script>
