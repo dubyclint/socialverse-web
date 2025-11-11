@@ -1,5 +1,5 @@
 <template>
-  <div class="admin/posts">
+  <div class="admin/post">
     <h3>Flagged Posts</h3>
     <ul>
       <li v-for="post in posts" :key="post._id">
