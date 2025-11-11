@@ -34,4 +34,4 @@ async function flag(postId) {
   border: 1px solid #aaa;
   padding: 1rem;
 }
-</style>
+
