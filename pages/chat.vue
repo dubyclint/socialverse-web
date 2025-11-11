@@ -1,7 +1,7 @@
 <!-- pages/chat.vue -->
 <template>
   <div class="chat-page">
-    <ChatLayout />
+    <chatlayout />
   </div>
 </template>
 
