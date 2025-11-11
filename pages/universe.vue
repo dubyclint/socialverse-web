@@ -7,7 +7,7 @@
 </template>
 
 <script setup>
-import PalRequest from '@/components/pal-request.vue'
-import PalList from '@/components/pal-list.vue'
-import UniverseChat from '@/components/universe-chat.vue'
+import palrequest from '@/components/pal-request.vue'
+import pallist from '@/components/pal-list.vue'
+import universechat from '@/components/universe-chat.vue'
 </script>
