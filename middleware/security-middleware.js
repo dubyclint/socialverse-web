@@ -3,11 +3,11 @@
 // import crypto from 'crypto';
 // import { createHmac } from 'crypto';
 
-import { UserSession } from '../models/userSession.js';
-import { SecurityRestriction } from '../models/securityRestriction.js';
-import { SecurityEvent } from '../models/securityEvent.js';
+import { UserSession } from '../models/user-session.js';
+import { SecurityRestriction } from '../models/security-restriction.js';
+import { SecurityEvent } from '../models/security-event.js';
 
-/**
+/*-r
  * Session validation middleware
  */
 export const validateSession = async (req, res, next) => {
