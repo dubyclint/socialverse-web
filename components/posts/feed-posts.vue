@@ -246,7 +246,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import CreatePost from '~/components/posts/CreatePost.vue';
+import CreatePost from '~/components/posts/create-post.vue';
 import MarkdownIt from 'markdown-it';
 import EmojiConvertor from 'emoji-js';
 import { supabase } from '~/utils/supabase';
