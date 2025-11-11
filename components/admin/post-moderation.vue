@@ -2,7 +2,7 @@
   <div class="admin/post">
     <h3>Flagged Posts</h3>
     <ul>
-      <li v-for="post in posts" :key="post._id">
+      <li v-for="post in post" :key="post._id">
         {{ post.content }}
         <button @click="flag(post._id)">Flag</button>
       </li>
