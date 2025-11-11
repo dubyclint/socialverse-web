@@ -6,7 +6,7 @@
 </template>
 
 <script setup>
-import ChatLayout from '@/components/chat/ChatLayout.vue'
+import chatlayout from '@/components/chat/chat-layout.vue'
 
 // Set page meta
 definePageMeta({
