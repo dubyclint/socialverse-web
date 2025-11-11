@@ -1,4 +1,4 @@
-<!-- components/Admin/User/List.vue - FIXED -->
+<!-- components/admin/user-list.vue - FIXED -->
 <template>
   <div class="admin/user-list">
     <h3>Users</h3>
