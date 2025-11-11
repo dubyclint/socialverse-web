@@ -2,7 +2,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   console.log('[Plugin] Translation plugin initializing...')
   
   try {
-    const { loadTranslations, detectBrowserLanguage, t, setLanguage, getCurrentLang } = await import('~/composables/use-I18n')
+    const { loadTranslations, detectBrowserLanguage, t, setLanguage, getCurrentLang } = await import('~/composables/use-I18n.ts')
     
     const browserLang = detectBrowserLanguage()
     
