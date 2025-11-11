@@ -10,8 +10,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import CreatePost from '@/components/create-posts.vue'
-import PostCard from '@/components/post-card.vue
+import CreatePost from '@/components/posts/create-post.vue'
+import PostCard from '@/components/posts/post-card.vue'
 import PewCard from '@/components/pew-card.vue'
 
 const posts = ref([])
