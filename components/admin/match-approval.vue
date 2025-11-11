@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-match">
+  <div class="admin/match">
     <h3>Match Requests</h3>
     <ul>
       <li v-for="req in requests" :key="req._id">
