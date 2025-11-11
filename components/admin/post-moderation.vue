@@ -1,6 +1,6 @@
 <template>
   <div class="admin/post">
-    <h3>Flagged Posts</h3>
+    <h3>Flagged Post</h3>
     <ul>
       <li v-for="post in post" :key="post._id">
         {{ post.content }}
@@ -30,7 +30,7 @@ async function flag(postId) {
 </script>
 
 <style scoped>
-.admin-posts {
+.admin/post {
   border: 1px solid #aaa;
   padding: 1rem;
 }
