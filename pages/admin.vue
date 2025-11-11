@@ -9,9 +9,9 @@
 </template>
 
 <script setup>
-import AdminUserList from '@/components/AdminUserList.vue'
-import AdminPostModeration from '@/components/AdminPostModeration.vue'
-import AdminMatchApproval from '@/components/AdminMatchApproval.vue'
-import AdminEscrowControl from '@/components/AdminEscrowControl.vue'
-import AdminFeeManager from '@/components/AdminFeeManager.vue'
+import adminuserlist from '@/components/admin-user-list.vue'
+import adminpostmoderation from '@/components/admin-post-moderation.vue'
+import adminmatchapproval from '@/components/admin-match-approval.vue'
+import adminescrowcontrol from '@/components/admin-escrow-control.vue'
+import adminfeeManager from '@/components/admin-fee-manager.vue'
 </script>
