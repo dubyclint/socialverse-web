@@ -1,7 +1,7 @@
 // server/models/ad-analytics.js - Supabase PostgreSQL Ad Analytics Model
 import { supabase } from '../utils/supabase.js';
 
-export class AdAnalytics {
+export class adanalytics {
   static async createCampaign(campaignData) {
     const { data, error } = await supabase
       .from('ad_analytics')
