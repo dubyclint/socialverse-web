@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import EscrowDealABI from '@/abis/EscrowDeal.json'
+import EscrowDealABI from '@/abis/escrow-deal.json'
 
 const ESCROW_CONTRACT_ADDRESS = '0xYourEscrowDealAddress'
 
