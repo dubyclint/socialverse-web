@@ -1,7 +1,7 @@
 // server/models/verification.js - Enhanced Verification System Model
 import { supabase } from '../utils/supabase.js';
 
-export class Verification {
+export class verification {
   // Submit verification application
   static async submitApplication(userId, applicationData) {
     const { data, error } = await supabase
@@ -64,9 +64,9 @@ export class Verification {
   }
 
   // Check verification status
-  static async getVerificationStatus(userId) {
-    const badges = await this.getUserBadges(userId);
-    const applications = await this.getUserApplications(userId);
+  static async getverificationstatus(userId) {
+    const badges = await this.getuserbadges(userId);
+    const applications = await this.getuserApplications(userId);
     
     const activeApplication = applications.find(app => 
       ['pending', 'under_review'].includes(app.status)
