@@ -1,7 +1,7 @@
 <template>
   <div>
-    <GiftSummary />
-    <GiftHistory />
+    <giftsummary />
+    <gifthistory />
   </div>
 </template>
 
