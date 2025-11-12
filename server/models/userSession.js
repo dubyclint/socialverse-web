@@ -1,16 +1,15 @@
-// models/userSession.js - User Session Management Model
+// server/models/user-session.js - User Session Management Model
 import { supabase } from '../utils/supabase.js';
 import crypto from 'crypto';
 
-export class userSession {
-  
+export class UserSession {
   /**
    * Create a new user session
    */
   static async create(sessionData) {
     try {
       const sessionToken = this.generateSessionToken();
-      
+
       const { data, error } = await supabase
         .from('user_sessions')
         .insert({
@@ -30,7 +29,7 @@ export class userSession {
       if (error) throw error;
 
       // Log session creation
-      await this.logsecurityevent(sessionData.userId, 'SESSION_CREATED', {
+      await this.logSecurityEvent(sessionData.userId, 'SESSION_CREATED', {
         session_id: data.id,
         ip_address: sessionData.ipAddress,
         user_agent: sessionData.userAgent
@@ -69,7 +68,7 @@ export class userSession {
   /**
    * Find user sessions
    */
-  static async finduserSessions(userId, activeOnly = true) {
+  static async findUserSessions(userId, activeOnly = true) {
     try {
       let query = supabase
         .from('user_sessions')
@@ -142,7 +141,7 @@ export class userSession {
       if (error) throw error;
 
       // Log session termination
-      await this.logsecurityevent(session.user_id, 'SESSION_TERMINATED', {
+      await this.logSecurityEvent(session.user_id, 'SESSION_TERMINATED', {
         session_id: session.id,
         reason: reason,
         terminated_by: terminatedBy,
@@ -176,7 +175,7 @@ export class userSession {
       if (error) throw error;
 
       // Log mass session termination
-      await this.logsecurityevent(userId, 'MASS_SESSION_TERMINATION', {
+      await this.logSecurityEvent(userId, 'MASS_SESSION_TERMINATION', {
         terminated_count: data?.length || 0,
         reason: reason,
         kept_session: currentSessionToken
@@ -199,7 +198,7 @@ export class userSession {
   static async validateSession(sessionToken) {
     try {
       const session = await this.findByToken(sessionToken);
-      
+
       if (!session) {
         return { valid: false, reason: 'Session not found' };
       }
@@ -214,15 +213,15 @@ export class userSession {
       const suspiciousActivity = await this.checkSuspiciousActivity(session);
       if (suspiciousActivity.isSuspicious) {
         await this.terminate(sessionToken, `Suspicious activity: ${suspiciousActivity.reason}`);
-        await this.logsecurityevent(session.user_id, 'SUSPICIOUS_ACTIVITY_DETECTED', suspiciousActivity);
+        await this.logSecurityEvent(session.user_id, 'SUSPICIOUS_ACTIVITY_DETECTED', suspiciousActivity);
         return { valid: false, reason: 'Suspicious activity detected' };
       }
 
       // Update last activity
       await this.updateActivity(sessionToken);
 
-      return { 
-        valid: true, 
+      return {
+        valid: true,
         session: session,
         user: session.user_profile
       };
@@ -240,15 +239,15 @@ export class userSession {
       const checks = [];
 
       // Check for multiple rapid logins from different IPs
-      const recentSessions = await supabase
+      const { data: recentSessions } = await supabase
         .from('user_sessions')
         .select('ip_address, created_at')
         .eq('user_id', session.user_id)
-        .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()) // Last hour
+        .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
-      if (recentSessions.data && recentSessions.data.length > 5) {
-        const uniqueIPs = new Set(recentSessions.data.map(s => s.ip_address));
+      if (recentSessions && recentSessions.length > 5) {
+        const uniqueIPs = new Set(recentSessions.map(s => s.ip_address));
         if (uniqueIPs.size > 3) {
           checks.push('Multiple IPs in short time');
         }
@@ -256,21 +255,21 @@ export class userSession {
 
       // Check for unusual location
       if (session.location_data && session.location_data.country) {
-        const userSessions = await supabase
+        const { data: userSessions } = await supabase
           .from('user_sessions')
           .select('location_data')
           .eq('user_id', session.user_id)
           .not('location_data', 'is', null)
           .limit(10);
 
-        if (userSessions.data && userSessions.data.length > 0) {
-          const commonCountries = userSessions.data
+        if (userSessions && userSessions.length > 0) {
+          const commonCountries = userSessions
             .map(s => s.location_data?.country)
             .filter(Boolean);
-          
+
           const currentCountry = session.location_data.country;
           const isCommonLocation = commonCountries.includes(currentCountry);
-          
+
           if (!isCommonLocation && commonCountries.length > 3) {
             checks.push('Unusual location');
           }
@@ -280,7 +279,7 @@ export class userSession {
       // Check session age vs activity
       const sessionAge = Date.now() - new Date(session.created_at).getTime();
       const lastActivity = Date.now() - new Date(session.last_activity).getTime();
-      
+
       if (sessionAge > 24 * 60 * 60 * 1000 && lastActivity < 5 * 60 * 1000) {
         checks.push('Old session with recent activity');
       }
