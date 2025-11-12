@@ -7,6 +7,6 @@
 </template>
 
 <script setup>
-import VerifiedBadgeIcon from '@/components/VerifiedBadgeIcon.vue'
+import verifiedbadgeicon from '@/components/verified-badge-icon.vue'
 defineProps({ message: Object })
 </script>
