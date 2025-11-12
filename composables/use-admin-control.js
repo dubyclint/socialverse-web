@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import AdminControlABI from '@/abis/AdminControl.json'
+import AdminControlABI from '@/abis/admin-control.json'
 
 const contractAddress = '0xYourAdminControlAddress'
 
@@ -13,10 +13,26 @@ export function useAdminControl() {
     await tx.wait()
   }
 
-  async function getFees() {
-    const [swapLow, swapHigh, giftFee] = await contract.getFees()
-    return { swapLow, swapHigh, giftFee }
+  async function pauseContract() {
+    const tx = await contract.pause()
+    await tx.wait()
   }
 
-  return { updateFees, getFees }
+  async function unpauseContract() {
+    const tx = await contract.unpause()
+    await tx.wait()
+  }
+
+  async function withdrawFees() {
+    const tx = await contract.withdrawFees()
+    await tx.wait()
+  }
+
+  return {
+    contract,
+    updateFees,
+    pauseContract,
+    unpauseContract,
+    withdrawFees
+  }
 }
