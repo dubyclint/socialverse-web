@@ -1,112 +1,47 @@
-[
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "seller",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "createDeal",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "dealId",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "dealId",
-        "type": "uint256"
-      }
-    ],
-    "name": "approveDeal",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "dealId",
-        "type": "uint256"
-      }
-    ],
-    "name": "rejectDeal",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "dealId",
-        "type": "uint256"
-      }
-    ],
-    "name": "refundDeal",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getPendingDeals",
-    "outputs": [
-      {
-        "internalType": "uint256[]",
-        "name": "",
-        "type": "uint256[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "dealId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getDeal",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "seller",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "buyer",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint8",
-        "name": "status",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+import { ethers } from 'ethers'
+import EscrowDealABI from '@/abis/escrow-deal.json'
+
+const ESCROW_CONTRACT_ADDRESS = '0xYourEscrowDealAddress'
+
+export async function useEscrowContract() {
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+  const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, EscrowDealABI, signer)
+
+  // ✅ Create a new deal
+  async function createDeal(seller: string, amount: bigint) {
+    const tx = await contract.createDeal(seller, amount)
+    return await tx.wait()
   }
-]
+
+  // ✅ Approve a deal
+  async function approveDeal(dealId: bigint) {
+    const tx = await contract.approveDeal(dealId)
+    return await tx.wait()
+  }
+
+  // ✅ Reject a deal
+  async function rejectDeal(dealId: bigint) {
+    const tx = await contract.rejectDeal(dealId)
+    return await tx.wait()
+  }
+
+  // ✅ Refund a deal
+  async function refundDeal(dealId: bigint) {
+    const tx = await contract.refundDeal(dealId)
+    return await tx.wait()
+  }
+
+  // ✅ Get pending deals
+  async function getPendingDeals() {
+    return await contract.getPendingDeals()
+  }
+
+  return {
+    createDeal,
+    approveDeal,
+    rejectDeal,
+    refundDeal,
+    getPendingDeals
+  }
+}
