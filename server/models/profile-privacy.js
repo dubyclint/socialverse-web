@@ -1,9 +1,9 @@
 // server/models/profile-privacy.js - Profile Privacy Settings Model
 import { supabase } from '../utils/supabase.js'
 
-export class ProfilePrivacy {
+export class profileprivacy {
   // Get privacy settings
-  static async getPrivacySettings(userId) {
+  static async getprivacysettings(userId) {
     const { data, error } = await supabase
       .from('profiles')
       .select('privacy_settings')
