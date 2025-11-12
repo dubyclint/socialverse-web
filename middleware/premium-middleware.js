@@ -1,7 +1,7 @@
-// middleware/premiumMiddleware.js - Premium Feature Access Middleware
-import { PremiumFeature } from '../models/premium-feature.js';
-import { UserPremiumRestriction } from '../models/user-premium-restriction.js';
-import { PremiumSubscription } from '../models/premium-subscription.js';
+// middleware/premium-middleware.js - Premium Feature Access Middleware
+import { PremiumFeature } from '../server/models/premium-feature.js';
+import { UserPremiumRestriction } from '../server/models/user-premium-restriction.js';
+import { PremiumSubscription } from '../server/models/premium-subscription.js';
 
 /**
  * Middleware to check if user has access to premium feature
@@ -28,33 +28,19 @@ export const requirePremiumFeature = (featureKey) => {
         
         return res.status(403).json({
           success: false,
-          message: `This feature requires ${feature?.required_tier || 'premium'} subscription`,
-          code: 'PREMIUM_REQUIRED',
-          data: {
-            feature: feature?.feature_name,
-            requiredTier: feature?.required_tier,
-            currentTier: userTier,
-            upgradeUrl: '/premium/upgrade'
-          }
-        });
-      }
-
-      // Check for specific restrictions
-      const hasRestriction = await UserPremiumRestriction.hasRestriction(userId, 'ACCESS_DENIED');
-      if (hasRestriction) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access to premium features is restricted',
-          code: 'ACCESS_RESTRICTED'
+          message: 'Premium feature access denied',
+          code: 'PREMIUM_ACCESS_DENIED',
+          requiredTier: feature?.requiredTier,
+          currentTier: userTier
         });
       }
 
       next();
     } catch (error) {
-      console.error('Error in premium feature middleware:', error);
-      res.status(500).json({
+      console.error('Premium middleware error:', error);
+      return res.status(500).json({
         success: false,
-        message: 'Error checking premium access',
+        message: 'Internal server error',
         code: 'INTERNAL_ERROR'
       });
     }
@@ -62,146 +48,68 @@ export const requirePremiumFeature = (featureKey) => {
 };
 
 /**
- * Middleware to check subscription tier
+ * Middleware to check user premium restrictions
  */
-export const requireSubscriptionTier = (requiredTier) => {
-  return async (req, res, next) => {
-    try {
-      const userId = req.user?.id;
-      
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required',
-          code: 'AUTH_REQUIRED'
-        });
-      }
-
-      const userTier = await PremiumSubscription.getUserTier(userId);
-      const hasAccess = PremiumFeature.checkTierAccess(userTier, requiredTier);
-      
-      if (!hasAccess) {
-        return res.status(403).json({
-          success: false,
-          message: `This endpoint requires ${requiredTier} subscription or higher`,
-          code: 'TIER_REQUIRED',
-          data: {
-            requiredTier,
-            currentTier: userTier,
-            upgradeUrl: '/premium/upgrade'
-          }
-        });
-      }
-
-      req.userTier = userTier;
-      next();
-    } catch (error) {
-      console.error('Error in subscription tier middleware:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error checking subscription tier',
-        code: 'INTERNAL_ERROR'
-      });
-    }
-  };
-};
-
-/**
- * Middleware to check daily limits
- */
-export const checkDailyLimit = (limitType) => {
-  return async (req, res, next) => {
-    try {
-      const userId = req.user?.id;
-      
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required'
-        });
-      }
-
-      // Get user's daily limit restrictions
-      const limitRestriction = await UserPremiumRestriction.getRestrictionValue(userId, 'DAILY_LIMIT');
-      
-      if (limitRestriction && limitRestriction[limitType] !== undefined) {
-        const dailyLimit = limitRestriction[limitType];
-        
-        // Check current usage (you'll need to implement usage tracking)
-        const currentUsage = await getCurrentDailyUsage(userId, limitType);
-        
-        if (currentUsage >= dailyLimit) {
-          return res.status(429).json({
-            success: false,
-            message: `Daily limit reached for ${limitType}`,
-            code: 'DAILY_LIMIT_EXCEEDED',
-            data: {
-              limit: dailyLimit,
-              used: currentUsage,
-              resetTime: getNextResetTime()
-            }
-          });
-        }
-
-        // Add usage info to request
-        req.dailyUsage = {
-          limit: dailyLimit,
-          used: currentUsage,
-          remaining: dailyLimit - currentUsage
-        };
-      }
-
-      next();
-    } catch (error) {
-      console.error('Error in daily limit middleware:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error checking daily limits'
-      });
-    }
-  };
-};
-
-/**
- * Middleware to add premium context to request
- */
-export const addPremiumContext = async (req, res, next) => {
+export const checkPremiumRestrictions = async (req, res, next) => {
   try {
     const userId = req.user?.id;
     
-    if (userId) {
-      const [userTier, userFeatures, userRestrictions] = await Promise.all([
-        PremiumSubscription.getUserTier(userId),
-        PremiumFeature.getUserFeatures(userId),
-        UserPremiumRestriction.getUserRestrictions(userId)
-      ]);
+    if (!userId) {
+      return next();
+    }
 
-      req.premium = {
-        tier: userTier,
-        features: userFeatures,
-        restrictions: userRestrictions,
-        hasFeature: (featureKey) => userFeatures.some(f => f.feature_key === featureKey),
-        hasRestriction: (restrictionType) => userRestrictions.some(r => r.restriction_type === restrictionType)
-      };
+    const restrictions = await UserPremiumRestriction.findByUserId(userId);
+    
+    if (restrictions && restrictions.isRestricted) {
+      return res.status(403).json({
+        success: false,
+        message: 'User account has premium restrictions',
+        code: 'PREMIUM_RESTRICTION_ACTIVE',
+        restrictions: restrictions
+      });
     }
 
     next();
   } catch (error) {
-    console.error('Error adding premium context:', error);
-    next(); // Continue without premium context
+    console.error('Premium restriction check error:', error);
+    next();
   }
 };
 
-// Helper functions
-async function getCurrentDailyUsage(userId, limitType) {
-  // This should be implemented based on your usage tracking system
-  // For now, returning 0 as placeholder
-  return 0;
-}
+/**
+ * Middleware to verify premium subscription status
+ */
+export const verifyPremiumSubscription = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      });
+    }
 
-function getNextResetTime() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  return tomorrow.toISOString();
-}
+    const subscription = await PremiumSubscription.findByUserId(userId);
+    
+    if (!subscription || !subscription.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Active premium subscription required',
+        code: 'NO_ACTIVE_SUBSCRIPTION'
+      });
+    }
+
+    // Attach subscription info to request
+    req.premiumSubscription = subscription;
+    next();
+  } catch (error) {
+    console.error('Premium subscription verification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+};
