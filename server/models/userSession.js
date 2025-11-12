@@ -2,7 +2,7 @@
 import { supabase } from '../utils/supabase.js';
 import crypto from 'crypto';
 
-export class UserSession {
+export class userSession {
   
   /**
    * Create a new user session
@@ -30,7 +30,7 @@ export class UserSession {
       if (error) throw error;
 
       // Log session creation
-      await this.logSecurityEvent(sessionData.userId, 'SESSION_CREATED', {
+      await this.logsecurityevent(sessionData.userId, 'SESSION_CREATED', {
         session_id: data.id,
         ip_address: sessionData.ipAddress,
         user_agent: sessionData.userAgent
@@ -69,7 +69,7 @@ export class UserSession {
   /**
    * Find user sessions
    */
-  static async findUserSessions(userId, activeOnly = true) {
+  static async finduserSessions(userId, activeOnly = true) {
     try {
       let query = supabase
         .from('user_sessions')
@@ -142,7 +142,7 @@ export class UserSession {
       if (error) throw error;
 
       // Log session termination
-      await this.logSecurityEvent(session.user_id, 'SESSION_TERMINATED', {
+      await this.logsecurityevent(session.user_id, 'SESSION_TERMINATED', {
         session_id: session.id,
         reason: reason,
         terminated_by: terminatedBy,
@@ -176,7 +176,7 @@ export class UserSession {
       if (error) throw error;
 
       // Log mass session termination
-      await this.logSecurityEvent(userId, 'MASS_SESSION_TERMINATION', {
+      await this.logsecurityevent(userId, 'MASS_SESSION_TERMINATION', {
         terminated_count: data?.length || 0,
         reason: reason,
         kept_session: currentSessionToken
@@ -214,7 +214,7 @@ export class UserSession {
       const suspiciousActivity = await this.checkSuspiciousActivity(session);
       if (suspiciousActivity.isSuspicious) {
         await this.terminate(sessionToken, `Suspicious activity: ${suspiciousActivity.reason}`);
-        await this.logSecurityEvent(session.user_id, 'SUSPICIOUS_ACTIVITY_DETECTED', suspiciousActivity);
+        await this.logsecurityevent(session.user_id, 'SUSPICIOUS_ACTIVITY_DETECTED', suspiciousActivity);
         return { valid: false, reason: 'Suspicious activity detected' };
       }
 
