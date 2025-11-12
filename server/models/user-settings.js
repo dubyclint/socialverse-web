@@ -1,9 +1,9 @@
 // server/models/user-settings.js - Enhanced User Settings with Categories
 import { supabase } from '../utils/supabase.js';
 
-export class UserSettings {
+export class usersettings {
   // Get all user settings
-  static async getAllSettings(userId) {
+  static async getAllsettings(userId) {
     const { data, error } = await supabase
       .from('user_settings_categories')
       .select('*')
@@ -20,7 +20,7 @@ export class UserSettings {
   }
 
   // Create default settings for new user
-  static async createDefaultSettings(userId) {
+  static async createDefaultsettings(userId) {
     const { data, error } = await supabase
       .from('user_settings_categories')
       .insert([{
@@ -35,7 +35,7 @@ export class UserSettings {
   }
 
   // Update specific settings category
-  static async updateSettings(userId, category, settings) {
+  static async updatesettings(userId, category, settings) {
     const updateData = {};
     
     // Map category settings to database columns
@@ -100,64 +100,64 @@ export class UserSettings {
   }
 
   // Get settings by category
-  static async getSettingsByCategory(userId, category) {
-    const allSettings = await this.getAllSettings(userId);
+  static async getsettingsByCategory(userId, category) {
+    const allSettings = await this.getAllsettings(userId);
     
     switch (category) {
       case 'profile':
         return {
-          theme: allSettings.profile_theme,
-          language: allSettings.profile_language,
-          timezone: allSettings.profile_timezone
+          theme: allsettings.profile_theme,
+          language: allsettings.profile_language,
+          timezone: allsettings.profile_timezone
         };
       case 'chat':
         return {
-          notifications: allSettings.chat_notifications,
-          soundEnabled: allSettings.chat_sound_enabled,
-          readReceipts: allSettings.chat_read_receipts,
-          onlineStatus: allSettings.chat_online_status,
-          groupNotifications: allSettings.group_message_notifications
+          notifications: allsettings.chat_notifications,
+          soundEnabled: allsettings.chat_sound_enabled,
+          readReceipts: allsettings.chat_read_receipts,
+          onlineStatus: allsettings.chat_online_status,
+          groupNotifications: allsettings.group_message_notifications
         };
       case 'post':
         return {
-          privacyDefault: allSettings.post_privacy_default,
-          commentsEnabled: allSettings.post_comments_enabled,
+          privacyDefault: allsettings.post_privacy_default,
+          commentsEnabled: allsettings.post_comments_enabled,
           likesVisible: allSettings.post_likes_visible,
           shareEnabled: allSettings.post_share_enabled
         };
       case 'wallet':
         return {
-          notifications: allSettings.wallet_notifications,
-          transactionAlerts: allSettings.wallet_transaction_alerts,
-          pewNotifications: allSettings.pew_notifications,
-          escrowNotifications: allSettings.escrow_notifications,
-          p2pNotifications: allSettings.p2p_notifications
+          notifications: allsettings.wallet_notifications,
+          transactionAlerts: allsettings.wallet_transaction_alerts,
+          pewNotifications: allsettings.pew_notifications,
+          escrowNotifications: allsettings.escrow_notifications,
+          p2pNotifications: allsettings.p2p_notifications
         };
       case 'ad':
         return {
-          personalization: allSettings.ad_personalization,
-          frequency: allSettings.ad_frequency,
-          blockedCategories: allSettings.ad_categories_blocked
+          personalization: allsettings.ad_personalization,
+          frequency: allsettings.ad_frequency,
+          blockedCategories: allsettings.ad_categories_blocked
         };
       case 'rank':
         return {
-          displayEnabled: allSettings.rank_display_enabled,
-          progressPublic: allSettings.rank_progress_public
+          displayEnabled: allsettings.rank_display_enabled,
+          progressPublic: allsettings.rank_progress_public
         };
       case 'universe':
         return {
-          notifications: allSettings.universe_notifications,
-          autoJoin: allSettings.universe_auto_join
+          notifications: allsettings.universe_notifications,
+          autoJoin: allsettings.universe_auto_join
         };
       case 'general':
         return {
-          emailNotifications: allSettings.email_notifications,
-          pushNotifications: allSettings.push_notifications,
-          marketingEmails: allSettings.marketing_emails,
-          twoFactorEnabled: allSettings.two_factor_enabled
+          emailNotifications: allsettings.email_notifications,
+          pushNotifications: allsettings.push_notifications,
+          marketingEmails: allsettings.marketing_emails,
+          twoFactorEnabled: allsettings.two_factor_enabled
         };
       default:
-        return allSettings;
+        return allsettings;
     }
   }
 }
