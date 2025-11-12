@@ -1,10 +1,10 @@
 // server/models/Profile.js - Enhanced Profile Model with comprehensive bio and privacy
 import { supabase } from '../utils/supabase.js'
 
-export class Profile {
+export class profile {
   // Get complete profile with privacy settings
-  static async getProfile(userId, viewerId = null) {
-    const isOwnProfile = userId === viewerId
+  static async getprofile(userId, viewerId = null) {
+    const isOwnprofile = userId === viewerId
     
     let query = supabase
       .from('profiles')
