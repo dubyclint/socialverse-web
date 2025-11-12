@@ -1,9 +1,9 @@
 // server/models/social-links.js - User Social Media Links Model
 import { supabase } from '../utils/supabase.js';
 
-export class SocialLinks {
+export class sociallinks {
   // Get user's social links
-  static async getUserSocialLinks(userId, includePrivate = false) {
+  static async getUsersociallinks(userId, includePrivate = false) {
     let query = supabase
       .from('user_social_links')
       .select('*')
@@ -20,7 +20,7 @@ export class SocialLinks {
   }
 
   // Add or update social link
-  static async upsertSocialLink(userId, linkData) {
+  static async upsertsociallink(userId, linkData) {
     const { data, error } = await supabase
       .from('user_social_links')
       .upsert([{
@@ -39,7 +39,7 @@ export class SocialLinks {
   }
 
   // Delete social link
-  static async deleteSocialLink(userId, platform) {
+  static async deletesociallink(userId, platform) {
     const { error } = await supabase
       .from('user_social_links')
       .delete()
