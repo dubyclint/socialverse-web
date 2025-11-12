@@ -1,9 +1,9 @@
 // server/models/pewgift-economy.js - Enhanced PewGift Economy System
 import { supabase } from '../utils/supabase.js';
 
-export class PewGiftEconomy {
+export class pewgiteconomy {
   // Transaction validation and processing
-  static async processGiftTransaction(transactionData) {
+  static async processgifttransaction(transactionData) {
     const {
       senderId,
       recipientId,
