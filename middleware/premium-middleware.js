@@ -1,115 +1,79 @@
 // middleware/premium-middleware.js - Premium Feature Access Middleware
-import { PremiumFeature } from '../server/models/premium-feature.js';
-import { UserPremiumRestriction } from '../server/models/user-premium-restriction.js';
-import { PremiumSubscription } from '../server/models/premium-subscription.js';
-
 /**
- * Middleware to check if user has access to premium feature
+ * Nuxt route middleware to check if user has access to premium feature
+ * This is a client-side middleware that calls server endpoints
  */
-export const requirePremiumFeature = (featureKey) => {
-  return async (req, res, next) => {
-    try {
-      const userId = req.user?.id;
-      
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required',
-          code: 'AUTH_REQUIRED'
-        });
-      }
-
-      // Check if user has access to the feature
-      const hasAccess = await PremiumFeature.hasAccess(userId, featureKey);
-      
-      if (!hasAccess) {
-        const feature = await PremiumFeature.findByKey(featureKey);
-        const userTier = await PremiumSubscription.getUserTier(userId);
-        
-        return res.status(403).json({
-          success: false,
-          message: 'Premium feature access denied',
-          code: 'PREMIUM_ACCESS_DENIED',
-          requiredTier: feature?.requiredTier,
-          currentTier: userTier
-        });
-      }
-
-      next();
-    } catch (error) {
-      console.error('Premium middleware error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        code: 'INTERNAL_ERROR'
-      });
+export default defineRouteMiddleware(async (to, from) => {
+  try {
+    const user = useAuthStore().user;
+    
+    if (!user) {
+      return navigateTo('/login');
     }
-  };
-};
+
+    // Check premium status via API
+    const { data, error } = await useFetch('/api/premium/check-access', {
+      method: 'POST',
+      body: {
+        userId: user.id,
+        featureKey: to.meta?.requiredFeature
+      }
+    });
+
+    if (error.value || !data.value?.hasAccess) {
+      return navigateTo('/premium');
+    }
+  } catch (error) {
+    console.error('Premium middleware error:', error);
+    return navigateTo('/error');
+  }
+});
 
 /**
  * Middleware to check user premium restrictions
  */
-export const checkPremiumRestrictions = async (req, res, next) => {
+export const checkPremiumRestrictions = defineRouteMiddleware(async (to, from) => {
   try {
-    const userId = req.user?.id;
+    const user = useAuthStore().user;
     
-    if (!userId) {
-      return next();
+    if (!user) {
+      return;
     }
 
-    const restrictions = await UserPremiumRestriction.findByUserId(userId);
-    
-    if (restrictions && restrictions.isRestricted) {
-      return res.status(403).json({
-        success: false,
-        message: 'User account has premium restrictions',
-        code: 'PREMIUM_RESTRICTION_ACTIVE',
-        restrictions: restrictions
-      });
-    }
+    const { data, error } = await useFetch('/api/premium/check-restrictions', {
+      method: 'POST',
+      body: { userId: user.id }
+    });
 
-    next();
+    if (data.value?.isRestricted) {
+      return navigateTo('/account-restricted');
+    }
   } catch (error) {
     console.error('Premium restriction check error:', error);
-    next();
   }
-};
+});
 
 /**
  * Middleware to verify premium subscription status
  */
-export const verifyPremiumSubscription = async (req, res, next) => {
+export const verifyPremiumSubscription = defineRouteMiddleware(async (to, from) => {
   try {
-    const userId = req.user?.id;
+    const user = useAuthStore().user;
     
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-        code: 'AUTH_REQUIRED'
-      });
+    if (!user) {
+      return navigateTo('/login');
     }
 
-    const subscription = await PremiumSubscription.findByUserId(userId);
-    
-    if (!subscription || !subscription.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Active premium subscription required',
-        code: 'NO_ACTIVE_SUBSCRIPTION'
-      });
-    }
+    const { data, error } = await useFetch('/api/premium/verify-subscription', {
+      method: 'POST',
+      body: { userId: user.id }
+    });
 
-    // Attach subscription info to request
-    req.premiumSubscription = subscription;
-    next();
+    if (error.value || !data.value?.isActive) {
+      return navigateTo('/subscribe');
+    }
   } catch (error) {
     console.error('Premium subscription verification error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      code: 'INTERNAL_ERROR'
-    });
+    return navigateTo('/error');
   }
-};
+});
