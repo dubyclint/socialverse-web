@@ -1,7 +1,7 @@
 // server/models/pew.js - Supabase PostgreSQL Model
 import { supabase } from '../utils/supabase.js';
 
-export class Pew {
+export class pew {
   static async create(pewData) {
     const { data, error } = await supabase
       .from('pews')
