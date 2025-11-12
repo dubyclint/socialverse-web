@@ -1,7 +1,7 @@
 // server/models/security-event.js - Security Events Management Model
 import { supabase } from '../utils/supabase.js';
 
-export class SecurityEvent {
+export class securityevent {
   
   /**
    * Create a new security event
@@ -32,7 +32,7 @@ export class SecurityEvent {
   /**
    * Get user security events
    */
-  static async getUserEvents(userId, filters = {}) {
+  static async getuserevents(userId, filters = {}) {
     try {
       let query = supabase
         .from('security_events')
@@ -70,7 +70,7 @@ export class SecurityEvent {
   /**
    * Get all security events (admin)
    */
-  static async getAllEvents(filters = {}) {
+  static async getAllevents(filters = {}) {
     try {
       let query = supabase
         .from('security_events')
