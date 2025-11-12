@@ -1,11 +1,11 @@
 <template>
   <div>
-    <WalletOverview />
-    <CryptoSwap />
+    <walletoverview />
+    <cryptoswap />
   </div>
 </template>
 
 <script setup>
-import WalletOverview from '@/components/WalletOverview.vue'
-import CryptoSwap from '@/components/CryptoSwap.vue'
+import walletoverview from '@/components/wallet-overview.vue'
+import cryptoswap from '@/components/crypto-swap.vue'
 </script>
