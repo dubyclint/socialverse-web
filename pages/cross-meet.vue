@@ -1,11 +1,11 @@
 <template>
   <div>
-    <MatchRequestForm />
-    <MatchResults />
+    <matchrequestform />
+    <matchresults />
   </div>
 </template>
 
 <script setup>
-import MatchRequestForm from '@/components/MatchRequestForm.vue'
-import MatchResults from '@/components/MatchResults.vue'
+import matchrequestform from '@/components/match-request-form.vue'
+import matchresults from '@/components/match-results.vue'
 </script>
