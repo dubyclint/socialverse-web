@@ -387,7 +387,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Profile } from '~/models/Profile'
 
 definePageMeta({
   middleware: 'auth-guard'
@@ -427,46 +426,58 @@ const profileData = ref({
   interests: []
 })
 
-const privacySettings = ref({
-  profilePublic: true,
-  bioPublic: true,
-  locationPublic: true,
-  contactPublic: false
+const passwordData = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
 })
 
-const passwordData = ref({
-  current: '',
-  new: '',
-  confirm: ''
+const privacySettings = ref({
+  profileVisibility: 'public',
+  showEmail: false,
+  showPhone: false,
+  allowMessages: true
 })
 
 const notificationSettings = ref({
   emailNotifications: true,
   pushNotifications: true,
-  messageNotifications: true,
+  commentNotifications: true,
   likeNotifications: true
 })
 
 const loadProfileData = async () => {
   try {
-    const profile = await Profile.getProfile(authStore.user.id)
-    
-    profileData.value = {
-      fullName: profile.full_name || '',
-      occupation: profile.occupation || '',
-      bio: profile.bio || '',
-      location: profile.location || '',
-      website: profile.website || '',
-      highestEducation: profile.highest_education || '',
-      school: profile.school || '',
-      dateOfBirth: profile.date_of_birth || '',
-      gender: profile.gender || '',
-      skills: profile.skills || [],
-      interests: profile.interests || []
-    }
+    // Call API endpoint instead of importing server model
+    const { data, error } = await useFetch(`/api/profile/${authStore.user.id}`, {
+      method: 'GET'
+    })
 
-    // Calculate profile completion
-    profileCompletion.value = await Profile.getProfileCompletionPercentage(authStore.user.id)
+    if (!error.value && data.value) {
+      const profile = data.value
+      profileData.value = {
+        fullName: profile.full_name || '',
+        occupation: profile.occupation || '',
+        bio: profile.bio || '',
+        location: profile.location || '',
+        website: profile.website || '',
+        highestEducation: profile.highest_education || '',
+        school: profile.school || '',
+        dateOfBirth: profile.date_of_birth || '',
+        gender: profile.gender || '',
+        skills: profile.skills || [],
+        interests: profile.interests || []
+      }
+
+      // Calculate profile completion
+      const completionResponse = await useFetch(`/api/profile/${authStore.user.id}/completion`, {
+        method: 'GET'
+      })
+      
+      if (!completionResponse.error.value) {
+        profileCompletion.value = completionResponse.data.value?.percentage || 0
+      }
+    }
   } catch (error) {
     console.error('Error loading profile:', error)
   }
@@ -511,40 +522,88 @@ const saveProfileChanges = async () => {
       date_of_birth: profileData.value.dateOfBirth,
       gender: profileData.value.gender,
       skills: profileData.value.skills,
-      interests: profileData.value.interests,
-      privacy_settings: privacySettings.value
+      interests: profileData.value.interests
     }
 
-    await Profile.updateProfile(authStore.user.id, updates)
-    
-    // Recalculate profile completion
-    profileCompletion.value = await Profile.getProfileCompletionPercentage(authStore.user.id)
-    
-    alert('Profile updated successfully!')
+    // Call API endpoint to save profile
+    const { error } = await useFetch(`/api/profile/${authStore.user.id}`, {
+      method: 'PUT',
+      body: updates
+    })
+
+    if (!error.value) {
+      // Show success message
+      console.log('Profile updated successfully')
+    }
   } catch (error) {
     console.error('Error saving profile:', error)
-    alert('Error saving profile: ' + error.message)
   } finally {
     savingProfile.value = false
   }
 }
 
 const changePassword = async () => {
-  if (passwordData.value.new !== passwordData.value.confirm) {
-    alert('Passwords do not match')
-    return
-  }
-
   try {
+    if (passwordData.value.newPassword !== passwordData.value.confirmPassword) {
+      console.error('Passwords do not match')
+      return
+    }
+
     changingPassword.value = true
-    // Implement password change logic here
-    alert('Password changed successfully!')
-    passwordData.value = { current: '', new: '', confirm: '' }
+
+    // Call API endpoint to change password
+    const { error } = await useFetch('/api/auth/change-password', {
+      method: 'POST',
+      body: {
+        currentPassword: passwordData.value.currentPassword,
+        newPassword: passwordData.value.newPassword
+      }
+    })
+
+    if (!error.value) {
+      passwordData.value = {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }
+      console.log('Password changed successfully')
+    }
   } catch (error) {
     console.error('Error changing password:', error)
-    alert('Error changing password')
   } finally {
     changingPassword.value = false
+  }
+}
+
+const savePrivacySettings = async () => {
+  try {
+    // Call API endpoint to save privacy settings
+    const { error } = await useFetch(`/api/profile/${authStore.user.id}/privacy`, {
+      method: 'PUT',
+      body: privacySettings.value
+    })
+
+    if (!error.value) {
+      console.log('Privacy settings updated successfully')
+    }
+  } catch (error) {
+    console.error('Error saving privacy settings:', error)
+  }
+}
+
+const saveNotificationSettings = async () => {
+  try {
+    // Call API endpoint to save notification settings
+    const { error } = await useFetch(`/api/profile/${authStore.user.id}/notifications`, {
+      method: 'PUT',
+      body: notificationSettings.value
+    })
+
+    if (!error.value) {
+      console.log('Notification settings updated successfully')
+    }
+  } catch (error) {
+    console.error('Error saving notification settings:', error)
   }
 }
 
