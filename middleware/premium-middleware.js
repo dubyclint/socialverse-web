@@ -1,7 +1,7 @@
 // middleware/premiumMiddleware.js - Premium Feature Access Middleware
-import { PremiumFeature } from '../models/premiumFeature.js';
-import { UserPremiumRestriction } from '../models/userPremiumRestriction.js';
-import { PremiumSubscription } from '../models/premiumSubscription.js';
+import { PremiumFeature } from '../models/premium-feature.js';
+import { UserPremiumRestriction } from '../models/user-premium-restriction.js';
+import { PremiumSubscription } from '../models/premium-subscription.js';
 
 /**
  * Middleware to check if user has access to premium feature
