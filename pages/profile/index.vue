@@ -168,84 +168,45 @@
             <div v-if="profileData.website_url" class="bio-item">
               <Icon name="globe" size="16" />
               <span class="bio-label">Website:</span>
-              <a :href="profileData.website_url" target="_blank" class="bio-link">
-                {{ profileData.website_url }}
-              </a>
+              <a :href="profileData.website_url" target="_blank" class="bio-link">{{ profileData.website_url }}</a>
             </div>
           </div>
 
-          <!-- Skills -->
-          <div v-if="profileData.skills && profileData.skills.length > 0" class="bio-section">
-            <h4 class="bio-section-title">
-              <Icon name="code" size="16" />
-              Skills
-            </h4>
-            <div class="skills-tags">
-              <span 
-                v-for="skill in profileData.skills" 
-                :key="skill" 
-                class="skill-tag"
-              >
+          <!-- Skills Section -->
+          <div v-if="profileData.skills && profileData.skills.length > 0" class="skills-section">
+            <h3 class="section-title">Skills</h3>
+            <div class="skills-list">
+              <span v-for="skill in profileData.skills" :key="skill" class="skill-tag">
                 {{ skill }}
               </span>
             </div>
           </div>
 
-          <!-- Interests -->
-          <div v-if="profileData.interests && profileData.interests.length > 0" class="bio-section">
-            <h4 class="bio-section-title">
-              <Icon name="heart" size="16" />
-              Interests
-            </h4>
-            <div class="interests-tags">
-              <span 
-                v-for="interest in profileData.interests" 
-                :key="interest" 
-                class="interest-tag"
-              >
+          <!-- Interests Section -->
+          <div v-if="profileData.interests && profileData.interests.length > 0" class="interests-section">
+            <h3 class="section-title">Interests</h3>
+            <div class="interests-list">
+              <span v-for="interest in profileData.interests" :key="interest" class="interest-tag">
                 {{ interest }}
               </span>
             </div>
           </div>
 
           <!-- Social Links -->
-          <div v-if="socialLinks.length > 0" class="bio-section">
-            <h4 class="bio-section-title">
-              <Icon name="link" size="16" />
-              Social Links
-            </h4>
+          <div v-if="socialLinks.length > 0" class="social-links-section">
+            <h3 class="section-title">Social Links</h3>
             <div class="social-links">
-              <a
-                v-for="link in socialLinks"
+              <a 
+                v-for="link in socialLinks" 
                 :key="link.platform"
-                :href="link.url"
-                target="_blank"
+                :href="link.url" 
+                target="_blank" 
+                rel="noopener noreferrer"
                 class="social-link"
                 :title="link.platform"
               >
                 <Icon :name="getSocialIcon(link.platform)" size="20" />
-                <span>{{ link.username || link.platform }}</span>
               </a>
-            </div>
-          </div>
-
-          <!-- KYC Status -->
-          <div v-if="kycStatus" class="bio-section">
-            <h4 class="bio-section-title">
-              <Icon name="shield-check" size="16" />
-              KYC Status
-            </h4>
-            <div class="kyc-status">
-              <span class="kyc-level" :class="`kyc-${kycStatus.level}`">
-                {{ kycStatus.level.toUpperCase() }} Level
-              </span>
-              <button 
-                v-if="isOwnProfile" 
-                @click="showVerificationApplication = true"
-                class="btn btn-sm btn-outline"
-              >
-                Upgrade Verification
-              </button>
             </div>
           </div>
         </div>
@@ -253,20 +214,19 @@
 
       <!-- Profile Tabs -->
       <div class="profile-tabs">
-        <div class="tab-buttons">
-          <button 
-            v-for="tab in availableTabs" 
-            :key="tab.key"
-            @click="activeTab = tab.key"
-            class="tab-button"
-            :class="{ active: activeTab === tab.key }"
-          >
-            <Icon :name="tab.icon" size="16" />
-            {{ tab.label }}
-            <span v-if="tab.count !== undefined" class="tab-count">{{ tab.count }}</span>
-          </button>
-        </div>
+        <button 
+          v-for="tab in availableTabs" 
+          :key="tab"
+          @click="activeTab = tab"
+          class="tab-button"
+          :class="{ active: activeTab === tab }"
+        >
+          {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
+        </button>
+      </div>
 
+      <!-- Tab Content -->
+      <div class="tab-content">
         <!-- Posts Tab -->
         <div v-if="activeTab === 'posts'" class="posts-tab">
           <div v-if="userPosts.length === 0" class="empty-state">
@@ -403,12 +363,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
-import { Profile } from '~/models/Profile'
-import { ProfilePrivacy } from '~/models/ProfilePrivacy'
-import { SocialLinks } from '~/models/SocialLinks'
-import { Verification } from '~/models/Verification'
-import { UserSession } from '~/models/UserSession'
-import { Post } from '~/Post'
+import { Profile } from '~/server/models/profile'
+import { ProfilePrivacy } from '~/server/models/profile-privacy'
+import { SocialLinks } from '~/server/models/social-links'
+import { Verification } from '~/server/models/verification'
+import { UserSession } from '~/server/models/userSession'
+import { Post } from '~/server/models/pew'
 
 // Stores and routing
 const authStore = useAuthStore()
@@ -460,24 +420,19 @@ const shouldShowBio = computed(() => {
          profileData.value.website_url ||
          (profileData.value.skills && profileData.value.skills.length > 0) ||
          (profileData.value.interests && profileData.value.interests.length > 0) ||
-         socialLinks.value.length > 0
-})
-
-const rankHidden = computed(() => {
-  return privacySettings.value.rank_hidden && !isOwnProfile.value
+         (socialLinks.value && socialLinks.value.length > 0)
 })
 
 const availableTabs = computed(() => {
-  const tabs = [
-    { key: 'posts', label: 'Posts', icon: 'file-text', count: profileData.value.posts_count || 0 },
-    { key: 'media', label: 'Media', icon: 'image', count: mediaPosts.value.length }
-  ]
-  
+  const tabs = ['posts', 'media']
   if (isOwnProfile.value) {
-    tabs.push({ key: 'likes', label: 'Likes', icon: 'heart', count: likedPosts.value.length })
+    tabs.push('likes')
   }
-  
   return tabs
+})
+
+const rankHidden = computed(() => {
+  return privacySettings.value?.hide_rank || false
 })
 
 // Methods
@@ -486,41 +441,22 @@ const loadProfile = async () => {
     loading.value = true
     const userId = route.params.id || authStore.user?.id
     
-    if (!userId) {
-      router.push('/auth/login')
-      return
-    }
-
-    // Load profile data
-    profileData.value = await Profile.getProfile(userId, authStore.user?.id)
+    // Fetch profile data
+    const response = await $fetch(`/api/profiles/${userId}`)
+    profileData.value = response.profile
+    privacySettings.value = response.privacy_settings
+    socialLinks.value = response.social_links || []
+    verificationBadges.value = response.verification_badges || []
+    kycStatus.value = response.kyc_status
     
-    // Load privacy settings (only for own profile)
-    if (isOwnProfile.value) {
-      privacySettings.value = await ProfilePrivacy.getPrivacySettings(userId)
-    }
-    
-    // Load social links
-    socialLinks.value = await SocialLinks.getUserSocialLinks(userId, isOwnProfile.value)
-    
-    // Load verification status
-    const verificationStatus = await Verification.getVerificationStatus(userId)
-    verificationBadges.value = verificationStatus.badges
-    
-    // Determine KYC status
-    if (verificationBadges.value.length > 0) {
-      const highestBadge = verificationBadges.value.reduce((highest, badge) => {
-        const levels = { 'basic': 1, 'k2_level_1': 2, 'k2_level_2': 3, 'business': 2, 'celebrity': 3 }
-        return levels[badge.badge_type] > levels[highest.badge_type] ? badge : highest
-      })
-      kycStatus.value = {
-        level: highestBadge.badge_type,
-        verified: true
-      }
-    }
-    
-    // Load posts
+    // Load initial posts
     await loadUserPosts()
     
+    // Check follow status if not own profile
+    if (!isOwnProfile.value) {
+      const followStatus = await $fetch(`/api/follows/status/${userId}`)
+      isFollowing.value = followStatus.is_following
+    }
   } catch (error) {
     console.error('Error loading profile:', error)
   } finally {
@@ -532,21 +468,22 @@ const loadUserPosts = async () => {
   try {
     loadingPosts.value = true
     const userId = route.params.id || authStore.user?.id
-    const posts = await Profile.getUserPosts(userId, currentPage.value, 10)
+    
+    const response = await $fetch(`/api/profiles/${userId}/posts`, {
+      query: {
+        page: currentPage.value,
+        limit: 12
+      }
+    })
     
     if (currentPage.value === 1) {
-      userPosts.value = posts
+      userPosts.value = response.posts
     } else {
-      userPosts.value.push(...posts)
+      userPosts.value.push(...response.posts)
     }
     
-    hasMorePosts.value = posts.length === 10
-    
-    // Filter media posts
-    mediaPosts.value = userPosts.value.filter(post => 
-      post.media_url && (post.media_type === 'image' || post.media_type === 'video')
-    )
-    
+    mediaPosts.value = response.posts.filter(p => p.media_url)
+    hasMorePosts.value = response.has_more
   } catch (error) {
     console.error('Error loading posts:', error)
   } finally {
@@ -561,55 +498,41 @@ const loadMorePosts = async () => {
 
 const handlePostCreated = (newPost) => {
   userPosts.value.unshift(newPost)
-  profileData.value.posts_count = (profileData.value.posts_count || 0) + 1
+  profileData.value.posts_count++
   showCreatePost.value = false
 }
 
 const handleProfileUpdated = (updatedProfile) => {
-  profileData.value = { ...profileData.value, ...updatedProfile }
+  profileData.value = updatedProfile
   showEditProfile.value = false
 }
 
 const handleVerificationSubmitted = () => {
   showVerificationApplication.value = false
-  // Reload verification status
+  // Reload verification badges
   loadProfile()
 }
 
-const handleAvatarUploaded = (avatarUrl) => {
-  profileData.value.avatar_url = avatarUrl
+const handleAvatarUploaded = (newAvatarUrl) => {
+  profileData.value.avatar_url = newAvatarUrl
   showAvatarUpload.value = false
 }
 
-// FIXED: Renamed function to avoid naming conflict with ref
 const openVerificationDetails = (badge) => {
   selectedBadge.value = badge
   showVerificationDetails.value = true
-}
-
-const handleLogout = async () => {
-  try {
-    // Logout all sessions
-    await UserSession.logoutAllSessions(authStore.user.id)
-    
-    // Clear auth store
-    await authStore.logout()
-    
-    // Redirect to login
-    router.push('/auth/login')
-  } catch (error) {
-    console.error('Error logging out:', error)
-  }
 }
 
 const toggleFollow = async () => {
   try {
     if (isFollowing.value) {
       // Unfollow logic
+      await $fetch(`/api/follows/${profileData.value.id}`, { method: 'DELETE' })
       isFollowing.value = false
       profileData.value.followers_count--
     } else {
       // Follow logic
+      await $fetch(`/api/follows/${profileData.value.id}`, { method: 'POST' })
       isFollowing.value = true
       profileData.value.followers_count++
     }
@@ -636,6 +559,15 @@ const handleShare = (postId) => {
 
 const openMediaModal = (post) => {
   // Implement media modal logic
+}
+
+const handleLogout = async () => {
+  try {
+    await authStore.logout()
+    router.push('/login')
+  } catch (error) {
+    console.error('Error logging out:', error)
+  }
 }
 
 // Utility functions
@@ -910,26 +842,25 @@ watch(() => route.params.id, () => {
 
 .profile-bio-section {
   padding: 2rem;
-  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .bio-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  max-width: 100%;
 }
 
 .bio-text {
   font-size: 1rem;
   line-height: 1.6;
+  margin: 0 0 1.5rem 0;
   color: #333;
-  margin: 0;
 }
 
 .bio-details-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .bio-item {
@@ -944,7 +875,7 @@ watch(() => route.params.id, () => {
 .bio-label {
   font-weight: 600;
   color: #666;
-  min-width: 80px;
+  min-width: 100px;
 }
 
 .bio-value {
@@ -960,29 +891,24 @@ watch(() => route.params.id, () => {
   text-decoration: underline;
 }
 
-.bio-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.skills-section,
+.interests-section,
+.social-links-section {
+  margin-bottom: 1.5rem;
 }
 
-.bio-section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+.section-title {
+  font-size: 1.125rem;
   font-weight: 600;
-  color: #666;
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin: 0 0 1rem 0;
+  color: #333;
 }
 
-.skills-tags,
-.interests-tags {
+.skills-list,
+.interests-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .skill-tag,
@@ -996,85 +922,44 @@ watch(() => route.params.id, () => {
   font-weight: 500;
 }
 
-.interest-tag {
-  background: #fce7f3;
-  color: #ec4899;
-}
-
 .social-links {
   display: flex;
-  flex-wrap: wrap;
   gap: 1rem;
 }
 
 .social-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #f3f4f6;
-  border-radius: 6px;
-  color: #333;
-  text-decoration: none;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #667eea;
   transition: all 0.2s;
 }
 
 .social-link:hover {
-  background: #e5e7eb;
-  color: #667eea;
-}
-
-.kyc-status {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.kyc-level {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.kyc-basic {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.kyc-k2_level_1 {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.kyc-k2_level_2 {
-  background: #fef3c7;
-  color: #92400e;
+  background: #667eea;
+  color: white;
 }
 
 .profile-tabs {
-  border-top: 1px solid #e5e7eb;
-}
-
-.tab-buttons {
   display: flex;
-  gap: 0;
-  padding: 0 2rem;
   border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
 }
 
 .tab-button {
-  padding: 1rem 1.5rem;
-  background: transparent;
+  flex: 1;
+  padding: 1rem;
   border: none;
+  background: transparent;
   cursor: pointer;
   font-weight: 500;
   color: #666;
-  border-bottom: 2px solid transparent;
   transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  border-bottom: 2px solid transparent;
 }
 
 .tab-button.active {
@@ -1083,42 +968,27 @@ watch(() => route.params.id, () => {
 }
 
 .tab-button:hover {
-  color: #333;
+  color: #667eea;
 }
 
-.tab-count {
-  background: #f3f4f6;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.posts-tab,
-.media-tab,
-.likes-tab {
+.tab-content {
   padding: 2rem;
 }
 
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
   text-align: center;
+  padding: 3rem 1rem;
   color: #999;
 }
 
 .empty-state h3 {
   font-size: 1.25rem;
   margin: 1rem 0 0.5rem 0;
-  color: #666;
+  color: #333;
 }
 
 .empty-state p {
-  margin: 0 0 1rem 0;
-  color: #999;
+  margin: 0.5rem 0 1rem 0;
 }
 
 .posts-grid {
@@ -1169,8 +1039,7 @@ watch(() => route.params.id, () => {
 }
 
 .load-more-section {
-  display: flex;
-  justify-content: center;
+  text-align: center;
   padding: 2rem;
 }
 
@@ -1194,13 +1063,8 @@ watch(() => route.params.id, () => {
     text-align: center;
   }
 
-  .profile-picture-container {
-    width: 120px;
-    height: 120px;
-  }
-
   .profile-name {
-    font-size: 1.5rem;
+    justify-content: center;
   }
 
   .profile-stats {
@@ -1211,22 +1075,13 @@ watch(() => route.params.id, () => {
     justify-content: center;
   }
 
-  .bio-details-grid {
-    grid-template-columns: 1fr;
-  }
-
   .posts-grid {
     grid-template-columns: 1fr;
   }
 
-  .tab-buttons {
-    overflow-x: auto;
-    padding: 0 1rem;
-  }
-
-  .tab-button {
-    padding: 1rem;
-    white-space: nowrap;
+  .bio-details-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
+
