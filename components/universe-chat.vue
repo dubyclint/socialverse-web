@@ -44,7 +44,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useUniverseStore } from '~/stores/universe'
-import { useSocket } from '~/composables/useSocket'
+import { useSocket } from '~/composables/use-socket'
+
 
 const universeStore = useUniverseStore()
 const { socket } = useSocket()
