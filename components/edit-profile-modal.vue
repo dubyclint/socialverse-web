@@ -1,4 +1,4 @@
-<!-- components/EditProfileModal.vue -->
+<!-- components/edit-profile-modal.vue -->
 <template>
   <div class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
@@ -33,45 +33,27 @@
                   v-model="formData.username"
                   type="text"
                   class="form-input"
-                  placeholder="Your username"
-                  required
+                  placeholder="Choose a username"
                   @blur="validateUsername"
+                  required
                 />
                 <span v-if="usernameError" class="error-text">{{ usernameError }}</span>
               </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-row full">
               <div class="form-group">
                 <label class="form-label">Bio</label>
                 <textarea
                   v-model="formData.bio"
                   class="form-textarea"
-                  rows="3"
-                  placeholder="Tell us about yourself..."
+                  placeholder="Tell us about yourself"
                   maxlength="500"
                 ></textarea>
                 <span class="char-count">{{ formData.bio.length }}/500</span>
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Avatar URL</label>
-                <input
-                  v-model="formData.avatarUrl"
-                  type="url"
-                  class="form-input"
-                  placeholder="https://example.com/avatar.jpg"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Contact Information -->
-          <div class="form-section">
-            <h3 class="section-title">Contact Information</h3>
-            
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Phone Number</label>
@@ -89,7 +71,7 @@
                   v-model="formData.website"
                   type="url"
                   class="form-input"
-                  placeholder="https://yourwebsite.com"
+                  placeholder="https://example.com"
                 />
               </div>
             </div>
@@ -102,6 +84,16 @@
                   type="text"
                   class="form-input"
                   placeholder="City, Country"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Avatar URL</label>
+                <input
+                  v-model="formData.avatarUrl"
+                  type="url"
+                  class="form-input"
+                  placeholder="https://example.com/avatar.jpg"
                 />
               </div>
             </div>
@@ -118,25 +110,22 @@
                   v-model="formData.occupation"
                   type="text"
                   class="form-input"
-                  placeholder="Your job title or profession"
+                  placeholder="Your job title"
                 />
               </div>
               
               <div class="form-group">
                 <label class="form-label">Highest Education</label>
-                <select v-model="formData.highestEducation" class="form-input">
-                  <option value="">Select education level</option>
-                  <option value="high_school">High School</option>
-                  <option value="associate">Associate Degree</option>
-                  <option value="bachelor">Bachelor's Degree</option>
-                  <option value="master">Master's Degree</option>
-                  <option value="phd">PhD</option>
-                  <option value="other">Other</option>
-                </select>
+                <input
+                  v-model="formData.highestEducation"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g., Bachelor's Degree"
+                />
               </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-row full">
               <div class="form-group">
                 <label class="form-label">School/University</label>
                 <input
@@ -147,8 +136,12 @@
                 />
               </div>
             </div>
+          </div>
 
-            <!-- Skills -->
+          <!-- Skills & Interests -->
+          <div class="form-section">
+            <h3 class="section-title">Skills & Interests</h3>
+            
             <div class="form-group">
               <label class="form-label">Skills</label>
               <div class="skills-input-wrapper">
@@ -156,8 +149,7 @@
                   ref="skillsInput"
                   type="text"
                   class="form-input"
-                  placeholder="Add a skill and press Enter"
-                  @keydown.enter.prevent="addSkill"
+                  placeholder="Add a skill and press button"
                 />
                 <button type="button" @click="addSkill" class="add-btn">Add</button>
               </div>
@@ -165,6 +157,25 @@
                 <span v-for="(skill, index) in formData.skills" :key="index" class="tag">
                   {{ skill }}
                   <button type="button" @click="removeSkill(index)" class="remove-tag">×</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Interests</label>
+              <div class="skills-input-wrapper">
+                <input
+                  ref="interestInput"
+                  type="text"
+                  class="form-input"
+                  placeholder="Add an interest and press button"
+                />
+                <button type="button" @click="addInterest" class="add-btn">Add</button>
+              </div>
+              <div class="tags-container">
+                <span v-for="(interest, index) in formData.interests" :key="index" class="tag">
+                  {{ interest }}
+                  <button type="button" @click="removeInterest(index)" class="remove-tag">×</button>
                 </span>
               </div>
             </div>
@@ -187,37 +198,12 @@
               <div class="form-group">
                 <label class="form-label">Gender</label>
                 <select v-model="formData.gender" class="form-input">
-                  <option value="">Prefer not to say</option>
+                  <option value="">Select gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
-                  <option value="non_binary">Non-binary</option>
                   <option value="other">Other</option>
+                  <option value="prefer-not-to-say">Prefer not to say</option>
                 </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Interests -->
-          <div class="form-section">
-            <h3 class="section-title">Interests</h3>
-            
-            <div class="form-group">
-              <label class="form-label">Add Your Interests</label>
-              <div class="skills-input-wrapper">
-                <input
-                  ref="interestInput"
-                  type="text"
-                  class="form-input"
-                  placeholder="Add an interest and press Enter"
-                  @keydown.enter.prevent="addInterest"
-                />
-                <button type="button" @click="addInterest" class="add-btn">Add</button>
-              </div>
-              <div class="tags-container">
-                <span v-for="(interest, index) in formData.interests" :key="index" class="tag">
-                  {{ interest }}
-                  <button type="button" @click="removeInterest(index)" class="remove-tag">×</button>
-                </span>
               </div>
             </div>
           </div>
@@ -233,49 +219,46 @@
                   type="checkbox"
                   class="toggle-input"
                 />
-                <span class="toggle-slider"></span>
                 Make profile public
               </label>
-
+              
               <label class="toggle-label">
                 <input
                   v-model="privacySettings.bio_visibility_public"
                   type="checkbox"
                   class="toggle-input"
                 />
-                <span class="toggle-slider"></span>
                 Show bio publicly
               </label>
-
+              
               <label class="toggle-label">
                 <input
                   v-model="privacySettings.location_visibility_public"
                   type="checkbox"
                   class="toggle-input"
                 />
-                <span class="toggle-slider"></span>
                 Show location publicly
               </label>
-
+              
               <label class="toggle-label">
                 <input
                   v-model="privacySettings.contact_visibility_public"
                   type="checkbox"
                   class="toggle-input"
                 />
-                <span class="toggle-slider"></span>
                 Show contact info publicly
               </label>
             </div>
           </div>
+        </div>
 
-          <!-- Form Actions -->
-          <div class="form-actions">
-            <button type="button" @click="closeModal" class="btn-cancel">Cancel</button>
-            <button type="submit" :disabled="saving" class="btn-save">
-              {{ saving ? 'Saving...' : 'Save Changes' }}
-            </button>
-          </div>
+        <div class="form-actions">
+          <button type="button" @click="closeModal" class="btn-cancel">
+            Cancel
+          </button>
+          <button type="submit" :disabled="saving" class="btn-save">
+            {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
         </div>
       </form>
     </div>
@@ -283,8 +266,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Profile } from '~/models/Profile'
+import { ref, onMounted } from 'vue'
+import { useAuthStore } from '~/stores/auth'
+import Icon from '@/components/ui/Icon.vue'
 
 const emit = defineEmits(['close', 'profile-updated'])
 const authStore = useAuthStore()
@@ -322,27 +306,27 @@ const privacySettings = ref({
 // Load current profile data
 const loadProfileData = async () => {
   try {
-    const profile = await Profile.getProfile(authStore.user.id)
+    const { data } = await $fetch(`/api/profile/${authStore.user.id}`)
     
     formData.value = {
-      fullName: profile.full_name || '',
-      username: profile.username || '',
-      bio: profile.bio || '',
-      phoneNumber: profile.phone || '',
-      website: profile.website || '',
-      location: profile.location || '',
-      avatarUrl: profile.avatar_url || '',
-      occupation: profile.occupation || '',
-      highestEducation: profile.highest_education || '',
-      school: profile.school || '',
-      skills: profile.skills || [],
-      dateOfBirth: profile.date_of_birth || '',
-      gender: profile.gender || '',
-      interests: profile.interests || []
+      fullName: data.full_name || '',
+      username: data.username || '',
+      bio: data.bio || '',
+      phoneNumber: data.phone || '',
+      website: data.website || '',
+      location: data.location || '',
+      avatarUrl: data.avatar_url || '',
+      occupation: data.occupation || '',
+      highestEducation: data.highest_education || '',
+      school: data.school || '',
+      skills: data.skills || [],
+      dateOfBirth: data.date_of_birth || '',
+      gender: data.gender || '',
+      interests: data.interests || []
     }
 
-    if (profile.privacy_settings) {
-      privacySettings.value = profile.privacy_settings
+    if (data.privacy_settings) {
+      privacySettings.value = data.privacy_settings
     }
   } catch (error) {
     console.error('Error loading profile:', error)
@@ -356,8 +340,14 @@ const validateUsername = async () => {
   }
 
   try {
-    const validation = await Profile.validateUsername(formData.value.username, authStore.user.id)
-    usernameError.value = validation.valid ? '' : validation.error
+    const { data } = await $fetch(`/api/validate-username`, {
+      method: 'POST',
+      body: {
+        username: formData.value.username,
+        userId: authStore.user.id
+      }
+    })
+    usernameError.value = data.valid ? '' : data.error
   } catch (error) {
     console.error('Error validating username:', error)
   }
@@ -414,7 +404,10 @@ const saveProfile = async () => {
       privacy_settings: privacySettings.value
     }
 
-    const updatedProfile = await Profile.updateProfile(authStore.user.id, updates)
+    const { data: updatedProfile } = await $fetch(`/api/profile/${authStore.user.id}`, {
+      method: 'PUT',
+      body: updates
+    })
     
     emit('profile-updated', updatedProfile)
     closeModal()
@@ -692,4 +685,3 @@ onMounted(() => {
   cursor: not-allowed;
 }
 </style>
-
