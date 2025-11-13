@@ -1,4 +1,4 @@
-<!-- components/chat/chat-settings.vue -->
+<!-- components/chat/settings.vue -->
 <template>
   <div class="settings-overlay" @click="handleOverlayClick">
     <div class="settings-panel" @click.stop>
