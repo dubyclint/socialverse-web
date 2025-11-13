@@ -2,8 +2,14 @@
 <template>
   <div class="profile-page">
     <div class="profile-container">
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading profile...</p>
+      </div>
+
       <!-- Profile Header -->
-      <div class="profile-header">
+      <div v-else class="profile-header">
         <div class="profile-picture-section">
           <div class="profile-picture-container">
             <img 
@@ -29,7 +35,7 @@
           <div class="profile-name-section">
             <h1 class="profile-name">
               {{ profileData.display_name || profileData.username || 'Anonymous User' }}
-              <!-- Enhanced Verification Badges -->
+              <!-- Verification Badges -->
               <div v-if="verificationBadges.length > 0" class="verification-badges">
                 <button
                   v-for="badge in verificationBadges"
@@ -37,7 +43,7 @@
                   @click="openVerificationDetails(badge)"
                   class="verification-badge"
                   :class="`badge-${badge.badge_type}`"
-                  :title="`${badge.badge_type.replace('_', ' ').toUpperCase()} - Click for details`"
+                  :title="`${badge.badge_type.replace('_', ' ').toUpperCase()}`"
                 >
                   <Icon :name="getBadgeIcon(badge.badge_type)" size="16" />
                   <span v-if="badge.badge_level > 1" class="badge-level">{{ badge.badge_level }}</span>
@@ -72,7 +78,7 @@
             <button 
               v-if="isOwnProfile" 
               @click="showCreatePost = true" 
-              class="btn btn-primary create-post-btn"
+              class="btn btn-primary"
             >
               <Icon name="plus" size="16" />
               Create Post
@@ -91,12 +97,12 @@
               class="btn btn-secondary"
             >
               <Icon name="settings" size="16" />
-              General Settings
+              Settings
             </button>
             <button 
               v-if="isOwnProfile" 
               @click="handleLogout" 
-              class="btn btn-danger logout-btn"
+              class="btn btn-danger"
             >
               <Icon name="log-out" size="16" />
               Logout
@@ -122,12 +128,11 @@
         </div>
       </div>
 
-      <!-- Enhanced Bio Section -->
-      <div v-if="shouldShowBio" class="profile-bio-section">
+      <!-- Bio Section -->
+      <div v-if="shouldShowBio && !loading" class="profile-bio-section">
         <div class="bio-content">
           <p v-if="profileData.bio" class="bio-text">{{ profileData.bio }}</p>
           
-          <!-- Bio Details Grid -->
           <div class="bio-details-grid">
             <div v-if="profileData.occupation" class="bio-item">
               <Icon name="briefcase" size="16" />
@@ -139,24 +144,6 @@
               <Icon name="graduation-cap" size="16" />
               <span class="bio-label">Education:</span>
               <span class="bio-value">{{ profileData.highest_education }}</span>
-            </div>
-            
-            <div v-if="profileData.school" class="bio-item">
-              <Icon name="school" size="16" />
-              <span class="bio-label">School:</span>
-              <span class="bio-value">{{ profileData.school }}</span>
-            </div>
-            
-            <div v-if="profileData.phone_number" class="bio-item">
-              <Icon name="phone" size="16" />
-              <span class="bio-label">Phone:</span>
-              <span class="bio-value">{{ profileData.phone_number }}</span>
-            </div>
-            
-            <div v-if="profileData.email" class="bio-item">
-              <Icon name="mail" size="16" />
-              <span class="bio-label">Email:</span>
-              <span class="bio-value">{{ profileData.email }}</span>
             </div>
             
             <div v-if="profileData.location" class="bio-item">
@@ -182,16 +169,6 @@
             </div>
           </div>
 
-          <!-- Interests Section -->
-          <div v-if="profileData.interests && profileData.interests.length > 0" class="interests-section">
-            <h3 class="section-title">Interests</h3>
-            <div class="interests-list">
-              <span v-for="interest in profileData.interests" :key="interest" class="interest-tag">
-                {{ interest }}
-              </span>
-            </div>
-          </div>
-
           <!-- Social Links -->
           <div v-if="socialLinks.length > 0" class="social-links-section">
             <h3 class="section-title">Social Links</h3>
@@ -213,7 +190,7 @@
       </div>
 
       <!-- Profile Tabs -->
-      <div class="profile-tabs">
+      <div v-if="!loading" class="profile-tabs">
         <button 
           v-for="tab in availableTabs" 
           :key="tab"
@@ -226,7 +203,7 @@
       </div>
 
       <!-- Tab Content -->
-      <div class="tab-content">
+      <div v-if="!loading" class="tab-content">
         <!-- Posts Tab -->
         <div v-if="activeTab === 'posts'" class="posts-tab">
           <div v-if="userPosts.length === 0" class="empty-state">
@@ -234,13 +211,6 @@
             <h3>No posts yet</h3>
             <p v-if="isOwnProfile">Share your first post with the community!</p>
             <p v-else>This user hasn't posted anything yet.</p>
-            <button 
-              v-if="isOwnProfile" 
-              @click="showCreatePost = true" 
-              class="btn btn-primary"
-            >
-              Create Your First Post
-            </button>
           </div>
           <div v-else class="posts-grid">
             <PostCard
@@ -339,12 +309,6 @@
       @close="showGeneralSettings = false"
     />
     
-    <VerificationApplicationModal 
-      v-if="showVerificationApplication" 
-      @close="showVerificationApplication = false"
-      @submitted="handleVerificationSubmitted"
-    />
-    
     <VerificationDetailsModal 
       v-if="showVerificationDetails" 
       :badge="selectedBadge"
@@ -363,13 +327,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
-import { Profile } from '~/server/models/profile'
-import { ProfilePrivacy } from '~/server/models/profile-privacy'
-import { SocialLinks } from '~/server/models/social-links'
-import { Verification } from '~/server/models/verification'
-import { UserSession } from '~/server/models/userSession'
 import { Post } from '~/server/models/post'
-
 
 // Stores and routing
 const authStore = useAuthStore()
@@ -377,24 +335,22 @@ const route = useRoute()
 const router = useRouter()
 
 // Reactive data
-const profileData = ref({})
-const privacySettings = ref({})
-const socialLinks = ref([])
-const verificationBadges = ref([])
-const kycStatus = ref(null)
-const userPosts = ref([])
-const mediaPosts = ref([])
-const likedPosts = ref([])
+const profileData = ref<any>({})
+const privacySettings = ref<any>({})
+const socialLinks = ref<any[]>([])
+const verificationBadges = ref<any[]>([])
+const userPosts = ref<any[]>([])
+const mediaPosts = ref<any[]>([])
+const likedPosts = ref<any[]>([])
 
 // UI state
 const activeTab = ref('posts')
 const showCreatePost = ref(false)
 const showEditProfile = ref(false)
 const showGeneralSettings = ref(false)
-const showVerificationApplication = ref(false)
 const showVerificationDetails = ref(false)
 const showAvatarUpload = ref(false)
-const selectedBadge = ref(null)
+const selectedBadge = ref<any>(null)
 
 // Loading states
 const loading = ref(true)
@@ -402,7 +358,7 @@ const loadingPosts = ref(false)
 const hasMorePosts = ref(true)
 const currentPage = ref(1)
 
-// Follow state (for other users)
+// Follow state
 const isFollowing = ref(false)
 
 // Computed properties
@@ -414,13 +370,9 @@ const shouldShowBio = computed(() => {
   return profileData.value.bio || 
          profileData.value.occupation || 
          profileData.value.highest_education ||
-         profileData.value.school ||
-         profileData.value.phone_number ||
-         profileData.value.email ||
          profileData.value.location ||
          profileData.value.website_url ||
          (profileData.value.skills && profileData.value.skills.length > 0) ||
-         (profileData.value.interests && profileData.value.interests.length > 0) ||
          (socialLinks.value && socialLinks.value.length > 0)
 })
 
@@ -443,20 +395,23 @@ const loadProfile = async () => {
     const userId = route.params.id || authStore.user?.id
     
     // Fetch profile data
-    const response = await $fetch(`/api/profiles/${userId}`)
+    const response = await $fetch(`/api/profile/${userId}`)
     profileData.value = response.profile
-    privacySettings.value = response.privacy_settings
+    privacySettings.value = response.privacy_settings || {}
     socialLinks.value = response.social_links || []
     verificationBadges.value = response.verification_badges || []
-    kycStatus.value = response.kyc_status
     
     // Load initial posts
     await loadUserPosts()
     
     // Check follow status if not own profile
     if (!isOwnProfile.value) {
-      const followStatus = await $fetch(`/api/follows/status/${userId}`)
-      isFollowing.value = followStatus.is_following
+      try {
+        const followStatus = await $fetch(`/api/follows/status/${userId}`)
+        isFollowing.value = followStatus.is_following
+      } catch (error) {
+        console.error('Error checking follow status:', error)
+      }
     }
   } catch (error) {
     console.error('Error loading profile:', error)
@@ -470,17 +425,6 @@ const loadUserPosts = async () => {
     loadingPosts.value = true
     const userId = route.params.id || authStore.user?.id
     
-    const response = await $fetch(`/api/profiles/${userId}/posts`, {
-      query: {
-        page: currentPage.value,
-        limit: 12
-      }
-    })
-    const loadUserPosts = async () => {
-  try {
-    loadingPosts.value = true
-    const userId = route.params.id || authStore.user?.id
-    
     const response = await Post.getPostsByUserId(userId, currentPage.value, 12)
     
     if (currentPage.value === 1) {
@@ -489,22 +433,7 @@ const loadUserPosts = async () => {
       userPosts.value.push(...response.posts)
     }
     
-    mediaPosts.value = response.posts.filter(p => p.media_url)
-    hasMorePosts.value = response.has_more
-  } catch (error) {
-    console.error('Error loading posts:', error)
-  } finally {
-    loadingPosts.value = false
-  }
-}
-
-    if (currentPage.value === 1) {
-      userPosts.value = response.posts
-    } else {
-      userPosts.value.push(...response.posts)
-    }
-    
-    mediaPosts.value = response.posts.filter(p => p.media_url)
+    mediaPosts.value = response.posts.filter((p: any) => p.media_url)
     hasMorePosts.value = response.has_more
   } catch (error) {
     console.error('Error loading posts:', error)
@@ -518,29 +447,23 @@ const loadMorePosts = async () => {
   await loadUserPosts()
 }
 
-const handlePostCreated = (newPost) => {
+const handlePostCreated = (newPost: any) => {
   userPosts.value.unshift(newPost)
-  profileData.value.posts_count++
+  profileData.value.posts_count = (profileData.value.posts_count || 0) + 1
   showCreatePost.value = false
 }
 
-const handleProfileUpdated = (updatedProfile) => {
+const handleProfileUpdated = (updatedProfile: any) => {
   profileData.value = updatedProfile
   showEditProfile.value = false
 }
 
-const handleVerificationSubmitted = () => {
-  showVerificationApplication.value = false
-  // Reload verification badges
-  loadProfile()
-}
-
-const handleAvatarUploaded = (newAvatarUrl) => {
+const handleAvatarUploaded = (newAvatarUrl: string) => {
   profileData.value.avatar_url = newAvatarUrl
   showAvatarUpload.value = false
 }
 
-const openVerificationDetails = (badge) => {
+const openVerificationDetails = (badge: any) => {
   selectedBadge.value = badge
   showVerificationDetails.value = true
 }
@@ -548,15 +471,13 @@ const openVerificationDetails = (badge) => {
 const toggleFollow = async () => {
   try {
     if (isFollowing.value) {
-      // Unfollow logic
       await $fetch(`/api/follows/${profileData.value.id}`, { method: 'DELETE' })
       isFollowing.value = false
-      profileData.value.followers_count--
+      profileData.value.followers_count = (profileData.value.followers_count || 0) - 1
     } else {
-      // Follow logic
       await $fetch(`/api/follows/${profileData.value.id}`, { method: 'POST' })
       isFollowing.value = true
-      profileData.value.followers_count++
+      profileData.value.followers_count = (profileData.value.followers_count || 0) + 1
     }
   } catch (error) {
     console.error('Error toggling follow:', error)
@@ -567,19 +488,19 @@ const openChat = () => {
   router.push(`/chat?user=${profileData.value.id}`)
 }
 
-const handleLike = (postId) => {
+const handleLike = (postId: string) => {
   // Implement like logic
 }
 
-const handleComment = (postId) => {
+const handleComment = (postId: string) => {
   // Implement comment logic
 }
 
-const handleShare = (postId) => {
+const handleShare = (postId: string) => {
   // Implement share logic
 }
 
-const openMediaModal = (post) => {
+const openMediaModal = (post: any) => {
   // Implement media modal logic
 }
 
@@ -593,14 +514,14 @@ const handleLogout = async () => {
 }
 
 // Utility functions
-const formatNumber = (num) => {
+const formatNumber = (num: number) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
 }
 
-const getBadgeIcon = (badgeType) => {
-  const icons = {
+const getBadgeIcon = (badgeType: string) => {
+  const icons: Record<string, string> = {
     'verified': 'check-circle',
     'k2_level_1': 'shield',
     'k2_level_2': 'shield-check',
@@ -610,8 +531,8 @@ const getBadgeIcon = (badgeType) => {
   return icons[badgeType] || 'check-circle'
 }
 
-const getSocialIcon = (platform) => {
-  const icons = {
+const getSocialIcon = (platform: string) => {
+  const icons: Record<string, string> = {
     'twitter': 'twitter',
     'instagram': 'instagram',
     'linkedin': 'linkedin',
@@ -652,6 +573,30 @@ watch(() => route.params.id, () => {
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #999;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .profile-header {
@@ -847,21 +792,6 @@ watch(() => route.params.id, () => {
   background: #dc2626;
 }
 
-.btn-outline {
-  background: transparent;
-  border: 1px solid white;
-  color: white;
-}
-
-.btn-outline:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-}
-
 .profile-bio-section {
   padding: 2rem;
   border-bottom: 1px solid #e5e7eb;
@@ -914,7 +844,6 @@ watch(() => route.params.id, () => {
 }
 
 .skills-section,
-.interests-section,
 .social-links-section {
   margin-bottom: 1.5rem;
 }
@@ -926,15 +855,13 @@ watch(() => route.params.id, () => {
   color: #333;
 }
 
-.skills-list,
-.interests-list {
+.skills-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
 }
 
-.skill-tag,
-.interest-tag {
+.skill-tag {
   display: inline-block;
   padding: 0.5rem 1rem;
   background: #e0e7ff;
@@ -1069,15 +996,6 @@ watch(() => route.params.id, () => {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @media (max-width: 768px) {
   .profile-header {
     flex-direction: column;
@@ -1106,4 +1024,3 @@ watch(() => route.params.id, () => {
   }
 }
 </style>
-
