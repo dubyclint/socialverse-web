@@ -1,4 +1,4 @@
-<!-- pages/profile/index.vue - Enhanced Profile Page -->
+<!-- pages/profile/index.vue - Enhanced Profile Page (FIXED) -->
 <template>
   <div class="profile-page">
     <div class="profile-container">
@@ -327,7 +327,6 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
-import { Post } from '~/server/models/post'
 
 // Stores and routing
 const authStore = useAuthStore()
@@ -394,9 +393,9 @@ const loadProfile = async () => {
     loading.value = true
     const userId = route.params.id || authStore.user?.id
     
-    // Fetch profile data
+    // Fetch profile data via API
     const response = await $fetch(`/api/profile/${userId}`)
-    profileData.value = response.profile
+    profileData.value = response.profile || response
     privacySettings.value = response.privacy_settings || {}
     socialLinks.value = response.social_links || []
     verificationBadges.value = response.verification_badges || []
@@ -425,18 +424,26 @@ const loadUserPosts = async () => {
     loadingPosts.value = true
     const userId = route.params.id || authStore.user?.id
     
-    const response = await Post.getPostsByUserId(userId, currentPage.value, 12)
+    // Fetch posts via API endpoint
+    const response = await $fetch(`/api/posts/user/${userId}`, {
+      query: {
+        page: currentPage.value,
+        limit: 12
+      }
+    })
     
     if (currentPage.value === 1) {
-      userPosts.value = response.posts
+      userPosts.value = response.posts || []
     } else {
-      userPosts.value.push(...response.posts)
+      userPosts.value.push(...(response.posts || []))
     }
     
-    mediaPosts.value = response.posts.filter((p: any) => p.media_url)
-    hasMorePosts.value = response.has_more
+    mediaPosts.value = (response.posts || []).filter((p: any) => p.media_url)
+    hasMorePosts.value = response.has_more || false
   } catch (error) {
     console.error('Error loading posts:', error)
+    userPosts.value = []
+    mediaPosts.value = []
   } finally {
     loadingPosts.value = false
   }
