@@ -1,5 +1,5 @@
 <template>
-  <div class="admin/escrow">
+  <div class="admin-escrow">
     <h3>Escrow Deals</h3>
     <ul>
       <li v-for="deal in deals" :key="deal.id">
@@ -16,7 +16,7 @@ import { ref, onMounted } from 'vue'
 import { useEscrowContract } from '@/composables/use-escrow-contract'
 
 const deals = ref([])
-const escrow = useescrowcontract()
+const escrow = useEscrowContract()
 
 onMounted(async () => {
   try {
@@ -29,7 +29,7 @@ onMounted(async () => {
 
 async function release(id) {
   try {
-    await escrow.approvedeal(BigInt(id))
+    await escrow.approveDeal(BigInt(id))
   } catch (error) {
     console.error('Failed to release deal:', error)
   }
@@ -37,7 +37,7 @@ async function release(id) {
 
 async function refund(id) {
   try {
-    await escrow.refunddeal(BigInt(id))
+    await escrow.refundDeal(BigInt(id))
   } catch (error) {
     console.error('Failed to refund deal:', error)
   }
@@ -52,13 +52,13 @@ async function refund(id) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.admin/escrow h3 {
+.admin-escrow h3 {
   margin: 0 0 1rem 0;
   font-size: 1.2rem;
   color: #333;
 }
 
-.admin/escrow ul {
+.admin-escrow ul {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -74,7 +74,7 @@ async function refund(id) {
   align-items: center;
 }
 
-.admin/escrow button {
+.admin-escrow button {
   padding: 0.5rem 1rem;
   margin-left: 0.5rem;
   background: #007bff;
@@ -85,15 +85,15 @@ async function refund(id) {
   font-size: 0.9rem;
 }
 
-.admin/escrow button:hover {
+.admin-escrow button:hover {
   background: #0056b3;
 }
 
-.admin/escrow button:last-child {
+.admin-escrow button:last-child {
   background: #dc3545;
 }
 
-.admin/escrow button:last-child:hover {
+.admin-escrow button:last-child:hover {
   background: #c82333;
 }
 </style>
