@@ -1,4 +1,4 @@
-<!-- components/chat/ChatSettings.vue -->
+<!-- components/chat/chat-settings.vue -->
 <template>
   <div class="settings-overlay" @click="handleOverlayClick">
     <div class="settings-panel" @click.stop>
@@ -17,26 +17,26 @@
         <div v-if="currentSection === 'main'" class="main-menu">
           <div class="settings-section">
             <div class="section-title">Account</div>
-            <SettingsItem
+            <settings-item
               icon="shield"
               title="Security Notice"
               subtitle="Our app is a private chat messenger"
               @click="currentSection = 'security'"
             />
-            <SettingsItem
+            <settings-item
               icon="mail"
               title="Email Address"
               :subtitle="userEmail"
               badge="Verified"
               @click="currentSection = 'email'"
             />
-            <SettingsItem
+            <settings-item
               icon="info"
               title="Request Account Info"
               subtitle="Contact support"
               @click="contactSupport"
             />
-            <SettingsItem
+            <settings-item
               icon="trash-2"
               title="Delete Account"
               subtitle="Permanently delete your account"
@@ -47,49 +47,49 @@
 
           <div class="settings-section">
             <div class="section-title">Privacy</div>
-            <SettingsItem
+            <settings-item
               icon="eye"
               title="Status"
               subtitle="Manage status privacy"
               @click="currentSection = 'statusPrivacy'"
             />
-            <SettingsItem
+            <settings-item
               icon="check-check"
               title="Read Receipts"
               :subtitle="settings.readReceipts ? 'On' : 'Off'"
               @click="toggleReadReceipts"
             />
-            <SettingsItem
+            <settings-item
               icon="clock"
               title="Disappearing Messages"
               :subtitle="getDisappearingMessagesText()"
               @click="currentSection = 'disappearingMessages'"
             />
-            <SettingsItem
+            <settings-item
               icon="users"
               title="Groups"
               subtitle="Who can add you to groups"
               @click="currentSection = 'groupPrivacy'"
             />
-            <SettingsItem
+            <settings-item
               icon="phone-off"
               title="Silence Unknown Callers"
               :subtitle="settings.silenceUnknownCallers ? 'On' : 'Off'"
               @click="toggleSilenceUnknownCallers"
             />
-            <SettingsItem
+            <settings-item
               icon="user-x"
               title="Blocked Contacts"
               subtitle="Manage blocked users"
               @click="currentSection = 'blockedContacts'"
             />
-            <SettingsItem
+            <settings-item
               icon="lock"
               title="App Lock"
               subtitle="Pattern lock or fingerprint"
               @click="currentSection = 'appLock'"
             />
-            <SettingsItem
+            <settings-item
               icon="palette"
               title="Chat Theme"
               subtitle="Customize appearance"
@@ -99,19 +99,19 @@
 
           <div class="settings-section">
             <div class="section-title">Notifications</div>
-            <SettingsItem
+            <settings-item
               icon="volume-2"
               title="Conversation Tones"
               :subtitle="settings.conversationTones ? 'On' : 'Off'"
               @click="toggleConversationTones"
             />
-            <SettingsItem
+            <settings-item
               icon="bell"
               title="Reminders"
               :subtitle="settings.reminders ? 'On' : 'Off'"
               @click="toggleReminders"
             />
-            <SettingsItem
+            <settings-item
               icon="smartphone"
               title="Device Tones"
               subtitle="Use device default tones"
@@ -121,19 +121,19 @@
 
           <div class="settings-section">
             <div class="section-title">Storage and Data</div>
-            <SettingsItem
+            <settings-item
               icon="hard-drive"
               title="Manage Storage"
               subtitle="View and manage data usage"
               @click="currentSection = 'storage'"
             />
-            <SettingsItem
+            <settings-item
               icon="wifi"
               title="Network Usage"
               subtitle="Monitor data consumption"
               @click="currentSection = 'networkUsage'"
             />
-            <SettingsItem
+            <settings-item
               icon="image"
               title="Media Quality"
               :subtitle="settings.mediaQuality || 'Auto'"
@@ -143,25 +143,25 @@
 
           <div class="settings-section">
             <div class="section-title">General</div>
-            <SettingsItem
+            <settings-item
               icon="globe"
               title="App Language"
               :subtitle="settings.language || 'Device Default'"
               @click="currentSection = 'language'"
             />
-            <SettingsItem
+            <settings-item
               icon="help-circle"
               title="Help"
               subtitle="Contact support agent"
               @click="contactSupport"
             />
-            <SettingsItem
+            <settings-item
               icon="file-text"
               title="Terms & Conditions"
               subtitle="View T&Cs"
               @click="openTerms"
             />
-            <SettingsItem
+            <settings-item
               icon="share"
               title="Invite a Friend"
               subtitle="Share via SMS"
@@ -314,7 +314,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import Icon from '@/components/ui/Icon.vue'
-import SettingsItem from './SettingsItem.vue'
+import SettingsItem from './settings-item.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 
 // Props
@@ -334,9 +334,9 @@ const inviteMessage = ref('Hey! Join me on SocialVerse - a private social platfo
 const hiddenContactsCount = ref(0)
 const deviceContacts = ref([])
 const storageData = ref({
-  messages: 125000000, // 125MB
-  media: 890000000,    // 890MB
-  status: 45000000     // 45MB
+  messages: 125000000,
+  media: 890000000,
+  status: 45000000
 })
 
 // Computed properties
@@ -418,7 +418,6 @@ const updateSetting = (key, value) => {
 }
 
 const contactSupport = () => {
-  // Open support chat or external link
   window.open('https://support.socialverse.com', '_blank')
 }
 
@@ -427,33 +426,27 @@ const openTerms = () => {
 }
 
 const selectHiddenContacts = () => {
-  // Open contact selection modal
   console.log('Select hidden contacts')
 }
 
 const downloadChatHistory = () => {
-  // Implement chat history download
   console.log('Download chat history')
 }
 
 const clearChatHistory = () => {
   if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
-    // Implement chat history clearing
     console.log('Clear chat history')
   }
 }
 
 const sendInvite = (contact) => {
-  // Send SMS invitation
   const message = inviteMessage.value.replace('[APP_LINK]', 'https://socialverse.com/download')
   
-  // Use SMS API or native sharing
   if (navigator.share) {
     navigator.share({
       text: message
     })
   } else {
-    // Fallback to SMS link
     window.open(`sms:${contact.phone}?body=${encodeURIComponent(message)}`)
   }
 }
@@ -467,8 +460,6 @@ const formatSize = (bytes) => {
 
 // Lifecycle
 onMounted(() => {
-  // Load device contacts for invite feature
-  // This would typically use a contacts API
   deviceContacts.value = [
     { id: 1, name: 'John Doe', phone: '+1234567890' },
     { id: 2, name: 'Jane Smith', phone: '+1234567891' },
@@ -784,7 +775,6 @@ onMounted(() => {
   background: #1565c0;
 }
 
-/* Mobile responsive */
 @media (max-width: 768px) {
   .settings-panel {
     max-width: 100%;
