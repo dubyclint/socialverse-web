@@ -616,7 +616,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import { UserSettings } from '~/models/UserSettings'
+import { userSettings } from '~/models/userSettings'
 
 const emit = defineEmits(['close'])
 const authStore = useAuthStore()
