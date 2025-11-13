@@ -263,7 +263,6 @@ const sendGift = async (recipientId: string, giftAmount: number, message: string
       method: 'POST',
       body: {
         recipientId: recipientId || '',
-        recipientId,
         amount: giftAmount,
         message,
         messageId,
