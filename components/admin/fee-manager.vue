@@ -1,5 +1,5 @@
 <template>
-  <div class="admin/fees">
+  <div class="admin-fees">
     <h3>Fee Manager</h3>
     <label>Swap Fee ≤100 USDC:</label>
     <input v-model="swapLow" type="number" />
@@ -18,7 +18,7 @@ import { useAdminControl } from '@/composables/use-admin-control.js'
 const swapLow = ref(0)
 const swapHigh = ref(0)
 const giftFee = ref(0)
-const { getFees, updateFees } = useadmincontrol()
+const { getFees, updateFees } = useAdminControl()
 
 onMounted(async () => {
   const fees = await getFees()
