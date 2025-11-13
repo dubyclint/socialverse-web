@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '~/stores/chat'
-import { useChat } from '~/composables/useChat'
+import { useChat } from '~/composables/use-chat'
 import { useAuthStore } from '~/stores/auth'
 
 const chatStore = useChatStore()
@@ -183,7 +183,6 @@ const loadChats = async () => {
 
 const selectChat = async (chatId: string) => {
   chatStore.setCurrentChat(chatId)
-  
   try {
     const response = await $fetch(`/api/chat/${chatId}/messages`)
     if (response.success) {
@@ -191,14 +190,19 @@ const selectChat = async (chatId: string) => {
     }
   } catch (error) {
     console.error('Failed to load messages:', error)
+    chatStore.setError('Failed to load messages')
   }
 }
 
-const sendMessage = async (content: string) => {
+const sendMessage = async (content: string, recipientId?: string) => {
   if (!chatStore.currentChatId || !content.trim()) return
 
   try {
-    emitMessage(chatStore.currentChatId, content.trim(), 'text')
+    emitMessage(chatStore.currentChatId, {
+      content: content.trim(),
+      recipientId,
+      timestamp: Date.now()
+    })
   } catch (error) {
     console.error('Failed to send message:', error)
     chatStore.setError('Failed to send message')
@@ -242,12 +246,9 @@ const translateMessage = async (messageId: string, text: string, targetLang: str
     })
 
     if (response.success) {
-      chatStore.addTranslation({
-        messageId,
-        originalText: text,
+      chatStore.updateMessage(chatStore.currentChatId, messageId, {
         translatedText: response.data.translatedText,
-        targetLanguage: targetLang,
-        timestamp: Date.now()
+        translatedLang: targetLang
       })
     }
   } catch (error) {
@@ -256,38 +257,22 @@ const translateMessage = async (messageId: string, text: string, targetLang: str
   }
 }
 
-const sendGift = async (recipientId: string, giftId: string, giftAmount: number, message: string, messageId: string) => {
-  if (!chatStore.currentChatId) return
-
+const sendGift = async (recipientId: string, giftAmount: number, message: string, messageId: string) => {
   try {
-    const response = await $fetch('/api/chat/gift', {
+    await $fetch('/api/pewgift/send', {
       method: 'POST',
       body: {
-        recipientId,
-        giftId,
-        giftAmount,
-        message,
-        messageId,
-        chatId: chatStore.currentChatId
-      }
-    })
-
-    if (response.success) {
-      chatStore.addGift({
-        id: response.data.giftId,
-        giftId,
-        senderId: authStore.user?.id || '',
-        senderName: authStore.user?.username || '',
+        recipientId: recipientId || '',
         recipientId,
         amount: giftAmount,
         message,
         messageId,
         timestamp: Date.now()
-      })
+      }
+    })
 
-      // Update balance
-      chatStore.updateUserBalance(-giftAmount)
-    }
+    // Update balance
+    chatStore.updateUserBalance(-giftAmount)
   } catch (error) {
     console.error('Failed to send gift:', error)
     chatStore.setError('Failed to send gift')
@@ -326,43 +311,12 @@ const createGroup = async (groupData: any) => {
 }
 
 const openNewChat = () => {
-  // TODO: Implement new direct chat
-}
-
-const openGroupCreator = () => {
   showGroupCreator.value = true
-}
-
-const openSettings = () => {
-  showSettings.value = true
-}
-
-const filterChats = () => {
-  // Filtering is handled by computed property
-}
-
-const isUserOnline = (chat: any) => {
-  if (chat.type === 'group') return false
-  const participant = chat.participants?.[0]
-  return chatStore.onlineUsers.has(participant)
-}
-
-const formatTime = (timestamp: number) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  
-  if (diff < 60000) return 'now'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
-  if (diff < 604800000) return date.toLocaleDateString('en-US', { weekday: 'short' })
-  
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // Lifecycle
 onMounted(async () => {
-  // Initialize socket and gundb
+  // Initialize WebSocket/Realtime connection
   await initialize()
   
   // Load chats
