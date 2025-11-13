@@ -368,7 +368,8 @@ import { ProfilePrivacy } from '~/server/models/profile-privacy'
 import { SocialLinks } from '~/server/models/social-links'
 import { Verification } from '~/server/models/verification'
 import { UserSession } from '~/server/models/userSession'
-import { Post } from '~/server/models/pew'
+import { Post } from '~/server/models/post'
+
 
 // Stores and routing
 const authStore = useAuthStore()
@@ -475,7 +476,28 @@ const loadUserPosts = async () => {
         limit: 12
       }
     })
+    const loadUserPosts = async () => {
+  try {
+    loadingPosts.value = true
+    const userId = route.params.id || authStore.user?.id
     
+    const response = await Post.getPostsByUserId(userId, currentPage.value, 12)
+    
+    if (currentPage.value === 1) {
+      userPosts.value = response.posts
+    } else {
+      userPosts.value.push(...response.posts)
+    }
+    
+    mediaPosts.value = response.posts.filter(p => p.media_url)
+    hasMorePosts.value = response.has_more
+  } catch (error) {
+    console.error('Error loading posts:', error)
+  } finally {
+    loadingPosts.value = false
+  }
+}
+
     if (currentPage.value === 1) {
       userPosts.value = response.posts
     } else {
