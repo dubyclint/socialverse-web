@@ -238,13 +238,13 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { useSocket } from '@/composables/useSocket'
-import { useUserStore } from '@/stores/user'
+import { useSocket } from '~/composables/use-socket'
+import { useUserStore } from '~/stores/user'
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
-import Icon from '@/components/ui/Icon.vue'
-import MessageBubble from './MessageBubble.vue'
-import AttachmentMenu from './AttachmentMenu.vue'
-import EmojiPicker from './EmojiPicker.vue'
+import Icon from '~/components/ui/Icon.vue'
+import MessageBubble from './message-bubble.vue'
+import AttachmentMenu from './attachment-menu.vue'
+import EmojiPicker from './emoji-picker.vue'
 
 // Props
 const props = defineProps({
@@ -665,54 +665,31 @@ const setupSocketListeners = () => {
   
   socket.on('user_recording_voice', (data) => {
     if (data.chatId === props.chat.id) {
-      console.log(`${data.username} is ${data.isRecording ? 'recording' : 'stopped recording'} voice message`)
+      console.log(`${data.username} is ${data.isRecording ? 'recording' : 'not recording'} voice`)
     }
   })
 }
 
-// Watchers
-watch(() => props.messages, () => {
-  scrollToBottom()
-}, { deep: true })
-
-watch(() => props.chat.id, () => {
-  // Clear typing users when switching chats
-  typingUsers.value = []
-  cancelReply()
-  cancelEdit()
-  messageText.value = ''
-})
-
 // Lifecycle
 onMounted(() => {
   setupSocketListeners()
-  scrollToBottom()
   document.addEventListener('click', handleClickOutside)
-  
-  // Mark messages as read when component mounts
-  emit('markAsRead', props.chat.id)
+  scrollToBottom()
 })
 
 onUnmounted(() => {
-  // Clean up socket listeners
-  socket.off('user_typing')
-  socket.off('user_recording_voice')
-  
-  // Clear timeouts
+  document.removeEventListener('click', handleClickOutside)
   if (typingTimeout.value) {
     clearTimeout(typingTimeout.value)
   }
-  if (window.recordingInterval) {
-    clearInterval(window.recordingInterval)
-  }
-  
-  // Send stop typing indicator
-  sendTypingIndicator(false)
-  
-  document.removeEventListener('click', handleClickOutside)
 })
-</script>
 
+// Watch for new messages
+watch(() => props.messages, () => {
+  scrollToBottom()
+}, { deep: true })
+</script>
+  
 <style scoped>
 .chat-session {
   display: flex;
