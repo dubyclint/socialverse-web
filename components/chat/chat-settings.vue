@@ -313,9 +313,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 import SettingsItem from './settings-item.vue'
-import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
+import ToggleSwitch from '@/components/ui/toggle-switch.vue'
 
 // Props
 const props = defineProps({
