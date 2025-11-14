@@ -1,241 +1,48 @@
-<!-- components/streaming/StreamChat.vue -->
-<template>
-  <div class="stream-chat-container">
-    <!-- Chat Header -->
-    <div class="chat-header">
-      <h3 class="chat-title">
-        <Icon name="mdi:chat" />
-        Live Chat
-      </h3>
-      <div class="chat-actions">
-        <button @click="toggleChatSettings" class="chat-action-btn">
-          <Icon name="mdi:cog" />
-        </button>
-        <button @click="toggleChat" class="chat-action-btn">
-          <Icon :name="isChatVisible ? 'mdi:eye-off' : 'mdi:eye'" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Chat Messages -->
-    <div 
-      v-show="isChatVisible"
-      ref="chatContainer" 
-      class="chat-messages"
-      @scroll="handleScroll"
-    >
-      <div v-if="isLoading" class="chat-loading">
-        <div class="loading-spinner"></div>
-        <p>Loading chat...</p>
-      </div>
-
-      <div v-for="message in messages" :key="message.id" class="chat-message" :class="getMessageClass(message)">
-        <!-- System Messages -->
-        <div v-if="message.messageType === 'system'" class="system-message">
-          <Icon name="mdi:information" />
-          <span>{{ message.message }}</span>
-        </div>
-
-        <!-- PewGift Messages -->
-        <div v-else-if="message.messageType === 'pewgift'" class="pewgift-message">
-          <div class="pewgift-animation">
-            <img :src="message.pewGiftData.giftImage" :alt="message.pewGiftData.giftName" class="gift-icon" />
-            <div class="pewgift-info">
-              <div class="pewgift-header">
-                <img :src="message.userAvatar" :alt="message.username" class="user-avatar" />
-                <span class="username" :class="getUsernameClass(message)">{{ message.username }}</span>
-                <div class="user-badges">
-                  <span v-for="badge in message.userBadges" :key="badge" class="badge" :class="badge">
-                    {{ getBadgeIcon(badge) }}
-                  </span>
-                </div>
-              </div>
-              <div class="pewgift-content">
-                <span class="gift-text">sent {{ message.pewGiftData.quantity }}x {{ message.pewGiftData.giftName }}</span>
-                <span class="gift-value">${{ message.pewGiftData.giftValue * message.pewGiftData.quantity }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Regular Chat Messages -->
-        <div v-else class="regular-message">
-          <div class="message-header">
-            <img :src="message.userAvatar" :alt="message.username" class="user-avatar" />
-            <span class="username" :class="getUsernameClass(message)">{{ message.username }}</span>
-            <div class="user-badges">
-              <span v-for="badge in message.userBadges" :key="badge" class="badge" :class="badge">
-                {{ getBadgeIcon(badge) }}
-              </span>
-            </div>
-            <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
-          </div>
-          <div class="message-content">
-            <p>{{ message.message }}</p>
-            <!-- Message Reactions -->
-            <div v-if="message.reactions && message.reactions.length > 0" class="message-reactions">
-              <button 
-                v-for="reaction in getUniqueReactions(message.reactions)" 
-                :key="reaction.emoji"
-                @click="toggleReaction(message.id, reaction.emoji)"
-                class="reaction-btn"
-                :class="{ active: hasUserReacted(message.reactions, reaction.emoji) }"
-              >
-                {{ reaction.emoji }} {{ reaction.count }}
-              </button>
-            </div>
-          </div>
-          <!-- Message Actions -->
-          <div class="message-actions" v-if="canModerateMessage(message)">
-            <button @click="pinMessage(message.id)" class="action-btn" :class="{ active: message.isPinned }">
-              <Icon name="mdi:pin" />
-            </button>
-            <button @click="deleteMessage(message.id)" class="action-btn delete">
-              <Icon name="mdi:delete" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Typing Indicators -->
-      <div v-if="typingUsers.length > 0" class="typing-indicators">
-        <div class="typing-animation">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <span class="typing-text">
-          {{ getTypingText() }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Pinned Message -->
-    <div v-if="pinnedMessage" class="pinned-message">
-      <Icon name="mdi:pin" />
-      <div class="pinned-content">
-        <span class="pinned-username">{{ pinnedMessage.username }}</span>
-        <span class="pinned-text">{{ pinnedMessage.message }}</span>
-      </div>
-      <button @click="unpinMessage" class="unpin-btn">
-        <Icon name="mdi:close" />
-      </button>
-    </div>
-
-    <!-- Chat Input -->
-    <div v-show="isChatVisible" class="chat-input-container">
-      <!-- Reaction Buttons -->
-      <div class="quick-reactions">
-        <button 
-          v-for="emoji in quickReactions" 
-          :key="emoji"
-          @click="sendReaction(emoji)"
-          class="reaction-quick-btn"
-        >
-          {{ emoji }}
-        </button>
-      </div>
-
-      <!-- Message Input -->
-      <div class="message-input-wrapper">
-        <input
-          v-model="newMessage"
-          @keydown.enter="sendMessage"
-          @input="handleTyping"
-          :placeholder="chatPlaceholder"
-          :disabled="!canSendMessage"
-          class="message-input"
-          maxlength="500"
-        />
-        <button 
-          @click="sendMessage" 
-          :disabled="!canSendMessage || !newMessage.trim()"
-          class="send-btn"
-        >
-          <Icon name="mdi:send" />
-        </button>
-      </div>
-
-      <!-- Character Counter -->
-      <div class="char-counter" :class="{ warning: newMessage.length > 400 }">
-        {{ newMessage.length }}/500
-      </div>
-    </div>
-
-    <!-- Chat Settings Modal -->
-    <div v-if="showChatSettings" class="chat-settings-modal" @click.self="toggleChatSettings">
-      <div class="settings-content">
-        <h4>Chat Settings</h4>
-        <div class="setting-item">
-          <label>
-            <input type="checkbox" v-model="settings.showTimestamps" />
-            Show timestamps
-          </label>
-        </div>
-        <div class="setting-item">
-          <label>
-            <input type="checkbox" v-model="settings.showAvatars" />
-            Show avatars
-          </label>
-        </div>
-        <div class="setting-item">
-          <label>
-            <input type="checkbox" v-model="settings.enableSounds" />
-            Enable sounds
-          </label>
-        </div>
-        <div class="setting-item">
-          <label>
-            Font size:
-            <select v-model="settings.fontSize">
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large</option>
-            </select>
-          </label>
-        </div>
-        <button @click="toggleChatSettings" class="close-settings-btn">Close</button>
-      </div>
-    </div>
-  </div>
-</template>
-
+<!-- components/streaming/StreamChat.vue - Responsive for Desktop & Mobile -->
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useStreaming } from '~/composables/use-streaming'
-import { useAuth } from '~/composables/use-auth'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 
-interface Props {
-  streamId: string
-  isStreamer?: boolean
-  isModerator?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  isStreamer: false,
-  isModerator: false
+// Props
+const props = defineProps({
+  streamId: {
+    type: String,
+    required: true
+  },
+  streamerId: {
+    type: String,
+    required: true
+  },
+  maxMessages: {
+    type: Number,
+    default: 100
+  }
 })
 
-const emit = defineEmits(['reaction-sent', 'message-sent'])
-
-// Composables
-const { user } = useAuth()
-const { 
-  messages, 
-  sendChatMessage, 
-  sendStreamReaction, 
-  typingUsers,
-  isConnected 
-} = useStreaming()
+// Emits
+const emit = defineEmits(['message-sent', 'user-joined', 'user-left'])
 
 // Refs
-const chatContainer = ref<HTMLElement>()
-const newMessage = ref('')
-const isChatVisible = ref(true)
+const chatContainer = ref(null)
+const messageInput = ref('')
+const messages = ref([])
 const isLoading = ref(false)
+const isChatVisible = ref(true)
+const isConnected = ref(false)
+const currentUser = ref(null)
+const onlineUsers = ref([])
+const isSending = ref(false)
+const showEmojiPicker = ref(false)
+const showUserList = ref(false)
 const showChatSettings = ref(false)
-const isTyping = ref(false)
+const typingUsers = ref([])
+const messageFilter = ref('all')
+const searchQuery = ref('')
+const autoScroll = ref(true)
+const isMobile = ref(false)
 const pinnedMessage = ref(null)
+
+// WebSocket connection
+let ws = null
 
 // Settings
 const settings = ref({
@@ -249,63 +56,201 @@ const settings = ref({
 const quickReactions = ['❤️', '😂', '👏', '🔥', '😮', '👍']
 
 // Computed
+const filteredMessages = computed(() => {
+  let filtered = messages.value
+
+  if (messageFilter.value !== 'all') {
+    filtered = filtered.filter(msg => msg.type === messageFilter.value)
+  }
+
+  if (searchQuery.value) {
+    filtered = filtered.filter(msg =>
+      msg.content.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      msg.username.toLowerCase().includes(searchQuery.value.toLowerCase())
+    )
+  }
+
+  return filtered
+})
+
+const typingIndicator = computed(() => {
+  if (typingUsers.value.length === 0) return ''
+  if (typingUsers.value.length === 1) return `${typingUsers.value[0]} is typing...`
+  if (typingUsers.value.length === 2) return `${typingUsers.value[0]} and ${typingUsers.value[1]} are typing...`
+  return `${typingUsers.value.length} users are typing...`
+})
+
 const canSendMessage = computed(() => {
-  return isConnected.value && user.value && newMessage.value.trim().length > 0
+  return isConnected.value && currentUser.value && messageInput.value.trim().length > 0
 })
 
 const chatPlaceholder = computed(() => {
   if (!isConnected.value) return 'Connecting...'
-  if (!user.value) return 'Login to chat'
+  if (!currentUser.value) return 'Login to chat'
   return 'Type a message...'
 })
 
 // Methods
+const initializeChat = async () => {
+  isLoading.value = true
+  checkMobileView()
+  
+  try {
+    const userResponse = await $fetch('/api/me')
+    currentUser.value = userResponse
+
+    const historyResponse = await $fetch(`/api/streams/${props.streamId}/chat/history`, {
+      query: { limit: props.maxMessages }
+    })
+    messages.value = historyResponse.messages || []
+
+    connectWebSocket()
+  } catch (error) {
+    console.error('Failed to initialize chat:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const connectWebSocket = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/api/streams/${props.streamId}/chat/ws`
+
+  ws = new WebSocket(wsUrl)
+
+  ws.onopen = () => {
+    isConnected.value = true
+    console.log('Chat WebSocket connected')
+  }
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    handleWebSocketMessage(data)
+  }
+
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error)
+    isConnected.value = false
+  }
+
+  ws.onclose = () => {
+    isConnected.value = false
+    console.log('Chat WebSocket disconnected')
+    setTimeout(connectWebSocket, 3000)
+  }
+}
+
+const handleWebSocketMessage = (data) => {
+  switch (data.type) {
+    case 'message':
+      addMessage(data.message)
+      break
+    case 'user_joined':
+      onlineUsers.value.push(data.user)
+      addSystemMessage(`${data.user.username} joined the chat`)
+      emit('user-joined', data.user)
+      break
+    case 'user_left':
+      onlineUsers.value = onlineUsers.value.filter(u => u.id !== data.userId)
+      addSystemMessage(`${data.username} left the chat`)
+      emit('user-left', data.userId)
+      break
+    case 'user_typing':
+      if (!typingUsers.value.includes(data.username)) {
+        typingUsers.value.push(data.username)
+        setTimeout(() => {
+          typingUsers.value = typingUsers.value.filter(u => u !== data.username)
+        }, 3000)
+      }
+      break
+    case 'online_users':
+      onlineUsers.value = data.users
+      break
+    case 'pinned_message':
+      pinnedMessage.value = data.message
+      break
+  }
+}
+
+const addMessage = (message) => {
+  messages.value.push({
+    id: message.id || Date.now(),
+    username: message.username,
+    userId: message.userId,
+    content: message.content,
+    timestamp: message.timestamp || new Date(),
+    type: message.type || 'user',
+    avatar: message.avatar,
+    isModerator: message.isModerator || false,
+    isStreamer: message.isStreamer || false,
+    badges: message.badges || []
+  })
+
+  if (messages.value.length > props.maxMessages) {
+    messages.value = messages.value.slice(-props.maxMessages)
+  }
+
+  if (autoScroll.value) {
+    nextTick(() => {
+      scrollToBottom()
+    })
+  }
+}
+
+const addSystemMessage = (content) => {
+  addMessage({
+    id: `system-${Date.now()}`,
+    username: 'System',
+    userId: 'system',
+    content,
+    type: 'system',
+    isModerator: false,
+    isStreamer: false
+  })
+}
+
 const sendMessage = async () => {
   if (!canSendMessage.value) return
 
-  const message = newMessage.value.trim()
-  if (!message) return
+  isSending.value = true
+  const content = messageInput.value.trim()
+  messageInput.value = ''
 
   try {
-    await sendChatMessage(props.streamId, message)
-    newMessage.value = ''
-    emit('message-sent', message)
-    
-    // Scroll to bottom
-    await nextTick()
-    scrollToBottom()
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'message',
+        content,
+        streamId: props.streamId
+      }))
+    }
+
+    emit('message-sent', { content, timestamp: new Date() })
   } catch (error) {
     console.error('Failed to send message:', error)
+    messageInput.value = content
+  } finally {
+    isSending.value = false
   }
 }
 
-const sendReaction = async (emoji: string) => {
-  try {
-    await sendStreamReaction(props.streamId, emoji)
-    emit('reaction-sent', emoji)
-  } catch (error) {
-    console.error('Failed to send reaction:', error)
+const sendReaction = async (emoji) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'reaction',
+      emoji,
+      streamId: props.streamId
+    }))
   }
 }
 
-const handleTyping = () => {
-  if (!isTyping.value) {
-    isTyping.value = true
-    // Send typing indicator
-    // Implementation depends on your WebSocket setup
-    
-    setTimeout(() => {
-      isTyping.value = false
-    }, 3000)
+const notifyTyping = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'typing',
+      streamId: props.streamId
+    }))
   }
-}
-
-const toggleChat = () => {
-  isChatVisible.value = !isChatVisible.value
-}
-
-const toggleChatSettings = () => {
-  showChatSettings.value = !showChatSettings.value
 }
 
 const scrollToBottom = () => {
@@ -315,378 +260,984 @@ const scrollToBottom = () => {
 }
 
 const handleScroll = () => {
-  // Auto-scroll logic can be implemented here
-}
-
-const getMessageClass = (message: any) => {
-  return {
-    'own-message': message.userId === user.value?.id,
-    'streamer-message': message.userBadges?.includes('streamer'),
-    'moderator-message': message.userBadges?.includes('moderator'),
-    'pinned': message.isPinned
+  if (chatContainer.value) {
+    const isAtBottom = chatContainer.value.scrollHeight - chatContainer.value.scrollTop - chatContainer.value.clientHeight < 50
+    autoScroll.value = isAtBottom
   }
 }
 
-const getUsernameClass = (message: any) => {
-  return {
-    'streamer': message.userBadges?.includes('streamer'),
-    'moderator': message.userBadges?.includes('moderator'),
-    'verified': message.userBadges?.includes('verified')
+const toggleChat = () => {
+  isChatVisible.value = !isChatVisible.value
+}
+
+const toggleUserList = () => {
+  showUserList.value = !showUserList.value
+}
+
+const toggleEmojiPicker = () => {
+  showEmojiPicker.value = !showEmojiPicker.value
+}
+
+const toggleChatSettings = () => {
+  showChatSettings.value = !showChatSettings.value
+}
+
+const addEmoji = (emoji) => {
+  messageInput.value += emoji
+  showEmojiPicker.value = false
+}
+
+const clearChat = () => {
+  if (confirm('Are you sure you want to clear the chat?')) {
+    messages.value = []
   }
 }
 
-const getBadgeIcon = (badge: string) => {
-  const badges = {
-    'streamer': '👑',
-    'moderator': '🛡️',
-    'verified': '✓',
-    'subscriber': '⭐'
-  }
-  return badges[badge] || ''
+const getMessageClass = (message) => {
+  const classes = ['message-item']
+  if (message.type === 'system') classes.push('system-message')
+  if (message.isStreamer) classes.push('streamer-message')
+  if (message.isModerator) classes.push('moderator-message')
+  if (message.userId === currentUser.value?.id) classes.push('own-message')
+  return classes
 }
 
-const canModerateMessage = (message: any) => {
-  return props.isStreamer || props.isModerator || message.userId === user.value?.id
-}
-
-const pinMessage = async (messageId: string) => {
-  // Implementation for pinning messages
-  console.log('Pin message:', messageId)
-}
-
-const unpinMessage = async () => {
-  pinnedMessage.value = null
-}
-
-const deleteMessage = async (messageId: string) => {
-  // Implementation for deleting messages
-  console.log('Delete message:', messageId)
-}
-
-const toggleReaction = async (messageId: string, emoji: string) => {
-  // Implementation for toggling reactions
-  console.log('Toggle reaction:', messageId, emoji)
-}
-
-const hasUserReacted = (reactions: any[], emoji: string) => {
-  return reactions.some(r => r.emoji === emoji && r.userId === user.value?.id)
-}
-
-const getUniqueReactions = (reactions: any[]) => {
-  const reactionMap = new Map()
-  reactions.forEach(reaction => {
-    const key = reaction.emoji
-    if (reactionMap.has(key)) {
-      reactionMap.get(key).count++
-    } else {
-      reactionMap.set(key, { emoji: reaction.emoji, count: 1 })
-    }
-  })
-  return Array.from(reactionMap.values())
-}
-
-const getTypingText = () => {
-  const count = typingUsers.value.length
-  if (count === 1) {
-    return `${typingUsers.value[0].username} is typing...`
-  } else if (count === 2) {
-    return `${typingUsers.value[0].username} and ${typingUsers.value[1].username} are typing...`
-  } else {
-    return `${count} people are typing...`
-  }
-}
-
-const formatTime = (timestamp: string | Date) => {
+const formatTime = (timestamp) => {
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('en-US', { 
-    hour12: false, 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  })
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-// Lifecycle
+const handleKeydown = (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    sendMessage()
+  }
+}
+
+const checkMobileView = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+const handleResize = () => {
+  checkMobileView()
+}
+
 onMounted(() => {
-  scrollToBottom()
+  initializeChat()
+  window.addEventListener('resize', handleResize)
 })
 
-// Watch for new messages and auto-scroll
-watch(messages, () => {
-  nextTick(() => {
-    scrollToBottom()
-  })
-}, { deep: true })
+onUnmounted(() => {
+  if (ws) {
+    ws.close()
+  }
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
+<template>
+  <div class="stream-chat" :class="{ 'is-mobile': isMobile }">
+    <!-- Chat Header -->
+    <div class="chat-header">
+      <div class="header-left">
+        <button @click="toggleChat" class="toggle-btn">
+          <span v-if="isMobile">{{ isChatVisible ? '▼' : '▶' }}</span>
+          <span v-else>💬</span>
+          <span class="header-title">Live Chat</span>
+        </button>
+        <span class="online-badge">{{ onlineUsers.length }}</span>
+      </div>
+      <div class="header-right">
+        <button @click="toggleUserList" class="header-btn" :class="{ active: showUserList }" title="Users">
+          👥
+        </button>
+        <button @click="toggleChatSettings" class="header-btn" :class="{ active: showChatSettings }" title="Settings">
+          ⚙️
+        </button>
+        <button @click="clearChat" class="header-btn" title="Clear">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat Content -->
+    <div v-show="isChatVisible" class="chat-content">
+      <!-- User List Sidebar -->
+      <div v-if="showUserList" class="user-list-panel" :class="{ 'mobile-sidebar': isMobile }">
+        <div class="panel-header">
+          <h4>Online Users ({{ onlineUsers.length }})</h4>
+          <button @click="toggleUserList" class="close-btn">✕</button>
+        </div>
+        <div class="user-list">
+          <div v-for="user in onlineUsers" :key="user.id" class="user-item">
+            <img :src="user.avatar" :alt="user.username" class="user-avatar">
+            <span class="user-name">{{ user.username }}</span>
+            <div class="user-badges">
+              <span v-if="user.isModerator" class="badge moderator-badge">MOD</span>
+              <span v-if="user.isStreamer" class="badge streamer-badge">LIVE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div v-if="showChatSettings" class="settings-panel" :class="{ 'mobile-sidebar': isMobile }">
+        <div class="panel-header">
+          <h4>Chat Settings</h4>
+          <button @click="toggleChatSettings" class="close-btn">✕</button>
+        </div>
+        <div class="settings-content">
+          <label class="setting-item">
+            <input v-model="settings.showTimestamps" type="checkbox">
+            <span>Show Timestamps</span>
+          </label>
+          <label class="setting-item">
+            <input v-model="settings.showAvatars" type="checkbox">
+            <span>Show Avatars</span>
+          </label>
+          <label class="setting-item">
+            <input v-model="settings.enableSounds" type="checkbox">
+            <span>Enable Sounds</span>
+          </label>
+          <div class="setting-item">
+            <label>Font Size:</label>
+            <select v-model="settings.fontSize" class="font-size-select">
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages Container -->
+      <div 
+        ref="chatContainer"
+        class="messages-container"
+        @scroll="handleScroll"
+      >
+        <!-- Pinned Message -->
+        <div v-if="pinnedMessage" class="pinned-message">
+          <span class="pin-icon">📌</span>
+          <div class="pin-content">
+            <strong>{{ pinnedMessage.username }}:</strong>
+            {{ pinnedMessage.content }}
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="isLoading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading chat...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="filteredMessages.length === 0" class="empty-state">
+          <p>No messages yet. Start the conversation!</p>
+        </div>
+
+        <!-- Messages List -->
+        <div v-else class="messages-list">
+          <div 
+            v-for="message in filteredMessages" 
+            :key="message.id"
+            :class="getMessageClass(message)"
+          >
+            <!-- System Message -->
+            <div v-if="message.type === 'system'" class="system-msg">
+              <span class="system-text">{{ message.content }}</span>
+            </div>
+
+            <!-- User Message -->
+            <div v-else class="user-msg">
+              <img v-if="settings.showAvatars" :src="message.avatar" :alt="message.username" class="msg-avatar">
+              <div class="msg-content">
+                <div class="msg-header">
+                  <span class="msg-username">{{ message.username }}</span>
+                  <div class="msg-badges">
+                    <span v-if="message.isStreamer" class="badge streamer-badge">STREAMER</span>
+                    <span v-if="message.isModerator" class="badge moderator-badge">MOD</span>
+                  </div>
+                  <span v-if="settings.showTimestamps" class="msg-time">{{ formatTime(message.timestamp) }}</span>
+                </div>
+                <div class="msg-text">{{ message.content }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div v-if="typingIndicator" class="typing-indicator">
+          <span>{{ typingIndicator }}</span>
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Input Area -->
+      <div class="input-area">
+        <!-- Filter Bar (Desktop) -->
+        <div v-if="!isMobile" class="filter-bar">
+          <select v-model="messageFilter" class="filter-select">
+            <option value="all">All</option>
+            <option value="user">Messages</option>
+            <option value="system">System</option>
+          </select>
+          <input 
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search..."
+            class="search-input"
+          >
+        </div>
+
+        <!-- Quick Reactions (Desktop) -->
+        <div v-if="!isMobile" class="quick-reactions">
+          <button 
+            v-for="emoji in quickReactions"
+            :key="emoji"
+            @click="sendReaction(emoji)"
+            class="reaction-btn"
+            :title="`React with ${emoji}`"
+          >
+            {{ emoji }}
+          </button>
+        </div>
+
+        <!-- Message Input -->
+        <div class="input-wrapper">
+          <button @click="toggleEmojiPicker" class="emoji-btn" title="Emoji">😊</button>
+          <textarea
+            v-model="messageInput"
+            @keydown="handleKeydown"
+            @input="notifyTyping"
+            :placeholder="chatPlaceholder"
+            class="message-input"
+            :class="{ 'font-small': settings.fontSize === 'small', 'font-large': settings.fontSize === 'large' }"
+            rows="1"
+          ></textarea>
+          <button 
+            @click="sendMessage"
+            :disabled="!canSendMessage"
+            class="send-btn"
+            title="Send"
+          >
+            {{ isSending ? '...' : '📤' }}
+          </button>
+        </div>
+
+        <!-- Emoji Picker -->
+        <div v-if="showEmojiPicker" class="emoji-picker">
+          <div class="emoji-grid">
+            <button 
+              v-for="emoji in ['😀', '😂', '😍', '🔥', '👍', '👎', '🎉', '💯', '❤️', '😢', '😡', '🤔', '😎', '🤗', '😴', '🤮']"
+              :key="emoji"
+              @click="addEmoji(emoji)"
+              class="emoji-btn-item"
+            >
+              {{ emoji }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Status -->
+      <div v-if="!isConnected" class="connection-status">
+        ⚠️ Reconnecting...
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.stream-chat-container {
-  @apply flex flex-col h-full bg-gray-900 text-white;
+.stream-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a1a;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* ===== HEADER ===== */
 .chat-header {
-  @apply flex items-center justify-between p-3 border-b border-gray-700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #0a0a0a;
+  border-bottom: 1px solid #333;
+  gap: 0.5rem;
 }
 
-.chat-title {
-  @apply flex items-center gap-2 font-semibold;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
 }
 
-.chat-actions {
-  @apply flex items-center gap-2;
+.toggle-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.chat-action-btn {
-  @apply p-2 hover:bg-gray-700 rounded-lg transition-colors;
+.header-title {
+  font-size: 0.95rem;
 }
 
-.chat-messages {
-  @apply flex-1 overflow-y-auto p-3 space-y-3;
-  scrollbar-width: thin;
-  scrollbar-color: #4B5563 #1F2937;
+.online-badge {
+  background: #ff0000;
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
 }
 
-.chat-messages::-webkit-scrollbar {
-  @apply w-2;
+.header-right {
+  display: flex;
+  gap: 0.25rem;
 }
 
-.chat-messages::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+.header-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
 }
 
-.chat-messages::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.chat-loading {
-  @apply flex flex-col items-center justify-center py-8 text-gray-400;
+.header-btn.active {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.loading-spinner {
-  @apply w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2;
+/* ===== CONTENT ===== */
+.chat-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
 }
 
-.chat-message {
-  @apply relative;
+/* ===== SIDEBARS ===== */
+.user-list-panel,
+.settings-panel {
+  width: 200px;
+  background: #0a0a0a;
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.system-message {
-  @apply flex items-center gap-2 text-sm text-gray-400 italic justify-center py-2;
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid #333;
 }
 
-.pewgift-message {
-  @apply bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3 border-l-4 border-yellow-400;
+.panel-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
-.pewgift-animation {
-  @apply flex items-center gap-3;
+.close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0;
 }
 
-.gift-icon {
-  @apply w-8 h-8;
+.user-list {
+  flex: 1;
+  overflow-y: auto;
 }
 
-.pewgift-info {
-  @apply flex-1;
-}
-
-.pewgift-header {
-  @apply flex items-center gap-2 mb-1;
-}
-
-.pewgift-content {
-  @apply flex items-center justify-between;
-}
-
-.gift-text {
-  @apply text-sm;
-}
-
-.gift-value {
-  @apply font-bold text-yellow-300;
-}
-
-.regular-message {
-  @apply group relative;
-}
-
-.message-header {
-  @apply flex items-center gap-2 mb-1;
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #222;
+  font-size: 0.85rem;
 }
 
 .user-avatar {
-  @apply w-6 h-6 rounded-full;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
-.username {
-  @apply font-semibold text-sm;
-}
-
-.username.streamer {
-  @apply text-red-400;
-}
-
-.username.moderator {
-  @apply text-green-400;
-}
-
-.username.verified {
-  @apply text-blue-400;
+.user-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-badges {
-  @apply flex items-center gap-1;
+  display: flex;
+  gap: 0.25rem;
 }
 
 .badge {
-  @apply text-xs;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 2px;
+  font-weight: bold;
 }
 
-.timestamp {
-  @apply text-xs text-gray-400 ml-auto;
+.streamer-badge {
+  background: #ff0000;
+  color: #fff;
 }
 
-.message-content {
-  @apply ml-8;
+.moderator-badge {
+  background: #00aa00;
+  color: #fff;
 }
 
-.message-reactions {
-  @apply flex items-center gap-1 mt-2;
-}
-
-.reaction-btn {
-  @apply px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-full text-xs transition-colors;
-}
-
-.reaction-btn.active {
-  @apply bg-blue-600 hover:bg-blue-700;
-}
-
-.message-actions {
-  @apply absolute top-0 right-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity;
-}
-
-.action-btn {
-  @apply p-1 hover:bg-gray-700 rounded text-xs;
-}
-
-.action-btn.active {
-  @apply text-yellow-400;
-}
-
-.action-btn.delete {
-  @apply hover:bg-red-600 hover:text-white;
-}
-
-.typing-indicators {
-  @apply flex items-center gap-2 text-sm text-gray-400 italic;
-}
-
-.typing-animation {
-  @apply flex items-center gap-1;
-}
-
-.typing-animation span {
-  @apply w-1 h-1 bg-gray-400 rounded-full animate-pulse;
-}
-
-.typing-animation span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-animation span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-.pinned-message {
-  @apply flex items-center gap-3 p-3 bg-yellow-600 bg-opacity-20 border-l-4 border-yellow-400;
-}
-
-.pinned-content {
-  @apply flex-1;
-}
-
-.pinned-username {
-  @apply font-semibold text-yellow-300;
-}
-
-.pinned-text {
-  @apply ml-2;
-}
-
-.unpin-btn {
-  @apply p-1 hover:bg-gray-700 rounded;
-}
-
-.chat-input-container {
-  @apply border-t border-gray-700 p-3 space-y-3;
-}
-
-.quick-reactions {
-  @apply flex items-center gap-2;
-}
-
-.reaction-quick-btn {
-  @apply p-2 hover:bg-gray-700 rounded-lg text-lg transition-colors;
-}
-
-.message-input-wrapper {
-  @apply flex items-center gap-2;
-}
-
-.message-input {
-  @apply flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500;
-}
-
-.send-btn {
-  @apply p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors;
-}
-
-.char-counter {
-  @apply text-xs text-gray-400 text-right;
-}
-
-.char-counter.warning {
-  @apply text-yellow-400;
-}
-
-.chat-settings-modal {
-  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
-}
-
+/* ===== SETTINGS PANEL ===== */
 .settings-content {
-  @apply bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .setting-item {
-  @apply mb-4;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
-.setting-item label {
-  @apply flex items-center gap-2 text-sm;
+.setting-item input[type="checkbox"] {
+  cursor: pointer;
 }
 
-.setting-item input,
-.setting-item select {
-  @apply bg-gray-700 border border-gray-600 rounded px-2 py-1;
+.font-size-select {
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
 }
 
-.close-settings-btn {
-  @apply w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors;
+/* ===== MESSAGES ===== */
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-/* Message animations */
-.chat-message {
+.pinned-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #222;
+  border-left: 3px solid #ff0000;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.pin-icon {
+  font-size: 1rem;
+}
+
+.pin-content {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #888;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #333;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.message-item {
+  display: flex;
   animation: slideIn 0.3s ease-out;
 }
 
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.system-msg {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.system-text {
+  font-size: 0.75rem;
+  color: #888;
+  font-style: italic;
+}
+
+.user-msg {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.msg-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.msg-content {
+  flex: 1;
+  background: #222;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.msg-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.msg-username {
+  font-weight: bold;
+  color: #fff;
+}
+
+.msg-badges {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.msg-time {
+  font-size: 0.7rem;
+  color: #888;
+  margin-left: auto;
+}
+
+.msg-text {
+  word-wrap: break-word;
+  color: #ddd;
+}
+
+.own-message .msg-content {
+  background: #1a4d1a;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #888;
+  padding: 0.5rem;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.typing-dots span {
+  width: 4px;
+  height: 4px;
+  background: #888;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { opacity: 0.5; }
+  40% { opacity: 1; }
+}
+
+/* ===== INPUT AREA ===== */
+.input-area {
+  background: #0a0a0a;
+  border-top: 1px solid #333;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-select,
+.search-input {
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.search-input {
+  flex: 1;
+}
+
+.quick-reactions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.reaction-btn {
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.reaction-btn:hover {
+  background: #333;
+}
+
+.input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.emoji-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.emoji-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.message-input {
+  flex: 1;
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  resize: none;
+  max-height: 100px;
+  font-family: inherit;
+}
+
+.message-input.font-small {
+  font-size: 0.8rem;
+}
+
+.message-input.font-large {
+  font-size: 1rem;
+}
+
+.message-input::placeholder {
+  color: #888;
+}
+
+.send-btn {
+  background: #ff0000;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: #cc0000;
+}
+
+.send-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+
+.emoji-picker {
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.25rem;
+}
+
+.emoji-btn-item {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.emoji-btn-item:hover {
+  background: #333;
+}
+
+.connection-status {
+  background: #ff6600;
+  color: #fff;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+/* ===== SCROLLBAR ===== */
+.messages-container::-webkit-scrollbar,
+.user-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track,
+.user-list::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.messages-container::-webkit-scrollbar-thumb,
+.user-list::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.messages-container::-webkit-scrollbar-thumb:hover,
+.user-list::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 767px) {
+  .stream-chat.is-mobile {
+    height: 100%;
+  }
+
+  .chat-header {
+    padding: 0.5rem;
+  }
+
+  .header-title {
+    font-size: 0.85rem;
+  }
+
+  .online-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .header-btn {
+    padding: 0.35rem;
+    font-size: 0.9rem;
+  }
+
+  .user-list-panel.mobile-sidebar,
+  .settings-panel.mobile-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: 250px;
+    height: 100%;
+    z-index: 100;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .messages-container {
+    padding: 0.5rem;
+    gap: 0.35rem;
+  }
+
+  .user-item {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .msg-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .user-msg {
+    font-size: 0.85rem;
+  }
+
+  .msg-content {
+    padding: 0.4rem;
+  }
+
+  .msg-header {
+    font-size: 0.8rem;
+  }
+
+  .msg-username {
+    font-size: 0.8rem;
+  }
+
+  .msg-time {
+    display: none;
+  }
+
+  .input-area {
+    padding: 0.5rem;
+    gap: 0.35rem;
+  }
+
+  .filter-bar {
+    display: none;
+  }
+
+  .quick-reactions {
+    display: none;
+  }
+
+  .filter-select,
+  .search-input {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .message-input {
+    font-size: 0.85rem;
+    padding: 0.4rem;
+  }
+
+  .emoji-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .emoji-btn-item {
+    font-size: 1rem;
+  }
+
+  .send-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-title {
+    display: none;
+  }
+
+  .online-badge {
+    font-size: 0.65rem;
+  }
+
+  .messages-container {
+    padding: 0.35rem;
+  }
+
+  .msg-content {
+    padding: 0.35rem;
+  }
+
+  .input-area {
+    padding: 0.35rem;
+  }
+
+  .emoji-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 </style>
