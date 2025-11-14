@@ -1,4 +1,6 @@
-<!-- components/chat/ChatSidebar.vue -->
+<!-- CORRECTED FILE: components/chat/chat-sidebar.vue -->
+<!-- All imports fixed: @ path alias, kebab-case component names -->
+
 <template>
   <div class="chat-sidebar">
     <!-- Sidebar Header -->
@@ -9,7 +11,7 @@
           :class="{ active: activeTab === 'chats' }"
           @click="activeTab = 'chats'"
         >
-          <Icon name="message-circle" />
+          <icon name="message-circle" />
           Chats
           <span class="tab-badge" v-if="unreadChatsCount > 0">{{ unreadChatsCount }}</span>
         </button>
@@ -18,7 +20,7 @@
           :class="{ active: activeTab === 'status' }"
           @click="activeTab = 'status'"
         >
-          <Icon name="circle" />
+          <icon name="circle" />
           Status
           <span class="tab-badge" v-if="unviewedStatusCount > 0">{{ unviewedStatusCount }}</span>
         </button>
@@ -27,7 +29,7 @@
           :class="{ active: activeTab === 'calls' }"
           @click="activeTab = 'calls'"
         >
-          <Icon name="phone" />
+          <icon name="phone" />
           Calls
           <span class="tab-badge" v-if="missedCallsCount > 0">{{ missedCallsCount }}</span>
         </button>
@@ -36,20 +38,20 @@
       <!-- More Menu (Kebab) -->
       <div class="more-menu" ref="moreMenu">
         <button class="more-btn" @click="toggleMoreMenu">
-          <Icon name="more-vertical" />
+          <icon name="more-vertical" />
         </button>
         
         <div class="dropdown-menu" v-if="showMoreMenu">
           <button @click="$emit('createGroup')" class="menu-item">
-            <Icon name="users" />
+            <icon name="users" />
             New Group
           </button>
           <button @click="$emit('newAnnouncement')" class="menu-item">
-            <Icon name="megaphone" />
+            <icon name="megaphone" />
             New Announcement
           </button>
           <button @click="showContactSync = true" class="menu-item">
-            <Icon name="user-plus" />
+            <icon name="user-plus" />
             Sync Contacts
           </button>
         </div>
@@ -63,7 +65,7 @@
         <div class="section-header">
           <span>Pinned</span>
         </div>
-        <ChatListItem
+        <chat-list-item
           v-for="chat in pinnedChats"
           :key="chat.id"
           :chat="chat"
@@ -78,7 +80,7 @@
         <div class="section-header">
           <span>Unread</span>
         </div>
-        <ChatListItem
+        <chat-list-item
           v-for="chat in unreadChats"
           :key="chat.id"
           :chat="chat"
@@ -93,7 +95,7 @@
         <div class="section-header">
           <span>Online</span>
         </div>
-        <ChatListItem
+        <chat-list-item
           v-for="chat in onlineChats"
           :key="chat.id"
           :chat="chat"
@@ -108,7 +110,7 @@
         <div class="section-header">
           <span>Groups</span>
         </div>
-        <ChatListItem
+        <chat-list-item
           v-for="chat in groupChats"
           :key="chat.id"
           :chat="chat"
@@ -120,7 +122,7 @@
 
       <!-- All Other Chats -->
       <div class="chat-section">
-        <ChatListItem
+        <chat-list-item
           v-for="chat in otherChats"
           :key="chat.id"
           :chat="chat"
@@ -139,7 +141,7 @@
           <div class="status-avatar">
             <img :src="currentUser.avatar || '/default-avatar.png'" :alt="currentUser.username" />
             <div class="add-status-btn" v-if="!currentUser.hasActiveStatus">
-              <Icon name="plus" />
+              <icon name="plus" />
             </div>
           </div>
           <div class="status-info">
@@ -159,7 +161,7 @@
         <div class="section-header">
           <span>Recent updates</span>
         </div>
-        <StatusListItem
+        <status-list-item
           v-for="status in recentStatusUpdates"
           :key="status.userId"
           :status="status"
@@ -172,7 +174,7 @@
         <div class="section-header">
           <span>Viewed updates</span>
         </div>
-        <StatusListItem
+        <status-list-item
           v-for="status in viewedStatusUpdates"
           :key="status.userId"
           :status="status"
@@ -183,7 +185,7 @@
 
     <!-- Call History -->
     <div class="call-list" v-if="activeTab === 'calls'">
-      <CallHistoryItem
+      <call-history-item
         v-for="call in callHistory"
         :key="call.id"
         :call="call"
@@ -192,14 +194,14 @@
     </div>
 
     <!-- Contact Sync Modal -->
-    <ContactSyncModal
+    <contact-sync-modal
       v-if="showContactSync"
       @close="showContactSync = false"
       @synced="handleContactsSynced"
     />
 
     <!-- Context Menu -->
-    <ContextMenu
+    <context-menu
       v-if="contextMenu.show"
       :x="contextMenu.x"
       :y="contextMenu.y"
@@ -214,11 +216,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import Icon from '@/components/ui/icon.vue'
-import ChatListItem from './ChatListItem.vue'
-import StatusListItem from './StatusListItem.vue'
-import CallHistoryItem from './CallHistoryItem.vue'
-import ContactSyncModal from './ContactSyncModal.vue'
-import ContextMenu from '@/components/ui/ContextMenu.vue'
+import ChatListItem from './chat-list-item.vue'
+import StatusListItem from './status-list-item.vue'
+import CallHistoryItem from './call-history-item.vue'
+import ContactSyncModal from './contact-sync-modal.vue'
+import ContextMenu from '@/components/ui/context-menu.vue'
 
 // Props
 const props = defineProps({
