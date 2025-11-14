@@ -10,7 +10,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useescrowcontract } from '@/composables/use-escrow-contract'
+import { useEscrowContract } from '@/composables/use-escrow-contract'
 
 const dealId = ref(0)
 const txHash = ref('')
