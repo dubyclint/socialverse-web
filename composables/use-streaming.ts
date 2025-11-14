@@ -1,7 +1,7 @@
 // composables/useStreaming.ts - MERGED VERSION
 import { ref, computed, onMounted, onUnmounted, readonly } from 'vue'
-import { useSocket } from '~/composables/useSocket'
-import { useAuth } from '~/composables/useAuth'
+import { useSocket } from '~/composables/use-socket'
+import { useAuth } from '~/composables/use-auth'
 
 interface StreamMessage {
   id: string
