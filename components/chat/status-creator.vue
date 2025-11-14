@@ -238,7 +238,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 // Emits
 const emit = defineEmits(['close', 'created'])
