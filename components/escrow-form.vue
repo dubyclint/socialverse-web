@@ -21,7 +21,7 @@ import { useEscrowContract } from '@/composables/use-escrow-contract'
 const seller = ref('')
 const amount = ref(0)
 const txHash = ref('')
-const { createDeal } = useescrowcontract()
+const { createDeal } = useEscrowContract()
 
 async function submitDeal() {
   txHash.value = await createDeal(seller.value, BigInt(amount.value * 1e6))
