@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useNotifications } from '~/composables/useNotifications'
+import { useNotifications } from '~/composables/use-notifications'
 
 const {
   notifications,
