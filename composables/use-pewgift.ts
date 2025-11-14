@@ -1,4 +1,4 @@
- composables/use-pewgift.ts - COMPLETE FIXED VERSION
+ //composables/use-pewgift.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // PEWGIFT COMPOSABLE - FULLY FUNCTIONAL
 // ============================================================================
