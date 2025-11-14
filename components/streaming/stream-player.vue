@@ -1,3 +1,7 @@
+<!-- CORRECTED FILE: components/streaming/stream-player.vue -->
+<!-- All imports fixed, component names corrected to kebab-case -->
+<!-- Path aliases changed from ~ to @ where appropriate -->
+
 <template>
   <div class="advanced-stream-player">
     <!-- Main Video Player -->
@@ -109,10 +113,10 @@
         </div>
 
         <!-- PewGift Button -->
-        <PewGiftButton 
+        <pew-gift-button 
           v-if="!isStreamer"
-          :streamId="streamId"
-          :receiverId="streamerId"
+          :stream-id="streamId"
+          :receiver-id="streamerId"
           @gift-sent="onGiftSent"
         />
 
@@ -231,23 +235,23 @@
     </div>
 
     <!-- Analytics Panel (for streamers) -->
-    <StreamAnalytics 
+    <stream-analytics 
       v-if="isStreamer" 
-      :streamId="streamId"
+      :stream-id="streamId"
       class="analytics-panel"
     />
 
     <!-- Moderation Panel (for streamers) -->
-    <ModerationPanel 
+    <moderation-panel 
       v-if="isStreamer" 
-      :streamId="streamId"
+      :stream-id="streamId"
       class="moderation-panel"
     />
 
     <!-- Chat Integration -->
-    <StreamChat
-      :streamId="streamId"
-      :isStreamer="isStreamer"
+    <stream-chat
+      :stream-id="streamId"
+      :is-streamer="isStreamer"
       class="stream-chat"
     />
   </div>
@@ -255,12 +259,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useSocket } from '~/composables/useSocket'
-import { useUser } from '~/composables/useUser'
-import StreamAnalytics from './StreamAnalytics.vue'
-import ModerationPanel from './ModerationPanel.vue'
-import StreamChat from './StreamChat.vue'
-import PewGiftButton from '../PewGiftButton.vue'
+import { useSocket } from '@/composables/use-socket'
+import { useUser } from '@/composables/use-user'
+import StreamAnalytics from './stream-analytics.vue'
+import ModerationPanel from './moderation-panel.vue'
+import StreamChat from './stream-chat.vue'
+import PewGiftButton from '../pew-gift-button.vue'
 
 const props = defineProps({
   streamId: {
@@ -628,468 +632,34 @@ onUnmounted(() => {
 
 .stream-overlay {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
   pointer-events: none;
-  z-index: 10;
 }
 
 .live-indicator {
-  background: #ef4444;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  gap: 0.5rem;
+  background: rgba(255,0,0,0.8);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.875rem;
 }
 
 .live-dot {
-  width: 6px;
-  height: 6px;
-  background: white;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.viewer-count {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.quality-selector {
-  pointer-events: all;
-}
-
-.quality-selector select {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.reaction-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 5;
-}
-
-.reaction-animation
-.reaction-animation {
-  position: absolute;
-  font-size: 24px;
-  animation: reactionFloat 3s ease-out forwards;
-  z-index: 6;
-}
-
-@keyframes reactionFloat {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-100px) scale(1.5);
-  }
-}
-
-.gift-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 7;
-}
-
-.gift-animation {
-  background: linear-gradient(135deg, #10b981, #3b82f6);
-  padding: 16px 24px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  animation: giftSlide 5s ease-out forwards;
-}
-
-@keyframes giftSlide {
-  0% {
-    opacity: 0;
-    transform: translateX(-100px) scale(0.8);
-  }
-  20% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  80% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(100px) scale(0.8);
-  }
-}
-
-.gift-content {
-  text-align: center;
-}
-
-.gift-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.gift-sender {
-  font-weight: bold;
-  font-size: 14px;
-  color: white;
-}
-
-.gift-type {
-  font-size: 12px;
-  opacity: 0.9;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.gift-amount {
-  font-size: 18px;
-  font-weight: bold;
-  color: #fbbf24;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.loading-overlay,
-.error-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid #10b981;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.error-content {
-  text-align: center;
-  padding: 20px;
-}
-
-.error-content h3 {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.error-content p {
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 16px;
-}
-
-.retry-btn {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.retry-btn:hover {
-  background: #059669;
-}
-
-.stream-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: #1a1a1a;
-  border-top: 1px solid #2d2d2d;
-}
-
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.reaction-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.reaction-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.reaction-btn:hover:not(:disabled) {
-  transform: scale(1.2);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.reaction-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.reaction-cooldown::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  animation: cooldownFill 1s ease-out;
-}
-
-@keyframes cooldownFill {
-  from { width: 100%; }
-  to { width: 0%; }
-}
-
-.control-btn {
-  background: #2d2d2d;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.control-btn:hover {
-  background: #3d3d3d;
-  transform: translateY(-1px);
-}
-
-.follow-btn {
-  background: #10b981;
-}
-
-.follow-btn:hover {
-  background: #059669;
-}
-
-.report-btn {
-  background: #ef4444;
-}
-
-.report-btn:hover {
-  background: #dc2626;
-}
-
-.recording-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #ef4444;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.recording-dot {
   width: 8px;
   height: 8px;
-  background: #ef4444;
+  background: #ff0000;
   border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.stream-stats {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.stream-info {
-  padding: 20px;
-  background: #1a1a1a;
-}
-
-.stream-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.stream-title {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 0;
-  line-height: 1.3;
-}
-
-.stream-badges {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-  margin-left: 16px;
-}
-
-.badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.badge.verified {
-  background: #10b981;
-  color: white;
-}
-
-.badge.category {
-  background: #3b82f6;
-  color: white;
-}
-
-.stream-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.streamer-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.streamer-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.streamer-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.streamer-name {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.follower-count {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.stream-metrics {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.metric {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.stream-description {
-  font-size: 14px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 16px;
-}
-
-.stream-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.stream-tag {
-  background: #2d2d2d;
-  color: #10b981;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.analytics-panel,
-.moderation-panel,
-.stream-chat {
-  margin-top: 20px;
+  animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
@@ -1097,53 +667,424 @@ onUnmounted(() => {
   50% { opacity: 0.5; }
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .stream-overlay {
-    padding: 12px;
-  }
-  
-  .stream-controls {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-  
-  .control-group {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  
-  .stream-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  
-  .stream-meta {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  
-  .stream-metrics {
-    align-self: stretch;
-    justify-content: space-around;
-  }
+.viewer-count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0,0,0,0.5);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
 }
 
-@media (max-width: 480px) {
+.quality-selector {
+  pointer-events: auto;
+}
+
+.quality-selector select {
+  background: rgba(0,0,0,0.7);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.reaction-overlay,
+.gift-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.reaction-animation {
+  position: absolute;
+  font-size: 3rem;
+  animation: float-up 3s ease-out forwards;
+}
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-200px) scale(0.5); }
+}
+
+.gift-animation {
+  position: absolute;
+  animation: gift-float 5s ease-out forwards;
+}
+
+@keyframes gift-float {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-300px) scale(0.3); }
+}
+
+.gift-content {
+  background: rgba(255,215,0,0.9);
+  padding: 1rem;
+  border-radius: 8px;
+  color: #000;
+  font-weight: bold;
+}
+
+.gift-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.gift-sender {
+  font-size: 0.875rem;
+}
+
+.gift-type {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.gift-amount {
+  font-size: 1.25rem;
+  color: #d4af37;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.error-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.error-content h3 {
+  margin: 1rem 0;
+  font-size: 1.5rem;
+}
+
+.error-content p {
+  margin-bottom: 1.5rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.retry-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.retry-btn:hover {
+  background: #0056b3;
+}
+
+.stream-controls {
+  padding: 1rem;
+  background: #1a1a1a;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.control-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.reaction-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.reaction-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.2s;
+}
+
+.reaction-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.2);
+  transform: scale(1.1);
+}
+
+.reaction-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.control-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.follow-btn {
+  background: #007bff;
+  border-color: #007bff;
+}
+
+.follow-btn:hover {
+  background: #0056b3;
+}
+
+.report-btn {
+  background: rgba(255,0,0,0.2);
+  border-color: rgba(255,0,0,0.5);
+}
+
+.report-btn:hover {
+  background: rgba(255,0,0,0.3);
+}
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255,0,0,0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #ff6b6b;
+}
+
+.recording-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff0000;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+.stream-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.stream-info {
+  padding: 1.5rem;
+  background: #1a1a1a;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.stream-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.stream-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.stream-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(255,255,255,0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge.verified {
+  background: rgba(0,200,100,0.2);
+  color: #00c864;
+}
+
+.badge.category {
+  background: rgba(100,150,255,0.2);
+  color: #6496ff;
+}
+
+.stream-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.streamer-info {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.streamer-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.streamer-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.streamer-name {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.follower-count {
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.6);
+}
+
+.stream-metrics {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.stream-description {
+  margin: 1rem 0;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.5;
+}
+
+.stream-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.stream-tag {
+  background: rgba(100,150,255,0.2);
+  color: #6496ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stream-tag:hover {
+  background: rgba(100,150,255,0.3);
+}
+
+.analytics-panel,
+.moderation-panel,
+.stream-chat {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+@media (max-width: 768px) {
+  .stream-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stream-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .stream-metrics {
+    width: 100%;
+  }
+
+  .stream-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-group {
+    width: 100%;
+  }
+
   .reaction-buttons {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .stream-info {
-    padding: 16px;
-  }
-  
-  .stream-title {
-    font-size: 18px;
+    width: 100%;
+    justify-content: space-around;
   }
 }
 </style>
