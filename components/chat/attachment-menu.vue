@@ -82,7 +82,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 // Emits
 const emit = defineEmits(['close', 'selectFile', 'selectCamera', 'selectLocation'])
