@@ -59,8 +59,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useescrowcontract } from '@/composables/use-escrow-contract'
-
+import { useEscrowContract } from '@/composables/use-escrow-contract'
+import { useToast } from '@/composables/use-toast'
 
 const props = defineProps({
   search: String,
@@ -80,6 +80,7 @@ const selectedDealId = ref(null)
 const actionType = ref('')
 
 const { releaseDeal, refundDeal } = useEscrowContract()
+const toast = useToast()
 
 onMounted(async () => {
   try {
@@ -88,7 +89,7 @@ onMounted(async () => {
     deals.value = allDeals
   } catch (err) {
     console.error(`Failed to load deals: ${err.message}`)
-    
+    toast.error(`Failed to load deals: ${err.message}`)
   }
 })
 
@@ -170,8 +171,8 @@ async function executeAction() {
       toast.success(`✅ Deal #${selectedDealId.value} refunded`)
     }
   } catch (err) {
-    console.error(`Failed to load deals: ${err.message}`)
-    
+    console.error(`Failed to execute action: ${err.message}`)
+    toast.error(`Failed to execute action: ${err.message}`)
   }
   cancelAction()
 }
