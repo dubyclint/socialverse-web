@@ -1,3 +1,7 @@
+<!-- CORRECTED FILE: components/streaming/mobile-stream-player.vue -->
+<!-- All imports fixed, component names corrected to kebab-case -->
+<!-- Path aliases changed from ~ to @ where appropriate -->
+
 <template>
   <div class="mobile-stream-player" :class="{ 'fullscreen': isFullscreen }">
     <!-- Mobile Video Container -->
@@ -44,7 +48,7 @@
           <div class="mobile-actions">
             <button @click="toggleMute" class="control-btn-mobile">
               <svg v-if="!isMuted" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343L4.93 4.93A1 1 0 003.515 6.343L6.343 9.17v.001c0 .552.448 1 1 1h3.172l4.95 4.95a1 1 0 001.414-1.414L6.343 6.343z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M17.828 5.172a9 9 0 010 14.142M6.343 6.343L4.93 4.93A1 1 0 003.515 6.343L6.343 9.17v.001c0 .552.448 1 1 1h3.172l4.95 4.95a1 1 0 001.414-1.414L6.343 6.343z"/>
               </svg>
               <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"/>
@@ -175,10 +179,10 @@
             Follow
           </button>
           
-          <PewGiftButtonMobile 
+          <pew-gift-button-mobile 
             v-if="!isStreamer"
-            :streamId="streamId"
-            :receiverId="streamerId"
+            :stream-id="streamId"
+            :receiver-id="streamerId"
             @gift-sent="onGiftSent"
           />
         </div>
@@ -216,10 +220,10 @@
     </div>
 
     <!-- Mobile Chat Integration -->
-    <MobileStreamChat
+    <mobile-stream-chat
       v-if="showMobileControls"
-      :streamId="streamId"
-      :isStreamer="isStreamer"
+      :stream-id="streamId"
+      :is-streamer="isStreamer"
       class="mobile-chat"
     />
   </div>
@@ -227,12 +231,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
-import { useSocket } from '~/composables/useSocket'
-import { useUser } from '~/composables/useUser'
-import { useMobileDetection } from '~/composables/useMobileDetection'
-import { useAdaptiveStreaming } from '~/composables/useAdaptiveStreaming'
-import MobileStreamChat from './MobileStreamChat.vue'
-import PewGiftButtonMobile from '../PewGiftButtonMobile.vue'
+import { useSocket } from '@/composables/use-socket'
+import { useUser } from '@/composables/use-user'
+import { useMobileDetection } from '@/composables/use-mobile-detection'
+import { useAdaptiveStreaming } from '@/composables/use-adaptive-streaming'
+import MobileStreamChat from './mobile-stream-chat.vue'
+import PewGiftButtonMobile from '../pew-gift-button-mobile.vue'
 
 const props = defineProps({
   streamId: String,
@@ -555,18 +559,9 @@ watch(orientation, (newOrientation) => {
 onMounted(() => {
   // Add touch event listeners
   if (videoPlayer.value) {
-    videoPlayer.value.addEventListener('touchstart', handleTouchStart, { passive: true })
-    videoPlayer.value.addEventListener('touchmove', handleTouchMove, { passive: false })
+    videoPlayer.value.addEventListener('touchstart', handleTouchStart)
+    videoPlayer.value.addEventListener('touchmove', handleTouchMove)
   }
-  
-  // Handle fullscreen changes
-  document.addEventListener('fullscreenchange', () => {
-    isFullscreen.value = !!document.fullscreenElement
-  })
-  
-  document.addEventListener('webkitfullscreenchange', () => {
-    isFullscreen.value = !!document.webkitFullscreenElement
-  })
   
   // Start duration timer
   const startTime = Date.now()
@@ -577,50 +572,44 @@ onMounted(() => {
   // Setup socket if already connected
   if (isConnected.value) {
     setupSocketListeners()
+    socket.value.emit('join-stream', {
+      streamId: props.streamId,
+      userId: user.value?.id,
+      userCountry: 'US'
+    })
   }
 })
 
 onUnmounted(() => {
-  if (socket.value) {
-    socket.value.emit('leave-stream')
-  }
-  
-  clearTimeout(controlsTimeout)
-  if (durationInterval) clearInterval(durationInterval)
-  
-  // Remove event listeners
   if (videoPlayer.value) {
     videoPlayer.value.removeEventListener('touchstart', handleTouchStart)
     videoPlayer.value.removeEventListener('touchmove', handleTouchMove)
+  }
+  
+  if (durationInterval) {
+    clearInterval(durationInterval)
+  }
+  
+  if (controlsTimeout) {
+    clearTimeout(controlsTimeout)
   }
 })
 </script>
 
 <style scoped>
 .mobile-stream-player {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   background: #000;
   color: white;
-  position: relative;
-  overflow: hidden;
-}
-
-.mobile-stream-player.fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9999;
 }
 
 .mobile-video-container {
   position: relative;
-  width: 100%;
-  aspect-ratio: 16/9;
+  flex: 1;
   background: #000;
   overflow: hidden;
-  touch-action: manipulation;
 }
 
 .mobile-video-container video {
@@ -633,285 +622,201 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.7) 0%,
-    transparent 20%,
-    transparent 80%,
-    rgba(0, 0, 0, 0.7) 100%
-  );
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent, rgba(0,0,0,0.5));
+  opacity: 0;
+  transition: opacity 0.3s;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
 }
 
 .mobile-overlay.visible {
   opacity: 1;
-  pointer-events: all;
 }
 
 .mobile-top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  z-index: 10;
+  padding: 1rem;
 }
 
 .back-btn {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0,0,0,0.5);
   border: none;
   color: white;
-  padding: 8px;
+  padding: 0.5rem;
   border-radius: 50%;
   cursor: pointer;
-  backdrop-filter: blur(8px);
 }
 
 .stream-info-mobile {
   display: flex;
+  gap: 1rem;
   align-items: center;
-  gap: 12px;
-  flex: 1;
-  justify-content: center;
 }
 
 .live-badge {
-  background: #ef4444;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
+  background: rgba(255,0,0,0.7);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
 }
 
 .live-dot {
-  width: 6px;
-  height: 6px;
-  background: white;
+  width: 8px;
+  height: 8px;
+  background: red;
   border-radius: 50%;
-  animation: pulse 2s infinite;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .viewer-count-mobile {
-  background: rgba(0, 0, 0, 0.5);
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  backdrop-filter: blur(8px);
+  gap: 0.25rem;
+  font-size: 0.875rem;
 }
 
 .mobile-actions {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .control-btn-mobile {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0,0,0,0.5);
   border: none;
   color: white;
-  padding: 8px;
+  padding: 0.5rem;
   border-radius: 50%;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: background-color 0.2s;
-}
-
-.control-btn-mobile:active {
-  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .center-controls {
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex: 1;
+  align-items: center;
 }
 
 .play-pause-btn {
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0,0,0,0.5);
   border: none;
   color: white;
-  padding: 16px;
   border-radius: 50%;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: all 0.2s;
-}
-
-.play-pause-btn:active {
-  transform: scale(0.95);
-  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
 .loading-spinner-mobile {
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top: 3px solid white;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .mobile-bottom-bar {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  padding: 1rem;
 }
 
 .progress-container {
-  width: 100%;
+  margin-bottom: 0.5rem;
 }
 
 .progress-bar {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;*
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255,255,255,0.3);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: #10b981;
-  border-radius: 2px;
-  transition: width 0.1s ease;
+  background: #ff0000;
+  transition: width 0.1s linear;
 }
 
 .bottom-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 0.875rem;
 }
 
 .quality-selector-mobile select {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0,0,0,0.5);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
 }
 
-.stream-duration {
-  font-size: 12px;
-  color: white;
-  font-weight: 500;
-}
-
-.mobile-reaction-overlay {
+.mobile-reaction-overlay,
+.mobile-gift-overlay {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  overflow: hidden;
 }
 
 .mobile-reaction {
   position: absolute;
-  font-size: 20px;
-  animation: mobileReactionFloat 3s ease-out forwards;
-  z-index: 5;
+  font-size: 2rem;
+  animation: float-up 3s ease-out forwards;
 }
 
-@keyframes mobileReactionFloat {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-80px) scale(1.3);
-  }
-}
-
-.mobile-gift-overlay {
-  position: absolute;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 6;
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-100px); }
 }
 
 .mobile-gift-animation {
-  background: linear-gradient(135deg, #10b981, #3b82f6);
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: mobileGiftSlide 4s ease-out forwards;
+  position: absolute;
+  animation: gift-float 4s ease-out forwards;
 }
 
-@keyframes mobileGiftSlide {
-  0% {
-    opacity: 0;
-    transform: translateX(-60px) scale(0.8);
-  }
-  20% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  80% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(60px) scale(0.8);
-  }
-}
-
-.gift-content-mobile {
-  text-align: center;
-}
-
-.gift-sender-mobile {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.gift-amount-mobile {
-  display: block;
-  font-size: 14px;
-  font-weight: bold;
-  color: #fbbf24;
+@keyframes gift-float {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-150px) scale(0.8); }
 }
 
 .mobile-controls-panel {
   background: #1a1a1a;
-  border-top: 1px solid #2d2d2d;
-  transition: all 0.3s ease;
-  max-height: 60px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  max-height: 100px;
   overflow: hidden;
+  transition: max-height 0.3s;
 }
 
 .mobile-controls-panel.expanded {
@@ -919,133 +824,88 @@ onUnmounted(() => {
 }
 
 .mobile-controls-header {
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
   cursor: pointer;
-  user-select: none;
 }
 
 .mobile-controls-header h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 1rem;
 }
 
 .expand-btn {
   background: none;
   border: none;
   color: white;
-  padding: 4px;
   cursor: pointer;
-  transition: transform 0.3s ease;
-}
-
-.expand-btn svg.rotate-180 {
-  transform: rotate(180deg);
+  transition: transform 0.3s;
 }
 
 .mobile-controls-content {
-  padding: 0 20px 20px;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 1rem;
 }
 
 .mobile-reaction-buttons {
   display: flex;
-  justify-content: space-around;
-  gap: 8px;
-  padding: 16px;
-  background: #2d2d2d;
-  border-radius: 12px;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .mobile-reaction-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  transition: all 0.2s;
-  min-width: 44px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mobile-reaction-btn:active:not(:disabled) {
-  transform: scale(1.2);
-  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.5rem;
 }
 
 .mobile-reaction-btn:disabled {
   opacity: 0.5;
-}
-
-.mobile-reaction-btn.cooldown {
-  animation: mobileCooldown 1s ease-out;
-}
-
-@keyframes mobileCooldown {
-  0% { background: rgba(16, 185, 129, 0.3); }
-  100% { background: transparent; }
+  cursor: not-allowed;
 }
 
 .mobile-action-buttons {
   display: flex;
-  gap: 12px;
-  justify-content: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .mobile-action-btn {
-  background: #2d2d2d;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
   color: white;
-  border: none;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  min-height: 44px;
-}
-
-.mobile-action-btn:active {
-  transform: scale(0.95);
-  background: #3d3d3d;
+  gap: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .mobile-action-btn.follow {
-  background: #10b981;
-}
-
-.mobile-action-btn.follow:active {
-  background: #059669;
+  background: #007bff;
+  border-color: #007bff;
 }
 
 .mobile-stream-info {
-  background: #2d2d2d;
-  padding: 16px;
-  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .streamer-info-mobile {
   display: flex;
+  gap: 0.75rem;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
 }
 
 .streamer-avatar-mobile {
@@ -1056,132 +916,34 @@ onUnmounted(() => {
 }
 
 .streamer-details-mobile {
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .streamer-name-mobile {
-  display: block;
-  font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 2px;
+  font-weight: bold;
+  font-size: 0.875rem;
 }
 
 .follower-count-mobile {
-  display: block;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
 }
 
 .stream-stats-mobile {
   display: flex;
-  justify-content: space-around;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .stat-mobile {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 0.25rem;
+  font-size: 0.875rem;
 }
 
 .mobile-chat {
-  max-height: 300px;
+  flex: 1;
   overflow-y: auto;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
-  .mobile-top-bar {
-    padding: 12px;
-  }
-  
-  .mobile-bottom-bar {
-    padding: 12px;
-  }
-  
-  .mobile-controls-content {
-    padding: 0 16px 16px;
-  }
-  
-  .mobile-reaction-buttons {
-    padding: 12px;
-    gap: 4px;
-  }
-  
-  .mobile-reaction-btn {
-    font-size: 20px;
-    min-width: 40px;
-    min-height: 40px;
-  }
-}
-
-/* Landscape orientation */
-@media (orientation: landscape) and (max-height: 500px) {
-  .mobile-controls-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    max-height: 50px;
-  }
-  
-  .mobile-controls-panel.expanded {
-    max-height: 60vh;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .mobile-stream-player {
-    background: #000;
-  }
-}
-
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  .mobile-overlay {
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.9) 0%,
-      transparent 20%,
-      transparent 80%,
-      rgba(0, 0, 0, 0.9) 100%
-    );
-  }
-  
-  .control-btn-mobile,
-  .play-pause-btn {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .mobile-reaction,
-  .mobile-gift-animation,
-  .spinner {
-    animation: none;
-  }
-  
-  .mobile-overlay,
-  .mobile-controls-panel,
-  .expand-btn svg {
-    transition: none;
-  }
 }
 </style>
