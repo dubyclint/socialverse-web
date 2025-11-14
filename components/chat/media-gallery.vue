@@ -189,7 +189,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { format } from 'date-fns'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 import MediaViewer from './MediaViewer.vue'
 
 // Props
