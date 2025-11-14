@@ -109,7 +109,7 @@
 import { computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow } from 'date-fns'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 // Props
 const props = defineProps({
