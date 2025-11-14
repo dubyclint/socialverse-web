@@ -202,8 +202,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useStreaming } from '~/composables/useStreaming'
-import { useAuth } from '~/composables/useAuth'
+import { useStreaming } from '~/composables/use-streaming'
+import { useAuth } from '~/composables/use-auth'
 
 interface Props {
   streamId: string
