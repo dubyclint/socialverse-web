@@ -20,7 +20,7 @@
 
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
-import Icon from './Icon.vue'
+import icon from './icon.vue'
 
 // Props
 const props = defineProps({
