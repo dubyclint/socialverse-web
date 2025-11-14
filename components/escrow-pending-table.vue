@@ -59,7 +59,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useEscrowContract } from '@/composables/useEscrowContract'
+import { useEscrowContract } from '@/composables/use-escrow-contract'
 
 
 const props = defineProps({
