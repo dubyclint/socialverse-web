@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { useEmojiPicker } from '~/composables/useEmojiPicker'
+import { useEmojiPicker } from '~/composables/use-emoji-picker'
 
 interface Props {
   disabled?: boolean
