@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 // Props
 const props = defineProps({
