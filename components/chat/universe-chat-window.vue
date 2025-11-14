@@ -155,7 +155,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useUniverseMessage } from '~/composables/use-universe-message'
-import { useAuth } from '~/composables/use-Auth'
+import { useAuth } from '~/composables/use-auth'
 
 // Composables
 const { fetchMessages, postMessage, likeMessage, deleteMessage, replyToMessage, messages, loading, error } = useUniverseMessage()
