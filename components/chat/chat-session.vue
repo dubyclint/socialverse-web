@@ -241,7 +241,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useSocket } from '~/composables/use-socket'
 import { useUserStore } from '~/stores/user'
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
-import Icon from '~/components/ui/icon.vue'
+import Icon from '~/components/ui/Icon.vue'
 import MessageBubble from './message-bubble.vue'
 import AttachmentMenu from './attachment-menu.vue'
 import EmojiPicker from './emoji-picker.vue'
@@ -1136,25 +1136,5 @@ watch(() => props.messages, () => {
 .messages-container::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .session-header {
-    padding: 8px 12px;
-  }
-  
-  .messages-container {
-    padding: 12px;
-  }
-  
-  .message-input-container {
-    padding: 12px;
-  }
-  
-  .header-right .header-btn:not(.more-menu .header-btn) {
-    display: none;
-  }
-}
 </style>
-  
   
