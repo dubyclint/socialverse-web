@@ -268,7 +268,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 const emit = defineEmits(['close', 'profile-updated'])
 const authStore = useAuthStore()
