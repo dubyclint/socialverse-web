@@ -1,404 +1,283 @@
+<!-- components/chat/universe-chat-window.vue -->
+<!-- ============================================================================
+     UNIVERSE CHAT WINDOW - Message display and interaction
+     ============================================================================ -->
+
 <template>
-  <ClientOnly>
-    <div class="universe-chat-window">
-      <div class="chat-header">
-        <h3>💬 Universe Chat</h3>
-        <div class="header-info">
-          <span class="online-count">{{ onlineUsers }} online</span>
-          <div :class="['status-indicator', gunStatus]">
-            {{ statusText }}
-          </div>
-        </div>
-      </div>
+  <div class="universe-chat-window">
+    <!-- Error State -->
+    <div v-if="error" class="error-banner">
+      <span>{{ error }}</span>
+      <button @click="$emit('close-error')" class="btn-close">✕</button>
+    </div>
 
-      <!-- Filters -->
-      <div class="chat-filters">
-        <select v-model="selectedCountry" class="filter-select">
-          <option value="">All Countries</option>
-          <option value="US">United States</option>
-          <option value="UK">United Kingdom</option>
-          <option value="CA">Canada</option>
-          <option value="AU">Australia</option>
-          <option value="IN">India</option>
-          <option value="BR">Brazil</option>
-        </select>
+    <!-- Loading State -->
+    <div v-if="loading && messages.length === 0" class="loading-state">
+      <div class="spinner">⏳</div>
+      <p>Loading messages...</p>
+    </div>
 
-        <select v-model="selectedInterest" class="filter-select">
-          <option value="">All Interests</option>
-          <option value="tech">Technology</option>
-          <option value="gaming">Gaming</option>
-          <option value="music">Music</option>
-          <option value="sports">Sports</option>
-          <option value="travel">Travel</option>
-          <option value="art">Art</option>
-        </select>
+    <!-- Empty State -->
+    <div v-else-if="messages.length === 0" class="empty-state">
+      <span class="empty-icon">💬</span>
+      <p>No messages yet. Be the first to say hello!</p>
+    </div>
 
-        <select v-model="selectedLanguage" class="filter-select">
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="zh">Chinese</option>
-          <option value="ja">Japanese</option>
-        </select>
-
-        <button @click="applyFilters" class="filter-btn">
-          🔍 Filter
+    <!-- Messages List -->
+    <div v-else class="messages-container">
+      <!-- Load More Button -->
+      <div v-if="hasMore" class="load-more-section">
+        <button @click="$emit('load-more')" class="load-more-btn">
+          📥 Load Earlier Messages
         </button>
       </div>
 
-      <!-- Messages Container -->
-      <div class="messages-container" ref="messagesContainer">
-        <div v-if="loading" class="loading-state">
-          <div class="spinner"></div>
-          <span>Loading messages...</span>
-        </div>
-
-        <div v-else-if="messages.length === 0" class="empty-state">
-          <span>No messages yet. Be the first to say something! 🚀</span>
-        </div>
-
-        <div v-else>
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            :class="['message-item', { 'own-message': message.user_id === currentUserId }]"
-          >
-            <div class="message-avatar">
-              <img
-                :src="`https://api.dicebear.com/7.x/avataaars/svg?seed=${message.user_id}`"
-                :alt="message.username || 'User'"
-                class="avatar-img"
+      <!-- Messages -->
+      <div v-for="message in messages" :key="message.id" class="message-wrapper">
+        <div class="message-bubble" :class="{ 'own-message': isOwnMessage(message) }">
+          <!-- Message Header -->
+          <div class="message-header">
+            <div class="user-info">
+              <img 
+                :src="message.user?.avatar || '/default-avatar.png'"
+                :alt="message.user?.name"
+                class="user-avatar"
               />
-            </div>
-
-            <div class="message-content">
-              <div class="message-header">
-                <span class="username">{{ message.username || 'Anonymous' }}</span>
-                <span class="timestamp">{{ formatTime(message.created_at) }}</span>
-              </div>
-
-              <div class="message-metadata" v-if="message.country || message.interest">
-                <span v-if="message.country" class="badge country">{{ message.country }}</span>
-                <span v-if="message.interest" class="badge interest">{{ message.interest }}</span>
-              </div>
-
-              <div class="message-text">{{ message.content }}</div>
-
-              <div class="message-actions">
-                <button @click="likeMessage(message.id)" class="action-btn">
-                  👍 {{ message.likes || 0 }}
-                </button>
-                <button @click="toggleReplyForm(message.id)" class="action-btn">
-                  💬 {{ message.replies || 0 }}
-                </button>
-                <button v-if="message.user_id === currentUserId" @click="deleteMessage(message.id)" class="action-btn delete">
-                  🗑️
-                </button>
-              </div>
-
-              <!-- Reply Form -->
-              <div v-if="replyingTo === message.id" class="reply-form">
-                <input
-                  v-model="replyContent"
-                  type="text"
-                  placeholder="Write a reply..."
-                  class="reply-input"
-                  @keyup.enter="submitReply(message.id)"
-                />
-                <button @click="submitReply(message.id)" class="reply-btn">Send</button>
-                <button @click="toggleReplyForm(null)" class="cancel-btn">Cancel</button>
+              <div class="user-details">
+                <span class="user-name">{{ message.user?.name }}</span>
+                <span class="user-location" v-if="message.user?.location">
+                  📍 {{ message.user.location }}
+                </span>
               </div>
             </div>
+            <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+          </div>
+
+          <!-- Message Content -->
+          <div class="message-content">
+            <p v-if="message.content" class="text">{{ message.content }}</p>
+            <img 
+              v-if="message.fileUrl && message.fileType?.startsWith('image')"
+              :src="message.fileUrl"
+              :alt="message.fileName"
+              class="message-image"
+            />
+            <video 
+              v-else-if="message.fileUrl && message.fileType?.startsWith('video')"
+              :src="message.fileUrl"
+              class="message-video"
+              controls
+            ></video>
+          </div>
+
+          <!-- Message Actions -->
+          <div class="message-actions">
+            <button 
+              @click="$emit('like-message', message.id)"
+              class="action-btn"
+              :class="{ active: message.liked }"
+              title="Like message"
+            >
+              {{ message.liked ? '❤️' : '🤍' }} {{ message.likes || 0 }}
+            </button>
+            <button 
+              @click="toggleReactions(message.id)"
+              class="action-btn"
+              title="Add reaction"
+            >
+              😊 React
+            </button>
+            <button 
+              @click="$emit('send-gift', message.user?.id, message.id)"
+              class="action-btn"
+              title="Send gift"
+            >
+              🎁 Gift
+            </button>
+            <button 
+              @click="toggleTranslate(message.id)"
+              class="action-btn"
+              title="Translate"
+            >
+              🌐 Translate
+            </button>
+          </div>
+
+          <!-- Reactions -->
+          <div v-if="message.reactions && message.reactions.length > 0" class="reactions">
+            <span 
+              v-for="(reaction, idx) in message.reactions" 
+              :key="idx"
+              class="reaction"
+            >
+              {{ reaction }}
+            </span>
+          </div>
+
+          <!-- Emoji Picker for Reactions -->
+          <div v-if="activeReactionMessage === message.id" class="emoji-picker-inline">
+            <span 
+              v-for="emoji in reactionEmojis"
+              :key="emoji"
+              @click="addReactionToMessage(message.id, emoji)"
+              class="emoji-option"
+            >
+              {{ emoji }}
+            </span>
+          </div>
+
+          <!-- Translate Section -->
+          <div v-if="activeTranslateMessage === message.id" class="translate-section">
+            <select v-model="translateLang" class="lang-select">
+              <option value="es">🇪🇸 Spanish</option>
+              <option value="fr">🇫🇷 French</option>
+              <option value="de">🇩🇪 German</option>
+              <option value="it">🇮🇹 Italian</option>
+              <option value="pt">🇵🇹 Portuguese</option>
+              <option value="ja">🇯🇵 Japanese</option>
+              <option value="zh">🇨🇳 Chinese</option>
+              <option value="ko">🇰🇷 Korean</option>
+            </select>
+            <button 
+              @click="translateMessage(message.id, message.content)"
+              class="translate-btn"
+            >
+              Translate
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Input Area -->
-      <div class="chat-input-area">
-        <textarea
-          v-model="newMessage"
-          placeholder="Share your thoughts with the universe... (max 500 chars)"
-          class="message-input"
-          maxlength="500"
-          @keyup.ctrl.enter="sendMessage"
-          @keyup.meta.enter="sendMessage"
-        ></textarea>
-
-        <div class="input-actions">
-          <span class="char-count">{{ newMessage.length }}/500</span>
-          <button
-            @click="sendMessage"
-            :disabled="!newMessage.trim() || loading"
-            class="send-btn"
-          >
-            🚀 Send
-          </button>
-        </div>
-      </div>
-
-      <!-- Status Indicator -->
-      <div v-if="error" class="error-message">
-        ⚠️ {{ error }}
+      <!-- Loading More -->
+      <div v-if="loading && messages.length > 0" class="loading-more">
+        <span class="spinner-small">⏳</span>
+        <p>Loading more messages...</p>
       </div>
     </div>
-
-    <template #fallback>
-      <div class="loading-chat">
-        <div class="loading-spinner"></div>
-        <span>Loading Universe Chat...</span>
-      </div>
-    </template>
-  </ClientOnly>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
-import { useUniverseMessage } from '~/composables/use-universe-message'
-import { useAuth } from '~/composables/use-auth'
+import { ref, computed } from 'vue'
 
-// Composables
-const { fetchMessages, postMessage, likeMessage, deleteMessage, replyToMessage, messages, loading, error } = useUniverseMessage()
-const { user } = useAuth()
-
-// Reactive state
-const newMessage = ref('')
-const messagesContainer = ref<HTMLElement | null>(null)
-const onlineUsers = ref(Math.floor(Math.random() * 150) + 50)
-const gunStatus = ref<'connecting' | 'connected' | 'offline'>('connecting')
-
-// Filter state
-const selectedCountry = ref('')
-const selectedInterest = ref('')
-const selectedLanguage = ref('en')
-
-// Reply state
-const replyingTo = ref<string | null>(null)
-const replyContent = ref('')
-
-// Current user
-const currentUserId = computed(() => user.value?.id || null)
-
-// Status text
-const statusText = computed(() => {
-  switch (gunStatus.value) {
-    case 'connecting':
-      return 'Connecting...'
-    case 'connected':
-      return 'Connected'
-    case 'offline':
-      return 'Offline Mode'
-    default:
-      return 'Unknown'
+interface Message {
+  id: string
+  user?: {
+    id: string
+    name: string
+    avatar?: string
+    location?: string
   }
-})
-
-// Load messages on mount
-onMounted(async () => {
-  try {
-    gunStatus.value = 'connecting'
-    
-    // Fetch initial messages
-    await fetchMessages({
-      country: selectedCountry.value || undefined,
-      interest: selectedInterest.value || undefined,
-      language: selectedLanguage.value
-    })
-
-    gunStatus.value = 'connected'
-
-    // Simulate online users update
-    setInterval(() => {
-      onlineUsers.value = Math.floor(Math.random() * 150) + 50
-    }, 5000)
-
-  } catch (err) {
-    console.error('Failed to load messages:', err)
-    gunStatus.value = 'offline'
-  }
-})
-
-// Send message
-const sendMessage = async () => {
-  if (!newMessage.value.trim()) return
-
-  try {
-    await postMessage(newMessage.value, {
-      country: selectedCountry.value || undefined,
-      interest: selectedInterest.value || undefined,
-      language: selectedLanguage.value
-    })
-
-    newMessage.value = ''
-    scrollToBottom()
-  } catch (err) {
-    console.error('Failed to send message:', err)
-  }
+  content: string
+  timestamp: string
+  likes?: number
+  liked?: boolean
+  reactions?: string[]
+  fileUrl?: string
+  fileType?: string
+  fileName?: string
 }
 
-// Apply filters
-const applyFilters = async () => {
-  try {
-    await fetchMessages({
-      country: selectedCountry.value || undefined,
-      interest: selectedInterest.value || undefined,
-      language: selectedLanguage.value
-    })
-    scrollToBottom()
-  } catch (err) {
-    console.error('Failed to apply filters:', err)
-  }
+interface Props {
+  messages: Message[]
+  onlineCount: number
+  matchedUsers?: any[]
+  loading?: boolean
+  error?: string | null
 }
 
-// Like message
-const likeMessageHandler = async (messageId: string) => {
-  try {
-    await likeMessage(messageId)
-  } catch (err) {
-    console.error('Failed to like message:', err)
-  }
+defineProps<Props>()
+
+const emit = defineEmits<{
+  'send-message': [content: string]
+  'like-message': [messageId: string]
+  'add-reaction': [messageId: string, emoji: string]
+  'translate-message': [messageId: string, text: string, lang: string]
+  'send-gift': [userId: string, messageId: string]
+  'load-more': []
+  'close-error': []
+}>()
+
+// State
+const activeReactionMessage = ref<string | null>(null)
+const activeTranslateMessage = ref<string | null>(null)
+const translateLang = ref('es')
+const hasMore = ref(true)
+
+const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '👏']
+
+// Methods
+const formatTime = (timestamp: string): string => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  
+  return date.toLocaleDateString()
 }
 
-// Delete message
-const deleteMessageHandler = async (messageId: string) => {
-  if (confirm('Are you sure you want to delete this message?')) {
-    try {
-      await deleteMessage(messageId)
-    } catch (err) {
-      console.error('Failed to delete message:', err)
-    }
-  }
+const isOwnMessage = (message: Message): boolean => {
+  // Implement logic to check if message is from current user
+  return false
 }
 
-// Reply handlers
-const toggleReplyForm = (messageId: string | null) => {
-  replyingTo.value = messageId
-  replyContent.value = ''
+const toggleReactions = (messageId: string): void => {
+  activeReactionMessage.value = activeReactionMessage.value === messageId ? null : messageId
 }
 
-const submitReply = async (messageId: string) => {
-  if (!replyContent.value.trim()) return
-
-  try {
-    await replyToMessage(messageId, replyContent.value)
-    replyingTo.value = null
-    replyContent.value = ''
-  } catch (err) {
-    console.error('Failed to reply:', err)
-  }
+const addReactionToMessage = (messageId: string, emoji: string): void => {
+  emit('add-reaction', messageId, emoji)
+  activeReactionMessage.value = null
 }
 
-// Utility functions
-const formatTime = (timestamp: string) => {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const toggleTranslate = (messageId: string): void => {
+  activeTranslateMessage.value = activeTranslateMessage.value === messageId ? null : messageId
 }
 
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-    }
-  })
+const translateMessage = (messageId: string, text: string): void => {
+  emit('translate-message', messageId, text, translateLang.value)
+  activeTranslateMessage.value = null
 }
 </script>
 
 <style scoped>
 .universe-chat-window {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 600px;
-  border: 1px solid #e1e5e9;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: #f9f9f9;
 }
 
-.chat-header {
+/* Error Banner */
+.error-banner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-bottom: 2px solid #667eea;
-}
-
-.chat-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.online-count {
+  padding: 12px 16px;
+  background: #fee;
+  color: #c33;
+  border-bottom: 1px solid #fcc;
   font-size: 14px;
-  opacity: 0.9;
 }
 
-.status-indicator {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.status-indicator.connected {
-  background: #4caf50;
-}
-
-.status-indicator.offline {
-  background: #ff9800;
-}
-
-.chat-filters {
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  background: white;
-  border-bottom: 1px solid #e1e5e9;
-  flex-wrap: wrap;
-}
-
-.filter-select,
-.filter-btn {
-  padding: 8px 12px;
-  border: 1px solid #e1e5e9;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  background: white;
-  transition: all 0.3s ease;
-}
-
-.filter-select:hover,
-.filter-btn:hover {
-  border-color: #667eea;
-  background: #f5f7fa;
-}
-
-.filter-btn {
-  background: #667eea;
-  color: white;
+.btn-close {
+  background: none;
   border: none;
-  font-weight: 600;
+  color: #c33;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
 }
 
-.messages-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  background: white;
-}
-
+/* Loading & Empty States */
 .loading-state,
 .empty-state {
   display: flex;
@@ -407,15 +286,12 @@ const scrollToBottom = () => {
   justify-content: center;
   height: 100%;
   color: #999;
-  gap: 12px;
+  text-align: center;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
-  border-radius: 50%;
+  font-size: 48px;
+  margin-bottom: 1rem;
   animation: spin 1s linear infinite;
 }
 
@@ -424,254 +300,288 @@ const scrollToBottom = () => {
   100% { transform: rotate(360deg); }
 }
 
-.message-item {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 1rem;
 }
 
-.message-item:hover {
-  background: #f0f0f0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.message-item.own-message {
-  flex-direction: row-reverse;
-  background: #e3f2fd;
-}
-
-.message-avatar {
-  flex-shrink: 0;
-}
-
-.avatar-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.message-content {
+/* Messages Container */
+.messages-container {
   flex: 1;
-  min-width: 0;
-}
-
-.message-header {
+  overflow-y: auto;
+  padding: 1rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.username {
-  font-weight: 600;
-  color: #333;
-  font-size: 14px;
-}
-
-.timestamp {
-  font-size: 12px;
-  color: #999;
-}
-
-.message-metadata {
+.load-more-section {
   display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1rem;
 }
 
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.badge.country {
-  background: #e1f5fe;
-  color: #01579b;
-}
-
-.badge.interest {
-  background: #f3e5f5;
-  color: #4a148c;
-}
-
-.message-text {
-  color: #333;
-  font-size: 14px;
-  line-height: 1.4;
-  word-wrap: break-word;
-  margin-bottom: 8px;
-}
-
-.message-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.action-btn {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.action-btn:hover {
-  background: #f5f5f5;
-  border-color: #667eea;
-}
-
-.action-btn.delete:hover {
-  background: #ffebee;
-  border-color: #f44336;
-}
-
-.reply-form {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #ddd;
-}
-
-.reply-input {
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.reply-btn,
-.cancel-btn {
-  padding: 6px 12px;
+.load-more-btn {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
   border: none;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 13px;
+  transition: all 0.3s;
 }
 
-.reply-btn {
+.load-more-btn:hover {
+  background: #764ba2;
+  transform: translateY(-2px);
+}
+
+/* Message Wrapper */
+.message-wrapper {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.message-wrapper.own-message {
+  justify-content: flex-end;
+}
+
+.message-bubble {
+  max-width: 70%;
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+}
+
+.message-bubble:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.message-bubble.own-message {
   background: #667eea;
   color: white;
 }
 
-.cancel-btn {
-  background: #f5f5f5;
-  color: #333;
-}
-
-.chat-input-area {
-  padding: 12px;
-  background: white;
-  border-top: 1px solid #e1e5e9;
-}
-
-.message-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #e1e5e9;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 60px;
-  max-height: 120px;
-  margin-bottom: 8px;
-}
-
-.message-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.input-actions {
+/* Message Header */
+.message-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
 }
 
-.char-count {
-  font-size: 12px;
-  color: #999;
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.send-btn {
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
-.send-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.send-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.error-message {
-  padding: 8px 12px;
-  background: #ffebee;
-  color: #c62828;
-  font-size: 12px;
-  border-top: 1px solid #ef5350;
-}
-
-.loading-chat {
+.user-details {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 600px;
-  gap: 12px;
+  gap: 2px;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.message-bubble.own-message .user-name {
+  color: white;
+}
+
+.user-location {
+  font-size: 11px;
   color: #999;
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.message-bubble.own-message .user-location {
+  color: rgba(255, 255, 255, 0.8);
 }
 
-/* Scrollbar styling */
-.messages-container::-webkit-scrollbar {
-  width: 8px;
+.message-time {
+  font-size: 11px;
+  color: #999;
 }
 
-.messages-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.message-bubble.own-message .message-time {
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.messages-container::-webkit-scrollbar-thumb {
-  background: #888;
+/* Message Content */
+.message-content {
+  margin-bottom: 8px;
+}
+
+.text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.message-image,
+.message-video {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+/* Message Actions */
+.message-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.action-btn {
+  padding: 4px 8px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.message-bubble.own-message .action-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.action-btn:hover {
+  background: #e0e0e0;
+}
+
+.action-btn.active {
+  background: #667eea;
+  color: white;
+}
+
+/* Reactions */
+.reactions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.reaction {
+  font-size: 16px;
+  padding: 2px 4px;
+  background: #f0f0f0;
   border-radius: 4px;
 }
 
-.messages-container::-webkit-scrollbar-thumb:hover {
-  background: #555;
+/* Emoji Picker Inline */
+.emoji-picker-inline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 8px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.emoji-option {
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.emoji-option:hover {
+  background: white;
+  transform: scale(1.2);
+}
+
+/* Translate Section */
+.translate-section {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.lang-select {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.translate-btn {
+  padding: 6px 12px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.translate-btn:hover {
+  background: #764ba2;
+}
+
+/* Loading More */
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 1rem;
+  color: #999;
+  font-size: 14px;
+}
+
+.spinner-small {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .message-bubble {
+    max-width: 90%;
+  }
+
+  .emoji-picker-inline {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .message-actions {
+    gap: 4px;
+  }
+
+  .action-btn {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
 }
 </style>
