@@ -1,309 +1,335 @@
-<!-- components/chat/ChatHeader.vue -->
+<!-- components/chat/universe-chat-header.vue -->
+<!-- ============================================================================
+     UNIVERSE CHAT HEADER - Header with filters and search
+     ============================================================================ -->
+
 <template>
-  <div class="chat-header">
-    <div class="header-left">
-      <div class="app-logo">
-        <h2>SocialVerse</h2>
+  <div class="universe-chat-header">
+    <!-- Title & Status -->
+    <div class="header-top">
+      <div class="title-section">
+        <h2>🌍 Universe Chat</h2>
+        <p class="subtitle">Connect with people worldwide</p>
       </div>
-      <div class="status-indicators">
-        <span class="online-count">{{ onlineCount }} online</span>
-        <div class="unread-badge" v-if="unreadCount > 0">
+      <div class="status-section">
+        <div class="online-indicator">
+          <span class="dot"></span>
+          <span class="count">{{ onlineCount }} online</span>
+        </div>
+        <div v-if="unreadCount > 0" class="unread-badge">
           {{ unreadCount > 99 ? '99+' : unreadCount }}
         </div>
       </div>
     </div>
 
-    <div class="header-center">
+    <!-- Search Bar -->
+    <div class="search-section">
       <div class="search-container">
-        <input
-          type="text"
-          placeholder="Search chats, contacts..."
-          v-model="searchInput"
+        <input 
+          v-model="searchQuery"
           @input="handleSearch"
+          type="text"
+          placeholder="🔍 Search messages..."
           class="search-input"
         />
-        <Icon name="search" class="search-icon" />
       </div>
     </div>
 
-    <div class="header-right">
-      <!-- Status Button -->
-      <button 
-        class="header-btn status-btn"
-        @click="$emit('openStatus')"
-        :class="{ 'has-status': user.hasActiveStatus }"
+    <!-- Filters -->
+    <div class="filters-section">
+      <select 
+        v-model="selectedCountry"
+        @change="emitFilterChange"
+        class="filter-select"
+        title="Filter by country"
       >
-        <div class="status-avatar">
-          <img :src="user.avatar || '/default-avatar.png'" :alt="user.username" />
-          <div class="status-indicator" v-if="user.hasActiveStatus"></div>
-        </div>
-      </button>
+        <option value="">🌐 All Countries</option>
+        <option value="US">🇺🇸 United States</option>
+        <option value="UK">🇬🇧 United Kingdom</option>
+        <option value="CA">🇨🇦 Canada</option>
+        <option value="AU">🇦🇺 Australia</option>
+        <option value="IN">🇮🇳 India</option>
+        <option value="BR">🇧🇷 Brazil</option>
+        <option value="DE">🇩🇪 Germany</option>
+        <option value="FR">🇫🇷 France</option>
+        <option value="JP">🇯🇵 Japan</option>
+        <option value="CN">🇨🇳 China</option>
+        <option value="MX">🇲🇽 Mexico</option>
+      </select>
 
-      <!-- More Menu -->
-      <div class="more-menu" ref="moreMenu">
-        <button class="header-btn more-btn" @click="toggleMoreMenu">
-          <Icon name="more-vertical" />
-        </button>
-        
-        <div class="dropdown-menu" v-if="showMoreMenu">
-          <button @click="$emit('openSettings')" class="menu-item">
-            <Icon name="settings" />
-            Settings
-          </button>
-          <button @click="handleLogout" class="menu-item">
-            <Icon name="log-out" />
-            Logout
-          </button>
-        </div>
-      </div>
+      <select 
+        v-model="selectedInterest"
+        @change="emitFilterChange"
+        class="filter-select"
+        title="Filter by interest"
+      >
+        <option value="">💡 All Interests</option>
+        <option value="tech">💻 Technology</option>
+        <option value="gaming">🎮 Gaming</option>
+        <option value="sports">⚽ Sports</option>
+        <option value="music">🎵 Music</option>
+        <option value="art">🎨 Art</option>
+        <option value="travel">✈️ Travel</option>
+        <option value="food">🍕 Food</option>
+        <option value="fitness">💪 Fitness</option>
+        <option value="business">💼 Business</option>
+        <option value="education">📚 Education</option>
+      </select>
+
+      <select 
+        v-model="selectedLanguage"
+        @change="emitFilterChange"
+        class="filter-select"
+        title="Filter by language"
+      >
+        <option value="en">🇬🇧 English</option>
+        <option value="es">🇪🇸 Spanish</option>
+        <option value="fr">🇫🇷 French</option>
+        <option value="de">🇩🇪 German</option>
+        <option value="it">🇮🇹 Italian</option>
+        <option value="pt">🇵🇹 Portuguese</option>
+        <option value="ru">🇷🇺 Russian</option>
+        <option value="ja">🇯🇵 Japanese</option>
+        <option value="zh">🇨🇳 Chinese</option>
+        <option value="ko">🇰🇷 Korean</option>
+      </select>
+
+      <button 
+        @click="clearFilters"
+        class="clear-btn"
+        title="Clear all filters"
+      >
+        ✕ Clear
+      </button>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import Icon from '@/components/ui/icon.vue'
+<script setup lang="ts">
+import { ref } from 'vue'
 
-// Props
-const props = defineProps({
-  user: Object,
-  unreadCount: { type: Number, default: 0 },
-  onlineCount: { type: Number, default: 0 }
-})
+interface Props {
+  onlineCount: number
+  unreadCount: number
+}
 
-// Emits
-const emit = defineEmits(['search', 'openSettings', 'openStatus'])
+defineProps<Props>()
 
-// Router and stores
-const router = useRouter()
-const userStore = useUserStore()
+const emit = defineEmits<{
+  search: [query: string]
+  'filter-change': [filters: any]
+}>()
 
-// Reactive data
-const searchInput = ref('')
-const showMoreMenu = ref(false)
-const moreMenu = ref(null)
+// State
+const searchQuery = ref('')
+const selectedCountry = ref('')
+const selectedInterest = ref('')
+const selectedLanguage = ref('en')
 
 // Methods
-const handleSearch = () => {
-  emit('search', searchInput.value)
+const handleSearch = (): void => {
+  emit('search', searchQuery.value)
 }
 
-const toggleMoreMenu = () => {
-  showMoreMenu.value = !showMoreMenu.value
+const emitFilterChange = (): void => {
+  emit('filter-change', {
+    country: selectedCountry.value,
+    interest: selectedInterest.value,
+    language: selectedLanguage.value
+  })
 }
 
-const handleLogout = async () => {
-  try {
-    await userStore.logout()
-    router.push('/login')
-  } catch (error) {
-    console.error('Logout error:', error)
-  }
+const clearFilters = (): void => {
+  searchQuery.value = ''
+  selectedCountry.value = ''
+  selectedInterest.value = ''
+  selectedLanguage.value = 'en'
+  emitFilterChange()
 }
-
-const handleClickOutside = (event) => {
-  if (moreMenu.value && !moreMenu.value.contains(event.target)) {
-    showMoreMenu.value = false
-  }
-}
-
-// Lifecycle
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 </script>
 
 <style scoped>
-.chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
+.universe-chat-header {
   background: white;
   border-bottom: 1px solid #e0e0e0;
-  height: 64px;
-}
-
-.header-left {
+  padding: 1rem;
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.app-logo h2 {
-  margin: 0;
-  color: #1976d2;
+/* Header Top */
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-section h2 {
+  margin: 0 0 4px 0;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #1f2937;
 }
 
-.status-indicators {
+.subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.status-section {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.online-count {
-  font-size: 12px;
+.online-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
   color: #666;
 }
 
-.unread-badge {
-  background: #f44336;
-  color: white;
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  min-width: 20px;
-  text-align: center;
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse 2s infinite;
 }
 
-.header-center {
-  flex: 1;
-  max-width: 400px;
-  margin: 0 24px;
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.unread-badge {
+  background: #ef4444;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Search Section */
+.search-section {
+  display: flex;
 }
 
 .search-container {
-  position: relative;
+  flex: 1;
 }
 
 .search-input {
   width: 100%;
-  padding: 8px 40px 8px 16px;
+  padding: 10px 12px;
   border: 1px solid #e0e0e0;
-  border-radius: 20px;
+  border-radius: 6px;
   font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.3s;
 }
 
 .search-input:focus {
-  border-color: #1976d2;
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.search-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #666;
-  width: 16px;
-  height: 16px;
-}
-
-.header-right {
+/* Filters Section */
+.filters-section {
   display: flex;
-  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.header-btn {
-  background: none;
-  border: none;
-  padding: 8px;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.header-btn:hover {
-  background: #f5f5f5;
-}
-
-.status-btn {
-  padding: 4px;
-}
-
-.status-avatar {
-  position: relative;
-  width: 32px;
-  height: 32px;
-}
-
-.status-avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.status-indicator {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  background: #4caf50;
-  border: 2px solid white;
-  border-radius: 50%;
-}
-
-.more-menu {
-  position: relative;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
+.filter-select {
+  padding: 8px 12px;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  min-width: 150px;
-  z-index: 1000;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px 16px;
-  border: none;
-  background: none;
-  text-align: left;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
+  transition: all 0.3s;
+  flex: 1;
+  min-width: 140px;
 }
 
-.menu-item:hover {
-  background: #f5f5f5;
+.filter-select:hover {
+  border-color: #667eea;
+  background: #f9f9f9;
 }
 
-.menu-item:first-child {
-  border-radius: 8px 8px 0 0;
+.filter-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.menu-item:last-child {
-  border-radius: 0 0 8px 8px;
+.clear-btn {
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.3s;
 }
 
-/* Mobile responsive */
+.clear-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .chat-header {
-    padding: 8px 12px;
+  .universe-chat-header {
+    padding: 0.75rem;
+    gap: 0.75rem;
   }
-  
-  .header-center {
-    margin: 0 12px;
+
+  .filters-section {
+    gap: 6px;
   }
-  
-  .app-logo h2 {
+
+  .filter-select {
+    min-width: 120px;
+    font-size: 12px;
+  }
+
+  .title-section h2 {
     font-size: 18px;
   }
-  
-  .status-indicators {
-    display: none;
+}
+
+@media (max-width: 480px) {
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .filters-section {
+    width: 100%;
+  }
+
+  .filter-select {
+    flex: 1;
+    min-width: 100px;
   }
 }
 </style>
