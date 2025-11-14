@@ -213,7 +213,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 import ChatListItem from './ChatListItem.vue'
 import StatusListItem from './StatusListItem.vue'
 import CallHistoryItem from './CallHistoryItem.vue'
