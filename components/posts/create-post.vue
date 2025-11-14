@@ -35,10 +35,24 @@
         </span>
       </div>
 
-      <!-- Media Preview -->
+      <!-- Media Preview with Upload Progress -->
       <div v-if="previewUrl" class="media-preview">
         <img :src="previewUrl" alt="Preview" class="preview-image" />
         <button @click="removeMedia" class="remove-media">✕</button>
+        
+        <!-- Upload Progress Bar -->
+        <div v-if="uploading" class="upload-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
+          </div>
+          <span class="progress-text">{{ progressPercentage }}%</span>
+        </div>
+      </div>
+
+      <!-- Upload Error Message -->
+      <div v-if="uploadError" class="error-message">
+        {{ uploadError }}
+        <button @click="clearUploadError" class="clear-error">✕</button>
       </div>
 
       <!-- Action Buttons -->
@@ -47,7 +61,12 @@
           <button @click="toggleEmojiPicker" class="action-btn" title="Add emoji">
             😊
           </button>
-          <button @click="triggerFileInput" class="action-btn" title="Add photo/video">
+          <button 
+            @click="triggerFileInput" 
+            class="action-btn" 
+            title="Add photo/video"
+            :disabled="uploading"
+          >
             🖼️
           </button>
           <button @click="addGif" class="action-btn" title="Add GIF">
@@ -60,7 +79,7 @@
         
         <button 
           @click="publishPost" 
-          :disabled="!postContent.trim() || publishing"
+          :disabled="!postContent.trim() || publishing || uploading"
           class="publish-btn"
         >
           {{ publishing ? 'Publishing...' : 'Post' }}
@@ -107,12 +126,24 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
+import { useFileUpload } from '~/composables/use-file-upload'
 
 // Props & Emits
 const emit = defineEmits(['postCreated'])
 
 // Stores
 const authStore = useAuthStore()
+
+// Composables
+const { 
+  uploading, 
+  progress, 
+  progressPercentage,
+  error: uploadError,
+  uploadedFiles,
+  uploadFile,
+  clearError: clearUploadError
+} = useFileUpload()
 
 // Reactive Data
 const postContent = ref('')
@@ -122,6 +153,7 @@ const previewUrl = ref(null)
 const mediaFile = ref(null)
 const showPrivacy = ref(false)
 const selectedPrivacy = ref('public')
+const uploadedFileData = ref(null)
 
 // Refs
 const fileInputRef = ref(null)
@@ -160,18 +192,48 @@ function triggerFileInput() {
   fileInputRef.value?.click()
 }
 
-function handleMediaUpload(event) {
+async function handleMediaUpload(event) {
   const file = event.target.files[0]
   if (file) {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm']
+    if (!validTypes.includes(file.type)) {
+      clearUploadError()
+      return
+    }
+
+    // Validate file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024
+    if (file.size > maxSize) {
+      clearUploadError()
+      return
+    }
+
     mediaFile.value = file
     previewUrl.value = URL.createObjectURL(file)
+
+    // Upload file using composable
+    try {
+      const uploadedFile = await uploadFile(file, 'posts', {
+        optimize: true,
+        generateThumbnail: file.type.startsWith('image/')
+      })
+
+      if (uploadedFile) {
+        uploadedFileData.value = uploadedFile
+      }
+    } catch (err) {
+      console.error('Upload error:', err)
+    }
   }
 }
 
 function removeMedia() {
   previewUrl.value = null
   mediaFile.value = null
+  uploadedFileData.value = null
   if (fileInputRef.value) fileInputRef.value.value = ''
+  clearUploadError()
 }
 
 function togglePrivacy() {
@@ -190,7 +252,7 @@ function addGif() {
 }
 
 function updateCharCount() {
-  // Reactive update
+  // Reactive update - Vue handles this automatically
 }
 
 async function publishPost() {
@@ -203,7 +265,8 @@ async function publishPost() {
     const postData = {
       content: postContent.value,
       privacy: selectedPrivacy.value,
-      media_url: previewUrl.value,
+      media_url: uploadedFileData.value?.url || null,
+      media_path: uploadedFileData.value?.path || null,
       user_id: authStore.user.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -290,12 +353,12 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
-  color: white;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 18px;
 }
 
@@ -305,209 +368,250 @@ onMounted(() => {
 
 .user-name {
   font-weight: 600;
-  color: #1f2937;
-  font-size: 15px;
+  color: #333;
 }
 
 .user-handle {
-  color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
+  color: #999;
 }
 
 .post-textarea {
   width: 100%;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 1rem;
+  border: none;
+  resize: none;
+  font-size: 16px;
   font-family: inherit;
-  resize: vertical;
-  transition: all 0.2s;
-  color: #1f2937;
+  color: #333;
+  margin-bottom: 1rem;
 }
 
 .post-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .char-counter {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 4px;
+  text-align: right;
   font-size: 12px;
-  color: #6b7280;
+  color: #999;
+  margin-bottom: 1rem;
 }
 
 .char-warning {
-  color: #f59e0b;
+  color: #ff6b6b;
   font-weight: 600;
 }
 
 .media-preview {
   position: relative;
-  margin: 1rem 0;
+  margin-bottom: 1rem;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 300px;
+  background: #f5f5f5;
 }
 
 .preview-image {
   width: 100%;
-  height: auto;
-  display: block;
+  max-height: 300px;
+  object-fit: cover;
 }
 
 .remove-media {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: none;
-  border-radius: 50%;
   width: 32px;
   height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.3s;
 }
 
 .remove-media:hover {
-  background: rgba(0, 0, 0, 0.9);
-  transform: scale(1.1);
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.upload-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #667eea;
+  transition: width 0.3s;
+}
+
+.progress-text {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 35px;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.clear-error {
+  background: none;
+  border: none;
+  color: #c33;
+  cursor: pointer;
+  font-size: 18px;
 }
 
 .post-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1rem;
   gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .action-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .action-btn {
-  background: transparent;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   border: 1px solid #e0e0e0;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  background: white;
   cursor: pointer;
-  font-size: 1.25rem;
-  transition: all 0.3s ease;
+  font-size: 18px;
+  transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   background: #f5f5f5;
-  border-color: #2563eb;
+  border-color: #667eea;
 }
 
-.publish-btn {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
-  color: white;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 100px;
-}
-
-.publish-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.publish-btn:disabled {
+.action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
+.publish-btn {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.publish-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.publish-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .emoji-picker {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  width: 100%;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 0.5rem;
-  padding: 1rem;
-  background: white;
-  border: 1px solid #e5e7eb;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  margin-bottom: 1rem;
 }
 
 .emoji-option {
-  font-size: 1.5rem;
+  font-size: 24px;
   cursor: pointer;
-  padding: 0.5rem;
+  text-align: center;
+  padding: 8px;
   border-radius: 6px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: background 0.3s;
 }
 
 .emoji-option:hover {
-  background: #f3f4f6;
-  transform: scale(1.2);
+  background: white;
 }
 
 .privacy-selector {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  width: 100%;
-  background: white;
-  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  margin-bottom: 1rem;
 }
 
 .privacy-option {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0.75rem 1rem;
+  padding: 10px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.3s;
 }
 
 .privacy-option:hover {
-  background: #f3f4f6;
+  background: white;
 }
 
 .privacy-icon {
-  font-size: 1.25rem;
+  font-size: 18px;
 }
 
 .privacy-label {
   font-weight: 500;
-  color: #1f2937;
+  color: #333;
 }
 
 .file-input {
   display: none;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .create-form {
-    padding: 1rem;
+@media (max-width: 640px) {
+  .emoji-picker {
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .post-actions {
@@ -515,32 +619,8 @@ onMounted(() => {
     align-items: stretch;
   }
 
-  .action-buttons {
-    width: 100%;
-    justify-content: space-between;
-  }
-
   .publish-btn {
     width: 100%;
-  }
-
-  .emoji-picker {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .action-buttons {
-    flex-wrap: wrap;
-  }
-
-  .action-btn {
-    flex: 1;
-    min-width: 50px;
-  }
-
-  .emoji-picker {
-    grid-template-columns: repeat(5, 1fr);
   }
 }
 </style>
