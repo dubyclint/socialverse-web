@@ -221,7 +221,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import Icon from '@/components/ui/icon.vue'
-import ContactItem from './ContactItem.vue'
+import ContactItem from './contact-item.vue'
 
 // Props
 const props = defineProps({
