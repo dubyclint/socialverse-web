@@ -34,7 +34,7 @@
 
 <script setup>
 import { defineProps, defineEmits } from 'vue'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 const props = defineProps({
   call: {
