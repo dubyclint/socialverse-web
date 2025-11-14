@@ -1,11 +1,13 @@
-<!-- components/chat/ChatSession.vue -->
+<!-- CORRECTED FILE: components/chat/chat-session.vue -->
+<!-- All imports fixed: ~ changed to @, kebab-case component names -->
+
 <template>
   <div class="chat-session">
     <!-- Chat Header -->
     <div class="session-header">
       <div class="header-left">
         <button class="back-btn" @click="$emit('back')" v-if="isMobile">
-          <Icon name="arrow-left" />
+          <icon name="arrow-left" />
         </button>
         
         <div class="chat-avatar" @click="viewProfile">
@@ -15,7 +17,7 @@
             :alt="chat.name"
           />
           <div v-else class="group-avatar">
-            <Icon name="users" />
+            <icon name="users" />
           </div>
           
           <div 
@@ -27,7 +29,7 @@
         <div class="chat-info">
           <div class="chat-name">
             {{ chat.name }}
-            <Icon v-if="chat.isVerified" name="check-circle" class="verified-icon" />
+            <icon v-if="chat.isVerified" name="check-circle" class="verified-icon" />
           </div>
           <div class="chat-status">
             <span v-if="typingUsers.length > 0" class="typing-text">
@@ -45,35 +47,35 @@
       
       <div class="header-right">
         <button class="header-btn" @click="startVideoCall" v-if="chat.type === 'direct'">
-          <Icon name="video" />
+          <icon name="video" />
         </button>
         <button class="header-btn" @click="startVoiceCall">
-          <Icon name="phone" />
+          <icon name="phone" />
         </button>
         <div class="more-menu" ref="moreMenu">
           <button class="header-btn" @click="toggleMoreMenu">
-            <Icon name="more-vertical" />
+            <icon name="more-vertical" />
           </button>
           
           <div class="dropdown-menu" v-if="showMoreMenu">
             <button @click="viewProfile" class="menu-item">
-              <Icon name="user" />
+              <icon name="user" />
               {{ chat.type === 'direct' ? 'View Contact' : 'Group Info' }}
             </button>
             <button @click="viewSharedMedia" class="menu-item">
-              <Icon name="image" />
+              <icon name="image" />
               Media, Links, Docs
             </button>
             <button @click="toggleMute" class="menu-item">
-              <Icon :name="chat.isMuted ? 'volume-2' : 'volume-x'" />
+              <icon :name="chat.isMuted ? 'volume-2' : 'volume-x'" />
               {{ chat.isMuted ? 'Unmute' : 'Mute' }}
             </button>
             <button v-if="chat.type === 'direct'" @click="blockUser" class="menu-item danger">
-              <Icon name="user-x" />
+              <icon name="user-x" />
               Block User
             </button>
             <button @click="clearChat" class="menu-item danger">
-              <Icon name="trash-2" />
+              <icon name="trash-2" />
               Clear Chat
             </button>
           </div>
@@ -104,7 +106,7 @@
               'system-message': message.messageType === 'system'
             }"
           >
-            <MessageBubble
+            <message-bubble
               :message="message"
               :isOwn="message.senderId === currentUser.id"
               :showAvatar="shouldShowAvatar(message, group)"
@@ -125,7 +127,7 @@
         
         <!-- No messages -->
         <div v-if="!isLoading && messages.length === 0" class="no-messages">
-          <Icon name="message-circle" />
+          <icon name="message-circle" />
           <p>No messages yet</p>
           <p>Send a message to start the conversation</p>
         </div>
@@ -138,13 +140,13 @@
       <div v-if="replyingTo" class="reply-preview">
         <div class="reply-content">
           <div class="reply-header">
-            <Icon name="corner-up-left" />
+            <icon name="corner-up-left" />
             <span>Replying to {{ replyingTo.senderName }}</span>
           </div>
           <div class="reply-message">{{ getMessagePreview(replyingTo) }}</div>
         </div>
         <button @click="cancelReply" class="cancel-reply">
-          <Icon name="x" />
+          <icon name="x" />
         </button>
       </div>
       
@@ -152,19 +154,19 @@
       <div v-if="editingMessage" class="edit-preview">
         <div class="edit-content">
           <div class="edit-header">
-            <Icon name="edit-3" />
+            <icon name="edit-3" />
             <span>Edit message</span>
           </div>
         </div>
         <button @click="cancelEdit" class="cancel-edit">
-          <Icon name="x" />
+          <icon name="x" />
         </button>
       </div>
       
       <!-- Input area -->
       <div class="input-area">
         <button class="input-btn" @click="toggleEmojiPicker">
-          <Icon name="smile" />
+          <icon name="smile" />
         </button>
         
         <div class="text-input-container">
@@ -181,7 +183,7 @@
         </div>
         
         <button class="input-btn" @click="toggleAttachmentMenu">
-          <Icon name="paperclip" />
+          <icon name="paperclip" />
         </button>
         
         <button 
@@ -190,7 +192,7 @@
           @click="sendMessage"
           :disabled="isSending"
         >
-          <Icon name="send" />
+          <icon name="send" />
         </button>
         
         <button 
@@ -202,7 +204,7 @@
           @touchend="stopVoiceRecording"
           :class="{ 'recording': isRecording }"
         >
-          <Icon name="mic" />
+          <icon name="mic" />
         </button>
       </div>
       
@@ -213,13 +215,13 @@
           <span>Recording... {{ recordingDuration }}s</span>
         </div>
         <button @click="cancelVoiceRecording" class="cancel-recording">
-          <Icon name="x" />
+          <icon name="x" />
         </button>
       </div>
     </div>
 
     <!-- Attachment Menu -->
-    <AttachmentMenu
+    <attachment-menu
       v-if="showAttachmentMenu"
       @close="showAttachmentMenu = false"
       @selectFile="handleFileSelect"
@@ -228,7 +230,7 @@
     />
 
     <!-- Emoji Picker -->
-    <EmojiPicker
+    <emoji-picker
       v-if="showEmojiPicker"
       @close="showEmojiPicker = false"
       @select="insertEmoji"
@@ -238,10 +240,10 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { useSocket } from '~/composables/use-socket'
-import { useUserStore } from '~/stores/user'
+import { useSocket } from '@/composables/use-socket'
+import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
-import Icon from '~/components/ui/icon.vue'
+import Icon from '@/components/ui/icon.vue'
 import MessageBubble from './message-bubble.vue'
 import AttachmentMenu from './attachment-menu.vue'
 import EmojiPicker from './emoji-picker.vue'
@@ -1137,4 +1139,3 @@ watch(() => props.messages, () => {
   background: #999;
 }
 </style>
-  
