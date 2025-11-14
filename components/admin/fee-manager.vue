@@ -13,7 +13,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useAdminControl } from '@/composables/use-admin-control.js'
+import { useAdminControl } from '@/composables/use-admin-control'
 
 const swapLow = ref(0)
 const swapHigh = ref(0)
