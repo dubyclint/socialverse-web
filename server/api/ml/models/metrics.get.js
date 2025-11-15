@@ -10,8 +10,6 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get ML service instance
-    const { MLService } = await import('~/server/_
-    // Get ML service instance
     const { MLService } = await import('~/server/ml/core/MLService.js')
     
     // This would be a singleton in production
