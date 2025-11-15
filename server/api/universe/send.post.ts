@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { content, country, interest, language = 'en' } = body
 
-    if (!content || !content.trim()) {
+    if (!content) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Message content is required'
@@ -24,25 +24,20 @@ export default defineEventHandler(async (event) => {
     }
 
     const supabase = await serverSupabaseClient(event)
-    const messageId = crypto.randomUUID()
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     // Insert message
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('universe_messages')
       .insert({
         id: messageId,
         user_id: user.id,
-        content: content.trim(),
+        content,
         country: country || null,
         interest: interest || null,
         language: language || 'en',
-        likes: 0,
-        replies: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: new Date().toISOString()
       })
-      .select()
-      .single()
 
     if (error) {
       throw createError({
@@ -56,14 +51,12 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: {
         id: messageId,
-        user_id: user.id,
+        userId: user.id,
         content,
-        country: country || null,
-        interest: interest || null,
-        language: language || 'en',
-        likes: 0,
-        replies: 0,
-        created_at: new Date().toISOString()
+        country,
+        interest,
+        language,
+        timestamp: new Date().toISOString()
       }
     }
 
