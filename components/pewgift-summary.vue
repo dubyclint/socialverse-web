@@ -1,5 +1,5 @@
 <template>
-  <div class="gift-summary">
+  <div class="pewgift-summary">
     <h3>Gift Summary</h3>
     <p>Total Gifts Received: {{ totalReceived }} USDC</p>
     <p>Total Gifts Sent: {{ totalSent }} USDC</p>
