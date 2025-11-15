@@ -1,6 +1,4 @@
-// FILE: /nuxt.config.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// NUXT 3 CONFIGURATION WITH ROUTER FIX FOR NAVIGATION ISSUES
+// FIXED: /nuxt.config.ts
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -20,22 +18,14 @@ export default defineNuxtConfig({
   ],
 
   // ============================================================================
-  // ROUTER CONFIGURATION - FIXED FOR NAVIGATION ISSUES
+  // ROUTER CONFIGURATION - FIXED
   // ============================================================================
-  router: {
-    options: {
-      strict: false,
-      sensitive: false,
-      history: 'history', // Use history mode instead of hash mode
-    },
-    scrollBehavior(to, from, savedPosition) {
-      if (savedPosition) {
-        return savedPosition
-      } else {
-        return { left: 0, top: 0 }
-      }
-    }
-  },
+  // REMOVED: router.options.history configuration
+  // Nuxt 3 handles history mode automatically
+  // NO NEED to manually configure history mode
+  
+  // If you need custom scroll behavior, use a plugin instead:
+  // See: /plugins/router-scroll.client.ts (to be created)
 
   // ============================================================================
   // ENABLE FILE-BASED ROUTING
