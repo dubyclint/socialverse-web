@@ -1,4 +1,4 @@
-// server/api/controllers/matchController.js
+// server/api/controllers/match.js
 import { supabase } from '../../../utils/supabase.js';
 
 export class MatchController {
@@ -332,4 +332,36 @@ export class MatchController {
       if (sentError) throw sentError;
 
       // Get received requests stats
-      const { data: receive
+      const { data: receivedRequests, error: receivedError } = await supabase
+        .from('match_requests')
+        .select('status')
+        .eq('target_user_id', userId);
+
+      if (receivedError) throw receivedError;
+
+      // Calculate stats
+      const stats = {
+        sent: {
+          total: sentRequests.length,
+          pending: sentRequests.filter(r => r.status === 'pending').length,
+          accepted: sentRequests.filter(r => r.status === 'accepted').length,
+          declined: sentRequests.filter(r => r.status === 'declined').length
+        },
+        received: {
+          total: receivedRequests.length,
+          pending: receivedRequests.filter(r => r.status === 'pending').length,
+          accepted: receivedRequests.filter(r => r.status === 'accepted').length,
+          declined: receivedRequests.filter(r => r.status === 'declined').length
+        }
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Error fetching match stats:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+}
