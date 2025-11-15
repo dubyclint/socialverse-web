@@ -1,4 +1,5 @@
-// FIXED: /nuxt.config.ts
+// ============================================================================
+// UPDATED: /nuxt.config.ts
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -16,16 +17,6 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase',
     '@nuxtjs/color-mode',
   ],
-
-  // ============================================================================
-  // ROUTER CONFIGURATION - FIXED
-  // ============================================================================
-  // REMOVED: router.options.history configuration
-  // Nuxt 3 handles history mode automatically
-  // NO NEED to manually configure history mode
-  
-  // If you need custom scroll behavior, use a plugin instead:
-  // See: /plugins/router-scroll.client.ts (to be created)
 
   // ============================================================================
   // ENABLE FILE-BASED ROUTING
@@ -48,6 +39,11 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3000',
+      // ============================================================================
+      // CDN CONFIGURATION
+      // ============================================================================
+      cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '', // e.g., https://cdn.example.com
+      cdnEnabled: process.env.NUXT_PUBLIC_CDN_ENABLED === 'true' || false,
     }
   },
 
@@ -59,11 +55,38 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // VITE CONFIGURATION
+  // VITE CONFIGURATION - PRODUCTION OPTIMIZATIONS
   // ============================================================================
   vite: {
     define: {
-      __DEV__: true,
+      __DEV__: process.env.NODE_ENV !== 'production',
+    },
+    
+    // ============================================================================
+    // SOURCE MAP CONFIGURATION
+    // ============================================================================
+    build: {
+      // Disable source maps in production
+      sourcemap: process.env.NODE_ENV !== 'production',
+      
+      // Minification settings
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: process.env.NODE_ENV === 'production',
+          drop_debugger: process.env.NODE_ENV === 'production',
+        },
+      },
+      
+      // Rollup options for better optimization
+      rollupOptions: {
+        output: {
+          // Optimize chunk names
+          chunkFileNames: 'chunks/[name]-[hash].js',
+          entryFileNames: '[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+        },
+      },
     },
   },
 
@@ -72,6 +95,9 @@ export default defineNuxtConfig({
   // ============================================================================
   build: {
     transpile: ['@nuxtjs/supabase'],
+    
+    // Production-specific optimizations
+    analyze: process.env.ANALYZE === 'true',
   },
 
   // ============================================================================
