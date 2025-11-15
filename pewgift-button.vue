@@ -1,5 +1,5 @@
 <template>
-  <div class="pew-gift-button">
+  <div class="pewgift-button">
     <!-- Gift Button -->
     <button 
       @click="showGiftModal = true" 
