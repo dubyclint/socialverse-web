@@ -327,4 +327,22 @@ export class PostController {
         .from('posts')
         .update({
           is_promoted: true,
-          promoted_until: new Date(Date.now()_
+          promoted_until: new Date(Date.now() + duration_hours * 60 * 60 * 1000)
+        })
+        .eq('id', postId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Post promoted successfully',
+        data: post
+      });
+    } catch (error) {
+      console.error('Error promoting post:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+}
