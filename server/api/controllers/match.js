@@ -1,5 +1,5 @@
 // server/api/controllers/match.js
-import { supabase } from '../../../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js';
 
 export class MatchController {
   // Create match request
