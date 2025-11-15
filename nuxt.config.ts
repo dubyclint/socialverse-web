@@ -1,5 +1,7 @@
 // ============================================================================
-// UPDATED: /nuxt.config.ts
+// FILE: /nuxt.config.ts
+// ============================================================================
+// Complete Nuxt 3 configuration with production optimizations
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -39,10 +41,7 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3000',
-      // ============================================================================
-      // CDN CONFIGURATION
-      // ============================================================================
-      cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '', // e.g., https://cdn.example.com
+      cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
       cdnEnabled: process.env.NUXT_PUBLIC_CDN_ENABLED === 'true' || false,
     }
   },
@@ -62,31 +61,45 @@ export default defineNuxtConfig({
       __DEV__: process.env.NODE_ENV !== 'production',
     },
     
-    // ============================================================================
-    // SOURCE MAP CONFIGURATION
-    // ============================================================================
     build: {
-      // Disable source maps in production
+      // ====================================================================
+      // SOURCE MAP CONFIGURATION
+      // ====================================================================
+      // Disable source maps in production for security and smaller bundle
       sourcemap: process.env.NODE_ENV !== 'production',
       
-      // Minification settings
+      // ====================================================================
+      // MINIFICATION SETTINGS
+      // ====================================================================
       minify: 'terser',
       terserOptions: {
         compress: {
           drop_console: process.env.NODE_ENV === 'production',
           drop_debugger: process.env.NODE_ENV === 'production',
         },
+        format: {
+          comments: false,
+        },
       },
       
-      // Rollup options for better optimization
+      // ====================================================================
+      // ROLLUP OPTIONS
+      // ====================================================================
       rollupOptions: {
         output: {
-          // Optimize chunk names
+          // Optimize chunk names for better caching
           chunkFileNames: 'chunks/[name]-[hash].js',
           entryFileNames: '[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash][extname]',
         },
       },
+      
+      // ====================================================================
+      // BUILD OPTIMIZATION
+      // ====================================================================
+      cssCodeSplit: true,
+      reportCompressedSize: true,
+      chunkSizeWarningLimit: 500,
     },
   },
 
@@ -95,8 +108,6 @@ export default defineNuxtConfig({
   // ============================================================================
   build: {
     transpile: ['@nuxtjs/supabase'],
-    
-    // Production-specific optimizations
     analyze: process.env.ANALYZE === 'true',
   },
 
