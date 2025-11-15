@@ -1,5 +1,5 @@
 // server/api/controllers/giftController.js
-import { supabase } from '../../../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js';
 
 export class GiftController {
   // Send gift
