@@ -67,9 +67,9 @@
         <button class="action-btn share" @click="sharePost">
           🔄 Share
         </button>
-        <button class="action-btn gift" @click="giftPew">
-          🎁 Pew
-        </button>
+        <button class="action-btn pewgift" @click="sendPewgift">
+  🎁 Pewgift
+</button>
       </div>
     </footer>
   </article>
@@ -132,10 +132,11 @@ const sharePost = () => {
   }
 }
 
-const giftPew = () => {
-  // Trigger pew gift flow
-  console.log('Gift pew to post:', props.post._id)
+const sendPewgift = () => {
+  // Trigger pewgift flow
+  console.log('Send pewgift to post:', props.post._id)
 }
+
 
 const openMedia = () => {
   // Open media in fullscreen viewer
