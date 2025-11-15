@@ -1,5 +1,5 @@
 // server/api/controllers/p2pController.js
-import { supabase } from '../../../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js';
 
 export class P2PController {
   // Create P2P profile
