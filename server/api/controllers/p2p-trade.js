@@ -1,5 +1,5 @@
 // server/api/controllers/tradeController.js
-import { supabase } from '../../utils/supabase.js';
+import { supabase } from '../../utils/supabase';
 
 export class TradeController {
   // Create new trade
