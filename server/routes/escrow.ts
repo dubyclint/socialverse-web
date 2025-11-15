@@ -1,5 +1,5 @@
-import { EscrowTradeModel } from '~/server/models/EscrowTrade'
-import { AuditLogModel } from '~/server/models/AuditLog'
+import { EscrowTradeModel } from '~/server/models/escrow-trade'
+import { AuditLogModel } from '~/server/models/audit-Log'
 import { supabase } from '~/server/db'
 
 interface EscrowCreateRequest {
