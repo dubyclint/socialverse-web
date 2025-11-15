@@ -1,4 +1,4 @@
-// server/api/chat/gift.post.ts - SEND GIFT IN CHAT
+// server/api/chat/pewgift.post.ts - SEND GIFT IN CHAT
 // ==================================================
 
 import { verifyAuth } from '../middleware/rbac'
