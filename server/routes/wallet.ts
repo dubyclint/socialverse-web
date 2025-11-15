@@ -1,4 +1,4 @@
-import { UserWalletModel } from '~/server/models/UserWallet'
+import { UserWalletModel } from '~/server/models/user-wallet'
 import { supabase } from '~/server/db'
 
 interface WalletUpdateRequest {
