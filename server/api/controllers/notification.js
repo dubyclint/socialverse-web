@@ -1,5 +1,5 @@
 // server/api/controllers/notificationController.js
-import { supabase } from '../../../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js';
 
 export class NotificationController {
   // Create notification
