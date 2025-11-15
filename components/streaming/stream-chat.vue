@@ -1,7 +1,9 @@
 <!-- components/streaming/StreamChat.vue - Responsive for Desktop & Mobile -->
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-
+import { useStreaming } from '~/composables/use-streaming'
+  import { useauth} from '~/composables/use-auth' 
+  
 // Props
 const props = defineProps({
   streamId: {
