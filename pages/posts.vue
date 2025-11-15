@@ -23,7 +23,7 @@
           v-for="post in posts" 
           :key="post.id || post._id" 
           :post="post"
-          @gift="handleGift"
+          @pewgift="handlepewGift"
           @like="handleLike"
           @comment="handleComment"
           @share="handleShare"
@@ -75,11 +75,11 @@ const fetchPosts = async () => {
 }
 
 /**
- * Handle gift action from post card
+ * Handle pewgift action from post card
  */
-const handleGift = (postId) => {
-  console.log('Gift action triggered for post:', postId)
-  // This will be handled by the gift-button component in post-card
+const handlePewgift = (postId) => {
+  console.log('Pewgift action triggered for post:', postId)
+  // This will be handled by the pewgift-button component in post-card
 }
 
 /**
