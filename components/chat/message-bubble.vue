@@ -1,6 +1,5 @@
 <!-- components/chat/message-bubble.vue -->
-<!-- UPDATED MESSAGE BUBBLE COMPONENT -->
-<!-- Integrates: New consolidated pewgift-button component -->
+<!-- UPDATED MESSAGE BUBBLE COMPONENT WITH PEWGIFT INTEGRATION -->
 
 <template>
   <div class="message-bubble" :class="messageClasses" @contextmenu="handleContextMenu">
@@ -23,7 +22,7 @@
 
       <!-- Message Actions -->
       <div class="message-actions">
-        <!-- Translation Button -->
+        <!-- Translate Button -->
         <button 
           v-if="!isTranslated && !message.isDeleted"
           @click="translateMessage"
@@ -35,16 +34,16 @@
           {{ isTranslating ? 'Translating...' : 'Translate' }}
         </button>
 
-        <!-- PewGift Button (NEW - Consolidated Component) -->
-        <PewgiftButton 
+        <!-- Pewgift Button -->
+        <button 
           v-if="!isOwn && !message.isDeleted"
-          :recipient-id="message.senderId"
-          :post-id="message.chatId"
-          :comment-id="message.id"
-          @gift-sent="onGiftSent"
-          @error="onGiftError"
-          class="action-btn gift-btn"
-        />
+          @click="showGiftModal = true"
+          class="action-btn pewgift-btn"
+          title="Send pewgift to sender"
+        >
+          <Icon name="gift" size="16" />
+          🎁 Pewgift
+        </button>
 
         <!-- Edit Button -->
         <button 
@@ -54,6 +53,7 @@
           title="Edit message"
         >
           <Icon name="edit-2" size="16" />
+          Edit
         </button>
 
         <!-- Delete Button -->
@@ -64,6 +64,7 @@
           title="Delete message"
         >
           <Icon name="trash-2" size="16" />
+          Delete
         </button>
       </div>
 
@@ -71,49 +72,93 @@
       <div class="message-time">{{ formatTime(message.timestamp) }}</div>
     </div>
 
-    <!-- Context Menu -->
-    <div v-if="showContextMenu" class="context-menu" :style="contextMenuPosition">
-      <button @click="copyMessage" class="context-item">
-        <Icon name="copy" size="16" />
-        Copy
-      </button>
-      <button @click="replyMessage" class="context-item">
-        <Icon name="reply" size="16" />
-        Reply
-      </button>
-      <button v-if="isOwn" @click="$emit('edit')" class="context-item">
-        <Icon name="edit-2" size="16" />
-        Edit
-      </button>
-      <button v-if="isOwn" @click="$emit('delete')" class="context-item danger">
-        <Icon name="trash-2" size="16" />
-        Delete
-      </button>
+    <!-- Pewgift Modal -->
+    <div v-if="showGiftModal" class="modal-overlay" @click="showGiftModal = false">
+      <div class="gift-modal" @click.stop>
+        <div class="modal-header">
+          <h4>🎁 Send Pewgift to {{ message.senderName }}</h4>
+          <button @click="showGiftModal = false" class="close-btn">
+            <Icon name="x" size="20" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Gift Selection -->
+          <div class="gift-selection">
+            <div 
+              v-for="gift in availableGifts"
+              :key="gift.id"
+              class="gift-item"
+              :class="{ selected: selectedGift?.id === gift.id }"
+              @click="selectedGift = gift"
+            >
+              <div class="gift-emoji">{{ gift.emoji }}</div>
+              <div class="gift-info">
+                <div class="gift-name">{{ gift.name }}</div>
+                <div class="gift-value">{{ gift.value }} PEW</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Amount Input -->
+          <div class="custom-amount-section">
+            <label>Custom Pewgift Amount</label>
+            <input 
+              v-model.number="customAmount" 
+              type="number" 
+              min="1" 
+              placeholder="Enter custom amount"
+              class="amount-input"
+            />
+          </div>
+
+          <!-- Send Button -->
+          <button 
+            @click="sendPewgift" 
+            class="send-btn"
+            :disabled="!pewgiftAmount || loading"
+          >
+            <Icon v-if="!loading" name="send" size="16" />
+            {{ loading ? 'Sending...' : 'Send Pewgift' }}
+          </button>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div v-if="giftError" class="error-message">
+          {{ giftError }}
+        </div>
+        <div v-if="giftSuccess" class="success-message">
+          ✓ Pewgift sent successfully!
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import Icon from '~/components/icon.vue'
-import PewgiftButton from '~/components/pewgift-button.vue'
 
 interface Message {
-  id: string
-  chatId: string
-  senderId: string
+  id?: string
+  senderId?: string
   senderName: string
   senderAvatar?: string
   content: string
-  timestamp: string
-  isEdited: boolean
-  isDeleted: boolean
-  messageType: string
+  timestamp?: string | Date
+  isEdited?: boolean
+  isDeleted?: boolean
+}
+
+interface Gift {
+  id: string
+  name: string
+  emoji: string
+  value: number
 }
 
 const props = defineProps<{
   message: Message
-  isOwn: boolean
+  isOwn?: boolean
   showAvatar?: boolean
   showSenderName?: boolean
 }>()
@@ -121,112 +166,113 @@ const props = defineProps<{
 const emit = defineEmits<{
   edit: []
   delete: []
-  translate: [content: string]
-  gift: [giftId: string, message: string]
 }>()
 
-// Reactive state
+// State
 const isTranslated = ref(false)
 const translatedContent = ref('')
 const isTranslating = ref(false)
-const showContextMenu = ref(false)
-const contextMenuPosition = ref({ top: 0, left: 0 })
+const showGiftModal = ref(false)
+const selectedGift = ref<Gift | null>(null)
+const customAmount = ref(0)
+const loading = ref(false)
+const giftError = ref('')
+const giftSuccess = ref(false)
 
-// Computed properties
+// Available gifts
+const availableGifts: Gift[] = [
+  { id: '1', name: 'Bronze Gift', emoji: '🥉', value: 10 },
+  { id: '2', name: 'Silver Gift', emoji: '🥈', value: 50 },
+  { id: '3', name: 'Gold Gift', emoji: '🥇', value: 100 },
+  { id: '4', name: 'Diamond Gift', emoji: '💎', value: 500 }
+]
+
+// Computed
 const messageClasses = computed(() => ({
   'own-message': props.isOwn,
-  'system-message': props.message.messageType === 'system',
-  'deleted-message': props.message.isDeleted,
-  'edited-message': props.message.isEdited,
-  'translated-message': isTranslated.value
+  'other-message': !props.isOwn
 }))
 
+const pewgiftAmount = computed(() => {
+  return customAmount.value > 0 ? customAmount.value : (selectedGift.value?.value || 0)
+})
+
 // Methods
-const formatTime = (timestamp: string): string => {
+const formatTime = (timestamp?: string | Date): string => {
+  if (!timestamp) return ''
   const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
 const translateMessage = async () => {
   isTranslating.value = true
   try {
     // TODO: Implement translation API call
-    // Example: const response = await $fetch('/api/translate', { body: { text: props.message.content } })
-    translatedContent.value = props.message.content // Placeholder
+    translatedContent.value = props.message.content
     isTranslated.value = true
-    emit('translate', translatedContent.value)
   } catch (error) {
-    console.error('Translation failed:', error)
+    console.error('Translation error:', error)
   } finally {
     isTranslating.value = false
   }
 }
 
-const onGiftSent = (data: any) => {
-  console.log('Gift sent successfully:', data)
-  // Emit gift event with data
-  emit('gift', data.giftId || 'pewgift', data.message || '')
-}
+const sendPewgift = async () => {
+  if (!pewgiftAmount.value || pewgiftAmount.value <= 0) {
+    giftError.value = 'Please select a gift or enter a valid amount'
+    return
+  }
 
-const onGiftError = (error: string) => {
-  console.error('Gift error:', error)
-  // Handle error - could show toast notification
+  loading.value = true
+  giftError.value = ''
+  giftSuccess.value = false
+
+  try {
+    const response = await fetch('/api/pewgift/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientId: props.message.senderId,
+        amount: pewgiftAmount.value,
+        messageId: props.message.id,
+        giftType: selectedGift.value?.id
+      })
+    })
+
+    if (response.ok) {
+      giftSuccess.value = true
+      setTimeout(() => {
+        showGiftModal.value = false
+        selectedGift.value = null
+        customAmount.value = 0
+        giftSuccess.value = false
+      }, 1500)
+    } else {
+      giftError.value = 'Failed to send pewgift. Please try again.'
+    }
+  } catch (error) {
+    console.error('Error sending pewgift:', error)
+    giftError.value = 'Error sending pewgift. Please try again.'
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleContextMenu = (event: MouseEvent) => {
   event.preventDefault()
-  showContextMenu.value = true
-  contextMenuPosition.value = {
-    top: event.clientY,
-    left: event.clientX
-  }
-  
-  // Close context menu when clicking elsewhere
-  const closeMenu = () => {
-    showContextMenu.value = false
-    document.removeEventListener('click', closeMenu)
-  }
-  document.addEventListener('click', closeMenu)
-}
-
-const copyMessage = () => {
-  navigator.clipboard.writeText(props.message.content)
-  showContextMenu.value = false
-}
-
-const replyMessage = () => {
-  // TODO: Implement reply functionality
-  console.log('Reply to message:', props.message.id)
-  showContextMenu.value = false
+  // TODO: Implement context menu
 }
 </script>
 
 <style scoped>
-/* Message Bubble Container */
 .message-bubble {
   display: flex;
   gap: 12px;
   margin-bottom: 12px;
-  animation: slideIn 0.3s ease;
+  animation: fadeIn 0.3s ease;
 }
 
-@keyframes slideIn {
+@keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -237,23 +283,17 @@ const replyMessage = () => {
   }
 }
 
-/* Avatar */
 .message-avatar {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #f0f0f0;
 }
 
 .message-avatar img {
-  width: 100%;
-  height: 100%;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   object-fit: cover;
 }
 
-/* Message Content */
 .message-content {
   flex: 1;
   display: flex;
@@ -261,116 +301,66 @@ const replyMessage = () => {
   gap: 4px;
 }
 
-/* Sender Name */
 .sender-name {
-  font-size: 12px;
   font-weight: 600;
+  font-size: 12px;
   color: #666;
-  text-transform: capitalize;
 }
 
-/* Message Text */
 .message-text {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 10px 14px;
   background: #f0f0f0;
-  border-radius: 12px;
-  word-break: break-word;
+  padding: 10px 12px;
+  border-radius: 8px;
+  word-wrap: break-word;
 }
 
 .message-text p {
   margin: 0;
   font-size: 14px;
-  color: #333;
   line-height: 1.4;
 }
 
-.message-text .translated-text {
-  color: #667eea;
+.translated-text {
   font-style: italic;
+  color: #555;
 }
 
-.message-text .edited-badge {
+.edited-badge {
   font-size: 11px;
   color: #999;
-  margin-left: auto;
-  white-space: nowrap;
+  margin-left: 4px;
 }
 
-/* Own Message Styling */
 .own-message .message-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #007bff;
   color: white;
 }
 
-.own-message .message-text p {
-  color: white;
-}
-
-.own-message .message-text .translated-text {
-  color: #e0e0ff;
-}
-
-/* System Message Styling */
-.system-message .message-text {
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  text-align: center;
-  font-size: 12px;
-  color: #999;
-}
-
-/* Deleted Message Styling */
-.deleted-message .message-text {
-  background: #ffebee;
-  color: #c62828;
-  font-style: italic;
-}
-
-.deleted-message .message-text p::before {
-  content: '[Deleted] ';
-}
-
-/* Edited Message Styling */
-.edited-message .message-text .edited-badge {
-  display: inline;
-}
-
-/* Message Actions */
 .message-actions {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  font-size: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
 }
 
-.message-bubble:hover .message-actions {
-  opacity: 1;
-}
-
-/* Action Buttons */
 .action-btn {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  cursor: pointer;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   font-size: 12px;
-  color: #666;
+  cursor: pointer;
   transition: all 0.2s ease;
+  color: #666;
 }
 
 .action-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-  border-color: #667eea;
-  color: #667eea;
+  background: #e9ecef;
+  border-color: #999;
+  color: #333;
 }
 
 .action-btn:disabled {
@@ -378,154 +368,195 @@ const replyMessage = () => {
   cursor: not-allowed;
 }
 
-.action-btn.translate-btn {
-  color: #2196f3;
-}
-
-.action-btn.translate-btn:hover:not(:disabled) {
-  border-color: #2196f3;
-  background: #e3f2fd;
-}
-
-.action-btn.gift-btn {
-  color: #ff9800;
-}
-
-.action-btn.gift-btn:hover:not(:disabled) {
-  border-color: #ff9800;
-  background: #fff3e0;
-}
-
-.action-btn.edit-btn {
-  color: #4caf50;
-}
-
-.action-btn.edit-btn:hover:not(:disabled) {
-  border-color: #4caf50;
-  background: #e8f5e9;
-}
-
-.action-btn.delete-btn {
-  color: #f44336;
-}
-
-.action-btn.delete-btn:hover:not(:disabled) {
-  border-color: #f44336;
-  background: #ffebee;
-}
-
-/* Message Time */
 .message-time {
   font-size: 11px;
   color: #999;
-  padding: 0 14px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  margin-top: 4px;
 }
 
-.message-bubble:hover .message-time {
-  opacity: 1;
-}
-
-/* Context Menu */
-.context-menu {
+/* Modal Styles */
+.modal-overlay {
   position: fixed;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  min-width: 150px;
-  overflow: hidden;
-}
-
-.context-item {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 14px;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.gift-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
   background: none;
   border: none;
   cursor: pointer;
+  color: #666;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gift-selection {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.gift-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gift-item:hover {
+  border-color: #007bff;
+  background: #f8f9fa;
+}
+
+.gift-item.selected {
+  border-color: #007bff;
+  background: #e7f1ff;
+}
+
+.gift-emoji {
+  font-size: 24px;
+}
+
+.gift-info {
+  flex: 1;
+}
+
+.gift-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.gift-value {
+  font-size: 12px;
+  color: #666;
+}
+
+.custom-amount-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-amount-section label {
+  font-weight: 600;
   font-size: 13px;
   color: #333;
-  transition: background 0.2s ease;
-  text-align: left;
 }
 
-.context-item:hover {
-  background: #f5f5f5;
+.amount-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
 }
 
-.context-item.danger {
-  color: #f44336;
+.amount-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-.context-item.danger:hover {
-  background: #ffebee;
+.send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-/* Responsive Design */
-@media (max-width: 640px) {
-  .message-bubble {
-    gap: 8px;
-  }
-
-  .message-avatar {
-    width: 32px;
-    height: 32px;
-  }
-
-  .message-text {
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-
-  .message-actions {
-    gap: 4px;
-  }
-
-  .action-btn {
-    padding: 3px 6px;
-    font-size: 11px;
-  }
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
-/* Dark Mode Support (Optional) */
-@media (prefers-color-scheme: dark) {
-  .message-text {
-    background: #2a2a2a;
-    color: #e0e0e0;
-  }
+.send-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-  .message-text p {
-    color: #e0e0e0;
-  }
+.error-message {
+  padding: 12px;
+  background: #fee;
+  color: #c33;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+}
 
-  .action-btn {
-    background: #1a1a1a;
-    border-color: #444;
-    color: #999;
-  }
-
-  .action-btn:hover:not(:disabled) {
-    background: #2a2a2a;
-    border-color: #667eea;
-    color: #667eea;
-  }
-
-  .context-menu {
-    background: #2a2a2a;
-    border-color: #444;
-  }
-
-  .context-item {
-    color: #e0e0e0;
-  }
-
-  .context-item:hover {
-    background: #3a3a3a;
-  }
+.success-message {
+  padding: 12px;
+  background: #efe;
+  color: #3c3;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
 }
 </style>
+
