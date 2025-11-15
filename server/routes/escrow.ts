@@ -1,4 +1,4 @@
-0import { EscrowTradeModel } from '~/server/models/escrow-trade'
+import { EscrowTradeModel } from '~/server/models/escrow-trade'
 import { AuditLogModel } from '~/server/models/audit-log'
 import { supabase } from '~/server/db'
 
