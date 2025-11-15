@@ -1,18 +1,28 @@
 import { supabase } from "~/server/utils/database";
 import { EthClient } from '../../lib/eth-client';
-import abi from '../../scripts/abi.json';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 // Initialize ETH client only if environment variables are present
 let client: EthClient | null = null;
 
 if (process.env.PROVIDER_URL && process.env.PRIVATE_KEY && process.env.CONTRACT_ADDRESS) {
-  client = new EthClient({
-    providerUrl: process.env.PROVIDER_URL,
-    privateKey: process.env.PRIVATE_KEY,
-    contractAddress: process.env.CONTRACT_ADDRESS,
-    abi,
-    client: (process.env.ETH_CLIENT_TYPE as 'ethers' | 'web3') || 'ethers'
-  });
+  try {
+    // Read ABI from file dynamically
+    const abiPath = resolve(process.cwd(), 'scripts/abi.json');
+    const abiContent = readFileSync(abiPath, 'utf-8');
+    const abi = JSON.parse(abiContent);
+    
+    client = new EthClient({
+      providerUrl: process.env.PROVIDER_URL,
+      privateKey: process.env.PRIVATE_KEY,
+      contractAddress: process.env.CONTRACT_ADDRESS,
+      abi,
+      client: (process.env.ETH_CLIENT_TYPE as 'ethers' | 'web3') || 'ethers'
+    });
+  } catch (error) {
+    console.error('Failed to initialize ETH client:', error);
+  }
 }
 
 export default defineEventHandler(async (event) => {
