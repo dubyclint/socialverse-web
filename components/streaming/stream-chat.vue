@@ -92,6 +92,38 @@ const chatPlaceholder = computed(() => {
   return 'Type a message...'
 })
 
+  const showPewgiftModal = ref(false)
+const pewgiftAmount = ref(0)
+
+const sendStreamPewgift = async () => {
+  if (!pewgiftAmount.value || pewgiftAmount.value <= 0) {
+    alert('Please enter a valid amount')
+    return
+  }
+  
+  try {
+    const response = await fetch('/api/pewgift/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientId: props.streamerId,
+        amount: pewgiftAmount.value,
+        streamId: props.streamId
+      })
+    })
+    
+    if (response.ok) {
+      alert('Pewgift sent successfully!')
+      showPewgiftModal.value = false
+      pewgiftAmount.value = 0
+    }
+  } catch (error) {
+    console.error('Error sending pewgift:', error)
+    alert('Failed to send pewgift')
+  }
+}
+
+
 // Methods
 const initializeChat = async () => {
   isLoading.value = true
@@ -507,6 +539,36 @@ onUnmounted(() => {
           </button>
         </div>
 
+        <button 
+  @click="showPewgiftModal = true"
+  class="action-btn pewgift-btn"
+  title="Send pewgift"
+>
+  🎁 Pewgift
+</button>
+
+<!-- Pewgift Modal -->
+<div v-if="showPewgiftModal" class="modal-overlay" @click="showPewgiftModal = false">
+  <div class="pewgift-modal" @click.stop>
+    <div class="modal-header">
+      <h4>Send Pewgift</h4>
+      <button @click="showPewgiftModal = false" class="close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <input 
+        v-model.number="pewgiftAmount" 
+        type="number" 
+        min="1" 
+        placeholder="Enter pewgift amount"
+        class="amount-input"
+      />
+      <button @click="sendStreamPewgift" class="send-btn" :disabled="!pewgiftAmount">
+        Send Pewgift
+      </button>
+    </div>
+  </div>
+</div>
+  
         <!-- Message Input -->
         <div class="input-wrapper">
           <button @click="toggleEmojiPicker" class="emoji-btn" title="Emoji">😊</button>
