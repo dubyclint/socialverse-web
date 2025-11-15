@@ -265,7 +265,9 @@ import StreamAnalytics from './stream-analytics.vue'
 import ModerationPanel from './moderation-panel.vue'
 import StreamChat from './stream-chat.vue'
 import PewGiftButton from '../pew-gift-button.vue'
-
+import { usestreaming } from '@/composables/use-streaming'
+import { useauth } from '@/composables/use-auth'
+  
 const props = defineProps({
   streamId: {
     type: String,
