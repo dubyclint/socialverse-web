@@ -1,5 +1,5 @@
-import { sendNotification } from '~/server/utils/sendNotification'
-import { sendPushAlert } from '~/server/utils/sendPushAlert'
+import { sendNotification } from '~/server/utils/send-notification'
+import { sendPushAlert } from '~/server/utils/send-push-alert'
 
 export default defineEventHandler(async (event) => {
   const { userId, approvedFilters } = await readBody(event)
