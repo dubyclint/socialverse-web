@@ -1,5 +1,5 @@
 // server/api/controllers/universeController.js
-import { supabase } from '../../utils/supabase.js';
+import { supabase } from '../../utils/supabase';
 
 export class UniverseController {
   // Send message to universe chat
