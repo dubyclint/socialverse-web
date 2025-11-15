@@ -1,5 +1,5 @@
 <template>
-  <div class="gift-button">
+  <div class="pewgift-button">
     <input 
       v-model.number="amount" 
       type="number" 
