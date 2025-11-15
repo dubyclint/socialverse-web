@@ -82,6 +82,38 @@ interface Props {
   comment: any
 }
 
+const showPewgiftModal = ref(false)
+const pewgiftAmount = ref(0)
+
+const sendPewgift = async () => {
+  if (!pewgiftAmount.value || pewgiftAmount.value <= 0) {
+    alert('Please enter a valid amount')
+    return
+  }
+  
+  try {
+    // API call to send pewgift
+    const response = await fetch('/api/pewgift/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientId: comment.profiles.id,
+        amount: pewgiftAmount.value,
+        commentId: comment.id
+      })
+    })
+    
+    if (response.ok) {
+      alert('Pewgift sent successfully!')
+      showPewgiftModal.value = false
+      pewgiftAmount.value = 0
+    }
+  } catch (error) {
+    console.error('Error sending pewgift:', error)
+    alert('Failed to send pewgift')
+  }
+}
+
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
