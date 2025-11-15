@@ -1,7 +1,7 @@
 <!-- components/gift-history.vue - COMPLETE FIXED VERSION -->
 
 <template>
-  <div class="gift-history">
+  <div class="pewgift-history">
     <div class="history-header">
       <h3>🎁 Gift History</h3>
       <div class="filter-tabs">
