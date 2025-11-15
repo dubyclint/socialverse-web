@@ -1,5 +1,5 @@
 // server/api/controllers/pewController.js
-import { supabase } from '../../utils/supabase.js';
+import { supabase } from '../../utils/supabase';
 
 export class PewController {
   // Create new pew
