@@ -1,4 +1,4 @@
-import { evaluateTrust } from '~/server/utils/evaluateTrust'
+import { evaluateTrust } from '~/server/utils/evaluate-trust'
 
 export default defineEventHandler(async () => {
   const users = await db.collection('users').find().toArray()
