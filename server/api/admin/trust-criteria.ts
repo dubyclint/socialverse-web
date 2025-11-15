@@ -1,4 +1,4 @@
-import { getTrustCriteria, setTrustCriteria } from '~/server/utils/evaluateTrust'
+import { getTrustCriteria, setTrustCriteria } from '~/server/utils/evaluate-trust'
 
 export default defineEventHandler(async (event) => {
   if (event.req.method === 'GET') {
