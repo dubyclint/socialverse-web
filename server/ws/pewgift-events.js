@@ -1,4 +1,4 @@
-// server/ws/giftEvents.js - GIFT EVENTS HANDLER
+// server/ws/pewgift-events.js - GIFT EVENTS HANDLER
 // ===============================================
 
 const { supabase } = require('../utils/supabase');
