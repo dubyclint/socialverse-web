@@ -1,6 +1,6 @@
 <!-- components/chat/message-bubble.vue -->
 <!-- UPDATED MESSAGE BUBBLE COMPONENT -->
-<!-- Integrates: New consolidated PewgiftButton component -->
+<!-- Integrates: New consolidated pewgift-button component -->
 
 <template>
   <div class="message-bubble" :class="messageClasses" @contextmenu="handleContextMenu">
@@ -95,8 +95,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import Icon from '~/components/Icon.vue'
-import PewgiftButton from '~/components/PewgiftButton.vue'
+import Icon from '~/components/icon.vue'
+import PewgiftButton from '~/components/pewgift-button.vue'
 
 interface Message {
   id: string
