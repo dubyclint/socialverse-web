@@ -129,7 +129,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useStreamBroadcast } from '~/composables/useStreamBroadcast'
+import { useStreamBroadcast } from '~/composables/useStream-Broadcast'
 import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
 
 const router = useRouter()
