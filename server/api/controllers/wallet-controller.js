@@ -1,5 +1,5 @@
 // server/api/controllers/walletController.js
-import { supabase } from '../../../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js';
 
 export class WalletController {
   // Create user wallets
