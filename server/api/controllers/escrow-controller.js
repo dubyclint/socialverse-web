@@ -1,5 +1,5 @@
 // controllers/escrowController.js - Escrow Controller for Supabase/PostgreSQL
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js';
 
 export class EscrowController {
   // Create escrow deal
