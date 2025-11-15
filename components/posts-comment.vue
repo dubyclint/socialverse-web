@@ -24,7 +24,38 @@
     </div>
 
     <!-- Comment Actions -->
-    <div class="comment-actions">
+    <div class="comment-actions"> 
+         <button
+  @click="showPewgiftModal = true"
+  class="comment-action-btn pewgift-btn"
+  title="Send pewgift"
+>
+  <Icon name="gift" size="14" />
+  <span>Pewgift</span>
+</button>
+
+<!-- Pewgift Modal -->
+<div v-if="showPewgiftModal" class="modal-overlay" @click="showPewgiftModal = false">
+  <div class="pewgift-modal" @click.stop>
+    <div class="modal-header">
+      <h4>Send Pewgift to {{ comment.profiles.username }}</h4>
+      <button @click="showPewgiftModal = false" class="close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <input 
+        v-model.number="pewgiftAmount" 
+        type="number" 
+        min="1" 
+        placeholder="Enter pewgift amount"
+        class="amount-input"
+      />
+      <button @click="sendPewgift" class="send-btn" :disabled="!pewgiftAmount">
+        Send Pewgift
+      </button>
+    </div>
+  </div>
+</div>
+
       <button
         @click="toggleLike"
         class="comment-action-btn"
