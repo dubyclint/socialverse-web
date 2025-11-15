@@ -1,4 +1,4 @@
-// components/pew-gift-picker.vue - COMPLETE FIXED VERSION -->
+// components/pewgift-picker.vue - COMPLETE FIXED VERSION -->
 <!-- ============================================================================
      PEWGIFT PICKER COMPONENT - FULLY FUNCTIONAL FOR ALL CONTEXTS
      ============================================================================ -->
