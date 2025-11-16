@@ -33,6 +33,7 @@
       "#build/*": ["./.nuxt/*"],
       "#cache": ["./.nuxt/cache"],
       "#cache/*": ["./.nuxt/cache/*"]
+      "#supabase/server": ["./node_modules/@nuxtjs/supabase/dist/runtime/server"
     }
   },
   "include": [
