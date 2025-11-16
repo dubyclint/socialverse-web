@@ -1,5 +1,6 @@
 // server/api/controllers/swapController.js
-import { supabase } from '../../utils/supabase';
+import { supabase } from '~/server/utils/database';
+
 
 export class SwapController {
   // Create swap transaction
