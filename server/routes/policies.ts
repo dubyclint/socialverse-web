@@ -1,4 +1,7 @@
-import { supabase } from '~/server/db'
+// FILE: /server/routes/policies.ts - FIXED
+// ============================================================================
+
+import { supabase } from '~/server/utils/database'
 
 interface PoliciesQuery {
   feature?: string
@@ -25,9 +28,11 @@ export default defineEventHandler(async (event): Promise<PoliciesResponse> => {
     if (query.feature) {
       supabaseQuery = supabaseQuery.eq('feature', query.feature)
     }
+
     if (query.status) {
       supabaseQuery = supabaseQuery.eq('status', query.status)
     }
+
     if (query.priority) {
       supabaseQuery = supabaseQuery.eq('priority', query.priority)
     }
@@ -38,13 +43,10 @@ export default defineEventHandler(async (event): Promise<PoliciesResponse> => {
 
     supabaseQuery = supabaseQuery.range(offset, offset + limit - 1)
 
-    const { data: policies, error, count } = await supabaseQuery
+    const { data: policies, count, error } = await supabaseQuery
 
     if (error) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Database error'
-      })
+      throw error
     }
 
     return {
@@ -54,10 +56,10 @@ export default defineEventHandler(async (event): Promise<PoliciesResponse> => {
       offset
     }
   } catch (error: any) {
-    console.error('Get policies error:', error)
+    console.error('[Policies] Error:', error)
     throw createError({
       statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Internal Server Error'
+      statusMessage: error.message || 'Failed to fetch policies'
     })
   }
 })
