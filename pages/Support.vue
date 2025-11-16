@@ -49,7 +49,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+
 import { ref, onMounted } from 'vue'
 
 const contacts = ref([])
