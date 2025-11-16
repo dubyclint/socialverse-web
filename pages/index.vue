@@ -131,7 +131,8 @@
   </div>
 </template>
 
-<script setup>
+  <script setup lang="ts">
+// No middleware needed - public page
 import { ref } from 'vue'
 
 definePageMeta({
