@@ -24,7 +24,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+// No middleware needed - public page
 import { ref, onMounted } from 'vue'
 
 const terms = ref([])
