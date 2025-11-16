@@ -251,7 +251,6 @@ export class CausalInferenceEngine {
       // Experiment metadata
       startDate: experiment.startDate,
       daysRunning: Math.floor((Date.now() - new Date(experiment.startDate)) / (1000 * 60 * 60 * 24))
-      daysRunning: Math.floor((Date.now() - new Date(experiment.startDate)) / (1000 * 60 * 60 * 24))
     }
   }
 
