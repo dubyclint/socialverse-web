@@ -1,6 +1,9 @@
+// FILE: /server/routes/escrow.ts - FIXED
+// ============================================================================
+
 import { EscrowTradeModel } from '~/server/models/escrow-trade'
 import { AuditLogModel } from '~/server/models/audit-log'
-import { supabase } from '~/server/db'
+import { supabase } from '~/server/utils/database'
 
 interface EscrowCreateRequest {
   buyerId: string
@@ -21,7 +24,7 @@ export default defineEventHandler(async (event) => {
     const method = event.node.req.method
 
     if (method === 'GET') {
-      return await handleGetEscrows(event)
+      return await handleGetEscrow(event)
     } else if (method === 'POST') {
       return await handleCreateEscrow(event)
     } else if (method === 'PUT') {
@@ -33,178 +36,82 @@ export default defineEventHandler(async (event) => {
       })
     }
   } catch (error: any) {
-    console.error('Escrow route error:', error)
+    console.error('[Escrow] Error:', error)
     throw createError({
       statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Internal Server Error'
+      statusMessage: error.message || 'Escrow operation failed'
     })
   }
 })
 
-async function handleGetEscrows(event: any) {
-  const query = getQuery(event)
-  const { status, buyerId, sellerId, limit = 50, offset = 0 } = query
-
-  let supabaseQuery = supabase.from('escrow_trades').select('*', { count: 'exact' })
-
-  if (status) {
-    if (status === 'pending') {
-      supabaseQuery = supabaseQuery.eq('is_released', false).eq('is_refunded', false)
-    } else if (status === 'released') {
-      supabaseQuery = supabaseQuery.eq('is_released', true)
-    } else if (status === 'refunded') {
-      supabaseQuery = supabaseQuery.eq('is_refunded', true)
-    }
-  }
-
-  if (buyerId) {
-    supabaseQuery = supabaseQuery.eq('buyer_id', buyerId)
-  }
-
-  if (sellerId) {
-    supabaseQuery = supabaseQuery.eq('seller_id', sellerId)
-  }
-
-  const { data: trades, error, count } = await supabaseQuery
-    .order('timestamp', { ascending: false })
-    .range(Number(offset), Number(offset) + Number(limit) - 1)
-
-  if (error) {
+async function handleGetEscrow(event: any) {
+  const { tradeId } = getQuery(event)
+  
+  if (!tradeId) {
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to fetch escrow trades'
+      statusCode: 400,
+      statusMessage: 'Missing tradeId parameter'
     })
   }
 
-  return {
-    trades: trades || [],
-    total: count || 0,
-    limit: Number(limit),
-    offset: Number(offset)
-  }
+  const { data, error } = await supabase
+    .from('escrow_trades')
+    .select('*')
+    .eq('trade_id', tradeId)
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 async function handleCreateEscrow(event: any) {
   const body = await readBody<EscrowCreateRequest>(event)
+  const { buyerId, sellerId, amount, token, tradeId } = body
 
-  if (!body.buyerId || !body.sellerId || !body.amount || !body.token || !body.tradeId) {
+  if (!buyerId || !sellerId || !amount || !token || !tradeId) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Missing required fields: buyerId, sellerId, amount, token, tradeId'
+      statusMessage: 'Missing required fields'
     })
   }
+  const { data, error } = await supabase
+    .from('escrow_trades')
+    .insert([{
+      buyer_id: buyerId,
+      seller_id: sellerId,
+      amount,
+      token,
+      trade_id: tradeId,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    }])
+    .select()
 
-  if (body.amount <= 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Amount must be greater than 0'
-    })
-  }
-
-  try {
-    const trade = await EscrowTradeModel.create({
-      buyerId: body.buyerId,
-      sellerId: body.sellerId,
-      amount: body.amount,
-      token: body.token,
-      tradeId: body.tradeId,
-      isReleased: false,
-      isRefunded: false
-    })
-
-    // Log audit trail
-    await AuditLogModel.create({
-      type: 'ESCROW_CREATED',
-      userId: body.buyerId,
-      feature: 'escrow',
-      result: 'ALLOWED',
-      context: {
-        tradeId: body.tradeId,
-        amount: body.amount,
-        token: body.token,
-        sellerId: body.sellerId
-      },
-      policies: []
-    })
-
-    return {
-      success: true,
-      trade,
-      message: 'Escrow trade created successfully'
-    }
-  } catch (error: any) {
-    console.error('Create escrow error:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to create escrow trade'
-    })
-  }
+  if (error) throw error
+  return data
 }
 
 async function handleUpdateEscrow(event: any) {
   const body = await readBody<EscrowActionRequest>(event)
+  const { tradeId, action, reason } = body
 
-  if (!body.tradeId || !body.action) {
+  if (!tradeId || !action) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Missing required fields: tradeId, action'
     })
-  }
+}
 
-  if (!['release', 'refund'].includes(body.action)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid action. Must be "release" or "refund"'
+const { data, error } = await supabase
+    .from('escrow_trades')
+    .update({
+      status: action === 'release' ? 'released' : 'refunded',
+      reason,
+      updated_at: new Date().toISOString()
     })
-  }
+    .eq('trade_id', tradeId)
+    .select()
 
-  try {
-    let trade
-
-    if (body.action === 'release') {
-      trade = await EscrowTradeModel.releaseFunds(body.tradeId)
-
-      // Log audit trail
-      await AuditLogModel.create({
-        type: 'ESCROW_RELEASED',
-        userId: trade.seller_id,
-        feature: 'escrow',
-        result: 'ALLOWED',
-        context: {
-          tradeId: body.tradeId,
-          amount: trade.amount,
-          reason: body.reason
-        },
-        policies: []
-      })
-    } else if (body.action === 'refund') {
-      trade = await EscrowTradeModel.refundFunds(body.tradeId)
-
-      // Log audit trail
-      await AuditLogModel.create({
-        type: 'ESCROW_REFUNDED',
-        userId: trade.buyer_id,
-        feature: 'escrow',
-        result: 'ALLOWED',
-        context: {
-          tradeId: body.tradeId,
-          amount: trade.amount,
-          reason: body.reason
-        },
-        policies: []
-      })
-    }
-
-    return {
-      success: true,
-      trade,
-      message: `Escrow ${body.action}ed successfully`
-    }
-  } catch (error: any) {
-    console.error('Update escrow error:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: `Failed to ${body.action} escrow`
-    })
-  }
+  if (error) throw error
+  return data
 }
