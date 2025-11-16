@@ -239,6 +239,11 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+ 
 import { ref, computed, onMounted } from 'vue'
 
 definePageMeta({
