@@ -1,5 +1,5 @@
 // Main feed generation endpoint
-import { MLService } from '~/server/ml/core/MLService.js'
+import { MLService } from '~/server/ml/core/ml-Service.js'
 
 let mlService = null
 
