@@ -1,4 +1,7 @@
-import { supabase } from '~/server/db'
+// FILE: /server/routes/compliance.ts - FIXED
+// ============================================================================
+
+import { supabase } from '~/server/utils/database'
 
 interface ComplianceCheckRequest {
   userId: string
@@ -23,43 +26,38 @@ export default defineEventHandler(async (event): Promise<ComplianceCheckResponse
     }
 
     const body = await readBody<ComplianceCheckRequest>(event)
+    const { userId, feature, context } = body
 
-    // Validate required fields
-    if (!body.userId || !body.feature) {
+    if (!userId || !feature) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'userId and feature are required'
+        statusMessage: 'Missing required fields: userId, feature'
       })
     }
-
-    // Query Supabase for user compliance data
+    // Check user compliance status
     const { data: userCompliance, error } = await supabase
-      .from('compliance_rules')
+      .from('user_compliance')
       .select('*')
-      .eq('user_id', body.userId)
-      .eq('feature', body.feature)
+      .eq('user_id', userId)
       .single()
 
     if (error && error.code !== 'PGRST116') {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Database error'
-      })
+      throw error
     }
 
-    // Check if feature is allowed
-    const allowed = !userCompliance || userCompliance.is_allowed !== false
+    // Determine if feature is allowed
+    const allowed = !userCompliance?.restricted_features?.includes(feature)
 
     return {
       allowed,
-      restrictions: userCompliance?.restrictions || [],
-      message: allowed ? 'Feature access allowed' : 'Feature access denied'
+      restrictions: userCompliance?.restricted_features || [],
+      message: allowed ? 'Feature access allowed' : 'Feature access restricted'
     }
   } catch (error: any) {
-    console.error('Compliance check error:', error)
+    console.error('[Compliance] Error:', error)
     throw createError({
       statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Internal Server Error'
+      statusMessage: error.message || 'Compliance check failed'
     })
   }
 })
