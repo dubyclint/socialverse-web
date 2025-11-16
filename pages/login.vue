@@ -139,6 +139,8 @@
 </template>
 
 <script setup lang="ts">
+// No middleware needed - public page
+ 
 // FILE: /pages/login.vue - SCRIPT SECTION
 // Landing page - public page for unauthenticated users
 // ============================================================================
