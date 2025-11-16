@@ -1,11 +1,11 @@
 // Core ML Service - Orchestrates all ML components
-import { FeatureStore } from './FeatureStore.js'
-import { RecommendationEngine } from './RecommendationEngine.js'
-import { AdAuctionEngine } from './AdAuctionEngine.js'
-import { CausalInferenceEngine } from './CausalInferenceEngine.js'
-import { BanditEngine } from './BanditEngine.js'
-import { ModelServing } from './ModelServing.js'
-import { EventLogger } from './EventLogger.js'
+import { FeatureStore } from './feature-store.js'
+import { RecommendationEngine } from './recommendation-engine.js'
+import { AdAuctionEngine } from './ad-auction-engine.js'
+import { CausalInferenceEngine } from './causal-inference-engine.js'
+import { BanditEngine } from './bandit-engine.js'
+import { ModelServing } from './model-serving.js'
+import { EventLogger } from './event-logger.js'
 
 export class MLService {
   constructor() {
