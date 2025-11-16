@@ -260,7 +260,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'status-middleware'],
+  layout: 'default'
+})
+  
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
