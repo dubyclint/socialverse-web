@@ -28,7 +28,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['route-guard', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+ 
 import { ref, computed, onMounted } from 'vue'
 
 const entry = ref({ key: '', language: 'en', value: '' })
