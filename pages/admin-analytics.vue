@@ -9,7 +9,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['route-guard', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+ 
 import { onMounted } from 'vue'
 import Chart from 'chart.js/auto'
 
