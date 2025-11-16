@@ -22,7 +22,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['route-guard', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+ 
 import { ref } from 'vue'
 
 const overrideGroup = ref('')
