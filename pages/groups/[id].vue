@@ -20,6 +20,11 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+ 
 const route = useRoute();
 const groupId = route.params.id as string;
 
