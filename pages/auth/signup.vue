@@ -30,10 +30,11 @@
 </template>
 
 <script setup lang="ts">
-// FILE: /pages/auth/signup.vue - SCRIPT SECTION
-// Sign-up page - for unauthenticated users only
-// ============================================================================
-
+definePageMeta({
+  middleware: 'guest',
+  layout: 'blank'
+})
+  
 definePageMeta({
   layout: 'blank',
   middleware: ['guest']  // Redirect authenticated users to /feed
