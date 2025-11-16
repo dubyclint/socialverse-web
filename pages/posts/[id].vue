@@ -7,7 +7,7 @@
   </div>
 </template>
 
-<script setup><script setup lang="ts">
+<script setup lang="ts">
 definePageMeta({
   middleware: ['auth', 'language-check'],
   layout: 'default'
