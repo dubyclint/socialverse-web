@@ -5,7 +5,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check'],
+  layout: 'default'
+})
+
 import chatlayout from '@/components/chat/chat-layout.vue'
 
 // Set page meta
