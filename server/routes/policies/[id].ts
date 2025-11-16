@@ -1,4 +1,4 @@
-import { supabase } from '~/server/db'
+import { supabase } from '~/server/utils/database'
 
 interface PolicyResponse {
   id: string
