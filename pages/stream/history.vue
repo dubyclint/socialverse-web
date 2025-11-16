@@ -13,3 +13,10 @@
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'status-middleware'],
+  layout: 'default'
+})
+</script>
