@@ -1,14 +1,24 @@
-// middleware/security-middleware.js - Security and Session Management Middleware
-/**
- * Nuxt route middleware for session validation
- * Calls server endpoints instead of importing server models
- */
-export default defineRouteMiddleware(async (to, from) => {
+// FILE: /middleware/security-middleware.ts - SESSION VALIDATION
+// ============================================================================
+// NON-GLOBAL MIDDLEWARE - Applied to protected routes via definePageMeta
+// Purpose: Validate user session and check security restrictions
+// ============================================================================
+
+export default defineNuxtRouteMiddleware(async (to, from) => {
+  // Skip middleware on server-side rendering
+  if (process.server) return
+
+  console.log(`[Security Middleware] Validating session for: ${to.path}`)
+
   try {
-    const token = useCookie('session_token').value;
+    // Get token from localStorage (more reliable than cookies in Nuxt)
+    const token = typeof window !== 'undefined' 
+      ? localStorage.getItem('auth_token') 
+      : null
 
     if (!token) {
-      return navigateTo('/login');
+      console.warn(`[Security Middleware] No token found, redirecting to login`)
+      return navigateTo('/auth/signin')
     }
 
     // Validate session via API
@@ -17,89 +27,30 @@ export default defineRouteMiddleware(async (to, from) => {
       headers: {
         'Authorization': `Bearer ${token}`
       }
-    });
+    })
 
     if (error.value || !data.value?.valid) {
-      useCookie('session_token').value = null;
-      return navigateTo('/login');
-    }
-  } catch (error) {
-    console.error('Session validation error:', error);
-    return navigateTo('/login');
-  }
-});
-
-/**
- * Middleware to check security restrictions
- */
-export const checkSecurityRestrictions = defineRouteMiddleware(async (to, from) => {
-  try {
-    const user = useAuthStore().user;
-    
-    if (!user) {
-      return;
+      console.warn(`[Security Middleware] Session invalid, clearing token`)
+      localStorage.removeItem('auth_token')
+      return navigateTo('/auth/signin')
     }
 
-    const { data, error } = await useFetch('/api/security/check-restrictions', {
+    // Check for security restrictions
+    const { data: securityData, error: securityError } = await useFetch('/api/security/check-restrictions', {
       method: 'POST',
-      body: { userId: user.id }
-    });
-
-    if (data.value?.isRestricted) {
-      return navigateTo('/security-alert');
-    }
-  } catch (error) {
-    console.error('Security restriction check error:', error);
-  }
-});
-
-/**
- * Middleware to log security events
- */
-export const logSecurityEvent = defineRouteMiddleware(async (to, from) => {
-  try {
-    const user = useAuthStore().user;
-    
-    if (!user) {
-      return;
-    }
-
-    // Log route access as security event
-    await useFetch('/api/security/log-event', {
-      method: 'POST',
-      body: {
-        userId: user.id,
-        eventType: 'ROUTE_ACCESS',
-        route: to.path,
-        timestamp: new Date().toISOString()
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    });
-  } catch (error) {
-    console.error('Security event logging error:', error);
-    // Don't block navigation on logging errors
-  }
-});
+    })
 
-/**
- * Middleware to check IP restrictions
- */
-export const checkIpRestrictions = defineRouteMiddleware(async (to, from) => {
-  try {
-    const user = useAuthStore().user;
-    
-    if (!user) {
-      return;
+    if (securityData.value?.isRestricted) {
+      console.warn(`[Security Middleware] User account restricted`)
+      return navigateTo('/security-alert')
     }
 
-    const { data, error } = await useFetch('/api/security/check-ip', {
-      method: 'POST',
-      body: { userId: user.id }
-    });
-
-    if (error.value || !data.value?.allowed) {
-      return navigateTo('/access-denied');
-    }
+    console.log(`[Security Middleware] ✓ Session valid for: ${to.path}`)
   } catch (error) {
-    console.error('IP restriction check error:', error);
+    console.error(`[Security Middleware] Error:`, error)
+    // Don't block navigation on errors, let auth middleware handle it
   }
-});
+})
