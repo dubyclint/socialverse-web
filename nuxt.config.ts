@@ -61,6 +61,12 @@ export default defineNuxtConfig({
       __DEV__: process.env.NODE_ENV !== 'production',
     },
     
+    resolve: {
+      alias: {
+        '#supabase/server': '@nuxtjs/supabase/dist/runtime/server'
+      }
+    },
+    
     build: {
       // ====================================================================
       // SOURCE MAP CONFIGURATION
