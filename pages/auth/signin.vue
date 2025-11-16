@@ -40,9 +40,10 @@
 </template>
 
 <script setup lang="ts">
-// FILE: /pages/auth/signin.vue - SCRIPT SECTION
-// Sign-in page - for unauthenticated users only
-// ============================================================================
+definePageMeta({
+  middleware: 'guest',
+  layout: 'blank'
+})
 
 definePageMeta({
   layout: 'blank',
