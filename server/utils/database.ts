@@ -1,4 +1,4 @@
-// FILE: /server/utils/database.ts - CONSOLIDATED SUPABASE CLIENT
+// FILE: /server/utils/database.ts - CONSOLIDATED SUPABASE CLIENT (FIXED)
 // ============================================================================
 // CENTRALIZED SUPABASE DATABASE CLIENT
 // This is the ONLY place where Supabase clients should be initialized
@@ -39,8 +39,7 @@ export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   },
 })
 
-// 
-============================================================================
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -78,14 +77,14 @@ export const initializeDatabase = async () => {
     const { error } = await supabase.from('user').select('id', { head: true, count: 'exact' })
     
     if (error) {
-      console.error('[Database] ❌ Connection failed:', error.message)
+      console.error('[Database] Connection failed:', error.message)
       throw error
-  }
-
-  console.log('[Database] ✅ Successfully connected to Supabase')
+    }
+    
+    console.log('[Database] Successfully connected to Supabase')
     return true
   } catch (error) {
-    console.error('[Database] ❌ Initialization error:', error)
+    console.error('[Database] Initialization error:', error)
     throw error
   }
 }
