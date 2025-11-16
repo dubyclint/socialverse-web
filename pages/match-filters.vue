@@ -15,7 +15,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check'],
+  layout: 'default'
+})
+ 
 import { ref, onMounted } from 'vue'
 
 const filters = ref({
