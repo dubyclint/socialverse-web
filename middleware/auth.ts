@@ -1,7 +1,6 @@
-// FILE: /middleware/auth.ts - CONSOLIDATED & FIXED
+// FILE: /middleware/auth.ts - GLOBAL AUTH MIDDLEWARE
 // ============================================================================
-// SINGLE SOURCE OF TRUTH FOR AUTH MIDDLEWARE
-// This is a NON-GLOBAL middleware - only applied to routes that explicitly use it
+// GLOBAL MIDDLEWARE - Applied to all routes
 // Purpose: Protect routes that require authentication
 // ============================================================================
 
@@ -39,15 +38,19 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   // For protected routes, check if user has a valid auth token
-  const token = typeof window !== 'undefined' 
-    ? localStorage.getItem('auth_token') 
-    : null
+  try {
+    const token = typeof window !== 'undefined' 
+      ? localStorage.getItem('auth_token') 
+      : null
 
-  if (!token) {
-    console.warn(`[Auth Middleware] ✗ Unauthorized access to protected route: ${to.path}`)
-    console.warn(`[Auth Middleware] Redirecting to /auth/signin`)
+    if (!token) {
+      console.warn(`[Auth Middleware] ✗ Unauthorized access to protected route: ${to.path}`)
+      return navigateTo('/auth/signin')
+    }
+
+    console.log(`[Auth Middleware] ✓ Authenticated user accessing: ${to.path}`)
+  } catch (error) {
+    console.error(`[Auth Middleware] Error checking auth:`, error)
     return navigateTo('/auth/signin')
   }
-
-  console.log(`[Auth Middleware] ✓ Authenticated user accessing: ${to.path}`)
 })
