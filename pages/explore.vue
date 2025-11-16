@@ -41,12 +41,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-
 definePageMeta({
+  middleware: ['auth', 'language-check'],
   layout: 'default'
 })
-
+  
+import { ref, onMounted } from 'vue'
 useHead({
   title: 'Explore - SocialVerse',
   meta: [
