@@ -151,7 +151,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'premium-middleware'],
+  layout: 'default',
+  requiredFeature: 'ads'
+})
+ 
 import { ref, onMounted } from 'vue'
 
 // Page meta
