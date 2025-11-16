@@ -47,6 +47,11 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'guest',
+  layout: 'blank'
+})
+ 
 import { ref } from 'vue'
 
 const email = ref('')
