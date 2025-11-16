@@ -7,9 +7,14 @@
   </div>
 </template>
 
-<script setup>
-// import TradeListings from '~/components/TradeListings.vue'; // Component may not exist
-// import AdSlot from '~/components/ui/AdSlot.vue'; // Component may not exist
+<script setup><script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check'],
+  layout: 'default'
+})
+ 
+import TradeListings from '~/components/trade-listings.vue'; // Component may not exist
+import AdSlot from '~/components/ui/ad-slot.vue'; // Component may not exist
 </script>
 
 
