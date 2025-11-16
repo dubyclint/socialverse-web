@@ -41,11 +41,6 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: 'guest',
-  layout: 'blank'
-})
-
-definePageMeta({
   layout: 'blank',
   middleware: ['guest']  // Redirect authenticated users to /feed
 })
