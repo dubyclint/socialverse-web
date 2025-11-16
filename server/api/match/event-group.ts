@@ -1,7 +1,7 @@
 import { supabase } from "~/server/utils/database"
-import { computeMatchScore } from '~/server/utils/matchScore'
-import { sendNotification } from '~/server/utils/sendNotification'
-import { sendPushAlert } from '~/server/utils/sendPushAlert'
+import { computeMatchScore } from '~/server/utils/match-score'
+import { sendNotification } from '~/server/utils/send-notification'
+import { sendPushAlert } from '~/server/utils/send-push-alert'
 
 export default defineEventHandler(async (event) => {
   const user = event.context.user
