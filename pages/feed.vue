@@ -381,12 +381,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-
 definePageMeta({
-  middleware: 'auth-guard'
+  middleware: ['auth', 'language-check'],
+  layout: 'default'
 })
-
+ 
+import { ref, computed, onMounted } from 'vue'
 const authStore = useAuthStore()
 const { fetchFeed, fetchTrending, fetchSuggestions } = usePostFeed()
 
