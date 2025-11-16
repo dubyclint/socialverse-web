@@ -128,6 +128,11 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check', 'status-middleware'],
+  layout: 'default'
+})
+  
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStreamBroadcast } from '~/composables/useStream-Broadcast'
 import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
