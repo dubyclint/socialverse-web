@@ -1,5 +1,5 @@
 import { supabase } from "~/server/utils/database"
-import { computeMatchScore } from '~/server/utils/match-score'
+import { matchscore } from '~/server/utils/match-score'
 import { sendNotification } from '~/server/utils/send-notification'
 import { sendPushAlert } from '~/server/utils/send-push-alert'
 
