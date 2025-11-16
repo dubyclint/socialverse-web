@@ -44,7 +44,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check'],
+  layout: 'default'
+})
+  
 import { ref, onMounted } from 'vue'
 import CreatePost from '@/components/posts/create-post.vue'
 import PostCard from '@/components/posts/post-card.vue'
