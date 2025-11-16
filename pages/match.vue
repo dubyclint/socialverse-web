@@ -42,7 +42,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['auth', 'language-check'],
+  layout: 'default'
+})
+ 
 import { ref } from 'vue'
 
 const filters = ref({ size: 4, region: '', category: '' })
