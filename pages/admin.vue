@@ -8,7 +8,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+definePageMeta({
+  middleware: ['route-guard', 'language-check', 'security-middleware'],
+  layout: 'default'
+})
+  
 import adminuserlist from '@/components/admin/user-list.vue'
 import adminpostmoderation from '@/components/admin/post-moderation.vue'
 import adminmatchapproval from '@/components/admin/match-approval.vue'
