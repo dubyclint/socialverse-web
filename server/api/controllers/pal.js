@@ -1,5 +1,6 @@
 // server/api/controllers/palController.js
-import { supabase } from '../../utils/supabase';
+import { supabase } from '~/server/utils/database';
+
 
 export class PalController {
   // Send pal request
