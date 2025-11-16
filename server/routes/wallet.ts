@@ -1,5 +1,8 @@
+// FILE: /server/routes/wallet.ts - FIXED
+// ============================================================================
+
 import { UserWalletModel } from '~/server/models/user-wallet'
-import { supabase } from '~/server/db'
+import { supabase } from '~/server/utils/database'
 
 interface WalletUpdateRequest {
   userId: string
@@ -21,8 +24,6 @@ export default defineEventHandler(async (event) => {
     if (method === 'GET') {
       return await handleGetWallet(event)
     } else if (method === 'POST') {
-      return await handleCreateWallet(event)
-    } else if (method === 'PUT') {
       return await handleUpdateWallet(event)
     } else {
       throw createError({
@@ -31,127 +32,93 @@ export default defineEventHandler(async (event) => {
       })
     }
   } catch (error: any) {
-    console.error('Wallet route error:', error)
+    console.error('[Wallet] Error:', error)
     throw createError({
       statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Internal Server Error'
+      statusMessage: error.message || 'Wallet operation failed'
     })
   }
 })
-
 async function handleGetWallet(event: any) {
-  const query = getQuery(event)
-  const { userId } = query
+  const { userId } = getQuery(event)
 
   if (!userId) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'User ID is required'
+      statusMessage: 'Missing userId parameter'
     })
   }
 
-  try {
-    const wallet = await UserWalletModel.getByUserId(userId as string)
+  const { data, error } = await supabase
+    .from('user_wallets')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
 
-    if (!wallet) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Wallet not found'
-      })
-    }
-
-    return {
-      success: true,
-      wallet
-    }
-  } catch (error: any) {
-    console.error('Get wallet error:', error)
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Failed to fetch wallet'
-    })
-  }
-}
-
-async function handleCreateWallet(event: any) {
-  const body = await readBody<{ userId: string }>(event)
-
-  if (!body.userId) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'User ID is required'
-    })
+  if (error && error.code !== 'PGRST116') {
+    throw error
   }
 
-  try {
-    // Check if wallet already exists
-    const existing = await UserWalletModel.getByUserId(body.userId)
-    if (existing) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Wallet already exists for this user'
-      })
-    }
-
-    const wallet = await UserWalletModel.create(body.userId)
-
-    return {
-      success: true,
-      wallet,
-      message: 'Wallet created successfully'
-    }
-  } catch (error: any) {
-    console.error('Create wallet error:', error)
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Failed to create wallet'
-    })
+  return data || {
+    user_id: userId,
+    usdt: 0,
+    usdc: 0,
+    btc: 0,
+    eth: 0,
+    sol: 0,
+    matic: 0,
+    xaut: 0
   }
 }
 
 async function handleUpdateWallet(event: any) {
   const body = await readBody<WalletUpdateRequest>(event)
+  const { userId, balances } = body
 
-  if (!body.userId) {
+  if (!userId) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'User ID is required'
+      statusMessage: 'Missing userId'
     })
   }
 
-  try {
-    const wallet = await UserWalletModel.getByUserId(body.userId)
+// Check if wallet exists
+  const { data: existingWallet } = await supabase
+    .from('user_wallets')
+    .select('id')
+    .eq('user_id', userId)
+    .single()
 
-    if (!wallet) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Wallet not found'
+  let result
+
+  if (existingWallet) {
+    // Update existing wallet
+    const { data, error } = await supabase
+      .from('user_wallets')
+      .update({
+        ...balances,
+        updated_at: new Date().toISOString()
       })
-    }
+      .eq('user_id', userId)
+      .select()
 
-    if (body.balances) {
-      const updatedWallet = await UserWalletModel.updateBalances(body.userId, {
-        ...wallet.balances,
-        ...body.balances
-      })
+    if (error) throw error
+    result = data
+  } else {
+    // Create new wallet
+    const { data, error } = await supabase
+      .from('user_wallets')
+      .insert([{
+        user_id: userId,
+        ...balances,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
 
-      return {
-        success: true,
-        wallet: updatedWallet,
-        message: 'Wallet updated successfully'
-      }
-    }
-
-    return {
-      success: true,
-      wallet,
-      message: 'No updates provided'
-    }
-  } catch (error: any) {
-    console.error('Update wallet error:', error)
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Failed to update wallet'
-    })
+    if (error) throw error
+    result = data
   }
+
+  return result
 }
