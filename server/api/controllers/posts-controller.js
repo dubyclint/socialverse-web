@@ -1,5 +1,6 @@
 // server/api/controllers/postController.js
-import { supabase } from '../../utils/supabase';
+import { supabase } from '~/server/utils/database';
+
 
 export class PostController {
   // Create new post
