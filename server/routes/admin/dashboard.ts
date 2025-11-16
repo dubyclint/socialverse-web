@@ -1,5 +1,5 @@
-import { supabase } from '~/server/db'
-import { AuditLogModel } from '~/server/models/AuditLog'
+import { supabase } from '~/server/utils/database'
+import { AuditLogModel } from '~/server/models/audit-log'
 
 interface DashboardStats {
   totalUsers: number
