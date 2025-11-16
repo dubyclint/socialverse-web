@@ -1,5 +1,5 @@
 import { supabase } from "~/server/utils/database"
-import { computeMatchScore } from '~/server/utils/matchScore'
+import { MatchScore } from '~/server/utils/match-score'
 
 export default defineEventHandler(async (event) => {
   const user = event.context.user
