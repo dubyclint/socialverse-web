@@ -20,7 +20,7 @@ import { ref, onMounted } from 'vue'
 const agents = ref([])
 
 async function fetchAgents() {
-  const res = await fetch('/api/support/agentStatus')
+  const res = await fetch('/api/support/agent-status')
   agents.value = await res.json()
 }
 
