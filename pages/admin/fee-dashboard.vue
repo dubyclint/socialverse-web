@@ -62,7 +62,7 @@ const fee = ref({
 const fees = ref([])
 
 async function fetchFees() {
-  const res = await fetch('/api/admin/feeSettings')
+  const res = await fetch('/api/admin/fee-settings')
   fees.value = await res.json()
 }
 
