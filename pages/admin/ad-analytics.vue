@@ -128,7 +128,7 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: ['route-guard', 'language-check', 'security-middleware'],
-  layout: 'manager'
+  layout: 'admin'
 })
  
  
@@ -137,7 +137,7 @@ import { ref, onMounted } from 'vue'
 // Page meta with admin authentication
 definePageMeta({ 
   middleware: ['admin-auth'],
-  layout: 'admin'
+  layout: 'manager'
 })
 
 // Reactive data
