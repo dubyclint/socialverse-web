@@ -128,8 +128,9 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: ['route-guard', 'language-check', 'security-middleware'],
-  layout: 'default'
+  layout: 'manager'
 })
+ 
  
 import { ref, onMounted } from 'vue'
 
