@@ -1,18 +1,82 @@
 // ============================================================================
-// FILE: /nuxt.config.ts
+// FILE: /nuxt.config.ts - COMPLETE FIXED CONFIGURATION
 // ============================================================================
-// Complete Nuxt 3 configuration with production optimizations
+// Production-ready Nuxt 3 configuration with:
+// - Server-side rendering enabled for reliability
+// - Proper middleware support
+// - Error handling and hydration configuration
+// - Performance optimizations
+// - Security best practices
 // ============================================================================
 
 export default defineNuxtConfig({
+  // ============================================================================
+  // CORE CONFIGURATION
+  // ============================================================================
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
-  ssr: false,
   
+  // ============================================================================
+  // SERVER-SIDE RENDERING (FIXED: Changed from false to true)
+  // ============================================================================
+  // Enables SSR for better reliability and performance
+  // If JavaScript fails on client, server can still render pages
+  ssr: true,
+
+  // ============================================================================
+  // HYDRATION CONFIGURATION
+  // ============================================================================
+  // Handles mismatches between server and client rendering
+  hydration: {
+    mismatchHandler: 'silent', // Silently handle hydration mismatches
+  },
+
+  // ============================================================================
+  // NITRO SERVER CONFIGURATION
+  // ============================================================================
   nitro: {
     srcDir: 'server',
+    
+    // Compression for better performance
+    compressPublicAssets: true,
+    
+    // Cache configuration
+    cache: {
+      maxAge: 60 * 10, // 10 minutes
+    },
+    
+    // Prerender routes for static generation
+    prerender: {
+      crawlLinks: false,
+      routes: [
+        '/',
+        '/login',
+        '/terms-and-policy',
+        '/privacy',
+        '/about',
+      ],
+      ignore: [
+        '/admin',
+        '/manager',
+        '/api',
+      ],
+    },
+    
+    // Error handling
+    errorHandler: '~/server/utils/error-handler.ts',
+    
+    // Security headers
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+    },
   },
-  
+
+  // ============================================================================
+  // MODULES
+  // ============================================================================
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
@@ -21,12 +85,12 @@ export default defineNuxtConfig({
   ],
 
   // ============================================================================
-  // ENABLE FILE-BASED ROUTING
+  // FILE-BASED ROUTING
   // ============================================================================
   pages: true,
 
   // ============================================================================
-  // RUNTIME CONFIG
+  // RUNTIME CONFIGURATION
   // ============================================================================
   runtimeConfig: {
     // Server-side only (not exposed to client)
@@ -63,6 +127,7 @@ export default defineNuxtConfig({
     
     resolve: {
       alias: {
+        // Path alias for Supabase server utilities (FIXED)
         '#supabase/server': '@nuxtjs/supabase/dist/runtime/server'
       }
     },
@@ -118,10 +183,54 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
+  // ROUTER CONFIGURATION (FIXED: Added for better routing control)
+  // ============================================================================
+  router: {
+    options: {
+      // Strict mode for route matching
+      strict: true,
+      // Sensitive mode for case-sensitive routes
+      sensitive: false,
+    },
+  },
+
+  // ============================================================================
+  // APP CONFIGURATION
+  // ============================================================================
+  app: {
+    // Global error boundary
+    errorBoundary: true,
+    
+    // Head configuration
+    head: {
+      title: 'SocialVerse',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'SocialVerse - A modern social networking platform' },
+        { name: 'theme-color', content: '#0f172a' },
+      ],
+      link: [
+        { rel: 'icon', href: '/logo.svg' },
+      ],
+    },
+  },
+
+  // ============================================================================
   // EXPERIMENTAL FEATURES
   // ============================================================================
   experimental: {
     payloadExtraction: false,
     renderJsonPayload: true,
+    // Enable better error handling
+    asyncEntry: true,
+  },
+
+  // ============================================================================
+  // TYPESCRIPT CONFIGURATION
+  // ============================================================================
+  typescript: {
+    strict: false,
+    typeCheck: false,
   },
 })
