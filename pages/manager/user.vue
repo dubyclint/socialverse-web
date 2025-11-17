@@ -228,12 +228,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 definePageMeta({
-  middleware: 'manager-auth',
+  middleware: ['route-guard', 'language-check', 'security-middleware'],
   layout: 'manager'
 })
-
+  
 const { requirePermission } = useRBAC()
 const authStore = useAuthStore()
 const supabase = useSupabaseClient()
@@ -267,7 +267,7 @@ const fetchUsers = async () => {
         *,
         posts:posts(count),
         reports:reports!reported_user_id(count)
-      `, { count: 'exact' })
+      xact' })
       .range((currentPage.value - 1) * pageSize, currentPage.value * pageSize - 1)
       .order('created_at', { ascending: false })
 
