@@ -31,7 +31,7 @@ const selected = ref({})
 const reasons = ref({})
 
 onMounted(async () => {
-  const res = await fetch('/api/admin/filterRequests')
+  const res = await fetch('/api/admin/filter-requests')
   requests.value = await res.json()
   for (const req of requests.value) {
     selected.value[req.userId] = {}
@@ -47,7 +47,7 @@ async function approve(userId) {
     .filter(([_, val]) => val)
     .map(([key]) => key)
 
-  await fetch('/api/admin/approveFilters', {
+  await fetch('/api/admin/approvefilters', {
     method: 'POST',
     body: JSON.stringify({ userId, approvedFilters: approved }),
     headers: { 'Content-Type': 'application/json' }
