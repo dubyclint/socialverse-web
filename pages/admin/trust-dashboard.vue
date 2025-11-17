@@ -54,7 +54,7 @@ const users = ref([])
 const filter = ref('')
 
 onMounted(async () => {
-  const res = await fetch('/api/admin/trustScores')
+  const res = await fetch('/api/admin/trust-scores')
   users.value = await res.json()
 })
 
