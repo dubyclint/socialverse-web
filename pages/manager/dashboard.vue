@@ -85,12 +85,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 definePageMeta({
-  middleware: 'manager-auth',
+  middleware: ['route-guard', 'language-check', 'security-middleware'],
   layout: 'manager'
 })
-
+ 
 const { $i18n } = useNuxtApp()
 const { hasPermission, getUserPermissions } = useRBAC()
 const authStore = useAuthStore()
