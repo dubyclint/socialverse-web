@@ -50,7 +50,7 @@ const rule = ref({
 const rules = ref([])
 
 async function fetchRules() {
-  const res = await fetch('/api/admin/premiumRules')
+  const res = await fetch('/api/admin/premium-rules')
   rules.value = await res.json()
 }
 
@@ -64,7 +64,7 @@ async function saveRule() {
 }
 
 async function deleteRule(r) {
-  await fetch('/api/admin/premiumRules', {
+  await fetch('/api/admin/premium-rules', {
     method: 'DELETE',
     body: JSON.stringify({ target: r.target, value: r.value }),
     headers: { 'Content-Type': 'application/json' }
