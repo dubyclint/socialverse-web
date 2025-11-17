@@ -1,6 +1,15 @@
+<!-- FILE: /layouts/blank.vue - AUTHENTICATION LAYOUT -->
+<!-- ============================================================================
+     BLANK LAYOUT - Used for auth pages (login, signup, etc.)
+     No header, footer, or navigation - just page content
+     ============================================================================ -->
+
 <template>
-  <div>
-    <slot />
+  <div class="blank-layout">
+    <!-- Error Boundary for Auth Pages -->
+    <ErrorBoundary>
+      <slot />
+    </ErrorBoundary>
   </div>
 </template>
 
@@ -11,6 +20,13 @@
 </script>
 
 <style scoped>
-/* No styles - completely blank layout */
-/* All styling is handled by individual page components */
+.blank-layout {
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
 </style>
