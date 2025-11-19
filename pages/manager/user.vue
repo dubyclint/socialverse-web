@@ -262,14 +262,14 @@ const fetchUsers = async () => {
     loading.value = true
     
     let query = supabase
-      .from('profiles')
-      .select(`
-        *,
-        posts:posts(count),
-        reports:reports!reported_user_id(count)
-      xact' })
-      .range((currentPage.value - 1) * pageSize, currentPage.value * pageSize - 1)
-      .order('created_at', { ascending: false })
+  .from('profiles')
+  .select(`
+    *,
+    posts:posts(count),
+    reports:reports!reported_user_id(count)
+  `)
+  .range((currentPage.value - 1) * pageSize, currentPage.value * pageSize - 1)
+  .order('created_at', { ascending: false })
 
     // Apply filters
     if (statusFilter.value) {
