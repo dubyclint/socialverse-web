@@ -13,12 +13,6 @@ definePageMeta({
 
 import chatlayout from '@/components/chat/chat-layout.vue'
 
-// Set page meta
-definePageMeta({
-  middleware: 'auth',
-  layout: 'default'
-})
-
 // SEO
 useHead({
   title: 'Chat - SocialVerse',
