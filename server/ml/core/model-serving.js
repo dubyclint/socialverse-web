@@ -1,7 +1,7 @@
 // Model serving orchestrator
-import { TensorFlowModel } from './TensorFlowModel.js'
-import { ModelCache } from './ModelCache.js'
-import { ModelMonitor } from './ModelMonitor.js'
+import { TensorFlowModel } from './tensor-flow-model.js'
+import { ModelCache } from './model-cache.js'
+import { ModelMonitor } from './model-monitor.js'
 
 export class ModelServing {
   constructor() {
