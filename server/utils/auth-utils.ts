@@ -1,7 +1,4 @@
-server/utils/auth-utils.ts - UPDATE
-// Fix table references from 'users' to 'profiles'
-// ============================================================================
-
+// server/utils/auth-utils.ts - COMPLETE FIXED VERSION
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -148,4 +145,93 @@ export const verifyToken = (token: string) => {
     console.error('[Auth] Token verification error:', error)
     throw error
   }
+}
+
+// ============ ADMIN UTILITIES ============
+
+/**
+ * Require admin authentication
+ */
+export const requireAdmin = async (event: any) => {
+  try {
+    const user = await requireAuth(event)
+    
+    if (!user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized'
+      })
+    }
+
+    // Check if user is admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden: Admin access required'
+      })
+    }
+
+    return user
+  } catch (error) {
+    console.error('[Admin] Authorization error:', error)
+    throw error
+  }
+}
+
+/**
+ * Log admin actions
+ */
+export const logAdminAction = async (adminId: string, action: string, details: any) => {
+  try {
+    const { error } = await supabase
+      .from('admin_logs')
+      .insert({
+        admin_id: adminId,
+        action,
+        details,
+        created_at: new Date().toISOString()
+      })
+
+    if (error) {
+      console.error('[Admin] Log error:', error)
+    }
+  } catch (error) {
+    console.error('[Admin] Logging error:', error)
+  }
+}
+
+/**
+ * Validate request body
+ */
+export const validateBody = (body: any, requiredFields: string[]) => {
+  for (const field of requiredFields) {
+    if (!body[field]) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Missing required field: ${field}`
+      })
+    }
+  }
+}
+
+/**
+ * Handle errors
+ */
+export const handleError = (error: any) => {
+  console.error('[Error]', error)
+  
+  if (error.statusCode) {
+    return error
+  }
+
+  return createError({
+    statusCode: 500,
+    statusMessage: error.message || 'Internal server error'
+  })
 }
