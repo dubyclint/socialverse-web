@@ -1,4 +1,3 @@
-Dockerfile
 FROM node:22-alpine
 
 LABEL language="nodejs"
