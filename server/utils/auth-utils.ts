@@ -1,4 +1,4 @@
-// server/utils/auth-utils.ts - COMPLETE VERSION WITH ALL OPERATIONS & RATE LIMIT
+// server/utils/auth-utils.ts - COMPREHENSIVE VERSION WITH ALL OPERATIONS
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -23,9 +23,6 @@ interface RateLimitRecord {
 
 const rateLimitStore = new Map<string, RateLimitRecord>()
 
-/**
- * Rate limit middleware
- */
 export const rateLimit = (maxRequests: number, windowMs: number) => {
   return async (event: any) => {
     const userId = event.node.req.headers['x-user-id'] || 'anonymous'
@@ -53,9 +50,6 @@ export const rateLimit = (maxRequests: number, windowMs: number) => {
 
 // ============ AUTHENTICATION ============
 
-/**
- * Authenticate user by email and password
- */
 export const authenticateUser = async (email: string, password: string) => {
   try {
     const { data: profile, error } = await supabase
@@ -75,9 +69,6 @@ export const authenticateUser = async (email: string, password: string) => {
   }
 }
 
-/**
- * Get user profile by ID
- */
 export const getUserProfile = async (userId: string) => {
   try {
     const { data: profile, error } = await supabase
@@ -97,9 +88,6 @@ export const getUserProfile = async (userId: string) => {
   }
 }
 
-/**
- * Check if email exists
- */
 export const emailExists = async (email: string) => {
   try {
     const { data, error } = await supabase
@@ -114,9 +102,6 @@ export const emailExists = async (email: string) => {
   }
 }
 
-/**
- * Check if username exists
- */
 export const usernameExists = async (username: string) => {
   try {
     const { data, error } = await supabase
@@ -131,9 +116,6 @@ export const usernameExists = async (username: string) => {
   }
 }
 
-/**
- * Update user profile
- */
 export const updateUserProfile = async (userId: string, updates: any) => {
   try {
     const { data, error } = await supabase
@@ -155,9 +137,6 @@ export const updateUserProfile = async (userId: string, updates: any) => {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 
-/**
- * Generate JWT token
- */
 export const generateToken = (payload: any) => {
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn: '7d',
@@ -165,9 +144,6 @@ export const generateToken = (payload: any) => {
   })
 }
 
-/**
- * Verify JWT token
- */
 export const verifyToken = (token: string) => {
   try {
     return jwt.verify(token, JWT_SECRET, {
@@ -181,9 +157,6 @@ export const verifyToken = (token: string) => {
 
 // ============ ADMIN UTILITIES ============
 
-/**
- * Require admin authentication
- */
 export const requireAdmin = async (event: any) => {
   try {
     const user = await requireAuth(event)
@@ -195,7 +168,6 @@ export const requireAdmin = async (event: any) => {
       })
     }
 
-    // Check if user is admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -216,9 +188,6 @@ export const requireAdmin = async (event: any) => {
   }
 }
 
-/**
- * Log admin actions
- */
 export const logAdminAction = async (adminId: string, action: string, details: any) => {
   try {
     const { error } = await supabase
@@ -238,9 +207,6 @@ export const logAdminAction = async (adminId: string, action: string, details: a
   }
 }
 
-/**
- * Validate request body
- */
 export const validateBody = (body: any, requiredFields: string[]) => {
   for (const field of requiredFields) {
     if (!body[field]) {
@@ -252,9 +218,6 @@ export const validateBody = (body: any, requiredFields: string[]) => {
   }
 }
 
-/**
- * Handle errors
- */
 export const handleError = (error: any) => {
   console.error('[Error]', error)
   
@@ -469,6 +432,62 @@ export const streamOperations = {
       return streams || []
     } catch (error) {
       console.error('[Stream] Get user streams error:', error)
+      throw error
+    }
+  }
+}
+
+// ============ WALLET OPERATIONS ============
+
+export const walletOperations = {
+  lockWallet: async (userId: string, data: any) => {
+    try {
+      const { data: lock, error } = await supabase
+        .from('wallet_locks')
+        .insert({
+          user_id: userId,
+          amount: data.amount,
+          reason: data.reason || null,
+          locked_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return lock
+    } catch (error) {
+      console.error('[Wallet] Lock wallet error:', error)
+      throw error
+    }
+  },
+
+  unlockWallet: async (lockId: string) => {
+    try {
+      const { error } = await supabase
+        .from('wallet_locks')
+        .update({ unlocked_at: new Date().toISOString() })
+        .eq('id', lockId)
+
+      if (error) throw error
+      return { success: true, message: 'Wallet unlocked successfully' }
+    } catch (error) {
+      console.error('[Wallet] Unlock wallet error:', error)
+      throw error
+    }
+  },
+
+  getWalletLocks: async (userId: string) => {
+    try {
+      const { data: locks, error } = await supabase
+        .from('wallet_locks')
+        .select('*')
+        .eq('user_id', userId)
+        .order('locked_at', { ascending: false })
+
+      if (error) throw error
+      return locks || []
+    } catch (error) {
+      console.error('[Wallet] Get wallet locks error:', error)
       throw error
     }
   }
