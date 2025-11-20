@@ -131,14 +131,7 @@ definePageMeta({
   layout: 'admin'
 })
  
- 
 import { ref, onMounted } from 'vue'
-
-// Page meta with admin authentication
-definePageMeta({ 
-  middleware: ['admin-auth'],
-  layout: 'manager'
-})
 
 // Reactive data
 const loading = ref(true)
@@ -171,8 +164,7 @@ const refreshData = async () => {
         id: 1,
         campaign: 'Summer Sale 2024',
         advertiser: 'Fashion Brand Co.',
-        impressions: 125000,
-        clicks: 4200,
+        impressions   clicks: 4200,
         revenue: 1250,
         status: 'Active'
       },
