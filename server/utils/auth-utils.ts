@@ -1,4 +1,4 @@
-// server/utils/auth-utils.ts - CORRECTED VERSION (NO DUPLICATES)
+// server/utils/auth-utils.ts - COMPLETE FIXED VERSION WITH ALL OPERATIONS
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -298,6 +298,74 @@ export const premiumOperations = {
       return features.includes(featureKey)
     } catch (error) {
       console.error('[Premium] Check feature access error:', error)
+      throw error
+    }
+  }
+}
+
+// ============ STATUS OPERATIONS ============
+
+/**
+ * Status management operations
+ */
+export const statusOperations = {
+  /**
+   * Create a new status
+   */
+  createStatus: async (userId: string, data: any) => {
+    try {
+      const { data: status, error } = await supabase
+        .from('statuses')
+        .insert({
+          user_id: userId,
+          content: data.content,
+          files: data.files || [],
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return status
+    } catch (error) {
+      console.error('[Status] Create status error:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Delete a status
+   */
+  deleteStatus: async (statusId: string) => {
+    try {
+      const { error } = await supabase
+        .from('statuses')
+        .delete()
+        .eq('id', statusId)
+
+      if (error) throw error
+      return { success: true, message: 'Status deleted successfully' }
+    } catch (error) {
+      console.error('[Status] Delete status error:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Get all statuses for a user
+   */
+  getUserStatuses: async (userId: string) => {
+    try {
+      const { data: statuses, error } = await supabase
+        .from('statuses')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return statuses || []
+    } catch (error) {
+      console.error('[Status] Get user statuses error:', error)
       throw error
     }
   }
