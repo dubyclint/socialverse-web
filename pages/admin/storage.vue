@@ -154,11 +154,6 @@ definePageMeta({
      
 import { ref, computed, onMounted } from 'vue'
 
-definePageMeta({
-  middleware: 'auth',
-  layout: 'admin'
-})
-
 const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
