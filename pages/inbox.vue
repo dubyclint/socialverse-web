@@ -143,11 +143,6 @@ definePageMeta({
  
 import { ref, computed, onMounted } from 'vue'
 
-// Page meta with authentication
-definePageMeta({ 
-  middleware: ['auth']
-})
-
 // Reactive data
 const notifications = ref([])
 const showFilters = ref(false)
