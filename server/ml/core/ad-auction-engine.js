@@ -1,6 +1,6 @@
 // Ad Auction Engine - Real-time bidding with sophisticated pacing and optimization
-import { BudgetPacingController } from './BudgetPacingController.js'
-import { FrequencyCapManager } from './FrequencyCapManager.js'
+import { BudgetPacingController } from './budget-pacing-controller.js'
+import { FrequencyCapManager } from './frequency-cap-manager.js'
 
 export class AdAuctionEngine {
   constructor() {
