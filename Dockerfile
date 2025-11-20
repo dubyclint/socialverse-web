@@ -19,8 +19,8 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 COPY .npmrc ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with npm install (more flexible than npm ci)
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -55,7 +55,7 @@ USER nuxt
 # ============================================================================
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8080
 ENV HOST=0.0.0.0
 
 # ============================================================================
@@ -63,13 +63,13 @@ ENV HOST=0.0.0.0
 # ============================================================================
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/ || exit 1
+    CMD curl -f http://localhost:8080/ || exit 1
 
 # ============================================================================
 # Expose Port
 # ============================================================================
 
-EXPOSE 3000
+EXPOSE 8080
 
 # ============================================================================
 # Start Application
