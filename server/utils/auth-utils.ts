@@ -18,7 +18,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 
 /**
  * Authenticate user by email and password
- * FIXED: Query 'profiles' table instead of 'users'
  */
 export const authenticateUser = async (email: string, password: string) => {
   try {
@@ -32,7 +31,7 @@ export const authenticateUser = async (email: string, password: string) => {
       throw new Error('User not found')
     }
 
-    return profile
+  return profile
   } catch (error) {
     console.error('[Auth] Authentication error:', error)
     throw error
@@ -41,7 +40,6 @@ export const authenticateUser = async (email: string, password: string) => {
 
 /**
  * Get user profile by ID
- * FIXED: Query 'profiles' table instead of 'users'
  */
 export const getUserProfile = async (userId: string) => {
   try {
@@ -64,7 +62,23 @@ export const getUserProfile = async (userId: string) => {
 
 /**
  * Check if email exists
- * FIXED: Query 'profiles' table instead of 'users'
+ */
+export const emailExists = async (email: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', email)
+      .single()
+
+    return !!data && !error
+  } catch (error) {
+    return false
+  }
+}
+
+/**
+ * Check if email exists
  */
 export const emailExists = async (email: string) => {
   try {
@@ -82,7 +96,6 @@ export const emailExists = async (email: string) => {
 
 /**
  * Check if username exists
- * FIXED: Query 'profiles' table instead of 'users'
  */
 export const usernameExists = async (username: string) => {
   try {
@@ -100,7 +113,6 @@ export const usernameExists = async (username: string) => {
 
 /**
  * Update user profile
- * FIXED: Update 'profiles' table instead of 'users'
  */
 export const updateUserProfile = async (userId: string, updates: any) => {
   try {
@@ -163,7 +175,7 @@ export const requireAdmin = async (event: any) => {
       })
     }
 
-    // Check if user is admin
+  // Check if user is admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -235,3 +247,76 @@ export const handleError = (error: any) => {
     statusMessage: error.message || 'Internal server error'
   })
 }
+
+// ============ PREMIUM OPERATIONS ============
+
+/**
+ * Premium subscription and feature management
+  */
+export const premiumOperations = {
+  /**
+   * Get all available pricing tiers
+   */
+  getPricingTiers: async () => {
+    try {
+      const { data: tiers, error } = await supabase
+        .from('premium_tiers')
+        .select('*')
+        .order('price', { ascending: true })
+
+      if (error) throw error
+      return tiers || []
+    } catch (error) {
+      console.error('[Premium] Get pricing tiers error:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Get user's current subscription
+   */
+  getUserSubscription: async (userId: string) => {
+    try {
+      const { data: subscription, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      return subscription || null
+    } catch (error) {
+      console.error('[Premium] Get subscription error:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Check if user has access to a specific feature
+   */
+  checkFeatureAccess: async (userId: string, featureKey: string) => {
+    try {
+      const subscription = await premiumOperations.getUserSubscription(userId)
+      
+      if (!subscription) {
+        return false
+      }
+
+      const { data: tier, error } = await supabase
+        .from('premium_tiers')
+        .select('features')
+        .eq('id', subscription.tier_id)
+        .single()
+
+      if (error) throw error
+      
+      const features = tier?.features || []
+      return features.includes(featureKey)
+    } catch (error) {
+      console.error('[Premium] Check feature access error:', error)
+      throw error
+    }
+  }
+}
+  
