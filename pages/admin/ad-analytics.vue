@@ -164,7 +164,8 @@ const refreshData = async () => {
         id: 1,
         campaign: 'Summer Sale 2024',
         advertiser: 'Fashion Brand Co.',
-        impressions   clicks: 4200,
+        impressions: 1500,
+        clicks: 4200,
         revenue: 1250,
         status: 'Active'
       },
@@ -199,11 +200,6 @@ const pauseCampaign = async (id) => {
   console.log('Pausing campaign:', id)
 }
 
-const formatNumber = (num) => {
-  return new Intl.NumberFormat().format(num)
-}
-
-// Lifecycle
 onMounted(() => {
   refreshData()
 })
