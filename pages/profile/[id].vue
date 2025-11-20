@@ -246,10 +246,6 @@ definePageMeta({
  
 import { ref, computed, onMounted } from 'vue'
 
-definePageMeta({
-  middleware: 'auth-guard'
-})
-
 const route = useRoute()
 const authStore = useAuthStore()
 const { fetchUserProfile, fetchUserPosts } = useProfile()
