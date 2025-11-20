@@ -5,9 +5,9 @@ LABEL framework="nuxt"
 
 WORKDIR /app
 
-# Install dependencies with legacy peer deps support
+# Install dependencies with legacy peer deps and force flag
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps --force
 
 # Copy source code
 COPY . .
@@ -22,3 +22,4 @@ ENV PORT=8080
 EXPOSE 8080
 # Start the Zeabur serverless function
 CMD ["node", ".zeabur/output/functions/__nitro.func/index.mjs"]
+
