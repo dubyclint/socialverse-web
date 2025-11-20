@@ -390,12 +390,6 @@ definePageMeta({
   
 import { ref, computed, onMounted } from 'vue'
 
-// Page meta with admin authentication
-definePageMeta({ 
-  middleware: ['admin-auth'],
-  layout: 'admin'
-})
-
 // Reactive data
 const showBulkActions = ref(false)
 const showDocumentModal = ref(false)
