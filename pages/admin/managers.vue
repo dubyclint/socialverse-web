@@ -155,10 +155,6 @@ definePageMeta({
 import { ref, onMounted } from 'vue'
 import { debounce } from 'lodash-es'
 
-definePageMeta({
-  middleware: 'admin-auth'
-})
-
 const managers = ref([])
 const showAssignModal = ref(false)
 const showActivityModal = ref(false)
