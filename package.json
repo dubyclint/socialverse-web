@@ -28,7 +28,7 @@
     "@pinia/nuxt": "^0.11.2",
     "@tensorflow/tfjs-node": "^4.11.0",
     "@supabase/supabase-js": "^2.38.4",
-    "@vueuse/nuxt": "^13.9.0",
+    "@vueus/nuxt": "^13.9.0",
     "bcrypt": "^5.1.1",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
@@ -75,4 +75,3 @@
     }
   }
 }
-
