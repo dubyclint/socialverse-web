@@ -1,4 +1,4 @@
-// server/utils/auth-utils.ts - COMPLETE VERSION WITH ALL OPERATIONS
+// server/utils/auth-utils.ts - COMPLETE VERSION WITH ALL OPERATIONS & RATE LIMIT
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -13,6 +13,43 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+// ============ RATE LIMITING ============
+
+interface RateLimitRecord {
+  count: number
+  resetTime: number
+}
+
+const rateLimitStore = new Map<string, RateLimitRecord>()
+
+/**
+ * Rate limit middleware
+ */
+export const rateLimit = (maxRequests: number, windowMs: number) => {
+  return async (event: any) => {
+    const userId = event.node.req.headers['x-user-id'] || 'anonymous'
+    const key = `${userId}:${event.node.req.url}`
+    
+    const now = Date.now()
+    const record = rateLimitStore.get(key)
+    
+    if (record && now < record.resetTime) {
+      if (record.count >= maxRequests) {
+        throw createError({
+          statusCode: 429,
+          statusMessage: 'Too many requests'
+        })
+      }
+      record.count++
+    } else {
+      rateLimitStore.set(key, {
+        count: 1,
+        resetTime: now + windowMs
+      })
+    }
+  }
+}
 
 // ============ AUTHENTICATION ============
 
