@@ -1,50 +1,42 @@
 // server/api/pewgift/index.post.ts
 import { 
   authenticateUser, 
-  rateLimit, 
-  giftOperations, 
   validateBody, 
   handleError 
-} from '../../utils/auth-utils';
+} from '../../utils/auth-utils'
+import { rateLimit } from '../../utils/rate-limit-utils'
+import { giftOperations } from '../../utils/gift-operations-utils'
 
 export default defineEventHandler(async (event) => {
   try {
-    const user = await authenticateUser(event);
-    const body = await readBody(event);
-    const { action } = body;
+    const user = await authenticateUser(event)
+    const body = await readBody(event)
+    const { action } = body
 
-    validateBody(body, ['action']);
+    validateBody(body, ['action'])
 
-    let result;
+    let result
 
     if (action === 'send') {
-      await rateLimit(10, 60000)(event); // 10 requests per minute
-      validateBody(body, ['recipient_id', 'amount']);
-      result = await giftOperations.sendGift({
-        sender_id: user.id,
-        ...body
-      });
+      await rateLimit(10, 60000)(event) // 10 requests per minute
+      validateBody(body, ['recipient_id', 'gift_id', 'amount'])
+      result = await giftOperations.sendGift(user.id, body.recipient_id, body)
     } 
-    else if (action === 'get') {
-      result = await giftOperations.getGifts(user.id);
+    else if (action === 'history') {
+      result = await giftOperations.getGiftHistory(user.id)
     } 
-    else if (action === 'cancel') {
-      validateBody(body, ['gift_id']);
-      result = await giftOperations.cancelGift(body.gift_id);
+    else if (action === 'stats') {
+      result = await giftOperations.getGiftStats(user.id)
     } 
     else {
       throw createError({
         statusCode: 400,
         statusMessage: `Unknown action: ${action}`
-      });
+      })
     }
 
-    return {
-      success: true,
-      message: `Gift ${action} successful`,
-      data: result
-    };
-  } catch (error: any) {
-    return handleError(error, 'Gift operation');
+    return result
+  } catch (error) {
+    return handleError(error)
   }
-});
+})
