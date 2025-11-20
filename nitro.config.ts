@@ -13,6 +13,14 @@ export default defineNitroConfig({
   srcDir: 'server',
   
   // ============================================================================
+  // ROLLUP CONFIGURATION - FIX SUPABASE MODULE RESOLUTION
+  // ============================================================================
+  // Mark @supabase/supabase-js as external to prevent bundling issues
+  rollupConfig: {
+    external: ['@supabase/supabase-js'],
+  },
+  
+  // ============================================================================
   // PUBLIC ASSETS CONFIGURATION - FIX MIME TYPES
   // ============================================================================
   // Serve static assets with correct MIME types
