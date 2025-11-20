@@ -1,4 +1,4 @@
-// server/utils/auth-utils.ts - COMPLETE FIXED VERSION WITH ALL OPERATIONS
+// server/utils/auth-utils.ts - COMPLETE VERSION WITH ALL OPERATIONS
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -233,13 +233,7 @@ export const handleError = (error: any) => {
 
 // ============ PREMIUM OPERATIONS ============
 
-/**
- * Premium subscription and feature management
- */
 export const premiumOperations = {
-  /**
-   * Get all available pricing tiers
-   */
   getPricingTiers: async () => {
     try {
       const { data: tiers, error } = await supabase
@@ -255,9 +249,6 @@ export const premiumOperations = {
     }
   },
 
-  /**
-   * Get user's current subscription
-   */
   getUserSubscription: async (userId: string) => {
     try {
       const { data: subscription, error } = await supabase
@@ -275,9 +266,6 @@ export const premiumOperations = {
     }
   },
 
-  /**
-   * Check if user has access to a specific feature
-   */
   checkFeatureAccess: async (userId: string, featureKey: string) => {
     try {
       const subscription = await premiumOperations.getUserSubscription(userId)
@@ -305,13 +293,7 @@ export const premiumOperations = {
 
 // ============ STATUS OPERATIONS ============
 
-/**
- * Status management operations
- */
 export const statusOperations = {
-  /**
-   * Create a new status
-   */
   createStatus: async (userId: string, data: any) => {
     try {
       const { data: status, error } = await supabase
@@ -333,9 +315,6 @@ export const statusOperations = {
     }
   },
 
-  /**
-   * Delete a status
-   */
   deleteStatus: async (statusId: string) => {
     try {
       const { error } = await supabase
@@ -351,9 +330,6 @@ export const statusOperations = {
     }
   },
 
-  /**
-   * Get all statuses for a user
-   */
   getUserStatuses: async (userId: string) => {
     try {
       const { data: statuses, error } = await supabase
@@ -366,6 +342,96 @@ export const statusOperations = {
       return statuses || []
     } catch (error) {
       console.error('[Status] Get user statuses error:', error)
+      throw error
+    }
+  }
+}
+
+// ============ STREAM OPERATIONS ============
+
+export const streamOperations = {
+  getStream: async (streamId: string) => {
+    try {
+      const { data: stream, error } = await supabase
+        .from('streams')
+        .select('*')
+        .eq('id', streamId)
+        .single()
+
+      if (error) throw error
+      return stream
+    } catch (error) {
+      console.error('[Stream] Get stream error:', error)
+      throw error
+    }
+  },
+
+  createStream: async (userId: string, data: any) => {
+    try {
+      const { data: stream, error } = await supabase
+        .from('streams')
+        .insert({
+          user_id: userId,
+          title: data.title,
+          description: data.description,
+          status: 'active',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return stream
+    } catch (error) {
+      console.error('[Stream] Create stream error:', error)
+      throw error
+    }
+  },
+
+  updateStream: async (streamId: string, data: any) => {
+    try {
+      const { data: stream, error } = await supabase
+        .from('streams')
+        .update(data)
+        .eq('id', streamId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return stream
+    } catch (error) {
+      console.error('[Stream] Update stream error:', error)
+      throw error
+    }
+  },
+
+  deleteStream: async (streamId: string) => {
+    try {
+      const { error } = await supabase
+        .from('streams')
+        .delete()
+        .eq('id', streamId)
+
+      if (error) throw error
+      return { success: true, message: 'Stream deleted successfully' }
+    } catch (error) {
+      console.error('[Stream] Delete stream error:', error)
+      throw error
+    }
+  },
+
+  getUserStreams: async (userId: string) => {
+    try {
+      const { data: streams, error } = await supabase
+        .from('streams')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return streams || []
+    } catch (error) {
+      console.error('[Stream] Get user streams error:', error)
       throw error
     }
   }
