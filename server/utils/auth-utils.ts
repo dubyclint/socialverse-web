@@ -1,4 +1,4 @@
-// server/utils/auth-utils.ts - COMPLETE FIXED VERSION
+// server/utils/auth-utils.ts - CORRECTED VERSION (NO DUPLICATES)
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -31,7 +31,7 @@ export const authenticateUser = async (email: string, password: string) => {
       throw new Error('User not found')
     }
 
-  return profile
+    return profile
   } catch (error) {
     console.error('[Auth] Authentication error:', error)
     throw error
@@ -57,23 +57,6 @@ export const getUserProfile = async (userId: string) => {
   } catch (error) {
     console.error('[Auth] Get profile error:', error)
     throw error
-  }
-}
-
-/**
- * Check if email exists
- */
-export const emailExists = async (email: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', email)
-      .single()
-
-    return !!data && !error
-  } catch (error) {
-    return false
   }
 }
 
@@ -175,7 +158,7 @@ export const requireAdmin = async (event: any) => {
       })
     }
 
-  // Check if user is admin
+    // Check if user is admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -252,7 +235,7 @@ export const handleError = (error: any) => {
 
 /**
  * Premium subscription and feature management
-  */
+ */
 export const premiumOperations = {
   /**
    * Get all available pricing tiers
@@ -319,4 +302,3 @@ export const premiumOperations = {
     }
   }
 }
-  
