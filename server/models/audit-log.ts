@@ -1,4 +1,4 @@
-import { supabase } from '~/server/db'
+import { supabase } from '~/server/utils/database'
 
 export interface AuditLog {
   id: string
@@ -38,7 +38,6 @@ export class AuditLogModel {
       ])
       .select()
       .single()
-
     if (error) throw error
     return data as AuditLog
   }
