@@ -393,10 +393,6 @@ definePageMeta({
  
 import { ref, computed, onMounted } from 'vue'
 
-definePageMeta({
-  middleware: 'auth-guard'
-})
-
 const authStore = useAuthStore()
 
 const activeTab = ref('account')
