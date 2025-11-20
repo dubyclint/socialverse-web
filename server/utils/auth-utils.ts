@@ -1,4 +1,4 @@
-// server/utils/auth-utils.ts - COMPREHENSIVE VERSION WITH ALL OPERATIONS
+// server/utils/auth-utils.ts - COMPREHENSIVE VERSION WITH ALL OPERATIONS & REQUIREMANAGER
 import jwt from 'jsonwebtoken'
 import { createClient } from '@supabase/supabase-js'
 
@@ -184,6 +184,37 @@ export const requireAdmin = async (event: any) => {
     return user
   } catch (error) {
     console.error('[Admin] Authorization error:', error)
+    throw error
+  }
+}
+
+export const requireManager = async (event: any) => {
+  try {
+    const user = await requireAuth(event)
+    
+    if (!user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized'
+      })
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'manager' && profile?.role !== 'admin') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden: Manager access required'
+      })
+    }
+
+    return user
+  } catch (error) {
+    console.error('[Manager] Authorization error:', error)
     throw error
   }
 }
