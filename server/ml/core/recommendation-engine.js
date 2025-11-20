@@ -1,5 +1,5 @@
 // Recommendation Engine - Content candidate generation and ranking
-import { TensorFlowModel } from './TensorFlowModel.js'
+import { TensorFlowModel } from './tensor-flow-model.js'
 
 export class RecommendationEngine {
   constructor() {
