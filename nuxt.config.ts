@@ -7,6 +7,7 @@
 // - Error handling and hydration configuration
 // - Performance optimizations
 // - Security best practices
+// - SUPABASE MODULE RESOLUTION FIX
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -17,7 +18,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   
   // ============================================================================
-  // SERVER-SIDE RENDERING (FIXED: Changed from false to true)
+  // SERVER-SIDE RENDERING
   // ============================================================================
   // Enables SSR for better reliability and performance
   // If JavaScript fails on client, server can still render pages
@@ -36,6 +37,17 @@ export default defineNuxtConfig({
   // ============================================================================
   nitro: {
     srcDir: 'server',
+    
+    // ========================================================================
+    // SUPABASE MODULE RESOLUTION FIX
+    // ========================================================================
+    // Mark @supabase/supabase-js as external to prevent bundling issues
+    externals: {
+      inline: [],
+    },
+    rollupConfig: {
+      external: ['@supabase/supabase-js'],
+    },
     
     // Compression for better performance
     compressPublicAssets: true,
@@ -127,7 +139,7 @@ export default defineNuxtConfig({
     
     resolve: {
       alias: {
-        // Path alias for Supabase server utilities (FIXED)
+        // Path alias for Supabase server utilities
         '#supabase/server': '@nuxtjs/supabase/dist/runtime/server'
       }
     },
@@ -183,7 +195,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ROUTER CONFIGURATION (FIXED: Added for better routing control)
+  // ROUTER CONFIGURATION
   // ============================================================================
   router: {
     options: {
