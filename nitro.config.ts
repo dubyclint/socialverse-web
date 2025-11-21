@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /nitro.config.ts
+// FILE: /nitro.config.ts - COMPLETE FIXED CONFIGURATION
 // ============================================================================
-// Complete Nitro configuration with MIME type fixes and compression
+// Nitro configuration with proper external module handling for Supabase
 // ============================================================================
 
 export default defineNitroConfig({
@@ -13,9 +13,17 @@ export default defineNitroConfig({
   srcDir: 'server',
   
   // ============================================================================
-  // PUBLIC ASSETS CONFIGURATION - FIX MIME TYPES
+  // EXTERNAL MODULES - CRITICAL FOR SUPABASE
   // ============================================================================
-  // Serve static assets with correct MIME types
+  // Mark Supabase as external to prevent bundling issues
+  externals: {
+    inline: [],
+    traceInclude: [],
+  },
+  
+  // ============================================================================
+  // PUBLIC ASSETS CONFIGURATION
+  // ============================================================================
   publicAssets: [
     {
       baseURL: '/',
@@ -24,16 +32,16 @@ export default defineNitroConfig({
     {
       baseURL: '/_nuxt/',
       dir: './.output/public/_nuxt',
-      maxAge: 60 * 60 * 24 * 365, // 1 year for versioned assets
+      maxAge: 60 * 60 * 24 * 365,
     },
   ],
   
   // ============================================================================
-  // COMPRESSION CONFIGURATION - BROTLI + GZIP
+  // COMPRESSION CONFIGURATION
   // ============================================================================
   compressPublicAssets: {
-    brotli: true,  // Enable Brotli (better compression)
-    gzip: true,    // Keep Gzip fallback
+    brotli: true,
+    gzip: true,
   },
   
   // ============================================================================
@@ -47,147 +55,117 @@ export default defineNitroConfig({
   },
   
   // ============================================================================
-  // ROUTE RULES - MIME TYPES & CACHE CONTROL
+  // ROUTE RULES - CACHING & MIME TYPES
   // ============================================================================
   routeRules: {
-    // ========================================================================
-    // CSS FILES - CORRECT MIME TYPE
-    // ========================================================================
     '/_nuxt/**/*.css': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'text/css; charset=utf-8',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
-    // ========================================================================
-    // JAVASCRIPT FILES - CORRECT MIME TYPE
-    // ========================================================================
     '/_nuxt/**/*.js': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'application/javascript; charset=utf-8',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
-    // ========================================================================
-    // SOURCE MAP FILES
-    // ========================================================================
     '/_nuxt/**/*.js.map': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
-    // ========================================================================
-    // FONT FILES
-    // ========================================================================
     '/_nuxt/**/*.woff2': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'font/woff2',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.woff': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'font/woff',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.ttf': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'font/ttf',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
-    // ========================================================================
-    // IMAGE FILES
-    // ========================================================================
     '/_nuxt/**/*.png': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.jpg': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.jpeg': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.gif': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'image/gif',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.svg': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'image/svg+xml',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
     '/_nuxt/**/*.webp': {
       cache: {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 365,
       },
       headers: {
         'Content-Type': 'image/webp',
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     },
-    
-    // ========================================================================
-    // API ROUTES - NO CACHE
-    // ========================================================================
     '/api/**': {
       cache: false,
       headers: {
@@ -196,7 +174,6 @@ export default defineNitroConfig({
         'Expires': '0',
       },
     },
-    
     '/auth/**': {
       cache: false,
       headers: {
@@ -205,13 +182,9 @@ export default defineNitroConfig({
         'Expires': '0',
       },
     },
-    
-    // ========================================================================
-    // HTML PAGES - SHORT CACHE
-    // ========================================================================
     '/**': {
       cache: {
-        maxAge: 60 * 60, // 1 hour
+        maxAge: 60 * 60,
       },
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
@@ -227,13 +200,5 @@ export default defineNitroConfig({
     crawlLinks: false,
     routes: ['/sitemap.xml', '/robots.txt'],
     ignore: ['/admin', '/api', '/auth'],
-    failOnError: false,
-  },
-  
-  // ============================================================================
-  // LOGGING
-  // ============================================================================
-  logging: {
-    level: 'info',
   },
 })
