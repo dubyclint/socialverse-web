@@ -1,10 +1,11 @@
 // ============================================================================
 // FILE: /nitro.config.ts - COMPLETE FIXED CONFIGURATION
 // ============================================================================
-// Nitro configuration with proper external module handling for Supabase
+// Nitro configuration with explicit node-server preset
 // ============================================================================
 
 export default defineNitroConfig({
+  // CRITICAL: Explicitly set preset to node-server
   preset: 'node-server',
   
   // ============================================================================
@@ -13,9 +14,8 @@ export default defineNitroConfig({
   srcDir: 'server',
   
   // ============================================================================
-  // EXTERNAL MODULES - CRITICAL FOR SUPABASE
+  // EXTERNAL MODULES - PREVENT SUPABASE BUNDLING ISSUES
   // ============================================================================
-  // Mark Supabase as external to prevent bundling issues
   externals: {
     inline: [],
     traceInclude: [],
