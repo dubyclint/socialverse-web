@@ -97,4 +97,19 @@ export async function db() {
 export async function dbAdmin() {
   return getSupabaseAdminClient()
 }
+// ============================================================================
+// DIRECT EXPORT FOR BACKWARD COMPATIBILITY
+// ============================================================================
+// This provides a proxy object that lazily loads the supabase client
+// Allows existing code to use: import { supabase } from './database'
+// ============================================================================
+
+export const supabase = new Proxy({}, {
+  get: (target, prop) => {
+    return async (...args: any[]) => {
+      const client = await getSupabaseClient()
+      return (client as any)[prop]?.(...args)
+    }
+  }
+}) as any
 
