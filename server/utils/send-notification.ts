@@ -1,4 +1,4 @@
-import { supabase } from './database';
+import { db } from './database';
 
 export async function sendNotification(
   userId: string, 
@@ -6,6 +6,8 @@ export async function sendNotification(
   message: string
 ): Promise<void> {
   try {
+    const supabase = await db();
+    
     const { error } = await supabase
       .from('notifications')
       .insert({
