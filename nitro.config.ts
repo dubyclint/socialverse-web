@@ -81,28 +81,29 @@ export default defineNitroConfig({
   // THIS IS THE CRITICAL FIX FOR THE SUPABASE MODULE ERROR
   // Runs after Nitro build completes to fix ESM import paths
   hooks: {
-    'build:done': async () => {
-      const fs = await import('fs');
-      const path = await import('path');
+  'build:done': async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    // Fix ESM imports in the built output
+    const outputDir = '.output/server';
+    if (!fs.existsSync(outputDir)) return;
+    
+    const files = fs.readdirSync(outputDir, { recursive: true });
+    for (const file of files) {
+      if (!file.endsWith('.mjs')) continue;
       
-      const outputDir = '.zeabur/output/functions/__nitro.func';
-      if (!fs.existsSync(outputDir)) return;
+      const filePath = path.join(outputDir, file);
+      let content = fs.readFileSync(filePath, 'utf-8');
       
-      const files = fs.readdirSync(outputDir, { recursive: true });
-      for (const file of files) {
-        if (!file.endsWith('.mjs')) continue;
-        
-        const filePath = path.join(outputDir, file);
-        let content = fs.readFileSync(filePath, 'utf-8');
-        
-        // Fix Supabase imports - add .js extensions
-        content = content.replace(
-          /from ['"]@supabase\/([^'"]+)['"]/g,
-          "from '@supabase/$1.js'"
-        );
-        
-        fs.writeFileSync(filePath, content);
-      }
-    },
+      // Fix Supabase imports - add .js extensions
+      content = content.replace(
+        /from ['"](@supabase\/[^'"]+)(?<!\.js)['"]/g,
+        "from '$1.js'"
+      );
+      
+      fs.writeFileSync(filePath, content);
+    }
   },
-});
+},
+  
