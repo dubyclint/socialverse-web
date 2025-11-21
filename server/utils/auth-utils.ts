@@ -368,3 +368,338 @@ export const supabase = new Proxy({}, {
     }
   }
 }) as any
+// ============================================================================
+// ADDITIONAL STUB IMPLEMENTATIONS FOR MISSING OPERATIONS
+// ============================================================================
+
+/**
+ * Status operations - stub implementation
+ * TODO: Replace with actual status management logic
+ */
+export const statusOperations = {
+  async getStatus(userId: string) {
+    try {
+      console.log(`[Status] Getting status for user ${userId}`)
+      // TODO: Implement actual status retrieval
+      return { status: 'online', lastSeen: new Date().toISOString() }
+    } catch (error) {
+      console.error('[Status] Get status error:', error)
+      return { status: 'offline', lastSeen: null }
+    }
+  },
+
+  async updateStatus(userId: string, status: string) {
+    try {
+      console.log(`[Status] Updating status for user ${userId} to ${status}`)
+      // TODO: Implement actual status update
+      return { success: true, status }
+    } catch (error) {
+      console.error('[Status] Update status error:', error)
+      throw error
+    }
+  },
+
+  async setOnline(userId: string) {
+    return this.updateStatus(userId, 'online')
+  },
+
+  async setOffline(userId: string) {
+    return this.updateStatus(userId, 'offline')
+  }
+}
+
+/**
+ * User operations - stub implementation
+ * TODO: Replace with actual user management logic
+ */
+export const userOperations = {
+  async getUser(userId: string) {
+    try {
+      console.log(`[User] Getting user ${userId}`)
+      return await getUserProfile(userId)
+    } catch (error) {
+      console.error('[User] Get user error:', error)
+      throw error
+    }
+  },
+
+  async updateUser(userId: string, updates: any) {
+    try {
+      console.log(`[User] Updating user ${userId}`)
+      return await updateUserProfile(userId, updates)
+    } catch (error) {
+      console.error('[User] Update user error:', error)
+      throw error
+    }
+  },
+
+  async deleteUser(userId: string) {
+    try {
+      console.log(`[User] Deleting user ${userId}`)
+      return await deleteUser(userId)
+    } catch (error) {
+      console.error('[User] Delete user error:', error)
+      throw error
+    }
+  }
+}
+
+/**
+ * Profile operations - stub implementation
+ * TODO: Replace with actual profile management logic
+ */
+export const profileOperations = {
+  async getProfile(userId: string) {
+    try {
+      console.log(`[Profile] Getting profile for user ${userId}`)
+      return await getUserProfile(userId)
+    } catch (error) {
+      console.error('[Profile] Get profile error:', error)
+      throw error
+    }
+  },
+
+  async updateProfile(userId: string, updates: any) {
+    try {
+      console.log(`[Profile] Updating profile for user ${userId}`)
+      return await updateUserProfile(userId, updates)
+    } catch (error) {
+      console.error('[Profile] Update profile error:', error)
+      throw error
+    }
+  },
+
+  async uploadAvatar(userId: string, avatarUrl: string) {
+    try {
+      console.log(`[Profile] Uploading avatar for user ${userId}`)
+      // TODO: Implement actual avatar upload
+      return { success: true, avatarUrl }
+    } catch (error) {
+      console.error('[Profile] Upload avatar error:', error)
+      throw error
+    }
+  }
+}
+
+/**
+ * Settings operations - stub implementation
+ * TODO: Replace with actual settings management logic
+ */
+export const settingsOperations = {
+  async getSettings(userId: string) {
+    try {
+      console.log(`[Settings] Getting settings for user ${userId}`)
+      // TODO: Implement actual settings retrieval
+      return { notifications: true, privacy: 'public' }
+    } catch (error) {
+      console.error('[Settings] Get settings error:', error)
+      return {}
+    }
+  },
+
+  async updateSettings(userId: string, settings: any) {
+    try {
+      console.log(`[Settings] Updating settings for user ${userId}`)
+      // TODO: Implement actual settings update
+      return { success: true, settings }
+    } catch (error) {
+      console.error('[Settings] Update settings error:', error)
+      throw error
+    }
+  }
+}
+
+/**
+ * Notification operations - stub implementation
+ * TODO: Replace with actual notification management logic
+ */
+export const notificationOperations = {
+  async getNotifications(userId: string, limit: number = 20) {
+    try {
+      console.log(`[Notifications] Getting notifications for user ${userId}`)
+      // TODO: Implement actual notification retrieval
+      return []
+    } catch (error) {
+      console.error('[Notifications] Get notifications error:', error)
+      return []
+    }
+  },
+
+  async markAsRead(notificationId: string) {
+    try {
+      console.log(`[Notifications] Marking notification ${notificationId} as read`)
+      // TODO: Implement actual mark as read
+      return { success: true }
+    } catch (error) {
+      console.error('[Notifications] Mark as read error:', error)
+      throw error
+    }
+  },
+
+  async deleteNotification(notificationId: string) {
+    try {
+      console.log(`[Notifications] Deleting notification ${notificationId}`)
+      // TODO: Implement actual notification deletion
+      return { success: true }
+    } catch (error) {
+      console.error('[Notifications] Delete notification error:', error)
+      throw error
+    }
+  }
+}
+
+/**
+ * Post operations - stub implementation
+ * TODO: Replace with actual post management logic
+ */
+export const postOperations = {
+  async getPost(postId: string) {
+    try {
+      console.log(`[Posts] Getting post ${postId}`)
+      // TODO: Implement actual post retrieval
+      return null
+    } catch (error) {
+      console.error('[Posts] Get post error:', error)
+      throw error
+    }
+  },
+
+  async createPost(userId: string, content: string, metadata: any = {}) {
+    try {
+      console.log(`[Posts] Creating post for user ${userId}`)
+      // TODO: Implement actual post creation
+      return { success: true, postId: 'new-post-id' }
+    } catch (error) {
+      console.error('[Posts] Create post error:', error)
+      throw error
+    }
+  },
+
+  async updatePost(postId: string, updates: any) {
+    try {
+      console.log(`[Posts] Updating post ${postId}`)
+      // TODO: Implement actual post update
+      return { success: true }
+    } catch (error) {
+      console.error('[Posts] Update post error:', error)
+      throw error
+    }
+  },
+
+  async deletePost(postId: string) {
+    try {
+      console.log(`[Posts] Deleting post ${postId}`)
+      // TODO: Implement actual post deletion
+      return { success: true }
+    } catch (error) {
+      console.error('[Posts] Delete post error:', error)
+      throw error
+    }
+  }
+}
+
+/**
+ * Chat operations - stub implementation
+ * TODO: Replace with actual chat management logic
+ */
+export const chatOperations = {
+  async getMessages(chatId: string, limit: number = 50) {
+    try {
+      console.log(`[Chat] Getting messages for chat ${chatId}`)
+      // TODO: Implement actual message retrieval
+      return []
+    } catch (error) {
+      console.error('[Chat] Get messages error:', error)
+      return []
+    }
+  },
+
+  async sendMessage(chatId: string, userId: string, content: string) {
+    try {
+      console.log(`[Chat] Sending message to chat ${chatId}`)
+      // TODO: Implement actual message sending
+      return { success: true, messageId: 'new-message-id' }
+    } catch (error) {
+      console.error('[Chat] Send message error:', error)
+      throw error
+    }
+  },
+
+  async deleteMessage(messageId: string) {
+    try {
+      console.log(`[Chat] Deleting message ${messageId}`)
+      // TODO: Implement actual message deletion
+      return { success: true }
+    } catch (error) {
+      console.error('[Chat] Delete message error:', error)
+      throw error
+    }
+  }
+}
+
+/**
+ * Follow operations - stub implementation
+ * TODO: Replace with actual follow management logic
+ */
+export const followOperations = {
+  async follow(userId: string, targetUserId: string) {
+    try {
+      console.log(`[Follow] User ${userId} following ${targetUserId}`)
+      // TODO: Implement actual follow logic
+      return { success: true }
+    } catch (error) {
+      console.error('[Follow] Follow error:', error)
+      throw error
+    }
+  },
+
+  async unfollow(userId: string, targetUserId: string) {
+    try {
+      console.log(`[Follow] User ${userId} unfollowing ${targetUserId}`)
+      // TODO: Implement actual unfollow logic
+      return { success: true }
+    } catch (error) {
+      console.error('[Follow] Unfollow error:', error)
+      throw error
+    }
+  },
+
+  async getFollowers(userId: string) {
+    try {
+      console.log(`[Follow] Getting followers for user ${userId}`)
+      // TODO: Implement actual followers retrieval
+      return []
+    } catch (error) {
+      console.error('[Follow] Get followers error:', error)
+      return []
+    }
+  }
+}
+
+/**
+ * Like operations - stub implementation
+ * TODO: Replace with actual like management logic
+ */
+export const likeOperations = {
+  async likePost(userId: string, postId: string) {
+    try {
+      console.log(`[Like] User ${userId} liking post ${postId}`)
+      // TODO: Implement actual like logic
+      return { success: true }
+    } catch (error) {
+      console.error('[Like] Like error:', error)
+      throw error
+    }
+  },
+
+  async unlikePost(userId: string, postId: string) {
+    try {
+      console.log(`[Like] User ${userId} unliking post ${postId}`)
+      // TODO: Implement actual unlike logic
+      return { success: true }
+    } catch (error) {
+      console.error('[Like] Unlike error:', error)
+      throw error
+    }
+  }
+}
