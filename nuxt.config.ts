@@ -39,14 +39,25 @@ export default defineNuxtConfig({
     srcDir: 'server',
     
     // ========================================================================
-    // SUPABASE MODULE RESOLUTION FIX
+    // SUPABASE MODULE RESOLUTION FIX - CRITICAL
     // ========================================================================
     // Mark @supabase/supabase-js as external to prevent bundling issues
     externals: {
       inline: [],
+      traceInclude: ['@supabase/supabase-js'],
     },
+    
+    // Mark as external to prevent bundling
     rollupConfig: {
       external: ['@supabase/supabase-js'],
+      output: {
+        format: 'esm',
+      },
+    },
+    
+    // Ensure proper module resolution
+    resolve: {
+      extensions: ['.mjs', '.js', '.ts', '.json'],
     },
     
     // Compression for better performance
@@ -187,10 +198,10 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // BUILD CONFIGURATION
+  // BUILD CONFIGURATION - SUPABASE FIX
   // ============================================================================
   build: {
-    transpile: ['@nuxtjs/supabase'],
+    transpile: ['@nuxtjs/supabase', '@supabase/supabase-js'],
     analyze: process.env.ANALYZE === 'true',
   },
 
