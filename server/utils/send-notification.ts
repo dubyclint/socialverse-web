@@ -1,5 +1,4 @@
 import { db } from './database';
-
 export async function sendNotification(
   userId: string, 
   type: 'filter' | 'rematch' | 'group' | 'match' | 'system', 
