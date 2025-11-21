@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /nitro.config.ts - PRODUCTION CONFIGURATION
+// FILE: /nitro.config.ts - PRODUCTION CONFIGURATION WITH ESM FIX
 // ============================================================================
-// Nitro configuration with explicit node-server preset for Zeabur
+// Nitro configuration with build hook to fix ESM imports for Supabase
 // ============================================================================
 
 export default defineNitroConfig({
@@ -73,5 +73,36 @@ export default defineNitroConfig({
   // ============================================================================
   logging: {
     level: 'info',
+  },
+  
+  // ============================================================================
+  // BUILD HOOK - FIX ESM IMPORTS FOR SUPABASE
+  // ============================================================================
+  // THIS IS THE CRITICAL FIX FOR THE SUPABASE MODULE ERROR
+  // Runs after Nitro build completes to fix ESM import paths
+  hooks: {
+    'build:done': async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const outputDir = '.zeabur/output/functions/__nitro.func';
+      if (!fs.existsSync(outputDir)) return;
+      
+      const files = fs.readdirSync(outputDir, { recursive: true });
+      for (const file of files) {
+        if (!file.endsWith('.mjs')) continue;
+        
+        const filePath = path.join(outputDir, file);
+        let content = fs.readFileSync(filePath, 'utf-8');
+        
+        // Fix Supabase imports - add .js extensions
+        content = content.replace(
+          /from ['"]@supabase\/([^'"]+)['"]/g,
+          "from '@supabase/$1.js'"
+        );
+        
+        fs.writeFileSync(filePath, content);
+      }
+    },
   },
 });
