@@ -7,12 +7,14 @@ WORKDIR /app
 # Install pnpm globally
 RUN npm install -g pnpm@9
 
-# Copy all files including pnpm-lock.yaml
-COPY . .
+# Copy package files first
+COPY package.json pnpm-lock.yaml* ./
 
-# Install dependencies with frozen lockfile for reproducible builds
-# This ensures exact versions are installed, preventing module resolution issues
-RUN pnpm install --frozen-lockfile
+# Install dependencies with proper ESM resolution
+RUN pnpm install --frozen-lockfile --shamefully-hoist
+
+# Copy all source files
+COPY . .
 
 # Build the application
 RUN pnpm run build
