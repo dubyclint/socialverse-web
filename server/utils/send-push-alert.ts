@@ -1,4 +1,4 @@
-import { supabase } from './database';
+import { db } from './database';
 
 // Mock push service - replace with actual implementation (FCM, APNs, etc.)
 const pushService = {
@@ -15,6 +15,8 @@ export async function sendPushAlert(
   body: string
 ): Promise<void> {
   try {
+    const supabase = await db();
+    
     const { data: user, error } = await supabase
       .from('users')
       .select('push_token')
