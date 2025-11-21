@@ -85,14 +85,12 @@ export default defineNitroConfig({
     const fs = await import('fs');
     const path = await import('path');
     
-    // Fix ESM imports in the built output
-    const outputDir = '.output/server';
+    const outputDir = '.zeabur/output/functions/__nitro.func';
     if (!fs.existsSync(outputDir)) return;
     
     const files = fs.readdirSync(outputDir, { recursive: true });
     for (const file of files) {
       if (!file.endsWith('.mjs')) continue;
-      
       const filePath = path.join(outputDir, file);
       let content = fs.readFileSync(filePath, 'utf-8');
       
@@ -106,4 +104,5 @@ export default defineNitroConfig({
     }
   },
 },
+
   
