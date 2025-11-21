@@ -159,6 +159,86 @@ export const getAuthenticatedUser = async (event: any) => {
     return null
   }
 }
+/**
+ * Require manager authentication middleware
+ */
+export const requireManager = async (event: any) => {
+  const user = await requireAuth(event)
+  
+  if (!user || (user.role !== 'manager' && user.role !== 'admin')) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - Manager access required'
+    })
+  }
+
+  return user
+}
+
+/**
+ * Require moderator authentication middleware
+ */
+export const requireModerator = async (event: any) => {
+  const user = await requireAuth(event)
+  
+  if (!user || (user.role !== 'moderator' && user.role !== 'admin')) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - Moderator access required'
+    })
+  }
+
+  return user
+}
+
+/**
+ * Require support agent authentication middleware
+ */
+export const requireSupportAgent = async (event: any) => {
+  const user = await requireAuth(event)
+  
+  if (!user || (user.role !== 'support' && user.role !== 'admin')) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - Support agent access required'
+    })
+  }
+
+  return user
+}
+
+/**
+ * Require verified user middleware
+ */
+export const requireVerified = async (event: any) => {
+  const user = await requireAuth(event)
+  
+  if (!user || !user.verified) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - Verified user required'
+    })
+  }
+
+  return user
+}
+
+/**
+ * Require premium user middleware
+ */
+export const requirePremium = async (event: any) => {
+  const user = await requireAuth(event)
+  
+  if (!user || !user.isPremium) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - Premium user required'
+    })
+  }
+
+  return user
+}
+
 
 /**
  * Require authentication middleware
