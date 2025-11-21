@@ -4,7 +4,7 @@
 // ============================================================================
 
 import jwt from 'jsonwebtoken'
-import { getSupabaseClient, getSupabaseAdminClient } from './database'
+import { db, dbAdmin } from './database'
 
 // ============================================================================
 // ENVIRONMENT VARIABLES
@@ -56,7 +56,7 @@ export const rateLimit = (maxRequests: number, windowMs: number) => {
  */
 export const authenticateUser = async (email: string, password: string) => {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await db()
     
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -80,7 +80,7 @@ export const authenticateUser = async (email: string, password: string) => {
  */
 export const getUserProfile = async (userId: string) => {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await db()
     
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -135,11 +135,11 @@ export const getAuthenticatedUser = async (event: any) => {
     const token = authHeader.substring(7)
     const decoded = verifyToken(token)
     
-    if (!decoded || !decoded.userId) {
+    if (!decoded || !(decoded as any).userId) {
       return null
     }
 
-    return await getUserProfile(decoded.userId)
+    return await getUserProfile((decoded as any).userId)
   } catch (error) {
     console.error('[Auth] Get authenticated user error:', error)
     return null
@@ -163,11 +163,27 @@ export const requireAuth = async (event: any) => {
 }
 
 /**
+ * Require admin authentication middleware
+ */
+export const requireAdmin = async (event: any) => {
+  const user = await requireAuth(event)
+  
+  if (!user || user.role !== 'admin') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - Admin access required'
+    })
+  }
+
+  return user
+}
+
+/**
  * Update user profile
  */
 export const updateUserProfile = async (userId: string, updates: any) => {
   try {
-    const supabase = await getSupabaseAdminClient()
+    const supabase = await dbAdmin()
     
     const { data, error } = await supabase
       .from('profiles')
@@ -192,7 +208,7 @@ export const updateUserProfile = async (userId: string, updates: any) => {
  */
 export const deleteUser = async (userId: string) => {
   try {
-    const supabase = await getSupabaseAdminClient()
+    const supabase = await dbAdmin()
     
     const { error } = await supabase
       .from('profiles')
@@ -210,3 +226,77 @@ export const deleteUser = async (userId: string) => {
   }
 }
 
+/**
+ * Log admin action
+ */
+export const logAdminAction = async (adminId: string, action: string, details: any) => {
+  try {
+    const supabase = await dbAdmin()
+    
+    const { error } = await supabase
+      .from('admin_logs')
+      .insert({
+        admin_id: adminId,
+        action,
+        details,
+        timestamp: new Date().toISOString()
+      })
+
+    if (error) {
+      console.error('[Auth] Failed to log admin action:', error)
+    }
+  } catch (error) {
+    console.error('[Auth] Log admin action error:', error)
+  }
+}
+
+/**
+ * Validate request body
+ */
+export const validateBody = (body: any, requiredFields: string[]) => {
+  if (!body) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Request body is required'
+    })
+  }
+
+  for (const field of requiredFields) {
+    if (!body[field]) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Missing required field: ${field}`
+      })
+    }
+  }
+
+  return true
+}
+
+/**
+ * Handle errors
+ */
+export const handleError = (error: any) => {
+  console.error('[Auth] Error:', error)
+  
+  if (error.statusCode) {
+    throw error
+  }
+
+  throw createError({
+    statusCode: 500,
+    statusMessage: 'Internal server error'
+  })
+}
+
+/**
+ * Lazy-loaded supabase client proxy for backward compatibility
+ */
+export const supabase = new Proxy({}, {
+  get: (target, prop) => {
+    return async (...args: any[]) => {
+      const client = await db()
+      return (client as any)[prop]?.(...args)
+    }
+  }
+}) as any
