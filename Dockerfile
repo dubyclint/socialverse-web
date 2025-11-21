@@ -14,4 +14,5 @@ RUN pnpm run build
 
 EXPOSE 8080
 
-CMD ["node", ".output/server/index.mjs"]
+CMD ["node", ".zeabur/output/functions/__nitro.func/index.mjs"]
+
