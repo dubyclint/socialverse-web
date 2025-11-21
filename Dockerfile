@@ -4,26 +4,20 @@ LABEL "framework"="nuxt.js"
 
 WORKDIR /app
 
+# Install pnpm globally
 RUN npm install -g pnpm@9
 
+# Copy all files including pnpm-lock.yaml
 COPY . .
 
-RUN pnpm install
+# Install dependencies with frozen lockfile for reproducible builds
+# This ensures exact versions are installed, preventing module resolution issues
+RUN pnpm install --frozen-lockfile
 
+# Build the application
 RUN pnpm run build
-
-# Post-build fix for ESM module resolution with Supabase
-# Zeabur restructures Nitro output, breaking ESM imports
-RUN if [ -d ".zeabur/output/functions/__nitro.func" ]; then \
-    cd .zeabur/output/functions/__nitro.func && \
-    sed -i "s|from '@supabase/\([^']*\)'|from '@supabase/\1.js'|g" index.mjs && \
-    sed -i "s|from \"@supabase/\([^\"]*\)\"|from \"@supabase/\1.js\"|g" index.mjs && \
-    sed -i "s|from 'node_modules/\([^']*\)'|from 'node_modules/\1.js'|g" index.mjs && \
-    sed -i "s|from \"node_modules/\([^\"]*\)\"|from \"node_modules/\1.js\"|g" index.mjs && \
-    echo "✓ Fixed ESM module paths for Supabase" && \
-    cd /app; \
-  fi
 
 EXPOSE 8080
 
-CMD ["node", ".zeabur/output/functions/__nitro.func/index.mjs"]
+# Start using Nuxt's standard output directory
+CMD ["node", ".output/server/index.mjs"]
