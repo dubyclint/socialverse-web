@@ -41,7 +41,7 @@ export default defineNuxtConfig({
     // ========================================================================
     // SUPABASE MODULE RESOLUTION FIX - CRITICAL
     // ========================================================================
-    // Mark @supabase/supabase-js as external to prevent bundling issues
+    // Mark @supabase/supabase-js as external to prevent bundling issue
     externals: {
       inline: [],
       traceInclude: ['@supabase/supabase-js'],
