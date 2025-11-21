@@ -1,9 +1,8 @@
-// FILE: /server/utils/database.ts - FIXED WITH LAZY IMPORTS
+// FILE: /server/utils/database.ts - FIXED WITH CONDITIONAL LOADING
 // ============================================================================
-// CENTRALIZED SUPABASE DATABASE CLIENT WITH LAZY LOADING
-// This is the ONLY place where Supabase clients should be initialized
-// All other files should import from here
-// Uses lazy imports to prevent bundling issues with Nitro
+// CENTRALIZED SUPABASE DATABASE CLIENT
+// Uses conditional loading to prevent Nitro bundling issues
+// Maintains backward compatibility - no changes needed in other files
 // ============================================================================
 
 // ============================================================================
@@ -23,43 +22,63 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 // ============================================================================
-// LAZY-LOADED CLIENT INSTANCES
+// LAZY CLIENT INSTANCES - ONLY CREATED ON FIRST USE
 // ============================================================================
-// These are initialized lazily to prevent bundling issues with Nitro
 
 let supabaseInstance: any = null
 let supabaseAdminInstance: any = null
+let createClientFn: any = null
 
 /**
- * Lazy load and cache the Supabase client
- * Only imports @supabase/supabase-js when actually needed
+ * Safely load the createClient function
+ * This prevents bundling issues by deferring the import
  */
-async function getSupabaseInstance() {
+function getCreateClientFn() {
+  if (createClientFn) {
+    return createClientFn
+  }
+  
+  try {
+    // Use require instead of import to avoid bundling issues
+    const supabaseModule = require('@supabase/supabase-js')
+    createClientFn = supabaseModule.createClient
+    return createClientFn
+  } catch (error) {
+    console.error('[Database] Failed to load Supabase createClient:', error)
+    throw new Error('Failed to initialize Supabase client. Make sure @supabase/supabase-js is installed.')
+  }
+}
+
+/**
+ * Get or create the standard Supabase client
+ * Lazy-loaded on first access
+ */
+function getSupabaseInstance() {
   if (supabaseInstance) {
     return supabaseInstance
   }
   
   try {
-    const { createClient } = await import('@supabase/supabase-js')
+    const createClient = getCreateClientFn()
     supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     return supabaseInstance
   } catch (error) {
-    console.error('[Database] Failed to load Supabase client:', error)
+    console.error('[Database] Failed to create Supabase client:', error)
     throw error
   }
 }
 
 /**
- * Lazy load and cache the Supabase admin client
- * Only imports @supabase/supabase-js when actually needed
+ * Get or create the admin Supabase client
+ * Lazy-loaded on first access
  */
-async function getSupabaseAdminInstance() {
+function getSupabaseAdminInstance() {
   if (supabaseAdminInstance) {
     return supabaseAdminInstance
   }
   
   try {
-    const { createClient } = await import('@supabase/supabase-js')
+    const createClient = getCreateClientFn()
     supabaseAdminInstance = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
       auth: {
         autoRefreshToken: false,
@@ -69,10 +88,29 @@ async function getSupabaseAdminInstance() {
     })
     return supabaseAdminInstance
   } catch (error) {
-    console.error('[Database] Failed to load Supabase admin client:', error)
+    console.error('[Database] Failed to create Supabase admin client:', error)
     throw error
   }
 }
+
+// ============================================================================
+// EXPORTED CLIENT INSTANCES
+// ============================================================================
+// These use getters to lazily initialize on first access
+
+export const supabase = new Proxy({}, {
+  get(target, prop) {
+    const instance = getSupabaseInstance()
+    return (instance as any)[prop]
+  },
+})
+
+export const supabaseAdmin = new Proxy({}, {
+  get(target, prop) {
+    const instance = getSupabaseAdminInstance()
+    return (instance as any)[prop]
+  },
+})
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -82,7 +120,7 @@ async function getSupabaseAdminInstance() {
  * Get the standard Supabase client
  * Use this for regular database operations
  */
-export const getSupabaseClient = async () => {
+export const getSupabaseClient = () => {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase credentials not configured')
   }
@@ -93,7 +131,7 @@ export const getSupabaseClient = async () => {
  * Get the admin Supabase client
  * Use this for server-side operations that require elevated privileges
  */
-export const getSupabaseAdminClient = async () => {
+export const getSupabaseAdminClient = () => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     throw new Error('Supabase admin credentials not configured')
   }
@@ -108,7 +146,7 @@ export const initializeDatabase = async () => {
   try {
     console.log('[Database] Initializing Supabase connection...')
     
-    const client = await getSupabaseInstance()
+    const client = getSupabaseInstance()
     
     // Test connection with a simple query
     const { error } = await client.from('user').select('id', { head: true, count: 'exact' })
@@ -127,46 +165,7 @@ export const initializeDatabase = async () => {
 }
 
 // ============================================================================
-// EXPORTS - For backward compatibility
+// EXPORTS
 // ============================================================================
-// These are lazy-loaded proxies
-export const supabase = {
-  async from(table: string) {
-    const client = await getSupabaseInstance()
-    return client.from(table)
-  },
-  async auth() {
-    const client = await getSupabaseInstance()
-    return client.auth
-  },
-  async storage() {
-    const client = await getSupabaseInstance()
-    return client.storage
-  },
-  async rpc(fn: string, params?: any) {
-    const client = await getSupabaseInstance()
-    return client.rpc(fn, params)
-  },
-}
-
-export const supabaseAdmin = {
-  async from(table: string) {
-    const client = await getSupabaseAdminInstance()
-    return client.from(table)
-  },
-  async auth() {
-    const client = await getSupabaseAdminInstance()
-    return client.auth
-  },
-  async storage() {
-    const client = await getSupabaseAdminInstance()
-    return client.storage
-  },
-  async rpc(fn: string, params?: any) {
-    const client = await getSupabaseAdminInstance()
-    return client.rpc(fn, params)
-  },
-}
-
 export const db = supabase
 export default supabase
