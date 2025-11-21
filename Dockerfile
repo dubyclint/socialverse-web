@@ -1,25 +1,17 @@
-FROM node:22-alpine
-
-LABEL language="nodejs"
-LABEL framework="nuxt"
+FROM node:22-slim
+LABEL "language"="nodejs"
+LABEL "framework"="nuxt.js"
 
 WORKDIR /app
 
-# Install dependencies with legacy peer deps and force flag
-COPY package*.json ./
-RUN npm install --legacy-peer-deps --force
+RUN npm install -g pnpm@9
 
-# Copy source code
 COPY . .
 
-# Build the application for Zeabur serverless
-RUN npm run build
+RUN npm_config_ignore_scripts=true pnpm install
 
-# Set environment
-ENV NODE_ENV=production
-ENV PORT=8080
+RUN pnpm run build
 
 EXPOSE 8080
-# Start the Zeabur serverless function
-CMD ["node", ".zeabur/output/functions/__nitro.func/index.mjs"]
 
+CMD ["node", ".output/server/index.mjs"]
