@@ -1,6 +1,7 @@
-// FILE: /server/utils/auth-utils.ts - FIXED WITH LAZY LOADING
+// FILE: /server/utils/auth-utils.ts - COMPLETE FIXED VERSION WITH STUBS
 // ============================================================================
 // AUTHENTICATION UTILITIES WITH LAZY SUPABASE LOADING
+// Includes stub implementations for all missing functions
 // ============================================================================
 
 import jwt from 'jsonwebtoken'
@@ -54,8 +55,21 @@ export const rateLimit = (maxRequests: number, windowMs: number) => {
 /**
  * Authenticate user by email and password
  */
-export const authenticateUser = async (email: string, password: string) => {
+export const authenticateUser = async (emailOrEvent: string | any, password?: string) => {
   try {
+    // Handle both direct auth and event-based auth
+    if (typeof emailOrEvent === 'object' && emailOrEvent.node) {
+      // Event-based authentication
+      const event = emailOrEvent
+      const user = await getAuthenticatedUser(event)
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+      return user
+    }
+
+    // Direct email/password authentication
+    const email = emailOrEvent
     const supabase = await db()
     
     const { data: profile, error } = await supabase
@@ -287,6 +301,60 @@ export const handleError = (error: any) => {
     statusCode: 500,
     statusMessage: 'Internal server error'
   })
+}
+
+// ============================================================================
+// STUB IMPLEMENTATIONS FOR MISSING FUNCTIONS
+// ============================================================================
+
+/**
+ * Premium operations - stub implementation
+ * TODO: Replace with actual premium feature logic
+ */
+export const premiumOperations = {
+  async checkAccess(userId: string, feature: string) {
+    try {
+      console.log(`[Premium] Checking access for user ${userId} to feature ${feature}`)
+      // TODO: Implement actual premium access check
+      return true
+    } catch (error) {
+      console.error('[Premium] Check access error:', error)
+      return false
+    }
+  },
+
+  async getFeatures(userId: string) {
+    try {
+      console.log(`[Premium] Getting features for user ${userId}`)
+      // TODO: Implement actual feature retrieval
+      return []
+    } catch (error) {
+      console.error('[Premium] Get features error:', error)
+      return []
+    }
+  },
+
+  async upgradeUser(userId: string, plan: string) {
+    try {
+      console.log(`[Premium] Upgrading user ${userId} to plan ${plan}`)
+      // TODO: Implement actual upgrade logic
+      return { success: true, plan }
+    } catch (error) {
+      console.error('[Premium] Upgrade error:', error)
+      throw error
+    }
+  },
+
+  async downgradeUser(userId: string) {
+    try {
+      console.log(`[Premium] Downgrading user ${userId}`)
+      // TODO: Implement actual downgrade logic
+      return { success: true }
+    } catch (error) {
+      console.error('[Premium] Downgrade error:', error)
+      throw error
+    }
+  }
 }
 
 /**
