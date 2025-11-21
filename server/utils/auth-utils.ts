@@ -1,20 +1,19 @@
-// server/utils/auth-utils.ts - COMPREHENSIVE VERSION WITH ALL OPERATIONS & REQUIREMANAGER
+// FILE: /server/utils/auth-utils.ts - FIXED WITH LAZY LOADING
+// ============================================================================
+// AUTHENTICATION UTILITIES WITH LAZY SUPABASE LOADING
+// ============================================================================
+
 import jwt from 'jsonwebtoken'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient, getSupabaseAdminClient } from './database'
 
-const supabaseUrl = process.env.SUPABASE_URL || ''
-const supabaseKey = process.env.SUPABASE_KEY || ''
+// ============================================================================
+// ENVIRONMENT VARIABLES
+// ============================================================================
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ CRITICAL ERROR: Supabase credentials not configured!')
-  console.error('Missing environment variables:')
-  if (!supabaseUrl) console.error('  - SUPABASE_URL')
-  if (!supabaseKey) console.error('  - SUPABASE_KEY')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
-
-// ============ RATE LIMITING ============
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
 
 interface RateLimitRecord {
   count: number
@@ -48,10 +47,17 @@ export const rateLimit = (maxRequests: number, windowMs: number) => {
   }
 }
 
-// ============ AUTHENTICATION ============
+// ============================================================================
+// AUTHENTICATION FUNCTIONS
+// ============================================================================
 
+/**
+ * Authenticate user by email and password
+ */
 export const authenticateUser = async (email: string, password: string) => {
   try {
+    const supabase = await getSupabaseClient()
+    
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
@@ -69,15 +75,20 @@ export const authenticateUser = async (email: string, password: string) => {
   }
 }
 
+/**
+ * Get user profile by ID
+ */
 export const getUserProfile = async (userId: string) => {
   try {
+    const supabase = await getSupabaseClient()
+    
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single()
 
-    if (error || !profile) {
+    if (error) {
       throw new Error('Profile not found')
     }
 
@@ -88,36 +99,76 @@ export const getUserProfile = async (userId: string) => {
   }
 }
 
-export const emailExists = async (email: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', email)
-      .single()
+/**
+ * Create JWT token
+ */
+export const createToken = (userId: string, email: string) => {
+  return jwt.sign(
+    { userId, email },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  )
+}
 
-    return !!data && !error
+/**
+ * Verify JWT token
+ */
+export const verifyToken = (token: string) => {
+  try {
+    return jwt.verify(token, JWT_SECRET)
   } catch (error) {
-    return false
+    console.error('[Auth] Token verification error:', error)
+    return null
   }
 }
 
-export const usernameExists = async (username: string) => {
+/**
+ * Get authenticated user from request
+ */
+export const getAuthenticatedUser = async (event: any) => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('username', username)
-      .single()
+    const authHeader = event.node.req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null
+    }
 
-    return !!data && !error
+    const token = authHeader.substring(7)
+    const decoded = verifyToken(token)
+    
+    if (!decoded || !decoded.userId) {
+      return null
+    }
+
+    return await getUserProfile(decoded.userId)
   } catch (error) {
-    return false
+    console.error('[Auth] Get authenticated user error:', error)
+    return null
   }
 }
 
+/**
+ * Require authentication middleware
+ */
+export const requireAuth = async (event: any) => {
+  const user = await getAuthenticatedUser(event)
+  
+  if (!user) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized'
+    })
+  }
+
+  return user
+}
+
+/**
+ * Update user profile
+ */
 export const updateUserProfile = async (userId: string, updates: any) => {
   try {
+    const supabase = await getSupabaseAdminClient()
+    
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
@@ -125,7 +176,10 @@ export const updateUserProfile = async (userId: string, updates: any) => {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      throw error
+    }
+
     return data
   } catch (error) {
     console.error('[Auth] Update profile error:', error)
@@ -133,393 +187,26 @@ export const updateUserProfile = async (userId: string, updates: any) => {
   }
 }
 
-// ============ JWT ============
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-
-export const generateToken = (payload: any) => {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: '7d',
-    algorithm: 'HS256'
-  })
-}
-
-export const verifyToken = (token: string) => {
+/**
+ * Delete user
+ */
+export const deleteUser = async (userId: string) => {
   try {
-    return jwt.verify(token, JWT_SECRET, {
-      algorithms: ['HS256']
-    })
-  } catch (error) {
-    console.error('[Auth] Token verification error:', error)
-    throw error
-  }
-}
-
-// ============ ADMIN UTILITIES ============
-
-export const requireAdmin = async (event: any) => {
-  try {
-    const user = await requireAuth(event)
+    const supabase = await getSupabaseAdminClient()
     
-    if (!user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role !== 'admin') {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Forbidden: Admin access required'
-      })
-    }
-
-    return user
-  } catch (error) {
-    console.error('[Admin] Authorization error:', error)
-    throw error
-  }
-}
-
-export const requireManager = async (event: any) => {
-  try {
-    const user = await requireAuth(event)
-    
-    if (!user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role !== 'manager' && profile?.role !== 'admin') {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Forbidden: Manager access required'
-      })
-    }
-
-    return user
-  } catch (error) {
-    console.error('[Manager] Authorization error:', error)
-    throw error
-  }
-}
-
-export const logAdminAction = async (adminId: string, action: string, details: any) => {
-  try {
     const { error } = await supabase
-      .from('admin_logs')
-      .insert({
-        admin_id: adminId,
-        action,
-        details,
-        created_at: new Date().toISOString()
-      })
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
 
     if (error) {
-      console.error('[Admin] Log error:', error)
+      throw error
     }
+
+    return true
   } catch (error) {
-    console.error('[Admin] Logging error:', error)
+    console.error('[Auth] Delete user error:', error)
+    throw error
   }
 }
 
-export const validateBody = (body: any, requiredFields: string[]) => {
-  for (const field of requiredFields) {
-    if (!body[field]) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: `Missing required field: ${field}`
-      })
-    }
-  }
-}
-
-export const handleError = (error: any) => {
-  console.error('[Error]', error)
-  
-  if (error.statusCode) {
-    return error
-  }
-
-  return createError({
-    statusCode: 500,
-    statusMessage: error.message || 'Internal server error'
-  })
-}
-
-// ============ PREMIUM OPERATIONS ============
-
-export const premiumOperations = {
-  getPricingTiers: async () => {
-    try {
-      const { data: tiers, error } = await supabase
-        .from('premium_tiers')
-        .select('*')
-        .order('price', { ascending: true })
-
-      if (error) throw error
-      return tiers || []
-    } catch (error) {
-      console.error('[Premium] Get pricing tiers error:', error)
-      throw error
-    }
-  },
-
-  getUserSubscription: async (userId: string) => {
-    try {
-      const { data: subscription, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-      return subscription || null
-    } catch (error) {
-      console.error('[Premium] Get subscription error:', error)
-      throw error
-    }
-  },
-
-  checkFeatureAccess: async (userId: string, featureKey: string) => {
-    try {
-      const subscription = await premiumOperations.getUserSubscription(userId)
-      
-      if (!subscription) {
-        return false
-      }
-
-      const { data: tier, error } = await supabase
-        .from('premium_tiers')
-        .select('features')
-        .eq('id', subscription.tier_id)
-        .single()
-
-      if (error) throw error
-      
-      const features = tier?.features || []
-      return features.includes(featureKey)
-    } catch (error) {
-      console.error('[Premium] Check feature access error:', error)
-      throw error
-    }
-  }
-}
-
-// ============ STATUS OPERATIONS ============
-
-export const statusOperations = {
-  createStatus: async (userId: string, data: any) => {
-    try {
-      const { data: status, error } = await supabase
-        .from('statuses')
-        .insert({
-          user_id: userId,
-          content: data.content,
-          files: data.files || [],
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return status
-    } catch (error) {
-      console.error('[Status] Create status error:', error)
-      throw error
-    }
-  },
-
-  deleteStatus: async (statusId: string) => {
-    try {
-      const { error } = await supabase
-        .from('statuses')
-        .delete()
-        .eq('id', statusId)
-
-      if (error) throw error
-      return { success: true, message: 'Status deleted successfully' }
-    } catch (error) {
-      console.error('[Status] Delete status error:', error)
-      throw error
-    }
-  },
-
-  getUserStatuses: async (userId: string) => {
-    try {
-      const { data: statuses, error } = await supabase
-        .from('statuses')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return statuses || []
-    } catch (error) {
-      console.error('[Status] Get user statuses error:', error)
-      throw error
-    }
-  }
-}
-
-// ============ STREAM OPERATIONS ============
-
-export const streamOperations = {
-  getStream: async (streamId: string) => {
-    try {
-      const { data: stream, error } = await supabase
-        .from('streams')
-        .select('*')
-        .eq('id', streamId)
-        .single()
-
-      if (error) throw error
-      return stream
-    } catch (error) {
-      console.error('[Stream] Get stream error:', error)
-      throw error
-    }
-  },
-
-  createStream: async (userId: string, data: any) => {
-    try {
-      const { data: stream, error } = await supabase
-        .from('streams')
-        .insert({
-          user_id: userId,
-          title: data.title,
-          description: data.description,
-          status: 'active',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return stream
-    } catch (error) {
-      console.error('[Stream] Create stream error:', error)
-      throw error
-    }
-  },
-
-  updateStream: async (streamId: string, data: any) => {
-    try {
-      const { data: stream, error } = await supabase
-        .from('streams')
-        .update(data)
-        .eq('id', streamId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return stream
-    } catch (error) {
-      console.error('[Stream] Update stream error:', error)
-      throw error
-    }
-  },
-
-  deleteStream: async (streamId: string) => {
-    try {
-      const { error } = await supabase
-        .from('streams')
-        .delete()
-        .eq('id', streamId)
-
-      if (error) throw error
-      return { success: true, message: 'Stream deleted successfully' }
-    } catch (error) {
-      console.error('[Stream] Delete stream error:', error)
-      throw error
-    }
-  },
-
-  getUserStreams: async (userId: string) => {
-    try {
-      const { data: streams, error } = await supabase
-        .from('streams')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return streams || []
-    } catch (error) {
-      console.error('[Stream] Get user streams error:', error)
-      throw error
-    }
-  }
-}
-
-// ============ WALLET OPERATIONS ============
-
-export const walletOperations = {
-  lockWallet: async (userId: string, data: any) => {
-    try {
-      const { data: lock, error } = await supabase
-        .from('wallet_locks')
-        .insert({
-          user_id: userId,
-          amount: data.amount,
-          reason: data.reason || null,
-          locked_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return lock
-    } catch (error) {
-      console.error('[Wallet] Lock wallet error:', error)
-      throw error
-    }
-  },
-
-  unlockWallet: async (lockId: string) => {
-    try {
-      const { error } = await supabase
-        .from('wallet_locks')
-        .update({ unlocked_at: new Date().toISOString() })
-        .eq('id', lockId)
-
-      if (error) throw error
-      return { success: true, message: 'Wallet unlocked successfully' }
-    } catch (error) {
-      console.error('[Wallet] Unlock wallet error:', error)
-      throw error
-    }
-  },
-
-  getWalletLocks: async (userId: string) => {
-    try {
-      const { data: locks, error } = await supabase
-        .from('wallet_locks')
-        .select('*')
-        .eq('user_id', userId)
-        .order('locked_at', { ascending: false })
-
-      if (error) throw error
-      return locks || []
-    } catch (error) {
-      console.error('[Wallet] Get wallet locks error:', error)
-      throw error
-    }
-  }
-}
