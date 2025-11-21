@@ -8,10 +8,10 @@ RUN npm install -g pnpm@9
 
 COPY . .
 
-RUN npm_config_ignore_scripts=true pnpm install
+RUN pnpm install
 
 RUN pnpm run build
 
 EXPOSE 8080
 
-CMD ["node", ".zeabur/output/functions/__nitro.func/index.mjs"]
+CMD ["node", ".output/server/index.mjs"]
