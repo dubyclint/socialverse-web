@@ -1,36 +1,55 @@
-export default defineNuxtConfig({
-  compatibilityDate: '2024-04-03',
-  devtools: { enabled: false },
-  ssr: true,
-  hydration: {
-    mismatchHandler: 'silent',
+export default defineNitroConfig({
+  preset: 'node-server',
+  srcDir: 'server',
+  
+  rollupConfig: {
+    output: {
+      format: 'es',
+    },
   },
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@nuxtjs/color-mode',
-    '@pinia/nuxt',
-    '@nuxtjs/supabase',
+
+  externals: {
+    inline: ['@supabase/supabase-js'],
+    traceInclude: [],
+  },
+
+  publicAssets: [
+    {
+      baseURL: '/',
+      dir: './public',
+    },
+    {
+      baseURL: '/_nuxt/',
+      dir: './.output/public/_nuxt',
+      maxAge: 60 * 60 * 24 * 365,
+    },
   ],
-  build: {
-    transpile: ['@supabase/supabase-js'],
+
+  compressPublicAssets: {
+    brotli: true,
+    gzip: true,
   },
-  runtimeConfig: {
-    public: {
-      supabaseUrl: process.env.SUPABASE_URL || '',
-      supabaseKey: process.env.SUPABASE_KEY || '',
+
+  headers: {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  },
+
+  routeRules: {
+    '/_nuxt/**': {
+      cache: {
+        maxAge: 60 * 60 * 24 * 365,
+      },
+    },
+    '/api/**': {
+      cache: false,
     },
   },
-  nitro: {
-    esbuild: {
-      options: {
-        format: 'esm'
-      }
-    },
-    externals: {
-      inline: ['@supabase/supabase-js']
-    },
-    prerender: {
-      crawlLinks: false,
-    },
+
+  logging: {
+    level: 'info',
   },
 })
+
