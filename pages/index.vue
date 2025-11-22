@@ -1,376 +1,533 @@
+<!-- FILE: /pages/index.vue - LANDING PAGE -->
+<!-- MARKETING/ONBOARDING PAGE - This is the public landing page -->
+
 <template>
-  <div class="auth-container">
-    <div class="auth-card">
-      <h1>{{ isSignUp ? 'Create Account' : 'Welcome Back' }}</h1>
-      <p>{{ isSignUp ? 'Join SocialVerse today' : 'Sign in to your account' }}</p>
-      
-      <form @submit.prevent="handleAuth" class="auth-form">
-        <!-- Email Field -->
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input 
-            id="email"
-            v-model="email" 
-            type="email" 
-            required 
-            placeholder="Enter your email"
-            :disabled="loading"
-          />
-        </div>
-        
-        <!-- Password Field -->
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input 
-            id="password"
-            v-model="password" 
-            type="password" 
-            required 
-            :placeholder="isSignUp ? 'Create a password' : 'Enter your password'"
-            :disabled="loading"
-            minlength="6"
-          />
-        </div>
-        
-        <!-- Sign-Up Only Fields -->
-        <template v-if="isSignUp">
-          <!-- Username Field -->
-          <div class="form-group">
-            <label for="username">Username</label>
-            <input 
-              id="username"
-              v-model="username" 
-              type="text" 
-              required 
-              placeholder="Choose a username (3-30 characters)"
-              :disabled="loading"
-              minlength="3"
-              maxlength="30"
-              pattern="[a-z0-9_-]+"
-              title="Only lowercase letters, numbers, underscores, and hyphens"
-            />
+  <div class="landing-page">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <NuxtLink to="/" class="logo-container">
+          <div class="logo-box">
+            <span class="logo-text">🌐 SocialVerse</span>
           </div>
+        </NuxtLink>
+
+        <nav class="nav">
+          <a href="#features" class="nav-link features-link">✨ Features</a>
           
-          <!-- Full Name Field -->
-          <div class="form-group">
-            <label for="fullName">Full Name</label>
-            <input 
-              id="fullName"
-              v-model="fullName" 
-              type="text" 
-              required 
-              placeholder="Enter your full name"
-              :disabled="loading"
-            />
-          </div>
-          
-          <!-- Phone Field -->
-          <div class="form-group">
-            <label for="phone">Phone Number</label>
-            <input 
-              id="phone"
-              v-model="phone" 
-              type="tel" 
-              required 
-              placeholder="Enter your phone number"
-              :disabled="loading"
-            />
-          </div>
-          
-          <!-- Bio Field (Optional) -->
-          <div class="form-group">
-            <label for="bio">Bio (Optional)</label>
-            <textarea 
-              id="bio"
-              v-model="bio" 
-              placeholder="Tell us about yourself"
-              :disabled="loading"
-              rows="3"
-            ></textarea>
-          </div>
-          
-          <!-- Location Field (Optional) -->
-          <div class="form-group">
-            <label for="location">Location (Optional)</label>
-            <input 
-              id="location"
-              v-model="location" 
-              type="text" 
-              placeholder="Your location"
-              :disabled="loading"
-            />
-          </div>
-        </template>
-        
-        <!-- Submit Button -->
-        <button type="submit" :disabled="loading" class="auth-button">
-          {{ loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In') }}
-        </button>
-        
-        <!-- Error Message -->
-        <div v-if="error" class="error-message">
-          {{ error }}
-        </div>
-        
-        <!-- Success Message -->
-        <div v-if="success" class="success-message">
-          {{ success }}
-        </div>
-      </form>
-      
-      <!-- Toggle Sign-Up/Sign-In -->
-      <div class="auth-toggle">
-        <p>
-          {{ isSignUp ? 'Already have an account?' : "Don't have an account?" }}
-          <button @click="toggleMode" type="button" class="toggle-button">
-            {{ isSignUp ? 'Sign In' : 'Sign Up' }}
+          <button
+            @click="goToSignin"
+            class="nav-link btn-login"
+          >
+            Sign In
           </button>
-        </p>
+          <button
+            @click="goToSignup"
+            class="nav-link btn-signup"
+          >
+            Sign Up
+          </button>
+        </nav>
       </div>
-    </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1 class="hero-title">Welcome to SocialVerse</h1>
+        <p class="hero-subtitle">Connect, Share, and Grow Your Network</p>
+        <p class="hero-description">
+          Join millions of users connecting, streaming, and sharing their passions
+        </p>
+        
+        <div class="hero-buttons">
+          <button
+            @click="goToSignup"
+            class="btn-hero btn-hero-primary"
+          >
+            Get Started Free
+          </button>
+          <button
+            @click="goToSignin"
+            class="btn-hero btn-hero-secondary"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-image">
+        <div class="hero-placeholder">
+          🚀
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+      <div class="features-container">
+        <h2 class="features-title">Why Choose SocialVerse?</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">👥</div>
+            <h3>Connect & Network</h3>
+            <p>Build meaningful connections with people who share your interests</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💬</div>
+            <h3>Real-time Chat</h3>
+            <p>Connect instantly with friends and communities</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🎥</div>
+            <h3>Live Streaming</h3>
+            <p>Share your moments with the world in real-time</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🤝</div>
+            <h3>Community</h3>
+            <p>Build and grow your community with like-minded people</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Secure & Private</h3>
+            <p>Your data is encrypted and protected</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Fast & Reliable</h3>
+            <p>Lightning-fast performance on any device</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🌍</div>
+            <h3>Global Reach</h3>
+            <p>Connect with people from around the world</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💰</div>
+            <h3>Monetization</h3>
+            <p>Earn rewards and support your favorite creators</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+      <div class="cta-content">
+        <h2>Ready to Join SocialVerse?</h2>
+        <p>Start connecting with millions of users today</p>
+        <button @click="goToSignup" class="btn-cta">
+          Create Your Account Now
+        </button>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h4>Product</h4>
+          <ul>
+            <li><NuxtLink to="/">Home</NuxtLink></li>
+            <li><a href="#features">Features</a></li>
+            <li><NuxtLink to="/terms-and-policy">Terms</NuxtLink></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#about">About</a></li>
+            <li><a href="#blog">Blog</a></li>
+            <li><a href="#careers">Careers</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#privacy">Privacy</a></li>
+            <li><NuxtLink to="/terms-and-policy">Terms</NuxtLink></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Follow Us</h4>
+          <ul>
+            <li><a href="#twitter">Twitter</a></li>
+            <li><a href="#facebook">Facebook</a></li>
+            <li><a href="#instagram">Instagram</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 SocialVerse. All rights reserved.</p>
+      </div>
+    </footer>
   </div>
 </template>
 
-  <script setup lang="ts">
-// No middleware needed - public page
-import { ref } from 'vue'
+<script setup lang="ts">
+// Landing page - public page for unauthenticated users
+// No middleware needed - this is a public page
 
 definePageMeta({
-  layout: 'default'
+  layout: 'blank',
+  middleware: []  // NO MIDDLEWARE - this is a public landing page
 })
 
-const { login, signup } = useAuth()
-
-const isSignUp = ref(false)
-const email = ref('')
-const password = ref('')
-const username = ref('')
-const fullName = ref('')
-const phone = ref('')
-const bio = ref('')
-const location = ref('')
-const loading = ref(false)
-const error = ref('')
-const success = ref('')
-
-const handleAuth = async () => {
-  // Validate required fields
-  if (!email.value || !password.value) {
-    error.value = 'Email and password are required'
-    return
-  }
-  
-  if (isSignUp.value) {
-    if (!username.value || !fullName.value || !phone.value) {
-      error.value = 'Username, full name, and phone number are required'
-      return
-    }
-    
-    // Validate username format
-    if (!/^[a-z0-9_-]+$/.test(username.value.toLowerCase())) {
-      error.value = 'Username can only contain letters, numbers, underscores, and hyphens'
-      return
-    }
-    
-    if (username.value.length < 3 || username.value.length > 30) {
-      error.value = 'Username must be between 3 and 30 characters'
-      return
-    }
-  }
-  
-  loading.value = true
-  error.value = ''
-  success.value = ''
-  
+// ✅ Use navigateTo() instead of useRouter().push()
+// navigateTo() is Nuxt 3's native navigation method that works better with middleware
+const goToSignin = async () => {
+  console.log('[Index Page] goToSignin() called')
   try {
-    let result
-    
-    if (isSignUp.value) {
-      // ✅ FIX: Pass all required fields to signup
-      result = await signup({
-        email: email.value,
-        password: password.value,
-        username: username.value,
-        fullName: fullName.value,
-        phone: phone.value,
-        bio: bio.value,
-        location: location.value
-      })
-      
-      if (result.success) {
-        if (result.needsConfirmation) {
-          success.value = 'Account created! Please check your email to verify your account.'
-          // Don't redirect - wait for email verification
-        } else {
-          success.value = 'Account created successfully!'
-          setTimeout(() => navigateTo('/feed'), 1500)
-        }
-      }
-    } else {
-      result = await login(email.value, password.value)
-      
-      if (result.success) {
-        success.value = 'Signed in successfully!'
-        setTimeout(() => navigateTo('/feed'), 1000)
-      }
-    }
-    
-    if (!result.success) {
-      error.value = result.error || 'Authentication failed'
-    }
-    
-  } catch (err) {
-    error.value = err.message || 'An unexpected error occurred'
-  } finally {
-    loading.value = false
+    console.log('[Index Page] Navigating to /auth/signin')
+    await navigateTo('/auth/signin')
+    console.log('[Index Page] ✓ Navigation successful')
+  } catch (error) {
+    console.error('[Index Page] ✗ Navigation error:', error)
   }
 }
 
-const toggleMode = () => {
-  isSignUp.value = !isSignUp.value
-  error.value = ''
-  success.value = ''
-  // Reset form fields
-  email.value = ''
-  password.value = ''
-  username.value = ''
-  fullName.value = ''
-  phone.value = ''
-  bio.value = ''
-  location.value = ''
+const goToSignup = async () => {
+  console.log('[Index Page] goToSignup() called')
+  try {
+    console.log('[Index Page] Navigating to /auth/signup')
+    await navigateTo('/auth/signup')
+    console.log('[Index Page] ✓ Navigation successful')
+  } catch (error) {
+    console.error('[Index Page] ✗ Navigation error:', error)
+  }
 }
 </script>
 
 <style scoped>
-.auth-container {
+.landing-page {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+  min-height: 100vh;
+}
+
+.header {
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.logo-container {
+  text-decoration: none;
+  color: white;
+}
+
+.logo-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-text {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.nav-link {
+  background: none;
+  border: none;
+  color: rgba(226, 232, 240, 0.7);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: color 0.3s ease;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  color: white;
+}
+
+.btn-login {
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.btn-login:hover {
+  color: #3b82f6;
+}
+
+.btn-signup {
+  background: #3b82f6;
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.375rem;
+}
+
+.btn-signup:hover {
+  background: #2563eb;
+}
+
+.hero {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.hero-description {
+  font-size: 1.125rem;
+  color: rgba(226, 232, 240, 0.6);
+  line-height: 1.6;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-hero {
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-hero-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-hero-primary:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+.btn-hero-secondary {
+  background: transparent;
+  color: #3b82f6;
+  border: 2px solid #3b82f6;
+}
+
+.btn-hero-secondary:hover {
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+.hero-image {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.auth-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 400px;
-}
-
-.auth-card h1 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-  font-size: 1.8rem;
-}
-
-.auth-card p {
-  margin: 0 0 1.5rem 0;
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.auth-form {
+.hero-placeholder {
+  width: 300px;
+  height: 300px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.1);
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  font-size: 5rem;
+  border: 2px solid rgba(102, 126, 234, 0.3);
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
+.features {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
 }
 
-.form-group label {
-  margin-bottom: 0.5rem;
-  color: #333;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.form-group input,
-.form-group textarea {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 0.95rem;
-  font-family: inherit;
-  transition: border-color 0.3s;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.form-group input:disabled,
-.form-group textarea:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-}
-
-.auth-button {
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.auth-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
-.auth-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.error-message {
-  padding: 0.75rem;
-  background-color: #fee;
-  color: #c33;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  border-left: 4px solid #c33;
-}
-
-.success-message {
-  padding: 0.75rem;
-  background-color: #efe;
-  color: #3c3;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  border-left: 4px solid #3c3;
-}
-
-.auth-toggle {
-  margin-top: 1.5rem;
+.features-container {
   text-align: center;
-  color: #666;
-  font-size: 0.9rem;
 }
 
-.toggle-button {
-  background: none;
+.features-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 3rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.feature-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 12px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateY(-5px);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.feature-card p {
+  opacity: 0.8;
+  line-height: 1.6;
+}
+
+.cta-section {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.cta-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cta-content h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.cta-content p {
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.btn-cta {
+  background: white;
+  color: #3b82f6;
+  padding: 1rem 2.5rem;
+  font-size: 1.125rem;
   border: none;
-  color: #667eea;
+  border-radius: 0.5rem;
   cursor: pointer;
   font-weight: 600;
-  text-decoration: underline;
-  padding: 0;
-  margin-left: 0.25rem;
+  transition: all 0.3s ease;
 }
 
-.toggle-button:hover {
-  color: #764ba2;
+.btn-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.footer {
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 3rem 2rem 1rem;
+  margin-top: 4rem;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.footer-section h4 {
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.footer-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-section li {
+  margin-bottom: 0.75rem;
+}
+
+.footer-section a,
+.footer-section a:visited {
+  color: rgba(226, 232, 240, 0.6);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer-section a:hover {
+  color: white;
+}
+
+.footer-bottom {
+  text-align: center;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  color: rgba(226, 232, 240, 0.5);
+}
+
+@media (max-width: 768px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 2rem 1rem;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-placeholder {
+    width: 200px;
+    height: 200px;
+  }
+
+  .nav {
+    gap: 0.5rem;
+  }
+
+  .btn-hero {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
 }
 </style>
