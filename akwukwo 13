@@ -1,0 +1,38 @@
+-- Your complete schema here (same as above)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  email_lower TEXT NOT NULL UNIQUE,
+  username TEXT NOT NULL UNIQUE,
+  username_lower TEXT NOT NULL UNIQUE,
+  full_name TEXT,
+  phone TEXT,
+  bio TEXT,
+  location TEXT,
+  avatar_url TEXT,
+  role TEXT DEFAULT 'user',
+  status TEXT DEFAULT 'active',
+  email_verified BOOLEAN DEFAULT false,
+  profile_completed BOOLEAN DEFAULT false,
+  preferences JSONB DEFAULT '{}',
+  metadata JSONB DEFAULT '{}',
+  privacy_settings JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
+CREATE INDEX IF NOT EXISTS idx_profiles_email_lower ON profiles(email_lower);
+CREATE INDEX IF NOT EXISTS idx_profiles_username_lower ON profiles(username_lower);
+
+CREATE TABLE IF NOT EXISTS posts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    content TEXT NOT NULL,
+    author VARCHAR(255),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+-- ... rest of schema
