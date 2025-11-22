@@ -21,9 +21,18 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
+    esbuild: {
+      options: {
+        format: 'esm'
+      }
+    },
+    externals: {
+      inline: ['@supabase/supabase-js']
+    },
     prerender: {
       crawlLinks: false,
     },
   },
 })
+
 
