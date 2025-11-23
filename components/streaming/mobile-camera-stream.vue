@@ -209,8 +209,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useMobileCamera } from '~/composables/useMobile-Camera'
-import { useStreamBroadcast } from '~/composables/useStream-Broadcast'
+import { useMobileCamera } from '~/composables/use-mobile-camera'
+import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
 
 const props = defineProps({
   streamId: String
