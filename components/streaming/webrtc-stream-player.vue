@@ -210,7 +210,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useWebRTC } from '~/composables/useWebRTC'
+import { useWebRTC } from '~/composables/use-webrtc'
 
 interface Props {
   streamId: string
