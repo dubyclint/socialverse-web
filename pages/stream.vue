@@ -134,7 +134,7 @@ definePageMeta({
 })
   
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useStreamBroadcast } from '~/composables/use-stream-Broadcast'
+import { useStreamBroadcast } from '~/composables/use-stream-Broadcast.vue'
 import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
 
 const router = useRouter()
