@@ -283,7 +283,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useStreaming } from '~/composables/useStreaming'
+import { useStreaming } from '~/composables/use-streaming'
 
 interface Props {
   streamId?: string
