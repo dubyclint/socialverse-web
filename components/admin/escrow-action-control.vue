@@ -1,4 +1,4 @@
-<!-- FILE: /components/admin/escrow-control.vue -->
+<!-- FILE: /components/admin/escrow-action-control.vue -->
 <!-- MERGED: escrow-actions.vue + escrow-control.vue -->
 <!-- Comprehensive escrow management with deal list and individual actions -->
 
