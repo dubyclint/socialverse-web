@@ -1,4 +1,4 @@
-// FILE : composables/useStreamBroadcast.ts - COMPLETE PRODUCTION-READY COMPOSABLE
+// FILE : composables/use-stream-broadcast.ts - COMPLETE PRODUCTION-READY COMPOSABLE
 // ============================================================================
 // STREAM BROADCAST COMPOSABLE - HANDLES STREAMING & BROADCASTING
 // ============================================================================
