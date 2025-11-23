@@ -1,4 +1,4 @@
-<!-- components/streaming/StreamControls.vue -->
+<!-- components/streaming/stream-controls.vue -->
 <template>
   <div class="stream-controls-container">
     <!-- Stream Status -->
