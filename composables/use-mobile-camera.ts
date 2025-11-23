@@ -1,4 +1,4 @@
-// FILE 1: composables/useMobileCamera.ts - COMPLETE PRODUCTION-READY COMPOSABLE
+// FILE 1: composables/use-mobile-camera.ts - COMPLETE PRODUCTION-READY COMPOSABLE
 // ============================================================================
 // MOBILE CAMERA COMPOSABLE - HANDLES ALL CAMERA OPERATIONS
 // ============================================================================
