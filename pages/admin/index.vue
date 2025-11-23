@@ -5,7 +5,7 @@
       <adminuserlist />
       <adminpostmoderation />
       <adminmatchapproval />
-      <adminescrowcontrol />
+      <adminescrowactioncontrol />
       <adminfeemanager />
     </div>
 
@@ -31,8 +31,8 @@ import Chart from 'chart.js/auto'
 import adminuserlist from '@/components/admin/user-list.vue'
 import adminpostmoderation from '@/components/admin/post-moderation.vue'
 import adminmatchapproval from '@/components/admin/match-approval.vue'
-import adminescrowcontrol from '@/components/admin/escrow-control.vue'
-import adminfeeManager from '@/components/admin/fee-manager.vue'
+import adminescrowactioncontrol from '@/components/admin/escrow-action-control.vue'
+import adminfeemanager from '@/components/admin/fee-manager.vue'
 
 onMounted(async () => {
   try {
@@ -81,43 +81,22 @@ onMounted(async () => {
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .analytics-section {
   background: white;
-  padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.analytics-section h2 {
-  margin-bottom: 2rem;
-  color: #1f2937;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .charts {
   display: grid;
-  gap: 2rem;
-}
-
-canvas {
-  max-width: 100%;
-}
-
-@media (max-width: 768px) {
-  .admin-dashboard {
-    padding: 1rem;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .charts {
-    gap: 1rem;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
 }
 </style>
 
