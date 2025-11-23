@@ -29,192 +29,153 @@
           :disabled="isLoading || !canStartStream"
           class="control-btn primary start-btn"
         >
-          <Icon name="mdi:play" />
-          {{ stream?.status === 'scheduled' ? 'Go Live' : 'Start Stream' }}
+          🔴 Start Stream
         </button>
-        
         <button 
           v-else
           @click="endStream"
           :disabled="isLoading"
           class="control-btn danger end-btn"
         >
-          <Icon name="mdi:stop" />
-          End Stream
-        </button>
-        
-        <button 
-          v-if="stream?.status === 'live'"
-          @click="pauseStream"
-          :disabled="isLoading"
-          class="control-btn secondary"
-        >
-          <Icon :name="stream?.status === 'paused' ? 'mdi:play' : 'mdi:pause'" />
-          {{ stream?.status === 'paused' ? 'Resume' : 'Pause' }}
+          ⏹️ End Stream
         </button>
       </div>
 
-      <!-- Media Controls -->
-      <div class="control-group">
-        <button 
-          @click="toggleCamera"
-          :disabled="!isStreaming"
-          class="control-btn"
-          :class="{ active: isCameraOn }"
-        >
-          <Icon :name="isCameraOn ? 'mdi:video' : 'mdi:video-off'" />
-          Camera
-        </button>
-        
-        <button 
-          @click="toggleMicrophone"
-          :disabled="!isStreaming"
-          class="control-btn"
-          :class="{ active: isMicrophoneOn }"
-        >
-          <Icon :name="isMicrophoneOn ? 'mdi:microphone' : 'mdi:microphone-off'" />
-          Mic
-        </button>
-        
-        <button 
-          @click="toggleScreenShare"
-          :disabled="!isStreaming"
-          class="control-btn"
-          :class="{ active: isScreenSharing }"
-        >
-          <Icon name="mdi:monitor-share" />
-          Screen
-        </button>
-      </div>
+      <!-- Pause/Resume -->
+      <button 
+        v-if="isStreaming"
+        @click="pauseStream"
+        class="control-btn secondary"
+      >
+        ⏸️ Pause
+      </button>
+
+      <!-- Camera Toggle -->
+      <button 
+        @click="toggleCamera"
+        :class="{ active: isCameraOn }"
+        class="control-btn"
+      >
+        {{ isCameraOn ? '📹' : '📹❌' }} Camera
+      </button>
+
+      <!-- Microphone Toggle -->
+      <button 
+        @click="toggleMicrophone"
+        :class="{ active: isMicrophoneOn }"
+        class="control-btn"
+      >
+        {{ isMicrophoneOn ? '🎤' : '🎤❌' }} Mic
+      </button>
+
+      <!-- Screen Share -->
+      <button 
+        @click="toggleScreenShare"
+        :class="{ active: isScreenSharing }"
+        class="control-btn"
+      >
+        {{ isScreenSharing ? '🖥️' : '🖥️❌' }} Screen
+      </button>
 
       <!-- Settings -->
-      <div class="control-group">
-        <button 
-          @click="openStreamSettings"
-          class="control-btn"
-        >
-          <Icon name="mdi:cog" />
-          Settings
-        </button>
-        
-        <button 
-          @click="openAnalytics"
-          :disabled="!stream"
-          class="control-btn"
-        >
-          <Icon name="mdi:chart-line" />
-          Analytics
-        </button>
-      </div>
+      <button 
+        @click="openStreamSettings"
+        class="control-btn"
+      >
+        ⚙️ Settings
+      </button>
+
+      <!-- Analytics -->
+      <button 
+        @click="openAnalytics"
+        class="control-btn"
+      >
+        📊 Analytics
+      </button>
     </div>
 
     <!-- Stream Preview -->
-    <div class="stream-preview" v-if="isStreaming || stream?.status === 'live'">
+    <div v-if="showPreview" class="stream-preview">
       <div class="preview-header">
-        <h4>Stream Preview</h4>
+        <span>📹 Preview</span>
         <div class="preview-controls">
-          <button @click="togglePreview" class="preview-btn">
-            <Icon :name="showPreview ? 'mdi:eye-off' : 'mdi:eye'" />
-          </button>
+          <button @click="togglePreview" class="preview-btn">✕</button>
         </div>
       </div>
-      
-      <div v-show="showPreview" class="preview-video-container">
+      <div class="preview-video-container">
         <video 
           ref="previewVideo"
           class="preview-video"
-          muted
           autoplay
+          muted
           playsinline
-        />
+        ></video>
         <div class="preview-overlay">
           <div class="preview-info">
             <span class="quality-indicator">{{ currentQuality }}</span>
-            <span class="bitrate-indicator">{{ currentBitrate }} kbps</span>
+            <span class="bitrate-indicator">{{ currentBitrate }}kbps</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="quick-stats" v-if="stream">
+    <div class="quick-stats">
       <div class="stat-item">
-        <Icon name="mdi:eye" />
         <div class="stat-info">
-          <span class="stat-value">{{ formatNumber(stream.viewerCount || 0) }}</span>
-          <span class="stat-label">Current Viewers</span>
+          <div class="stat-label">Resolution</div>
+          <div class="stat-value">{{ settings.resolution }}</div>
         </div>
       </div>
-      
       <div class="stat-item">
-        <Icon name="mdi:trending-up" />
         <div class="stat-info">
-          <span class="stat-value">{{ formatNumber(stream.peakViewers || 0) }}</span>
-          <span class="stat-label">Peak Viewers</span>
+          <div class="stat-label">Frame Rate</div>
+          <div class="stat-value">{{ settings.frameRate }}fps</div>
         </div>
       </div>
-      
       <div class="stat-item">
-        <Icon name="mdi:gift" />
         <div class="stat-info">
-          <span class="stat-value">{{ formatNumber(stream.totalPewGifts || 0) }}</span>
-          <span class="stat-label">PewGifts</span>
+          <div class="stat-label">Bitrate</div>
+          <div class="stat-value">{{ settings.bitrate }}kbps</div>
         </div>
       </div>
-      
       <div class="stat-item">
-        <Icon name="mdi:currency-usd" />
         <div class="stat-info">
-          <span class="stat-value">${{ formatNumber(stream.totalRevenue || 0) }}</span>
-          <span class="stat-label">Revenue</span>
+          <div class="stat-label">Audio</div>
+          <div class="stat-value">{{ settings.audioBitrate }}kbps</div>
         </div>
       </div>
     </div>
 
-    <!-- Stream Settings Modal -->
+    <!-- Settings Modal -->
     <div v-if="showSettings" class="settings-modal" @click.self="closeSettings">
       <div class="settings-content">
         <div class="settings-header">
           <h3>Stream Settings</h3>
-          <button @click="closeSettings" class="close-btn">
-            <Icon name="mdi:close" />
-          </button>
+          <button @click="closeSettings" class="close-btn">✕</button>
         </div>
-        
+
         <div class="settings-body">
           <!-- Video Settings -->
           <div class="settings-section">
             <h4>Video Settings</h4>
             <div class="setting-item">
-              <label>Resolution:</label>
+              <label>Resolution</label>
               <select v-model="settings.resolution" @change="updateVideoSettings">
-                <option value="1920x1080">1080p (1920x1080)</option>
-                <option value="1280x720">720p (1280x720)</option>
-                <option value="854x480">480p (854x480)</option>
-                <option value="640x360">360p (640x360)</option>
+                <option value="1920x1080">1920x1080 (1080p)</option>
+                <option value="1280x720">1280x720 (720p)</option>
+                <option value="854x480">854x480 (480p)</option>
               </select>
             </div>
-            
             <div class="setting-item">
-              <label>Frame Rate:</label>
-              <select v-model="settings.frameRate" @change="updateVideoSettings">
-                <option value="60">60 FPS</option>
-                <option value="30">30 FPS</option>
-                <option value="24">24 FPS</option>
-              </select>
+              <label>Frame Rate</label>
+              <input v-model.number="settings.frameRate" type="range" min="15" max="60" step="5">
+              <span>{{ settings.frameRate }}fps</span>
             </div>
-            
             <div class="setting-item">
-              <label>Bitrate:</label>
-              <input 
-                type="range" 
-                v-model="settings.bitrate" 
-                min="500" 
-                max="8000" 
-                step="100"
-                @change="updateVideoSettings"
-              />
-              <span>{{ settings.bitrate }} kbps</span>
+              <label>Bitrate</label>
+              <input v-model.number="settings.bitrate" type="range" min="500" max="8000" step="100">
+              <span>{{ settings.bitrate }}kbps</span>
             </div>
           </div>
 
@@ -222,53 +183,48 @@
           <div class="settings-section">
             <h4>Audio Settings</h4>
             <div class="setting-item">
-              <label>Audio Source:</label>
+              <label>Audio Source</label>
               <select v-model="settings.audioSource">
+                <option value="default">Default</option>
                 <option v-for="device in audioDevices" :key="device.deviceId" :value="device.deviceId">
                   {{ device.label }}
                 </option>
               </select>
             </div>
-            
             <div class="setting-item">
-              <label>Audio Bitrate:</label>
-              <select v-model="settings.audioBitrate">
-                <option value="128">128 kbps</option>
-                <option value="96">96 kbps</option>
-                <option value="64">64 kbps</option>
-              </select>
+              <label>Audio Bitrate</label>
+              <input v-model.number="settings.audioBitrate" type="range" min="32" max="320" step="32">
+              <span>{{ settings.audioBitrate }}kbps</span>
             </div>
           </div>
 
-          <!-- Privacy Settings -->
+          <!-- Feature Settings -->
           <div class="settings-section">
-            <h4>Privacy & Moderation</h4>
+            <h4>Features</h4>
             <div class="setting-item">
-              <label>
-                <input type="checkbox" v-model="settings.chatEnabled" />
-                Enable Chat
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="settings.chatEnabled">
+                <span>Enable Chat</span>
               </label>
             </div>
-            
             <div class="setting-item">
-              <label>
-                <input type="checkbox" v-model="settings.pewGiftsEnabled" />
-                Enable PewGifts
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="settings.pewGiftsEnabled">
+                <span>Enable PEW Gifts</span>
               </label>
             </div>
-            
             <div class="setting-item">
-              <label>
-                <input type="checkbox" v-model="settings.recordStream" />
-                Record Stream
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="settings.recordStream">
+                <span>Record Stream</span>
               </label>
             </div>
           </div>
-        </div>
-        
-        <div class="settings-footer">
-          <button @click="saveSettings" class="save-btn">Save Settings</button>
-          <button @click="closeSettings" class="cancel-btn">Cancel</button>
+          
+          <div class="settings-footer">
+            <button @click="saveSettings" class="save-btn">Save Settings</button>
+            <button @click="closeSettings" class="cancel-btn">Cancel</button>
+          </div>
         </div>
       </div>
     </div>
