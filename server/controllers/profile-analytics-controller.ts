@@ -1,7 +1,7 @@
 // server/controllers/profile-analytics-controller.ts - Profile Analytics Management
 // ============================================================================
 
-import { H3Event } from 'h3'
+import { H3Event, readBody, getHeader, getClientIP, getQuery } from 'h3'
 import { ProfileView } from '../models/profile-view'
 import { PremiumModel } from '../models/premium'
 
@@ -281,4 +281,3 @@ export class ProfileAnalyticsController {
     }
   }
 }
-      
