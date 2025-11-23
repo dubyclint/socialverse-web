@@ -7,6 +7,8 @@
   "scripts": {
     "clean": "rm -rf .nuxt .output .nitro node_modules/.cache dist",
     "clean:build": "npm run clean && npm run build",
+    "fix:imports": "node scripts/fix-imports-enhanced.js",
+    "fix:imports:check": "node scripts/fix-imports-enhanced.js && npm run typecheck"
     "build": "nuxt build",
     "build:analyze": "nuxt build --analyze",
     "build:report": "nuxi analyze",
