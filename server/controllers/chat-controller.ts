@@ -1,7 +1,7 @@
 // server/controllers/chat-controller.ts - Chat Management Controller
 // ============================================================================
 
-import { H3Event } from 'h3'
+import { H3Event, getQuery, readBody } from 'h3'
 import { ChatModel } from '../models/chat-models'
 import { UserModel } from '../models/user'
 
