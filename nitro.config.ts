@@ -35,6 +35,7 @@ export default defineNitroConfig({
     'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   },
 
   routeRules: {
@@ -46,10 +47,26 @@ export default defineNitroConfig({
     '/api/**': {
       cache: false,
     },
+    '/health': {
+      cache: false,
+    },
   },
 
   logging: {
     level: 'info',
   },
-})
 
+  // ============================================================================
+  // TYPESCRIPT SUPPORT
+  // ============================================================================
+  typescript: {
+    strict: false,
+    tsConfig: {
+      compilerOptions: {
+        strict: false,
+        noImplicitAny: false,
+        strictNullChecks: false,
+      },
+    },
+  },
+})
