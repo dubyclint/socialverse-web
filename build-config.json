@@ -1,0 +1,34 @@
+{
+  "project": {
+    "name": "SocialVerse Web",
+    "version": "1.0.0",
+    "description": "A modern social networking platform"
+  },
+  "build": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "format": "esm",
+    "minify": true,
+    "sourceMap": false,
+    "compression": ["gzip", "brotli"]
+  },
+  "server": {
+    "preset": "node-server",
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "optimization": {
+    "treeshake": true,
+    "splitChunks": true,
+    "codeGeneration": true
+  },
+  "security": {
+    "headers": {
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "X-XSS-Protection": "1; mode=block",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+    }
+  }
+}
