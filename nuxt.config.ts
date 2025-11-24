@@ -27,7 +27,7 @@ export default defineNuxtConfig({
       }
     },
     externals: {
-      inline: ['@supabase/supabase-js']
+      inline: []
     },
     prerender: {
       crawlLinks: false,
@@ -70,7 +70,7 @@ export default defineNuxtConfig({
           }
           
           // Fix other ESM imports that might need .js extension
-          const esmRegex = /from\s+['"]([^'"]+)(?<!\.js)(?<!\.mjs)(?<!\.json)['"]\s*$/gm;
+          const esmRegex = /from\s+['"](@supabase\/[^'"]+)(?<!\.js)(?<!\.mjs)(?<!\.json)['"]\s*$/gm;
           const matches = content.match(esmRegex);
           if (matches) {
             // Only fix specific known packages
