@@ -35,38 +35,57 @@ export default defineNuxtConfig({
   },
   
   // ============================================================================
-  // BUILD HOOKS FOR IMPORT FIXING
+  // BUILD HOOKS FOR IMPORT FIXING - FIXED FOR ZEABUR
   // ============================================================================
   hooks: {
     'build:done': async () => {
       const fs = await import('fs');
       const path = await import('path');
       
-      const outputDir = '.output/server';
-      if (!fs.existsSync(outputDir)) return;
+      // Check both possible output directories
+      const possibleDirs = [
+        '.zeabur/output/functions/__nitro.func',
+        '.output/server',
+      ];
       
-      const files = fs.readdirSync(outputDir, { recursive: true });
-      for (const file of files) {
-        if (!file.endsWith('.mjs')) continue;
-        const filePath = path.join(outputDir, file);
-        let content = fs.readFileSync(filePath, 'utf-8');
+      for (const outputDir of possibleDirs) {
+        if (!fs.existsSync(outputDir)) continue;
         
-        // Fix Supabase imports - add .js extensions
-        content = content.replace(
-          /from ['\"](@supabase\/[^'\"]+)(?<!\\.js)['\"]/g,
-          "from '$1.js'"
-        );
+        console.log(`[Supabase Fix] Processing directory: ${outputDir}`);
         
-        // Fix H3 imports
-        content = content.replace(
-          /from ['\"]h3(?<!\\.js)['\"]/g,
-          "from 'h3'"
-        );
-        
-        fs.writeFileSync(filePath, content);
+        const files = fs.readdirSync(outputDir, { recursive: true });
+        for (const file of files) {
+          if (!file.endsWith('.mjs')) continue;
+          
+          const filePath = path.join(outputDir, file);
+          let content = fs.readFileSync(filePath, 'utf-8');
+          let modified = false;
+          
+          // Fix Supabase imports - add .js extensions where missing
+          const supabaseRegex = /from\s+['"](@supabase\/[^'"]+)(?<!\.js)['"]/g;
+          if (supabaseRegex.test(content)) {
+            content = content.replace(supabaseRegex, "from '$1.js'");
+            modified = true;
+            console.log(`[Supabase Fix] Fixed Supabase imports in ${file}`);
+          }
+          
+          // Fix other ESM imports that might need .js extension
+          const esmRegex = /from\s+['"]([^'"]+)(?<!\.js)(?<!\.mjs)(?<!\.json)['"]\s*$/gm;
+          const matches = content.match(esmRegex);
+          if (matches) {
+            // Only fix specific known packages
+            content = content.replace(
+              /from\s+['"]h3(?<!\.js)['"]/g,
+              "from 'h3.js'"
+            );
+            modified = true;
+          }
+          
+          if (modified) {
+            fs.writeFileSync(filePath, content);
+          }
+        }
       }
     },
   },
 })
-
-
