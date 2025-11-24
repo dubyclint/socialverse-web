@@ -9,7 +9,7 @@ export default defineNitroConfig({
   },
 
   externals: {
-    inline: ['@supabase/supabase-js'],
+    inline: [],
     traceInclude: [],
   },
 
@@ -56,7 +56,7 @@ export default defineNitroConfig({
     level: 'info',
   },
 
-  // ============================================================================
+  // =====================================
   // TYPESCRIPT SUPPORT
   // ============================================================================
   typescript: {
