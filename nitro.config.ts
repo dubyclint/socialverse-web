@@ -1,72 +1,91 @@
-export default defineNitroConfig({
-  preset: 'node-server',
-  srcDir: 'server',
-  
-  rollupConfig: {
-    output: {
-      format: 'es',
-    },
+export default defineNuxtConfig({
+  compatibilityDate: '2024-04-03',
+  devtools: { enabled: false },
+  ssr: true,
+  hydration: {
+    mismatchHandler: 'silent',
   },
-
-  externals: {
-    inline: [],
-    traceInclude: [],
-  },
-
-  publicAssets: [
-    {
-      baseURL: '/',
-      dir: './public',
-    },
-    {
-      baseURL: '/_nuxt/',
-      dir: './.output/public/_nuxt',
-      maxAge: 60 * 60 * 24 * 365,
-    },
+  modules: [
+    '@nuxtjs/tailwindcss',
+    '@nuxtjs/color-mode',
+    '@pinia/nuxt',
+    '@nuxtjs/supabase',
   ],
-
-  compressPublicAssets: {
-    brotli: true,
-    gzip: true,
+  build: {
+    transpile: ['@supabase/supabase-js'],
   },
-
-  headers: {
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  },
-
-  routeRules: {
-    '/_nuxt/**': {
-      cache: {
-        maxAge: 60 * 60 * 24 * 365,
-      },
-    },
-    '/api/**': {
-      cache: false,
-    },
-    '/health': {
-      cache: false,
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL || '',
+      supabaseKey: process.env.SUPABASE_KEY || '',
     },
   },
-
-  logging: {
-    level: 'info',
+  nitro: {
+    esbuild: {
+      options: {
+        format: 'esm'
+      }
+    },
+    externals: {
+      inline: ['@supabase/supabase-js']
+    },
+    prerender: {
+      crawlLinks: false,
+    },
   },
-
-  // =====================================
-  // TYPESCRIPT SUPPORT
+  
   // ============================================================================
-  typescript: {
-    strict: false,
-    tsConfig: {
-      compilerOptions: {
-        strict: false,
-        noImplicitAny: false,
-        strictNullChecks: false,
-      },
+  // BUILD HOOKS FOR IMPORT FIXING - FIXED FOR ZEABUR
+  // ============================================================================
+  hooks: {
+    'build:done': async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Check both possible output directories
+      const possibleDirs = [
+        '.zeabur/output/functions/__nitro.func',
+        '.output/server',
+      ];
+      
+      for (const outputDir of possibleDirs) {
+        if (!fs.existsSync(outputDir)) continue;
+        
+        console.log(`[Supabase Fix] Processing directory: ${outputDir}`);
+        
+        const files = fs.readdirSync(outputDir, { recursive: true });
+        for (const file of files) {
+          if (!file.endsWith('.mjs')) continue;
+          
+          const filePath = path.join(outputDir, file);
+          let content = fs.readFileSync(filePath, 'utf-8');
+          let modified = false;
+          
+          // Fix Supabase imports - add .js extensions where missing
+          const supabaseRegex = /from\s+['"](@supabase\/[^'"]+)(?<!\.js)['"]/g;
+          if (supabaseRegex.test(content)) {
+            content = content.replace(supabaseRegex, "from '$1.js'");
+            modified = true;
+            console.log(`[Supabase Fix] Fixed Supabase imports in ${file}`);
+          }
+          
+          // Fix other ESM imports that might need .js extension
+          const esmRegex = /from\s+['"]([^'"]+)(?<!\.js)(?<!\.mjs)(?<!\.json)['"]\s*$/gm;
+          const matches = content.match(esmRegex);
+          if (matches) {
+            // Only fix specific known packages
+            content = content.replace(
+              /from\s+['"]h3(?<!\.js)['"]/g,
+              "from 'h3.js'"
+            );
+            modified = true;
+          }
+          
+          if (modified) {
+            fs.writeFileSync(filePath, content);
+          }
+        }
+      }
     },
   },
 })
