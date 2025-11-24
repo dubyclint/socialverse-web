@@ -1,15 +1,23 @@
-FROM node:22-slim
-LABEL "language"="nodejs"
-LABEL "framework"="nuxt"
-
-WORKDIR /src
-
-COPY . .
-
-RUN npm install -g pnpm && pnpm install
-
-RUN pnpm run build
-
-EXPOSE 8080
-
-CMD ["node", ".output/server/index.mjs"]
+export default defineNuxtConfig({
+  compatibilityDate: '2024-04-03',
+  devtools: { enabled: false },
+  ssr: true,
+  hydration: {
+    mismatchHandler: 'silent',
+  },
+  modules: [
+    '@nuxtjs/tailwindcss',
+    '@nuxtjs/color-mode',
+    '@pinia/nuxt',
+    '@nuxtjs/supabase',
+  ],
+  build: {
+    transpile: ['@supabase/supabase-js'],
+  },
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL || '',
+      supabaseKey: process.env.SUPABASE_KEY || '',
+    },
+  },
+})
