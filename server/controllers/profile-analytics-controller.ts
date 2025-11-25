@@ -1,283 +1,119 @@
-// server/controllers/profile-analytics-controller.ts - Profile Analytics Management
-// ============================================================================
+// server/controllers/profile-analytics-controller.ts
+// CORRECTED - Import and use ProfileAnalyticsModel
 
-import { H3Event, readBody, getHeader, getClientIP, getQuery } from 'h3'
-import { ProfileView } from '../models/profile-view'
-import { PremiumModel } from '../models/premium'
-
-export interface ProfileViewData {
-  profileId: string
-  viewType: 'direct' | 'search' | 'recommendation' | 'profile_link'
-  viewSource?: string
-  metadata?: Record<string, any>
-}
-
-export interface AnalyticsResponse {
-  success: boolean
-  data?: any
-  message?: string
-  error?: string
-}
+import type { H3Event } from 'h3'
+import { ProfileAnalyticsModel } from '../models/profile-analytics'
+import { ProfileViewModel } from '../models/profile-view'
+import { RankModel } from '../models/rank'
 
 export class ProfileAnalyticsController {
   /**
-   * Record a profile view
-   * POST /api/profile-analytics/view
-   */
-  static async recordView(event: H3Event): Promise<AnalyticsResponse> {
-    try {
-      const body = await readBody(event)
-      const { profileId, viewType = 'direct', viewSource, metadata } = body
-      const viewerId = event.context.user?.id
-      const viewerIP = getHeader(event, 'x-forwarded-for') || getClientIP(event)
-      const userAgent = getHeader(event, 'user-agent')
-
-      if (!profileId) {
-        return {
-          success: false,
-          error: 'Profile ID is required'
-        }
-      }
-
-      // Don't record self-views
-      if (viewerId === profileId) {
-        return {
-          success: true,
-          message: 'Self-view not recorded'
-        }
-      }
-
-      const viewData = {
-        profileId,
-        viewerId: viewerId || null,
-        viewType,
-        viewSource,
-        viewerIP,
-        userAgent,
-        metadata,
-        viewedAt: new Date().toISOString()
-      }
-
-      const savedView = await ProfileView.recordView(viewData)
-
-      return {
-        success: true,
-        data: savedView,
-        message: 'Profile view recorded'
-      }
-    } catch (error) {
-      console.error('Error recording profile view:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to record view'
-      }
-    }
-  }
-
-  /**
    * Get profile analytics
-   * GET /api/profile-analytics/:profileId
    */
-  static async getProfileAnalytics(event: H3Event): Promise<AnalyticsResponse> {
+  static async getAnalytics(event: H3Event, userId: string) {
     try {
-      const profileId = event.context.params?.profileId
-      const userId = event.context.user?.id
-      const days = parseInt(getQuery(event).days as string) || 30
+      // ✅ USE ProfileAnalyticsModel
+      const analytics = await ProfileAnalyticsModel.getByUserId(userId)
 
-      if (!profileId) {
+      if (!analytics) {
         return {
           success: false,
-          error: 'Profile ID is required'
+          error: 'Analytics not found'
         }
       }
-
-      // Verify user owns the profile or has premium access
-      if (userId !== profileId) {
-        const hasPremium = await PremiumModel.getSubscriptionByUserId(userId)
-        if (!hasPremium || hasPremium.status !== 'ACTIVE') {
-          return {
-            success: false,
-            error: 'Premium subscription required to view analytics'
-          }
-        }
-      }
-
-      const analytics = await ProfileView.getProfileAnalytics(profileId, days)
 
       return {
         success: true,
         data: analytics,
-        message: 'Analytics retrieved successfully'
+        message: 'Analytics retrieved'
       }
     } catch (error) {
-      console.error('Error fetching profile analytics:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch analytics'
-      }
+      console.error('[ProfileAnalyticsController] Get analytics error:', error)
+      throw error
     }
   }
 
   /**
-   * Get profile view history
-   * GET /api/profile-analytics/:profileId/views
+   * Get profile views
    */
-  static async getViewHistory(event: H3Event): Promise<AnalyticsResponse> {
+  static async getProfileViews(event: H3Event, userId: string) {
     try {
-      const profileId = event.context.params?.profileId
-      const userId = event.context.user?.id
-      const limit = parseInt(getQuery(event).limit as string) || 50
-      const offset = parseInt(getQuery(event).offset as string) || 0
-
-      if (!profileId) {
-        return {
-          success: false,
-          error: 'Profile ID is required'
-        }
-      }
-
-      // Verify ownership
-      if (userId !== profileId) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
-
-      const views = await ProfileView.getViewHistory(profileId, limit, offset)
+      // ✅ USE ProfileViewModel
+      const { views, total } = await ProfileViewModel.getProfileViews(userId)
 
       return {
         success: true,
-        data: views,
-        message: 'View history retrieved'
+        data: { views, total },
+        message: 'Profile views retrieved'
       }
     } catch (error) {
-      console.error('Error fetching view history:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch view history'
-      }
+      console.error('[ProfileAnalyticsController] Get profile views error:', error)
+      throw error
     }
   }
 
   /**
-   * Get top profile viewers
-   * GET /api/profile-analytics/:profileId/top-viewers
+   * Record profile view
    */
-  static async getTopViewers(event: H3Event): Promise<AnalyticsResponse> {
+  static async recordView(event: H3Event, profileId: string) {
     try {
-      const profileId = event.context.params?.profileId
-      const userId = event.context.user?.id
-      const limit = parseInt(getQuery(event).limit as string) || 10
+      const viewerId = event.context.user?.id
 
-      if (!profileId) {
-        return {
-          success: false,
-          error: 'Profile ID is required'
-        }
+      if (!viewerId || viewerId === profileId) {
+        return { success: false, error: 'Invalid view' }
       }
 
-      // Verify ownership
-      if (userId !== profileId) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
+      // ✅ USE ProfileViewModel
+      await ProfileViewModel.create({
+        profileId,
+        viewerId
+      })
 
-      const topViewers = await ProfileView.getTopViewers(profileId, limit)
+      // ✅ USE ProfileAnalyticsModel
+      await ProfileAnalyticsModel.incrementViews(profileId)
 
       return {
         success: true,
-        data: topViewers,
-        message: 'Top viewers retrieved'
+        message: 'View recorded'
       }
     } catch (error) {
-      console.error('Error fetching top viewers:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch top viewers'
-      }
+      console.error('[ProfileAnalyticsController] Record view error:', error)
+      throw error
     }
   }
 
   /**
-   * Get view statistics by type
-   * GET /api/profile-analytics/:profileId/stats
+   * Get engagement metrics
    */
-  static async getViewStats(event: H3Event): Promise<AnalyticsResponse> {
+  static async getEngagementMetrics(event: H3Event, userId: string) {
     try {
-      const profileId = event.context.params?.profileId
-      const userId = event.context.user?.id
-      const days = parseInt(getQuery(event).days as string) || 30
+      // ✅ USE ProfileAnalyticsModel
+      const analytics = await ProfileAnalyticsModel.getByUserId(userId)
 
-      if (!profileId) {
-        return {
-          success: false,
-          error: 'Profile ID is required'
-        }
+      if (!analytics) {
+        return { success: false, error: 'Analytics not found' }
       }
 
-      // Verify ownership
-      if (userId !== profileId) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
-
-      const stats = await ProfileView.getViewStatsByType(profileId, days)
+      // ✅ USE RankModel
+      const rank = await RankModel.getByUserId(userId)
 
       return {
         success: true,
-        data: stats,
-        message: 'Statistics retrieved'
+        data: {
+          analytics,
+          rank,
+          engagementRate: analytics.engagement_rate,
+          totalFollowers: analytics.total_followers,
+          totalPosts: analytics.total_posts,
+          totalLikesReceived: analytics.total_likes_received
+        },
+        message: 'Engagement metrics retrieved'
       }
     } catch (error) {
-      console.error('Error fetching view stats:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch statistics'
-      }
-    }
-  }
-
-  /**
-   * Clear view history
-   * DELETE /api/profile-analytics/:profileId/views
-   */
-  static async clearViewHistory(event: H3Event): Promise<AnalyticsResponse> {
-    try {
-      const profileId = event.context.params?.profileId
-      const userId = event.context.user?.id
-
-      if (!profileId) {
-        return {
-          success: false,
-          error: 'Profile ID is required'
-        }
-      }
-
-      // Verify ownership
-      if (userId !== profileId) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
-
-      await ProfileView.clearViewHistory(profileId)
-
-      return {
-        success: true,
-        message: 'View history cleared'
-      }
-    } catch (error) {
-      console.error('Error clearing view history:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to clear history'
-      }
+      console.error('[ProfileAnalyticsController] Get engagement metrics error:', error)
+      throw error
     }
   }
 }
+
+export default ProfileAnalyticsController
