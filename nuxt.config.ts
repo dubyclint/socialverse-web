@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
+    '@nuxtjs/supabase'
   ],
   build: {
     transpile: ['@supabase/supabase-js'],
@@ -19,7 +20,11 @@ export default defineNuxtConfig({
       supabaseKey: process.env.SUPABASE_KEY || '',
     },
   },
-  alias: {
-    '#supabase/server': '@nuxtjs/supabase'
+  nitro: {
+    prerender: {
+      crawlLinks: false,
+      routes: ['/sitemap.xml', '/robots.txt'],
+      ignore: ['/admin']
+    }
   }
 })
