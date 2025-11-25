@@ -20,6 +20,9 @@ export default defineNuxtConfig({
       supabaseKey: process.env.SUPABASE_KEY || '',
     },
   },
+  alias: {
+    '#supabase/server': '~/server/utils/supabase.ts'
+  },
   nitro: {
     prerender: {
       crawlLinks: false,
