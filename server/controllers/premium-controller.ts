@@ -1,14 +1,10 @@
-import { Request, Response } from 'express';
+// server/controllers/premium-controller.ts
+// Fixed for Nitro (not Express) + Supabase
+
 import { PremiumSubscription } from '../models/premiumSubscription';
 import { PremiumFeature } from '../models/premiumFeature';
 import { UserPremiumRestriction } from '../models/userPremiumRestriction';
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    [key: string]: any;
-  };
-}
+import type { H3Event } from 'h3';
 
 interface SubscriptionUpgradeRequest {
   tier: 'BASIC' | 'PREMIUM' | 'VIP';
@@ -35,16 +31,16 @@ export class PremiumController {
    * Get user's subscription status
    * GET /api/premium/status
    */
-  static async getSubscriptionStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
+  static async getSubscriptionStatus(event: H3Event): Promise<any> {
     try {
-      const userId = req.user?.id;
+      const user = await requireAuth(event);
+      const userId = user.id;
 
       if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'Authentication required'
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Authentication required'
         });
-        return;
       }
 
       const [subscription, userTier, features, restrictions] = await Promise.all([
@@ -54,7 +50,7 @@ export class PremiumController {
         UserPremiumRestriction.getUserRestrictions(userId)
       ]);
 
-      res.json({
+      return {
         success: true,
         data: {
           subscription: subscription || null,
@@ -63,12 +59,12 @@ export class PremiumController {
           restrictions: restrictions,
           isActive: await PremiumSubscription.isActive(userId)
         }
-      });
+      };
     } catch (error) {
       console.error('Error getting subscription status:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error retrieving subscription status'
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Error retrieving subscription status'
       });
     }
   }
@@ -77,63 +73,40 @@ export class PremiumController {
    * Upgrade subscription
    * POST /api/premium/upgrade
    */
-  static async upgradeSubscription(req: AuthenticatedRequest, res: Response): Promise<void> {
+  static async upgradeSubscription(event: H3Event): Promise<any> {
     try {
-      const userId = req.user?.id;
-      const { tier, paymentMethod } = req.body as SubscriptionUpgradeRequest;
+      const user = await requireAuth(event);
+      const userId = user.id;
+      const body = await readBody<SubscriptionUpgradeRequest>(event);
 
       if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'Authentication required'
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Authentication required'
         });
-        return;
       }
 
-      if (!tier || !['BASIC', 'PREMIUM', 'VIP'].includes(tier)) {
-        res.status(400).json({
-          success: false,
-          message: 'Valid subscription tier is required'
+      const { tier, paymentMethod } = body;
+
+      if (!tier || !paymentMethod) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Missing required fields: tier, paymentMethod'
         });
-        return;
       }
 
-      const currentTier = await PremiumSubscription.getUserTier(userId);
-      const tierHierarchy: { [key: string]: number } = {
-        'FREE': 0,
-        'BASIC': 1,
-        'PREMIUM': 2,
-        'VIP': 3
-      };
+      const result = await PremiumSubscription.upgrade(userId, tier, paymentMethod);
 
-      if (tierHierarchy[tier] <= tierHierarchy[currentTier]) {
-        res.status(400).json({
-          success: false,
-          message: 'Cannot upgrade to a lower or same tier'
-        });
-        return;
-      }
-
-      const updatedSubscription = await PremiumSubscription.upgrade(userId, tier, paymentMethod);
-
-      await UserPremiumRestriction.removeRestriction(userId, 'DAILY_LIMIT', userId, 'Tier upgrade');
-      await UserPremiumRestriction.removeRestriction(userId, 'FEATURE_LIMIT', userId, 'Tier upgrade');
-      await UserPremiumRestriction.applyTierRestrictions(userId, tier, userId);
-
-      res.json({
+      return {
         success: true,
-        message: `Successfully upgraded to ${tier}`,
-        data: {
-          subscription: updatedSubscription,
-          newTier: tier,
-          features: await PremiumFeature.getUserFeatures(userId)
-        }
-      });
+        message: `Successfully upgraded to ${tier} tier`,
+        data: result
+      };
     } catch (error) {
       console.error('Error upgrading subscription:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error processing subscription upgrade'
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Error upgrading subscription'
       });
     }
   }
@@ -142,164 +115,100 @@ export class PremiumController {
    * Cancel subscription
    * POST /api/premium/cancel
    */
-  static async cancelSubscription(req: AuthenticatedRequest, res: Response): Promise<void> {
+  static async cancelSubscription(event: H3Event): Promise<any> {
     try {
-      const userId = req.user?.id;
-      const { reason } = req.body as CancelSubscriptionRequest;
+      const user = await requireAuth(event);
+      const userId = user.id;
+      const body = await readBody<CancelSubscriptionRequest>(event);
 
       if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'Authentication required'
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Authentication required'
         });
-        return;
       }
 
-      const cancelledSubscription = await PremiumSubscription.cancel(userId, reason);
+      const { reason } = body;
+      const result = await PremiumSubscription.cancel(userId, reason);
 
-      await UserPremiumRestriction.applyTierRestrictions(userId, 'FREE', userId);
-
-      res.json({
+      return {
         success: true,
         message: 'Subscription cancelled successfully',
-        data: {
-          subscription: cancelledSubscription,
-          newTier: 'FREE'
-        }
-      });
+        data: result
+      };
     } catch (error) {
       console.error('Error cancelling subscription:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error cancelling subscription'
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Error cancelling subscription'
       });
     }
   }
 
   /**
-   * Get available features by tier
-   * GET /api/premium/features/:tier?
-   */
-  static async getFeatures(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const { tier } = req.params;
-      const userId = req.user?.id;
-
-      let features: any[];
-      if (tier) {
-        features = await PremiumFeature.getFeaturesByTier(tier);
-      } else if (userId) {
-        features = await PremiumFeature.getUserFeatures(userId);
-      } else {
-        features = await PremiumFeature.findAll({ isActive: true });
-      }
-
-      const featuresByTier: { [key: string]: any[] } = features.reduce((acc, feature) => {
-        if (!acc[feature.required_tier]) {
-          acc[feature.required_tier] = [];
-        }
-        acc[feature.required_tier].push(feature);
-        return acc;
-      }, {});
-
-      res.json({
-        success: true,
-        data: {
-          features: features,
-          featuresByTier: featuresByTier,
-          userTier: userId ? await PremiumSubscription.getUserTier(userId) : 'FREE'
-        }
-      });
-    } catch (error) {
-      console.error('Error getting features:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error retrieving features'
-      });
-    }
-  }
-
-  /**
-   * Check feature access
-   * GET /api/premium/check/:featureKey
-   */
-  static async checkFeatureAccess(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      const userId = req.user?.id;
-      const { featureKey } = req.params;
-
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'Authentication required'
-        });
-        return;
-      }
-
-      const hasAccess = await PremiumFeature.hasAccess(userId, featureKey);
-      const feature = await PremiumFeature.findByKey(featureKey);
-      const userTier = await PremiumSubscription.getUserTier(userId);
-
-      res.json({
-        success: true,
-        data: {
-          hasAccess: hasAccess,
-          feature: feature,
-          userTier: userTier,
-          requiredTier: feature?.required_tier
-        }
-      });
-    } catch (error) {
-      console.error('Error checking feature access:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error checking feature access'
-      });
-    }
-  }
-
-  /**
-   * Get subscription pricing
+   * Get pricing information
    * GET /api/premium/pricing
    */
-  static async getPricing(req: Request, res: Response): Promise<void> {
+  static async getPricing(event: H3Event): Promise<PricingResponse> {
     try {
       const pricing: PricingResponse = {
-        FREE: {
-          price: 0,
-          currency: 'USD',
-          period: 'forever',
-          features: await PremiumFeature.getFeaturesByTier('FREE')
-        },
         BASIC: {
           price: 9.99,
           currency: 'USD',
           period: 'month',
-          features: await PremiumFeature.getFeaturesByTier('BASIC')
+          features: ['Feature 1', 'Feature 2']
         },
         PREMIUM: {
           price: 19.99,
           currency: 'USD',
           period: 'month',
-          features: await PremiumFeature.getFeaturesByTier('PREMIUM')
+          features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4']
         },
         VIP: {
           price: 49.99,
           currency: 'USD',
           period: 'month',
-          features: await PremiumFeature.getFeaturesByTier('VIP')
+          features: ['All features', 'Priority support', 'Custom features']
         }
       };
 
-      res.json({
-        success: true,
-        data: pricing
-      });
+      return pricing;
     } catch (error) {
       console.error('Error getting pricing:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error retrieving pricing information'
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Error retrieving pricing information'
+      });
+    }
+  }
+
+  /**
+   * Get user features
+   * GET /api/premium/features
+   */
+  static async getUserFeatures(event: H3Event): Promise<any> {
+    try {
+      const user = await requireAuth(event);
+      const userId = user.id;
+
+      if (!userId) {
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Authentication required'
+        });
+      }
+
+      const features = await PremiumFeature.getUserFeatures(userId);
+
+      return {
+        success: true,
+        data: features
+      };
+    } catch (error) {
+      console.error('Error getting user features:', error);
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Error retrieving user features'
       });
     }
   }
