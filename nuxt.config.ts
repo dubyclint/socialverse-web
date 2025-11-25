@@ -14,6 +14,12 @@ export default defineNuxtConfig({
   build: {
     transpile: ['@supabase/supabase-js'],
   },
+  nitro: {
+    prerender: {
+      crawlLinks: false,
+    },
+    bundledDependencies: ['@supabase/supabase-js'],
+  },
   runtimeConfig: {
     public: {
       supabaseUrl: process.env.SUPABASE_URL || '',
