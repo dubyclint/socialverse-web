@@ -1,7 +1,7 @@
 // server/controllers/premium-controller.ts
 // Fixed for Nitro (not Express) + Supabase
 
-import { PremiumSubscription, PremiumFeature, UserPremiumRestriction } from '../models/premium';
+import { PremiumModel } from '../models/premium';
 import type { H3Event } from 'h3';
 
 interface SubscriptionUpgradeRequest {
@@ -41,21 +41,13 @@ export class PremiumController {
         });
       }
 
-      const [subscription, userTier, features, restrictions] = await Promise.all([
-        PremiumSubscription.findByUserId(userId),
-        PremiumSubscription.getUserTier(userId),
-        PremiumFeature.getUserFeatures(userId),
-        UserPremiumRestriction.getUserRestrictions(userId)
-      ]);
+      const subscription = await PremiumModel.getSubscriptionByUserId(userId);
 
       return {
         success: true,
         data: {
           subscription: subscription || null,
-          currentTier: userTier,
-          features: features,
-          restrictions: restrictions,
-          isActive: await PremiumSubscription.isActive(userId)
+          isActive: subscription?.status === 'ACTIVE'
         }
       };
     } catch (error) {
@@ -93,7 +85,16 @@ export class PremiumController {
         });
       }
 
-      const result = await PremiumSubscription.upgrade(userId, tier, paymentMethod);
+      const result = await PremiumModel.createSubscription({
+        userId,
+        subscriptionType: tier,
+        status: 'ACTIVE',
+        startedAt: new Date().toISOString(),
+        autoRenew: true,
+        paymentMethod,
+        monthlyFee: this.getTierPrice(tier),
+        features: this.getTierFeatures(tier)
+      });
 
       return {
         success: true,
@@ -126,8 +127,15 @@ export class PremiumController {
         });
       }
 
-      const { reason } = body;
-      const result = await PremiumSubscription.cancel(userId, reason);
+      const subscription = await PremiumModel.getSubscriptionByUserId(userId);
+      if (!subscription) {
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Subscription not found'
+        });
+      }
+
+      const result = await PremiumModel.cancelSubscription(subscription.id);
 
       return {
         success: true,
@@ -196,11 +204,14 @@ export class PremiumController {
         });
       }
 
-      const features = await PremiumFeature.getUserFeatures(userId);
+      const subscription = await PremiumModel.getSubscriptionByUserId(userId);
 
       return {
         success: true,
-        data: features
+        data: {
+          features: subscription?.features || {},
+          tier: subscription?.subscriptionType || 'FREE'
+        }
       };
     } catch (error) {
       console.error('Error getting user features:', error);
@@ -210,5 +221,23 @@ export class PremiumController {
       });
     }
   }
-}
 
+  // Helper methods
+  private static getTierPrice(tier: string): number {
+    const prices: Record<string, number> = {
+      'BASIC': 9.99,
+      'PREMIUM': 19.99,
+      'VIP': 49.99
+    };
+    return prices[tier] || 0;
+  }
+
+  private static getTierFeatures(tier: string): Record<string, any> {
+    const features: Record<string, Record<string, any>> = {
+      'BASIC': { p2p: true, matching: false },
+      'PREMIUM': { p2p: true, matching: true, rankHide: false },
+      'VIP': { p2p: true, matching: true, rankHide: true }
+    };
+    return features[tier] || {};
+  }
+}
