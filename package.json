@@ -15,7 +15,7 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "generate": "nuxt generate",
-    "start": "start": "node .zeabur/output/functions/__nitro.func/index.mjs",
+    "start": "node .zeabur/output/functions/__nitro.func/index.mjs",
     "clean": "rm -rf .nuxt .output .nitro node_modules/.cache dist",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
