@@ -9,16 +9,9 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
-    '@nuxtjs/supabase',
   ],
   build: {
     transpile: ['@supabase/supabase-js'],
-  },
-  nitro: {
-    prerender: {
-      crawlLinks: false,
-    },
-    bundledDependencies: ['@supabase/supabase-js'],
   },
   runtimeConfig: {
     public: {
