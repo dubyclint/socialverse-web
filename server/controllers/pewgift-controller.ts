@@ -1,16 +1,12 @@
 // server/controllers/pewgift-controller.ts
-// ============================================================================
-// CONSOLIDATED PEWGIFT CONTROLLER
-// Merges: pewgift-controller.js + pewgift-push-controller.js
-// ============================================================================
+// CORRECTED - Import and use PewGiftModel
 
 import { supabase } from '~/server/utils/database'
 import { sendPush } from '~/push-engine'
+import { PewGiftModel } from '../models/pewgift'
+import { NotificationModel } from '../models/notification'
+import { RankModel } from '../models/rank'
 import type { H3Event } from 'h3'
-
-// ============================================================================
-// TYPES & INTERFACES
-// ============================================================================
 
 export interface SendGiftRequest {
   recipientId: string
@@ -26,274 +22,108 @@ export interface GiftSplit {
   toPostOwner: number
 }
 
-// ============================================================================
-// PEWGIFT CONTROLLER
-// ============================================================================
-
 export class PewGiftController {
   /**
-   * Send a gift
+   * Send gift to user
    */
-  static async sendGift(event: H3Event) {
+  static async sendGift(event: H3Event, request: SendGiftRequest) {
     try {
-      const body = await readBody(event)
-      const { recipientId, postId, commentId, amount, giftType, message } = body as SendGiftRequest
       const senderId = event.context.user?.id
-      const senderName = event.context.user?.username
 
       if (!senderId) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+        throw new Error('Not authenticated')
       }
 
-      // Input validation
-      if (!recipientId || !amount || amount <= 0) {
-        throw createError({ statusCode: 400, statusMessage: 'Invalid input parameters' })
-      }
+      // ✅ USE PewGiftModel - Create transaction
+      const transaction = await PewGiftModel.createTransaction({
+        senderId,
+        recipientId: request.recipientId,
+        giftId: request.giftType || 'pewgift',
+        targetType: request.postId ? 'post' : 'profile',
+        targetId: request.postId || request.recipientId,
+        quantity: 1,
+        message: request.message,
+        amount: request.amount,
+        giftType: request.giftType || 'pewgift',
+        status: 'completed'
+      })
 
-      // Prevent self-gifting
-      if (senderId === recipientId) {
-        throw createError({ statusCode: 400, statusMessage: 'Cannot send gift to yourself' })
-      }
-
-      // Check sender's balance
-      const { data: senderWallet } = await supabase
-        .from('user_wallets')
-        .select('balances')
-        .eq('user_id', senderId)
-        .single()
-
-      if (!senderWallet || !senderWallet.balances.usdc || senderWallet.balances.usdc < amount) {
-        throw createError({ statusCode: 400, statusMessage: 'Insufficient balance' })
-      }
-
-      // Calculate split if comment
-      let split: GiftSplit = { toCommenter: 0, toPostOwner: amount }
-      if (commentId) {
-        split.toCommenter = amount * 0.7
-        split.toPostOwner = amount * 0.3
-      }
-
-      // Create gift transaction
-      const { data: gift, error } = await supabase
-        .from('pewgifts')
-        .insert({
-          sender_id: senderId,
-          sender_name: senderName,
-          recipient_id: recipientId,
-          post_id: postId || null,
-          comment_id: commentId || null,
-          amount,
-          gift_type: giftType || 'standard',
-          message: message || null,
-          split,
-          timestamp: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Deduct from sender's balance
-      await supabase
-        .from('user_wallets')
-        .update({
-          balances: {
-            ...senderWallet.balances,
-            usdc: senderWallet.balances.usdc - amount
-          }
-        })
-        .eq('user_id', senderId)
-
-      // Add to recipient's balance
-      const { data: recipientWallet } = await supabase
-        .from('user_wallets')
-        .select('balances')
-        .eq('user_id', recipientId)
-        .single()
-
-      if (recipientWallet) {
-        await supabase
-          .from('user_wallets')
-          .update({
-            balances: {
-              ...recipientWallet.balances,
-              usdc: recipientWallet.balances.usdc + split.toPostOwner
-            }
-          })
-          .eq('user_id', recipientId)
-      }
-
-      // Send push notification to recipient
-      const { data: recipient } = await supabase
-        .from('users')
-        .select('device_token')
-        .eq('id', recipientId)
-        .single()
-
-      if (recipient?.device_token) {
-        await sendPush(
-          recipient.device_token,
-          '🎁 You received a gift!',
-          `${senderName} sent you ${amount} USDC`
-        )
-      }
-
-      // If comment, also notify commenter
-      if (commentId) {
-        const { data: comment } = await supabase
-          .from('comments')
-          .select('user_id')
-          .eq('id', commentId)
-          .single()
-
-        if (comment?.user_id && comment.user_id !== recipientId) {
-          const { data: commenter } = await supabase
-            .from('users')
-            .select('device_token')
-            .eq('id', comment.user_id)
-            .single()
-
-          if (commenter?.device_token) {
-            await sendPush(
-              commenter.device_token,
-              '🎁 Your comment received a gift!',
-              `${senderName} sent ${split.toCommenter} USDC to your comment`
-            )
-          }
-
-          // Add to commenter's balance
-          const { data: commenterWallet } = await supabase
-            .from('user_wallets')
-            .select('balances')
-            .eq('user_id', comment.user_id)
-            .single()
-
-          if (commenterWallet) {
-            await supabase
-              .from('user_wallets')
-              .update({
-                balances: {
-                  ...commenterWallet.balances,
-                  usdc: commenterWallet.balances.usdc + split.toCommenter
-                }
-              })
-              .eq('user_id', comment.user_id)
-          }
+      // ✅ USE NotificationModel - Notify recipient
+      await NotificationModel.create({
+        userId: request.recipientId,
+        actorId: senderId,
+        type: 'pewgift',
+        title: 'You received a gift!',
+        message: `${request.message || 'Sent you a gift'}`,
+        data: {
+          giftId: transaction.id,
+          amount: request.amount,
+          giftType: request.giftType
         }
-      }
+      })
 
-      return { success: true, data: gift, split }
-    } catch (error: any) {
-      console.error('Error sending gift:', error)
+      // ✅ USE RankModel - Award points to recipient
+      await RankModel.addPoints(request.recipientId, 50)
+
+      // Send push notification
+      await sendPush(request.recipientId, {
+        title: 'New Gift!',
+        body: `You received a gift worth ${request.amount} credits`,
+        data: { giftId: transaction.id }
+      })
+
+      return {
+        success: true,
+        data: transaction,
+        message: 'Gift sent successfully'
+      }
+    } catch (error) {
+      console.error('[PewGiftController] Send gift error:', error)
       throw error
     }
   }
 
   /**
-   * Get user's received gifts
+   * Get user's gift history
    */
-  static async getReceivedGifts(event: H3Event) {
+  static async getGiftHistory(event: H3Event) {
     try {
       const userId = event.context.user?.id
-      const query = getQuery(event)
-      const limit = parseInt(query.limit as string) || 50
 
       if (!userId) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+        throw new Error('Not authenticated')
       }
 
-      const { data: gifts, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('recipient_id', userId)
-        .order('timestamp', { ascending: false })
-        .limit(limit)
+      // ✅ USE PewGiftModel
+      const sent = await PewGiftModel.getUserSentGifts(userId)
+      const received = await PewGiftModel.getUserReceivedGifts(userId)
 
-      if (error) throw error
-
-      return { success: true, data: gifts || [] }
-    } catch (error: any) {
-      console.error('Error getting received gifts:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get user's sent gifts
-   */
-  static async getSentGifts(event: H3Event) {
-    try {
-      const userId = event.context.user?.id
-      const query = getQuery(event)
-      const limit = parseInt(query.limit as string) || 50
-
-      if (!userId) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+      return {
+        success: true,
+        data: { sent, received },
+        message: 'Gift history retrieved'
       }
-
-      const { data: gifts, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('sender_id', userId)
-        .order('timestamp', { ascending: false })
-        .limit(limit)
-
-      if (error) throw error
-
-      return { success: true, data: gifts || [] }
-    } catch (error: any) {
-      console.error('Error getting sent gifts:', error)
+    } catch (error) {
+      console.error('[PewGiftController] Get gift history error:', error)
       throw error
     }
   }
 
   /**
-   * Get post gifts
+   * Get gift leaderboard
    */
-  static async getPostGifts(event: H3Event) {
+  static async getLeaderboard(event: H3Event) {
     try {
-      const { postId } = getRouterParams(event)
-      const query = getQuery(event)
-      const limit = parseInt(query.limit as string) || 50
+      // ✅ USE PewGiftModel
+      const leaderboard = await PewGiftModel.getLeaderboard()
 
-      const { data: gifts, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('post_id', postId)
-        .is('comment_id', null)
-        .order('timestamp', { ascending: false })
-        .limit(limit)
-
-      if (error) throw error
-
-      return { success: true, data: gifts || [] }
-    } catch (error: any) {
-      console.error('Error getting post gifts:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get comment gifts
-   */
-  static async getCommentGifts(event: H3Event) {
-    try {
-      const { commentId } = getRouterParams(event)
-      const query = getQuery(event)
-      const limit = parseInt(query.limit as string) || 50
-
-      const { data: gifts, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('comment_id', commentId)
-        .order('timestamp', { ascending: false })
-        .limit(limit)
-
-      if (error) throw error
-
-      return { success: true, data: gifts || [] }
-    } catch (error: any) {
-      console.error('Error getting comment gifts:', error)
+      return {
+        success: true,
+        data: leaderboard,
+        message: 'Leaderboard retrieved'
+      }
+    } catch (error) {
+      console.error('[PewGiftController] Get leaderboard error:', error)
       throw error
     }
   }
@@ -301,41 +131,27 @@ export class PewGiftController {
   /**
    * Get gift statistics
    */
-  static async getGiftStats(event: H3Event) {
+  static async getStats(event: H3Event) {
     try {
       const userId = event.context.user?.id
 
       if (!userId) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+        throw new Error('Not authenticated')
       }
 
-      const { data: sentGifts, error: sentError } = await supabase
-        .from('pewgifts')
-        .select('amount')
-        .eq('sender_id', userId)
-
-      const { data: receivedGifts, error: receivedError } = await supabase
-        .from('pewgifts')
-        .select('amount')
-        .eq('recipient_id', userId)
-
-      if (sentError || receivedError) throw sentError || receivedError
-
-      const totalSent = (sentGifts || []).reduce((sum, gift) => sum + gift.amount, 0)
-      const totalReceived = (receivedGifts || []).reduce((sum, gift) => sum + gift.amount, 0)
+      // ✅ USE PewGiftModel
+      const stats = await PewGiftModel.getUserStats(userId)
 
       return {
         success: true,
-        data: {
-          total_sent: totalSent,
-          total_received: totalReceived,
-          gifts_sent_count: sentGifts?.length || 0,
-          gifts_received_count: receivedGifts?.length || 0
-        }
+        data: stats,
+        message: 'Statistics retrieved'
       }
-    } catch (error: any) {
-      console.error('Error getting gift stats:', error)
+    } catch (error) {
+      console.error('[PewGiftController] Get stats error:', error)
       throw error
     }
   }
 }
+
+export default PewGiftController
