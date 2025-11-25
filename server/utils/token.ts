@@ -1,7 +1,3 @@
- //server/utils/token.ts
-// Token generation and verification utilities
-// ============================================================================
-
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 
