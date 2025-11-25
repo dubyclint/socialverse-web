@@ -19,4 +19,7 @@ export default defineNuxtConfig({
       supabaseKey: process.env.SUPABASE_KEY || '',
     },
   },
+  alias: {
+    '#supabase/server': '@nuxtjs/supabase'
+  }
 })
