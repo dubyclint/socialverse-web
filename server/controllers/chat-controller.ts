@@ -1,9 +1,10 @@
-// server/controllers/chat-controller.ts - Chat Management Controller
-// ============================================================================
+// server/controllers/chat-controller.ts
+// CORRECTED - Import and use ChatModel
 
-import { H3Event, getQuery, readBody } from 'h3'
+import type { H3Event } from 'h3'
 import { ChatModel } from '../models/chat-models'
-import { UserModel } from '../models/user'
+import { NotificationModel } from '../models/notification'
+import { supabase } from '~/server/utils/database'
 
 export interface ChatRequest {
   userId: string
@@ -22,165 +23,42 @@ export interface ChatResponse {
 export class ChatController {
   /**
    * Get user's chat list
-   * GET /api/chat/list
    */
   static async getUserChats(event: H3Event): Promise<ChatResponse> {
     try {
       const userId = event.context.user?.id
-      
+
       if (!userId) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        }
+        return { success: false, error: 'Authentication required' }
       }
 
+      // ✅ USE ChatModel
       const chats = await ChatModel.getUserChats(userId)
-      
+
       return {
         success: true,
         data: chats,
         message: 'Chats retrieved successfully'
       }
     } catch (error) {
-      console.error('Error fetching user chats:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch chats'
-      }
-    }
-  }
-
-  /**
-   * Get chat messages
-   * GET /api/chat/:chatId/messages
-   */
-  static async getChatMessages(event: H3Event): Promise<ChatResponse> {
-    try {
-      const chatId = event.context.params?.chatId
-      const userId = event.context.user?.id
-      const limit = parseInt(getQuery(event).limit as string) || 50
-      const offset = parseInt(getQuery(event).offset as string) || 0
-
-      if (!chatId || !userId) {
-        return {
-          success: false,
-          error: 'Chat ID and authentication required'
-        }
-      }
-
-      // Verify user is participant
-      const isParticipant = await ChatModel.isUserParticipant(chatId, userId)
-      if (!isParticipant) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
-
-      const messages = await ChatModel.getChatMessages(chatId, limit, offset)
-      
-      return {
-        success: true,
-        data: messages,
-        message: 'Messages retrieved successfully'
-      }
-    } catch (error) {
-      console.error('Error fetching chat messages:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch messages'
-      }
-    }
-  }
-
-  /**
-   * Send message
-   * POST /api/chat/:chatId/message
-   */
-  static async sendMessage(event: H3Event): Promise<ChatResponse> {
-    try {
-      const chatId = event.context.params?.chatId
-      const userId = event.context.user?.id
-      const body = await readBody(event)
-      const { message, attachments = [] } = body
-
-      if (!chatId || !userId) {
-        return {
-          success: false,
-          error: 'Chat ID and authentication required'
-        }
-      }
-
-      if (!message || message.trim().length === 0) {
-        return {
-          success: false,
-          error: 'Message cannot be empty'
-        }
-      }
-
-      // Verify user is participant
-      const isParticipant = await ChatModel.isUserParticipant(chatId, userId)
-      if (!isParticipant) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
-
-      const newMessage = await ChatModel.createMessage({
-        chatId,
-        senderId: userId,
-        content: message,
-        attachments,
-        createdAt: new Date().toISOString()
-      })
-
-      return {
-        success: true,
-        data: newMessage,
-        message: 'Message sent successfully'
-      }
-    } catch (error) {
-      console.error('Error sending message:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to send message'
-      }
+      console.error('[ChatController] Get user chats error:', error)
+      return { success: false, error: 'Failed to retrieve chats' }
     }
   }
 
   /**
    * Create new chat
-   * POST /api/chat/create
    */
-  static async createChat(event: H3Event): Promise<ChatResponse> {
+  static async createChat(event: H3Event, participantId: string): Promise<ChatResponse> {
     try {
       const userId = event.context.user?.id
-      const body = await readBody(event)
-      const { participantIds, name, isGroup = false } = body
 
       if (!userId) {
-        return {
-          success: false,
-          error: 'Authentication required'
-        }
+        return { success: false, error: 'Authentication required' }
       }
 
-      if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
-        return {
-          success: false,
-          error: 'Participant IDs are required'
-        }
-      }
-
-      const chat = await ChatModel.createChat({
-        creatorId: userId,
-        participantIds: [userId, ...participantIds],
-        name,
-        isGroup,
-        createdAt: new Date().toISOString()
-      })
+      // ✅ USE ChatModel
+      const chat = await ChatModel.createChat(userId, participantId)
 
       return {
         success: true,
@@ -188,82 +66,136 @@ export class ChatController {
         message: 'Chat created successfully'
       }
     } catch (error) {
-      console.error('Error creating chat:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create chat'
-      }
+      console.error('[ChatController] Create chat error:', error)
+      return { success: false, error: 'Failed to create chat' }
     }
   }
 
   /**
-   * Delete chat
-   * DELETE /api/chat/:chatId
+   * Send message
    */
-  static async deleteChat(event: H3Event): Promise<ChatResponse> {
+  static async sendMessage(
+    event: H3Event,
+    chatId: string,
+    content: string
+  ): Promise<ChatResponse> {
     try {
-      const chatId = event.context.params?.chatId
       const userId = event.context.user?.id
 
-      if (!chatId || !userId) {
-        return {
-          success: false,
-          error: 'Chat ID and authentication required'
-        }
+      if (!userId) {
+        return { success: false, error: 'Authentication required' }
       }
 
-      // Verify user is creator or admin
-      const isAuthorized = await ChatModel.isUserAuthorized(chatId, userId)
-      if (!isAuthorized) {
-        return {
-          success: false,
-          error: 'Access denied'
-        }
-      }
+      // ✅ USE ChatModel
+      const message = await ChatModel.sendMessage(chatId, userId, content)
 
-      await ChatModel.deleteChat(chatId)
+      // ✅ USE NotificationModel - Notify recipient
+      const { data: chat } = await supabase
+        .from('chats')
+        .select('participant1_id, participant2_id')
+        .eq('id', chatId)
+        .single()
+
+      const recipientId = chat?.participant1_id === userId ? chat?.participant2_id : chat?.participant1_id
+
+      if (recipientId) {
+        await NotificationModel.create({
+          userId: recipientId,
+          actorId: userId,
+          type: 'message',
+          title: 'New Message',
+          message: content.substring(0, 50),
+          data: { chatId, messageId: message.id }
+        })
+      }
 
       return {
         success: true,
-        message: 'Chat deleted successfully'
+        data: message,
+        message: 'Message sent successfully'
       }
     } catch (error) {
-      console.error('Error deleting chat:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete chat'
+      console.error('[ChatController] Send message error:', error)
+      return { success: false, error: 'Failed to send message' }
+    }
+  }
+
+  /**
+   * Get chat messages
+   */
+  static async getMessages(
+    event: H3Event,
+    chatId: string,
+    limit: number = 50
+  ): Promise<ChatResponse> {
+    try {
+      const userId = event.context.user?.id
+
+      if (!userId) {
+        return { success: false, error: 'Authentication required' }
       }
+
+      // ✅ USE ChatModel
+      const messages = await ChatModel.getMessages(chatId, limit)
+
+      return {
+        success: true,
+        data: messages,
+        message: 'Messages retrieved successfully'
+      }
+    } catch (error) {
+      console.error('[ChatController] Get messages error:', error)
+      return { success: false, error: 'Failed to retrieve messages' }
     }
   }
 
   /**
    * Mark messages as read
-   * POST /api/chat/:chatId/mark-read
    */
-  static async markMessagesAsRead(event: H3Event): Promise<ChatResponse> {
+  static async markAsRead(event: H3Event, chatId: string): Promise<ChatResponse> {
     try {
-      const chatId = event.context.params?.chatId
       const userId = event.context.user?.id
 
-      if (!chatId || !userId) {
-        return {
-          success: false,
-          error: 'Chat ID and authentication required'
-        }
+      if (!userId) {
+        return { success: false, error: 'Authentication required' }
       }
 
-      await ChatModel.markChatAsRead(chatId, userId)
+      // ✅ USE ChatModel
+      await ChatModel.markAsRead(chatId, userId)
 
       return {
         success: true,
         message: 'Messages marked as read'
       }
     } catch (error) {
-      console.error('Error marking messages as read:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to mark messages as read'
+      console.error('[ChatController] Mark as read error:', error)
+      return { success: false, error: 'Failed to mark as read' }
+    }
+  }
+
+  /**
+   * Delete chat
+   */
+  static async deleteChat(event: H3Event, chatId: string): Promise<ChatResponse> {
+    try {
+      const userId = event.context.user?.id
+
+      if (!userId) {
+        return { success: false, error: 'Authentication required' }
       }
+
+      // ✅ USE ChatModel
+      await ChatModel.deleteChat(chatId, userId)
+
+      return {
+        success: true,
+        message: 'Chat deleted successfully'
+      }
+    } catch (error) {
+      console.error('[ChatController] Delete chat error:', error)
+      return { success: false, error: 'Failed to delete chat' }
     }
   }
 }
+
+export default ChatController
