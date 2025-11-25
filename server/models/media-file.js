@@ -1,322 +1,270 @@
-// server/models/media-file.js - Supabase PostgreSQL Media Files Model
-import { supabase } from '../utils/supabase.js';
+// FILE: /server/models/media.ts
+// Media File Management
+// Converted from: media-file.js
 
-export class MediaFile {
+import { db } from '~/server/utils/database'
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
+export interface MediaFile {
+  id: string
+  user_id: string
+  filename: string
+  original_name: string
+  file_type: 'image' | 'video' | 'audio' | 'document'
+  file_size: number
+  mime_type: string
+  storage_path: string
+  public_url: string
+  thumbnail_url?: string
+  alt_text?: string
+  width?: number
+  height?: number
+  duration?: number
+  metadata?: Record<string, any>
+  is_processed: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateMediaInput {
+  userId: string
+  filename: string
+  originalName: string
+  fileType: 'image' | 'video' | 'audio' | 'document'
+  fileSize: number
+  mimeType: string
+  storagePath: string
+  publicUrl: string
+  thumbnailUrl?: string
+  altText?: string
+  width?: number
+  height?: number
+  duration?: number
+  metadata?: Record<string, any>
+}
+
+// ============================================================================
+// MEDIA MODEL
+// ============================================================================
+
+export class MediaModel {
   /**
    * Create a new media file record
    */
-  static async create(fileData) {
+  static async create(input: CreateMediaInput): Promise<MediaFile> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('media_files')
-        .insert([{
-          user_id: fileData.userId,
-          filename: fileData.filename,
-          original_name: fileData.originalName,
-          file_type: fileData.fileType,
-          file_size: fileData.fileSize,
-          mime_type: fileData.mimeType,
-          storage_path: fileData.storagePath,
-          public_url: fileData.publicUrl,
-          thumbnail_url: fileData.thumbnailUrl,
-          alt_text: fileData.altText,
-          width: fileData.width,
-          height: fileData.height,
-          duration: fileData.duration,
-          metadata: fileData.metadata || {},
+        .insert({
+          user_id: input.userId,
+          filename: input.filename,
+          original_name: input.originalName,
+          file_type: input.fileType,
+          file_size: input.fileSize,
+          mime_type: input.mimeType,
+          storage_path: input.storagePath,
+          public_url: input.publicUrl,
+          thumbnail_url: input.thumbnailUrl,
+          alt_text: input.altText,
+          width: input.width,
+          height: input.height,
+          duration: input.duration,
+          metadata: input.metadata || {},
           is_processed: false
-        }])
-        .select(`
-          *,
-          profiles:user_id(username, avatar_url)
-        `)
-        .single();
+        })
+        .select()
+        .single()
 
-      if (error) throw error;
-      return data;
+      if (error) throw error
+      return data as MediaFile
     } catch (error) {
-      console.error('Error creating media file:', error);
-      throw error;
+      console.error('[MediaModel] Create error:', error)
+      throw error
     }
   }
 
   /**
    * Get media file by ID
    */
-  static async getById(fileId) {
+  static async getById(mediaId: string): Promise<MediaFile | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('media_files')
-        .select(`
-          *,
-          profiles:user_id(username, avatar_url)
-        `)
-        .eq('id', fileId)
-        .single();
+        .select('*')
+        .eq('id', mediaId)
+        .single()
 
-      if (error) throw error;
-      return data;
+      if (error && error.code !== 'PGRST116') throw error
+      return (data as MediaFile) || null
     } catch (error) {
-      console.error('Error fetching media file:', error);
-      throw error;
+      console.error('[MediaModel] Get by ID error:', error)
+      throw error
     }
   }
 
   /**
-   * Get user's media files
+   * Get all media files for a user
    */
-  static async getUserFiles(userId, fileType = null, limit = 50, offset = 0) {
+  static async getUserMedia(userId: string, limit: number = 50): Promise<MediaFile[]> {
     try {
-      let query = supabase
+      const { data, error } = await db
         .from('media_files')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId);
-
-      if (fileType) {
-        query = query.eq('file_type', fileType);
-      }
-
-      const { data, error, count } = await query
+        .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .limit(limit)
 
-      if (error) throw error;
-      return { data, count };
+      if (error) throw error
+      return (data as MediaFile[]) || []
     } catch (error) {
-      console.error('Error fetching user files:', error);
-      throw error;
+      console.error('[MediaModel] Get user media error:', error)
+      throw error
     }
   }
 
   /**
-   * Update file processing status
+   * Update media file
    */
-  static async updateProcessingStatus(fileId, isProcessed, thumbnailUrl = null) {
+  static async update(mediaId: string, userId: string, updates: Partial<CreateMediaInput>): Promise<MediaFile> {
     try {
-      const updateData = { is_processed: isProcessed };
-      if (thumbnailUrl) {
-        updateData.thumbnail_url = thumbnailUrl;
-      }
-
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('media_files')
-        .update(updateData)
-        .eq('id', fileId)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', mediaId)
+        .eq('user_id', userId)
         .select()
-        .single();
+        .single()
 
-      if (error) throw error;
-      return data;
+      if (error) throw error
+      return data as MediaFile
     } catch (error) {
-      console.error('Error updating processing status:', error);
-      throw error;
+      console.error('[MediaModel] Update error:', error)
+      throw error
     }
   }
 
   /**
-   * Update file metadata
+   * Mark media as processed
    */
-  static async updateMetadata(fileId, metadata) {
+  static async markProcessed(mediaId: string, metadata?: Record<string, any>): Promise<MediaFile> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('media_files')
-        .update({ metadata })
-        .eq('id', fileId)
+        .update({
+          is_processed: true,
+          metadata: metadata || {},
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', mediaId)
         .select()
-        .single();
+        .single()
 
-      if (error) throw error;
-      return data;
+      if (error) throw error
+      return data as MediaFile
     } catch (error) {
-      console.error('Error updating metadata:', error);
-      throw error;
+      console.error('[MediaModel] Mark processed error:', error)
+      throw error
     }
   }
 
   /**
    * Delete media file
    */
-  static async deleteFile(fileId, userId) {
+  static async delete(mediaId: string, userId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('media_files')
         .delete()
-        .eq('id', fileId)
-        .eq('user_id', userId);
+        .eq('id', mediaId)
+        .eq('user_id', userId)
 
-      if (error) throw error;
-      return { success: true };
+      if (error) throw error
+      return true
     } catch (error) {
-      console.error('Error deleting file:', error);
-      throw error;
+      console.error('[MediaModel] Delete error:', error)
+      throw error
     }
   }
 
   /**
-   * Get files by type
+   * Get media by storage path
    */
-  static async getFilesByType(fileType, limit = 50, offset = 0) {
+  static async getByStoragePath(storagePath: string): Promise<MediaFile | null> {
     try {
-      const { data, error, count } = await supabase
+      const { data, error } = await db
         .from('media_files')
-        .select(`
-          *,
-          profiles:user_id(username, avatar_url)
-        `, { count: 'exact' })
-        .eq('file_type', fileType)
-        .eq('is_processed', true)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .select('*')
+        .eq('storage_path', storagePath)
+        .single()
 
-      if (error) throw error;
-      return { data, count };
+      if (error && error.code !== 'PGRST116') throw error
+      return (data as MediaFile) || null
     } catch (error) {
-      console.error('Error fetching files by type:', error);
-      throw error;
+      console.error('[MediaModel] Get by storage path error:', error)
+      throw error
     }
   }
 
   /**
-   * Get storage statistics for user
+   * Search media files
    */
-  static async getStorageStatistics(userId) {
+  static async search(userId: string, query: string, limit: number = 20): Promise<MediaFile[]> {
     try {
-      const { data, error } = await supabase
-        .from('media_files')
-        .select('file_type, file_size')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      const stats = {
-        totalFiles: data.length,
-        totalSize: data.reduce((sum, file) => sum + (file.file_size || 0), 0),
-        byType: {}
-      };
-
-      data.forEach(file => {
-        if (!stats.byType[file.file_type]) {
-          stats.byType[file.file_type] = {
-            count: 0,
-            size: 0
-          };
-        }
-        stats.byType[file.file_type].count++;
-        stats.byType[file.file_type].size += file.file_size || 0;
-      });
-
-      return stats;
-    } catch (error) {
-      console.error('Error fetching storage statistics:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Search files
-   */
-  static async searchFiles(userId, query, fileType = null, limit = 20) {
-    try {
-      let searchQuery = supabase
+      const { data, error } = await db
         .from('media_files')
         .select('*')
         .eq('user_id', userId)
-        .or(`filename.ilike.%${query}%,original_name.ilike.%${query}%,alt_text.ilike.%${query}%`);
+        .or(`original_name.ilike.%${query}%,alt_text.ilike.%${query}%`)
+        .order('created_at', { ascending: false })
+        .limit(limit)
 
-      if (fileType) {
-        searchQuery = searchQuery.eq('file_type', fileType);
+      if (error) throw error
+      return (data as MediaFile[]) || []
+    } catch (error) {
+      console.error('[MediaModel] Search error:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get media statistics for user
+   */
+  static async getUserStats(userId: string): Promise<{
+    totalFiles: number
+    totalSize: number
+    byType: Record<string, number>
+  }> {
+    try {
+      const { data, error } = await db
+        .from('media_files')
+        .select('file_type, file_size')
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      const files = data as Array<{ file_type: string; file_size: number }>
+      const byType: Record<string, number> = {}
+      let totalSize = 0
+
+      files.forEach((file) => {
+        byType[file.file_type] = (byType[file.file_type] || 0) + 1
+        totalSize += file.file_size
+      })
+
+      return {
+        totalFiles: files.length,
+        totalSize,
+        byType
       }
-
-      const { data, error } = await searchQuery
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return data;
     } catch (error) {
-      console.error('Error searching files:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get recent uploads
-   */
-  static async getRecentUploads(limit = 10) {
-    try {
-      const { data, error } = await supabase
-        .from('media_files')
-        .select(`
-          *,
-          profiles:user_id(username, avatar_url)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error fetching recent uploads:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update file alt text
-   */
-  static async updateAltText(fileId, altText) {
-    try {
-      const { data, error } = await supabase
-        .from('media_files')
-        .update({ alt_text: altText })
-        .eq('id', fileId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error updating alt text:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get unprocessed files
-   */
-  static async getUnprocessedFiles(limit = 50) {
-    try {
-      const { data, error } = await supabase
-        .from('media_files')
-        .select('*')
-        .eq('is_processed', false)
-        .order('created_at')
-        .limit(limit);
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error fetching unprocessed files:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Bulk delete files
-   */
-  static async bulkDelete(fileIds, userId) {
-    try {
-      const { error } = await supabase
-        .from('media_files')
-        .delete()
-        .in('id', fileIds)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      return { success: true, deletedCount: fileIds.length };
-    } catch (error) {
-      console.error('Error bulk deleting files:', error);
-      throw error;
+      console.error('[MediaModel] Get stats error:', error)
+      throw error
     }
   }
 }
