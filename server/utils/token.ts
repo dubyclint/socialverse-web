@@ -1,4 +1,4 @@
- /server/utils/token.ts
+ //server/utils/token.ts
 // Token generation and verification utilities
 // ============================================================================
 
