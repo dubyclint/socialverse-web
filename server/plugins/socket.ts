@@ -1,7 +1,6 @@
 // server/plugins/socket.ts
 import type { NitroApp } from 'nitropack'
 import { Server as SocketIOServer } from 'socket.io'
-import http from 'http'
 
 let io: SocketIOServer | null = null
 
@@ -15,16 +14,16 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
   }
 
   try {
-    // Get the HTTP server from Nitro
-    const listener = nitroApp.router.stack[0]?.handle
+    // Use Nitro's native HTTP server
+    const server = nitroApp.node?.res?.socket?.server
     
-    if (!listener) {
-      console.warn('[Socket.IO Plugin] HTTP server not available yet')
+    if (!server) {
+      console.warn('[Socket.IO Plugin] HTTP server not available in this context')
       return
     }
 
     // Initialize Socket.IO with proper CORS
-    io = new SocketIOServer(listener, {
+    io = new SocketIOServer(server, {
       cors: {
         origin: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
         methods: ['GET', 'POST'],
@@ -34,7 +33,6 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
       transports: ['websocket', 'polling'],
       pingTimeout: 60000,
       pingInterval: 25000,
-      // Allow unauthenticated connections initially
       allowRequest: (req, callback) => {
         callback(null, true)
       }
@@ -64,4 +62,3 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
     console.error('[Socket.IO Plugin] Initialization failed:', error)
   }
 })
-
