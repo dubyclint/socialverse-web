@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get ML service instance
-    const { MLService } = await import('../../../ml/core/ml-service.js')
+    const { MLService } = await import('../../../ml/core/ml-service.ts')
    
     // This would be a singleton in production
     const mlService = global.mlServiceInstance || new MLService()
