@@ -1,297 +1,409 @@
-// server/ws/callEvents.js
-class CallEvents {
-  static setupCallEvents(io, socket) {
-    // Initiate voice/video call
-    socket.on('initiate_call', async (data) => {
-      try {
-        const { targetUserId, callType, chatId } = data; // callType: 'voice' | 'video'
-        const callerId = socket.userId;
+// FILE: /server/ws/call-events.ts
+// Call Events - Voice/Video Call Management
+// Converted from: call-events.js
 
-        // Verify users are pals or in same chat
-        const canCall = await this.verifyCallPermission(callerId, targetUserId, chatId);
+import { db } from '~/server/utils/database'
+import type { Socket, Server } from 'socket.io'
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
+export interface CallData {
+  callId: string
+  callerId: string
+  targetUserId: string
+  callType: 'voice' | 'video'
+  chatId?: string
+  status: 'pending' | 'accepted' | 'rejected' | 'ended'
+  startedAt?: string
+  endedAt?: string
+  duration?: number
+}
+
+export interface CallSignal {
+  callId: string
+  type: 'offer' | 'answer' | 'ice-candidate'
+  data: any
+}
+
+// ============================================================================
+// CALL EVENTS HANDLER
+// ============================================================================
+
+export class CallEvents {
+  /**
+   * Setup call events for socket connection
+   */
+  static setupCallEvents(io: Server, socket: Socket) {
+    // ===== INITIATE CALL =====
+    socket.on('initiate_call', async (data: { targetUserId: string; callType: 'voice' | 'video'; chatId?: string }) => {
+      try {
+        const { targetUserId, callType, chatId } = data
+        const callerId = socket.data?.userId
+
+        if (!callerId) {
+          socket.emit('call_error', { error: 'Not authenticated' })
+          return
+        }
+
+        // Verify call permission
+        const canCall = await this.verifyCallPermission(callerId, targetUserId, chatId)
         if (!canCall) {
-          socket.emit('call_error', {
-            error: 'Not authorized to call this user'
-          });
-          return;
+          socket.emit('call_error', { error: 'Not authorized to call this user' })
+          return
         }
 
         // Check if target user is online
-        const targetSocketId = io.connectedUsers?.get(targetUserId);
-        if (!targetSocketId) {
-          socket.emit('call_error', {
-            error: 'User is not online'
-          });
-          return;
+        const targetSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === targetUserId
+        )
+
+        if (!targetSocket) {
+          socket.emit('call_error', { error: 'User is not online' })
+          return
         }
 
         // Generate call ID
-        const callId = `call_${Date.now()}_${callerId}_${targetUserId}`;
+        const callId = `call_${Date.now()}_${callerId}_${targetUserId}`
 
-        // Send call invitation to target user
-        io.to(targetSocketId).emit('incoming_call', {
+        // Store call data
+        const callData: CallData = {
           callId,
-          callType,
-          caller: {
-            id: callerId,
-            username: socket.username,
-            avatar: socket.userAvatar
-          },
-          chatId
-        });
-
-        // Confirm call initiated to caller
-        socket.emit('call_initiated', {
-          callId,
+          callerId,
           targetUserId,
-          callType
-        });
-
-        // Set call timeout (30 seconds)
-        setTimeout(() => {
-          io.to(targetSocketId).emit('call_timeout', { callId });
-          socket.emit('call_timeout', { callId });
-        }, 30000);
-
-      } catch (error) {
-        console.error('Initiate call error:', error);
-        socket.emit('call_error', { error: error.message });
-      }
-    });
-
-    // Accept call
-    socket.on('accept_call', (data) => {
-      try {
-        const { callId, callerSocketId } = data;
-        
-        // Notify caller that call was accepted
-        io.to(callerSocketId).emit('call_accepted', {
-          callId,
-          acceptedBy: {
-            id: socket.userId,
-            username: socket.username,
-            avatar: socket.userAvatar
-          }
-        });
-
-        // Join both users to call room
-        socket.join(`call_${callId}`);
-        io.sockets.sockets.get(callerSocketId)?.join(`call_${callId}`);
-
-        socket.emit('call_joined', { callId });
-
-      } catch (error) {
-        console.error('Accept call error:', error);
-      }
-    });
-
-    // Reject call
-    socket.on('reject_call', (data) => {
-      try {
-        const { callId, callerSocketId, reason = 'declined' } = data;
-        
-        // Notify caller that call was rejected
-        io.to(callerSocketId).emit('call_rejected', {
-          callId,
-          reason,
-          rejectedBy: {
-            id: socket.userId,
-            username: socket.username
-          }
-        });
-
-      } catch (error) {
-        console.error('Reject call error:', error);
-      }
-    });
-
-    // End call
-    socket.on('end_call', (data) => {
-      try {
-        const { callId } = data;
-        
-        // Notify all participants that call ended
-        io.to(`call_${callId}`).emit('call_ended', {
-          callId,
-          endedBy: {
-            id: socket.userId,
-            username: socket.username
-          }
-        });
-
-        // Remove users from call room
-        io.in(`call_${callId}`).socketsLeave(`call_${callId}`);
-
-      } catch (error) {
-        console.error('End call error:', error);
-      }
-    });
-
-    // WebRTC signaling
-    socket.on('webrtc_offer', (data) => {
-      try {
-        const { callId, offer, targetSocketId } = data;
-        
-        io.to(targetSocketId).emit('webrtc_offer', {
-          callId,
-          offer,
-          fromSocketId: socket.id
-        });
-
-      } catch (error) {
-        console.error('WebRTC offer error:', error);
-      }
-    });
-
-    socket.on('webrtc_answer', (data) => {
-      try {
-        const { callId, answer, targetSocketId } = data;
-        
-        io.to(targetSocketId).emit('webrtc_answer', {
-          callId,
-          answer,
-          fromSocketId: socket.id
-        });
-
-      } catch (error) {
-        console.error('WebRTC answer error:', error);
-      }
-    });
-
-    socket.on('webrtc_ice_candidate', (data) => {
-      try {
-        const { callId, candidate, targetSocketId } = data;
-        
-        io.to(targetSocketId).emit('webrtc_ice_candidate', {
-          callId,
-          candidate,
-          fromSocketId: socket.id
-        });
-
-      } catch (error) {
-        console.error('WebRTC ICE candidate error:', error);
-      }
-    });
-
-    // Call quality feedback
-    socket.on('call_quality_report', async (data) => {
-      try {
-        const { callId, quality, issues } = data;
-        
-        // Log call quality for analytics
-        console.log(`Call quality report for ${callId}:`, { quality, issues });
-        
-        // Store in database for analysis
-        // await this.storeCallQualityReport(callId, socket.userId, quality, issues);
-
-      } catch (error) {
-        console.error('Call quality report error:', error);
-      }
-    });
-
-    // Group call events
-    socket.on('start_group_call', async (data) => {
-      try {
-        const { chatId, callType } = data;
-        const callerId = socket.userId;
-
-        // Verify user is in group
-        const isParticipant = await this.verifyUserInChat(callerId, chatId);
-        if (!isParticipant) {
-          socket.emit('call_error', {
-            error: 'Not authorized to start group call'
-          });
-          return;
-        }
-
-        const callId = `group_call_${Date.now()}_${chatId}`;
-
-        // Notify all group members
-        io.to(`chat_${chatId}`).emit('group_call_started', {
-          callId,
           callType,
           chatId,
-          startedBy: {
-            id: callerId,
-            username: socket.username,
-            avatar: socket.userAvatar
-          }
-        });
+          status: 'pending',
+          startedAt: new Date().toISOString()
+        }
 
-      } catch (error) {
-        console.error('Start group call error:', error);
-        socket.emit('call_error', { error: error.message });
-      }
-    });
+        // Save to database
+        const { error: dbError } = await db
+          .from('calls')
+          .insert({
+            id: callId,
+            caller_id: callerId,
+            target_user_id: targetUserId,
+            call_type: callType,
+            chat_id: chatId,
+            status: 'pending',
+            started_at: new Date().toISOString()
+          })
 
-    socket.on('join_group_call', (data) => {
-      try {
-        const { callId } = data;
-        
-        socket.join(`call_${callId}`);
-        
-        // Notify other participants
-        socket.to(`call_${callId}`).emit('user_joined_call', {
+        if (dbError) throw dbError
+
+        // Send call invitation to target user
+        targetSocket.emit('incoming_call', {
           callId,
-          user: {
-            id: socket.userId,
-            username: socket.username,
-            avatar: socket.userAvatar
-          }
-        });
+          callerId,
+          callerName: socket.data?.username,
+          callerAvatar: socket.data?.avatar,
+          callType
+        })
 
-        socket.emit('group_call_joined', { callId });
+        // Notify caller that invitation was sent
+        socket.emit('call_initiated', { callId, status: 'pending' })
 
+        console.log(`[Call] ${callerId} initiated ${callType} call to ${targetUserId}`)
       } catch (error) {
-        console.error('Join group call error:', error);
+        console.error('[Call] Initiate call error:', error)
+        socket.emit('call_error', { error: 'Failed to initiate call' })
       }
-    });
+    })
+
+    // ===== ACCEPT CALL =====
+    socket.on('accept_call', async (data: { callId: string }) => {
+      try {
+        const { callId } = data
+        const userId = socket.data?.userId
+
+        if (!userId) {
+          socket.emit('call_error', { error: 'Not authenticated' })
+          return
+        }
+
+        // Update call status in database
+        const { error: dbError } = await db
+          .from('calls')
+          .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+          .eq('id', callId)
+
+        if (dbError) throw dbError
+
+        // Get caller socket
+        const { data: callData, error: fetchError } = await db
+          .from('calls')
+          .select('caller_id')
+          .eq('id', callId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        const callerSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === callData.caller_id
+        )
+
+        if (callerSocket) {
+          callerSocket.emit('call_accepted', {
+            callId,
+            acceptedBy: userId,
+            acceptedByName: socket.data?.username
+          })
+        }
+
+        socket.emit('call_accepted_confirmed', { callId })
+        console.log(`[Call] ${userId} accepted call ${callId}`)
+      } catch (error) {
+        console.error('[Call] Accept call error:', error)
+        socket.emit('call_error', { error: 'Failed to accept call' })
+      }
+    })
+
+    // ===== REJECT CALL =====
+    socket.on('reject_call', async (data: { callId: string; reason?: string }) => {
+      try {
+        const { callId, reason } = data
+        const userId = socket.data?.userId
+
+        if (!userId) {
+          socket.emit('call_error', { error: 'Not authenticated' })
+          return
+        }
+
+        // Update call status
+        const { error: dbError } = await db
+          .from('calls')
+          .update({ status: 'rejected', rejected_at: new Date().toISOString(), rejection_reason: reason })
+          .eq('id', callId)
+
+        if (dbError) throw dbError
+
+        // Get caller socket
+        const { data: callData, error: fetchError } = await db
+          .from('calls')
+          .select('caller_id')
+          .eq('id', callId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        const callerSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === callData.caller_id
+        )
+
+        if (callerSocket) {
+          callerSocket.emit('call_rejected', {
+            callId,
+            rejectedBy: userId,
+            reason: reason || 'User declined'
+          })
+        }
+
+        socket.emit('call_rejected_confirmed', { callId })
+        console.log(`[Call] ${userId} rejected call ${callId}`)
+      } catch (error) {
+        console.error('[Call] Reject call error:', error)
+        socket.emit('call_error', { error: 'Failed to reject call' })
+      }
+    })
+
+    // ===== END CALL =====
+    socket.on('end_call', async (data: { callId: string }) => {
+      try {
+        const { callId } = data
+        const userId = socket.data?.userId
+
+        if (!userId) {
+          socket.emit('call_error', { error: 'Not authenticated' })
+          return
+        }
+
+        // Calculate call duration
+        const { data: callData, error: fetchError } = await db
+          .from('calls')
+          .select('started_at, caller_id, target_user_id')
+          .eq('id', callId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        const duration = Math.floor(
+          (new Date().getTime() - new Date(callData.started_at).getTime()) / 1000
+        )
+
+        // Update call status
+        const { error: dbError } = await db
+          .from('calls')
+          .update({
+            status: 'ended',
+            ended_at: new Date().toISOString(),
+            duration
+          })
+          .eq('id', callId)
+
+        if (dbError) throw dbError
+
+        // Notify other participant
+        const otherUserId = userId === callData.caller_id ? callData.target_user_id : callData.caller_id
+        const otherSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === otherUserId
+        )
+
+        if (otherSocket) {
+          otherSocket.emit('call_ended', {
+            callId,
+            endedBy: userId,
+            duration
+          })
+        }
+
+        socket.emit('call_ended_confirmed', { callId, duration })
+        console.log(`[Call] ${userId} ended call ${callId} (duration: ${duration}s)`)
+      } catch (error) {
+        console.error('[Call] End call error:', error)
+        socket.emit('call_error', { error: 'Failed to end call' })
+      }
+    })
+
+    // ===== SEND CALL SIGNAL (WebRTC) =====
+    socket.on('call_signal', async (data: CallSignal) => {
+      try {
+        const { callId, type, data: signalData } = data
+        const userId = socket.data?.userId
+
+        if (!userId) {
+          socket.emit('call_error', { error: 'Not authenticated' })
+          return
+        }
+
+        // Get call data
+        const { data: callData, error: fetchError } = await db
+          .from('calls')
+          .select('caller_id, target_user_id')
+          .eq('id', callId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        // Determine recipient
+        const recipientId = userId === callData.caller_id ? callData.target_user_id : callData.caller_id
+        const recipientSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === recipientId
+        )
+
+        if (recipientSocket) {
+          recipientSocket.emit('call_signal', {
+            callId,
+            type,
+            data: signalData,
+            from: userId
+          })
+        }
+      } catch (error) {
+        console.error('[Call] Send signal error:', error)
+        socket.emit('call_error', { error: 'Failed to send signal' })
+      }
+    })
+
+    // ===== MUTE/UNMUTE =====
+    socket.on('toggle_audio', async (data: { callId: string; enabled: boolean }) => {
+      try {
+        const { callId, enabled } = data
+        const userId = socket.data?.userId
+
+        // Get call participants
+        const { data: callData, error: fetchError } = await db
+          .from('calls')
+          .select('caller_id, target_user_id')
+          .eq('id', callId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        const otherUserId = userId === callData.caller_id ? callData.target_user_id : callData.caller_id
+        const otherSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === otherUserId
+        )
+
+        if (otherSocket) {
+          otherSocket.emit('participant_audio_toggled', {
+            callId,
+            userId,
+            enabled
+          })
+        }
+      } catch (error) {
+        console.error('[Call] Toggle audio error:', error)
+      }
+    })
+
+    // ===== TOGGLE VIDEO =====
+    socket.on('toggle_video', async (data: { callId: string; enabled: boolean }) => {
+      try {
+        const { callId, enabled } = data
+        const userId = socket.data?.userId
+
+        // Get call participants
+        const { data: callData, error: fetchError } = await db
+          .from('calls')
+          .select('caller_id, target_user_id')
+          .eq('id', callId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        const otherUserId = userId === callData.caller_id ? callData.target_user_id : callData.caller_id
+        const otherSocket = Array.from(io.sockets.sockets.values()).find(
+          (s) => s.data?.userId === otherUserId
+        )
+
+        if (otherSocket) {
+          otherSocket.emit('participant_video_toggled', {
+            callId,
+            userId,
+            enabled
+          })
+        }
+      } catch (error) {
+        console.error('[Call] Toggle video error:', error)
+      }
+    })
   }
 
-  static async verifyCallPermission(callerId, targetUserId, chatId = null) {
+  /**
+   * Verify if user can call another user
+   */
+  private static async verifyCallPermission(
+    callerId: string,
+    targetUserId: string,
+    chatId?: string
+  ): Promise<boolean> {
     try {
+      // Check if users are in same chat or are pals
       if (chatId) {
-        // Verify both users are in the chat
-        const { data: participants } = await supabase
+        const { data: chatParticipants, error } = await db
           .from('chat_participants')
           .select('user_id')
           .eq('chat_id', chatId)
           .in('user_id', [callerId, targetUserId])
-          .eq('is_active', true);
 
-        return participants.length === 2;
-      } else {
-        // Verify users are pals
-        const { data: palRelation } = await supabase
-          .from('pals')
-          .select('*')
-          .or(`and(requester_id.eq.${callerId},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${callerId})`)
-          .eq('status', 'accepted')
-          .single();
-
-        return !!palRelation;
+        if (error) throw error
+        return chatParticipants.length === 2
       }
-    } catch (error) {
-      console.error('Verify call permission error:', error);
-      return false;
-    }
-  }
 
-  static async verifyUserInChat(userId, chatId) {
-    try {
-      const { data: participant } = await supabase
-        .from('chat_participants')
+      // Check if they are pals/friends
+      const { data: follows, error } = await db
+        .from('follows')
         .select('id')
-        .eq('user_id', userId)
-        .eq('chat_id', chatId)
-        .eq('is_active', true)
-        .single();
+        .eq('follower_id', callerId)
+        .eq('following_id', targetUserId)
 
-      return !!participant;
+      if (error) throw error
+      return follows.length > 0
     } catch (error) {
-      return false;
+      console.error('[Call] Verify permission error:', error)
+      return false
     }
   }
 }
-
-module.exports = CallEvents;
