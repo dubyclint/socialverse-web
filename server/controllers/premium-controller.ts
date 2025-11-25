@@ -1,9 +1,7 @@
 // server/controllers/premium-controller.ts
 // Fixed for Nitro (not Express) + Supabase
 
-import { PremiumSubscription } from '../models/premiumSubscription';
-import { PremiumFeature } from '../models/premiumFeature';
-import { UserPremiumRestriction } from '../models/userPremiumRestriction';
+import { PremiumSubscription, PremiumFeature, UserPremiumRestriction } from '../models/premium';
 import type { H3Event } from 'h3';
 
 interface SubscriptionUpgradeRequest {
@@ -213,3 +211,4 @@ export class PremiumController {
     }
   }
 }
+
