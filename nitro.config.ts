@@ -1,5 +1,7 @@
 // nitro.config.ts - PRODUCTION-READY CONFIGURATION
 export default defineNitroConfig({
+  preset: 'node-server',
+  
   prerender: {
     crawlLinks: false,
     routes: [],
