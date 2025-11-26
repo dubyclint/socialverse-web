@@ -1,85 +1,74 @@
-import { supabase } from '~/server/utils/database';
+// FILE 13: /server/api/ads/serve.ts (UPDATED)
+// ============================================================================
+// GET /api/ads/serve - Serve personalized ads with ML
+// ============================================================================
+
+import { servePersonalizedAds, logUserEvent } from '../middleware/ml-service';
+import { checkPremiumStatus } from '../middleware/premium-check';
 
 export default defineEventHandler(async (event) => {
   try {
-    const user = event.context.user;
-    const location = user.location || 'Nigeria';
-    const rank = user.rank || 'Homie';
-    const interests = user.interests || [];
-    const page = getQuery(event).page || 'Home Feed';
-
-    // Get internal ads
-    const { data: internalAds, error: adsError } = await supabase
-      .from('ads')
-      .select('*')
-      .eq('status', 'approved')
-      .eq('location', location)
-      .contains('target_ranks', [rank])
-      .overlaps('target_interests', interests);
-      
-    if (adsError) throw adsError;
-
-    // Get page rules
-    const { data: pageRules, error: rulesError } = await supabase
-      .from('ad_page_rules')
-      .select('*');
-      
-    if (rulesError) throw rulesError;
-
-    const pageRule = pageRules?.find(p => p.name === page);
-
-    // Get external ad sources
-    const { data: externalSources, error: sourcesError } = await supabase
-      .from('external_ad_sources')
-      .select('*');
-      
-    if (sourcesError) throw sourcesError;
-
-    const externalAds = [];
-    for (const source of externalSources || []) {
-      const allowed = pageRule?.allowed?.external;
-      const valid = source.config && source.config.length > 10;
-      if (allowed && valid) {
-        externalAds.push({
-          id: `external-${source.platform}`,
-          type: 'external',
-          html: source.config,
-          status: 'approved'
-        });
-      }
+    const user = await requireAuth(event);
+    
+    if (!user?.id) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Authentication required'
+      });
     }
 
-    const allAds = [...(internalAds || []), ...externalAds];
-    const allowedAds = allAds.filter(ad => pageRule?.allowed?.[ad.type]);
+    const query = getQuery(event);
+    const page = (query.page as string) || 'home';
+    const location = (query.location as string) || 'Nigeria';
 
-    if (pageRule?.auto_boost_enabled) {
-      // Get metrics for auto-boost
-      const { data: metrics, error: metricsError } = await supabase
-        .from('ad_metrics')
-        .select('*')
-        .eq('action', 'variant')
-        .eq('page', page);
-        
-      if (metricsError) throw metricsError;
+    // Check if user is premium
+    const premiumStatus = await checkPremiumStatus(event);
 
-      const formats = ['image', 'video', 'text', 'audio', 'external'];
-      const formatStats = formats.map(format => {
-        const filtered = metrics?.filter(m => m.variant === format) || [];
-        const clicks = filtered.filter(m => m.action === 'click').length;
-        const impressions = filtered.length;
-        const ctr = impressions ? clicks / impressions : 0;
-        return { format, ctr };
+    // If premium, return empty ads (ad-free experience)
+    if (premiumStatus.isPremium) {
+      await logUserEvent(event, user.id, {
+        eventType: 'ads_served',
+        metadata: { page, count: 0, isPremium: true }
       });
 
-      const topFormat = formatStats.sort((a, b) => b.ctr - a.ctr)[0]?.format;
-      const boostedAds = allowedAds.filter(ad => ad.type === topFormat);
-      const sorted = boostedAds.sort((a, b) => (b.bid || 0) - (a.bid || 0));
-      return sorted.slice(0, 1);
+      return {
+        success: true,
+        data: {
+          ads: [],
+          count: 0,
+          isPremium: true,
+          message: 'Ad-free experience for premium users'
+        }
+      };
     }
 
-    const sorted = allowedAds.sort((a, b) => (b.bid || 0) - (a.bid || 0));
-    return sorted.slice(0, 1);
-  } catch (err) {
+    // Get page context
+    const pageContext = {
+      page,
+      location,
+      userInterests: user.interests || [],
+      userRank: user.rank || 'Homie'
+    };
+
+    // Serve personalized ads using ML
+    const ads = await servePersonalizedAds(event, user.id, pageContext, 3);
+
+    // Log event
+    await logUserEvent(event, user.id, {
+      eventType: 'ads_served',
+      metadata: { page, count: ads?.length || 0, isPremium: false }
+    });
+
+    return {
+      success: true,
+      data: {
+        ads: ads || [],
+        count: ads?.length || 0,
+        isPremium: false
+      }
+    };
+  } catch (error) {
+    console.error('Error serving ads:', error);
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to serve ads'
