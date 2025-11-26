@@ -1,4 +1,4 @@
-// nuxt.config.ts - PRODUCTION-READY WITH MIDDLEWARE & OPTIMIZATION
+// nuxt.config.ts - PRODUCTION-READY CONFIGURATION
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -33,33 +33,12 @@ export default defineNuxtConfig({
   // ============================================================================
   build: {
     transpile: [],
-    rollupConfig: {
-      output: {
-        manualChunks: {
-          // Separate Supabase into its own chunk for better caching
-          'supabase': ['@supabase/supabase-js'],
-          // Separate heavy dependencies
-          'socket': ['socket.io-client'],
-          'chart': ['chart.js', 'vue-chartjs'],
-        }
-      }
-    }
   },
 
   // ============================================================================
-  // NITRO CONFIGURATION - SERVER-SIDE OPTIMIZATION WITH MIDDLEWARE
+  // NITRO CONFIGURATION - SERVER-SIDE OPTIMIZATION
   // ============================================================================
   nitro: {
-    // Prevent Supabase from being bundled into server
-    rollupConfig: {
-      external: ['@supabase/supabase-js'],
-      output: {
-        globals: {
-          '@supabase/supabase-js': 'supabase'
-        }
-      }
-    },
-    
     // Prerender configuration
     prerender: {
       crawlLinks: false,
@@ -79,9 +58,6 @@ export default defineNuxtConfig({
     // Optimize cold starts
     minify: true,
     sourceMap: false,
-    
-    // Production middleware
-    middleware: ['compression', 'helmet'],
   },
 
   // ============================================================================
@@ -91,8 +67,6 @@ export default defineNuxtConfig({
     '#supabase/server': '~/server/utils/supabase-server.ts',
     '#supabase/client': '~/composables/use-supabase.ts',
     '#supabase/admin': '~/server/utils/supabase-admin.ts',
-    '#middleware': '~/server/middleware',
-    '#utils': '~/server/utils',
   },
 
   // ============================================================================
@@ -103,16 +77,6 @@ export default defineNuxtConfig({
       __DEV__: false,
     },
     build: {
-      // Enable tree-shaking
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'supabase': ['@supabase/supabase-js'],
-          }
-        }
-      },
-      // Optimize chunk size
-      chunkSizeWarningLimit: 1000,
       minify: 'terser',
       terserOptions: {
         compress: {
@@ -122,9 +86,5 @@ export default defineNuxtConfig({
         mangle: true,
       }
     },
-    ssr: {
-      external: ['@supabase/supabase-js'],
-      noExternal: []
-    }
   }
 })
