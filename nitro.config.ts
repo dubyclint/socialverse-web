@@ -1,4 +1,4 @@
-// nitro.config.ts - DISABLE PRERENDER WITH FAIL ON ERROR FALSE
+// nitro.config.ts - NITRO CONFIGURATION
 export default defineNitroConfig({
   prerender: {
     crawlLinks: false,
