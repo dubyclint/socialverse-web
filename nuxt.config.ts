@@ -1,4 +1,4 @@
-// nuxt.config.ts - FINAL COMPLETE FIX
+// nuxt.config.ts - FINAL FIX (REMOVE ALL PRERENDER ROUTES)
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -30,8 +30,12 @@ export default defineNuxtConfig({
     '#supabase/client': '~/composables/use-supabase.ts'
   },
   nitro: {
-    // Disable prerender completely - your app is fully dynamic
-    prerender: false,
+    // Completely disable prerender - no routes, no prerendering
+    prerender: {
+      crawlLinks: false,
+      routes: [],
+      ignore: ['/**']
+    },
     esbuild: {
       options: {
         target: 'es2022'
