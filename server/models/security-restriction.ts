@@ -1,44 +1,67 @@
-// server/models/security-restriction.ts
-// Security Restriction Model
+// FILE: /server/models/security-restriction.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type RestrictionType = 'account_lock' | 'ip_ban' | 'rate_limit' | 'content_restriction'
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type RestrictionType = 'IP_BAN' | 'ACCOUNT_LOCK' | 'RATE_LIMIT' | 'CONTENT_RESTRICTION'
 
 export interface SecurityRestriction {
   id: string
-  user_id: string
-  restriction_type: RestrictionType
-  reason: string
-  expires_at: string
-  created_at: string
-  updated_at: string
-}
-
-export interface CreateRestrictionInput {
-  userId: string
+  userId?: string
+  ipAddress?: string
   restrictionType: RestrictionType
   reason: string
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   expiresAt: string
+  isActive: boolean
+  createdAt: string
+  createdBy: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class SecurityRestrictionModel {
-  static async create(input: CreateRestrictionInput): Promise<SecurityRestriction> {
+  static async createRestriction(
+    restrictionType: RestrictionType,
+    reason: string,
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    expiresAt: string,
+    createdBy: string,
+    userId?: string,
+    ipAddress?: string
+  ): Promise<SecurityRestriction> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('security_restrictions')
         .insert({
-          user_id: input.userId,
-          restriction_type: input.restrictionType,
-          reason: input.reason,
-          expires_at: input.expiresAt,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          userId,
+          ipAddress,
+          restrictionType,
+          reason,
+          severity,
+          expiresAt,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          createdBy
         })
         .select()
         .single()
@@ -46,41 +69,60 @@ export class SecurityRestrictionModel {
       if (error) throw error
       return data as SecurityRestriction
     } catch (error) {
-      console.error('[SecurityRestrictionModel] Create error:', error)
+      console.error('[SecurityRestrictionModel] Error creating restriction:', error)
       throw error
     }
   }
 
-  static async getActive(userId: string): Promise<SecurityRestriction[]> {
+  static async getActiveRestrictions(userId?: string, ipAddress?: string): Promise<SecurityRestriction[]> {
     try {
-      const { data, error } = await supabase
+      const supabase = await getSupabase()
+      let query = supabase
         .from('security_restrictions')
         .select('*')
-        .eq('user_id', userId)
-        .gt('expires_at', new Date().toISOString())
+        .eq('isActive', true)
+        .gt('expiresAt', new Date().toISOString())
+
+      if (userId) {
+        query = query.eq('userId', userId)
+      }
+
+      if (ipAddress) {
+        query = query.eq('ipAddress', ipAddress)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
-      return (data as SecurityRestriction[]) || []
+      return (data || []) as SecurityRestriction[]
     } catch (error) {
-      console.error('[SecurityRestrictionModel] Get active error:', error)
+      console.error('[SecurityRestrictionModel] Error fetching restrictions:', error)
       throw error
     }
   }
 
-  static async remove(restrictionId: string): Promise<boolean> {
+  static async removeRestriction(id: string): Promise<void> {
     try {
+      const supabase = await getSupabase()
       const { error } = await supabase
         .from('security_restrictions')
-        .delete()
-        .eq('id', restrictionId)
+        .update({ isActive: false })
+        .eq('id', id)
 
       if (error) throw error
-      return true
     } catch (error) {
-      console.error('[SecurityRestrictionModel] Remove error:', error)
+      console.error('[SecurityRestrictionModel] Error removing restriction:', error)
       throw error
+    }
+  }
+
+  static async isUserRestricted(userId: string): Promise<boolean> {
+    try {
+      const restrictions = await this.getActiveRestrictions(userId)
+      return restrictions.length > 0
+    } catch (error) {
+      console.error('[SecurityRestrictionModel] Error checking restriction:', error)
+      return false
     }
   }
 }
-
-export default SecurityRestrictionModel
