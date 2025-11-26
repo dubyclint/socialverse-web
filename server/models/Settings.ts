@@ -1,4 +1,18 @@
-import { supabase } from '~/server/db'
+// FILE: /server/models/Settings.ts
+// REFACTORED: Lazy-loaded Supabase
+
+let supabaseInstance: any = null
+
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
 export interface UserSetting {
   id: string
@@ -18,117 +32,99 @@ export interface GlobalSetting {
 
 export class UserSettingModel {
   static async get(userId: string, key: string) {
-    const { data, error } = await supabase
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('key', key)
-      .single()
-
-    if (error && error.code !== 'PGRST116') throw error
-    return data as UserSetting | null
-  }
-
-  static async set(userId: string, key: string, value: any) {
-    const existing = await this.get(userId, key)
-
-    if (existing) {
+    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_settings')
-        .update({
-          value,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existing.id)
-        .select()
+        .select('*')
+        .eq('user_id', userId)
+        .eq('key', key)
         .single()
 
       if (error) throw error
       return data as UserSetting
-    } else {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .insert([
-          {
-            user_id: userId,
-            key,
-            value,
-            updated_at: new Date().toISOString()
-          }
-        ])
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as UserSetting
+    } catch (error) {
+      console.error('[UserSettingModel] Error:', error)
+      throw error
     }
   }
 
-  static async getUserSettings(userId: string) {
-    const { data, error } = await supabase
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', userId)
+  static async set(userId: string, key: string, value: any) {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: userId,
+          key,
+          value,
+          updatedAt: new Date().toISOString()
+        })
+        .select()
+        .single()
 
-    if (error) throw error
-    return data as UserSetting[]
+      if (error) throw error
+      return data as UserSetting
+    } catch (error) {
+      console.error('[UserSettingModel] Error:', error)
+      throw error
+    }
+  }
+
+  static async getAll(userId: string) {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', userId)
+
+      if (error) throw error
+      return (data || []) as UserSetting[]
+    } catch (error) {
+      console.error('[UserSettingModel] Error:', error)
+      throw error
+    }
   }
 }
 
 export class GlobalSettingModel {
   static async get(key: string) {
-    const { data, error } = await supabase
-      .from('global_settings')
-      .select('*')
-      .eq('key', key)
-      .single()
-
-    if (error && error.code !== 'PGRST116') throw error
-    return data as GlobalSetting | null
-  }
-
-  static async set(key: string, value: any, updatedBy: string) {
-    const existing = await this.get(key)
-
-    if (existing) {
+    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('global_settings')
-        .update({
-          value,
-          updated_at: new Date().toISOString(),
-          updated_by: updatedBy
-        })
-        .eq('id', existing.id)
-        .select()
+        .select('*')
+        .eq('key', key)
         .single()
 
       if (error) throw error
       return data as GlobalSetting
-    } else {
-      const { data, error } = await supabase
-        .from('global_settings')
-        .insert([
-          {
-            key,
-            value,
-            updated_at: new Date().toISOString(),
-            updated_by: updatedBy
-          }
-        ])
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as GlobalSetting
+    } catch (error) {
+      console.error('[GlobalSettingModel] Error:', error)
+      throw error
     }
   }
 
-  static async getAll() {
-    const { data, error } = await supabase
-      .from('global_settings')
-      .select('*')
+  static async set(key: string, value: any, updatedBy: string) {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('global_settings')
+        .upsert({
+          key,
+          value,
+          updatedAt: new Date().toISOString(),
+          updatedBy
+        })
+        .select()
+        .single()
 
-    if (error) throw error
-    return data as GlobalSetting[]
+      if (error) throw error
+      return data as GlobalSetting
+    } catch (error) {
+      console.error('[GlobalSettingModel] Error:', error)
+      throw error
+    }
   }
 }
