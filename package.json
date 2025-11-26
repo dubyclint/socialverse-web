@@ -6,11 +6,9 @@
   "description": "SocialVerse - A modern social networking platform",
   "author": "SocialVerse Team",
   "license": "MIT",
-  "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=22.0.0",
-    "npm": ">=10.0.0",
-    "pnpm": ">=9.0.0"
+    "npm": ">=10.0.0"
   },
   "scripts": {
     "dev": "nuxt dev",
@@ -33,7 +31,6 @@
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.2",
     "@supabase/supabase-js": "^2.48.0",
-    "@supabase/auth-helpers-nuxt": "^0.0.11",
     "bcrypt": "^5.1.1",
     "chart.js": "^4.5.1",
     "compression": "^1.7.4",
@@ -78,17 +75,5 @@
     "prettier": "^3.2.5",
     "typescript": "^5.5.4",
     "vitest": "^1.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@supabase/supabase-js": "^2.48.0"
-    },
-    "peerDependencyRules": {
-      "ignoreMissing": [
-        "@tensorflow/tfjs",
-        "@tensorflow/tfjs-core",
-        "@tensorflow/tfjs-layers"
-      ]
-    }
   }
 }
