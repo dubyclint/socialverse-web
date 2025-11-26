@@ -1,38 +1,51 @@
-// server/models/pal.ts
-// Pal (Friend) Model - User relationships
+// FILE: /server/models/pal.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
 export interface Pal {
   id: string
-  user_id: string
-  pal_id: string
-  status: 'pending' | 'accepted' | 'blocked'
-  created_at: string
-  updated_at: string
-}
-
-export interface CreatePalInput {
   userId: string
-  palId: string
+  palUserId: string
+  status: 'PENDING' | 'ACCEPTED' | 'BLOCKED'
+  nickname?: string
+  notes?: string
+  createdAt: string
+  acceptedAt?: string
+  blockedAt?: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class PalModel {
-  static async create(input: CreatePalInput): Promise<Pal> {
+  static async sendPalRequest(userId: string, palUserId: string): Promise<Pal> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('pals')
         .insert({
-          user_id: input.userId,
-          pal_id: input.palId,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          userId,
+          palUserId,
+          status: 'PENDING',
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -40,137 +53,129 @@ export class PalModel {
       if (error) throw error
       return data as Pal
     } catch (error) {
-      console.error('[PalModel] Create error:', error)
+      console.error('[PalModel] Error sending pal request:', error)
       throw error
     }
   }
 
-  static async accept(userId: string, palId: string): Promise<Pal> {
+  static async getPal(userId: string, palUserId: string): Promise<Pal | null> {
     try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('pals')
+        .select('*')
+        .eq('userId', userId)
+        .eq('palUserId', palUserId)
+        .single()
+
+      if (error) {
+        console.warn('[PalModel] Pal relationship not found')
+        return null
+      }
+
+      return data as Pal
+    } catch (error) {
+      console.error('[PalModel] Error fetching pal:', error)
+      throw error
+    }
+  }
+
+  static async getUserPals(userId: string, status?: string): Promise<Pal[]> {
+    try {
+      const supabase = await getSupabase()
+      let query = supabase
+        .from('pals')
+        .select('*')
+        .eq('userId', userId)
+
+      if (status) {
+        query = query.eq('status', status)
+      }
+
+      const { data, error } = await query.order('createdAt', { ascending: false })
+
+      if (error) throw error
+      return (data || []) as Pal[]
+    } catch (error) {
+      console.error('[PalModel] Error fetching user pals:', error)
+      throw error
+    }
+  }
+
+  static async acceptPalRequest(userId: string, palUserId: string): Promise<Pal> {
+    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('pals')
         .update({
-          status: 'accepted',
-          updated_at: new Date().toISOString()
+          status: 'ACCEPTED',
+          acceptedAt: new Date().toISOString()
         })
-        .eq('user_id', userId)
-        .eq('pal_id', palId)
+        .eq('userId', userId)
+        .eq('palUserId', palUserId)
         .select()
         .single()
 
       if (error) throw error
       return data as Pal
     } catch (error) {
-      console.error('[PalModel] Accept error:', error)
+      console.error('[PalModel] Error accepting pal request:', error)
       throw error
     }
   }
 
-  static async block(userId: string, palId: string): Promise<Pal> {
+  static async blockPal(userId: string, palUserId: string): Promise<Pal> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('pals')
         .update({
-          status: 'blocked',
-          updated_at: new Date().toISOString()
+          status: 'BLOCKED',
+          blockedAt: new Date().toISOString()
         })
-        .eq('user_id', userId)
-        .eq('pal_id', palId)
+        .eq('userId', userId)
+        .eq('palUserId', palUserId)
         .select()
         .single()
 
       if (error) throw error
       return data as Pal
     } catch (error) {
-      console.error('[PalModel] Block error:', error)
+      console.error('[PalModel] Error blocking pal:', error)
       throw error
     }
   }
 
-  static async remove(userId: string, palId: string): Promise<boolean> {
+  static async removePal(userId: string, palUserId: string): Promise<void> {
     try {
+      const supabase = await getSupabase()
       const { error } = await supabase
         .from('pals')
         .delete()
-        .eq('user_id', userId)
-        .eq('pal_id', palId)
+        .eq('userId', userId)
+        .eq('palUserId', palUserId)
 
       if (error) throw error
-      return true
     } catch (error) {
-      console.error('[PalModel] Remove error:', error)
+      console.error('[PalModel] Error removing pal:', error)
       throw error
     }
   }
 
-  static async getPals(userId: string, status: string = 'accepted', limit: number = 50): Promise<Pal[]> {
+  static async getAcceptedPals(userId: string): Promise<Pal[]> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('pals')
         .select('*')
-        .eq('user_id', userId)
-        .eq('status', status)
-        .order('created_at', { ascending: false })
-        .limit(limit)
+        .eq('userId', userId)
+        .eq('status', 'ACCEPTED')
 
       if (error) throw error
-      return (data as Pal[]) || []
+      return (data || []) as Pal[]
     } catch (error) {
-      console.error('[PalModel] Get pals error:', error)
-      throw error
-    }
-  }
-
-  static async getPendingRequests(userId: string): Promise<Pal[]> {
-    try {
-      const { data, error } = await supabase
-        .from('pals')
-        .select('*')
-        .eq('pal_id', userId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return (data as Pal[]) || []
-    } catch (error) {
-      console.error('[PalModel] Get pending requests error:', error)
-      throw error
-    }
-  }
-
-  static async arePals(userId1: string, userId2: string): Promise<boolean> {
-    try {
-      const { data, error } = await supabase
-        .from('pals')
-        .select('id')
-        .eq('user_id', userId1)
-        .eq('pal_id', userId2)
-        .eq('status', 'accepted')
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-      return !!data
-    } catch (error) {
-      console.error('[PalModel] Are pals error:', error)
-      throw error
-    }
-  }
-
-  static async getCount(userId: string, status: string = 'accepted'): Promise<number> {
-    try {
-      const { count, error } = await supabase
-        .from('pals')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('status', status)
-
-      if (error) throw error
-      return count || 0
-    } catch (error) {
-      console.error('[PalModel] Get count error:', error)
+      console.error('[PalModel] Error fetching accepted pals:', error)
       throw error
     }
   }
 }
-
-export default PalModel
