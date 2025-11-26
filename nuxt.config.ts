@@ -40,6 +40,8 @@ export default defineNuxtConfig({
   // NITRO CONFIGURATION - SERVER-SIDE OPTIMIZATION
   // ============================================================================
   nitro: {
+    preset: 'node-server',
+    
     // Prerender configuration
     prerender: {
       crawlLinks: false,
