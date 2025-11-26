@@ -1,46 +1,56 @@
-// server/models/social-links.ts
-// Social Links Model
+// FILE: /server/models/social-links.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type SocialPlatform = 'twitter' | 'instagram' | 'tiktok' | 'youtube' | 'twitch' | 'facebook' | 'linkedin'
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type SocialPlatform = 'TWITTER' | 'INSTAGRAM' | 'FACEBOOK' | 'LINKEDIN' | 'YOUTUBE' | 'TIKTOK' | 'GITHUB' | 'DISCORD'
 
 export interface SocialLink {
   id: string
-  user_id: string
-  platform: SocialPlatform
-  username: string
-  url: string
-  verified: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface CreateSocialLinkInput {
   userId: string
   platform: SocialPlatform
   username: string
   url: string
+  isVerified: boolean
+  followers?: number
+  createdAt: string
+  updatedAt: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class SocialLinksModel {
-  static async create(input: CreateSocialLinkInput): Promise<SocialLink> {
+  static async addSocialLink(userId: string, platform: SocialPlatform, username: string, url: string): Promise<SocialLink> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('social_links')
         .insert({
-          user_id: input.userId,
-          platform: input.platform,
-          username: input.username,
-          url: input.url,
-          verified: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          userId,
+          platform,
+          username,
+          url,
+          isVerified: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -48,62 +58,81 @@ export class SocialLinksModel {
       if (error) throw error
       return data as SocialLink
     } catch (error) {
-      console.error('[SocialLinksModel] Create error:', error)
+      console.error('[SocialLinksModel] Error adding social link:', error)
       throw error
     }
   }
 
-  static async getUserLinks(userId: string): Promise<SocialLink[]> {
+  static async getUserSocialLinks(userId: string): Promise<SocialLink[]> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('social_links')
         .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .eq('userId', userId)
 
       if (error) throw error
-      return (data as SocialLink[]) || []
+      return (data || []) as SocialLink[]
     } catch (error) {
-      console.error('[SocialLinksModel] Get user links error:', error)
+      console.error('[SocialLinksModel] Error fetching social links:', error)
       throw error
     }
   }
 
-  static async verify(linkId: string): Promise<SocialLink> {
+  static async removeSocialLink(id: string): Promise<void> {
     try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('social_links')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[SocialLinksModel] Error removing social link:', error)
+      throw error
+    }
+  }
+
+  static async verifySocialLink(id: string): Promise<SocialLink> {
+    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('social_links')
         .update({
-          verified: true,
-          updated_at: new Date().toISOString()
+          isVerified: true,
+          updatedAt: new Date().toISOString()
         })
-        .eq('id', linkId)
+        .eq('id', id)
         .select()
         .single()
 
       if (error) throw error
       return data as SocialLink
     } catch (error) {
-      console.error('[SocialLinksModel] Verify error:', error)
+      console.error('[SocialLinksModel] Error verifying social link:', error)
       throw error
     }
   }
 
-  static async delete(linkId: string, userId: string): Promise<boolean> {
+  static async updateFollowerCount(id: string, followers: number): Promise<SocialLink> {
     try {
-      const { error } = await supabase
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
         .from('social_links')
-        .delete()
-        .eq('id', linkId)
-        .eq('user_id', userId)
+        .update({
+          followers,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
 
       if (error) throw error
-      return true
+      return data as SocialLink
     } catch (error) {
-      console.error('[SocialLinksModel] Delete error:', error)
+      console.error('[SocialLinksModel] Error updating follower count:', error)
       throw error
     }
   }
 }
-
-export default SocialLinksModel
