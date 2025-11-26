@@ -1,63 +1,119 @@
-import { supabase } from '~/server/db'
+// FILE: /server/models/live-chat-config.ts
+// REFACTORED: Lazy-loaded Supabase
 
-export interface LiveChatConfig {
-  id: string
-  method: 'widget' | 'native' | 'redirect'
-  label: string
-  script?: string
-  url?: string
-  active: boolean
-  region?: string
-  updatedAt: string
-  updatedBy?: string
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
+
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export interface LiveChatConfig {
+  id: string
+  name: string
+  description?: string
+  isEnabled: boolean
+  maxConcurrentChats: number
+  responseTimeLimit: number
+  autoAssignmentEnabled: boolean
+  routingRules?: Record<string, any>
+  createdAt: string
+  updatedAt: string
+  updatedBy: string
+}
+
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class LiveChatConfigModel {
-  static async getActive() {
-    const { data, error } = await supabase
-      .from('live_chat_configs')
-      .select('*')
-      .eq('active', true)
-      .single()
+  static async getConfig(id: string): Promise<LiveChatConfig | null> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('live_chat_configs')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-    if (error && error.code !== 'PGRST116') throw error
-    return data as LiveChatConfig | null
+      if (error) {
+        console.warn('[LiveChatConfigModel] Config not found')
+        return null
+      }
+
+      return data as LiveChatConfig
+    } catch (error) {
+      console.error('[LiveChatConfigModel] Error fetching config:', error)
+      throw error
+    }
   }
 
-  static async getByRegion(region: string) {
-    const { data, error } = await supabase
-      .from('live_chat_configs')
-      .select('*')
-      .eq('region', region)
-      .eq('active', true)
-      .single()
+  static async getEnabledConfigs(): Promise<LiveChatConfig[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('live_chat_configs')
+        .select('*')
+        .eq('isEnabled', true)
 
-    if (error && error.code !== 'PGRST116') throw error
-    return data as LiveChatConfig | null
+      if (error) throw error
+      return (data || []) as LiveChatConfig[]
+    } catch (error) {
+      console.error('[LiveChatConfigModel] Error fetching enabled configs:', error)
+      throw error
+    }
   }
 
-  static async update(id: string, updates: Partial<LiveChatConfig>, updatedBy?: string) {
-    const { data, error } = await supabase
-      .from('live_chat_configs')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-        updated_by: updatedBy
-      })
-      .eq('id', id)
-      .select()
-      .single()
+  static async createConfig(config: Omit<LiveChatConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<LiveChatConfig> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('live_chat_configs')
+        .insert({
+          ...config,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .select()
+        .single()
 
-    if (error) throw error
-    return data as LiveChatConfig
+      if (error) throw error
+      return data as LiveChatConfig
+    } catch (error) {
+      console.error('[LiveChatConfigModel] Error creating config:', error)
+      throw error
+    }
   }
 
-  static async getAll() {
-    const { data, error } = await supabase
-      .from('live_chat_configs')
-      .select('*')
+  static async updateConfig(id: string, updates: Partial<LiveChatConfig>): Promise<LiveChatConfig> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('live_chat_configs')
+        .update({
+          ...updates,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
 
-    if (error) throw error
-    return data as LiveChatConfig[]
+      if (error) throw error
+      return data as LiveChatConfig
+    } catch (error) {
+      console.error('[LiveChatConfigModel] Error updating config:', error)
+      throw error
+    }
   }
 }
