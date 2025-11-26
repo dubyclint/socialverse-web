@@ -1,4 +1,4 @@
-// nuxt.config.ts - FINAL FIX (NO PRERENDER)
+// nuxt.config.ts - FINAL COMPLETE FIX
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
