@@ -27,7 +27,13 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
-      ignore: ['/admin']
+      ignore: [
+        '/admin',
+        '/api/**',
+        '/follows/**',
+        '/stream/**',
+        '/posts/**'
+      ]
     }
   }
 })
