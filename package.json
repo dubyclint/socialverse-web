@@ -31,7 +31,7 @@
     "@nuxtjs/supabase": "^2.0.1",
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.2",
-    "@supabase/supabase-js": "^2.45.0",
+    "@supabase/supabase-js": "^2.48.0",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
     "@tensorflow/tfjs-layers": "^4.22.0",
