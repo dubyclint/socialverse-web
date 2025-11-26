@@ -1,4 +1,4 @@
-// server/utils/supabase-server.ts - SERVER-SIDE ONLY
+// server/utils/supabase-server.ts - SERVER-SIDE SUPABASE CLIENT
 import { createClient } from '@supabase/supabase-js'
 import type { H3Event } from 'h3'
 
