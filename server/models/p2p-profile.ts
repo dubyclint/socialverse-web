@@ -1,55 +1,92 @@
-// server/models/p2p-profile.ts
-// P2P Profile Model - Peer-to-peer trading profiles
+// FILE: /server/models/p2p-profile.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-export interface P2PProfile {
-  id: string
-  user_id: string
-  payment_methods: string[]
-  trading_history_count: number
-  completion_rate: number
-  average_response_time: number
-  is_verified_trader: boolean
-  created_at: string
-  updated_at: string
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export interface P2PProfile {
+  id: string
+  userId: string
+  tradingScore: number
+  totalTrades: number
+  successfulTrades: number
+  disputedTrades: number
+  averageRating: number
+  totalReviews: number
+  verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED'
+  paymentMethods: string[]
+  preferredCurrencies: string[]
+  tradingLimits: {
+    daily: number
+    monthly: number
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class P2PProfileModel {
-  static async getByUserId(userId: string): Promise<P2PProfile | null> {
+  static async getProfile(userId: string): Promise<P2PProfile | null> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('p2p_profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('userId', userId)
         .single()
 
-      if (error && error.code !== 'PGRST116') throw error
-      return (data as P2PProfile) || null
+      if (error) {
+        console.warn('[P2PProfileModel] Profile not found')
+        return null
+      }
+
+      return data as P2PProfile
     } catch (error) {
-      console.error('[P2PProfileModel] Get by user ID error:', error)
+      console.error('[P2PProfileModel] Error fetching profile:', error)
       throw error
     }
   }
 
-  static async create(userId: string): Promise<P2PProfile> {
+  static async createProfile(userId: string): Promise<P2PProfile> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('p2p_profiles')
         .insert({
-          user_id: userId,
-          payment_methods: [],
-          trading_history_count: 0,
-          completion_rate: 0,
-          average_response_time: 0,
-          is_verified_trader: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          userId,
+          tradingScore: 0,
+          totalTrades: 0,
+          successfulTrades: 0,
+          disputedTrades: 0,
+          averageRating: 0,
+          totalReviews: 0,
+          verificationStatus: 'UNVERIFIED',
+          paymentMethods: [],
+          preferredCurrencies: [],
+          tradingLimits: {
+            daily: 10000,
+            monthly: 100000
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -57,57 +94,63 @@ export class P2PProfileModel {
       if (error) throw error
       return data as P2PProfile
     } catch (error) {
-      console.error('[P2PProfileModel] Create error:', error)
+      console.error('[P2PProfileModel] Error creating profile:', error)
       throw error
     }
   }
 
-  static async addPaymentMethod(userId: string, method: string): Promise<P2PProfile> {
+  static async updateProfile(userId: string, updates: Partial<P2PProfile>): Promise<P2PProfile> {
     try {
-      const profile = await this.getByUserId(userId)
-      if (!profile) {
-        return await this.create(userId)
-      }
-
-      const methods = [...profile.payment_methods, method]
-
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('p2p_profiles')
         .update({
-          payment_methods: methods,
-          updated_at: new Date().toISOString()
+          ...updates,
+          updatedAt: new Date().toISOString()
         })
-        .eq('user_id', userId)
+        .eq('userId', userId)
         .select()
         .single()
 
       if (error) throw error
       return data as P2PProfile
     } catch (error) {
-      console.error('[P2PProfileModel] Add payment method error:', error)
+      console.error('[P2PProfileModel] Error updating profile:', error)
       throw error
     }
   }
 
-  static async verifyTrader(userId: string): Promise<P2PProfile> {
+  static async getTopTraders(limit = 10): Promise<P2PProfile[]> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('p2p_profiles')
-        .update({
-          is_verified_trader: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select()
-        .single()
+        .select('*')
+        .eq('verificationStatus', 'VERIFIED')
+        .order('tradingScore', { ascending: false })
+        .limit(limit)
 
       if (error) throw error
-      return data as P2PProfile
+      return (data || []) as P2PProfile[]
     } catch (error) {
-      console.error('[P2PProfileModel] Verify trader error:', error)
+      console.error('[P2PProfileModel] Error fetching top traders:', error)
+      throw error
+    }
+  }
+
+  static async recordTrade(userId: string, successful: boolean): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      
+      const { error } = await supabase.rpc('record_p2p_trade', {
+        user_id: userId,
+        is_successful: successful
+      })
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[P2PProfileModel] Error recording trade:', error)
       throw error
     }
   }
 }
-
-export default P2PProfileModel
