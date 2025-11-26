@@ -1,89 +1,87 @@
 // FILE: /server/models/status-view-legacy.ts
-// Legacy Status View (Sequelize) - DEPRECATED
-// Use /server/models/status.ts instead
-// Converted from: status-view.js
-
-import { db } from '~/server/utils/database'
+// REFACTORED: Lazy-loaded Supabase
 
 // ============================================================================
-// TYPES & INTERFACES
+// LAZY-LOADED SUPABASE CLIENT
 // ============================================================================
+let supabaseInstance: any = null
 
-export interface LegacyStatusView {
-  id: string
-  status_id: string
-  viewer_id: string
-  viewed_at: string
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
 // ============================================================================
-// LEGACY STATUS VIEW MODEL
+// INTERFACES
 // ============================================================================
+export interface StatusViewLegacy {
+  id: string
+  userId: string
+  statusId: string
+  viewedAt: string
+}
 
-/**
- * @deprecated Use StatusModel from /server/models/status.ts instead
- * This model is kept for backward compatibility only
- */
-export class LegacyStatusViewModel {
-  /**
-   * Record a status view (legacy)
-   * @deprecated Use StatusModel.recordStatusView() instead
-   */
-  static async recordView(statusId: string, viewerId: string): Promise<LegacyStatusView> {
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
+export class StatusViewLegacyModel {
+  static async recordView(userId: string, statusId: string): Promise<StatusViewLegacy> {
     try {
-      const { data, error } = await db
-        .from('status_views')
-        .upsert({
-          status_id: statusId,
-          viewer_id: viewerId,
-          viewed_at: new Date().toISOString()
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('status_views_legacy')
+        .insert({
+          userId,
+          statusId,
+          viewedAt: new Date().toISOString()
         })
         .select()
         .single()
 
       if (error) throw error
-      return data as LegacyStatusView
+      return data as StatusViewLegacy
     } catch (error) {
-      console.error('[LegacyStatusViewModel] Record view error:', error)
+      console.error('[StatusViewLegacyModel] Error recording view:', error)
       throw error
     }
   }
 
-  /**
-   * Get status viewers (legacy)
-   * @deprecated Use StatusModel.getStatusViews() instead
-   */
-  static async getViewers(statusId: string): Promise<LegacyStatusView[]> {
+  static async getStatusViewCount(statusId: string): Promise<number> {
     try {
-      const { data, error } = await db
-        .from('status_views')
-        .select('*')
-        .eq('status_id', statusId)
-        .order('viewed_at', { ascending: false })
-
-      if (error) throw error
-      return (data as LegacyStatusView[]) || []
-    } catch (error) {
-      console.error('[LegacyStatusViewModel] Get viewers error:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get view count (legacy)
-   * @deprecated Use StatusModel.getStatusViewCount() instead
-   */
-  static async getViewCount(statusId: string): Promise<number> {
-    try {
-      const { count, error } = await db
-        .from('status_views')
+      const supabase = await getSupabase()
+      const { count, error } = await supabase
+        .from('status_views_legacy')
         .select('*', { count: 'exact', head: true })
-        .eq('status_id', statusId)
+        .eq('statusId', statusId)
 
       if (error) throw error
       return count || 0
     } catch (error) {
-      console.error('[LegacyStatusViewModel] Get view count error:', error)
+      console.error('[StatusViewLegacyModel] Error fetching view count:', error)
+      throw error
+    }
+  }
+
+  static async getUserStatusViews(userId: string, limit = 50): Promise<StatusViewLegacy[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('status_views_legacy')
+        .select('*')
+        .eq('userId', userId)
+        .order('viewedAt', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+      return (data || []) as StatusViewLegacy[]
+    } catch (error) {
+      console.error('[StatusViewLegacyModel] Error fetching user views:', error)
       throw error
     }
   }
