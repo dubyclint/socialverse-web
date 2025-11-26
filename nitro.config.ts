@@ -1,6 +1,10 @@
-// nitro.config.ts - HYBRID CONFIGURATION
+// nitro.config.ts - COMPLETELY DISABLE PRERENDER
 export default defineNitroConfig({
-  prerender: false,
+  prerender: {
+    crawlLinks: false,
+    routes: [],
+    ignore: ['/**']
+  },
   esbuild: {
     options: {
       target: 'es2022'
