@@ -1,186 +1,205 @@
-// server/models/premium.ts - Consolidated Premium Model
+// FILE: /server/models/premium.ts
+// REFACTORED: Lazy-loaded Supabase
+
 // ============================================================================
-// Consolidates: premium-subscription.js, premium-feature.js, 
-// premium-access-rule.ts, user-premium-restriction.js
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-import { supabase } from '../utils/supabase.js'
-
-export interface PremiumAccessRule {
-  id: string
-  target: 'country' | 'region' | 'geo' | 'all'
-  value: string
-  features: {
-    p2p?: boolean
-    matching?: boolean
-    rankHide?: boolean
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
   }
-  active: boolean
-  createdAt: string
-  updatedAt: string
+  return supabaseInstance
 }
+
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type PremiumTier = 'BASIC' | 'PLUS' | 'PRO' | 'ELITE'
 
 export interface PremiumSubscription {
   id: string
   userId: string
-  subscriptionType: string
-  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | 'CANCELLED'
-  startedAt: string
-  expiresAt?: string
+  tier: PremiumTier
+  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'SUSPENDED'
+  startDate: string
+  endDate: string
   autoRenew: boolean
-  paymentMethod?: string
-  monthlyFee: number
-  features: Record<string, any>
+  paymentMethod: string
+  price: number
+  currency: string
+  features: string[]
   createdAt: string
   updatedAt: string
 }
 
-export interface PremiumFeature {
-  id: string
-  featureName: string
-  featureKey: string
-  description?: string
-  requiredTier: string
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export interface UserPremiumRestriction {
-  id: string
-  userId: string
-  restrictionType: string
-  restrictionValue: Record<string, any>
-  appliedBy?: string
-  reason?: string
-  expiresAt?: string
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class PremiumModel {
-  // SUBSCRIPTION METHODS
-  static async createSubscription(subscriptionData: Omit<PremiumSubscription, 'id' | 'createdAt' | 'updatedAt'>) {
-    const { data, error } = await supabase
-      .from('premium_subscriptions')
-      .insert({
-        user_id: subscriptionData.userId,
-        subscription_type: subscriptionData.subscriptionType || 'FREE',
-        status: subscriptionData.status || 'ACTIVE',
-        started_at: subscriptionData.startedAt || new Date().toISOString(),
-        expires_at: subscriptionData.expiresAt,
-        auto_renew: subscriptionData.autoRenew !== false,
-        payment_method: subscriptionData.paymentMethod,
-        monthly_fee: subscriptionData.monthlyFee || 0.00,
-        features: subscriptionData.features || {}
-      })
-      .select()
-      .single()
-    if (error) throw error
-    return data as PremiumSubscription
+  static async getSubscription(userId: string): Promise<PremiumSubscription | null> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .select('*')
+        .eq('userId', userId)
+        .eq('status', 'ACTIVE')
+        .single()
+
+      if (error) {
+        console.warn('[PremiumModel] Subscription not found')
+        return null
+      }
+
+      return data as PremiumSubscription
+    } catch (error) {
+      console.error('[PremiumModel] Error fetching subscription:', error)
+      throw error
+    }
   }
 
-  static async getSubscriptionByUserId(userId: string) {
-    const { data, error } = await supabase
-      .from('premium_subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-    if (error && error.code !== 'PGRST116') throw error
-    return data as PremiumSubscription | null
+  static async createSubscription(
+    userId: string,
+    tier: PremiumTier,
+    paymentMethod: string,
+    autoRenew = true
+  ): Promise<PremiumSubscription> {
+    try {
+      const supabase = await getSupabase()
+      
+      // Get tier pricing
+      const tierPricing: Record<PremiumTier, number> = {
+        BASIC: 9.99,
+        PLUS: 19.99,
+        PRO: 49.99,
+        ELITE: 99.99
+      }
+
+      const startDate = new Date()
+      const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days
+
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .insert({
+          userId,
+          tier,
+          status: 'ACTIVE',
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          autoRenew,
+          paymentMethod,
+          price: tierPricing[tier],
+          currency: 'USD',
+          features: this.getTierFeatures(tier),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as PremiumSubscription
+    } catch (error) {
+      console.error('[PremiumModel] Error creating subscription:', error)
+      throw error
+    }
   }
 
-  static async updateSubscription(subscriptionId: string, updates: Partial<PremiumSubscription>) {
-    const { data, error } = await supabase
-      .from('premium_subscriptions')
-      .update(updates)
-      .eq('id', subscriptionId)
-      .select()
-      .single()
-    if (error) throw error
-    return data as PremiumSubscription
+  static async upgradeTier(userId: string, newTier: PremiumTier): Promise<PremiumSubscription> {
+    try {
+      const supabase = await getSupabase()
+      
+      const tierPricing: Record<PremiumTier, number> = {
+        BASIC: 9.99,
+        PLUS: 19.99,
+        PRO: 49.99,
+        ELITE: 99.99
+      }
+
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .update({
+          tier: newTier,
+          price: tierPricing[newTier],
+          features: this.getTierFeatures(newTier),
+          updatedAt: new Date().toISOString()
+        })
+        .eq('userId', userId)
+        .eq('status', 'ACTIVE')
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as PremiumSubscription
+    } catch (error) {
+      console.error('[PremiumModel] Error upgrading tier:', error)
+      throw error
+    }
   }
 
-  static async cancelSubscription(subscriptionId: string) {
-    return this.updateSubscription(subscriptionId, { status: 'CANCELLED' })
+  static async cancelSubscription(userId: string): Promise<PremiumSubscription> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .update({
+          status: 'CANCELLED',
+          autoRenew: false,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('userId', userId)
+        .eq('status', 'ACTIVE')
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as PremiumSubscription
+    } catch (error) {
+      console.error('[PremiumModel] Error cancelling subscription:', error)
+      throw error
+    }
   }
 
-  // FEATURE METHODS
-  static async createFeature(featureData: Omit<PremiumFeature, 'id' | 'createdAt' | 'updatedAt'>) {
-    const { data, error } = await supabase
-      .from('premium_features')
-      .insert({
-        feature_name: featureData.featureName,
-        feature_key: featureData.featureKey,
-        description: featureData.description,
-        required_tier: featureData.requiredTier,
-        is_active: featureData.isActive !== false
-      })
-      .select()
-      .single()
-    if (error) throw error
-    return data as PremiumFeature
+  static async renewSubscription(userId: string): Promise<PremiumSubscription> {
+    try {
+      const supabase = await getSupabase()
+      
+      const startDate = new Date()
+      const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .update({
+          status: 'ACTIVE',
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .eq('userId', userId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as PremiumSubscription
+    } catch (error) {
+      console.error('[PremiumModel] Error renewing subscription:', error)
+      throw error
+    }
   }
 
-  static async getAllFeatures(filters: { requiredTier?: string; isActive?: boolean } = {}) {
-    let query = supabase.from('premium_features').select('*')
-    if (filters.requiredTier) query = query.eq('required_tier', filters.requiredTier)
-    if (filters.isActive !== undefined) query = query.eq('is_active', filters.isActive)
-    const { data, error } = await query
-    if (error) throw error
-    return data as PremiumFeature[]
-  }
-
-  // ACCESS RULE METHODS
-  static async createAccessRule(ruleData: Omit<PremiumAccessRule, 'id' | 'createdAt' | 'updatedAt'>) {
-    const { data, error } = await supabase
-      .from('premium_access_rules')
-      .insert([{
-        target: ruleData.target,
-        value: ruleData.value,
-        features: ruleData.features,
-        active: ruleData.active,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single()
-    if (error) throw error
-    return data as PremiumAccessRule
-  }
-
-  static async getAccessRuleByTarget(target: string, value?: string) {
-    let query = supabase.from('premium_access_rules').select('*').eq('target', target).eq('active', true)
-    if (value) query = query.eq('value', value)
-    const { data, error } = await query
-    if (error) throw error
-    return data as PremiumAccessRule[]
-  }
-
-  // RESTRICTION METHODS
-  static async createRestriction(restrictionData: Omit<UserPremiumRestriction, 'id' | 'createdAt' | 'updatedAt'>) {
-    const { data, error } = await supabase
-      .from('user_premium_restrictions')
-      .insert({
-        user_id: restrictionData.userId,
-        restriction_type: restrictionData.restrictionType,
-        restriction_value: restrictionData.restrictionValue || {},
-        applied_by: restrictionData.appliedBy,
-        reason: restrictionData.reason,
-        expires_at: restrictionData.expiresAt,
-        is_active: restrictionData.isActive !== false
-      })
-      .select()
-      .single()
-    if (error) throw error
-    return data as UserPremiumRestriction
-  }
-
-  static async getUserRestrictions(userId: string, activeOnly = true) {
-    let query = supabase.from('user_premium_restrictions').select('*').eq('user_id', userId)
-    if (activeOnly) query = query.eq('is_active', true)
-    const { data, error } = await query
-    if (error) throw error
-    return data as UserPremiumRestriction[]
+  private static getTierFeatures(tier: PremiumTier): string[] {
+    const features: Record<PremiumTier, string[]> = {
+      BASIC: ['ad_free', 'basic_analytics'],
+      PLUS: ['ad_free', 'basic_analytics', 'priority_support', 'custom_profile'],
+      PRO: ['ad_free', 'advanced_analytics', 'priority_support', 'custom_profile', 'api_access'],
+      ELITE: ['ad_free', 'advanced_analytics', 'priority_support', 'custom_profile', 'api_access', 'white_label']
+    }
+    return features[tier]
   }
 }
