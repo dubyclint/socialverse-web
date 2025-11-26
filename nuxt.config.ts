@@ -1,4 +1,4 @@
-// nuxt.config.ts - PRODUCTION-READY CONFIGURATION
+// nuxt.config.ts - PRODUCTION-READY WITH ENVIRONMENT VARIABLES
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -25,6 +25,7 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.SUPABASE_URL || '',
       supabaseKey: process.env.SUPABASE_KEY || '',
       nodeEnv: process.env.NODE_ENV || 'production',
+      port: process.env.PORT || '8080',
     },
   },
 
@@ -58,6 +59,10 @@ export default defineNuxtConfig({
     // Optimize cold starts
     minify: true,
     sourceMap: false,
+    
+    // Set port from environment variable
+    port: parseInt(process.env.PORT || '8080', 10),
+    host: '0.0.0.0',
   },
 
   // ============================================================================
