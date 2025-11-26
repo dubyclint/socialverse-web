@@ -6,9 +6,11 @@
   "description": "SocialVerse - A modern social networking platform",
   "author": "SocialVerse Team",
   "license": "MIT",
+  "packageManager": "pnpm@9.0.0",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0",
+    "pnpm": ">=9.0.0"
   },
   "scripts": {
     "dev": "nuxt dev",
@@ -31,15 +33,16 @@
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.2",
     "@supabase/supabase-js": "^2.48.0",
-    "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-core": "^4.22.0",
-    "@tensorflow/tfjs-layers": "^4.22.0",
+    "@supabase/auth-helpers-nuxt": "^0.0.11",
     "bcrypt": "^5.1.1",
     "chart.js": "^4.5.1",
+    "compression": "^1.7.4",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.3.1",
     "emoji-js": "^3.9.0",
     "ethers": "^6.15.0",
     "gun": "^0.2020.1241",
+    "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
     "lodash-es": "^4.17.21",
@@ -54,9 +57,15 @@
     "vue-router": "^4.6.3",
     "unhead": "^2.0.19"
   },
+  "optionalDependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "@tensorflow/tfjs-layers": "^4.22.0"
+  },
   "devDependencies": {
     "@nuxt/devtools": "^1.7.0",
     "@types/bcrypt": "^5.0.2",
+    "@types/compression": "^1.7.5",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20.14.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -69,5 +78,17 @@
     "prettier": "^3.2.5",
     "typescript": "^5.5.4",
     "vitest": "^1.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@supabase/supabase-js": "^2.48.0"
+    },
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "@tensorflow/tfjs",
+        "@tensorflow/tfjs-core",
+        "@tensorflow/tfjs-layers"
+      ]
+    }
   }
 }
