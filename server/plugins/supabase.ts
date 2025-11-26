@@ -1,4 +1,4 @@
-// server/plugins/supabase.ts - SERVER PLUGIN FOR SUPABASE INITIALIZATION
+// server/plugins/supabase.ts - SERVER-SIDE SUPABASE PLUGIN
 import { createClient } from '@supabase/supabase-js'
 
 export default defineNitroPlugin((nitroApp) => {
