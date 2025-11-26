@@ -1,117 +1,132 @@
-import { supabase } from '~/server/db'
+// FILE: /server/models/chat-session.ts
+// REFACTORED: Lazy-loaded Supabase
 
-export interface ChatMessage {
-  sender: 'user' | 'agent' | 'system'
-  content: string
-  timestamp: string
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
+
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
 export interface ChatSession {
   id: string
-  sessionId: string
   userId: string
-  agentId?: string
-  startedAt: string
-  endedAt?: string
-  status: 'open' | 'closed' | 'escalated'
-  messages: ChatMessage[]
-  escalatedTo?: string
-  updatedAt: string
+  conversationId: string
+  joinedAt: string
+  leftAt?: string
+  isActive: boolean
+  lastActivityAt: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class ChatSessionModel {
-  static async create(userId: string, agentId?: string) {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  static async createSession(userId: string, conversationId: string): Promise<ChatSession> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({
+          userId,
+          conversationId,
+          joinedAt: new Date().toISOString(),
+          isActive: true,
+          lastActivityAt: new Date().toISOString()
+        })
+        .select()
+        .single()
 
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .insert([
-        {
-          session_id: sessionId,
-          user_id: userId,
-          agent_id: agentId,
-          started_at: new Date().toISOString(),
-          status: 'open',
-          messages: [],
-          updated_at: new Date().toISOString()
-        }
-      ])
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as ChatSession
+      if (error) throw error
+      return data as ChatSession
+    } catch (error) {
+      console.error('[ChatSessionModel] Error creating session:', error)
+      throw error
+    }
   }
 
-  static async getById(sessionId: string) {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('session_id', sessionId)
-      .single()
+  static async getActiveSession(userId: string, conversationId: string): Promise<ChatSession | null> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('userId', userId)
+        .eq('conversationId', conversationId)
+        .eq('isActive', true)
+        .single()
 
-    if (error && error.code !== 'PGRST116') throw error
-    return data as ChatSession | null
+      if (error) {
+        console.warn('[ChatSessionModel] Active session not found')
+        return null
+      }
+
+      return data as ChatSession
+    } catch (error) {
+      console.error('[ChatSessionModel] Error fetching session:', error)
+      throw error
+    }
   }
 
-  static async addMessage(sessionId: string, message: ChatMessage) {
-    const session = await this.getById(sessionId)
-    if (!session) throw new Error('Session not found')
+  static async endSession(sessionId: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('chat_sessions')
+        .update({
+          isActive: false,
+          leftAt: new Date().toISOString()
+        })
+        .eq('id', sessionId)
 
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .update({
-        messages: [...(session.messages || []), message],
-        updated_at: new Date().toISOString()
-      })
-      .eq('session_id', sessionId)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data as ChatSession
+      if (error) throw error
+    } catch (error) {
+      console.error('[ChatSessionModel] Error ending session:', error)
+      throw error
+    }
   }
 
-  static async closeSession(sessionId: string) {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .update({
-        status: 'closed',
-        ended_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('session_id', sessionId)
-      .select()
-      .single()
+  static async updateActivity(sessionId: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('chat_sessions')
+        .update({ lastActivityAt: new Date().toISOString() })
+        .eq('id', sessionId)
 
-    if (error) throw error
-    return data as ChatSession
+      if (error) throw error
+    } catch (error) {
+      console.error('[ChatSessionModel] Error updating activity:', error)
+      throw error
+    }
   }
 
-  static async escalateSession(sessionId: string, escalatedTo: string) {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .update({
-        status: 'escalated',
-        escalated_to: escalatedTo,
-        updated_at: new Date().toISOString()
-      })
-      .eq('session_id', sessionId)
-      .select()
-      .single()
+  static async getConversationParticipants(conversationId: string): Promise<ChatSession[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('conversationId', conversationId)
+        .eq('isActive', true)
 
-    if (error) throw error
-    return data as ChatSession
-  }
-
-  static async getUserSessions(userId: string) {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('started_at', { ascending: false })
-
-    if (error) throw error
-    return data as ChatSession[]
+      if (error) throw error
+      return (data || []) as ChatSession[]
+    } catch (error) {
+      console.error('[ChatSessionModel] Error fetching participants:', error)
+      throw error
+    }
   }
 }
