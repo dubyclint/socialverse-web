@@ -1,9 +1,10 @@
-// nitro.config.ts - COMPLETELY DISABLE PRERENDER
+// nitro.config.ts - DISABLE PRERENDER WITH FAIL ON ERROR FALSE
 export default defineNitroConfig({
   prerender: {
     crawlLinks: false,
     routes: [],
-    ignore: ['/**']
+    ignore: ['/**'],
+    failOnError: false
   },
   esbuild: {
     options: {
