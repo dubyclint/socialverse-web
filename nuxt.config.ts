@@ -1,4 +1,4 @@
-// nuxt.config.ts - HYBRID SUPABASE CONFIGURATION (UPDATED)
+// nuxt.config.ts - FINAL FIX (NO PRERENDER)
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -30,13 +30,8 @@ export default defineNuxtConfig({
     '#supabase/client': '~/composables/use-supabase.ts'
   },
   nitro: {
-    prerender: {
-      crawlLinks: false,
-      routes: ['/sitemap.xml', '/robots.txt'],
-      ignore: [
-        '/**'  // IGNORE ALL ROUTES - Disable prerender completely
-      ]
-    },
+    // Disable prerender completely - your app is fully dynamic
+    prerender: false,
     esbuild: {
       options: {
         target: 'es2022'
