@@ -1,57 +1,52 @@
-// server/models/profile-analytics.ts
-// Profile Analytics Model
+// FILE: /server/models/profile-analytics.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-export interface ProfileAnalytics {
-  id: string
-  user_id: string
-  total_views: number
-  total_followers: number
-  total_following: number
-  total_posts: number
-  total_likes_received: number
-  engagement_rate: number
-  created_at: string
-  updated_at: string
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export interface ProfileAnalytics {
+  id: string
+  userId: string
+  date: string
+  profileViews: number
+  followers: number
+  following: number
+  postsCount: number
+  engagementRate: number
+  avgLikesPerPost: number
+  avgCommentsPerPost: number
+  avgSharesPerPost: number
+  createdAt: string
+}
+
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class ProfileAnalyticsModel {
-  static async getByUserId(userId: string): Promise<ProfileAnalytics | null> {
+  static async recordDailyAnalytics(userId: string, analytics: Omit<ProfileAnalytics, 'id' | 'createdAt'>): Promise<ProfileAnalytics> {
     try {
-      const { data, error } = await supabase
-        .from('profile_analytics')
-        .select('*')
-        .eq('user_id', userId)
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-      return (data as ProfileAnalytics) || null
-    } catch (error) {
-      console.error('[ProfileAnalyticsModel] Get by user ID error:', error)
-      throw error
-    }
-  }
-
-  static async create(userId: string): Promise<ProfileAnalytics> {
-    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('profile_analytics')
         .insert({
-          user_id: userId,
-          total_views: 0,
-          total_followers: 0,
-          total_following: 0,
-          total_posts: 0,
-          total_likes_received: 0,
-          engagement_rate: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          ...analytics,
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -59,53 +54,67 @@ export class ProfileAnalyticsModel {
       if (error) throw error
       return data as ProfileAnalytics
     } catch (error) {
-      console.error('[ProfileAnalyticsModel] Create error:', error)
+      console.error('[ProfileAnalyticsModel] Error recording analytics:', error)
       throw error
     }
   }
 
-  static async incrementViews(userId: string): Promise<void> {
+  static async getAnalytics(userId: string, startDate: string, endDate: string): Promise<ProfileAnalytics[]> {
     try {
-      const analytics = await this.getByUserId(userId)
-      if (!analytics) {
-        await this.create(userId)
-        return
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('profile_analytics')
+        .select('*')
+        .eq('userId', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true })
+
+      if (error) throw error
+      return (data || []) as ProfileAnalytics[]
+    } catch (error) {
+      console.error('[ProfileAnalyticsModel] Error fetching analytics:', error)
+      throw error
+    }
+  }
+
+  static async getLatestAnalytics(userId: string): Promise<ProfileAnalytics | null> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('profile_analytics')
+        .select('*')
+        .eq('userId', userId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error) {
+        console.warn('[ProfileAnalyticsModel] No analytics found')
+        return null
       }
 
-      await supabase
-        .from('profile_analytics')
-        .update({
-          total_views: analytics.total_views + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
+      return data as ProfileAnalytics
     } catch (error) {
-      console.error('[ProfileAnalyticsModel] Increment views error:', error)
+      console.error('[ProfileAnalyticsModel] Error fetching latest analytics:', error)
       throw error
     }
   }
 
-  static async updateEngagementRate(userId: string): Promise<void> {
+  static async getGrowthMetrics(userId: string, days = 30): Promise<any> {
     try {
-      const analytics = await this.getByUserId(userId)
-      if (!analytics) return
+      const supabase = await getSupabase()
+      
+      const { data, error } = await supabase.rpc('get_profile_growth_metrics', {
+        user_id: userId,
+        days_back: days
+      })
 
-      const engagementRate = analytics.total_posts > 0
-        ? (analytics.total_likes_received / (analytics.total_posts * 100)) * 100
-        : 0
-
-      await supabase
-        .from('profile_analytics')
-        .update({
-          engagement_rate: engagementRate,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
+      if (error) throw error
+      return data
     } catch (error) {
-      console.error('[ProfileAnalyticsModel] Update engagement rate error:', error)
+      console.error('[ProfileAnalyticsModel] Error fetching growth metrics:', error)
       throw error
     }
   }
 }
-
-export default ProfileAnalyticsModel
