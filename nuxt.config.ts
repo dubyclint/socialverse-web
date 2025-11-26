@@ -1,4 +1,4 @@
-// nuxt.config.ts - SKIP PRERENDER COMPLETELY
+// nuxt.config.ts - MARK SUPABASE AS EXTERNAL
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -30,12 +30,19 @@ export default defineNuxtConfig({
     '#supabase/client': '~/composables/use-supabase.ts'
   },
   nitro: {
-    // Completely disable prerender
     prerender: {
       crawlLinks: false,
       routes: [],
       ignore: ['/**'],
       failOnError: false
+    },
+    rollupConfig: {
+      external: ['@supabase/supabase-js'],
+      output: {
+        globals: {
+          '@supabase/supabase-js': 'supabase'
+        }
+      }
     },
     esbuild: {
       options: {
