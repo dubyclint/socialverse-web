@@ -1,103 +1,115 @@
-import { supabase } from '~/server/utils/database'
+// FILE: /server/models/audit-log.ts
+// REFACTORED: Lazy-loaded Supabase
 
-export interface AuditLog {
-  id: string
-  type: string
-  userId: string
-  feature: string
-  result: 'ALLOWED' | 'DENIED'
-  reason?: string
-  context: Record<string, any>
-  policies: string[]
-  ip?: string
-  userAgent?: string
-  country?: string
-  region?: string
-  timestamp: string
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
+
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export interface AuditLog {
+  id: string
+  userId: string
+  action: string
+  resource: string
+  resourceId: string
+  changes: Record<string, any>
+  ipAddress: string
+  userAgent: string
+  status: 'SUCCESS' | 'FAILURE'
+  errorMessage?: string
+  createdAt: string
+}
+
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class AuditLogModel {
-  static async create(logData: Omit<AuditLog, 'id' | 'timestamp'>) {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .insert([
-        {
-          type: logData.type,
-          user_id: logData.userId,
-          feature: logData.feature,
-          result: logData.result,
-          reason: logData.reason,
-          context: logData.context,
-          policies: logData.policies,
-          ip: logData.ip,
-          user_agent: logData.userAgent,
-          country: logData.country,
-          region: logData.region,
-          timestamp: new Date().toISOString()
-        }
-      ])
-      .select()
-      .single()
-    if (error) throw error
-    return data as AuditLog
+  static async log(log: Omit<AuditLog, 'id' | 'createdAt'>): Promise<AuditLog> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .insert({
+          ...log,
+          createdAt: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as AuditLog
+    } catch (error) {
+      console.error('[AuditLogModel] Error logging action:', error)
+      throw error
+    }
   }
 
-  static async batchInsert(logs: Omit<AuditLog, 'id' | 'timestamp'>[]) {
-    const logsWithTimestamp = logs.map(log => ({
-      type: log.type,
-      user_id: log.userId,
-      feature: log.feature,
-      result: log.result,
-      reason: log.reason,
-      context: log.context,
-      policies: log.policies,
-      ip: log.ip,
-      user_agent: log.userAgent,
-      country: log.country,
-      region: log.region,
-      timestamp: new Date().toISOString()
-    }))
+  static async getUserLogs(userId: string, limit = 50, offset = 0): Promise<AuditLog[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false })
+        .range(offset, offset + limit - 1)
 
-    const { error } = await supabase
-      .from('audit_logs')
-      .insert(logsWithTimestamp)
-
-    if (error) throw error
+      if (error) throw error
+      return (data || []) as AuditLog[]
+    } catch (error) {
+      console.error('[AuditLogModel] Error fetching user logs:', error)
+      throw error
+    }
   }
 
-  static async getByUserId(userId: string, limit: number = 50, offset: number = 0) {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: false })
-      .range(offset, offset + limit - 1)
+  static async getResourceLogs(resource: string, resourceId: string, limit = 50): Promise<AuditLog[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('resource', resource)
+        .eq('resourceId', resourceId)
+        .order('createdAt', { ascending: false })
+        .limit(limit)
 
-    if (error) throw error
-    return data as AuditLog[]
+      if (error) throw error
+      return (data || []) as AuditLog[]
+    } catch (error) {
+      console.error('[AuditLogModel] Error fetching resource logs:', error)
+      throw error
+    }
   }
 
-  static async getByFeature(feature: string, limit: number = 50, offset: number = 0) {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .eq('feature', feature)
-      .order('timestamp', { ascending: false })
-      .range(offset, offset + limit - 1)
+  static async getFailedActions(limit = 50): Promise<AuditLog[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('status', 'FAILURE')
+        .order('createdAt', { ascending: false })
+        .limit(limit)
 
-    if (error) throw error
-    return data as AuditLog[]
-  }
-
-  static async getByDateRange(startDate: string, endDate: string) {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .gte('timestamp', startDate)
-      .lte('timestamp', endDate)
-      .order('timestamp', { ascending: false })
-
-    if (error) throw error
-    return data as AuditLog[]
+      if (error) throw error
+      return (data || []) as AuditLog[]
+    } catch (error) {
+      console.error('[AuditLogModel] Error fetching failed actions:', error)
+      throw error
+    }
   }
 }
