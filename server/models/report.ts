@@ -1,51 +1,69 @@
-// server/models/report.ts
-// Report Model - User/content reporting
+// FILE: /server/models/report.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type ReportType = 'user' | 'post' | 'comment' | 'content'
-export type ReportReason = 'spam' | 'harassment' | 'inappropriate' | 'fraud' | 'other'
-export type ReportStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed'
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type ReportReason = 'SPAM' | 'HARASSMENT' | 'INAPPROPRIATE' | 'FRAUD' | 'OTHER'
+export type ReportStatus = 'PENDING' | 'INVESTIGATING' | 'RESOLVED' | 'DISMISSED'
 
 export interface Report {
   id: string
-  reporter_id: string
-  reported_id?: string
-  report_type: ReportType
+  reporterId: string
+  reportedUserId?: string
+  reportedContentId?: string
+  contentType: 'USER' | 'POST' | 'COMMENT' | 'MESSAGE'
   reason: ReportReason
   description: string
   status: ReportStatus
-  created_at: string
-  updated_at: string
+  resolution?: string
+  createdAt: string
+  updatedAt: string
+  resolvedAt?: string
 }
 
-export interface CreateReportInput {
-  reporterId: string
-  reportedId?: string
-  reportType: ReportType
-  reason: ReportReason
-  description: string
-}
-
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class ReportModel {
-  static async create(input: CreateReportInput): Promise<Report> {
+  static async createReport(
+    reporterId: string,
+    contentType: 'USER' | 'POST' | 'COMMENT' | 'MESSAGE',
+    reason: ReportReason,
+    description: string,
+    reportedUserId?: string,
+    reportedContentId?: string
+  ): Promise<Report> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('reports')
         .insert({
-          reporter_id: input.reporterId,
-          reported_id: input.reportedId,
-          report_type: input.reportType,
-          reason: input.reason,
-          description: input.description,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          reporterId,
+          reportedUserId,
+          reportedContentId,
+          contentType,
+          reason,
+          description,
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -53,67 +71,96 @@ export class ReportModel {
       if (error) throw error
       return data as Report
     } catch (error) {
-      console.error('[ReportModel] Create error:', error)
+      console.error('[ReportModel] Error creating report:', error)
       throw error
     }
   }
 
-  static async getPending(limit: number = 50): Promise<Report[]> {
+  static async getReport(id: string): Promise<Report | null> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('reports')
         .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        console.warn('[ReportModel] Report not found')
+        return null
+      }
+
+      return data as Report
+    } catch (error) {
+      console.error('[ReportModel] Error fetching report:', error)
+      throw error
+    }
+  }
+
+  static async getPendingReports(limit = 50): Promise<Report[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('reports')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('createdAt', { ascending: true })
         .limit(limit)
 
       if (error) throw error
-      return (data as Report[]) || []
+      return (data || []) as Report[]
     } catch (error) {
-      console.error('[ReportModel] Get pending error:', error)
+      console.error('[ReportModel] Error fetching pending reports:', error)
       throw error
     }
   }
 
-  static async resolve(reportId: string): Promise<Report> {
+  static async updateReportStatus(id: string, status: ReportStatus, resolution?: string): Promise<Report> {
     try {
+      const supabase = await getSupabase()
+      const updates: any = {
+        status,
+        updatedAt: new Date().toISOString()
+      }
+
+      if (resolution) {
+        updates.resolution = resolution
+      }
+
+      if (status === 'RESOLVED') {
+        updates.resolvedAt = new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('reports')
-        .update({
-          status: 'resolved',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', reportId)
+        .update(updates)
+        .eq('id', id)
         .select()
         .single()
 
       if (error) throw error
       return data as Report
     } catch (error) {
-      console.error('[ReportModel] Resolve error:', error)
+      console.error('[ReportModel] Error updating report:', error)
       throw error
     }
   }
 
-  static async dismiss(reportId: string): Promise<Report> {
+  static async getUserReports(userId: string, limit = 50): Promise<Report[]> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('reports')
-        .update({
-          status: 'dismissed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', reportId)
-        .select()
-        .single()
+        .select('*')
+        .eq('reporterId', userId)
+        .order('createdAt', { ascending: false })
+        .limit(limit)
 
       if (error) throw error
-      return data as Report
+      return (data || []) as Report[]
     } catch (error) {
-      console.error('[ReportModel] Dismiss error:', error)
+      console.error('[ReportModel] Error fetching user reports:', error)
       throw error
     }
   }
 }
-
-export default ReportModel
