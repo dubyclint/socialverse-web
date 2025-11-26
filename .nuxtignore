@@ -1,11 +1,24 @@
-# ============================================================================
-# .nuxtignore - NUXT BUILD IGNORE CONFIGURATION
-# ============================================================================
-# Place this file at: /.nuxtignore
-# This file prevents directories from being processed during Nuxt build
+# .nuxtignore - PREVENT SERVER CODE FROM PRERENDER BUNDLING
+# This file prevents directories from being processed during Nuxt prerender
 
 # ============================================================================
-# Build Cache Directories (CRITICAL - Prevents CSS caching issues)
+# CRITICAL: Exclude all server-side code from prerender
+# ============================================================================
+server/api/**
+server/utils/**
+server/plugins/**
+server/middleware/**
+server/routes/**
+server/services/**
+server/controllers/**
+server/db/**
+server/ml/**
+server/models/**
+server/auth/**
+server/ws/**
+
+# ============================================================================
+# Build Cache Directories
 # ============================================================================
 node_modules/.cache
 .nuxt
@@ -39,15 +52,16 @@ __tests__
 docs
 README.md
 CHANGELOG.md
+LICENSE
 
 # ============================================================================
 # Configuration Files (Don't need to be processed)
 # ============================================================================
+.env
+.env.local
+.env.production
 .eslintrc.json
 .prettierrc.json
 tsconfig.json
-tailwind.config.js
-postcss.config.js
-
-# ============================================================================
-# END OF NUXTIGNORE
+vitest.config.ts
+eslint.config.js
