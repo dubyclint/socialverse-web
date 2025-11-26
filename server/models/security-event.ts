@@ -1,45 +1,70 @@
-// server/models/security-event.ts
-// Security Event Model - Track security events
+// FILE: /server/models/security-event.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type EventType = 'login' | 'logout' | 'password_change' | 'email_change' | 'suspicious_activity' | 'failed_login'
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type SecurityEventType = 'LOGIN' | 'LOGOUT' | 'PASSWORD_CHANGE' | 'FAILED_LOGIN' | 'SUSPICIOUS_ACTIVITY' | 'DEVICE_ADDED'
 
 export interface SecurityEvent {
   id: string
-  user_id: string
-  event_type: EventType
-  ip_address: string
-  user_agent: string
-  description: string
-  created_at: string
-}
-
-export interface CreateSecurityEventInput {
   userId: string
-  eventType: EventType
+  eventType: SecurityEventType
   ipAddress: string
   userAgent: string
+  location?: string
+  deviceInfo?: Record<string, any>
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   description: string
+  acknowledged: boolean
+  createdAt: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class SecurityEventModel {
-  static async create(input: CreateSecurityEventInput): Promise<SecurityEvent> {
+  static async recordEvent(
+    userId: string,
+    eventType: SecurityEventType,
+    ipAddress: string,
+    userAgent: string,
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    description: string,
+    location?: string,
+    deviceInfo?: Record<string, any>
+  ): Promise<SecurityEvent> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('security_events')
         .insert({
-          user_id: input.userId,
-          event_type: input.eventType,
-          ip_address: input.ipAddress,
-          user_agent: input.userAgent,
-          description: input.description,
-          created_at: new Date().toISOString()
+          userId,
+          eventType,
+          ipAddress,
+          userAgent,
+          location,
+          deviceInfo,
+          severity,
+          description,
+          acknowledged: false,
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -47,48 +72,80 @@ export class SecurityEventModel {
       if (error) throw error
       return data as SecurityEvent
     } catch (error) {
-      console.error('[SecurityEventModel] Create error:', error)
+      console.error('[SecurityEventModel] Error recording event:', error)
       throw error
     }
   }
 
-  static async getUserEvents(userId: string, limit: number = 50): Promise<SecurityEvent[]> {
+  static async getUserEvents(userId: string, limit = 50, offset = 0): Promise<SecurityEvent[]> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('security_events')
         .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (error) throw error
+      return (data || []) as SecurityEvent[]
+    } catch (error) {
+      console.error('[SecurityEventModel] Error fetching user events:', error)
+      throw error
+    }
+  }
+
+  static async getUnacknowledgedEvents(userId: string): Promise<SecurityEvent[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('security_events')
+        .select('*')
+        .eq('userId', userId)
+        .eq('acknowledged', false)
+        .order('createdAt', { ascending: false })
+
+      if (error) throw error
+      return (data || []) as SecurityEvent[]
+    } catch (error) {
+      console.error('[SecurityEventModel] Error fetching unacknowledged events:', error)
+      throw error
+    }
+  }
+
+  static async acknowledgeEvent(id: string): Promise<SecurityEvent> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('security_events')
+        .update({ acknowledged: true })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as SecurityEvent
+    } catch (error) {
+      console.error('[SecurityEventModel] Error acknowledging event:', error)
+      throw error
+    }
+  }
+
+  static async getCriticalEvents(limit = 20): Promise<SecurityEvent[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('security_events')
+        .select('*')
+        .eq('severity', 'CRITICAL')
+        .order('createdAt', { ascending: false })
         .limit(limit)
 
       if (error) throw error
-      return (data as SecurityEvent[]) || []
+      return (data || []) as SecurityEvent[]
     } catch (error) {
-      console.error('[SecurityEventModel] Get user events error:', error)
-      throw error
-    }
-  }
-
-  static async getRecentSuspiciousActivity(userId: string, hours: number = 24): Promise<SecurityEvent[]> {
-    try {
-      const cutoffTime = new Date()
-      cutoffTime.setHours(cutoffTime.getHours() - hours)
-
-      const { data, error } = await supabase
-        .from('security_events')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('event_type', 'suspicious_activity')
-        .gt('created_at', cutoffTime.toISOString())
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return (data as SecurityEvent[]) || []
-    } catch (error) {
-      console.error('[SecurityEventModel] Get recent suspicious activity error:', error)
+      console.error('[SecurityEventModel] Error fetching critical events:', error)
       throw error
     }
   }
 }
-
-export default SecurityEventModel
