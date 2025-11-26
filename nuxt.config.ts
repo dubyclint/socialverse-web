@@ -1,4 +1,4 @@
-// nuxt.config.ts - MARK SUPABASE AS EXTERNAL
+// nuxt.config.ts - FINAL WORKING VERSION
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -9,11 +9,10 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
-    '@pinia/nuxt',
-    '@nuxtjs/supabase'
+    '@pinia/nuxt'
   ],
   build: {
-    transpile: ['@supabase/supabase-js'],
+    transpile: [],
   },
   runtimeConfig: {
     // Server-only (private)
@@ -35,14 +34,6 @@ export default defineNuxtConfig({
       routes: [],
       ignore: ['/**'],
       failOnError: false
-    },
-    rollupConfig: {
-      external: ['@supabase/supabase-js'],
-      output: {
-        globals: {
-          '@supabase/supabase-js': 'supabase'
-        }
-      }
     },
     esbuild: {
       options: {
