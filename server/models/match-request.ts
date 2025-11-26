@@ -1,48 +1,56 @@
-// server/models/match-request.ts
-// Match Request Model - User matching system
+// FILE: /server/models/match-request.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type MatchStatus = 'pending' | 'accepted' | 'rejected' | 'expired'
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type MatchRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED'
 
 export interface MatchRequest {
   id: string
-  requester_id: string
-  recipient_id: string
-  status: MatchStatus
+  senderId: string
+  receiverId: string
+  status: MatchRequestStatus
   message?: string
-  created_at: string
-  updated_at: string
-  expires_at: string
+  expiresAt: string
+  respondedAt?: string
+  createdAt: string
 }
 
-export interface CreateMatchRequestInput {
-  requesterId: string
-  recipientId: string
-  message?: string
-}
-
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class MatchRequestModel {
-  static async create(input: CreateMatchRequestInput): Promise<MatchRequest> {
+  static async sendRequest(senderId: string, receiverId: string, message?: string): Promise<MatchRequest> {
     try {
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 7)
+      const supabase = await getSupabase()
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
 
       const { data, error } = await supabase
         .from('match_requests')
         .insert({
-          requester_id: input.requesterId,
-          recipient_id: input.recipientId,
-          message: input.message,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          expires_at: expiresAt.toISOString()
+          senderId,
+          receiverId,
+          message,
+          status: 'PENDING',
+          expiresAt,
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -50,86 +58,93 @@ export class MatchRequestModel {
       if (error) throw error
       return data as MatchRequest
     } catch (error) {
-      console.error('[MatchRequestModel] Create error:', error)
+      console.error('[MatchRequestModel] Error sending request:', error)
       throw error
     }
   }
 
-  static async accept(matchId: string): Promise<MatchRequest> {
+  static async getRequest(id: string): Promise<MatchRequest | null> {
     try {
-      const { data, error } = await supabase
-        .from('match_requests')
-        .update({
-          status: 'accepted',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', matchId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as MatchRequest
-    } catch (error) {
-      console.error('[MatchRequestModel] Accept error:', error)
-      throw error
-    }
-  }
-
-  static async reject(matchId: string): Promise<MatchRequest> {
-    try {
-      const { data, error } = await supabase
-        .from('match_requests')
-        .update({
-          status: 'rejected',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', matchId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as MatchRequest
-    } catch (error) {
-      console.error('[MatchRequestModel] Reject error:', error)
-      throw error
-    }
-  }
-
-  static async getPending(recipientId: string, limit: number = 50): Promise<MatchRequest[]> {
-    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('match_requests')
         .select('*')
-        .eq('recipient_id', recipientId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(limit)
+        .eq('id', id)
+        .single()
 
-      if (error) throw error
-      return (data as MatchRequest[]) || []
+      if (error) {
+        console.warn('[MatchRequestModel] Request not found')
+        return null
+      }
+
+      return data as MatchRequest
     } catch (error) {
-      console.error('[MatchRequestModel] Get pending error:', error)
+      console.error('[MatchRequestModel] Error fetching request:', error)
       throw error
     }
   }
 
-  static async getAccepted(userId: string, limit: number = 50): Promise<MatchRequest[]> {
+  static async getUserRequests(userId: string, status?: MatchRequestStatus): Promise<MatchRequest[]> {
     try {
+      const supabase = await getSupabase()
+      let query = supabase
+        .from('match_requests')
+        .select('*')
+        .eq('receiverId', userId)
+
+      if (status) {
+        query = query.eq('status', status)
+      }
+
+      const { data, error } = await query.order('createdAt', { ascending: false })
+
+      if (error) throw error
+      return (data || []) as MatchRequest[]
+    } catch (error) {
+      console.error('[MatchRequestModel] Error fetching requests:', error)
+      throw error
+    }
+  }
+
+  static async respondToRequest(id: string, status: 'ACCEPTED' | 'REJECTED'): Promise<MatchRequest> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('match_requests')
+        .update({
+          status,
+          respondedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as MatchRequest
+    } catch (error) {
+      console.error('[MatchRequestModel] Error responding to request:', error)
+      throw error
+    }
+  }
+
+  static async getPendingRequests(userId: string): Promise<MatchRequest[]> {
+    try {
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
       const { data, error } = await supabase
         .from('match_requests')
         .select('*')
-        .or(`requester_id.eq.${userId},recipient_id.eq.${userId}`)
-        .eq('status', 'accepted')
-        .order('created_at', { ascending: false })
-        .limit(limit)
+        .eq('receiverId', userId)
+        .eq('status', 'PENDING')
+        .gt('expiresAt', now)
+        .order('createdAt', { ascending: false })
 
       if (error) throw error
-      return (data as MatchRequest[]) || []
+      return (data || []) as MatchRequest[]
     } catch (error) {
-      console.error('[MatchRequestModel] Get accepted error:', error)
+      console.error('[MatchRequestModel] Error fetching pending requests:', error)
       throw error
     }
   }
 }
-
-export default MatchRequestModel
