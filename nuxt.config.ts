@@ -1,5 +1,4 @@
-
-// nuxt.config.ts - HYBRID SUPABASE CONFIGURATION
+// nuxt.config.ts - HYBRID SUPABASE CONFIGURATION (UPDATED)
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -35,30 +34,7 @@ export default defineNuxtConfig({
       crawlLinks: false,
       routes: ['/sitemap.xml', '/robots.txt'],
       ignore: [
-        '/admin/**',
-        '/api/**',
-        '/follows/**',
-        '/stream/**',
-        '/posts/**',
-        '/profile/**',
-        '/user/**',
-        '/notifications/**',
-        '/chat/**',
-        '/group-chat/**',
-        '/match/**',
-        '/wallet-lock/**',
-        '/premium/**',
-        '/verified/**',
-        '/rank/**',
-        '/status/**',
-        '/presence/**',
-        '/universe/**',
-        '/support/**',
-        '/storage/**',
-        '/ads/**',
-        '/escrow/**',
-        '/pewgift/**',
-        '/interests/**'
+        '/**'  // IGNORE ALL ROUTES - Disable prerender completely
       ]
     },
     esbuild: {
