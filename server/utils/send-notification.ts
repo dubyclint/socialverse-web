@@ -1,11 +1,16 @@
-import { db } from './database';
+// FILE: /server/utils/send-notification.ts - UPDATED
+// ============================================================================
+
+import { dbAdmin } from './database'
+
 export async function sendNotification(
   userId: string, 
   type: 'filter' | 'rematch' | 'group' | 'match' | 'system', 
   message: string
 ): Promise<void> {
   try {
-    const supabase = await db();
+    // ✅ NOW USE ASYNC FUNCTION
+    const supabase = await dbAdmin()
     
     const { error } = await supabase
       .from('notifications')
@@ -15,14 +20,16 @@ export async function sendNotification(
         message,
         timestamp: new Date().toISOString(),
         read: false
-      });
+      })
       
     if (error) {
-      console.error('Failed to send notification:', error);
-      throw error;
+      console.error('Failed to send notification:', error.message)
+      throw error
     }
+
+    console.log(`[Notification] Sent to user ${userId}`)
   } catch (error) {
-    console.error('Error sending notification:', error);
-    throw error;
+    console.error('[Notification] Error:', error)
+    throw error
   }
 }
