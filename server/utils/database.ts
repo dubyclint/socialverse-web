@@ -1,26 +1,7 @@
-// FILE: /server/utils/database.ts - COMPLETE REWRITE
+// FILE: /server/utils/database.ts
 // ============================================================================
-// CENTRALIZED SUPABASE DATABASE CLIENT - FULLY LAZY LOADED
-// ============================================================================
-
-// ============================================================================
-// ENVIRONMENT VARIABLES
-// ============================================================================
-const SUPABASE_URL = process.env.SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || ''
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY
-
-// ============================================================================
-// VALIDATION
-// ============================================================================
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('⚠️ WARNING: Supabase credentials not fully configured')
-  console.warn('  - SUPABASE_URL:', SUPABASE_URL ? '✓ Set' : '✗ Missing')
-  console.warn('  - SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing')
-}
-
-// ============================================================================
-// LAZY CLIENT INSTANCES - ONLY CREATED ON FIRST USE
+// INTERNAL SUPABASE CLIENT - DO NOT IMPORT AT TOP LEVEL
+// This file is ONLY for internal use within plugins
 // ============================================================================
 
 let supabaseInstance: any = null
@@ -28,7 +9,7 @@ let supabaseAdminInstance: any = null
 
 /**
  * Get or create the Supabase client (lazy loading)
- * This prevents bundling issues by deferring the import until needed
+ * INTERNAL USE ONLY - Called from plugins, not from API routes
  */
 export async function getSupabaseClient() {
   if (supabaseInstance) {
@@ -36,10 +17,16 @@ export async function getSupabaseClient() {
   }
 
   try {
-    // Dynamic import to avoid bundling issues
     const { createClient } = await import('@supabase/supabase-js')
     
-    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const supabaseUrl = process.env.SUPABASE_URL || ''
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || ''
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_KEY')
+    }
+
+    supabaseInstance = createClient(supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: false,
@@ -50,13 +37,13 @@ export async function getSupabaseClient() {
     return supabaseInstance
   } catch (error) {
     console.error('[Database] Failed to load Supabase client:', error)
-    throw new Error('Supabase client initialization failed')
+    throw error
   }
 }
 
 /**
- * Get or create the Supabase admin client (service role)
- * This prevents bundling issues by deferring the import until needed
+ * Get or create the Supabase admin client (lazy loading)
+ * INTERNAL USE ONLY - Called from plugins, not from API routes
  */
 export async function getSupabaseAdminClient() {
   if (supabaseAdminInstance) {
@@ -64,10 +51,16 @@ export async function getSupabaseAdminClient() {
   }
 
   try {
-    // Dynamic import to avoid bundling issues
     const { createClient } = await import('@supabase/supabase-js')
     
-    supabaseAdminInstance = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    const supabaseUrl = process.env.SUPABASE_URL || ''
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY')
+    }
+
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -78,48 +71,10 @@ export async function getSupabaseAdminClient() {
     return supabaseAdminInstance
   } catch (error) {
     console.error('[Database] Failed to load Supabase admin client:', error)
-    throw new Error('Supabase admin client initialization failed')
+    throw error
   }
 }
 
-/**
- * Convenience wrapper for getting the client
- * Use this in your API routes
- */
-export async function db() {
-  return getSupabaseClient()
-}
-
-/**
- * Convenience wrapper for getting the admin client
- * Use this in your API routes that need admin access
- */
-export async function dbAdmin() {
-  return getSupabaseAdminClient()
-}
-
-/**
- * Type-safe query builder
- * Usage: const result = await query('users').select('*')
- */
-export async function query(table: string) {
-  const client = await getSupabaseClient()
-  return client.from(table)
-}
-
-/**
- * Type-safe admin query builder
- * Usage: const result = await queryAdmin('users').select('*')
- */
-export async function queryAdmin(table: string) {
-  const client = await getSupabaseAdminClient()
-  return client.from(table)
-}
-
-/**
- * Execute RPC function
- */
-export async function rpc(functionName: string, params?: Record<string, any>) {
-  const client = await getSupabaseAdminClient()
-  return client.rpc(functionName, params)
-}
+// ============================================================================
+// DO NOT EXPORT ANYTHING ELSE - NO PROXY, NO DIRECT EXPORTS
+// ============================================================================
