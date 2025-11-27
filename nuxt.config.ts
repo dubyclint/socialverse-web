@@ -1,4 +1,4 @@
-// nuxt.config.ts - COMPLETE VERSION WITH SSR DISABLED AND PRERENDER
+// nuxt.config.ts - COMPLETE VERSION WITH PROPER PRERENDER FOR PUBLIC INDEX
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -31,7 +31,7 @@ export default defineNuxtConfig({
     preset: 'node-server',
     prerender: {
       crawlLinks: true,
-      routes: ['/'],
+      routes: ['/', '/login'],
       ignore: [],
       failOnError: false
     },
