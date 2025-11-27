@@ -1,52 +1,68 @@
-// server/models/swap-transaction.ts
-// Swap Transaction Model
+// FILE: /server/models/swap-transaction.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-export type SwapStatus = 'pending' | 'completed' | 'failed' | 'cancelled'
-
-export interface SwapTransaction {
-  id: string
-  user_id: string
-  from_currency: string
-  to_currency: string
-  from_amount: number
-  to_amount: number
-  exchange_rate: number
-  status: SwapStatus
-  created_at: string
-  updated_at: string
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
-export interface CreateSwapInput {
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export interface SwapTransaction {
+  id: string
   userId: string
-  fromCurrency: string
-  toCurrency: string
+  fromToken: string
+  toToken: string
   fromAmount: number
   toAmount: number
   exchangeRate: number
+  fee: number
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  transactionHash?: string
+  errorMessage?: string
+  createdAt: string
+  completedAt?: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class SwapTransactionModel {
-  static async create(input: CreateSwapInput): Promise<SwapTransaction> {
+  static async createSwap(
+    userId: string,
+    fromToken: string,
+    toToken: string,
+    fromAmount: number,
+    toAmount: number,
+    exchangeRate: number,
+    fee: number
+  ): Promise<SwapTransaction> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('swap_transactions')
         .insert({
-          user_id: input.userId,
-          from_currency: input.fromCurrency,
-          to_currency: input.toCurrency,
-          from_amount: input.fromAmount,
-          to_amount: input.toAmount,
-          exchange_rate: input.exchangeRate,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          userId,
+          fromToken,
+          toToken,
+          fromAmount,
+          toAmount,
+          exchangeRate,
+          fee,
+          status: 'PENDING',
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -54,67 +70,112 @@ export class SwapTransactionModel {
       if (error) throw error
       return data as SwapTransaction
     } catch (error) {
-      console.error('[SwapTransactionModel] Create error:', error)
+      console.error('[SwapTransactionModel] Error creating swap:', error)
       throw error
     }
   }
 
-  static async complete(swapId: string): Promise<SwapTransaction> {
+  static async getSwap(id: string): Promise<SwapTransaction | null> {
     try {
-      const { data, error } = await supabase
-        .from('swap_transactions')
-        .update({
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', swapId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as SwapTransaction
-    } catch (error) {
-      console.error('[SwapTransactionModel] Complete error:', error)
-      throw error
-    }
-  }
-
-  static async fail(swapId: string): Promise<SwapTransaction> {
-    try {
-      const { data, error } = await supabase
-        .from('swap_transactions')
-        .update({
-          status: 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', swapId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as SwapTransaction
-    } catch (error) {
-      console.error('[SwapTransactionModel] Fail error:', error)
-      throw error
-    }
-  }
-
-  static async getUserSwaps(userId: string, limit: number = 50): Promise<SwapTransaction[]> {
-    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('swap_transactions')
         .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit)
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        console.warn('[SwapTransactionModel] Swap not found')
+        return null
+      }
+
+      return data as SwapTransaction
+    } catch (error) {
+      console.error('[SwapTransactionModel] Error fetching swap:', error)
+      throw error
+    }
+  }
+
+  static async getUserSwaps(userId: string, limit = 50, offset = 0): Promise<SwapTransaction[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('swap_transactions')
+        .select('*')
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false })
+        .range(offset, offset + limit - 1)
 
       if (error) throw error
-      return (data as SwapTransaction[]) || []
+      return (data || []) as SwapTransaction[]
     } catch (error) {
-      console.error('[SwapTransactionModel] Get user swaps error:', error)
+      console.error('[SwapTransactionModel] Error fetching user swaps:', error)
+      throw error
+    }
+  }
+
+  static async completeSwap(id: string, transactionHash: string): Promise<SwapTransaction> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('swap_transactions')
+        .update({
+          status: 'COMPLETED',
+          transactionHash,
+          completedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as SwapTransaction
+    } catch (error) {
+      console.error('[SwapTransactionModel] Error completing swap:', error)
+      throw error
+    }
+  }
+
+  static async failSwap(id: string, errorMessage: string): Promise<SwapTransaction> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('swap_transactions')
+        .update({
+          status: 'FAILED',
+          errorMessage,
+          completedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as SwapTransaction
+    } catch (error) {
+      console.error('[SwapTransactionModel] Error failing swap:', error)
+      throw error
+    }
+  }
+
+  static async cancelSwap(id: string): Promise<SwapTransaction> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('swap_transactions')
+        .update({
+          status: 'CANCELLED',
+          completedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as SwapTransaction
+    } catch (error) {
+      console.error('[SwapTransactionModel] Error cancelling swap:', error)
       throw error
     }
   }
 }
-
-export default SwapTransactionModel
