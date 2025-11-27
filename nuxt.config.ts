@@ -1,4 +1,4 @@
-// nuxt.config.ts - COMPLETE FIXED VERSION
+// nuxt.config.ts - COMPLETE FIXED VERSION WITH VITE SSR EXTERNAL
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -57,17 +57,17 @@ export default defineNuxtConfig({
     define: {
       __DEV__: false,
     },
+    ssr: {
+      external: [
+        '@supabase/supabase-js',
+        '@supabase/auth-js',
+        '@supabase/postgrest-js',
+        '@supabase/realtime-js',
+        '@supabase/storage-js',
+        '@supabase/functions-js'
+      ]
+    },
     build: {
-      rollupOptions: {
-        external: [
-          '@supabase/supabase-js',
-          '@supabase/auth-js',
-          '@supabase/postgrest-js',
-          '@supabase/realtime-js',
-          '@supabase/storage-js',
-          '@supabase/functions-js'
-        ]
-      },
       minify: 'terser',
       terserOptions: {
         compress: {
