@@ -1,8 +1,14 @@
-// server/api/controllers/match.js
-import { supabase } from '~/server/utils/database';
+// FILE: /server/api/controllers/match.js
+// REFACTORED: Using lazy-loaded models
+
+import * as MatchRequest from '~/server/models/match-request'
+import * as Profile from '~/server/models/profile'
 
 export class MatchController {
-  // Create match request
+  /**
+   * Create match request
+   * ✅ Lazy-loaded: Supabase only loads when this method is called
+   */
   static async createMatchRequest(req, res) {
     try {
       const {
@@ -15,84 +21,135 @@ export class MatchController {
         activity_type,
         message,
         budget_range
-      } = req.body;
+      } = req.body
 
       if (requester_id === target_user_id) {
-        return res.status(400).json({ error: 'Cannot send match request to yourself' });
+        return res.status(400).json({
+          error: 'Cannot send match request to yourself'
+        })
       }
 
-      // Check if there's already a pending match request between these users
-      const { data: existingRequest, error: checkError } = await supabase
-        .from('match_requests')
-        .select('id, status')
-        .or(`and(requester_id.eq.${requester_id},target_user_id.eq.${target_user_id}),and(requester_id.eq.${target_user_id},target_user_id.eq.${requester_id})`)
-        .eq('status', 'pending')
-        .single();
+      // Check if there's already a pending match request
+      const existingRequest = await MatchRequest.findPendingBetweenUsers(
+        requester_id,
+        target_user_id
+      )
 
       if (existingRequest) {
-        return res.status(400).json({ error: 'Match request already exists' });
+        return res.status(400).json({
+          error: 'Match request already exists between these users'
+        })
+      }
+
+      // Verify target user exists
+      const targetProfile = await Profile.findById(target_user_id)
+
+      if (!targetProfile) {
+        return res.status(404).json({ error: 'Target user not found' })
       }
 
       // Create match request
-      const { data: matchRequest, error } = await supabase
-        .from('match_requests')
-        .insert({
-          requester_id,
-          target_user_id,
-          match_type,
-          location,
-          preferred_date,
-          preferred_time,
-          activity_type,
-          message,
-          budget_range,
-          status: 'pending',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const matchRequest = await MatchRequest.create({
+        requester_id,
+        target_user_id,
+        match_type,
+        location,
+        preferred_date,
+        preferred_time,
+        activity_type,
+        message,
+        budget_range,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      })
 
       return res.status(201).json({
         success: true,
         message: 'Match request created successfully',
         data: matchRequest
-      });
+      })
     } catch (error) {
-      console.error('Error creating match request:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Error creating match request:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to create match request'
+      })
     }
   }
 
-  // Get match requests
-  static async getMatchRequests(req, res) {
+  /**
+   * Accept match request
+   */
+  static async acceptMatchRequest(req, res) {
     try {
-      const { user_id, status } = req.query;
+      const { request_id } = req.params
 
-      let query = supabase
-        .from('match_requests')
-        .select('*');
+      const matchRequest = await MatchRequest.findById(request_id)
 
-      if (user_id) {
-        query = query.or(`requester_id.eq.${user_id},target_user_id.eq.${user_id}`);
+      if (!matchRequest) {
+        return res.status(404).json({ error: 'Match request not found' })
       }
 
-      if (status) {
-        query = query.eq('status', status);
+      if (matchRequest.status !== 'pending') {
+        return res.status(400).json({
+          error: 'Only pending requests can be accepted'
+        })
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
+      const updatedRequest = await MatchRequest.update(request_id, {
+        status: 'accepted',
+        accepted_at: new Date().toISOString()
+      })
 
       return res.status(200).json({
         success: true,
-        data
-      });
+        message: 'Match request accepted',
+        data: updatedRequest
+      })
     } catch (error) {
-      console.error('Error fetching match requests:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Error accepting match request:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to accept match request'
+      })
+    }
+  }
+
+  /**
+   * Reject match request
+   */
+  static async rejectMatchRequest(req, res) {
+    try {
+      const { request_id } = req.params
+
+      const matchRequest = await MatchRequest.findById(request_id)
+
+      if (!matchRequest) {
+        return res.status(404).json({ error: 'Match request not found' })
+      }
+
+      if (matchRequest.status !== 'pending') {
+        return res.status(400).json({
+          error: 'Only pending requests can be rejected'
+        })
+      }
+
+      const updatedRequest = await MatchRequest.update(request_id, {
+        status: 'rejected',
+        rejected_at: new Date().toISOString()
+      })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Match request rejected',
+        data: updatedRequest
+      })
+    } catch (error) {
+      console.error('Error rejecting match request:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to reject match request'
+      })
     }
   }
 }
