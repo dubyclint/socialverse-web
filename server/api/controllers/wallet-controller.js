@@ -1,101 +1,159 @@
-// controllers/escrowController.js - Escrow Controller for Supabase/PostgreSQL
-import { supabase } from '~/server/utils/database';
+// FILE: /server/api/controllers/wallet-controller.js
+// REFACTORED: Using lazy-loaded models
 
-export class EscrowController {
-  // Create escrow deal
-  static async createEscrow(req, res) {
+import * as UserWallet from '~/server/models/user-wallet'
+
+export class WalletController {
+  /**
+   * Create wallet
+   * ✅ Lazy-loaded: Supabase only loads when this method is called
+   */
+  static async createWallet(req, res) {
     try {
       const {
-        buyer_id,
-        seller_id,
-        trade_id,
-        amount,
-        currency,
-        terms,
-        auto_release_hours,
-        description
-      } = req.body;
+        user_id,
+        wallet_address,
+        chain_id,
+        currency
+      } = req.body
 
-      if (buyer_id === seller_id) {
-        return res.status(400).json({ error: 'Buyer and seller cannot be the same user' });
-      }
+      // Check if wallet already exists
+      const existingWallet = await UserWallet.findByUserAndCurrency(
+        user_id,
+        currency
+      )
 
-      // Verify buyer has sufficient balance
-      const { data: buyerWallet, error: walletError } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', buyer_id)
-        .eq('currency_code', currency)
-        .single();
-
-      if (walletError) throw walletError;
-
-      if (parseFloat(buyerWallet.balance) < parseFloat(amount)) {
-        return res.status(400).json({ error: 'Insufficient balance to create escrow' });
-      }
-
-      // Create escrow record
-      const { data: escrow, error } = await supabase
-        .from('escrow_deals')
-        .insert({
-          buyer_id,
-          seller_id,
-          trade_id,
-          amount,
-          currency,
-          terms,
-          auto_release_hours,
-          description,
-          status: 'pending',
-          created_at: new Date().toISOString()
+      if (existingWallet) {
+        return res.status(400).json({
+          error: 'Wallet already exists for this currency'
         })
-        .select()
-        .single();
+      }
 
-      if (error) throw error;
+      const wallet = await UserWallet.create({
+        user_id,
+        wallet_address,
+        chain_id,
+        currency,
+        balance: 0,
+        locked_balance: 0,
+        is_verified: false,
+        is_primary: false,
+        created_at: new Date().toISOString()
+      })
 
       return res.status(201).json({
         success: true,
-        message: 'Escrow deal created successfully',
-        data: escrow
-      });
+        message: 'Wallet created successfully',
+        data: wallet
+      })
     } catch (error) {
-      console.error('Error creating escrow:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Error creating wallet:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to create wallet'
+      })
     }
   }
 
-  // Release escrow funds
-  static async releaseEscrow(req, res) {
+  /**
+   * Get user wallets
+   */
+  static async getUserWallets(req, res) {
     try {
-      const { escrow_id } = req.body;
+      const { user_id } = req.params
 
-      const { data: escrow, error: fetchError } = await supabase
-        .from('escrow_deals')
-        .select('*')
-        .eq('id', escrow_id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Update escrow status
-      const { data: updated, error } = await supabase
-        .from('escrow_deals')
-        .update({ status: 'released', released_at: new Date().toISOString() })
-        .eq('id', escrow_id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const wallets = await UserWallet.findByUserId(user_id)
 
       return res.status(200).json({
         success: true,
-        message: 'Escrow funds released successfully',
-        data: updated
-      });
+        data: wallets
+      })
     } catch (error) {
-      console.error('Error releasing escrow:', error);
-      return res.status(500).json({ error: error.message });
+      console.error('Error fetching wallets:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch wallets'
+      })
+    }
+  }
+
+  /**
+   * Get wallet by currency
+   */
+  static async getWalletByCurrency(req, res) {
+    try {
+      const { user_id, currency } = req.params
+
+      const wallet = await UserWallet.findByUserAndCurrency(user_id, currency)
+
+      if (!wallet) {
+        return res.status(404).json({ error: 'Wallet not found' })
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: wallet
+      })
+    } catch (error) {
+      console.error('Error fetching wallet:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to fetch wallet'
+      })
+    }
+  }
+
+  /**
+   * Update wallet balance
+   */
+  static async updateWalletBalance(req, res) {
+    try {
+      const { user_id, currency } = req.params
+      const { balance, locked_balance } = req.body
+
+      const wallet = await UserWallet.updateBalance(user_id, currency, {
+        balance,
+        locked_balance,
+        updated_at: new Date().toISOString()
+      })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Wallet balance updated successfully',
+        data: wallet
+      })
+    } catch (error) {
+      console.error('Error updating wallet balance:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to update wallet balance'
+      })
+    }
+  }
+
+  /**
+   * Verify wallet
+   */
+  static async verifyWallet(req, res) {
+    try {
+      const { wallet_id } = req.params
+
+      const wallet = await UserWallet.update(wallet_id, {
+        is_verified: true,
+        verified_at: new Date().toISOString()
+      })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Wallet verified successfully',
+        data: wallet
+      })
+    } catch (error) {
+      console.error('Error verifying wallet:', error)
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to verify wallet'
+      })
     }
   }
 }
