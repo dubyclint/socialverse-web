@@ -1,16 +1,19 @@
-// FILE: /server/utils/send-notification.ts - UPDATED
+// FILE: /server/utils/send-notification.ts
+// ============================================================================
+// SEND NOTIFICATION UTILITY - Updated to use H3 context
 // ============================================================================
 
-import { dbAdmin } from './database'
+import type { H3Event } from 'h3'
+import { getDBAdmin } from './db-helpers'
 
 export async function sendNotification(
+  event: H3Event,
   userId: string, 
   type: 'filter' | 'rematch' | 'group' | 'match' | 'system', 
   message: string
 ): Promise<void> {
   try {
-    // ✅ NOW USE ASYNC FUNCTION
-    const supabase = await dbAdmin()
+    const supabase = await getDBAdmin(event)
     
     const { error } = await supabase
       .from('notifications')
