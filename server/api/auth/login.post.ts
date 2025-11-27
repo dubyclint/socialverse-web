@@ -1,7 +1,7 @@
-// FILE: /server/api/auth/login.post.ts - UPDATED WITH CONSOLIDATED DB
+// FILE: /server/api/auth/login.post.ts - UPDATED
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { db } from '~/server/utils/database'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
@@ -13,44 +13,49 @@ export default defineEventHandler(async (event) => {
     let body: any
     try {
       body = await readBody(event)
-    } catch (e) {
-      console.error('[Login] Body parse error:', e)
-      setResponseStatus(event, 400)
-      return { success: false, message: 'Invalid request body' }
+    } catch (error) {
+      return sendError(event, createError({
+        statusCode: 400,
+        statusMessage: 'Invalid request body'
+      }))
     }
 
-    const { email, password } = body || {}
+    const { email, password } = body
 
     if (!email || !password) {
-      console.log('[Login] Missing credentials')
-      setResponseStatus(event, 400)
-      return { success: false, message: 'Email and password are required' }
+      return sendError(event, createError({
+        statusCode: 400,
+        statusMessage: 'Email and password are required'
+      }))
     }
 
-    // Use consolidated Supabase client
+    // ✅ NOW USE ASYNC FUNCTION
+    const supabase = await db()
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password,
+      password
     })
 
     if (error) {
       console.error('[Login] Auth error:', error.message)
-      setResponseStatus(event, 401)
-      return { success: false, message: error.message }
+      return sendError(event, createError({
+        statusCode: 401,
+        statusMessage: error.message
+      }))
     }
 
     console.log('[Login] ========== SUCCESS ==========')
     return {
       success: true,
       user: data.user,
-      session: data.session,
+      session: data.session
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Login] Unexpected error:', error)
-    setResponseStatus(event, 500)
-    return {
-      success: false,
-      message: error.message || 'Login failed',
-    }
+    return sendError(event, createError({
+      statusCode: 500,
+      statusMessage: 'Internal server error'
+    }))
   }
 })
