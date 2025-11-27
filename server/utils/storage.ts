@@ -1,34 +1,26 @@
-// server/utils/storage.ts - LAZY LOADED SUPABASE
+// FILE: /server/utils/storage.ts
 // ============================================================================
-// STORAGE UTILITY - File upload, download, and management
-// Supabase is now lazy-loaded to prevent bundling issues
+// STORAGE UTILITY - Updated to use lazy loading
 // ============================================================================
 
+import type { H3Event } from 'h3'
 import sharp from 'sharp'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { getDBAdmin } from './db-helpers'
 
 let supabaseInstance: any = null
 
 /**
  * Lazy load Supabase client
  */
-async function getSupabaseClient() {
+async function getSupabaseClient(event: H3Event) {
   if (supabaseInstance) {
     return supabaseInstance
   }
 
   try {
-    const { createClient } = await import('@supabase/supabase-js')
-    
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_KEY')
-    }
-
-    supabaseInstance = createClient(supabaseUrl, supabaseKey)
+    supabaseInstance = await getDBAdmin(event)
     return supabaseInstance
   } catch (error) {
     console.error('[Storage] Failed to load Supabase client:', error)
@@ -40,17 +32,18 @@ async function getSupabaseClient() {
  * Upload file to Supabase storage
  */
 export async function uploadFile(
+  event: H3Event,
   bucket: string,
-  path: string,
+  filePath: string,
   file: Buffer | Blob,
   contentType?: string
 ) {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await getSupabaseClient(event)
     
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
+      .upload(filePath, file, {
         contentType: contentType || 'application/octet-stream',
         upsert: true
       })
@@ -69,9 +62,9 @@ export async function uploadFile(
 /**
  * Download file from Supabase storage
  */
-export async function downloadFile(bucket: string, filePath: string) {
+export async function downloadFile(event: H3Event, bucket: string, filePath: string) {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await getSupabaseClient(event)
     
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -91,9 +84,9 @@ export async function downloadFile(bucket: string, filePath: string) {
 /**
  * Delete file from Supabase storage
  */
-export async function deleteFile(bucket: string, filePath: string) {
+export async function deleteFile(event: H3Event, bucket: string, filePath: string) {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await getSupabaseClient(event)
     
     const { error } = await supabase.storage
       .from(bucket)
@@ -113,9 +106,9 @@ export async function deleteFile(bucket: string, filePath: string) {
 /**
  * Get public URL for file
  */
-export async function getPublicUrl(bucket: string, filePath: string) {
+export async function getPublicUrl(event: H3Event, bucket: string, filePath: string) {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await getSupabaseClient(event)
     
     const { data } = supabase.storage
       .from(bucket)
@@ -166,9 +159,9 @@ export async function compressImage(
 /**
  * List files in bucket
  */
-export async function listFiles(bucket: string, prefix?: string) {
+export async function listFiles(event: H3Event, bucket: string, prefix?: string) {
   try {
-    const supabase = await getSupabaseClient()
+    const supabase = await getSupabaseClient(event)
     
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -181,6 +174,68 @@ export async function listFiles(bucket: string, prefix?: string) {
     return data
   } catch (error) {
     console.error('[Storage] List error:', error)
+    throw error
+  }
+}
+
+/**
+ * Track upload for analytics
+ */
+export async function trackUpload(
+  event: H3Event,
+  userId: string,
+  fileName: string,
+  fileSize: number
+) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    const { error } = await supabase
+      .from('upload_logs')
+      .insert({
+        user_id: userId,
+        file_name: fileName,
+        file_size: fileSize,
+        uploaded_at: new Date().toISOString()
+      })
+
+    if (error) throw error
+  } catch (error) {
+    console.error('[Storage] Track upload error:', error)
+    // Don't throw - tracking failure shouldn't block upload
+  }
+}
+
+/**
+ * Cleanup old temporary files
+ */
+export async function cleanupOldTempFiles(event: H3Event, bucket: string, ageInDays: number = 7) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    const cutoffDate = new Date(Date.now() - ageInDays * 24 * 60 * 60 * 1000)
+    
+    const { data: files, error: listError } = await supabase.storage
+      .from(bucket)
+      .list('temp')
+
+    if (listError) throw listError
+
+    const filesToDelete = (files || [])
+      .filter((file: any) => new Date(file.created_at) < cutoffDate)
+      .map((file: any) => `temp/${file.name}`)
+
+    if (filesToDelete.length > 0) {
+      const { error: deleteError } = await supabase.storage
+        .from(bucket)
+        .remove(filesToDelete)
+
+      if (deleteError) throw deleteError
+    }
+
+    return filesToDelete.length
+  } catch (error) {
+    console.error('[Storage] Cleanup error:', error)
     throw error
   }
 }
