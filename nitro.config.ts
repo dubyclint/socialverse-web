@@ -1,32 +1,25 @@
-// nitro.config.ts - PRODUCTION-READY WITH SUPABASE EXTERNALIZATION
-// ============================================================================
-// CRITICAL FIX: Externalize Supabase to prevent ESM bundling issues
-// ============================================================================
-
+// nitro.config.ts - CORRECTED
 export default defineNitroConfig({
   preset: 'node-server',
   
   // ============================================================================
-  // CRITICAL: Externalize @supabase/supabase-js
+  // CRITICAL: Prevent Supabase from being bundled - USE ROLLUP EXTERNAL
   // ============================================================================
-  // This tells esbuild to NOT bundle Supabase, but load it from node_modules
-  // at runtime. This prevents ESM resolution errors with internal imports.
   rollupConfig: {
-    external: ['@supabase/supabase-js'],
+    external: ['@supabase/supabase-js'],  // ✅ This is the key
     output: {
       format: 'esm'
     }
   },
   
   // ============================================================================
-  // ESBuild Configuration
+  // ESBuild Configuration - ALSO externalize
   // ============================================================================
   esbuild: {
     options: {
       target: 'es2022',
       minify: true,
-      // Don't try to bundle Supabase
-      external: ['@supabase/supabase-js']
+      external: ['@supabase/supabase-js']  // ✅ Also here
     }
   },
   
