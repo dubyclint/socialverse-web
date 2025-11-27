@@ -1,8 +1,8 @@
-// nuxt.config.ts - COMPLETE FIXED VERSION WITH VITE SSR EXTERNAL
+// nuxt.config.ts - COMPLETE VERSION WITH SSR DISABLED
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
-  ssr: true,
+  ssr: false,
   hydration: {
     mismatchHandler: 'silent',
   },
@@ -56,16 +56,6 @@ export default defineNuxtConfig({
   vite: {
     define: {
       __DEV__: false,
-    },
-    ssr: {
-      external: [
-        '@supabase/supabase-js',
-        '@supabase/auth-js',
-        '@supabase/postgrest-js',
-        '@supabase/realtime-js',
-        '@supabase/storage-js',
-        '@supabase/functions-js'
-      ]
     },
     build: {
       minify: 'terser',
