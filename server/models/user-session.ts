@@ -1,22 +1,34 @@
-// server/models/user-session.ts
-// User Session Model
+// FILE: /server/models/user-session.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
 export interface UserSession {
   id: string
-  user_id: string
+  userId: string
   token: string
-  ip_address: string
-  user_agent: string
-  expires_at: string
-  created_at: string
-  last_activity: string
+  ipAddress: string
+  userAgent: string
+  expiresAt: string
+  createdAt: string
+  lastActivityAt: string
 }
 
 export interface CreateSessionInput {
@@ -27,19 +39,23 @@ export interface CreateSessionInput {
   expiresAt: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class UserSessionModel {
   static async create(input: CreateSessionInput): Promise<UserSession> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_sessions')
         .insert({
-          user_id: input.userId,
+          userId: input.userId,
           token: input.token,
-          ip_address: input.ipAddress,
-          user_agent: input.userAgent,
-          expires_at: input.expiresAt,
-          created_at: new Date().toISOString(),
-          last_activity: new Date().toISOString()
+          ipAddress: input.ipAddress,
+          userAgent: input.userAgent,
+          expiresAt: input.expiresAt,
+          createdAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -47,82 +63,97 @@ export class UserSessionModel {
       if (error) throw error
       return data as UserSession
     } catch (error) {
-      console.error('[UserSessionModel] Create error:', error)
+      console.error('[UserSessionModel] Error creating session:', error)
       throw error
     }
   }
 
-  static async getByToken(token: string): Promise<UserSession | null> {
+  static async getSession(token: string): Promise<UserSession | null> {
     try {
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
       const { data, error } = await supabase
         .from('user_sessions')
         .select('*')
         .eq('token', token)
+        .gt('expiresAt', now)
         .single()
 
-      if (error && error.code !== 'PGRST116') throw error
-      return (data as UserSession) || null
-    } catch (error) {
-      console.error('[UserSessionModel] Get by token error:', error)
-      throw error
-    }
-  }
+      if (error) {
+        console.warn('[UserSessionModel] Session not found or expired')
+        return null
+      }
 
-  static async updateActivity(sessionId: string): Promise<void> {
-    try {
-      await supabase
-        .from('user_sessions')
-        .update({ last_activity: new Date().toISOString() })
-        .eq('id', sessionId)
+      return data as UserSession
     } catch (error) {
-      console.error('[UserSessionModel] Update activity error:', error)
-      throw error
-    }
-  }
-
-  static async revoke(sessionId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('user_sessions')
-        .delete()
-        .eq('id', sessionId)
-
-      if (error) throw error
-      return true
-    } catch (error) {
-      console.error('[UserSessionModel] Revoke error:', error)
-      throw error
-    }
-  }
-
-  static async revokeAll(userId: string): Promise<void> {
-    try {
-      await supabase
-        .from('user_sessions')
-        .delete()
-        .eq('user_id', userId)
-    } catch (error) {
-      console.error('[UserSessionModel] Revoke all error:', error)
+      console.error('[UserSessionModel] Error fetching session:', error)
       throw error
     }
   }
 
   static async getUserSessions(userId: string): Promise<UserSession[]> {
     try {
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
       const { data, error } = await supabase
         .from('user_sessions')
         .select('*')
-        .eq('user_id', userId)
-        .gt('expires_at', new Date().toISOString())
-        .order('last_activity', { ascending: false })
+        .eq('userId', userId)
+        .gt('expiresAt', now)
+        .order('lastActivityAt', { ascending: false })
 
       if (error) throw error
-      return (data as UserSession[]) || []
+      return (data || []) as UserSession[]
     } catch (error) {
-      console.error('[UserSessionModel] Get user sessions error:', error)
+      console.error('[UserSessionModel] Error fetching user sessions:', error)
+      throw error
+    }
+  }
+
+  static async updateActivity(token: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('user_sessions')
+        .update({ lastActivityAt: new Date().toISOString() })
+        .eq('token', token)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[UserSessionModel] Error updating activity:', error)
+      throw error
+    }
+  }
+
+  static async revokeSession(token: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('user_sessions')
+        .delete()
+        .eq('token', token)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[UserSessionModel] Error revoking session:', error)
+      throw error
+    }
+  }
+
+  static async revokeAllUserSessions(userId: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('user_sessions')
+        .delete()
+        .eq('userId', userId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[UserSessionModel] Error revoking all sessions:', error)
       throw error
     }
   }
 }
-
-export default UserSessionModel
