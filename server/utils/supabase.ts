@@ -1,4 +1,4 @@
-// FILE: /server/utils/supabase.ts
+// FILE: /server/utils/supabase.ts - FULLY LAZY LOADED
 // ============================================================================
 // CENTRALIZED SUPABASE CLIENT - LAZY LOADED
 // ============================================================================
@@ -32,6 +32,7 @@ export async function getSupabase() {
       }
     })
 
+    console.log('[Supabase] Client initialized')
     return supabaseInstance
   } catch (error) {
     console.error('[Supabase] Failed to initialize client:', error)
@@ -66,34 +67,10 @@ export async function getSupabaseAdmin() {
       }
     })
 
+    console.log('[Supabase] Admin client initialized')
     return supabaseAdminInstance
   } catch (error) {
     console.error('[Supabase] Failed to initialize admin client:', error)
     throw error
   }
 }
-
-/**
- * Backward compatibility - export as supabase object
- * This allows existing code to work without changes
- */
-export const supabase = new Proxy({}, {
-  get: (target, prop) => {
-    return async (...args: any[]) => {
-      const client = await getSupabase()
-      return (client as any)[prop]?.(...args)
-    }
-  }
-}) as any
-
-/**
- * Backward compatibility - export as supabaseAdmin object
- */
-export const supabaseAdmin = new Proxy({}, {
-  get: (target, prop) => {
-    return async (...args: any[]) => {
-      const client = await getSupabaseAdmin()
-      return (client as any)[prop]?.(...args)
-    }
-  }
-}) as any
