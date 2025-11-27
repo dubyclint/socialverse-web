@@ -1,7 +1,7 @@
-// FILE: /server/api/auth/login.post.ts - UPDATED
+// FILE: /server/api/auth/login.post.ts
 // ============================================================================
 
-import { db } from '~/server/utils/database'
+import { getDB } from '~/server/utils/db-helpers'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
@@ -29,8 +29,8 @@ export default defineEventHandler(async (event) => {
       }))
     }
 
-    // ✅ NOW USE ASYNC FUNCTION
-    const supabase = await db()
+    // ✅ GET CLIENT FROM CONTEXT
+    const supabase = await getDB(event)
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
