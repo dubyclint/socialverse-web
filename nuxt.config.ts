@@ -1,4 +1,4 @@
-// nuxt.config.ts - COMPLETE VERSION WITH SSR DISABLED
+// nuxt.config.ts - COMPLETE VERSION WITH SSR DISABLED AND PRERENDER
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -30,9 +30,9 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'node-server',
     prerender: {
-      crawlLinks: false,
-      routes: [],
-      ignore: ['/**'],
+      crawlLinks: true,
+      routes: ['/'],
+      ignore: [],
       failOnError: false
     },
     esbuild: {
