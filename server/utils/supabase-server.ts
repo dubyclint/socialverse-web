@@ -1,10 +1,12 @@
-// FILE: /server/utils/supabase-server.ts - FULLY LAZY LOADED
+// FILE: /server/utils/supabase-server.ts - FIXED
 // ============================================================================
-// SERVER-SIDE SUPABASE CLIENT - LAZY LOADED
+// SERVER-SIDE SUPABASE CLIENT - FULLY LAZY LOADED
 // ============================================================================
 
 import type { H3Event } from 'h3'
-import type { SupabaseClient } from '@supabase/supabase-js'
+
+// ✅ Don't import the type - define it inline or use any
+type SupabaseClient = any
 
 let adminClientInstance: SupabaseClient | null = null
 let userClientInstance: SupabaseClient | null = null
@@ -95,13 +97,10 @@ export async function getUserClient(): Promise<SupabaseClient> {
  * Get client from event context (if available)
  */
 export async function getClientFromEvent(event: H3Event): Promise<SupabaseClient> {
-  // Try to get from context first
   const contextClient = (event.context as any)?.supabase
   if (contextClient) {
     return contextClient
   }
-
-  // Fall back to user client
   return createUserClient()
 }
 
