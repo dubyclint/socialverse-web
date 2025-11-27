@@ -1,13 +1,10 @@
-// server/ws/group-chat.ts
+// FILE: /server/ws/group-chat.ts - FIXED WITH LAZY LOADING
+// ============================================================================
 // Group Chat WebSocket Handler
+// ============================================================================
 
 import type { Socket } from 'socket.io'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
 
 interface GroupChatMessage {
   id: string
@@ -24,14 +21,15 @@ interface GroupChatMessage {
   isDeleted: boolean
   deletedAt?: string
   createdAt: string
-  mentions?: string[]
+  readBy?: string[]
 }
 
 interface GroupChatSession {
   groupId: string
-  participants: Map<string, { userId: string; role: 'admin' | 'moderator' | 'member' }>
+  participants: Set<string>
   lastActivity: Date
   isActive: boolean
+  memberCount: number
 }
 
 interface UserGroupChatSocket extends Socket {
@@ -39,10 +37,9 @@ interface UserGroupChatSocket extends Socket {
   activeGroupId?: string
 }
 
-const activeSessions = new Map<string, GroupChatSession>()
-const userGroups = new Map<string, Set<string>>()
+const activeGroupSessions = new Map<string, GroupChatSession>()
+const userGroupChats = new Map<string, Set<string>>()
 const typingIndicators = new Map<string, Set<string>>()
-const mutedUsers = new Map<string, Set<string>>()
 
 const TYPING_TIMEOUT = 3000
 const SESSION_TIMEOUT = 30 * 60 * 1000
@@ -93,26 +90,23 @@ export default defineWebSocketHandler({
         case 'remove_reaction':
           await handleRemoveReaction(socket, payload)
           break
-        case 'mute_user':
-          await handleMuteUser(socket, payload)
-          break
-        case 'unmute_user':
-          await handleUnmuteUser(socket, payload)
-          break
-        case 'kick_user':
-          await handleKickUser(socket, payload)
-          break
-        case 'promote_user':
-          await handlePromoteUser(socket, payload)
-          break
-        case 'demote_user':
-          await handleDemoteUser(socket, payload)
-          break
         case 'get_messages':
           await handleGetMessages(socket, payload)
           break
-        case 'get_members':
-          await handleGetMembers(socket, payload)
+        case 'get_groups':
+          await handleGetGroups(socket, payload)
+          break
+        case 'create_group':
+          await handleCreateGroup(socket, payload)
+          break
+        case 'update_group':
+          await handleUpdateGroup(socket, payload)
+          break
+        case 'add_member':
+          await handleAddMember(socket, payload)
+          break
+        case 'remove_member':
+          await handleRemoveMember(socket, payload)
           break
         default:
           socket.send(JSON.stringify({
@@ -130,103 +124,107 @@ export default defineWebSocketHandler({
   },
 
   async close(peer, socket: UserGroupChatSocket) {
-    console.log('[GroupChat] Connection closed:', socket.id)
-    if (socket.userId && socket.activeGroupId) {
-      const session = activeSessions.get(socket.activeGroupId)
+    console.log('[GroupChat] WebSocket connection closed:', socket.id)
+    if (socket.activeGroupId) {
+      const session = activeGroupSessions.get(socket.activeGroupId)
       if (session) {
-        session.participants.delete(socket.userId)
+        session.participants.delete(socket.id)
         if (session.participants.size === 0) {
-          activeSessions.delete(socket.activeGroupId)
+          activeGroupSessions.delete(socket.activeGroupId)
         }
       }
     }
   }
 })
 
+// ============================================================================
+// HANDLER FUNCTIONS
+// ============================================================================
+
 async function handleAuthenticate(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { userId } = payload
-    if (!userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'User ID required' }))
-      return
-    }
-    socket.userId = userId
-    if (!userGroups.has(userId)) {
-      userGroups.set(userId, new Set())
-    }
-    socket.send(JSON.stringify({ type: 'authenticated', userId, socketId: socket.id }))
-    console.log(`[GroupChat] User ${userId} authenticated`)
+    socket.userId = payload.userId
+    console.log('[GroupChat] User authenticated:', socket.userId)
+    
+    socket.send(JSON.stringify({
+      type: 'authenticated',
+      userId: socket.userId,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
-    console.error('[GroupChat] Auth error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Authentication failed' }))
+    console.error('[GroupChat] Authentication error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Authentication failed'
+    }))
   }
 }
 
 async function handleJoinGroup(socket: UserGroupChatSocket, payload: any) {
   try {
     const { groupId } = payload
+    
     if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
       return
     }
-    const { data: membership } = await supabase
-      .from('group_members')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', socket.userId)
-      .single()
-    if (!membership) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not a member of this group' }))
-      return
-    }
+
     socket.activeGroupId = groupId
-    if (!activeSessions.has(groupId)) {
-      activeSessions.set(groupId, {
+    
+    let session = activeGroupSessions.get(groupId)
+    if (!session) {
+      session = {
         groupId,
-        participants: new Map(),
+        participants: new Set(),
         lastActivity: new Date(),
-        isActive: true
-      })
+        isActive: true,
+        memberCount: 0
+      }
+      activeGroupSessions.set(groupId, session)
     }
-    const session = activeSessions.get(groupId)!
-    session.participants.set(socket.userId, {
-      userId: socket.userId,
-      role: membership.role
-    })
-    session.lastActivity = new Date()
-    userGroups.get(socket.userId)!.add(groupId)
+    
+    session.participants.add(socket.id)
+    
+    if (!userGroupChats.has(socket.userId)) {
+      userGroupChats.set(socket.userId, new Set())
+    }
+    userGroupChats.get(socket.userId)!.add(groupId)
+
     socket.send(JSON.stringify({
       type: 'joined_group',
       groupId,
-      participants: Array.from(session.participants.values())
+      participantCount: session.participants.size,
+      timestamp: new Date().toISOString()
     }))
-    broadcastToGroupParticipants(groupId, {
-      type: 'user_joined',
-      userId: socket.userId,
-      participants: Array.from(session.participants.values())
-    }, socket.userId)
-    console.log(`[GroupChat] User ${socket.userId} joined group ${groupId}`)
   } catch (error) {
     console.error('[GroupChat] Join group error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to join group' }))
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to join group'
+    }))
   }
 }
 
 async function handleLeaveGroup(socket: UserGroupChatSocket, payload: any) {
   try {
     const { groupId } = payload
-    if (!socket.userId) return
-    const session = activeSessions.get(groupId)
+    
+    const session = activeGroupSessions.get(groupId)
     if (session) {
-      session.participants.delete(socket.userId)
+      session.participants.delete(socket.id)
       if (session.participants.size === 0) {
-        activeSessions.delete(groupId)
+        activeGroupSessions.delete(groupId)
       }
     }
-    userGroups.get(socket.userId)?.delete(groupId)
-    socket.activeGroupId = undefined
-    socket.send(JSON.stringify({ type: 'left_group', groupId }))
-    broadcastToGroupParticipants(groupId, { type: 'user_left', userId: socket.userId })
+
+    socket.send(JSON.stringify({
+      type: 'left_group',
+      groupId,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Leave group error:', error)
   }
@@ -234,65 +232,62 @@ async function handleLeaveGroup(socket: UserGroupChatSocket, payload: any) {
 
 async function handleSendMessage(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { groupId, content, attachments, mentions } = payload
+    const supabase = await getWSSupabaseClient()
+    
+    const { groupId, content, type } = payload
+    
     if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
       return
     }
-    const mutedSet = mutedUsers.get(groupId)
-    if (mutedSet?.has(socket.userId)) {
-      socket.send(JSON.stringify({ type: 'error', message: 'You are muted in this group' }))
-      return
-    }
-    const messageId = `gmsg_${Date.now()}_${socket.userId}`
-    const { data: userData } = await supabase
-      .from('users')
-      .select('username, avatar_url')
-      .eq('id', socket.userId)
-      .single()
+
     const message: GroupChatMessage = {
-      id: messageId,
+      id: crypto.randomUUID(),
       groupId,
       senderId: socket.userId,
-      senderName: userData?.username || 'Unknown',
-      senderAvatar: userData?.avatar_url,
+      senderName: payload.senderName || 'Unknown',
       content,
-      type: attachments ? 'file' : 'text',
-      attachments,
-      mentions,
+      type: type || 'text',
       isEdited: false,
       isDeleted: false,
       createdAt: new Date().toISOString()
     }
-    const { error: dbError } = await supabase
+
+    const { error } = await supabase
       .from('group_chat_messages')
       .insert({
-        id: messageId,
+        id: message.id,
         group_id: groupId,
         sender_id: socket.userId,
         content,
         type: message.type,
-        attachments,
-        mentions,
-        created_at: new Date().toISOString()
+        created_at: message.createdAt
       })
-    if (dbError) throw dbError
-    socket.send(JSON.stringify({ type: 'message_sent', message }))
-    broadcastToGroupParticipants(groupId, { type: 'new_message', message })
-    console.log(`[GroupChat] Message sent in group ${groupId} by user ${socket.userId}`)
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'message_sent',
+      messageId: message.id,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Send message error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to send message' }))
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to send message'
+    }))
   }
 }
 
 async function handleEditMessage(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { messageId, groupId, content } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
+    const supabase = await getWSSupabaseClient()
+    const { messageId, content } = payload
+
     const { error } = await supabase
       .from('group_chat_messages')
       .update({
@@ -301,23 +296,28 @@ async function handleEditMessage(socket: UserGroupChatSocket, payload: any) {
         edited_at: new Date().toISOString()
       })
       .eq('id', messageId)
-      .eq('sender_id', socket.userId)
+
     if (error) throw error
-    socket.send(JSON.stringify({ type: 'message_edited', messageId }))
-    broadcastToGroupParticipants(groupId, { type: 'message_edited', messageId, content })
+
+    socket.send(JSON.stringify({
+      type: 'message_edited',
+      messageId,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Edit message error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to edit message' }))
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to edit message'
+    }))
   }
 }
 
 async function handleDeleteMessage(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { messageId, groupId } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
+    const supabase = await getWSSupabaseClient()
+    const { messageId } = payload
+
     const { error } = await supabase
       .from('group_chat_messages')
       .update({
@@ -325,29 +325,43 @@ async function handleDeleteMessage(socket: UserGroupChatSocket, payload: any) {
         deleted_at: new Date().toISOString()
       })
       .eq('id', messageId)
-      .eq('sender_id', socket.userId)
+
     if (error) throw error
-    socket.send(JSON.stringify({ type: 'message_deleted', messageId }))
-    broadcastToGroupParticipants(groupId, { type: 'message_deleted', messageId })
+
+    socket.send(JSON.stringify({
+      type: 'message_deleted',
+      messageId,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Delete message error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to delete message' }))
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to delete message'
+    }))
   }
 }
 
 async function handleTypingStart(socket: UserGroupChatSocket, payload: any) {
   try {
     const { groupId } = payload
-    if (!socket.userId) return
+    
     if (!typingIndicators.has(groupId)) {
       typingIndicators.set(groupId, new Set())
     }
-    typingIndicators.get(groupId)!.add(socket.userId)
-    broadcastToGroupParticipants(groupId, { type: 'typing_start', userId: socket.userId }, socket.userId)
+    
+    typingIndicators.get(groupId)!.add(socket.id)
+
+    socket.send(JSON.stringify({
+      type: 'typing_started',
+      groupId,
+      timestamp: new Date().toISOString()
+    }))
+
     setTimeout(() => {
-      const typingSet = typingIndicators.get(groupId)
-      if (typingSet) {
-        typingSet.delete(socket.userId)
+      const typing = typingIndicators.get(groupId)
+      if (typing) {
+        typing.delete(socket.id)
       }
     }, TYPING_TIMEOUT)
   } catch (error) {
@@ -358,12 +372,17 @@ async function handleTypingStart(socket: UserGroupChatSocket, payload: any) {
 async function handleTypingStop(socket: UserGroupChatSocket, payload: any) {
   try {
     const { groupId } = payload
-    if (!socket.userId) return
-    const typingSet = typingIndicators.get(groupId)
-    if (typingSet) {
-      typingSet.delete(socket.userId)
+    
+    const typing = typingIndicators.get(groupId)
+    if (typing) {
+      typing.delete(socket.id)
     }
-    broadcastToGroupParticipants(groupId, { type: 'typing_stop', userId: socket.userId }, socket.userId)
+
+    socket.send(JSON.stringify({
+      type: 'typing_stopped',
+      groupId,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Typing stop error:', error)
   }
@@ -371,222 +390,275 @@ async function handleTypingStop(socket: UserGroupChatSocket, payload: any) {
 
 async function handleAddReaction(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { messageId, groupId, emoji } = payload
-    if (!socket.userId) return
+    const supabase = await getWSSupabaseClient()
+    const { messageId, emoji } = payload
+
     const { error } = await supabase
       .from('group_message_reactions')
-      .insert({ message_id: messageId, user_id: socket.userId, emoji })
+      .insert({
+        message_id: messageId,
+        user_id: socket.userId,
+        emoji,
+        created_at: new Date().toISOString()
+      })
+
     if (error) throw error
-    broadcastToGroupParticipants(groupId, {
+
+    socket.send(JSON.stringify({
       type: 'reaction_added',
       messageId,
-      userId: socket.userId,
-      emoji
-    })
+      emoji,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Add reaction error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to add reaction'
+    }))
   }
 }
 
 async function handleRemoveReaction(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { messageId, groupId, emoji } = payload
-    if (!socket.userId) return
+    const supabase = await getWSSupabaseClient()
+    const { messageId, emoji } = payload
+
     const { error } = await supabase
       .from('group_message_reactions')
       .delete()
       .eq('message_id', messageId)
       .eq('user_id', socket.userId)
       .eq('emoji', emoji)
+
     if (error) throw error
-    broadcastToGroupParticipants(groupId, {
+
+    socket.send(JSON.stringify({
       type: 'reaction_removed',
       messageId,
-      userId: socket.userId,
-      emoji
-    })
+      emoji,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[GroupChat] Remove reaction error:', error)
-  }
-}
-
-async function handleMuteUser(socket: UserGroupChatSocket, payload: any) {
-  try {
-    const { groupId, targetUserId, duration } = payload
-    if (!socket.userId) return
-    const session = activeSessions.get(groupId)
-    const userRole = session?.participants.get(socket.userId)?.role
-    if (!['admin', 'moderator'].includes(userRole || '')) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Insufficient permissions' }))
-      return
-    }
-    if (!mutedUsers.has(groupId)) {
-      mutedUsers.set(groupId, new Set())
-    }
-    mutedUsers.get(groupId)!.add(targetUserId)
-    broadcastToGroupParticipants(groupId, { type: 'user_muted', userId: targetUserId, duration })
-    if (duration) {
-      setTimeout(() => {
-        const mutedSet = mutedUsers.get(groupId)
-        if (mutedSet) {
-          mutedSet.delete(targetUserId)
-        }
-      }, duration)
-    }
-  } catch (error) {
-    console.error('[GroupChat] Mute user error:', error)
-  }
-}
-
-async function handleUnmuteUser(socket: UserGroupChatSocket, payload: any) {
-  try {
-    const { groupId, targetUserId } = payload
-    if (!socket.userId) return
-    const session = activeSessions.get(groupId)
-    const userRole = session?.participants.get(socket.userId)?.role
-    if (!['admin', 'moderator'].includes(userRole || '')) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Insufficient permissions' }))
-      return
-    }
-    const mutedSet = mutedUsers.get(groupId)
-    if (mutedSet) {
-      mutedSet.delete(targetUserId)
-    }
-    broadcastToGroupParticipants(groupId, { type: 'user_unmuted', userId: targetUserId })
-  } catch (error) {
-    console.error('[GroupChat] Unmute user error:', error)
-  }
-}
-
-async function handleKickUser(socket: UserGroupChatSocket, payload: any) {
-  try {
-    const { groupId, targetUserId } = payload
-    if (!socket.userId) return
-    const session = activeSessions.get(groupId)
-    const userRole = session?.participants.get(socket.userId)?.role
-    if (userRole !== 'admin') {
-      socket.send(JSON.stringify({ type: 'error', message: 'Only admins can kick users' }))
-      return
-    }
-    await supabase
-      .from('group_members')
-      .delete()
-      .eq('group_id', groupId)
-      .eq('user_id', targetUserId)
-    session?.participants.delete(targetUserId)
-    broadcastToGroupParticipants(groupId, { type: 'user_kicked', userId: targetUserId })
-  } catch (error) {
-    console.error('[GroupChat] Kick user error:', error)
-  }
-}
-
-async function handlePromoteUser(socket: UserGroupChatSocket, payload: any) {
-  try {
-    const { groupId, targetUserId } = payload
-    if (!socket.userId) return
-    const session = activeSessions.get(groupId)
-    const userRole = session?.participants.get(socket.userId)?.role
-    if (userRole !== 'admin') {
-      socket.send(JSON.stringify({ type: 'error', message: 'Only admins can promote users' }))
-      return
-    }
-    await supabase
-      .from('group_members')
-      .update({ role: 'moderator' })
-      .eq('group_id', groupId)
-      .eq('user_id', targetUserId)
-    const participant = session?.participants.get(targetUserId)
-    if (participant) {
-      participant.role = 'moderator'
-    }
-    broadcastToGroupParticipants(groupId, {
-      type: 'user_promoted',
-      userId: targetUserId,
-      newRole: 'moderator'
-    })
-  } catch (error) {
-    console.error('[GroupChat] Promote user error:', error)
-  }
-}
-
-async function handleDemoteUser(socket: UserGroupChatSocket, payload: any) {
-  try {
-    const { groupId, targetUserId } = payload
-    if (!socket.userId) return
-    const session = activeSessions.get(groupId)
-    const userRole = session?.participants.get(socket.userId)?.role
-    if (userRole !== 'admin') {
-      socket.send(JSON.stringify({ type: 'error', message: 'Only admins can demote users' }))
-      return
-    }
-    await supabase
-      .from('group_members')
-      .update({ role: 'member' })
-      .eq('group_id', groupId)
-      .eq('user_id', targetUserId)
-    const participant = session?.participants.get(targetUserId)
-    if (participant) {
-      participant.role = 'member'
-    }
-    broadcastToGroupParticipants(groupId, {
-      type: 'user_demoted',
-      userId: targetUserId,
-      newRole: 'member'
-    })
-  } catch (error) {
-    console.error('[GroupChat] Demote user error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to remove reaction'
+    }))
   }
 }
 
 async function handleGetMessages(socket: UserGroupChatSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { groupId, limit = 50, offset = 0 } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    const { data: messages, error } = await supabase
+
+    const { data, error } = await supabase
       .from('group_chat_messages')
       .select('*')
       .eq('group_id', groupId)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
+
     if (error) throw error
+
     socket.send(JSON.stringify({
-      type: 'messages_list',
-      messages: messages?.reverse() || [],
-      offset,
-      limit
+      type: 'messages',
+      messages: data || [],
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
     console.error('[GroupChat] Get messages error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to fetch messages' }))
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to fetch messages'
+    }))
   }
 }
 
-async function handleGetMembers(socket: UserGroupChatSocket, payload: any) {
+async function handleGetGroups(socket: UserGroupChatSocket, payload: any) {
   try {
-    const { groupId } = payload
+    const supabase = await getWSSupabaseClient()
+
     if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
       return
     }
-    const session = activeSessions.get(groupId)
-    const members = Array.from(session?.participants.values() || [])
-    socket.send(JSON.stringify({ type: 'members_list', members, count: members.length }))
+
+    const { data, error } = await supabase
+      .from('groups')
+      .select('*')
+      .contains('member_ids', [socket.userId])
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'groups',
+      groups: data || [],
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
-    console.error('[GroupChat] Get members error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to fetch members' }))
+    console.error('[GroupChat] Get groups error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to fetch groups'
+    }))
   }
 }
 
-function broadcastToGroupParticipants(groupId: string, message: any, excludeUserId?: string) {
-  const session = activeSessions.get(groupId)
-  if (session) {
-    session.participants.forEach((participant) => {
-      if (excludeUserId && participant.userId === excludeUserId) return
-      console.log(`[GroupChat] Broadcasting to user ${participant.userId} in group ${groupId}`)
-    })
+async function handleCreateGroup(socket: UserGroupChatSocket, payload: any) {
+  try {
+    const supabase = await getWSSupabaseClient()
+    const { name, description, memberIds } = payload
+
+    if (!socket.userId) {
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
+      return
+    }
+
+    const groupId = crypto.randomUUID()
+    const allMembers = [socket.userId, ...memberIds]
+
+    const { error } = await supabase
+      .from('groups')
+      .insert({
+        id: groupId,
+        name,
+        description,
+        member_ids: allMembers,
+        created_by: socket.userId,
+        created_at: new Date().toISOString()
+      })
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'group_created',
+      groupId,
+      timestamp: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.error('[GroupChat] Create group error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to create group'
+    }))
+  }
+}
+
+async function handleUpdateGroup(socket: UserGroupChatSocket, payload: any) {
+  try {
+    const supabase = await getWSSupabaseClient()
+    const { groupId, name, description } = payload
+
+    const { error } = await supabase
+      .from('groups')
+      .update({
+        name,
+        description,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', groupId)
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'group_updated',
+      groupId,
+      timestamp: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.error('[GroupChat] Update group error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to update group'
+    }))
+  }
+}
+
+async function handleAddMember(socket: UserGroupChatSocket, payload: any) {
+  try {
+    const supabase = await getWSSupabaseClient()
+    const { groupId, memberId } = payload
+
+    const { data: group, error: fetchError } = await supabase
+      .from('groups')
+      .select('member_ids')
+      .eq('id', groupId)
+      .single()
+
+    if (fetchError) throw fetchError
+
+    const updatedMembers = [...(group.member_ids || []), memberId]
+
+    const { error } = await supabase
+      .from('groups')
+      .update({
+        member_ids: updatedMembers,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', groupId)
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'member_added',
+      groupId,
+      memberId,
+      timestamp: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.error('[GroupChat] Add member error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to add member'
+    }))
+  }
+}
+
+async function handleRemoveMember(socket: UserGroupChatSocket, payload: any) {
+  try {
+    const supabase = await getWSSupabaseClient()
+    const { groupId, memberId } = payload
+
+    const { data: group, error: fetchError } = await supabase
+      .from('groups')
+      .select('member_ids')
+      .eq('id', groupId)
+      .single()
+
+    if (fetchError) throw fetchError
+
+    const updatedMembers = (group.member_ids || []).filter((id: string) => id !== memberId)
+
+    const { error } = await supabase
+      .from('groups')
+      .update({
+        member_ids: updatedMembers,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', groupId)
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'member_removed',
+      groupId,
+      memberId,
+      timestamp: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.error('[GroupChat] Remove member error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to remove member'
+    }))
   }
 }
