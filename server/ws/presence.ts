@@ -1,13 +1,10 @@
-// server/ws/presence.ts
+// FILE: /server/ws/presence.ts - FIXED WITH LAZY LOADING
+// ============================================================================
 // User Presence & Online Status WebSocket Handler
+// ============================================================================
 
 import type { Socket } from 'socket.io'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
 
 interface PresenceData {
   userId: string
@@ -25,11 +22,6 @@ interface UserPresenceSocket extends Socket {
 
 const userPresence = new Map<string, PresenceData>()
 const userSockets = new Map<string, Set<string>>()
-const typingUsers = new Map<string, Set<string>>()
-const activityTracking = new Map<string, any>()
-
-const PRESENCE_TIMEOUT = 5 * 60 * 1000
-const TYPING_TIMEOUT = 3000
 
 export default defineWebSocketHandler({
   async open(peer, socket: UserPresenceSocket) {
@@ -53,26 +45,14 @@ export default defineWebSocketHandler({
         case 'set_status':
           await handleSetStatus(socket, payload)
           break
-        case 'get_user_presence':
-          await handleGetUserPresence(socket, payload)
+        case 'get_presence':
+          await handleGetPresence(socket, payload)
           break
-        case 'get_online_users':
-          await handleGetOnlineUsers(socket, payload)
+        case 'get_online_friends':
+          await handleGetOnlineFriends(socket, payload)
           break
-        case 'typing_start':
-          await handleTypingStart(socket, payload)
-          break
-        case 'typing_stop':
-          await handleTypingStop(socket, payload)
-          break
-        case 'update_activity':
-          await handleUpdateActivity(socket, payload)
-          break
-        case 'get_presence_list':
-          await handleGetPresenceList(socket, payload)
-          break
-        case 'subscribe_presence':
-          await handleSubscribePresence(socket, payload)
+        case 'set_activity':
+          await handleSetActivity(socket, payload)
           break
         default:
           socket.send(JSON.stringify({
@@ -84,7 +64,7 @@ export default defineWebSocketHandler({
       console.error('[Presence] Message error:', error)
       socket.send(JSON.stringify({
         type: 'error',
-        message: 'Failed to process presence update'
+        message: 'Failed to process presence'
       }))
     }
   },
@@ -97,223 +77,194 @@ export default defineWebSocketHandler({
         sockets.delete(socket.id)
         if (sockets.size === 0) {
           userSockets.delete(socket.userId)
-          const presence = userPresence.get(socket.userId)
-          if (presence) {
-            presence.status = 'offline'
-            presence.lastSeen = new Date().toISOString()
-            broadcastPresenceUpdate(socket.userId, presence)
-          }
+          userPresence.delete(socket.userId)
         }
       }
     }
   }
 })
 
+// ============================================================================
+// HANDLER FUNCTIONS
+// ============================================================================
+
 async function handleAuthenticate(socket: UserPresenceSocket, payload: any) {
   try {
-    const { userId, device, location } = payload
-    if (!userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'User ID required' }))
-      return
+    socket.userId = payload.userId
+    console.log('[Presence] User authenticated:', socket.userId)
+
+    if (!userSockets.has(socket.userId)) {
+      userSockets.set(socket.userId, new Set())
     }
-    socket.userId = userId
-    if (!userPresence.has(userId)) {
-      userPresence.set(userId, {
-        userId,
-        status: 'online',
-        lastSeen: new Date().toISOString(),
-        device,
-        location
-      })
-    } else {
-      const presence = userPresence.get(userId)!
-      presence.status = 'online'
-      presence.lastSeen = new Date().toISOString()
-      if (device) presence.device = device
-      if (location) presence.location = location
-    }
-    if (!userSockets.has(userId)) {
-      userSockets.set(userId, new Set())
-    }
-    userSockets.get(userId)!.add(socket.id)
-    socket.send(JSON.stringify({ type: 'authenticated', userId, status: 'online' }))
-    broadcastPresenceUpdate(userId, userPresence.get(userId)!)
-    console.log(`[Presence] User ${userId} authenticated`)
+    userSockets.get(socket.userId)!.add(socket.id)
+
+    socket.send(JSON.stringify({
+      type: 'authenticated',
+      userId: socket.userId,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
-    console.error('[Presence] Auth error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Authentication failed' }))
+    console.error('[Presence] Authentication error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Authentication failed'
+    }))
   }
 }
 
 async function handleSetStatus(socket: UserPresenceSocket, payload: any) {
   try {
-    const { status } = payload
+    const supabase = await getWSSupabaseClient()
+
     if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
       return
     }
-    if (!['online', 'away', 'offline', 'dnd'].includes(status)) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Invalid status' }))
-      return
+
+    const { status } = payload
+
+    const presenceData: PresenceData = {
+      userId: socket.userId,
+      status: status || 'online',
+      lastSeen: new Date().toISOString(),
+      currentActivity: payload.currentActivity,
+      location: payload.location,
+      device: payload.device
     }
-    const presence = userPresence.get(socket.userId)!
-    presence.status = status
-    presence.lastSeen = new Date().toISOString()
-    socket.send(JSON.stringify({ type: 'status_updated', status }))
-    broadcastPresenceUpdate(socket.userId, presence)
-    await supabase
+
+    userPresence.set(socket.userId, presenceData)
+    socket.presenceData = presenceData
+
+    // Update in database
+    const { error } = await supabase
       .from('user_presence')
       .upsert({
         user_id: socket.userId,
-        status,
-        last_seen: new Date().toISOString()
+        status: status || 'online',
+        last_seen: new Date().toISOString(),
+        current_activity: payload.currentActivity,
+        location: payload.location,
+        device: payload.device
       })
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'status_updated',
+      status,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
     console.error('[Presence] Set status error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to update status' }))
-  }
-}
-
-async function handleGetUserPresence(socket: UserPresenceSocket, payload: any) {
-  try {
-    const { userId } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    const presence = userPresence.get(userId)
     socket.send(JSON.stringify({
-      type: 'user_presence',
-      presence: presence || { userId, status: 'offline', lastSeen: null }
+      type: 'error',
+      message: 'Failed to set status'
     }))
-  } catch (error) {
-    console.error('[Presence] Get user presence error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to get user presence' }))
   }
 }
 
-async function handleGetOnlineUsers(socket: UserPresenceSocket, payload: any) {
-  try {
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    const onlineUsers = Array.from(userPresence.values()).filter(p => p.status === 'online')
-    socket.send(JSON.stringify({
-      type: 'online_users',
-      users: onlineUsers,
-      count: onlineUsers.length
-    }))
-  } catch (error) {
-    console.error('[Presence] Get online users error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to get online users' }))
-  }
-}
-
-async function handleTypingStart(socket: UserPresenceSocket, payload: any) {
-  try {
-    const { chatId } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    if (!typingUsers.has(chatId)) {
-      typingUsers.set(chatId, new Set())
-    }
-    typingUsers.get(chatId)!.add(socket.userId)
-    broadcastTypingStatus(chatId, socket.userId, 'typing_start')
-    setTimeout(() => {
-      const typingSet = typingUsers.get(chatId)
-      if (typingSet) {
-        typingSet.delete(socket.userId)
-        if (typingSet.size === 0) {
-          typingUsers.delete(chatId)
-        }
-      }
-    }, TYPING_TIMEOUT)
-  } catch (error) {
-    console.error('[Presence] Typing start error:', error)
-  }
-}
-
-async function handleTypingStop(socket: UserPresenceSocket, payload: any) {
-  try {
-    const { chatId } = payload
-    if (!socket.userId) return
-    const typingSet = typingUsers.get(chatId)
-    if (typingSet) {
-      typingSet.delete(socket.userId)
-      if (typingSet.size === 0) {
-        typingUsers.delete(chatId)
-      }
-    }
-    broadcastTypingStatus(chatId, socket.userId, 'typing_stop')
-  } catch (error) {
-    console.error('[Presence] Typing stop error:', error)
-  }
-}
-
-async function handleUpdateActivity(socket: UserPresenceSocket, payload: any) {
-  try {
-    const { activity, metadata } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    const presence = userPresence.get(socket.userId)!
-    presence.currentActivity = activity
-    activityTracking.set(socket.userId, {
-      activity,
-      metadata,
-      timestamp: new Date().toISOString()
-    })
-    socket.send(JSON.stringify({ type: 'activity_updated', activity }))
-    broadcastPresenceUpdate(socket.userId, presence)
-  } catch (error) {
-    console.error('[Presence] Update activity error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to update activity' }))
-  }
-}
-
-async function handleGetPresenceList(socket: UserPresenceSocket, payload: any) {
-  try {
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    const presenceList = Array.from(userPresence.values())
-    socket.send(JSON.stringify({
-      type: 'presence_list',
-      presences: presenceList,
-      count: presenceList.length
-    }))
-  } catch (error) {
-    console.error('[Presence] Get presence list error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to get presence list' }))
-  }
-}
-
-async function handleSubscribePresence(socket: UserPresenceSocket, payload: any) {
+async function handleGetPresence(socket: UserPresenceSocket, payload: any) {
   try {
     const { userIds } = payload
-    if (!socket.userId) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }))
-      return
-    }
-    const presences = userIds
-      .map((id: string) => userPresence.get(id))
-      .filter(Boolean)
-    socket.send(JSON.stringify({ type: 'subscribed_presences', presences }))
+
+    const presenceList = userIds
+      .map((userId: string) => userPresence.get(userId))
+      .filter((p: any) => p !== undefined)
+
+    socket.send(JSON.stringify({
+      type: 'presence',
+      presence: presenceList,
+      timestamp: new Date().toISOString()
+    }))
   } catch (error) {
-    console.error('[Presence] Subscribe presence error:', error)
-    socket.send(JSON.stringify({ type: 'error', message: 'Failed to subscribe to presence' }))
+    console.error('[Presence] Get presence error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to fetch presence'
+    }))
   }
 }
 
-function broadcastPresenceUpdate(userId: string, presence: PresenceData) {
-  console.log(`[Presence] Broadcasting update for user ${userId}:`, presence.status)
+async function handleGetOnlineFriends(socket: UserPresenceSocket, payload: any) {
+  try {
+    const supabase = await getWSSupabaseClient()
+
+    if (!socket.userId) {
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
+      return
+    }
+
+    const { data: connections, error } = await supabase
+      .from('connections')
+      .select('connected_user_id')
+      .eq('user_id', socket.userId)
+
+    if (error) throw error
+
+    const friendIds = (connections || []).map((c: any) => c.connected_user_id)
+    const onlineFriends = friendIds
+      .map((id: string) => userPresence.get(id))
+      .filter((p: any) => p !== undefined && p.status === 'online')
+
+    socket.send(JSON.stringify({
+      type: 'online_friends',
+      friends: onlineFriends,
+      timestamp: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.error('[Presence] Get online friends error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to fetch online friends'
+    }))
+  }
 }
 
-function broadcastTypingStatus(chatId: string, userId: string, type: string) {
-  console.log(`[Presence] ${type} in chat ${chatId} by user ${userId}`)
+async function handleSetActivity(socket: UserPresenceSocket, payload: any) {
+  try {
+    const supabase = await getWSSupabaseClient()
+
+    if (!socket.userId) {
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Not authenticated'
+      }))
+      return
+    }
+
+    const { activity } = payload
+
+    const presenceData = userPresence.get(socket.userId)
+    if (presenceData) {
+      presenceData.currentActivity = activity
+    }
+
+    const { error } = await supabase
+      .from('user_presence')
+      .update({
+        current_activity: activity,
+        last_seen: new Date().toISOString()
+      })
+      .eq('user_id', socket.userId)
+
+    if (error) throw error
+
+    socket.send(JSON.stringify({
+      type: 'activity_updated',
+      activity,
+      timestamp: new Date().toISOString()
+    }))
+  } catch (error) {
+    console.error('[Presence] Set activity error:', error)
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Failed to set activity'
+    }))
+  }
 }
