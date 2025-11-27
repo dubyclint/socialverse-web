@@ -1,14 +1,11 @@
-// server/ws/status-events.ts
+// FILE: /server/ws/status-events.ts - FIXED WITH LAZY LOADING
+// ============================================================================
 // Status Events WebSocket Handler
 // Real-time status updates and viewing
+// ============================================================================
 
 import type { Socket } from 'socket.io'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
 
 interface StatusData {
   id: string
@@ -20,34 +17,24 @@ interface StatusData {
   mediaUrl?: string
   backgroundColor?: string
   textColor?: string
-  isActive: boolean
+  viewedBy: string[]
   expiresAt: string
   createdAt: string
-  views: number
-  viewedBy: Set<string>
-}
-
-interface StatusView {
-  statusId: string
-  viewerId: string
-  viewedAt: string
 }
 
 interface UserStatusSocket extends Socket {
   userId?: string
-  watchingStatuses?: Set<string>
 }
 
 const activeStatuses = new Map<string, StatusData>()
-const statusViews = new Map<string, Set<string>>() // statusId -> Set of viewerIds
-const userStatusWatchers = new Map<string, Set<string>>() // userId -> Set of watcher socketIds
+const statusViewers = new Map<string, Set<string>>()
 
 export default defineWebSocketHandler({
   async open(peer, socket: UserStatusSocket) {
-    console.log('[Status] WebSocket connection opened:', socket.id)
+    console.log('[StatusEvents] WebSocket connection opened:', socket.id)
     socket.send(JSON.stringify({
       type: 'connection',
-      message: 'Connected to status server',
+      message: 'Connected to status events server',
       timestamp: new Date().toISOString()
     }))
   },
@@ -61,47 +48,21 @@ export default defineWebSocketHandler({
         case 'authenticate':
           await handleAuthenticate(socket, payload)
           break
-
-        case 'create_status':
-          await handleCreateStatus(socket, payload)
+        case 'post_status':
+          await handlePostStatus(socket, payload)
           break
-
-        case 'update_status':
-          await handleUpdateStatus(socket, payload)
+        case 'get_statuses':
+          await handleGetStatuses(socket, payload)
           break
-
-        case 'delete_status':
-          await handleDeleteStatus(socket, payload)
-          break
-
         case 'view_status':
           await handleViewStatus(socket, payload)
           break
-
-        case 'get_status':
-          await handleGetStatus(socket, payload)
+        case 'delete_status':
+          await handleDeleteStatus(socket, payload)
           break
-
-        case 'get_user_statuses':
-          await handleGetUserStatuses(socket, payload)
+        case 'get_status_viewers':
+          await handleGetStatusViewers(socket, payload)
           break
-
-        case 'get_friend_statuses':
-          await handleGetFriendStatuses(socket, payload)
-          break
-
-        case 'watch_user_status':
-          await handleWatchUserStatus(socket, payload)
-          break
-
-        case 'unwatch_user_status':
-          await handleUnwatchUserStatus(socket, payload)
-          break
-
-        case 'get_status_views':
-          await handleGetStatusViews(socket, payload)
-          break
-
         default:
           socket.send(JSON.stringify({
             type: 'error',
@@ -109,7 +70,7 @@ export default defineWebSocketHandler({
           }))
       }
     } catch (error) {
-      console.error('[Status] Message error:', error)
+      console.error('[StatusEvents] Message error:', error)
       socket.send(JSON.stringify({
         type: 'error',
         message: 'Failed to process status event'
@@ -118,42 +79,26 @@ export default defineWebSocketHandler({
   },
 
   async close(peer, socket: UserStatusSocket) {
-    console.log('[Status] Connection closed:', socket.id)
-    if (socket.userId && socket.watchingStatuses) {
-      socket.watchingStatuses.forEach(userId => {
-        const watchers = userStatusWatchers.get(userId)
-        if (watchers) {
-          watchers.delete(socket.id)
-        }
-      })
-    }
+    console.log('[StatusEvents] Connection closed:', socket.id)
   }
 })
 
+// ============================================================================
+// HANDLER FUNCTIONS
+// ============================================================================
+
 async function handleAuthenticate(socket: UserStatusSocket, payload: any) {
   try {
-    const { userId } = payload
-
-    if (!userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'User ID required'
-      }))
-      return
-    }
-
-    socket.userId = userId
-    socket.watchingStatuses = new Set()
-
+    socket.userId = payload.userId
+    console.log('[StatusEvents] User authenticated:', socket.userId)
+    
     socket.send(JSON.stringify({
       type: 'authenticated',
-      userId,
-      socketId: socket.id
+      userId: socket.userId,
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[Status] User ${userId} authenticated`)
   } catch (error) {
-    console.error('[Status] Auth error:', error)
+    console.error('[StatusEvents] Authentication error:', error)
     socket.send(JSON.stringify({
       type: 'error',
       message: 'Authentication failed'
@@ -161,9 +106,9 @@ async function handleAuthenticate(socket: UserStatusSocket, payload: any) {
   }
 }
 
-async function handleCreateStatus(socket: UserStatusSocket, payload: any) {
+async function handlePostStatus(socket: UserStatusSocket, payload: any) {
   try {
-    const { content, mediaType, mediaUrl, backgroundColor, textColor, expiresIn } = payload
+    const supabase = await getWSSupabaseClient()
 
     if (!socket.userId) {
       socket.send(JSON.stringify({
@@ -173,76 +118,62 @@ async function handleCreateStatus(socket: UserStatusSocket, payload: any) {
       return
     }
 
-    const statusId = `status_${Date.now()}_${socket.userId}`
-    const expiresAt = new Date(Date.now() + (expiresIn || 24 * 60 * 60 * 1000))
+    const { content, mediaType, mediaUrl, backgroundColor, textColor } = payload
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('username, avatar_url')
-      .eq('id', socket.userId)
-      .single()
+    const statusId = crypto.randomUUID()
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
     const status: StatusData = {
       id: statusId,
       userId: socket.userId,
-      username: userData?.username || 'Unknown',
-      avatar: userData?.avatar_url,
+      username: payload.username || 'Unknown',
+      avatar: payload.avatar,
       content,
-      mediaType,
+      mediaType: mediaType || 'text',
       mediaUrl,
       backgroundColor,
       textColor,
-      isActive: true,
-      expiresAt: expiresAt.toISOString(),
-      createdAt: new Date().toISOString(),
-      views: 0,
-      viewedBy: new Set()
+      viewedBy: [],
+      expiresAt,
+      createdAt: new Date().toISOString()
     }
 
     // Save to database
-    const { error: dbError } = await supabase
-      .from('user_statuses')
+    const { error } = await supabase
+      .from('statuses')
       .insert({
         id: statusId,
         user_id: socket.userId,
         content,
-        media_type: mediaType,
+        media_type: mediaType || 'text',
         media_url: mediaUrl,
         background_color: backgroundColor,
         text_color: textColor,
-        is_active: true,
-        expires_at: expiresAt.toISOString(),
-        created_at: new Date().toISOString()
+        expires_at: expiresAt,
+        created_at: status.createdAt
       })
 
-    if (dbError) throw dbError
+    if (error) throw error
 
     activeStatuses.set(statusId, status)
-    statusViews.set(statusId, new Set())
 
     socket.send(JSON.stringify({
-      type: 'status_created',
-      status
+      type: 'status_posted',
+      statusId,
+      timestamp: new Date().toISOString()
     }))
-
-    broadcastStatusUpdate(socket.userId, {
-      type: 'new_status',
-      status
-    })
-
-    console.log(`[Status] Status created by user ${socket.userId}`)
   } catch (error) {
-    console.error('[Status] Create status error:', error)
+    console.error('[StatusEvents] Post status error:', error)
     socket.send(JSON.stringify({
       type: 'error',
-      message: 'Failed to create status'
+      message: 'Failed to post status'
     }))
   }
 }
 
-async function handleUpdateStatus(socket: UserStatusSocket, payload: any) {
+async function handleGetStatuses(socket: UserStatusSocket, payload: any) {
   try {
-    const { statusId, content, backgroundColor, textColor } = payload
+    const supabase = await getWSSupabaseClient()
 
     if (!socket.userId) {
       socket.send(JSON.stringify({
@@ -252,101 +183,45 @@ async function handleUpdateStatus(socket: UserStatusSocket, payload: any) {
       return
     }
 
-    const status = activeStatuses.get(statusId)
-    if (!status || status.userId !== socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Status not found or unauthorized'
-      }))
-      return
-    }
+    const { limit = 50 } = payload
 
-    status.content = content || status.content
-    status.backgroundColor = backgroundColor || status.backgroundColor
-    status.textColor = textColor || status.textColor
+    // Get statuses from connections
+    const { data: connections, error: connError } = await supabase
+      .from('connections')
+      .select('connected_user_id')
+      .eq('user_id', socket.userId)
 
-    const { error } = await supabase
-      .from('user_statuses')
-      .update({
-        content,
-        background_color: backgroundColor,
-        text_color: textColor
-      })
-      .eq('id', statusId)
+    if (connError) throw connError
+
+    const friendIds = (connections || []).map((c: any) => c.connected_user_id)
+
+    const { data: statuses, error } = await supabase
+      .from('statuses')
+      .select('*')
+      .in('user_id', [...friendIds, socket.userId])
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(limit)
 
     if (error) throw error
 
     socket.send(JSON.stringify({
-      type: 'status_updated',
-      status
+      type: 'statuses',
+      statuses: statuses || [],
+      timestamp: new Date().toISOString()
     }))
-
-    broadcastStatusUpdate(socket.userId, {
-      type: 'status_updated',
-      status
-    })
   } catch (error) {
-    console.error('[Status] Update status error:', error)
+    console.error('[StatusEvents] Get statuses error:', error)
     socket.send(JSON.stringify({
       type: 'error',
-      message: 'Failed to update status'
-    }))
-  }
-}
-
-async function handleDeleteStatus(socket: UserStatusSocket, payload: any) {
-  try {
-    const { statusId } = payload
-
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    const status = activeStatuses.get(statusId)
-    if (!status || status.userId !== socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Status not found or unauthorized'
-      }))
-      return
-    }
-
-    const { error } = await supabase
-      .from('user_statuses')
-      .update({ is_active: false })
-      .eq('id', statusId)
-
-    if (error) throw error
-
-    activeStatuses.delete(statusId)
-    statusViews.delete(statusId)
-
-    socket.send(JSON.stringify({
-      type: 'status_deleted',
-      statusId
-    }))
-
-    broadcastStatusUpdate(socket.userId, {
-      type: 'status_deleted',
-      statusId
-    })
-
-    console.log(`[Status] Status ${statusId} deleted by user ${socket.userId}`)
-  } catch (error) {
-    console.error('[Status] Delete status error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to delete status'
+      message: 'Failed to fetch statuses'
     }))
   }
 }
 
 async function handleViewStatus(socket: UserStatusSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { statusId } = payload
 
     if (!socket.userId) {
@@ -357,43 +232,30 @@ async function handleViewStatus(socket: UserStatusSocket, payload: any) {
       return
     }
 
-    const status = activeStatuses.get(statusId)
-    if (!status) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Status not found'
-      }))
-      return
-    }
-
-    const viewers = statusViews.get(statusId)!
-    if (!viewers.has(socket.userId)) {
-      viewers.add(socket.userId)
-      status.views++
-
-      // Save view to database
-      await supabase
-        .from('status_views')
-        .insert({
-          status_id: statusId,
-          viewer_id: socket.userId,
-          viewed_at: new Date().toISOString()
-        })
-
-      broadcastStatusUpdate(status.userId, {
-        type: 'status_viewed',
-        statusId,
-        viewerId: socket.userId,
-        totalViews: status.views
+    // Record view
+    const { error } = await supabase
+      .from('status_views')
+      .insert({
+        status_id: statusId,
+        viewer_id: socket.userId,
+        viewed_at: new Date().toISOString()
       })
+
+    if (error) throw error
+
+    // Update viewers set
+    if (!statusViewers.has(statusId)) {
+      statusViewers.set(statusId, new Set())
     }
+    statusViewers.get(statusId)!.add(socket.userId)
 
     socket.send(JSON.stringify({
-      type: 'status_view_recorded',
-      statusId
+      type: 'status_viewed',
+      statusId,
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
-    console.error('[Status] View status error:', error)
+    console.error('[StatusEvents] View status error:', error)
     socket.send(JSON.stringify({
       type: 'error',
       message: 'Failed to record status view'
@@ -401,199 +263,59 @@ async function handleViewStatus(socket: UserStatusSocket, payload: any) {
   }
 }
 
-async function handleGetStatus(socket: UserStatusSocket, payload: any) {
+async function handleDeleteStatus(socket: UserStatusSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { statusId } = payload
 
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    const status = activeStatuses.get(statusId)
-
-    socket.send(JSON.stringify({
-      type: 'status',
-      status: status || null
-    }))
-  } catch (error) {
-    console.error('[Status] Get status error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to fetch status'
-    }))
-  }
-}
-
-async function handleGetUserStatuses(socket: UserStatusSocket, payload: any) {
-  try {
-    const { userId } = payload
-
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    const statuses = Array.from(activeStatuses.values()).filter(
-      s => s.userId === userId && s.isActive
-    )
-
-    socket.send(JSON.stringify({
-      type: 'user_statuses',
-      statuses,
-      count: statuses.length
-    }))
-  } catch (error) {
-    console.error('[Status] Get user statuses error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to fetch user statuses'
-    }))
-  }
-}
-
-async function handleGetFriendStatuses(socket: UserStatusSocket, payload: any) {
-  try {
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    // Get user's friends
-    const { data: friends } = await supabase
-      .from('pals')
-      .select('pal_id')
+    const { error } = await supabase
+      .from('statuses')
+      .delete()
+      .eq('id', statusId)
       .eq('user_id', socket.userId)
 
-    const friendIds = friends?.map(f => f.pal_id) || []
+    if (error) throw error
 
-    // Get their active statuses
-    const statuses = Array.from(activeStatuses.values()).filter(
-      s => friendIds.includes(s.userId) && s.isActive
-    )
+    activeStatuses.delete(statusId)
+    statusViewers.delete(statusId)
 
     socket.send(JSON.stringify({
-      type: 'friend_statuses',
-      statuses,
-      count: statuses.length
+      type: 'status_deleted',
+      statusId,
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
-    console.error('[Status] Get friend statuses error:', error)
+    console.error('[StatusEvents] Delete status error:', error)
     socket.send(JSON.stringify({
       type: 'error',
-      message: 'Failed to fetch friend statuses'
+      message: 'Failed to delete status'
     }))
   }
 }
 
-async function handleWatchUserStatus(socket: UserStatusSocket, payload: any) {
+async function handleGetStatusViewers(socket: UserStatusSocket, payload: any) {
   try {
-    const { userId } = payload
-
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    if (!userStatusWatchers.has(userId)) {
-      userStatusWatchers.set(userId, new Set())
-    }
-
-    userStatusWatchers.get(userId)!.add(socket.id)
-    socket.watchingStatuses!.add(userId)
-
-    socket.send(JSON.stringify({
-      type: 'watching_user_status',
-      userId
-    }))
-
-    console.log(`[Status] User ${socket.userId} watching status of ${userId}`)
-  } catch (error) {
-    console.error('[Status] Watch user status error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to watch user status'
-    }))
-  }
-}
-
-async function handleUnwatchUserStatus(socket: UserStatusSocket, payload: any) {
-  try {
-    const { userId } = payload
-
-    if (!socket.userId) return
-
-    const watchers = userStatusWatchers.get(userId)
-    if (watchers) {
-      watchers.delete(socket.id)
-    }
-
-    socket.watchingStatuses?.delete(userId)
-
-    socket.send(JSON.stringify({
-      type: 'unwatching_user_status',
-      userId
-    }))
-  } catch (error) {
-    console.error('[Status] Unwatch user status error:', error)
-  }
-}
-
-async function handleGetStatusViews(socket: UserStatusSocket, payload: any) {
-  try {
+    const supabase = await getWSSupabaseClient()
     const { statusId } = payload
 
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
+    const { data: views, error } = await supabase
+      .from('status_views')
+      .select('viewer_id, viewed_at')
+      .eq('status_id', statusId)
+      .order('viewed_at', { ascending: false })
 
-    const status = activeStatuses.get(statusId)
-    if (!status || status.userId !== socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Status not found or unauthorized'
-      }))
-      return
-    }
-
-    const viewers = Array.from(statusViews.get(statusId) || [])
+    if (error) throw error
 
     socket.send(JSON.stringify({
-      type: 'status_views',
-      statusId,
-      viewers,
-      totalViews: viewers.length
+      type: 'status_viewers',
+      viewers: views || [],
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
-    console.error('[Status] Get status views error:', error)
+    console.error('[StatusEvents] Get status viewers error:', error)
     socket.send(JSON.stringify({
       type: 'error',
-      message: 'Failed to fetch status views'
+      message: 'Failed to fetch status viewers'
     }))
-  }
-}
-
-function broadcastStatusUpdate(userId: string, message: any) {
-  const watchers = userStatusWatchers.get(userId)
-  if (watchers) {
-    watchers.forEach(socketId => {
-      console.log(`[Status] Broadcasting to watcher ${socketId}`)
-    })
   }
 }
