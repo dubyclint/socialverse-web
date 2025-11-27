@@ -1,25 +1,25 @@
-// nitro.config.ts - CORRECTED
+// nitro.config.ts - FINAL VERSION
 export default defineNitroConfig({
   preset: 'node-server',
   
   // ============================================================================
-  // CRITICAL: Prevent Supabase from being bundled - USE ROLLUP EXTERNAL
+  // CRITICAL: Prevent Supabase from being bundled
   // ============================================================================
   rollupConfig: {
-    external: ['@supabase/supabase-js'],  // ✅ This is the key
+    external: ['@supabase/supabase-js'],
     output: {
       format: 'esm'
     }
   },
   
   // ============================================================================
-  // ESBuild Configuration - ALSO externalize
+  // ESBuild Configuration
   // ============================================================================
   esbuild: {
     options: {
       target: 'es2022',
       minify: true,
-      external: ['@supabase/supabase-js']  // ✅ Also here
+      external: ['@supabase/supabase-js']
     }
   },
   
