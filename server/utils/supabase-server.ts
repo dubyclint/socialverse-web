@@ -1,4 +1,4 @@
-// FILE: /server/utils/supabase-server.ts
+// FILE: /server/utils/supabase-server.ts - FULLY LAZY LOADED
 // ============================================================================
 // SERVER-SIDE SUPABASE CLIENT - LAZY LOADED
 // ============================================================================
@@ -31,19 +31,20 @@ async function createAdminClient(): Promise<SupabaseClient> {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
-        detectSessionInUrl: false
-      }
+        detectSessionInUrl: false,
+      },
     })
 
+    console.log('[Supabase Server] Admin client created')
     return adminClientInstance
   } catch (error) {
-    console.error('[SupabaseServer] Failed to create admin client:', error)
+    console.error('[Supabase Server] Failed to create admin client:', error)
     throw error
   }
 }
 
 /**
- * Create user client for server operations (lazy loaded)
+ * Create user client for user operations (lazy loaded)
  */
 async function createUserClient(): Promise<SupabaseClient> {
   if (userClientInstance) {
@@ -64,37 +65,62 @@ async function createUserClient(): Promise<SupabaseClient> {
       auth: {
         autoRefreshToken: true,
         persistSession: false,
-        detectSessionInUrl: false
-      }
+        detectSessionInUrl: false,
+      },
     })
 
+    console.log('[Supabase Server] User client created')
     return userClientInstance
   } catch (error) {
-    console.error('[SupabaseServer] Failed to create user client:', error)
+    console.error('[Supabase Server] Failed to create user client:', error)
     throw error
   }
 }
 
 /**
- * Get admin Supabase client for server-side operations
+ * Get admin client
  */
-export async function serverSupabaseAdmin(): Promise<SupabaseClient> {
+export async function getAdminClient(): Promise<SupabaseClient> {
   return createAdminClient()
 }
 
 /**
- * Get user Supabase client for server-side operations
+ * Get user client
  */
-export async function serverSupabaseUser(): Promise<SupabaseClient> {
+export async function getUserClient(): Promise<SupabaseClient> {
   return createUserClient()
 }
 
 /**
- * Get Supabase client from event context (for use in event handlers)
+ * Get client from event context (if available)
  */
-export async function serverSupabaseClient(event?: H3Event): Promise<SupabaseClient> {
-  if (event?.context?.supabase) {
-    return event.context.supabase
+export async function getClientFromEvent(event: H3Event): Promise<SupabaseClient> {
+  // Try to get from context first
+  const contextClient = (event.context as any)?.supabase
+  if (contextClient) {
+    return contextClient
   }
-  return createAdminClient()
+
+  // Fall back to user client
+  return createUserClient()
+}
+
+/**
+ * Execute query with admin privileges
+ */
+export async function executeAdminQuery<T>(
+  callback: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  const client = await createAdminClient()
+  return callback(client)
+}
+
+/**
+ * Execute query with user privileges
+ */
+export async function executeUserQuery<T>(
+  callback: (client: SupabaseClient) => Promise<T>
+): Promise<T> {
+  const client = await createUserClient()
+  return callback(client)
 }
