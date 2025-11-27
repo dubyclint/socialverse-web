@@ -33,8 +33,8 @@ export default defineNuxtConfig({
   // BUILD CONFIGURATION - OPTIMIZE SUPABASE BUNDLING
   // ============================================================================
   build: {
-    transpile: [],
-  },
+  transpile: ['@supabase/supabase-js'],
+},
 
   // ============================================================================
   // NITRO CONFIGURATION - SERVER-SIDE OPTIMIZATION
