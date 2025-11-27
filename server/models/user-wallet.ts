@@ -1,353 +1,189 @@
-// server/models/user-wallet.ts
-// ============================================================================
-// CONSOLIDATED USER WALLET MODEL
-// Merges: wallet.js + user-wallet.ts
-// ============================================================================
+// FILE: /server/models/user-wallet.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { supabase } from '~/server/utils/database'
-import type { SupabaseClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-export interface WalletBalance {
-  usdt: number
-  usdc: number
-  btc: number
-  eth: number
-  sol: number
-  matic: number
-  xaut: number
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
-export interface ExtraWallet {
-  symbol: string
-  address: string
-  balance: number
-}
-
+// ============================================================================
+// INTERFACES
+// ============================================================================
 export interface UserWallet {
   id: string
-  user_id: string
-  balances: WalletBalance
-  extra_wallets: ExtraWallet[]
-  total_balance_usd: number
-  created_at: string
-  updated_at: string
+  userId: string
+  walletAddress: string
+  chainId: number
+  balance: number
+  currency: string
+  isVerified: boolean
+  isPrimary: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-export interface WalletTransaction {
-  id: string
-  wallet_id: string
-  from_currency: string
-  to_currency: string
-  amount: number
-  transaction_type: 'transfer' | 'deposit' | 'withdrawal' | 'swap'
-  status: 'pending' | 'completed' | 'failed'
-  timestamp: string
-}
-
-const SUPPORTED_CURRENCIES = [
-  { code: 'USDT', name: 'Tether' },
-  { code: 'USDC', name: 'USD Coin' },
-  { code: 'BTC', name: 'Bitcoin' },
-  { code: 'ETH', name: 'Ethereum' },
-  { code: 'SOL', name: 'Solana' },
-  { code: 'MATIC', name: 'Polygon' },
-  { code: 'XAUT', name: 'Tether Gold' }
-]
-
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class UserWalletModel {
-  /**
-   * Create user wallets
-   */
-  static async create(userId: string, balances: Partial<WalletBalance> = {}): Promise<UserWallet> {
-    try {
-      const defaultBalances: WalletBalance = {
-        usdt: balances.usdt || 0,
-        usdc: balances.usdc || 0,
-        btc: balances.btc || 0,
-        eth: balances.eth || 0,
-        sol: balances.sol || 0,
-        matic: balances.matic || 0,
-        xaut: balances.xaut || 0
-      }
-
-      const { data, error } = await supabase
-        .from('user_wallets')
-        .insert([
-          {
-            user_id: userId,
-            balances: defaultBalances,
-            extra_wallets: [],
-            total_balance_usd: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ])
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (error: any) {
-      console.error('Error creating user wallet:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get user wallet
-   */
-  static async getByUserId(userId: string): Promise<UserWallet | null> {
-    try {
-      const { data, error } = await supabase
-        .from('user_wallets')
-        .select('*')
-        .eq('user_id', userId)
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-      return data || null
-    } catch (error: any) {
-      console.error('Error getting user wallet:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get wallet by ID
-   */
-  static async getById(walletId: string): Promise<UserWallet | null> {
-    try {
-      const { data, error } = await supabase
-        .from('user_wallets')
-        .select('*')
-        .eq('id', walletId)
-        .single()
-
-      if (error && error.code !== 'PGRST116') throw error
-      return data || null
-    } catch (error: any) {
-      console.error('Error getting wallet:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Update wallet balance
-   */
-  static async updateBalance(
+  static async createWallet(
     userId: string,
-    currency: keyof WalletBalance,
-    amount: number
+    walletAddress: string,
+    chainId: number,
+    currency: string
   ): Promise<UserWallet> {
     try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) throw new Error('Wallet not found')
-
-      const updatedBalances = {
-        ...wallet.balances,
-        [currency]: Math.max(0, wallet.balances[currency] + amount)
-      }
-
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_wallets')
-        .update({
-          balances: updatedBalances,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (error: any) {
-      console.error('Error updating wallet balance:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Transfer between currencies
-   */
-  static async transfer(
-    userId: string,
-    fromCurrency: keyof WalletBalance,
-    toCurrency: keyof WalletBalance,
-    amount: number
-  ): Promise<UserWallet> {
-    try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) throw new Error('Wallet not found')
-
-      if (wallet.balances[fromCurrency] < amount) {
-        throw new Error('Insufficient balance')
-      }
-
-      const updatedBalances = {
-        ...wallet.balances,
-        [fromCurrency]: wallet.balances[fromCurrency] - amount,
-        [toCurrency]: wallet.balances[toCurrency] + amount
-      }
-
-      const { data, error } = await supabase
-        .from('user_wallets')
-        .update({
-          balances: updatedBalances,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (error: any) {
-      console.error('Error transferring funds:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Add extra wallet
-   */
-  static async addExtraWallet(
-    userId: string,
-    symbol: string,
-    address: string,
-    balance: number = 0
-  ): Promise<UserWallet> {
-    try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) throw new Error('Wallet not found')
-
-      const extraWallets = [
-        ...wallet.extra_wallets,
-        { symbol, address, balance }
-      ]
-
-      const { data, error } = await supabase
-        .from('user_wallets')
-        .update({
-          extra_wallets: extraWallets,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (error: any) {
-      console.error('Error adding extra wallet:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get wallet balance
-   */
-  static async getBalance(userId: string, currency: keyof WalletBalance): Promise<number> {
-    try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) return 0
-      return wallet.balances[currency] || 0
-    } catch (error: any) {
-      console.error('Error getting wallet balance:', error)
-      return 0
-    }
-  }
-
-  /**
-   * Get total balance in USD
-   */
-  static async getTotalBalance(userId: string): Promise<number> {
-    try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) return 0
-      return wallet.total_balance_usd || 0
-    } catch (error: any) {
-      console.error('Error getting total balance:', error)
-      return 0
-    }
-  }
-
-  /**
-   * Lock wallet balance
-   */
-  static async lockBalance(
-    userId: string,
-    currency: keyof WalletBalance,
-    amount: number,
-    reason: string
-  ): Promise<void> {
-    try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) throw new Error('Wallet not found')
-
-      if (wallet.balances[currency] < amount) {
-        throw new Error('Insufficient balance to lock')
-      }
-
-      // Create lock record
-      const { error } = await supabase
-        .from('wallet_locks')
         .insert({
-          wallet_id: wallet.id,
+          userId,
+          walletAddress,
+          chainId,
+          balance: 0,
           currency,
-          amount,
-          reason,
-          locked_at: new Date().toISOString()
+          isVerified: false,
+          isPrimary: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
+        .select()
+        .single()
 
       if (error) throw error
-    } catch (error: any) {
-      console.error('Error locking wallet balance:', error)
+      return data as UserWallet
+    } catch (error) {
+      console.error('[UserWalletModel] Error creating wallet:', error)
       throw error
     }
   }
 
-  /**
-   * Unlock wallet balance
-   */
-  static async unlockBalance(lockId: string): Promise<void> {
+  static async getWallet(id: string): Promise<UserWallet | null> {
     try {
-      const { error } = await supabase
-        .from('wallet_locks')
-        .update({ unlocked_at: new Date().toISOString() })
-        .eq('id', lockId)
-
-      if (error) throw error
-    } catch (error: any) {
-      console.error('Error unlocking wallet balance:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Get locked balances
-   */
-  static async getLockedBalances(userId: string): Promise<Record<string, number>> {
-    try {
-      const wallet = await this.getByUserId(userId)
-      if (!wallet) return {}
-
+      const supabase = await getSupabase()
       const { data, error } = await supabase
-        .from('wallet_locks')
-        .select('currency, amount')
-        .eq('wallet_id', wallet.id)
-        .is('unlocked_at', null)
+        .from('user_wallets')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        console.warn('[UserWalletModel] Wallet not found')
+        return null
+      }
+
+      return data as UserWallet
+    } catch (error) {
+      console.error('[UserWalletModel] Error fetching wallet:', error)
+      throw error
+    }
+  }
+
+  static async getUserWallets(userId: string): Promise<UserWallet[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_wallets')
+        .select('*')
+        .eq('userId', userId)
+        .order('isPrimary', { ascending: false })
 
       if (error) throw error
+      return (data || []) as UserWallet[]
+    } catch (error) {
+      console.error('[UserWalletModel] Error fetching user wallets:', error)
+      throw error
+    }
+  }
 
-      const locked: Record<string, number> = {}
-      ;(data || []).forEach(lock => {
-        locked[lock.currency] = (locked[lock.currency] || 0) + lock.amount
-      })
+  static async updateBalance(id: string, balance: number): Promise<UserWallet> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_wallets')
+        .update({
+          balance,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
 
-      return locked
-    } catch (error: any) {
-      console.error('Error getting locked balances:', error)
-      return {}
+      if (error) throw error
+      return data as UserWallet
+    } catch (error) {
+      console.error('[UserWalletModel] Error updating balance:', error)
+      throw error
+    }
+  }
+
+  static async verifyWallet(id: string): Promise<UserWallet> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_wallets')
+        .update({
+          isVerified: true,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as UserWallet
+    } catch (error) {
+      console.error('[UserWalletModel] Error verifying wallet:', error)
+      throw error
+    }
+  }
+
+  static async setPrimaryWallet(userId: string, walletId: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      
+      // Unset all other primary wallets
+      await supabase
+        .from('user_wallets')
+        .update({ isPrimary: false })
+        .eq('userId', userId)
+
+      // Set this wallet as primary
+      const { error } = await supabase
+        .from('user_wallets')
+        .update({ isPrimary: true })
+        .eq('id', walletId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[UserWalletModel] Error setting primary wallet:', error)
+      throw error
+    }
+  }
+
+  static async deleteWallet(id: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('user_wallets')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[UserWalletModel] Error deleting wallet:', error)
+      throw error
     }
   }
 }
