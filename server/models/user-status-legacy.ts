@@ -1,102 +1,111 @@
 // FILE: /server/models/user-status-legacy.ts
-// Legacy User Status (Sequelize) - DEPRECATED
-// Use /server/models/status.ts instead
-// Converted from: userStatus.js
-
-import { db } from '~/server/utils/database'
+// REFACTORED: Lazy-loaded Supabase
 
 // ============================================================================
-// TYPES & INTERFACES
+// LAZY-LOADED SUPABASE CLIENT
 // ============================================================================
+let supabaseInstance: any = null
 
-export interface LegacyUserStatus {
-  id: string
-  user_id: string
-  content?: string
-  media_url?: string
-  media_type: 'text' | 'image' | 'video' | 'audio'
-  media_metadata?: Record<string, any>
-  background_color: string
-  text_color: string
-  view_count: number
-  is_active: boolean
-  expires_at: string
-  created_at: string
-  updated_at: string
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
 }
 
 // ============================================================================
-// LEGACY USER STATUS MODEL
+// INTERFACES
 // ============================================================================
+export type UserStatusType = 'ONLINE' | 'OFFLINE' | 'AWAY' | 'DND'
 
-/**
- * @deprecated Use StatusModel from /server/models/status.ts instead
- * This model is kept for backward compatibility only
- */
-export class LegacyUserStatusModel {
-  /**
-   * Get user status (legacy)
-   * @deprecated Use StatusModel.getActiveStatus() instead
-   */
-  static async getStatus(userId: string): Promise<LegacyUserStatus | null> {
+export interface UserStatusLegacy {
+  id: string
+  userId: string
+  status: UserStatusType
+  statusMessage?: string
+  lastSeen: string
+  updatedAt: string
+}
+
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
+export class UserStatusLegacyModel {
+  static async getStatus(userId: string): Promise<UserStatusLegacy | null> {
     try {
-      const { data, error } = await db
-        .from('user_statuses')
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_status_legacy')
         .select('*')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('userId', userId)
         .single()
 
-      if (error && error.code !== 'PGRST116') throw error
-      return (data as LegacyUserStatus) || null
+      if (error) {
+        console.warn('[UserStatusLegacyModel] Status not found')
+        return null
+      }
+
+      return data as UserStatusLegacy
     } catch (error) {
-      console.error('[LegacyUserStatusModel] Get status error:', error)
+      console.error('[UserStatusLegacyModel] Error fetching status:', error)
       throw error
     }
   }
 
-  /**
-   * Update user status (legacy)
-   * @deprecated Use StatusModel.updateStatus() instead
-   */
-  static async updateStatus(userId: string, content: string, mediaUrl?: string): Promise<LegacyUserStatus> {
+  static async setStatus(userId: string, status: UserStatusType, statusMessage?: string): Promise<UserStatusLegacy> {
     try {
-      const { data, error } = await db
-        .from('user_statuses')
-        .update({
-          content,
-          media_url: mediaUrl,
-          updated_at: new Date().toISOString()
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_status_legacy')
+        .upsert({
+          userId,
+          status,
+          statusMessage,
+          lastSeen: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
-        .eq('user_id', userId)
         .select()
         .single()
 
       if (error) throw error
-      return data as LegacyUserStatus
+      return data as UserStatusLegacy
     } catch (error) {
-      console.error('[LegacyUserStatusModel] Update status error:', error)
+      console.error('[UserStatusLegacyModel] Error setting status:', error)
       throw error
     }
   }
 
-  /**
-   * Clear user status (legacy)
-   * @deprecated Use StatusModel.deactivateStatus() instead
-   */
-  static async clearStatus(userId: string): Promise<boolean> {
+  static async getOnlineUsers(): Promise<UserStatusLegacy[]> {
     try {
-      const { error } = await db
-        .from('user_statuses')
-        .update({ is_active: false })
-        .eq('user_id', userId)
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_status_legacy')
+        .select('*')
+        .eq('status', 'ONLINE')
 
       if (error) throw error
-      return true
+      return (data || []) as UserStatusLegacy[]
     } catch (error) {
-      console.error('[LegacyUserStatusModel] Clear status error:', error)
+      console.error('[UserStatusLegacyModel] Error fetching online users:', error)
+      throw error
+    }
+  }
+
+  static async updateLastSeen(userId: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('user_status_legacy')
+        .update({ lastSeen: new Date().toISOString() })
+        .eq('userId', userId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[UserStatusLegacyModel] Error updating last seen:', error)
       throw error
     }
   }
