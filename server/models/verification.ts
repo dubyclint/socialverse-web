@@ -1,51 +1,66 @@
-// server/models/verification.ts
-// Verification Model - Email/Phone verification
+// FILE: /server/models/verification.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type VerificationType = 'email' | 'phone' | 'identity'
-export type VerificationStatus = 'pending' | 'verified' | 'failed' | 'expired'
+// ============================================================================
+// INTERFACES
+// ============================================================================
+export type VerificationType = 'EMAIL' | 'PHONE' | 'IDENTITY' | 'ADDRESS'
 
 export interface Verification {
   id: string
-  user_id: string
-  type: VerificationType
-  value: string
-  code: string
-  status: VerificationStatus
-  attempts: number
-  expires_at: string
-  verified_at?: string
-  created_at: string
-}
-
-export interface CreateVerificationInput {
   userId: string
   type: VerificationType
   value: string
-  code: string
+  status: 'PENDING' | 'VERIFIED' | 'FAILED' | 'EXPIRED'
+  code?: string
+  attempts: number
+  maxAttempts: number
   expiresAt: string
+  verifiedAt?: string
+  createdAt: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class VerificationModel {
-  static async create(input: CreateVerificationInput): Promise<Verification> {
+  static async createVerification(
+    userId: string,
+    type: VerificationType,
+    value: string,
+    code: string,
+    expiresAt: string
+  ): Promise<Verification> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('verifications')
         .insert({
-          user_id: input.userId,
-          type: input.type,
-          value: input.value,
-          code: input.code,
-          status: 'pending',
+          userId,
+          type,
+          value,
+          code,
+          status: 'PENDING',
           attempts: 0,
-          expires_at: input.expiresAt,
-          created_at: new Date().toISOString()
+          maxAttempts: 5,
+          expiresAt,
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -53,83 +68,108 @@ export class VerificationModel {
       if (error) throw error
       return data as Verification
     } catch (error) {
-      console.error('[VerificationModel] Create error:', error)
+      console.error('[VerificationModel] Error creating verification:', error)
       throw error
     }
   }
 
-  static async verify(verificationId: string, code: string): Promise<Verification | null> {
+  static async getVerification(userId: string, type: VerificationType): Promise<Verification | null> {
     try {
-      const { data: verification, error: fetchError } = await supabase
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
+      const { data, error } = await supabase
         .from('verifications')
         .select('*')
-        .eq('id', verificationId)
+        .eq('userId', userId)
+        .eq('type', type)
+        .eq('status', 'PENDING')
+        .gt('expiresAt', now)
         .single()
 
-      if (fetchError) throw fetchError
-
-      if (verification.code !== code) {
-        await supabase
-          .from('verifications')
-          .update({ attempts: verification.attempts + 1 })
-          .eq('id', verificationId)
+      if (error) {
+        console.warn('[VerificationModel] Verification not found')
         return null
       }
 
-      const { data, error } = await supabase
-        .from('verifications')
-        .update({
-          status: 'verified',
-          verified_at: new Date().toISOString()
-        })
-        .eq('id', verificationId)
-        .select()
-        .single()
-
-      if (error) throw error
       return data as Verification
     } catch (error) {
-      console.error('[VerificationModel] Verify error:', error)
+      console.error('[VerificationModel] Error fetching verification:', error)
       throw error
     }
   }
 
-  static async getPending(userId: string, type: VerificationType): Promise<Verification | null> {
+  static async verifyCode(id: string, code: string): Promise<Verification | null> {
     try {
-      const { data, error } = await supabase
+      const supabase = await getSupabase()
+      
+      // Get verification
+      const verification = await supabase
         .from('verifications')
         .select('*')
-        .eq('user_id', userId)
-        .eq('type', type)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString())
+        .eq('id', id)
         .single()
 
-      if (error && error.code !== 'PGRST116') throw error
-      return (data as Verification) || null
+      if (verification.error) throw verification.error
+
+      const data = verification.data as any
+
+      // Check if expired
+      if (new Date(data.expiresAt) < new Date()) {
+        throw new Error('Verification code expired')
+      }
+
+      // Check if max attempts exceeded
+      if (data.attempts >= data.maxAttempts) {
+        throw new Error('Max verification attempts exceeded')
+      }
+
+      // Check code
+      if (data.code !== code) {
+        // Increment attempts
+        await supabase
+          .from('verifications')
+          .update({ attempts: data.attempts + 1 })
+          .eq('id', id)
+
+        return null
+      }
+
+      // Mark as verified
+      const { data: updated, error } = await supabase
+        .from('verifications')
+        .update({
+          status: 'VERIFIED',
+          verifiedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return updated as Verification
     } catch (error) {
-      console.error('[VerificationModel] Get pending error:', error)
+      console.error('[VerificationModel] Error verifying code:', error)
       throw error
     }
   }
 
   static async isVerified(userId: string, type: VerificationType): Promise<boolean> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('verifications')
         .select('id')
-        .eq('user_id', userId)
+        .eq('userId', userId)
         .eq('type', type)
-        .eq('status', 'verified')
+        .eq('status', 'VERIFIED')
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
       return !!data
     } catch (error) {
-      console.error('[VerificationModel] Is verified error:', error)
+      console.error('[VerificationModel] Error checking verification:', error)
       return false
     }
   }
 }
-
-export default VerificationModel
