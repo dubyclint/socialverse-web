@@ -1,4 +1,4 @@
-// nuxt.config.ts - PRODUCTION-READY WITH ENVIRONMENT VARIABLES
+// nuxt.config.ts - COMPLETE FIXED VERSION
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -13,14 +13,8 @@ export default defineNuxtConfig({
     '@pinia/nuxt'
   ],
 
-  // ============================================================================
-  // RUNTIME CONFIG - STRICT SEPARATION OF CLIENT/SERVER VARIABLES
-  // ============================================================================
   runtimeConfig: {
-    // Server-only (private) - NOT exposed to client
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
-    
-    // Public (client + server) - exposed to both
     public: {
       supabaseUrl: process.env.SUPABASE_URL || '',
       supabaseKey: process.env.SUPABASE_KEY || '',
@@ -29,61 +23,51 @@ export default defineNuxtConfig({
     },
   },
 
-  // ============================================================================
-  // BUILD CONFIGURATION - OPTIMIZE SUPABASE BUNDLING
-  // ============================================================================
   build: {
-  transpile: ['@supabase/supabase-js'],
-},
+    transpile: [],
+  },
 
-  // ============================================================================
-  // NITRO CONFIGURATION - SERVER-SIDE OPTIMIZATION
-  // ============================================================================
   nitro: {
     preset: 'node-server',
-    
-    // Prerender configuration
     prerender: {
       crawlLinks: false,
       routes: [],
       ignore: ['/**'],
       failOnError: false
     },
-    
-    // ESBuild optimization
     esbuild: {
       options: {
         target: 'es2022',
         minify: true
       }
     },
-    
-    // Optimize cold starts
     minify: true,
     sourceMap: false,
-    
-    // Set port from environment variable
     port: parseInt(process.env.PORT || '8080', 10),
     host: '0.0.0.0',
   },
 
-  // ============================================================================
-  // ALIASES - CLEAN IMPORTS FOR CLIENT/SERVER SEPARATION
-  // ============================================================================
   alias: {
     '#supabase/server': '~/server/utils/supabase-server.ts',
     '#supabase/client': '~/composables/use-supabase.ts',
     '#supabase/admin': '~/server/utils/supabase-admin.ts',
   },
 
-  // ============================================================================
-  // VITE CONFIGURATION - TREE-SHAKING & OPTIMIZATION
-  // ============================================================================
   vite: {
     define: {
       __DEV__: false,
     },
     build: {
+      rollupOptions: {
+        external: [
+          '@supabase/supabase-js',
+          '@supabase/auth-js',
+          '@supabase/postgrest-js',
+          '@supabase/realtime-js',
+          '@supabase/storage-js',
+          '@supabase/functions-js'
+        ]
+      },
       minify: 'terser',
       terserOptions: {
         compress: {
