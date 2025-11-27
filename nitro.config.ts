@@ -1,27 +1,38 @@
-// nitro.config.ts - FIXED FOR SUPABASE ESM BUNDLING
+// nitro.config.ts - PRODUCTION-READY WITH SUPABASE EXTERNALIZATION
+// ============================================================================
+// CRITICAL FIX: Externalize Supabase to prevent ESM bundling issues
+// ============================================================================
+
 export default defineNitroConfig({
   preset: 'node-server',
   
-  // ✅ CRITICAL: Enable ESM module resolution
+  // ============================================================================
+  // CRITICAL: Externalize @supabase/supabase-js
+  // ============================================================================
+  // This tells esbuild to NOT bundle Supabase, but load it from node_modules
+  // at runtime. This prevents ESM resolution errors with internal imports.
+  rollupConfig: {
+    external: ['@supabase/supabase-js'],
+    output: {
+      format: 'esm'
+    }
+  },
+  
+  // ============================================================================
+  // ESBuild Configuration
+  // ============================================================================
   esbuild: {
     options: {
       target: 'es2022',
       minify: true,
-      format: 'esm',  // ← ADD THIS
-      splitting: false,  // ← ADD THIS
+      // Don't try to bundle Supabase
+      external: ['@supabase/supabase-js']
     }
   },
   
-  // ✅ Ensure Supabase is NOT externalized
-  rollupConfig: {
-    external: [],  // Don't externalize Supabase
-  },
-  
-  // ✅ Node compatibility for ESM
-  node: {
-    preload: true,
-  },
-  
+  // ============================================================================
+  // Prerender Configuration
+  // ============================================================================
   prerender: {
     crawlLinks: false,
     routes: [],
@@ -29,11 +40,20 @@ export default defineNitroConfig({
     failOnError: false
   },
   
+  // ============================================================================
+  // Production Optimizations
+  // ============================================================================
   minify: true,
   sourceMap: false,
   
+  // ============================================================================
+  // Middleware
+  // ============================================================================
   middleware: ['compression', 'security'],
   
+  // ============================================================================
+  // Logging
+  // ============================================================================
   logging: {
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
   }
