@@ -1,50 +1,74 @@
-// server/models/trade.ts
-// Trade Model - P2P trading
+// FILE: /server/models/trade.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
-export type TradeStatus = 'pending' | 'accepted' | 'completed' | 'cancelled' | 'disputed'
-
+// ============================================================================
+// INTERFACES
+// ============================================================================
 export interface Trade {
   id: string
-  seller_id: string
-  buyer_id: string
-  amount: number
-  currency: string
-  payment_method: string
-  status: TradeStatus
-  created_at: string
-  updated_at: string
-  completed_at?: string
-}
-
-export interface CreateTradeInput {
-  sellerId: string
   buyerId: string
-  amount: number
-  currency: string
+  sellerId: string
+  assetType: string
+  assetId: string
+  quantity: number
+  pricePerUnit: number
+  totalPrice: number
+  status: 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED'
   paymentMethod: string
+  shippingAddress?: string
+  trackingNumber?: string
+  createdAt: string
+  completedAt?: string
 }
 
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class TradeModel {
-  static async create(input: CreateTradeInput): Promise<Trade> {
+  static async createTrade(
+    buyerId: string,
+    sellerId: string,
+    assetType: string,
+    assetId: string,
+    quantity: number,
+    pricePerUnit: number,
+    paymentMethod: string,
+    shippingAddress?: string
+  ): Promise<Trade> {
     try {
+      const supabase = await getSupabase()
+      const totalPrice = quantity * pricePerUnit
+
       const { data, error } = await supabase
         .from('trades')
         .insert({
-          seller_id: input.sellerId,
-          buyer_id: input.buyerId,
-          amount: input.amount,
-          currency: input.currency,
-          payment_method: input.paymentMethod,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          buyerId,
+          sellerId,
+          assetType,
+          assetId,
+          quantity,
+          pricePerUnit,
+          totalPrice,
+          status: 'PENDING',
+          paymentMethod,
+          shippingAddress,
+          createdAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -52,88 +76,109 @@ export class TradeModel {
       if (error) throw error
       return data as Trade
     } catch (error) {
-      console.error('[TradeModel] Create error:', error)
+      console.error('[TradeModel] Error creating trade:', error)
       throw error
     }
   }
 
-  static async accept(tradeId: string): Promise<Trade> {
+  static async getTrade(id: string): Promise<Trade | null> {
     try {
-      const { data, error } = await supabase
-        .from('trades')
-        .update({
-          status: 'accepted',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', tradeId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as Trade
-    } catch (error) {
-      console.error('[TradeModel] Accept error:', error)
-      throw error
-    }
-  }
-
-  static async complete(tradeId: string): Promise<Trade> {
-    try {
-      const { data, error } = await supabase
-        .from('trades')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', tradeId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as Trade
-    } catch (error) {
-      console.error('[TradeModel] Complete error:', error)
-      throw error
-    }
-  }
-
-  static async cancel(tradeId: string): Promise<Trade> {
-    try {
-      const { data, error } = await supabase
-        .from('trades')
-        .update({
-          status: 'cancelled',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', tradeId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as Trade
-    } catch (error) {
-      console.error('[TradeModel] Cancel error:', error)
-      throw error
-    }
-  }
-
-  static async getUserTrades(userId: string, limit: number = 50): Promise<Trade[]> {
-    try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('trades')
         .select('*')
-        .or(`seller_id.eq.${userId},buyer_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        console.warn('[TradeModel] Trade not found')
+        return null
+      }
+
+      return data as Trade
+    } catch (error) {
+      console.error('[TradeModel] Error fetching trade:', error)
+      throw error
+    }
+  }
+
+  static async getUserTrades(userId: string, role: 'buyer' | 'seller', limit = 50): Promise<Trade[]> {
+    try {
+      const supabase = await getSupabase()
+      const field = role === 'buyer' ? 'buyerId' : 'sellerId'
+
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .eq(field, userId)
+        .order('createdAt', { ascending: false })
         .limit(limit)
 
       if (error) throw error
-      return (data as Trade[]) || []
+      return (data || []) as Trade[]
     } catch (error) {
-      console.error('[TradeModel] Get user trades error:', error)
+      console.error('[TradeModel] Error fetching user trades:', error)
+      throw error
+    }
+  }
+
+  static async updateTradeStatus(id: string, status: 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED'): Promise<Trade> {
+    try {
+      const supabase = await getSupabase()
+      const updates: any = { status }
+
+      if (status === 'COMPLETED') {
+        updates.completedAt = new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('trades')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as Trade
+    } catch (error) {
+      console.error('[TradeModel] Error updating trade status:', error)
+      throw error
+    }
+  }
+
+  static async addTrackingNumber(id: string, trackingNumber: string): Promise<Trade> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('trades')
+        .update({ trackingNumber })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as Trade
+    } catch (error) {
+      console.error('[TradeModel] Error adding tracking number:', error)
+      throw error
+    }
+  }
+
+  static async getPendingTrades(limit = 50): Promise<Trade[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('createdAt', { ascending: true })
+        .limit(limit)
+
+      if (error) throw error
+      return (data || []) as Trade[]
+    } catch (error) {
+      console.error('[TradeModel] Error fetching pending trades:', error)
       throw error
     }
   }
 }
-
-export default TradeModel
