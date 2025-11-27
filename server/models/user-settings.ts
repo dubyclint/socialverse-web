@@ -1,69 +1,82 @@
-// server/models/user-settings.ts
-// User Settings Model
+// FILE: /server/models/user-settings.ts
+// REFACTORED: Lazy-loaded Supabase
 
-import { createClient } from '@supabase/supabase-js'
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
 
+// ============================================================================
+// INTERFACES
+// ============================================================================
 export interface UserSettings {
   id: string
-  user_id: string
-  theme: 'light' | 'dark' | 'auto'
+  userId: string
+  theme: 'LIGHT' | 'DARK' | 'AUTO'
   language: string
-  notifications_enabled: boolean
-  email_notifications: boolean
-  push_notifications: boolean
-  privacy_level: 'public' | 'friends' | 'private'
-  two_factor_enabled: boolean
-  created_at: string
-  updated_at: string
+  notificationsEnabled: boolean
+  emailNotifications: boolean
+  pushNotifications: boolean
+  twoFactorEnabled: boolean
+  dataCollection: boolean
+  marketingEmails: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-export interface UpdateSettingsInput {
-  theme?: 'light' | 'dark' | 'auto'
-  language?: string
-  notificationsEnabled?: boolean
-  emailNotifications?: boolean
-  pushNotifications?: boolean
-  privacyLevel?: 'public' | 'friends' | 'private'
-  twoFactorEnabled?: boolean
-}
-
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
 export class UserSettingsModel {
-  static async getByUserId(userId: string): Promise<UserSettings | null> {
+  static async getSettings(userId: string): Promise<UserSettings | null> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_settings')
         .select('*')
-        .eq('user_id', userId)
+        .eq('userId', userId)
         .single()
 
-      if (error && error.code !== 'PGRST116') throw error
-      return (data as UserSettings) || null
+      if (error) {
+        console.warn('[UserSettingsModel] Settings not found')
+        return null
+      }
+
+      return data as UserSettings
     } catch (error) {
-      console.error('[UserSettingsModel] Get by user ID error:', error)
+      console.error('[UserSettingsModel] Error fetching settings:', error)
       throw error
     }
   }
 
-  static async create(userId: string): Promise<UserSettings> {
+  static async createSettings(userId: string): Promise<UserSettings> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_settings')
         .insert({
-          user_id: userId,
-          theme: 'auto',
+          userId,
+          theme: 'AUTO',
           language: 'en',
-          notifications_enabled: true,
-          email_notifications: true,
-          push_notifications: true,
-          privacy_level: 'public',
-          two_factor_enabled: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          notificationsEnabled: true,
+          emailNotifications: true,
+          pushNotifications: true,
+          twoFactorEnabled: false,
+          dataCollection: true,
+          marketingEmails: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         })
         .select()
         .single()
@@ -71,79 +84,71 @@ export class UserSettingsModel {
       if (error) throw error
       return data as UserSettings
     } catch (error) {
-      console.error('[UserSettingsModel] Create error:', error)
+      console.error('[UserSettingsModel] Error creating settings:', error)
       throw error
     }
   }
 
-  static async update(userId: string, updates: UpdateSettingsInput): Promise<UserSettings> {
+  static async updateSettings(userId: string, updates: Partial<UserSettings>): Promise<UserSettings> {
     try {
-      const updateData: any = {
-        updated_at: new Date().toISOString()
-      }
-
-      if (updates.theme) updateData.theme = updates.theme
-      if (updates.language) updateData.language = updates.language
-      if (typeof updates.notificationsEnabled === 'boolean') updateData.notifications_enabled = updates.notificationsEnabled
-      if (typeof updates.emailNotifications === 'boolean') updateData.email_notifications = updates.emailNotifications
-      if (typeof updates.pushNotifications === 'boolean') updateData.push_notifications = updates.pushNotifications
-      if (updates.privacyLevel) updateData.privacy_level = updates.privacyLevel
-      if (typeof updates.twoFactorEnabled === 'boolean') updateData.two_factor_enabled = updates.twoFactorEnabled
-
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_settings')
-        .update(updateData)
-        .eq('user_id', userId)
+        .update({
+          ...updates,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('userId', userId)
         .select()
         .single()
 
       if (error) throw error
       return data as UserSettings
     } catch (error) {
-      console.error('[UserSettingsModel] Update error:', error)
+      console.error('[UserSettingsModel] Error updating settings:', error)
       throw error
     }
   }
 
   static async enableTwoFactor(userId: string): Promise<UserSettings> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_settings')
         .update({
-          two_factor_enabled: true,
-          updated_at: new Date().toISOString()
+          twoFactorEnabled: true,
+          updatedAt: new Date().toISOString()
         })
-        .eq('user_id', userId)
+        .eq('userId', userId)
         .select()
         .single()
 
       if (error) throw error
       return data as UserSettings
     } catch (error) {
-      console.error('[UserSettingsModel] Enable two factor error:', error)
+      console.error('[UserSettingsModel] Error enabling 2FA:', error)
       throw error
     }
   }
 
   static async disableTwoFactor(userId: string): Promise<UserSettings> {
     try {
+      const supabase = await getSupabase()
       const { data, error } = await supabase
         .from('user_settings')
         .update({
-          two_factor_enabled: false,
-          updated_at: new Date().toISOString()
+          twoFactorEnabled: false,
+          updatedAt: new Date().toISOString()
         })
-        .eq('user_id', userId)
+        .eq('userId', userId)
         .select()
         .single()
 
       if (error) throw error
       return data as UserSettings
     } catch (error) {
-      console.error('[UserSettingsModel] Disable two factor error:', error)
+      console.error('[UserSettingsModel] Error disabling 2FA:', error)
       throw error
     }
   }
 }
-
-export default UserSettingsModel
