@@ -1,8 +1,6 @@
-// FILE: /server/utils/database.ts - FIXED WITH LAZY LOADING
+// FILE: /server/utils/database.ts - COMPLETE REWRITE
 // ============================================================================
-// CENTRALIZED SUPABASE DATABASE CLIENT
-// Uses lazy loading to prevent Nitro bundling issues
-// Maintains backward compatibility - no changes needed in other files
+// CENTRALIZED SUPABASE DATABASE CLIENT - FULLY LAZY LOADED
 // ============================================================================
 
 // ============================================================================
@@ -48,6 +46,7 @@ export async function getSupabaseClient() {
       },
     })
     
+    console.log('[Database] Supabase client initialized')
     return supabaseInstance
   } catch (error) {
     console.error('[Database] Failed to load Supabase client:', error)
@@ -75,6 +74,7 @@ export async function getSupabaseAdminClient() {
       },
     })
     
+    console.log('[Database] Supabase admin client initialized')
     return supabaseAdminInstance
   } catch (error) {
     console.error('[Database] Failed to load Supabase admin client:', error)
@@ -97,19 +97,29 @@ export async function db() {
 export async function dbAdmin() {
   return getSupabaseAdminClient()
 }
-// ============================================================================
-// DIRECT EXPORT FOR BACKWARD COMPATIBILITY
-// ============================================================================
-// This provides a proxy object that lazily loads the supabase client
-// Allows existing code to use: import { supabase } from './database'
-// ============================================================================
 
-export const supabase = new Proxy({}, {
-  get: (target, prop) => {
-    return async (...args: any[]) => {
-      const client = await getSupabaseClient()
-      return (client as any)[prop]?.(...args)
-    }
-  }
-}) as any
+/**
+ * Type-safe query builder
+ * Usage: const result = await query('users').select('*')
+ */
+export async function query(table: string) {
+  const client = await getSupabaseClient()
+  return client.from(table)
+}
 
+/**
+ * Type-safe admin query builder
+ * Usage: const result = await queryAdmin('users').select('*')
+ */
+export async function queryAdmin(table: string) {
+  const client = await getSupabaseAdminClient()
+  return client.from(table)
+}
+
+/**
+ * Execute RPC function
+ */
+export async function rpc(functionName: string, params?: Record<string, any>) {
+  const client = await getSupabaseAdminClient()
+  return client.rpc(functionName, params)
+}
