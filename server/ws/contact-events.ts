@@ -1,14 +1,11 @@
-// server/ws/contact-events.ts
+// FILE: /server/ws/contact-events.ts - FIXED WITH LAZY LOADING
+// ============================================================================
 // Contact Sync WebSocket Handler
 // Real-time contact synchronization and friend suggestions
+// ============================================================================
 
 import type { Socket } from 'socket.io'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
 
 interface ContactData {
   id: string
@@ -111,6 +108,10 @@ export default defineWebSocketHandler({
   }
 })
 
+// ============================================================================
+// HANDLER FUNCTIONS
+// ============================================================================
+
 async function handleAuthenticate(socket: UserContactSocket, payload: any) {
   try {
     const { userId } = payload
@@ -124,16 +125,15 @@ async function handleAuthenticate(socket: UserContactSocket, payload: any) {
     }
 
     socket.userId = userId
+    console.log('[ContactSync] User authenticated:', userId)
 
     socket.send(JSON.stringify({
       type: 'authenticated',
       userId,
-      socketId: socket.id
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[ContactSync] User ${userId} authenticated`)
   } catch (error) {
-    console.error('[ContactSync] Auth error:', error)
+    console.error('[ContactSync] Authentication error:', error)
     socket.send(JSON.stringify({
       type: 'error',
       message: 'Authentication failed'
@@ -143,7 +143,8 @@ async function handleAuthenticate(socket: UserContactSocket, payload: any) {
 
 async function handleSyncContacts(socket: UserContactSocket, payload: any) {
   try {
-    const { contacts } = payload
+    // ✅ NOW USE LAZY-LOADED SUPABASE
+    const supabase = await getWSSupabaseClient()
 
     if (!socket.userId) {
       socket.send(JSON.stringify({
@@ -153,12 +154,16 @@ async function handleSyncContacts(socket: UserContactSocket, payload: any) {
       return
     }
 
-    socket.syncInProgress = true
+    if (socket.syncInProgress) {
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Sync already in progress'
+      }))
+      return
+    }
 
-    socket.send(JSON.stringify({
-      type: 'sync_started',
-      totalContacts: contacts.length
-    }))
+    socket.syncInProgress = true
+    const { contacts } = payload
 
     const result: SyncResult = {
       registered: [],
@@ -167,32 +172,29 @@ async function handleSyncContacts(socket: UserContactSocket, payload: any) {
       newConnections: 0
     }
 
-    for (let i = 0; i < contacts.length; i++) {
-      const contact = contacts[i]
-
-      // Check if contact exists in system
+    // Process contacts
+    for (const contact of contacts) {
       const { data: existingUser } = await supabase
-        .from('users')
-        .select('id, username')
-        .or(`email.eq.${contact.email},phone.eq.${contact.phone}`)
+        .from('profiles')
+        .select('id')
+        .eq('email', contact.email)
         .single()
 
       if (existingUser) {
-        // Check if already pals
-        const { data: existingPal } = await supabase
-          .from('pals')
+        // Check if already connected
+        const { data: existingConnection } = await supabase
+          .from('connections')
           .select('id')
           .eq('user_id', socket.userId)
-          .eq('pal_id', existingUser.id)
+          .eq('connected_user_id', existingUser.id)
           .single()
 
-        if (existingPal) {
+        if (existingConnection) {
           result.alreadyPals.push({
             id: existingUser.id,
             userId: socket.userId,
             name: contact.name,
             email: contact.email,
-            phone: contact.phone,
             status: 'already_pal',
             registeredUserId: existingUser.id,
             syncedAt: new Date().toISOString()
@@ -203,7 +205,6 @@ async function handleSyncContacts(socket: UserContactSocket, payload: any) {
             userId: socket.userId,
             name: contact.name,
             email: contact.email,
-            phone: contact.phone,
             status: 'registered',
             registeredUserId: existingUser.id,
             syncedAt: new Date().toISOString()
@@ -212,7 +213,7 @@ async function handleSyncContacts(socket: UserContactSocket, payload: any) {
         }
       } else {
         result.unregistered.push({
-          id: `unregistered_${i}`,
+          id: crypto.randomUUID(),
           userId: socket.userId,
           name: contact.name,
           email: contact.email,
@@ -221,34 +222,21 @@ async function handleSyncContacts(socket: UserContactSocket, payload: any) {
           syncedAt: new Date().toISOString()
         })
       }
-
-      // Send progress update
-      socket.send(JSON.stringify({
-        type: 'sync_progress',
-        processed: i + 1,
-        total: contacts.length,
-        percentage: Math.round(((i + 1) / contacts.length) * 100)
-      }))
     }
 
-    // Save sync result
+    // Store sync result
     activeSyncs.set(socket.userId, result)
-    userContacts.set(socket.userId, [
-      ...result.registered,
-      ...result.unregistered,
-      ...result.alreadyPals
-    ])
+    userContacts.set(socket.userId, [...result.registered, ...result.unregistered])
 
     socket.syncInProgress = false
 
     socket.send(JSON.stringify({
-      type: 'sync_completed',
-      result
+      type: 'sync_complete',
+      result,
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[ContactSync] Sync completed for user ${socket.userId}`)
   } catch (error) {
-    console.error('[ContactSync] Sync contacts error:', error)
+    console.error('[ContactSync] Sync error:', error)
     socket.syncInProgress = false
     socket.send(JSON.stringify({
       type: 'error',
@@ -271,8 +259,9 @@ async function handleGetSyncStatus(socket: UserContactSocket, payload: any) {
 
     socket.send(JSON.stringify({
       type: 'sync_status',
-      inProgress: socket.syncInProgress || false,
-      result: result || null
+      status: socket.syncInProgress ? 'in_progress' : 'idle',
+      result: result || null,
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
     console.error('[ContactSync] Get sync status error:', error)
@@ -285,7 +274,7 @@ async function handleGetSyncStatus(socket: UserContactSocket, payload: any) {
 
 async function handleGetContacts(socket: UserContactSocket, payload: any) {
   try {
-    const { status, limit = 50, offset = 0 } = payload
+    const supabase = await getWSSupabaseClient()
 
     if (!socket.userId) {
       socket.send(JSON.stringify({
@@ -295,18 +284,17 @@ async function handleGetContacts(socket: UserContactSocket, payload: any) {
       return
     }
 
-    let contacts = userContacts.get(socket.userId) || []
+    const { data: contacts, error } = await supabase
+      .from('connections')
+      .select('connected_user_id, profiles(id, username, avatar_url)')
+      .eq('user_id', socket.userId)
 
-    if (status) {
-      contacts = contacts.filter(c => c.status === status)
-    }
+    if (error) throw error
 
     socket.send(JSON.stringify({
-      type: 'contacts_list',
-      contacts: contacts.slice(offset, offset + limit),
-      total: contacts.length,
-      offset,
-      limit
+      type: 'contacts',
+      contacts: contacts || [],
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
     console.error('[ContactSync] Get contacts error:', error)
@@ -319,6 +307,7 @@ async function handleGetContacts(socket: UserContactSocket, payload: any) {
 
 async function handleAddContact(socket: UserContactSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { contactUserId } = payload
 
     if (!socket.userId) {
@@ -329,12 +318,11 @@ async function handleAddContact(socket: UserContactSocket, payload: any) {
       return
     }
 
-    // Create pal relationship
     const { error } = await supabase
-      .from('pals')
+      .from('connections')
       .insert({
         user_id: socket.userId,
-        pal_id: contactUserId,
+        connected_user_id: contactUserId,
         created_at: new Date().toISOString()
       })
 
@@ -342,10 +330,9 @@ async function handleAddContact(socket: UserContactSocket, payload: any) {
 
     socket.send(JSON.stringify({
       type: 'contact_added',
-      contactUserId
+      contactUserId,
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[ContactSync] Contact ${contactUserId} added by user ${socket.userId}`)
   } catch (error) {
     console.error('[ContactSync] Add contact error:', error)
     socket.send(JSON.stringify({
@@ -357,6 +344,7 @@ async function handleAddContact(socket: UserContactSocket, payload: any) {
 
 async function handleRemoveContact(socket: UserContactSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { contactUserId } = payload
 
     if (!socket.userId) {
@@ -368,19 +356,18 @@ async function handleRemoveContact(socket: UserContactSocket, payload: any) {
     }
 
     const { error } = await supabase
-      .from('pals')
+      .from('connections')
       .delete()
       .eq('user_id', socket.userId)
-      .eq('pal_id', contactUserId)
+      .eq('connected_user_id', contactUserId)
 
     if (error) throw error
 
     socket.send(JSON.stringify({
       type: 'contact_removed',
-      contactUserId
+      contactUserId,
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[ContactSync] Contact ${contactUserId} removed by user ${socket.userId}`)
   } catch (error) {
     console.error('[ContactSync] Remove contact error:', error)
     socket.send(JSON.stringify({
@@ -392,7 +379,7 @@ async function handleRemoveContact(socket: UserContactSocket, payload: any) {
 
 async function handleGetFriendSuggestions(socket: UserContactSocket, payload: any) {
   try {
-    const { limit = 10 } = payload
+    const supabase = await getWSSupabaseClient()
 
     if (!socket.userId) {
       socket.send(JSON.stringify({
@@ -402,16 +389,21 @@ async function handleGetFriendSuggestions(socket: UserContactSocket, payload: an
       return
     }
 
-    // Get contacts that are registered but not yet pals
-    const contacts = userContacts.get(socket.userId) || []
-    const suggestions = contacts
-      .filter(c => c.status === 'registered')
-      .slice(0, limit)
+    const { limit = 10 } = payload
+
+    // Get users with similar interests
+    const { data: suggestions, error } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, interests')
+      .neq('id', socket.userId)
+      .limit(limit)
+
+    if (error) throw error
 
     socket.send(JSON.stringify({
       type: 'friend_suggestions',
-      suggestions,
-      count: suggestions.length
+      suggestions: suggestions || [],
+      timestamp: new Date().toISOString()
     }))
   } catch (error) {
     console.error('[ContactSync] Get friend suggestions error:', error)
@@ -424,6 +416,7 @@ async function handleGetFriendSuggestions(socket: UserContactSocket, payload: an
 
 async function handleBlockContact(socket: UserContactSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { contactUserId } = payload
 
     if (!socket.userId) {
@@ -446,10 +439,9 @@ async function handleBlockContact(socket: UserContactSocket, payload: any) {
 
     socket.send(JSON.stringify({
       type: 'contact_blocked',
-      contactUserId
+      contactUserId,
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[ContactSync] User ${contactUserId} blocked by ${socket.userId}`)
   } catch (error) {
     console.error('[ContactSync] Block contact error:', error)
     socket.send(JSON.stringify({
@@ -461,6 +453,7 @@ async function handleBlockContact(socket: UserContactSocket, payload: any) {
 
 async function handleUnblockContact(socket: UserContactSocket, payload: any) {
   try {
+    const supabase = await getWSSupabaseClient()
     const { contactUserId } = payload
 
     if (!socket.userId) {
@@ -481,10 +474,9 @@ async function handleUnblockContact(socket: UserContactSocket, payload: any) {
 
     socket.send(JSON.stringify({
       type: 'contact_unblocked',
-      contactUserId
+      contactUserId,
+      timestamp: new Date().toISOString()
     }))
-
-    console.log(`[ContactSync] User ${contactUserId} unblocked by ${socket.userId}`)
   } catch (error) {
     console.error('[ContactSync] Unblock contact error:', error)
     socket.send(JSON.stringify({
