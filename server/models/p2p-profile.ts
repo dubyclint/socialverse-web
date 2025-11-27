@@ -1,5 +1,5 @@
 // FILE: /server/models/p2p-profile.ts
-// REFACTORED: Lazy-loaded Supabase
+// REFACTORED: Lazy-loaded Supabase with Exported Wrapper Functions
 
 // ============================================================================
 // LAZY-LOADED SUPABASE CLIENT
@@ -141,7 +141,6 @@ export class P2PProfileModel {
   static async recordTrade(userId: string, successful: boolean): Promise<void> {
     try {
       const supabase = await getSupabase()
-      
       const { error } = await supabase.rpc('record_p2p_trade', {
         user_id: userId,
         is_successful: successful
@@ -153,4 +152,75 @@ export class P2PProfileModel {
       throw error
     }
   }
+}
+
+// ============================================================================
+// EXPORTED WRAPPER FUNCTIONS FOR CONTROLLERS
+// ============================================================================
+// These functions provide a clean API for controllers to use
+// They wrap the class methods with names expected by the refactored controllers
+
+/**
+ * Create a new P2P profile
+ * ✅ Lazy-loaded: Supabase only loads when this function is called
+ */
+export async function create(data: {
+  user_id: string
+  display_name?: string
+  bio?: string
+  payment_methods?: string[]
+  verification_level?: string
+  trading_preferences?: Record<string, any>
+  time_zone?: string
+  languages?: string[]
+}): Promise<P2PProfile> {
+  return P2PProfileModel.createProfile(data.user_id)
+}
+
+/**
+ * Find P2P profile by ID
+ */
+export async function findById(id: string): Promise<P2PProfile | null> {
+  return P2PProfileModel.getProfile(id)
+}
+
+/**
+ * Find P2P profile by user ID
+ */
+export async function findByUserId(userId: string): Promise<P2PProfile | null> {
+  return P2PProfileModel.getProfile(userId)
+}
+
+/**
+ * Update P2P profile by user ID
+ */
+export async function updateByUserId(
+  userId: string,
+  updates: Partial<P2PProfile>
+): Promise<P2PProfile> {
+  return P2PProfileModel.updateProfile(userId, updates)
+}
+
+/**
+ * Update P2P profile
+ */
+export async function update(
+  id: string,
+  updates: Partial<P2PProfile>
+): Promise<P2PProfile> {
+  return P2PProfileModel.updateProfile(id, updates)
+}
+
+/**
+ * Get top traders
+ */
+export async function getTopTraders(limit = 10): Promise<P2PProfile[]> {
+  return P2PProfileModel.getTopTraders(limit)
+}
+
+/**
+ * Record a trade
+ */
+export async function recordTrade(userId: string, successful: boolean): Promise<void> {
+  return P2PProfileModel.recordTrade(userId, successful)
 }
