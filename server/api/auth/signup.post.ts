@@ -1,7 +1,7 @@
-// FILE: /server/api/auth/signup.post.ts - UPDATED
+// FILE: /server/api/auth/signup.post.ts
 // ============================================================================
 
-import { db, dbAdmin } from '~/server/utils/database'
+import { getDB, getDBAdmin } from '~/server/utils/db-helpers'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
@@ -29,9 +29,9 @@ export default defineEventHandler(async (event) => {
       }))
     }
 
-    // ✅ NOW USE ASYNC FUNCTIONS
-    const supabase = await db()
-    const supabaseAdmin = await dbAdmin()
+    // ✅ GET CLIENTS FROM CONTEXT
+    const supabase = await getDB(event)
+    const supabaseAdmin = await getDBAdmin(event)
 
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
