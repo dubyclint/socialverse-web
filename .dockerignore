@@ -34,7 +34,6 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
-# ✅ REMOVED: .env.production (needed for build)
 
 # Testing
 coverage
@@ -71,11 +70,6 @@ docs
 .travis.yml
 azure-pipelines.yml
 
-# Package manager lock files (optional - uncomment if you want reproducible builds)
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
 # Temporary Files
 tmp
 temp
@@ -96,10 +90,6 @@ push-engine.js
 use-gun.js
 pew-gift-button.vue
 
-# ✅ FIXED: Keep Dockerfile and .dockerignore in context for reference
-# Dockerfile
-# .dockerignore
-
 # Miscellaneous
 .prettierignore
 .eslintignore
@@ -107,9 +97,4 @@ pew-gift-button.vue
 .prettierrc.json
 eslint.config.js
 tsconfig.json
-# ✅ FIXED: Keep config files needed for build
-# nuxt.config.ts
-# nitro.config.ts
-vite.config.ts
-tailwind.config.ts
-postcss.config.js
+
