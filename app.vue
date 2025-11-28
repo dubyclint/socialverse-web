@@ -1,6 +1,5 @@
 <!-- FILE: /app.vue -->
-<!-- ✅ FIXED - Comprehensive error handling and initialization timing -->
-<!-- Fixes: Issue #2 (Timing), Issue #3 (Pinia init), Issue #4 (Error logging) -->
+<!-- ✅ FIXED - Comprehensive error handling including GUN errors -->
 
 <template>
   <NuxtLayout>
@@ -9,6 +8,12 @@
       <div v-if="supabaseError && !isInitializing" class="supabase-error-banner">
         <p>⚠️ Database connection unavailable. Some features may be limited.</p>
         <button @click="retryInitialization">Retry</button>
+      </div>
+
+      <!-- Show error if GUN failed -->
+      <div v-if="gunError && !isInitializing" class="gun-error-banner">
+        <p>⚠️ Peer-to-peer connection unavailable. Using standard mode.</p>
+        <button @click="dismissGunError">Dismiss</button>
       </div>
 
       <!-- Main content -->
@@ -44,6 +49,7 @@ const isLoading = ref(false)
 const isInitializing = ref(true)
 const globalError = ref<string | null>(null)
 const supabaseError = ref<Error | null>(null)
+const gunError = ref<Error | null>(null)  // ✅ ADDED: GUN error tracking
 const initializationAttempts = ref(0)
 const maxRetries = 3
 
@@ -52,8 +58,7 @@ const hasError = computed(() => globalError.value !== null || supabaseError.valu
 
 /**
  * ✅ FIXED: Initialize application with proper error handling and logging
- * Addresses: Issue #2 (Timing) - Wait for Supabase before initializing stores
- * Addresses: Issue #4 (Error logging) - Log all errors and warnings
+ * Includes GUN error handling
  */
 const initializeApp = async () => {
   try {
@@ -62,11 +67,12 @@ const initializeApp = async () => {
     isLoading.value = true
     globalError.value = null
     supabaseError.value = null
+    gunError.value = null  // ✅ ADDED: Reset GUN error
 
     // Wait a tick to ensure plugins are loaded
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    // Check if Supabase is ready (Addresses Issue #1)
+    // Check if Supabase is ready
     const supabase = useNuxtApp().$supabase
     const supabaseReady = useNuxtApp().$supabaseReady
     const supabaseErr = useNuxtApp().$supabaseError
@@ -75,7 +81,6 @@ const initializeApp = async () => {
       console.warn('[App] ⚠️ Supabase not ready, running in degraded mode')
       supabaseError.value = supabaseErr || new Error('Supabase initialization failed')
       
-      // ✅ FIXED: Log the error for monitoring
       if (typeof window !== 'undefined' && window.console) {
         console.error('[App] Supabase Error Details:', {
           ready: supabaseReady,
@@ -85,7 +90,14 @@ const initializeApp = async () => {
       }
     }
 
-    // Initialize user session if authenticated (Addresses Issue #3)
+    // ✅ ADDED: Check if GUN is ready (but don't fail if it's not)
+    const gun = useNuxtApp().$gun
+    if (!gun) {
+      console.warn('[App] ⚠️ GUN not available, P2P features disabled')
+      gunError.value = new Error('GUN initialization failed')
+    }
+
+    // Initialize user session if authenticated
     if (userStore.isAuthenticated && supabase) {
       console.log('[App] Initializing session for authenticated user')
       try {
@@ -94,11 +106,7 @@ const initializeApp = async () => {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
         console.error('[App] ❌ Session initialization failed:', err.message)
-        
-        // ✅ FIXED: Log detailed error information
         console.error('[App] Session Error Stack:', err.stack)
-        
-        // Don't fail completely, allow app to continue
         supabaseError.value = err
       }
     }
@@ -107,10 +115,7 @@ const initializeApp = async () => {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     console.error('[App] ❌ Initialization error:', err.message)
-    
-    // ✅ FIXED: Log full error stack for debugging
     console.error('[App] Error Stack:', err.stack)
-    
     globalError.value = err.message
   } finally {
     isInitializing.value = false
@@ -129,7 +134,7 @@ const retryInitialization = async () => {
   }
   
   initializationAttempts.value++
-  const delay = Math.pow(2, initializationAttempts.value) * 1000 // Exponential backoff
+  const delay = Math.pow(2, initializationAttempts.value) * 1000
   
   console.log(`[App] Retry attempt ${initializationAttempts.value}/${maxRetries} (waiting ${delay}ms)`)
   
@@ -142,6 +147,13 @@ const retryInitialization = async () => {
  */
 const clearError = () => {
   globalError.value = null
+}
+
+/**
+ * ✅ ADDED: Dismiss GUN error
+ */
+const dismissGunError = () => {
+  gunError.value = null
 }
 
 /**
@@ -167,7 +179,7 @@ onMounted(async () => {
 
 .supabase-error-banner p {
   margin: 0;
-  color: #92400e;
+  color: #92e;
   font-weight: 500;
 }
 
@@ -184,6 +196,39 @@ onMounted(async () => {
 
 .supabase-error-banner button:hover {
   background-color: #d97706;
+}
+
+/* ✅ ADDED: GUN error banner styling */
+.gun-error-banner {
+  background-color: #dbeafe;
+  border: 1px solid #0ea5e9;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gun-error-banner p {
+  margin: 0;
+  color: #0c4a6e;
+  font-weight: 500;
+}
+
+.gun-error-banner button {
+  background-color: #0ea5e9;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.gun-error-banner button:hover {
+  background-color: #0284c7;
 }
 
 .global-error {
@@ -226,4 +271,3 @@ onMounted(async () => {
   background-color: #b91c1c;
 }
 </style>
-
