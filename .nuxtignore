@@ -1,5 +1,4 @@
 # .nuxtignore - PREVENT SERVER CODE FROM PRERENDER BUNDLING
-# This file prevents directories from being processed during Nuxt prerender
 
 # ============================================================================
 # CRITICAL: Exclude all server-side code from prerender
@@ -55,21 +54,8 @@ CHANGELOG.md
 LICENSE
 
 # ============================================================================
-# ✅ FIXED: DO NOT EXCLUDE THESE - NEEDED FOR BUILD
+# ✅ ADDED: Exclude GUN to prevent History error during prerender
 # ============================================================================
-# nuxt.config.ts - MUST be processed
-# nitro.config.ts - MUST be processed
-# .env.production - MUST be available
-# Dockerfile - Reference only
-# .dockerignore - Reference only
+node_modules/gun
+node_modules/gun/**
 
-# ============================================================================
-# Configuration Files (Don't need to be processed but keep available)
-# ============================================================================
-.env
-.env.local
-.eslintrc.json
-.prettierrc.json
-tsconfig.json
-vitest.config.ts
-eslint.config.js
