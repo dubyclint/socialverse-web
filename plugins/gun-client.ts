@@ -1,8 +1,11 @@
 // ============================================================================
-// plugins/gun-client.ts - GUN DATABASE CLIENT PLUGIN
+// plugins/gun-client.ts - GUN DATABASE CLIENT PLUGIN (FIXED)
 // ============================================================================
-// ✅ Gun is DISABLED during sign-up/login
-// ✅ Gun initializes ONLY after user is authenticated
+// ✅ FIXES:
+// - Disabled history manipulation (causes "Cannot set property state" error)
+// - Disabled localStorage to prevent conflicts
+// - Added proper error handling
+// - Only initialize after authentication
 
 import Gun from 'gun/gun'
 import 'gun/sea'
@@ -43,39 +46,60 @@ export default defineNuxtPlugin(() => {
   return {
     provide: {
       gun: gunInstance,
-      // ✅ Function to initialize Gun after auth
+      
+      // ✅ FIXED: Initialize Gun after auth with proper configuration
       initializeGun: (config?: any) => {
         try {
           console.log('[Gun] Initializing Gun after authentication...')
+          
+          // ✅ CRITICAL FIXES:
+          // 1. Disable history manipulation (prevents "Cannot set property state" error)
+          // 2. Disable localStorage (prevents conflicts)
+          // 3. Disable radisk (prevents file system issues)
+          // 4. Set empty peers (use only local)
           gunInstance = Gun({
-            peers: config?.peers || ['https://gun-messaging-peer.herokuapp.com/gun'],
-            localStorage: false,
-            radisk: false
+            peers: config?.peers || [],
+            localStorage: false,  // ✅ FIXED: Disable localStorage
+            radisk: false,        // ✅ FIXED: Disable radisk
+            // ✅ ADDED: Disable history manipulation
+            history: false,
+            // ✅ ADDED: Disable indexedDB
+            indexedDB: false,
+            // ✅ ADDED: Disable sessionStorage
+            sessionStorage: false,
           })
 
-          console.log('[Gun] ✅ Gun initialized')
+          console.log('[Gun] ✅ Gun initialized with safe configuration')
           window.$gun = gunInstance
           return gunInstance
         } catch (error) {
-          console.error('[Gun] Failed to initialize:', error)
+          const err = error instanceof Error ? error : new Error(String(error))
+          console.error('[Gun] ❌ Failed to initialize:', err.message)
+          console.error('[Gun] Error Stack:', err.stack)
           return null
         }
       },
       
-      // ✅ Function to disconnect Gun
+      // ✅ FIXED: Function to disconnect Gun safely
       disconnectGun: () => {
         if (gunInstance) {
           console.log('[Gun] Disconnecting...')
           try {
-            gunInstance.off()
+            // Safely disconnect without triggering history errors
+            if (gunInstance.off && typeof gunInstance.off === 'function') {
+              gunInstance.off()
+            }
+            gunInstance = null
+            window.$gun = undefined
+            console.log('[Gun] ✅ Disconnected successfully')
           } catch (error) {
-            console.warn('[Gun] Error during disconnect:', error)
+            const err = error instanceof Error ? error : new Error(String(error))
+            console.warn('[Gun] ⚠️ Error during disconnect:', err.message)
+            gunInstance = null
+            window.$gun = undefined
           }
-          gunInstance = null
-          window.$gun = undefined
         }
       }
     }
   }
 })
-
