@@ -55,11 +55,19 @@ CHANGELOG.md
 LICENSE
 
 # ============================================================================
-# Configuration Files (Don't need to be processed)
+# ✅ FIXED: DO NOT EXCLUDE THESE - NEEDED FOR BUILD
+# ============================================================================
+# nuxt.config.ts - MUST be processed
+# nitro.config.ts - MUST be processed
+# .env.production - MUST be available
+# Dockerfile - Reference only
+# .dockerignore - Reference only
+
+# ============================================================================
+# Configuration Files (Don't need to be processed but keep available)
 # ============================================================================
 .env
 .env.local
-.env.production
 .eslintrc.json
 .prettierrc.json
 tsconfig.json
