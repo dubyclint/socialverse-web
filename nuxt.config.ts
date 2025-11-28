@@ -1,8 +1,12 @@
+// ============================================================================
 // nuxt.config.ts - COMPLETE FIXED VERSION
+// ============================================================================
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
+  
+  // ✅ CRITICAL: Disable SSR to prevent history.state errors during prerender
   ssr: false,
   
   hydration: {
@@ -24,7 +28,7 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || '',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || '',
       nodeEnv: process.env.NODE_ENV || 'production',
-      port: process.env.PORT || '080',
+      port: process.env.PORT || '8080',
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
       logLevel: process.env.LOG_LEVEL || 'info',
     },
@@ -32,7 +36,6 @@ export default defineNuxtConfig({
 
   build: {
     transpile: [],
-    // ✅ CRITICAL: Exclude GUN from build
     rollupOptions: {
       external: ['gun', 'gun/gun', 'gun/sea'],
     },
@@ -41,11 +44,12 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'node-server',
     
+    // ✅ CRITICAL: Disable prerender to prevent history.state errors
     prerender: {
-      crawlLinks: true,
-      routes: ['/', '/login'],
+      crawlLinks: false,  // ✅ CHANGED: Disabled to prevent SSR issues
+      routes: [],        // ✅ CHANGED: Empty routes
       ignore: [],
-      failOnError: true,
+      failOnError: false, // ✅ CHANGED: Don't fail on prerender errors
     },
     
     esbuild: {
