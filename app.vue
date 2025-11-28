@@ -1,6 +1,6 @@
 <!-- FILE: /app.vue -->
-<!-- ✅ FIXED - Proper error handling and initialization timing -->
-<!-- Addresses: Issue #2 (Timing), Issue #3 (Pinia init) -->
+<!-- ✅ FIXED - Comprehensive error handling and initialization timing -->
+<!-- Fixes: Issue #2 (Timing), Issue #3 (Pinia init), Issue #4 (Error logging) -->
 
 <template>
   <NuxtLayout>
@@ -51,8 +51,9 @@ const maxRetries = 3
 const hasError = computed(() => globalError.value !== null || supabaseError.value !== null)
 
 /**
- * Initialize application with proper error handling
+ * ✅ FIXED: Initialize application with proper error handling and logging
  * Addresses: Issue #2 (Timing) - Wait for Supabase before initializing stores
+ * Addresses: Issue #4 (Error logging) - Log all errors and warnings
  */
 const initializeApp = async () => {
   try {
@@ -71,8 +72,17 @@ const initializeApp = async () => {
     const supabaseErr = useNuxtApp().$supabaseError
 
     if (!supabaseReady) {
-      console.warn('[App] Supabase not ready, running in degraded mode')
+      console.warn('[App] ⚠️ Supabase not ready, running in degraded mode')
       supabaseError.value = supabaseErr || new Error('Supabase initialization failed')
+      
+      // ✅ FIXED: Log the error for monitoring
+      if (typeof window !== 'undefined' && window.console) {
+        console.error('[App] Supabase Error Details:', {
+          ready: supabaseReady,
+          error: supabaseErr?.message,
+          timestamp: new Date().toISOString(),
+        })
+      }
     }
 
     // Initialize user session if authenticated (Addresses Issue #3)
@@ -80,10 +90,14 @@ const initializeApp = async () => {
       console.log('[App] Initializing session for authenticated user')
       try {
         await userStore.initializeSession()
-        console.log('[App] ✅ Session initialized')
+        console.log('[App] ✅ Session initialized successfully')
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error))
-        console.error('[App] Session initialization failed:', err.message)
+        console.error('[App] ❌ Session initialization failed:', err.message)
+        
+        // ✅ FIXED: Log detailed error information
+        console.error('[App] Session Error Stack:', err.stack)
+        
         // Don't fail completely, allow app to continue
         supabaseError.value = err
       }
@@ -92,7 +106,11 @@ const initializeApp = async () => {
     console.log('[App] ✅ Application initialized successfully')
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    console.error('[App] Initialization error:', err.message)
+    console.error('[App] ❌ Initialization error:', err.message)
+    
+    // ✅ FIXED: Log full error stack for debugging
+    console.error('[App] Error Stack:', err.stack)
+    
     globalError.value = err.message
   } finally {
     isInitializing.value = false
@@ -101,16 +119,21 @@ const initializeApp = async () => {
 }
 
 /**
- * Retry initialization
+ * ✅ FIXED: Retry initialization with exponential backoff
  */
 const retryInitialization = async () => {
   if (initializationAttempts.value >= maxRetries) {
-    globalError.value = 'Maximum retry attempts reached'
+    globalError.value = 'Maximum retry attempts reached. Please refresh the page.'
+    console.error('[App] ❌ Max retries reached')
     return
   }
   
   initializationAttempts.value++
-  console.log(`[App] Retry attempt ${initializationAttempts.value}/${maxRetries}`)
+  const delay = Math.pow(2, initializationAttempts.value) * 1000 // Exponential backoff
+  
+  console.log(`[App] Retry attempt ${initializationAttempts.value}/${maxRetries} (waiting ${delay}ms)`)
+  
+  await new Promise(resolve => setTimeout(resolve, delay))
   await initializeApp()
 }
 
@@ -125,6 +148,7 @@ const clearError = () => {
  * Lifecycle
  */
 onMounted(async () => {
+  console.log('[App] Component mounted, starting initialization')
   await initializeApp()
 })
 </script>
@@ -152,9 +176,10 @@ onMounted(async () => {
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
+  border-radius: 0.25rem;
   cursor: pointer;
   font-weight: 500;
+  transition: background-color 0.2s;
 }
 
 .supabase-error-banner button:hover {
@@ -162,34 +187,43 @@ onMounted(async () => {
 }
 
 .global-error {
+  position: fixed;
+  top: 20px;
+  right: 20px;
   background-color: #fee2e2;
-  border: 1px solid #ef4444;
+  border: 1px solid #fca5a5;
   border-radius: 0.375rem;
   padding: 1rem;
-  margin-top: 1rem;
+  max-width: 400px;
+  z-index: 9999;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .error-content h3 {
+  margin: 0 0 0.5rem 0;
   color: #991b1b;
-  margin-top: 0;
+  font-size: 1rem;
 }
 
 .error-content p {
+  margin: 0 0 1rem 0;
   color: #7f1d1d;
-  margin: 0.5rem 0;
+  font-size: 0.875rem;
 }
 
 .error-content button {
-  background-color: #ef4444;
+  background-color: #dc2626;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
+  border-radius: 0.25rem;
   cursor: pointer;
   font-weight: 500;
+  transition: background-color 0.2s;
 }
 
 .error-content button:hover {
-  background-color: #dc2626;
+  background-color: #b91c1c;
 }
 </style>
+
