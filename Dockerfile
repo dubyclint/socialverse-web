@@ -6,9 +6,13 @@ WORKDIR /src
 
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 
-RUN npm install
+# ✅ ADDED: Install with legacy peer deps to handle GUN issues
+RUN npm install --legacy-peer-deps
 
 COPY . .
+
+# ✅ ADDED: Clean cache before build
+RUN npm cache clean --force
 
 RUN npm run build
 
@@ -16,10 +20,8 @@ RUN test -f .output/server/index.mjs || (echo "Build failed: .output/server/inde
 
 RUN npm prune --omit=dev
 
-# ✅ FIXED: Expose port 8080 (matches environment variable)
 EXPOSE 8080
 
-# ✅ FIXED: Ensure PORT environment variable is set to 8080
 ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
