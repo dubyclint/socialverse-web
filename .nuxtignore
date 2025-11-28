@@ -54,8 +54,8 @@ CHANGELOG.md
 LICENSE
 
 # ============================================================================
-# ✅ ADDED: Exclude GUN to prevent History error during prerender
+# ✅ CRITICAL: Exclude GUN to prevent History error during prerender
 # ============================================================================
 node_modules/gun
 node_modules/gun/**
-
+gun
