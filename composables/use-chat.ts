@@ -1,10 +1,11 @@
-// composables/useChat.ts - ENHANCED WITH GUNDB + SOCKET.IO
-// =========================================================
+// ============================================================================
+// composables/use-chat.ts - ENHANCED WITH SOCKET.IO (GUN REMOVED)
+// ============================================================================
+// ✅ FIXED: Removed direct Gun import that causes "Cannot set property state" error
+// Gun will be handled separately through plugins only
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { io, Socket } from 'socket.io-client'
-import Gun from 'gun'
-import 'gun/sea'
 import { useChatStore } from '~/stores/chat'
 import { useAuthStore } from '~/stores/auth'
 
@@ -25,69 +26,26 @@ export const useChat = () => {
   const authStore = useAuthStore()
   
   let socket: Socket | null = null
-  let gun: any = null
-  let gunUser: any = null
   
   const isOnline = ref(true)
   const isSyncing = ref(false)
   const lastSyncTime = ref<number>(0)
 
-  // ===== INITIALIZE GUNDB =====
-  const initializeGunDB = async () => {
-    try {
-      // Initialize Gun with peers
-      gun = Gun({
-        peers: [
-          typeof window !== 'undefined' && window.location.origin
-            ? `${window.location.origin}/gun`
-            : 'http://localhost:3000/gun'
-        ],
-        localStorage: true // Enable local storage for offline support
-      });
-
-      // Authenticate Gun user
-      const user = authStore.user;
-      if (user) {
-        gunUser = gun.user();
-        
-        // Try to authenticate or create account
-        gunUser.auth(user.email, user.id, (ack: any) => {
-          if (ack.err) {
-            console.log('Gun auth error, creating new user:', ack.err);
-            gunUser.create(user.email, user.id, (ack: any) => {
-              if (ack.err) {
-                console.error('Failed to create Gun user:', ack.err);
-              } else {
-                console.log('Gun user created successfully');
-              }
-            });
-          } else {
-            console.log('Gun user authenticated');
-          }
-        });
-      }
-
-      console.log('GunDB initialized');
-      return gun;
-
-    } catch (error) {
-      console.error('Failed to initialize GunDB:', error);
-      return null;
-    }
-  };
+  // ✅ REMOVED: initializeGunDB function (causes History error)
+  // Gun is now disabled and handled only through plugins
 
   // ===== INITIALIZE SOCKET.IO =====
   const initializeSocket = async () => {
     try {
-      const user = authStore.user;
+      const user = authStore.user
       if (!user) {
-        console.warn('No authenticated user');
-        return null;
+        console.warn('[Chat] No authenticated user')
+        return null
       }
 
       const socketUrl = process.client
         ? window.location.origin
-        : 'http://localhost:3000';
+        : 'http://localhost:3000'
 
       socket = io(socketUrl, {
         reconnection: true,
@@ -100,247 +58,247 @@ export const useChat = () => {
           username: user.username,
           token: authStore.token
         }
-      });
+      })
 
       // Connection events
       socket.on('connect', () => {
-        console.log('Socket connected:', socket?.id);
-        chatStore.setConnected(true);
-        isOnline.value = true;
+        console.log('[Chat] Socket connected:', socket?.id)
+        chatStore.setConnected(true)
+        isOnline.value = true
         
         // Sync offline messages when reconnected
-        syncOfflineMessages();
-      });
+        syncOfflineMessages()
+      })
 
       socket.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason);
-        chatStore.setConnected(false);
-        isOnline.value = false;
-      });
+        console.log('[Chat] Socket disconnected:', reason)
+        chatStore.setConnected(false)
+        isOnline.value = false
+      })
 
       socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        chatStore.setConnected(false);
-      });
+        console.error('[Chat] Socket connection error:', error)
+        chatStore.setConnected(false)
+      })
 
       // Message events
       socket.on('message:new', (message: ChatMessage) => {
-        console.log('New message received:', message);
-        chatStore.addMessage(message);
+        console.log('[Chat] New message received:', message)
+        chatStore.addMessage(message)
         
-        // Also store in GunDB
-        if (gun && gunUser) {
-          gun.get(`chats/${message.chatId}`)
-            .get('messages')
-            .get(message.id)
-            .put(message);
-        }
-      });
+        // ✅ REMOVED: Gun storage (Gun is disabled)
+        // Messages are stored in Supabase instead
+      })
 
       socket.on('message:updated', (message: ChatMessage) => {
-        chatStore.updateMessage(message);
-        if (gun) {
-          gun.get(`chats/${message.chatId}`)
-            .get('messages')
-            .get(message.id)
-            .put(message);
-        }
-      });
+        console.log('[Chat] Message updated:', message)
+        chatStore.updateMessage(message)
+        // ✅ REMOVED: Gun storage
+      })
 
-      socket.on('message:deleted', (data: { messageId: string }) => {
-        chatStore.deleteMessage(data.messageId);
-      });
+      socket.on('message:deleted', (messageId: string) => {
+        console.log('[Chat] Message deleted:', messageId)
+        chatStore.deleteMessage(messageId)
+        // ✅ REMOVED: Gun storage
+      })
 
-      socket.on('messages:loaded', (data: { messages: ChatMessage[]; source: string }) => {
-        console.log(`Messages loaded from ${data.source}:`, data.messages.length);
-        chatStore.addMessages(chatStore.currentChatId || '', data.messages);
-      });
+      socket.on('typing', (data: { userId: string; chatId: string }) => {
+        chatStore.setUserTyping(data.userId, data.chatId, true)
+      })
 
-      socket.on('messages:history', (data: { messages: ChatMessage[]; source: string }) => {
-        console.log(`Message history loaded from ${data.source}:`, data.messages.length);
-        chatStore.addMessages(chatStore.currentChatId || '', data.messages);
-      });
+      socket.on('typing:stop', (data: { userId: string; chatId: string }) => {
+        chatStore.setUserTyping(data.userId, data.chatId, false)
+      })
 
-      socket.on('user:typing', (data: { userId: string; username: string; isTyping: boolean }) => {
-        if (data.isTyping) {
-          chatStore.addTypingUser({
-            userId: data.userId,
-            username: data.username,
-            roomId: chatStore.currentChatId || ''
-          });
-        } else {
-          chatStore.removeTypingUser(data.userId);
-        }
-      });
-
-      socket.on('user:joined', (data: any) => {
-        console.log('User joined:', data.username);
-      });
-
-      socket.on('user:left', (data: any) => {
-        console.log('User left:', data.username);
-      });
-
-      socket.on('error', (error: any) => {
-        console.error('Socket error:', error);
-        chatStore.setError(error.message);
-      });
-
-      socket.on('sync:offline-messages', (data: { messages: ChatMessage[]; syncTime: string }) => {
-        console.log('Offline messages synced:', data.messages.length);
-        chatStore.addMessages(chatStore.currentChatId || '', data.messages);
-        lastSyncTime.value = new Date(data.syncTime).getTime();
-        isSyncing.value = false;
-      });
-
-      console.log('Socket.io initialized');
-      return socket;
-
+      console.log('[Chat] Socket.IO initialized')
+      return socket
     } catch (error) {
-      console.error('Failed to initialize Socket.io:', error);
-      return null;
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Failed to initialize Socket.IO:', err.message)
+      return null
     }
-  };
+  }
 
-  // ===== JOIN CHAT =====
-  const joinChat = (chatId: string) => {
-    if (!socket?.connected) {
-      console.warn('Socket not connected');
-      return;
+  // ===== SYNC OFFLINE MESSAGES =====
+  const syncOfflineMessages = async () => {
+    try {
+      isSyncing.value = true
+      const offlineMessages = chatStore.getOfflineMessages()
+      
+      if (offlineMessages.length === 0) {
+        isSyncing.value = false
+        return
+      }
+
+      console.log(`[Chat] Syncing ${offlineMessages.length} offline messages`)
+
+      for (const message of offlineMessages) {
+        if (socket && socket.connected) {
+          socket.emit('message:send', message, (ack: any) => {
+            if (ack.success) {
+              chatStore.removeOfflineMessage(message.id)
+            }
+          })
+        }
+      }
+
+      lastSyncTime.value = Date.now()
+      isSyncing.value = false
+      console.log('[Chat] Offline messages synced')
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Failed to sync offline messages:', err.message)
+      isSyncing.value = false
     }
-
-    socket.emit('join_chat', { chatId });
-    chatStore.setCurrentChat(chatId);
-  };
+  }
 
   // ===== SEND MESSAGE =====
   const sendMessage = async (chatId: string, content: string, messageType: string = 'text') => {
-    if (!socket?.connected) {
-      console.warn('Socket not connected, saving to GunDB for offline sync');
-      
-      // Save to GunDB for offline support
-      if (gun && gunUser) {
-        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const message: ChatMessage = {
-          id: messageId,
+    try {
+      if (!socket || !socket.connected) {
+        console.warn('[Chat] Socket not connected, storing offline')
+        chatStore.addOfflineMessage({
+          id: `offline-${Date.now()}`,
           chatId,
           senderId: authStore.user?.id || '',
-          senderName: authStore.user?.username || '',
+          senderName: authStore.user?.username || 'Unknown',
           content,
           timestamp: new Date().toISOString(),
           isEdited: false,
           isDeleted: false,
           messageType: messageType as any
-        };
-
-        gun.get(`chats/${chatId}`)
-          .get('messages')
-          .get(messageId)
-          .put(message);
-
-        chatStore.addMessage(message);
+        })
+        return
       }
-      return;
-    }
 
-    socket.emit('message:send', {
-      chatId,
-      content,
-      messageType
-    });
-  };
+      const message: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        chatId,
+        senderId: authStore.user?.id || '',
+        senderName: authStore.user?.username || 'Unknown',
+        content,
+        timestamp: new Date().toISOString(),
+        isEdited: false,
+        isDeleted: false,
+        messageType: messageType as any
+      }
+
+      socket.emit('message:send', message, (ack: any) => {
+        if (ack.success) {
+          console.log('[Chat] Message sent successfully')
+          chatStore.addMessage(ack.message)
+        } else {
+          console.error('[Chat] Failed to send message:', ack.error)
+          chatStore.addOfflineMessage(message)
+        }
+      })
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Error sending message:', err.message)
+    }
+  }
 
   // ===== EDIT MESSAGE =====
-  const editMessage = (chatId: string, messageId: string, content: string) => {
-    if (!socket?.connected) {
-      console.warn('Socket not connected');
-      return;
-    }
+  const editMessage = async (chatId: string, messageId: string, content: string) => {
+    try {
+      if (!socket || !socket.connected) {
+        console.warn('[Chat] Socket not connected')
+        return
+      }
 
-    socket.emit('message:edit', {
-      chatId,
-      messageId,
-      content
-    });
-  };
+      socket.emit('message:edit', { chatId, messageId, content }, (ack: any) => {
+        if (ack.success) {
+          console.log('[Chat] Message edited successfully')
+          chatStore.updateMessage(ack.message)
+        } else {
+          console.error('[Chat] Failed to edit message:', ack.error)
+        }
+      })
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Error editing message:', err.message)
+    }
+  }
 
   // ===== DELETE MESSAGE =====
-  const deleteMessage = (chatId: string, messageId: string) => {
-    if (!socket?.connected) {
-      console.warn('Socket not connected');
-      return;
-    }
+  const deleteMessage = async (chatId: string, messageId: string) => {
+    try {
+      if (!socket || !socket.connected) {
+        console.warn('[Chat] Socket not connected')
+        return
+      }
 
-    socket.emit('message:delete', {
-      chatId,
-      messageId
-    });
-  };
+      socket.emit('message:delete', { chatId, messageId }, (ack: any) => {
+        if (ack.success) {
+          console.log('[Chat] Message deleted successfully')
+          chatStore.deleteMessage(messageId)
+        } else {
+          console.error('[Chat] Failed to delete message:', ack.error)
+        }
+      })
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Error deleting message:', err.message)
+    }
+  }
 
   // ===== TYPING INDICATOR =====
-  const sendTypingIndicator = (chatId: string, isTyping: boolean) => {
-    if (!socket?.connected) return;
-
-    socket.emit('user:typing', {
-      chatId,
-      isTyping
-    });
-  };
-
-  // ===== SYNC OFFLINE MESSAGES =====
-  const syncOfflineMessages = () => {
-    if (!socket?.connected || !chatStore.currentChatId) return;
-
-    isSyncing.value = true;
-    socket.emit('sync:offline-messages', {
-      chatId: chatStore.currentChatId,
-      lastSyncTime: lastSyncTime.value
-    });
-  };
-
-  // ===== LEAVE CHAT =====
-  const leaveChat = (chatId: string) => {
-    if (!socket?.connected) return;
-
-    socket.emit('leave_chat', { chatId });
-  };
-
-  // ===== DISCONNECT =====
-  const disconnect = () => {
-    if (socket?.connected) {
-      socket.disconnect();
-      socket = null;
-      chatStore.setConnected(false);
-    }
-
-    if (gun) {
-      gun = null;
-    }
-  };
-
-  // ===== INITIALIZE ALL =====
-  const initialize = async () => {
+  const sendTypingIndicator = (chatId: string) => {
     try {
-      await initializeGunDB();
-      await initializeSocket();
+      if (socket && socket.connected) {
+        socket.emit('typing', { chatId })
+      }
     } catch (error) {
-      console.error('Failed to initialize chat:', error);
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Error sending typing indicator:', err.message)
     }
-  };
+  }
+
+  const stopTypingIndicator = (chatId: string) => {
+    try {
+      if (socket && socket.connected) {
+        socket.emit('typing:stop', { chatId })
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Chat] Error stopping typing indicator:', err.message)
+    }
+  }
+
+  // ===== CLEANUP =====
+  const cleanup = () => {
+    if (socket) {
+      console.log('[Chat] Cleaning up socket connection')
+      socket.disconnect()
+      socket = null
+    }
+  }
+
+  // ===== LIFECYCLE =====
+  onMounted(async () => {
+    console.log('[Chat] Composable mounted, initializing Socket.IO')
+    await initializeSocket()
+  })
+
+  onUnmounted(() => {
+    console.log('[Chat] Composable unmounted, cleaning up')
+    cleanup()
+  })
 
   return {
-    socket,
-    gun,
+    // State
     isOnline,
     isSyncing,
-    initialize,
-    joinChat,
+    lastSyncTime,
+    
+    // Methods
+    initializeSocket,
     sendMessage,
     editMessage,
     deleteMessage,
     sendTypingIndicator,
+    stopTypingIndicator,
     syncOfflineMessages,
-    leaveChat,
-    disconnect
-  };
-};
+    cleanup
+  }
+}
