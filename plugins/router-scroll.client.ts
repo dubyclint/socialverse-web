@@ -1,42 +1,42 @@
-// /plugins/router-scroll.client.ts
-import { nextTick } from 'vue'
+// ============================================================================
+// FILE: /plugins/router-scroll.client.ts
+// ============================================================================
+// ✅ FIXED - Safe router scroll handling without manipulating history
+// This prevents "Cannot set property state" errors
 
 export default defineNuxtPlugin((nuxtApp) => {
   const router = useRouter()
-  
-  if (!router) {
-    console.warn('[Router Scroll Plugin] Router not available')
+
+  // ✅ CRITICAL: Only run on client-side
+  if (!process.client) {
     return
   }
 
-  // Handle scroll behavior on route change
-  router.afterEach((to, from) => {
-    const savedPosition = window.history.state?.scrollPosition
-    
-    if (savedPosition) {
-      nextTick(() => {
-        window.scrollTo(savedPosition.x, savedPosition.y)
-      })
-    } else {
-      nextTick(() => {
-        window.scrollTo(0, 0)
-      })
-    }
-  })
-
-  // Save scroll position before leaving route
-  router.beforeEach((to, from, next) => {
-    if (typeof window !== 'undefined') {
-      window.history.state = {
-        ...window.history.state,
-        scrollPosition: {
-          x: window.scrollX,
-          y: window.scrollY
+  router.options.scrollBehavior = (to, from, savedPosition) => {
+    try {
+      // ✅ SAFE: Use scrollTo instead of manipulating history
+      if (savedPosition) {
+        return savedPosition
+      } else if (to.hash) {
+        // Scroll to element by hash
+        const element = document.querySelector(to.hash)
+        if (element) {
+          return {
+            el: to.hash,
+            behavior: 'smooth',
+          }
         }
+      } else {
+        // Scroll to top
+        return { top: 0, behavior: 'smooth' }
       }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error('[Router Scroll] Error:', err.message)
+      return { top: 0 }
     }
-    next()
-  })
+  }
 
-  console.log('[Router Scroll Plugin] Initialized')
+  console.log('[Router Scroll] Plugin initialized')
 })
+
