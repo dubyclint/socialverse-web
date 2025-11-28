@@ -1,14 +1,7 @@
 // ============================================================================
-// use-gun.ts - GUN DATABASE COMPOSABLE (FIXED)
+// use-gun.ts - GUN DATABASE COMPOSABLE (DISABLED)
 // ============================================================================
-// ✅ FIXES:
-// - Removed history manipulation
-// - Disabled all storage mechanisms
-// - Added proper error handling
-// - Safe initialization
-
-// ✅ CRITICAL: Do NOT import Gun directly - use the plugin instead
-// This prevents the error
+// ✅ TEMPORARY FIX: GUN disabled to prevent "Cannot set property state" error
 
 interface GunInstance {
   get: (key: string) => any
@@ -17,7 +10,7 @@ interface GunInstance {
   off: () => void
 }
 
-// ✅ FIXED: Safe mock Gun instance
+// ✅ Safe mock Gun instance
 const createSafeGunInstance = (): GunInstance => {
   return {
     get: (key: string) => ({
@@ -34,12 +27,10 @@ const createSafeGunInstance = (): GunInstance => {
   }
 }
 
-// ✅ FIXED: Use safe instance instead of direct Gun initialization
 const gun: GunInstance = createSafeGunInstance()
 
 export default gun
 
-// ✅ ADDED: Export composable for use in components
 export const useGun = () => {
   const nuxtApp = useNuxtApp()
   
