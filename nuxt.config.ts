@@ -1,9 +1,10 @@
-// nuxt.config.ts - COMPLETE FIXED VERSION
+// nuxt.config.ts - COMPLETE FIXED VERSION WITH GUN FIXES
 // ✅ FIXES:
 // - Issue #2: Hydration mismatch handler changed from 'silent' to 'warn'
 // - Issue #3: Prerender failOnError changed from false to true
 // - Issue #4: Added proper error logging and monitoring
 // - Issue #1: Port configuration properly handled
+// - GUN FIX: Disabled problematic GUN features
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
@@ -39,7 +40,9 @@ export default defineNuxtConfig({
   },
 
   build: {
-    transpile: [],
+    transpile: [
+      'gun',  // ✅ ADDED: Ensure GUN is properly transpiled
+    ],
   },
 
   nitro: {
@@ -50,7 +53,7 @@ export default defineNuxtConfig({
       crawlLinks: true,
       routes: ['/', '/login'],
       ignore: [],
-      failOnError: true, // ✅ CHANGED: Now fails on prerender errors
+      failOnError: true,
     },
     
     esbuild: {
@@ -95,4 +98,3 @@ export default defineNuxtConfig({
     },
   }
 })
-
