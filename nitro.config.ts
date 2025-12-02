@@ -7,6 +7,7 @@
 // 3. Output directory structure
 // 4. Transitive dependency resolution
 // 5. Proper middleware configuration
+// 6. FIXED: Removed Vue from manualChunks (causing build error)
 // ============================================================================
 
 export default defineNitroConfig({
@@ -88,7 +89,7 @@ export default defineNitroConfig({
     output: {
       manualChunks: {
         'supabase': ['@supabase/supabase-js'],
-        'vue': ['vue', 'vue-router'],
+        // ❌ REMOVED: 'vue': ['vue', 'vue-router'] - This was causing the build error
         'pinia': ['pinia'],
         'utils': ['lodash-es', 'date-fns'],
         'charts': ['chart.js', 'vue-chartjs']
@@ -112,12 +113,9 @@ export default defineNitroConfig({
   timing: false,
 
   // ============================================================================
-  // ✅ FIX #11: Compression configuration
+  // ✅ FIX #11: Experimental features
   // ============================================================================
-  compress: true,
-
-  // ============================================================================
-  // ✅ FIX #12: Error handling
-  // ============================================================================
-  errorHandler: '~/server/middleware/error-handler.ts',
+  experimental: {
+    wasm: false,
+  },
 })
