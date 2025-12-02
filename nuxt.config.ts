@@ -1,5 +1,5 @@
 // ============================================================================
-// nuxt.config.ts - COMPLETE FIXED VERSION WITH ALL PLUGINS & ENV VARS
+// nuxt.config.ts - COMPLETE FIXED VERSION WITH HARDCODED KEYS FOR TESTING
 // ============================================================================
 // ✅ ALL FIXES APPLIED:
 // 1. SSR enabled for proper page rendering
@@ -10,7 +10,7 @@
 // 6. Hydration mismatch handling
 // 7. Removed Vue from manualChunks (build error fix)
 // 8. Added tslib to transpile and noExternal
-// 9. Added all runtime config variables
+// 9. HARDCODED Supabase keys for testing
 // 10. Gun plugin properly configured
 // 11. CDN integration configured
 // 12. Supabase fully configured
@@ -46,24 +46,17 @@ export default defineNuxtConfig({
   // ============================================================================
   runtimeConfig: {
     // Private keys - only available server-side
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    supabaseUrl: process.env.SUPABASE_URL || '',
-    supabaseKey: process.env.SUPABASE_KEY || '',
-    jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_1PsVmylhwbqXnTm3zch6LmSsFFGeGMg',
+    supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
+    supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+    jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min-32-chars',
     brevoApiKey: process.env.BREVO_API_KEY || '',
     
     // Public keys - available on client and server
     public: {
-      // Supabase Configuration
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || '',
-      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || '',
-      NUXT_PUBLIC_SUPABASE_URL=https://cvzrhucbvezqwbesthek.supabase.co
-NUXT_PUBLIC_SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNenJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDkNDMyNnkQEwTb0ECqNxwt_HaUjUGDlYsHWuPrQVjYI
-SUPABASE_URL=https://cvzrhucbvezqwbesthek.supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOVj_1PsVmylhwbqXnTmzchLmSsFFGeGMg
-
-
+      // Supabase Configuration - HARDCODED FOR TESTING
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
       
       // API Configuration
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
