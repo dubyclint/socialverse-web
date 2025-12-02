@@ -8,6 +8,7 @@
 // 4. Proper output directory configuration
 // 5. Transitive dependency handling
 // 6. Hydration mismatch handling
+// 7. FIXED: Removed Vue from manualChunks (causing build error)
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -70,23 +71,29 @@ export default defineNuxtConfig({
       'lodash-es',
       'date-fns'
     ],
-    
-    // Rollup options for code splitting
-    rollupOptions: {
-      external: ['gun', 'gun/gun', 'gun/sea'],
-      output: {
-        manualChunks: {
-          'supabase': ['@supabase/supabase-js'],
-          'vue': ['vue', 'vue-router'],
-          'pinia': ['pinia'],
-          'utils': ['lodash-es', 'date-fns']
-        }
-      }
-    },
   },
 
   // ============================================================================
-  // ✅ FIX #6: Nitro configuration for proper server rendering
+  // ✅ FIX #6: Vite configuration for proper code splitting
+  // ============================================================================
+  vite: {
+    build: {
+      rollupOptions: {
+        external: ['gun', 'gun/gun', 'gun/sea'],
+        output: {
+          manualChunks: {
+            'supabase': ['@supabase/supabase-js'],
+            // ❌ REMOVED: 'vue': ['vue', 'vue-router'] - This was causing the build error
+            'pinia': ['pinia'],
+            'utils': ['lodash-es', 'date-fns']
+          }
+        }
+      }
+    }
+  },
+
+  // ============================================================================
+  // ✅ FIX #7: Nitro configuration for proper server rendering
   // ============================================================================
   nitro: {
     preset: 'node-server',
@@ -98,7 +105,7 @@ export default defineNuxtConfig({
       serverDir: '.output/server',
     },
     
-    // ✅ FIX #7: Prerender configuration
+    // ✅ FIX #8: Prerender configuration
     prerender: {
       crawlLinks: true,
       routes: ['/', '/login', '/explore', '/feed'],
@@ -107,7 +114,7 @@ export default defineNuxtConfig({
       concurrency: 4,
     },
     
-    // ✅ FIX #8: ESBuild optimization
+    // ✅ FIX #9: ESBuild optimization
     esbuild: {
       options: {
         target: 'es2022',
@@ -125,14 +132,14 @@ export default defineNuxtConfig({
     port: parseInt(process.env.PORT || '8080', 10),
     host: '0.0.0.0',
     
-    // ✅ FIX #9: Logging configuration
+    // ✅ FIX #10: Logging configuration
     logging: {
       level: process.env.LOG_LEVEL === 'debug' ? 'verbose' : 'info',
     },
   },
 
   // ============================================================================
-  // ✅ FIX #10: Alias configuration for imports
+  // ✅ FIX #11: Alias configuration for imports
   // ============================================================================
   alias: {
     '#supabase/server': '~/server/utils/supabase-server.ts',
@@ -141,7 +148,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX #11: Router configuration
+  // ✅ FIX #12: Router configuration
   // ============================================================================
   router: {
     options: {
@@ -151,7 +158,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX #12: App configuration
+  // ✅ FIX #13: App configuration
   // ============================================================================
   app: {
     head: {
