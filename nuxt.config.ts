@@ -8,7 +8,7 @@
 // 4. Proper output directory configuration
 // 5. Transitive dependency handling
 // 6. Hydration mismatch handling
-// 7. FIXED: Removed Vue from manualChunks (causing build error)
+// 7. FIXED: Removed all Nuxt modules from manualChunks
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -75,19 +75,13 @@ export default defineNuxtConfig({
 
   // ============================================================================
   // ✅ FIX #6: Vite configuration for proper code splitting
+  // REMOVED manualChunks - Let Nuxt handle chunking automatically
   // ============================================================================
   vite: {
     build: {
       rollupOptions: {
-        external: ['gun', 'gun/gun', 'gun/sea'],
-        output: {
-          manualChunks: {
-            'supabase': ['@supabase/supabase-js'],
-            // ❌ REMOVED: 'vue': ['vue', 'vue-router'] - This was causing the build error
-            'pinia': ['pinia'],
-            'utils': ['lodash-es', 'date-fns']
-          }
-        }
+        external: ['gun', 'gun/gun', 'gun/sea']
+        // Removed manualChunks entirely - Nuxt handles this automatically
       }
     }
   },
@@ -184,3 +178,4 @@ export default defineNuxtConfig({
     }
   }
 })
+
