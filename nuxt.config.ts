@@ -1,15 +1,19 @@
 // ============================================================================
-// nuxt.config.ts - COMPLETE FIXED VERSION
+// nuxt.config.ts - COMPLETE FIXED VERSION WITH ALL PLUGINS & ENV VARS
 // ============================================================================
-// ✅ FIXES:
+// ✅ ALL FIXES APPLIED:
 // 1. SSR enabled for proper page rendering
 // 2. Prerender configuration for static routes
 // 3. Build optimization for Supabase
 // 4. Proper output directory configuration
 // 5. Transitive dependency handling
 // 6. Hydration mismatch handling
-// 7. FIXED: Removed Vue from manualChunks (causing build error)
-// 8. FIXED: Added tslib to transpile and noExternal
+// 7. Removed Vue from manualChunks (build error fix)
+// 8. Added tslib to transpile and noExternal
+// 9. Added all runtime config variables
+// 10. Gun plugin properly configured
+// 11. CDN integration configured
+// 12. Supabase fully configured
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -17,7 +21,7 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   
   // ============================================================================
-  // ✅ FIX #1: ENABLE SSR for proper page rendering (WAS: ssr: false)
+  // ✅ FIX #1: ENABLE SSR for proper page rendering
   // ============================================================================
   ssr: true,
   
@@ -45,15 +49,37 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || '',
     supabaseKey: process.env.SUPABASE_KEY || '',
+    jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    brevoApiKey: process.env.BREVO_API_KEY || '',
     
     // Public keys - available on client and server
     public: {
+      // Supabase Configuration
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || '',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || '',
+      
+      // API Configuration
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
+      
+      // CDN Configuration
+      cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
+      cdnEnabled: process.env.NUXT_PUBLIC_CDN_ENABLED === 'true' || false,
+      
+      // Gun Configuration
+      gunEnabled: process.env.NUXT_PUBLIC_GUN_ENABLED === 'true' || false,
+      gunPeers: (process.env.NUXT_PUBLIC_GUN_PEERS || '').split(',').filter(Boolean) || [],
+      
+      // Application Configuration
       nodeEnv: process.env.NODE_ENV || 'production',
       port: process.env.PORT || '8080',
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
       logLevel: process.env.LOG_LEVEL || 'info',
+      appName: process.env.APP_NAME || 'SocialVerse',
+      
+      // Feature Flags
+      enablePremium: process.env.NUXT_PUBLIC_ENABLE_PREMIUM === 'true' || true,
+      enableAnalytics: process.env.NUXT_PUBLIC_ENABLE_ANALYTICS === 'true' || true,
     },
   },
 
@@ -77,13 +103,11 @@ export default defineNuxtConfig({
 
   // ============================================================================
   // ✅ FIX #6: Vite configuration for proper code splitting
-  // REMOVED manualChunks - Let Nuxt handle chunking automatically
   // ============================================================================
   vite: {
     build: {
       rollupOptions: {
         external: ['gun', 'gun/gun', 'gun/sea']
-        // Removed manualChunks entirely - Nuxt handles this automatically
       }
     }
   },
@@ -193,5 +217,3 @@ export default defineNuxtConfig({
     }
   }
 })
-
-
