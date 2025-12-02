@@ -18,7 +18,8 @@ export async function loadTranslations(lang: string = 'en') {
     // ✅ Try API first, but don't block if it fails
     let apiSuccess = false
     try {
-      const { data, error } = await useFetch(`/api/admin/translations?lang=${lang}`)
+      // ✅ FIXED: Changed from /api/admin/translations to /api/translations
+      const { data, error } = await useFetch(`/api/translations?lang=${lang}`)
       
       if (!error.value && data.value && Array.isArray(data.value) && data.value.length > 0) {
         translations.value = flattenTranslations(data.value)
