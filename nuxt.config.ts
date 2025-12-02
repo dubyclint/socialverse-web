@@ -8,7 +8,8 @@
 // 4. Proper output directory configuration
 // 5. Transitive dependency handling
 // 6. Hydration mismatch handling
-// 7. FIXED: Removed all Nuxt modules from manualChunks
+// 7. FIXED: Removed Vue from manualChunks (causing build error)
+// 8. FIXED: Added tslib to transpile and noExternal
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -69,7 +70,8 @@ export default defineNuxtConfig({
       '@supabase/storage-js',
       '@supabase/functions-js',
       'lodash-es',
-      'date-fns'
+      'date-fns',
+      'tslib'
     ],
   },
 
@@ -92,6 +94,19 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'node-server',
     
+    // ✅ FIX #8: Ensure dependencies are bundled correctly
+    noExternal: [
+      '@supabase/supabase-js',
+      '@supabase/auth-js',
+      '@supabase/postgrest-js',
+      '@supabase/realtime-js',
+      '@supabase/storage-js',
+      '@supabase/functions-js',
+      'lodash-es',
+      'date-fns',
+      'tslib'
+    ],
+    
     // Output directory configuration
     output: {
       dir: '.output',
@@ -99,7 +114,7 @@ export default defineNuxtConfig({
       serverDir: '.output/server',
     },
     
-    // ✅ FIX #8: Prerender configuration
+    // ✅ FIX #9: Prerender configuration
     prerender: {
       crawlLinks: true,
       routes: ['/', '/login', '/explore', '/feed'],
@@ -108,7 +123,7 @@ export default defineNuxtConfig({
       concurrency: 4,
     },
     
-    // ✅ FIX #9: ESBuild optimization
+    // ✅ FIX #10: ESBuild optimization
     esbuild: {
       options: {
         target: 'es2022',
@@ -126,14 +141,14 @@ export default defineNuxtConfig({
     port: parseInt(process.env.PORT || '8080', 10),
     host: '0.0.0.0',
     
-    // ✅ FIX #10: Logging configuration
+    // ✅ FIX #11: Logging configuration
     logging: {
       level: process.env.LOG_LEVEL === 'debug' ? 'verbose' : 'info',
     },
   },
 
   // ============================================================================
-  // ✅ FIX #11: Alias configuration for imports
+  // ✅ FIX #12: Alias configuration for imports
   // ============================================================================
   alias: {
     '#supabase/server': '~/server/utils/supabase-server.ts',
@@ -142,7 +157,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX #12: Router configuration
+  // ✅ FIX #13: Router configuration
   // ============================================================================
   router: {
     options: {
@@ -152,7 +167,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX #13: App configuration
+  // ✅ FIX #14: App configuration
   // ============================================================================
   app: {
     head: {
@@ -178,4 +193,5 @@ export default defineNuxtConfig({
     }
   }
 })
+
 
