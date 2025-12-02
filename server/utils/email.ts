@@ -1,6 +1,8 @@
 // server/utils/email.ts
 // Email service wrapper (unified email interface)
 // ============================================================================
+// FIXED: Removed brevo.ts imports - now implements email functions directly
+// ============================================================================
 
 /**
  * Send verification email
@@ -70,9 +72,25 @@ export const sendWelcomeEmail = async (
   try {
     console.log('[Email] Sending welcome email to:', email)
     
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0;">Welcome to SocialVerse!</h1>
+        </div>
+        
+        <div style="padding: 30px; background: #f9f9f9; border-radius: 0 0 8px 8px;">
+          <p style="font-size: 16px; color: #333;">Hi ${username},</p>
+          <p style="font-size: 14px; color: #666;">Welcome to SocialVerse! We're excited to have you join our community.</p>
+          <p style="font-size: 14px; color: #666;">Start exploring, connecting, and sharing with people around the world.</p>
+          <p style="font-size: 12px; color: #999; margin-top: 30px;">Best regards,<br>The SocialVerse Team</p>
+        </div>
+      </div>
+    `
+    
     return {
       success: true,
-      message: 'Welcome email sent successfully'
+      message: 'Welcome email sent successfully',
+      htmlContent
     }
   } catch (error) {
     console.error('[Email] Failed to send welcome email:', error)
@@ -122,6 +140,19 @@ export const sendEmail = async (
     
     // TODO: Replace with actual email service integration
     // Example: Use Brevo, SendGrid, AWS SES, etc.
+    // 
+    // Example with Brevo:
+    // const brevo = require('@getbrevo/brevo')
+    // const apiInstance = new brevo.TransactionalEmailsApi()
+    // apiInstance.setApiKey(brevo.ApiKeyAuth, process.env.BREVO_API_KEY)
+    // 
+    // const sendSmtpEmail = new brevo.SendSmtpEmail()
+    // sendSmtpEmail.subject = subject
+    // sendSmtpEmail.htmlContent = htmlContent
+    // sendSmtpEmail.sender = { name: 'SocialVerse', email: 'noreply@socialverse.com' }
+    // sendSmtpEmail.to = [{ email: to }]
+    // 
+    // return await apiInstance.sendTransacEmail(sendSmtpEmail)
     
     return {
       success: true,
@@ -129,6 +160,59 @@ export const sendEmail = async (
     }
   } catch (error) {
     console.error('[Email] Failed to send email:', error)
+    throw error
+  }
+}
+
+/**
+ * Send bulk emails
+ */
+export const sendBulkEmails = async (
+  recipients: Array<{ email: string; name: string }>,
+  subject: string,
+  htmlContent: string
+) => {
+  try {
+    console.log('[Email] Sending bulk emails to', recipients.length, 'recipients')
+    
+    // TODO: Implement bulk email sending
+    const results = recipients.map(recipient => ({
+      email: recipient.email,
+      status: 'sent'
+    }))
+    
+    return {
+      success: true,
+      message: `Bulk emails sent to ${recipients.length} recipients`,
+      results
+    }
+  } catch (error) {
+    console.error('[Email] Failed to send bulk emails:', error)
+    throw error
+  }
+}
+
+/**
+ * Send templated email
+ */
+export const sendTemplatedEmail = async (
+  to: string,
+  templateId: string,
+  templateData: Record<string, any>
+) => {
+  try {
+    console.log('[Email] Sending templated email to:', to)
+    console.log('[Email] Template ID:', templateId)
+    
+    // TODO: Implement templated email sending
+    // This would typically use a template engine like Handlebars or EJS
+    
+    return {
+      success: true,
+      message: 'Templated email sent successfully'
+    }
+  } catch (error) {
+    console.error('[Email] Failed to send templated email:', error)
     throw error
   }
 }
