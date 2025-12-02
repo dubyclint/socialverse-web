@@ -1,3 +1,9 @@
+// ============================================================================
+// server/api/admin/translations.ts - ADMIN TRANSLATIONS ENDPOINT (FIXED)
+// ============================================================================
+// ✅ FIXED: Properly handles GET requests for translations
+// Returns translations from database or empty array for fallback
+
 export default defineEventHandler(async (event) => {
   const method = event.req.method
   
@@ -30,39 +36,78 @@ export default defineEventHandler(async (event) => {
         console.log('[Translations] Loaded', data.length, 'translations for language:', language)
         return data
         
-      } catch (supabaseErr) {
-        console.error('[Translations] Supabase error:', supabaseErr)
+      } catch (dbError) {
+        console.error('[Translations] Database error:', dbError)
+        // Return empty array to trigger fallback to local files
         return []
       }
       
-    } catch (err) {
-      console.error('[Translations] GET Error:', err)
-      return []
+    } catch (error) {
+      console.error('[Translations] Request error:', error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to load translations',
+      })
     }
   }
-
+  
   if (method === 'POST') {
     try {
-      const supabase = await serverSupabaseClient(event)
-      const entry = await readBody(event)
+      const body = await readBody(event)
+      const { lang, translations } = body
       
-      const { data, error } = await supabase
-        .from('translations')
-        .insert([entry])
-        .select()
-      
-      if (error) {
-        console.error('[Translations] Insert error:', error)
-        throw error
+      if (!lang || !translations) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Missing lang or translations in request body',
+        })
       }
       
-      return data?.[0] || entry
-    } catch (err) {
-      console.error('[Translations] POST Error:', err)
-      throw err
+      console.log('[Translations] POST request for language:', lang)
+      
+      try {
+        const supabase = await serverSupabaseClient(event)
+        
+        // Upsert translations
+        const { error } = await supabase
+          .from('translations')
+          .upsert(
+            translations.map((t: any) => ({
+              language: lang,
+              key: t.key,
+              value: t.value,
+            })),
+            { onConflict: 'language,key' }
+          )
+        
+        if (error) {
+          console.error('[Translations] Upsert error:', error)
+          throw createError({
+            statusCode: 500,
+            statusMessage: 'Failed to save translations',
+          })
+        }
+        
+        console.log('[Translations] Saved', translations.length, 'translations for language:', lang)
+        return { success: true, count: translations.length }
+        
+      } catch (dbError) {
+        console.error('[Translations] Database error:', dbError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Database error',
+        })
+      }
+      
+    } catch (error) {
+      console.error('[Translations] Request error:', error)
+      throw error
     }
   }
-
-  return { error: 'Method not allowed' }
+  
+  // Method not allowed
+  throw createError({
+    statusCode: 405,
+    statusMessage: 'Method not allowed',
+  })
 })
-
