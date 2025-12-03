@@ -1,23 +1,8 @@
-# ============================================================================
-# FILE: /.dockerignore
-# ============================================================================
-# Exclude unnecessary files from Docker build context
-# ============================================================================
-
 # Version Control
 .git
 .gitignore
 .gitattributes
 .github
-
-# Development
-.nuxt
-.output
-.nitro
-node_modules/.cache
-dist
-build
-.cache
 
 # IDE & Editor
 .vscode
@@ -30,7 +15,7 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# ✅ FIXED: Only exclude local environment files, NOT .env.production
+# Environment files
 .env
 .env.local
 .env.*.local
@@ -55,9 +40,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies (will be installed fresh)
-node_modules
-
 # Documentation
 README.md
 CHANGELOG.md
@@ -69,32 +51,5 @@ docs
 .circleci
 .travis.yml
 azure-pipelines.yml
-
-# Temporary Files
-tmp
-temp
-*.tmp
-*.temp
-
-# Build Artifacts
-*.tsbuildinfo
-tsconfig.tsbuildinfo
-
-# Scripts (not needed in production)
-scripts
-
-# Misc
-akwukwo*
-olicies
-push-engine.js
-use-gun.js
-pew-gift-button.vue
-
-# Miscellaneous
-.prettierignore
-.eslintignore
-.eslintrc.json
-.prettierrc.json
-eslint.config.js
-tsconfig.json
+.github/workflows
 
