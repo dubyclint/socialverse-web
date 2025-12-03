@@ -1,78 +1,36 @@
-// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED WORKING VERSION
 // ============================================================================
-// ✅ FIXED: Proper error handling, profile creation, and user data return
+// ✅ SIMPLIFIED: Direct implementation without complex error handling
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
-  setResponseHeader(event, 'Content-Type', 'application/json')
-  setResponseHeader(event, 'Cache-Control', 'no-cache, no-store, must-revalidate')
-  
   try {
-    console.log('[Signup API] ========== START ==========')
+    console.log('[Signup API] Request received')
     
-    let body: any
-    try {
-      body = await readBody(event)
-    } catch (error) {
-      console.error('[Signup API] Invalid request body')
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Invalid request body'
-      }))
-    }
+    const body = await readBody(event)
+    console.log('[Signup API] Body:', { email: body.email, username: body.username })
 
-    const { email, password, username, fullName, phone, bio, location } = body
+    const { email, password, username, fullName } = body
 
+    // Validate required fields
     if (!email || !password || !username) {
       console.error('[Signup API] Missing required fields')
-      return sendError(event, createError({
+      throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
-      }))
-    }
-
-    // Validate username format
-    if (!/^[a-z0-9_-]+$/i.test(username)) {
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Username can only contain letters, numbers, underscores, and hyphens'
-      }))
-    }
-
-    if (username.length < 3 || username.length > 30) {
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Username must be between 3 and 30 characters'
-      }))
+      })
     }
 
     // Get Supabase client
     const supabase = await serverSupabaseClient(event)
-
     if (!supabase) {
-      console.error('[Signup API] Supabase client not available')
-      return sendError(event, createError({
+      throw createError({
         statusCode: 500,
         statusMessage: 'Database connection failed'
-      }))
+      })
     }
 
-    console.log('[Signup API] Creating account for:', email)
-
-    // Check if username already exists
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', username)
-      .single()
-
-    if (existingUser) {
-      console.error('[Signup API] Username already taken:', username)
-      return sendError(event, createError({
-        statusCode: 400,
-        statusMessage: 'Username already taken'
-      }))
-    }
+    console.log('[Signup API] Creating auth user for:', email)
 
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -81,82 +39,70 @@ export default defineEventHandler(async (event) => {
       options: {
         data: {
           username,
-          full_name: fullName || '',
-          phone: phone || '',
-          bio: bio || '',
-          location: location || ''
+          full_name: fullName || ''
         }
       }
     })
 
     if (authError) {
       console.error('[Signup API] Auth error:', authError.message)
-      return sendError(event, createError({
+      throw createError({
         statusCode: 400,
         statusMessage: authError.message
-      }))
+      })
     }
 
     if (!authData.user) {
-      console.error('[Signup API] No user returned from signup')
-      return sendError(event, createError({
+      throw createError({
         statusCode: 500,
-        statusMessage: 'Signup failed - no user created'
-      }))
-    }
-
-    // Create user profile in profiles table
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        username,
-        email,
-        full_name: fullName || '',
-        phone: phone || '',
-        bio: bio || '',
-        location: location || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        statusMessage: 'User creation failed'
       })
-
-    if (profileError) {
-      console.error('[Signup API] Profile creation error:', profileError.message)
-      // Don't fail the signup if profile creation fails
-      // The user is already created in auth
-      console.warn('[Signup API] User created but profile creation failed')
     }
 
-    console.log('[Signup API] ✅ Signup successful for:', email)
-    console.log('[Signup API] ========== SUCCESS ==========')
+    console.log('[Signup API] Auth user created:', authData.user.id)
 
-    // Check if email confirmation is required
-    const needsConfirmation = !authData.session
+    // Create profile
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          username,
+          email,
+          full_name: fullName || '',
+          created_at: new Date().toISOString()
+        })
+
+      if (profileError) {
+        console.warn('[Signup API] Profile creation warning:', profileError.message)
+      }
+    } catch (profileErr) {
+      console.warn('[Signup API] Profile creation error:', profileErr)
+    }
+
+    console.log('[Signup API] ✅ Signup successful')
 
     return {
       success: true,
-      needsConfirmation,
       user: {
         id: authData.user.id,
         email: authData.user.email,
-        username,
-        fullName: fullName || '',
+        username
       },
       token: authData.session?.access_token || null,
-      refreshToken: authData.session?.refresh_token || null,
-      message: needsConfirmation 
-        ? 'Account created! Please check your email to verify your account.'
-        : 'Account created successfully!'
+      needsConfirmation: !authData.session
     }
 
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error))
-    console.error('[Signup API] Unexpected error:', err.message)
-    console.error('[Signup API] Stack:', err.stack)
+  } catch (error: any) {
+    console.error('[Signup API] Error:', error.message || error)
     
-    return sendError(event, createError({
+    if (error.statusCode) {
+      throw error
+    }
+    
+    throw createError({
       statusCode: 500,
-      statusMessage: 'An unexpected error occurred during signup'
-    }))
+      statusMessage: error.message || 'Signup failed'
+    })
   }
 })
