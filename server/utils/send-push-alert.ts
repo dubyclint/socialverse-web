@@ -1,4 +1,4 @@
-import { db } from './database';
+import { getSupabaseClient } from './database';
 
 // Mock push service - replace with actual implementation (FCM, APNs, etc.)
 const pushService = {
@@ -15,7 +15,7 @@ export async function sendPushAlert(
   body: string
 ): Promise<void> {
   try {
-    const supabase = await db();
+    const supabase = await getSupabaseClient();
     
     const { data: user, error } = await supabase
       .from('users')
@@ -39,9 +39,8 @@ export async function sendPushAlert(
       body
     });
 
-    console.log(`Push alert sent to user ${userId}: ${title}`);
+    console.log(`Push alert sent to user ${userId}:`);
   } catch (error) {
     console.error('Error sending push alert:', error);
-    // Don't throw - push notifications are non-critical
   }
 }
