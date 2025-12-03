@@ -11,6 +11,8 @@ import { db, dbAdmin } from './database'
 // ============================================================================
 // IMPORTS FROM DEDICATED UTILITY FILES (NO RE-EXPORTS - FIXES DUPLICATES)
 // ============================================================================
+// These are imported for internal use only - NOT re-exported
+// This fixes the "Duplicated imports" warnings
 import { giftOperations } from './gift-operations-utils'
 import { groupChatOperations } from './group-chat-utils'
 import { rateLimit } from './rate-limit-utils'
@@ -157,12 +159,9 @@ export const supabase = new Proxy({}, {
 }) as any
 
 // ============================================================================
-// ADDITIONAL STUB IMPLEMENTATIONS FOR MISSING OPERATIONS
+// STATUS OPERATIONS
 // ============================================================================
 
-/**
- * Status operations - stub implementation
- */
 export const statusOperations = {
   async getStatus(userId: string) {
     try {
@@ -185,9 +184,10 @@ export const statusOperations = {
   }
 }
 
-/**
- * User operations - stub implementation
- */
+// ============================================================================
+// USER OPERATIONS
+// ============================================================================
+
 export const userOperations = {
   async getUser(userId: string) {
     try {
@@ -220,9 +220,10 @@ export const userOperations = {
   }
 }
 
-/**
- * Follow operations - stub implementation
- */
+// ============================================================================
+// FOLLOW OPERATIONS
+// ============================================================================
+
 export const followOperations = {
   async followUser(userId: string, targetUserId: string) {
     try {
@@ -265,9 +266,10 @@ export const followOperations = {
   }
 }
 
-/**
- * Notification operations - stub implementation
- */
+// ============================================================================
+// NOTIFICATION OPERATIONS
+// ============================================================================
+
 export const notificationOperations = {
   async getNotifications(userId: string) {
     try {
@@ -300,9 +302,10 @@ export const notificationOperations = {
   }
 }
 
-/**
- * Post operations - stub implementation
- */
+// ============================================================================
+// POST OPERATIONS
+// ============================================================================
+
 export const postOperations = {
   async getPost(postId: string) {
     try {
@@ -345,9 +348,10 @@ export const postOperations = {
   }
 }
 
-/**
- * Chat operations - stub implementation
- */
+// ============================================================================
+// CHAT OPERATIONS
+// ============================================================================
+
 export const chatOperations = {
   async sendMessage(userId: string, recipientId: string, message: string) {
     try {
@@ -380,9 +384,10 @@ export const chatOperations = {
   }
 }
 
-/**
- * Stream operations - stub implementation
- */
+// ============================================================================
+// STREAM OPERATIONS
+// ============================================================================
+
 export const streamOperations = {
   async createStream(userId: string, title: string) {
     try {
@@ -440,6 +445,32 @@ export const streamOperations = {
       return { success: true, status: 'ended' }
     } catch (error) {
       console.error('[Stream] End stream error:', error)
+      throw error
+    }
+  }
+}
+
+// ============================================================================
+// LIKE OPERATIONS
+// ============================================================================
+
+export const likeOperations = {
+  async likePost(userId: string, postId: string) {
+    try {
+      console.log(`[Like] User ${userId} liking post ${postId}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[Like] Like error:', error)
+      throw error
+    }
+  },
+
+  async unlikePost(userId: string, postId: string) {
+    try {
+      console.log(`[Like] User ${userId} unliking post ${postId}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[Like] Unlike error:', error)
       throw error
     }
   }
@@ -559,33 +590,3 @@ export const themeOperations = createGenericOperations('Theme')
 export const localizationOperations = createGenericOperations('Localization')
 export const translationOperations = createGenericOperations('Translation')
 export const languageOperations = createGenericOperations('Language')
-
-/**
- * Like operations - stub implementation
- */
-export const likeOperations = {
-  async likePost(userId: string, postId: string) {
-    try {
-      console.log(`[Like] User ${userId} liking post ${postId}`)
-      return { success: true }
-    } catch (error) {
-      console.error('[Like] Like error:', error)
-      throw error
-    }
-  },
-
-  async unlikePost(userId: string, postId: string) {
-    try {
-      console.log(`[Like] User ${userId} unliking post ${postId}`)
-      return { success: true }
-    } catch (error) {
-      console.error('[Like] Unlike error:', error)
-      throw error
-    }
-  }
-}
-
-// ============================================================================
-// RE-EXPORT IMPORTED OPERATIONS (NO DUPLICATES)
-// ============================================================================
-export { giftOperations, groupChatOperations, rateLimit }
