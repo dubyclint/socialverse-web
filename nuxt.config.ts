@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE 3: /nuxt.config.ts - COMPLETE FIXED VERSION
+// FILE : /nuxt.config.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // FIXED: Added #utils alias, chunk splitting, and proper build configuration
 // ============================================================================
@@ -24,7 +24,7 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_1PsVmylhwbqXnTm3zch6LmSsFFG',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_PsVmylhwbqXnTm3zch6LmSsFFG',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min-32-chars',
@@ -123,6 +123,15 @@ export default defineNuxtConfig({
     logging: {
       level: process.env.LOG_LEVEL === 'debug' ? 'verbose' : 'info',
     },
+    // ============================================================================
+    // ✅ FIX: Nitro aliases - Use absolute paths from project root
+    // ============================================================================
+    alias: {
+      '#supabase/server': './server/utils/supabase-server.ts',
+      '#supabase/client': './composables/use-supabase.ts',
+      '#supabase/admin': './server/utils/supabase-admin.ts',
+      '#utils': './server/utils',
+    },
   },
 
   // ============================================================================
@@ -148,13 +157,10 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX: Aliases configuration - ADDED #utils ALIAS
+  // ✅ FIX: Aliases configuration for client-side
   // ============================================================================
   alias: {
-    '#supabase/server': '~/server/utils/supabase-server.ts',
     '#supabase/client': '~/composables/use-supabase.ts',
-    '#supabase/admin': '~/server/utils/supabase-admin.ts',
-    '#utils': '~/server/utils', // ← ADDED: Fixes tensorflow-loader import
   },
 
   router: {
