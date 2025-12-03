@@ -1,5 +1,7 @@
 // ============================================================================
-// nuxt.config.ts - COMPLETE FIXED VERSION WITH CACHING & HYDRATION FIX
+// FILE 3: /nuxt.config.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// FIXED: Added #utils alias, chunk splitting, and proper build configuration
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -61,11 +63,22 @@ export default defineNuxtConfig({
     ],
   },
 
+  // ============================================================================
+  // ✅ FIX: Vite build configuration with chunk splitting
+  // ============================================================================
   vite: {
     build: {
       rollupOptions: {
-        external: ['gun', 'gun/gun', 'gun/sea']
-      }
+        external: ['gun', 'gun/gun', 'gun/sea'],
+        output: {
+          manualChunks: {
+            'supabase': ['@supabase/supabase-js', '@supabase/auth-js', '@supabase/postgrest-js'],
+            'chart': ['chart.js'],
+            'vendor': ['lodash-es', 'date-fns', 'tslib'],
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000, // Increase limit to 1000kb
     }
   },
 
@@ -134,10 +147,14 @@ export default defineNuxtConfig({
     renderJsonPayload: true,
   },
 
+  // ============================================================================
+  // ✅ FIX: Aliases configuration - ADDED #utils ALIAS
+  // ============================================================================
   alias: {
     '#supabase/server': '~/server/utils/supabase-server.ts',
     '#supabase/client': '~/composables/use-supabase.ts',
     '#supabase/admin': '~/server/utils/supabase-admin.ts',
+    '#utils': '~/server/utils', // ← ADDED: Fixes tensorflow-loader import
   },
 
   router: {
