@@ -1,12 +1,12 @@
 // ============================================================================
-// FILE 1: /server/utils/auth-utils.ts - COMPLETE FIXED VERSION
+// FILE 1: /server/utils/auth-utils.ts - CORRECTED VERSION
 // ============================================================================
 // AUTHENTICATION UTILITIES WITH LAZY SUPABASE LOADING
-// FIXED: Removed duplicate exports - now imports from dedicated files
+// FIXED: Uses correct imports from database.ts
 // ============================================================================
 
 import jwt from 'jsonwebtoken'
-import { db, dbAdmin } from './database'
+import { getSupabaseClient, getSupabaseAdminClient } from './database'
 
 // ============================================================================
 // IMPORTS FROM DEDICATED UTILITY FILES (NO RE-EXPORTS - FIXES DUPLICATES)
@@ -152,7 +152,19 @@ export const premiumOperations = {
 export const supabase = new Proxy({}, {
   get: (target, prop) => {
     return async (...args: any[]) => {
-      const client = await db()
+      const client = await getSupabaseClient()
+      return (client as any)[prop]?.(...args)
+    }
+  }
+}) as any
+
+/**
+ * Lazy-loaded supabase admin client proxy for backward compatibility
+ */
+export const supabaseAdmin = new Proxy({}, {
+  get: (target, prop) => {
+    return async (...args: any[]) => {
+      const client = await getSupabaseAdminClient()
       return (client as any)[prop]?.(...args)
     }
   }
