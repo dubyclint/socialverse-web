@@ -31,6 +31,7 @@
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.2",
     "@supabase/supabase-js": "^2.50.0",
+    "@supabase/nuxt": "^1.1.0",
     "bcrypt": "^5.1.1",
     "chart.js": "^4.5.1",
     "compression": "^1.7.4",
@@ -52,12 +53,17 @@
     "vue": "^3.5.22",
     "vue-chartjs": "^5.3.2",
     "vue-router": "^4.6.3",
-    "unhead": "^2.0.19"
+    "unhead": "^2.0.19",
+    "web3": "^4.11.0",
+    "aws-sdk": "^2.1600.0",
+    "sharp": "^0.33.0",
+    "google-translate-api-x": "^4.7.0"
   },
   "optionalDependencies": {
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
-    "@tensorflow/tfjs-layers": "^4.22.0"
+    "@tensorflow/tfjs-layers": "^4.22.0",
+    "@tensorflow/tfjs-node": "^4.22.0"
   },
   "devDependencies": {
     "@nuxt/devtools": "^1.7.0",
