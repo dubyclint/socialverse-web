@@ -1,7 +1,7 @@
-// FILE: /server/utils/auth-utils.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// FILE 1: /server/utils/auth-utils.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // AUTHENTICATION UTILITIES WITH LAZY SUPABASE LOADING
-// Includes stub implementations for all missing functions
 // FIXED: Removed duplicate exports - now imports from dedicated files
 // ============================================================================
 
@@ -9,11 +9,11 @@ import jwt from 'jsonwebtoken'
 import { db, dbAdmin } from './database'
 
 // ============================================================================
-// RE-EXPORT FROM DEDICATED UTILITY FILES (FIXES DUPLICATES)
+// IMPORTS FROM DEDICATED UTILITY FILES (NO RE-EXPORTS - FIXES DUPLICATES)
 // ============================================================================
-export { giftOperations } from './gift-operations-utils'
-export { groupChatOperations } from './group-chat-utils'
-export { rateLimit } from './rate-limit-utils'
+import { giftOperations } from './gift-operations-utils'
+import { groupChatOperations } from './group-chat-utils'
+import { rateLimit } from './rate-limit-utils'
 
 // ============================================================================
 // ENVIRONMENT VARIABLES
@@ -584,3 +584,8 @@ export const likeOperations = {
     }
   }
 }
+
+// ============================================================================
+// RE-EXPORT IMPORTED OPERATIONS (NO DUPLICATES)
+// ============================================================================
+export { giftOperations, groupChatOperations, rateLimit }
