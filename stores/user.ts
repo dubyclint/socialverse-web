@@ -1,107 +1,172 @@
-// FILE: /stores/user.ts (Key changes only)
-// ✅ FIXED - Proper null checking and error handling
-// Addresses: Issue #3 (Pinia initialization), Issue #1 (Missing env vars)
+// FILE: /stores/user.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// ✅ FIXED: Added missing currentUser ref definition
+// ✅ FIXED: Proper null checking and error handling
+// ============================================================================
 
 import { defineStore } from 'pinia'
-import { ref, computed, watch, readonly } from 'vue'
-import { getSupabaseClient, isSupabaseReady } from '~/lib/supabase-factory'
-
-// ... (keep existing interfaces)
+import { ref, computed, readonly } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
-  // ... (keep existing state)
+  // ============================================================================
+  // STATE - ✅ FIXED: Added missing currentUser definition
+  // ============================================================================
+  const currentUser = ref<any | null>(null)
+  const isAuthenticated = ref(false)
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+
+  // ============================================================================
+  // COMPUTED
+  // ============================================================================
+  const userId = computed(() => currentUser.value?.id || null)
+  const userEmail = computed(() => currentUser.value?.email || null)
+  const userName = computed(() => currentUser.value?.user_metadata?.username || null)
+
+  // ============================================================================
+  // METHODS
+  // ============================================================================
 
   /**
    * Initialize session with proper error handling
-   * Addresses: Issue #3 (Pinia initialization)
    */
   const initializeSession = async () => {
     try {
-      // Check if Supabase is ready (Addresses Issue #1)
-      if (!isSupabaseReady()) {
-        console.warn('[User Store] Supabase not ready, skipping session initialization')
+      isLoading.value = true
+      error.value = null
+
+      // ✅ Check if we're on client side
+      if (typeof window === 'undefined') {
+        console.log('[User Store] Server-side, skipping session initialization')
         return
       }
 
-      const supabase = getSupabaseClient()
-      
-      // Safety check - should not happen if isSupabaseReady() is true
+      // ✅ Get Supabase client safely
+      const nuxtApp = useNuxtApp()
+      const supabase = nuxtApp.$supabase
+
       if (!supabase) {
-        throw new Error('Supabase client is null')
+        console.warn('[User Store] Supabase not available, skipping session initialization')
+        isAuthenticated.value = false
+        return
       }
 
       console.log('[User Store] Initializing session...')
       
       // Get current session
-      const { data: { session }, error } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
-      if (error) {
-        throw error
+      if (sessionError) {
+        throw sessionError
       }
 
       if (session?.user) {
         console.log('[User Store] ✅ Session found for user:', session.user.email)
-        // Set user data
         currentUser.value = session.user
         isAuthenticated.value = true
       } else {
         console.log('[User Store] No active session')
+        currentUser.value = null
         isAuthenticated.value = false
       }
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error))
-      console.error('[User Store] Session initialization failed:', err.message)
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err))
+      console.error('[User Store] Session initialization failed:', errorObj.message)
+      error.value = errorObj.message
+      currentUser.value = null
       isAuthenticated.value = false
-      throw err
+      // Don't throw - allow app to continue
+    } finally {
+      isLoading.value = false
     }
   }
 
   /**
-   * Fetch user profile with safety checks
-   * Addresses: Issue #1 (Missing env vars)
+   * Fetch user profile
    */
   const fetchUserProfile = async (userId: string) => {
     try {
-      // Check if Supabase is ready
-      if (!isSupabaseReady()) {
-        console.warn('[User Store] Supabase not ready, cannot fetch profile')
+      isLoading.value = true
+      error.value = null
+
+      const nuxtApp = useNuxtApp()
+      const supabase = nuxtApp.$supabase
+
+      if (!supabase) {
+        console.warn('[User Store] Supabase not available, cannot fetch profile')
         return null
       }
 
-      const supabase = getSupabaseClient()
-      
-      if (!supabase) {
-        throw new Error('Supabase client is null')
-      }
-
-      const { data, error } = await supabase
+      const { data, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
 
-      if (error) {
-        throw error
+      if (profileError) {
+        throw profileError
       }
 
-      return data as UserProfile
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error))
-      console.error('[User Store] Failed to fetch profile:', err.message)
-      throw err
+      return data
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err))
+      console.error('[User Store] Failed to fetch profile:', errorObj.message)
+      error.value = errorObj.message
+      return null
+    } finally {
+      isLoading.value = false
     }
   }
 
-  // ... (keep existing methods, add safety checks to all Supabase calls)
+  /**
+   * Clear user session
+   */
+  const clearSession = () => {
+    currentUser.value = null
+    isAuthenticated.value = false
+    error.value = null
+  }
 
+  /**
+   * Logout user
+   */
+  const logout = async () => {
+    try {
+      const nuxtApp = useNuxtApp()
+      const supabase = nuxtApp.$supabase
+
+      if (supabase) {
+        await supabase.auth.signOut()
+      }
+
+      clearSession()
+      console.log('[User Store] User logged out')
+    } catch (err) {
+      console.error('[User Store] Logout error:', err)
+      // Clear session anyway
+      clearSession()
+    }
+  }
+
+  // ============================================================================
+  // RETURN
+  // ============================================================================
   return {
-    // State
+    // State (readonly)
     currentUser: readonly(currentUser),
     isAuthenticated: readonly(isAuthenticated),
+    isLoading: readonly(isLoading),
+    error: readonly(error),
+    
+    // Computed
+    userId,
+    userEmail,
+    userName,
     
     // Methods
     initializeSession,
     fetchUserProfile,
-    // ... (other methods)
+    clearSession,
+    logout,
   }
 })
