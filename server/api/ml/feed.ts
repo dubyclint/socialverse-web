@@ -1,5 +1,8 @@
-// server/api/ml/feed.ts - ML FEED WITH LAZY TENSORFLOW
-import { getTensorFlow, isTensorFlowAvailable } from '#utils/tensorflow-loader'
+// ============================================================================
+// FILE 4: /server/api/ml/feed.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// FIXED: Changed import path from #utils to direct path
+// ============================================================================
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,7 +19,8 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Load TensorFlow only if needed
+    // Load TensorFlow only if needed - using direct import
+    const { getTensorFlow } = await import('~/server/utils/tensorflow-loader')
     const tf = await getTensorFlow()
 
     // Your ML logic here
