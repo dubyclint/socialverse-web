@@ -139,4 +139,4 @@ export default async function serverSupabaseClient(event?: H3Event): Promise<Sup
 // ============================================================================
 // NAMED EXPORT FOR DIRECT USAGE
 // ============================================================================
-export const serverSupabaseClient = serverSupabaseClient
+export { serverSupabaseClient }
