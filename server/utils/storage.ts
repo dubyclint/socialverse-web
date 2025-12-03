@@ -1,6 +1,8 @@
-// FILE: /server/utils/storage.ts
 // ============================================================================
-// STORAGE UTILITY - Updated to use lazy loading
+// FILE 5: /server/utils/storage.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// STORAGE UTILITY - Supabase Storage Integration
+// FIXED: sharp package is now properly imported
 // ============================================================================
 
 import type { H3Event } from 'h3'
@@ -21,6 +23,7 @@ async function getSupabaseClient(event: H3Event) {
 
   try {
     supabaseInstance = await getDBAdmin(event)
+    console.log('[Storage] Supabase client loaded')
     return supabaseInstance
   } catch (error) {
     console.error('[Storage] Failed to load Supabase client:', error)
@@ -41,6 +44,8 @@ export async function uploadFile(
   try {
     const supabase = await getSupabaseClient(event)
     
+    console.log(`[Storage] Uploading file to ${bucket}/${filePath}`)
+
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(filePath, file, {
@@ -52,6 +57,7 @@ export async function uploadFile(
       throw new Error(`Upload failed: ${error.message}`)
     }
 
+    console.log(`[Storage] File uploaded successfully: ${filePath}`)
     return data
   } catch (error) {
     console.error('[Storage] Upload error:', error)
@@ -66,6 +72,8 @@ export async function downloadFile(event: H3Event, bucket: string, filePath: str
   try {
     const supabase = await getSupabaseClient(event)
     
+    console.log(`[Storage] Downloading file from ${bucket}/${filePath}`)
+
     const { data, error } = await supabase.storage
       .from(bucket)
       .download(filePath)
@@ -74,6 +82,7 @@ export async function downloadFile(event: H3Event, bucket: string, filePath: str
       throw new Error(`Download failed: ${error.message}`)
     }
 
+    console.log(`[Storage] File downloaded successfully: ${filePath}`)
     return data
   } catch (error) {
     console.error('[Storage] Download error:', error)
@@ -88,6 +97,8 @@ export async function deleteFile(event: H3Event, bucket: string, filePath: strin
   try {
     const supabase = await getSupabaseClient(event)
     
+    console.log(`[Storage] Deleting file from ${bucket}/${filePath}`)
+
     const { error } = await supabase.storage
       .from(bucket)
       .remove([filePath])
@@ -96,6 +107,7 @@ export async function deleteFile(event: H3Event, bucket: string, filePath: strin
       throw new Error(`Delete failed: ${error.message}`)
     }
 
+    console.log(`[Storage] File deleted successfully: ${filePath}`)
     return true
   } catch (error) {
     console.error('[Storage] Delete error:', error)
@@ -114,6 +126,7 @@ export async function getPublicUrl(event: H3Event, bucket: string, filePath: str
       .from(bucket)
       .getPublicUrl(filePath)
 
+    console.log(`[Storage] Public URL generated: ${data.publicUrl}`)
     return data.publicUrl
   } catch (error) {
     console.error('[Storage] Get public URL error:', error)
@@ -130,10 +143,13 @@ export async function compressImage(
     width?: number
     height?: number
     quality?: number
+    format?: 'jpeg' | 'png' | 'webp'
   } = {}
 ) {
   try {
-    const { width = 1920, height = 1080, quality = 80 } = options
+    const { width = 1920, height = 1080, quality = 80, format = 'jpeg' } = options
+
+    console.log(`[Storage] Compressing image: ${width}x${height}, quality: ${quality}`)
 
     let transform = sharp(buffer)
       .resize(width, height, {
@@ -141,15 +157,19 @@ export async function compressImage(
         withoutEnlargement: true
       })
 
-    if (buffer.toString('utf8', 0, 3) === '\xFF\xD8\xFF') {
-      // JPEG
-      transform = transform.jpeg({ quality })
-    } else if (buffer.toString('utf8', 0, 4) === '\x89PNG') {
-      // PNG
+    // Apply format-specific compression
+    if (format === 'jpeg') {
+      transform = transform.jpeg({ quality, progressive: true })
+    } else if (format === 'png') {
       transform = transform.png({ quality })
+    } else if (format === 'webp') {
+      transform = transform.webp({ quality })
     }
 
-    return await transform.toBuffer()
+    const compressed = await transform.toBuffer()
+    console.log(`[Storage] Image compressed: ${buffer.length} -> ${compressed.length} bytes`)
+    
+    return compressed
   } catch (error) {
     console.error('[Storage] Image compression error:', error)
     throw error
@@ -163,6 +183,8 @@ export async function listFiles(event: H3Event, bucket: string, prefix?: string)
   try {
     const supabase = await getSupabaseClient(event)
     
+    console.log(`[Storage] Listing files in ${bucket}${prefix ? `/${prefix}` : ''}`)
+
     const { data, error } = await supabase.storage
       .from(bucket)
       .list(prefix)
@@ -171,6 +193,7 @@ export async function listFiles(event: H3Event, bucket: string, prefix?: string)
       throw new Error(`List failed: ${error.message}`)
     }
 
+    console.log(`[Storage] Found ${data?.length || 0} files`)
     return data
   } catch (error) {
     console.error('[Storage] List error:', error)
@@ -200,6 +223,7 @@ export async function trackUpload(
       })
 
     if (error) throw error
+    console.log(`[Storage] Upload tracked: ${fileName} (${fileSize} bytes)`)
   } catch (error) {
     console.error('[Storage] Track upload error:', error)
     // Don't throw - tracking failure shouldn't block upload
@@ -213,6 +237,8 @@ export async function cleanupOldTempFiles(event: H3Event, bucket: string, ageInD
   try {
     const supabase = await getSupabaseClient(event)
     
+    console.log(`[Storage] Cleaning up files older than ${ageInDays} days`)
+
     const cutoffDate = new Date(Date.now() - ageInDays * 24 * 60 * 60 * 1000)
     
     const { data: files, error: listError } = await supabase.storage
@@ -225,17 +251,78 @@ export async function cleanupOldTempFiles(event: H3Event, bucket: string, ageInD
       .filter((file: any) => new Date(file.created_at) < cutoffDate)
       .map((file: any) => `temp/${file.name}`)
 
-    if (filesToDelete.length > 0) {
-      const { error: deleteError } = await supabase.storage
-        .from(bucket)
-        .remove(filesToDelete)
-
-      if (deleteError) throw deleteError
+    if (filesToDelete.length === 0) {
+      console.log('[Storage] No old files to cleanup')
+      return { deleted: 0 }
     }
 
-    return filesToDelete.length
+    const { error: deleteError } = await supabase.storage
+      .from(bucket)
+      .remove(filesToDelete)
+
+    if (deleteError) throw deleteError
+
+    console.log(`[Storage] Cleaned up ${filesToDelete.length} old files`)
+    return { deleted: filesToDelete.length }
   } catch (error) {
     console.error('[Storage] Cleanup error:', error)
+    throw error
+  }
+}
+
+/**
+ * Get file size
+ */
+export async function getFileSize(event: H3Event, bucket: string, filePath: string): Promise<number> {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(path.dirname(filePath))
+
+    if (error) throw error
+
+    const file = data?.find((f: any) => f.name === path.basename(filePath))
+    return file?.metadata?.size || 0
+  } catch (error) {
+    console.error('[Storage] Get file size error:', error)
+    throw error
+  }
+}
+
+/**
+ * Copy file within storage
+ */
+export async function copyFile(
+  event: H3Event,
+  bucket: string,
+  sourcePath: string,
+  destinationPath: string
+) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    console.log(`[Storage] Copying ${sourcePath} to ${destinationPath}`)
+
+    // Download source file
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from(bucket)
+      .download(sourcePath)
+
+    if (downloadError) throw downloadError
+
+    // Upload to destination
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(destinationPath, fileData, { upsert: true })
+
+    if (uploadError) throw uploadError
+
+    console.log(`[Storage] File copied successfully`)
+    return true
+  } catch (error) {
+    console.error('[Storage] Copy file error:', error)
     throw error
   }
 }
