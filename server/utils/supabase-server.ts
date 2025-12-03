@@ -1,11 +1,13 @@
-// FILE: /server/utils/supabase-server.ts - FIXED
+// ============================================================================
+// FILE 5: /server/utils/supabase-server.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // SERVER-SIDE SUPABASE CLIENT - FULLY LAZY LOADED
+// FIXED: Proper error handling and client initialization
 // ============================================================================
 
 import type { H3Event } from 'h3'
 
-// ✅ Don't import the type - define it inline or use any
+// ✅ Define type inline to avoid import issues
 type SupabaseClient = any
 
 let adminClientInstance: SupabaseClient | null = null
@@ -23,10 +25,10 @@ async function createAdminClient(): Promise<SupabaseClient> {
     const { createClient } = await import('@supabase/supabase-js')
     
     const supabaseUrl = process.env.SUPABASE_URL || ''
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || ''
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY')
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
     }
 
     adminClientInstance = createClient(supabaseUrl, supabaseServiceKey, {
@@ -123,3 +125,18 @@ export async function executeUserQuery<T>(
   const client = await createUserClient()
   return callback(client)
 }
+
+/**
+ * Default export for compatibility with #supabase/server alias
+ */
+export default async function serverSupabaseClient(event?: H3Event): Promise<SupabaseClient> {
+  if (event) {
+    return getClientFromEvent(event)
+  }
+  return getUserClient()
+}
+
+// ============================================================================
+// NAMED EXPORT FOR DIRECT USAGE
+// ============================================================================
+export const serverSupabaseClient = serverSupabaseClient
