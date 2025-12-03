@@ -1,12 +1,14 @@
-// composables/use-streaming.ts
+// ============================================================================
+// FILE 2: /composables/use-streaming.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // CONSOLIDATED STREAMING COMPOSABLE - MODULAR EXPORTS
-// Combines: use-streaming, use-enhanced-streaming, use-adaptive-streaming
+// FIXED: Removed duplicate ChatMessage interface - now imports from stores
 // ============================================================================
 
 import { ref, computed, reactive, onMounted, onUnmounted, readonly, watch } from 'vue'
 import { useSocket } from '~/composables/use-socket'
 import { useAuth } from '~/composables/use-auth'
+import type { ChatMessage } from '~/stores/chat'
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -26,7 +28,7 @@ export interface StreamMessage {
     giftId: string
     giftName: string
     giftValue: number
-    giftImage: string
+    gifImage: string
     quantity: number
   }
 }
@@ -65,19 +67,6 @@ export interface StreamUser {
   isStreamer: boolean
   isModerator: boolean
   isTyping: boolean
-}
-
-export interface ChatMessage {
-  id: string
-  userId: string
-  username: string
-  avatar?: string
-  message: string
-  timestamp: string
-  messageType: 'text' | 'pewgift' | 'reaction' | 'system'
-  reactions: Record<string, string[]>
-  isModerated: boolean
-  isPinned: boolean
 }
 
 export interface StreamAnalytics {
@@ -468,4 +457,3 @@ export const useAdaptiveStreaming = (config: AdaptiveStreamConfig) => {
     destroy
   }
 }
-
