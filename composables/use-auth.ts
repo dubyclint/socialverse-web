@@ -1,10 +1,13 @@
-// FILE: /composables/useAuth.ts - FIXED
-// ROOT CAUSE #5: REMOVE CONFLICTING REDIRECTS
+// FILE: /composables/use-auth.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// ✅ FIXED: Proper token management, user storage, and error handling
+// ============================================================================
 
 import { ref, computed } from 'vue'
 
 export const useAuth = () => {
   const authStore = useAuthStore()
+  const userStore = useUserStore()
   
   const loading = ref(false)
   const error = ref('')
@@ -26,8 +29,6 @@ export const useAuth = () => {
 
   /**
    * Login user
-   * Returns success/error without redirecting
-   * Parent page handles navigation
    */
   const login = async (email: string, password: string) => {
     loading.value = true
@@ -44,19 +45,32 @@ export const useAuth = () => {
         }
       })
 
-      console.log('[useAuth] Login successful')
+      console.log('[useAuth] Login response:', result)
 
-      if (result?.token) {
-        authStore.setToken(result.token)
-        authStore.setUser(result.user)
-        console.log('[useAuth] ✓ Token stored')
-        return { success: true, data: result }
+      if (!result?.success) {
+        throw new Error(result?.error || 'Login failed')
       }
 
-      return { success: false, error: 'No token received' }
+      if (!result.token) {
+        throw new Error('No token received from server')
+      }
+
+      // Store token and user data
+      authStore.setToken(result.token)
+      authStore.setUser(result.user)
+      
+      // Store refresh token if provided
+      if (result.refreshToken && typeof window !== 'undefined') {
+        localStorage.setItem('refresh_token', result.refreshToken)
+      }
+
+      console.log('[useAuth] ✅ Login successful')
+      return { success: true, data: result }
+
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Login failed:', errorMessage)
+      error.value = errorMessage
       return { success: false, error: errorMessage }
     } finally {
       loading.value = false
@@ -65,39 +79,56 @@ export const useAuth = () => {
 
   /**
    * Signup user
-   * Returns success/error without redirecting
-   * Parent page handles navigation
    */
-  const signup = async (email: string, password: string, username: string) => {
+  const signup = async (data: {
+    email: string
+    password: string
+    username: string
+    fullName?: string
+    phone?: string
+    bio?: string
+    location?: string
+  }) => {
     loading.value = true
     error.value = ''
 
     try {
-      console.log('[useAuth] Signup attempt:', email, username)
+      console.log('[useAuth] Signup attempt:', data.email)
 
       const result = await $fetch('/api/auth/signup', {
         method: 'POST',
-        body: {
-          email,
-          password,
-          username
-        }
+        body: data
       })
 
-      console.log('[useAuth] Signup successful')
+      console.log('[useAuth] Signup response:', result)
 
-      if (result?.token) {
-        authStore.setToken(result.token)
-        authStore.setUser(result.user)
-        console.log('[useAuth] ✓ Token stored')
-        return { success: true, message: 'Account created successfully', data: result }
+      if (!result?.success) {
+        throw new Error(result?.error || 'Signup failed')
       }
 
-      return { success: false, message: 'Signup failed' }
+      // If email confirmation is not needed and we have a token, auto-login
+      if (!result.needsConfirmation && result.token) {
+        authStore.setToken(result.token)
+        authStore.setUser(result.user)
+        
+        if (result.refreshToken && typeof window !== 'undefined') {
+          localStorage.setItem('refresh_token', result.refreshToken)
+        }
+      }
+
+      console.log('[useAuth] ✅ Signup successful')
+      return { 
+        success: true, 
+        data: result,
+        needsConfirmation: result.needsConfirmation,
+        message: result.message
+      }
+
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Signup failed:', errorMessage)
-      return { success: false, message: errorMessage }
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
     } finally {
       loading.value = false
     }
@@ -108,112 +139,86 @@ export const useAuth = () => {
    */
   const logout = async () => {
     try {
-      console.log('[useAuth] Logout attempt')
+      console.log('[useAuth] Logging out...')
       
+      // Call logout API
       await $fetch('/api/auth/logout', {
         method: 'POST'
       })
 
+      // Clear auth store
       authStore.clearAuth()
-      console.log('[useAuth] ✓ Logout successful')
+      userStore.clearSession()
+
+      // Clear localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('refresh_token')
+      }
+
+      console.log('[useAuth] ✅ Logout successful')
       return { success: true }
+
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Logout failed:', errorMessage)
+      console.error('[useAuth] Logout error:', err)
+      // Clear anyway
       authStore.clearAuth()
-      return { success: false, error: errorMessage }
+      userStore.clearSession()
+      return { success: true }
     }
   }
 
   /**
-   * Verify email
+   * Check if user is authenticated
    */
-  const verifyEmail = async (token: string) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      console.log('[useAuth] Email verification attempt')
-
-      const result = await $fetch('/api/auth/verify-email', {
-        method: 'POST',
-        body: { token }
-      })
-
-      console.log('[useAuth] ✓ Email verified')
-      return { success: true, data: result }
-    } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Email verification failed:', errorMessage)
-      return { success: false, error: errorMessage }
-    } finally {
-      loading.value = false
-    }
+  const checkAuth = () => {
+    if (typeof window === 'undefined') return false
+    
+    const token = localStorage.getItem('auth_token')
+    return !!token
   }
 
   /**
-   * Request password reset
+   * Initialize auth from stored token
    */
-  const requestPasswordReset = async (email: string) => {
-    loading.value = true
-    error.value = ''
-
+  const initializeAuth = async () => {
     try {
-      console.log('[useAuth] Password reset request:', email)
+      if (typeof window === 'undefined') return
+      
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        console.log('[useAuth] No stored token found')
+        return
+      }
 
-      await $fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        body: { email }
-      })
-
-      console.log('[useAuth] ✓ Password reset email sent')
-      return { success: true, message: 'Check your email for reset instructions' }
-    } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Password reset request failed:', errorMessage)
-      return { success: false, error: errorMessage }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * Reset password
-   */
-  const resetPassword = async (token: string, newPassword: string) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      console.log('[useAuth] Password reset attempt')
-
-      const result = await $fetch('/api/auth/reset-password', {
-        method: 'POST',
-        body: { token, newPassword }
-      })
-
-      console.log('[useAuth] ✓ Password reset successful')
-      return { success: true, data: result }
-    } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Password reset failed:', errorMessage)
-      return { success: false, error: errorMessage }
-    } finally {
-      loading.value = false
+      console.log('[useAuth] Initializing auth from stored token')
+      authStore.setToken(token)
+      
+      // Initialize user session
+      await userStore.initializeSession()
+      
+      console.log('[useAuth] ✅ Auth initialized')
+    } catch (err) {
+      console.error('[useAuth] Auth initialization failed:', err)
+      authStore.clearAuth()
     }
   }
 
   return {
+    // State
     loading,
     error,
+    
+    // Computed
     isAuthenticated,
     user,
     token,
+    
+    // Methods
     login,
     signup,
     logout,
-    verifyEmail,
-    requestPasswordReset,
-    resetPassword
+    checkAuth,
+    initializeAuth
   }
 }
