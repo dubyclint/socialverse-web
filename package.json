@@ -56,7 +56,7 @@
     "web3": "^4.11.0",
     "aws-sdk": "^2.1600.0",
     "sharp": "^0.33.0",
-    "google-translate-api-x": "^4.7.0"
+    "@vitalets/google-translate-api": "^9.2.0"
   },
   "optionalDependencies": {
     "@tensorflow/tfjs": "^4.22.0",
