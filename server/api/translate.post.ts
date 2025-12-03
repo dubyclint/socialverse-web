@@ -1,26 +1,18 @@
 // ============================================================================
-// FILE 2: /server/api/translate.post.ts - FIXED VERSION
+// FILE: /server/api/translate.post.ts - CORRECTED VERSION
 // ============================================================================
-// TRANSLATION API ENDPOINT - FIXED: Replaced placeholder with real service
+// TRANSLATION API ENDPOINT
+// FIXED: Uses @vitalets/google-translate-api (verified package)
 // ============================================================================
 
 import { defineEventHandler, readBody, createError } from 'h3'
-
-// FIXED: Replace 'some-translation-service' with actual translation package
-// Option 1: Using google-translate-api-x (lightweight, no API key needed)
-import { translate, detect } from 'google-translate-api-x'
+import { translate, detect } from '@vitalets/google-translate-api'
 
 // Define request body interface
 interface TranslationRequestBody {
   text: string
   targetLang: string
   contentId: string
-}
-
-// Define expected shape of detect() return value
-interface LanguageDetectionResult {
-  language: string // e.g., 'en', 'es', 'fr'
-  confidence?: number
 }
 
 // Simple in-memory cache for translations (replace with Redis in production)
@@ -107,38 +99,55 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Detect source language automatically
-    const detectionResult = await detect(text)
-    const sourceLang = (detectionResult as any).language || 'en'
+    console.log(`[Translation] Translating to: ${targetLang}`)
 
-    console.log(`[Translation] Detected language: ${sourceLang}, translating to: ${targetLang}`)
+    try {
+      // Detect source language automatically
+      const detectionResult = await detect(text)
+      const sourceLang = (detectionResult as any).language || 'en'
 
-    // Skip translation if source and target are the same
-    if (sourceLang === targetLang) {
+      console.log(`[Translation] Detected language: ${sourceLang}`)
+
+      // Skip translation if source and target are the same
+      if (sourceLang === targetLang) {
+        await cacheTranslation(contentId, targetLang, text)
+        return {
+          translatedText: text,
+          fromCache: false,
+          skipped: true
+        }
+      }
+
+      // Get translation
+      const translationResult = await translate(text, {
+        from: sourceLang,
+        to: targetLang
+      })
+
+      const translatedText: string = (translationResult as any).text || text
+
+      // Cache the translation
+      await cacheTranslation(contentId, targetLang, translatedText)
+
+      return {
+        translatedText,
+        fromCache: false,
+        sourceLang,
+        targetLang
+      }
+    } catch (translationError) {
+      console.error('[Translation] Translation service error:', translationError)
+      
+      // Fallback: return original text if translation fails
+      console.log('[Translation] Falling back to original text')
       await cacheTranslation(contentId, targetLang, text)
+      
       return {
         translatedText: text,
         fromCache: false,
-        skipped: true
+        fallback: true,
+        error: 'Translation service temporarily unavailable'
       }
-    }
-
-    // Get translation
-    const translationResult = await translate(text, {
-      from: sourceLang,
-      to: targetLang
-    })
-
-    const translatedText: string = (translationResult as any).text || text
-
-    // Cache the translation
-    await cacheTranslation(contentId, targetLang, translatedText)
-
-    return {
-      translatedText,
-      fromCache: false,
-      sourceLang,
-      targetLang
     }
   } catch (error: unknown) {
     console.error('[Translation] Error:', error)
@@ -157,28 +166,45 @@ export default defineEventHandler(async (event) => {
 // ============================================================================
 
 /*
-// Option 2: Using @google-cloud/translate (requires API key)
-import { Translate } from '@google-cloud/translate/build/src/index.js'
+// Option 1: Using libre-translate (self-hosted or API)
+import axios from 'axios'
 
-const translate = new Translate({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE
-})
+const LIBRE_TRANSLATE_API = process.env.LIBRE_TRANSLATE_API || 'http://localhost:5000'
 
-// Then in the handler:
-const [translatedText] = await translate.translate(text, targetLang)
+async function libreTranslate(text: string, targetLang: string) {
+  const response = await axios.post(`${LIBRE_TRANSLATE_API}/translate`, {
+    q: text,
+    target: targetLang,
+    format: 'text'
+  })
+  return response.data.translatedText
+}
 
-// Option 3: Using AWS Translate
+// Option 2: Using AWS Translate
 import { TranslateClient, TranslateTextCommand } from '@aws-sdk/client-translate'
 
 const translateClient = new TranslateClient({ region: process.env.AWS_REGION })
 
-// Then in the handler:
-const command = new TranslateTextCommand({
-  Text: text,
-  SourceLanguageCode: sourceLang,
-  TargetLanguageCode: targetLang
+async function awsTranslate(text: string, sourceLang: string, targetLang: string) {
+  const command = new TranslateTextCommand({
+    Text: text,
+    SourceLanguageCode: sourceLang,
+    TargetLanguageCode: targetLang
+  })
+  const response = await translateClient.send(command)
+  return response.TranslatedText
+}
+
+// Option 3: Using @google-cloud/translate (requires API key)
+import { Translate } from '@google-cloud/translate/build/src/index.js'
+
+const googleTranslate = new Translate({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+  keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE
 })
-const response = await translateClient.send(command)
-const translatedText = response.TranslatedText
+
+async function googleCloudTranslate(text: string, targetLang: string) {
+  const [translatedText] = await googleTranslate.translate(text, targetLang)
+  return translatedText
+}
 */
