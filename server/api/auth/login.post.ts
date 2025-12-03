@@ -1,59 +1,60 @@
-// FILE: /server/api/auth/login.post.ts - SIMPLIFIED WORKING VERSION
+// FILE: /server/api/auth/login.post.ts
 // ============================================================================
-// ✅ SIMPLIFIED: Direct implementation without complex error handling
+// LOGIN ENDPOINT - Authenticate user
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
+  console.log('[Auth/Login] POST request received')
+  
   try {
-    console.log('[Login API] Request received')
-    
     const body = await readBody(event)
-    console.log('[Login API] Login attempt for:', body.email)
+    console.log('[Auth/Login] Email:', body.email)
 
     const { email, password } = body
 
-    // Validate required fields
+    // Validate
     if (!email || !password) {
-      console.error('[Login API] Missing email or password')
+      console.error('[Auth/Login] Missing email or password')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email and password are required'
       })
     }
 
-    // Get Supabase client
+    // Get Supabase
     const supabase = await serverSupabaseClient(event)
     if (!supabase) {
+      console.error('[Auth/Login] Supabase not available')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database connection failed'
+        statusMessage: 'Database unavailable'
       })
     }
 
-    console.log('[Login API] Authenticating user:', email)
+    console.log('[Auth/Login] Authenticating:', email)
 
-    // Sign in with email and password
+    // Sign in
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     })
 
     if (error) {
-      console.error('[Login API] Auth error:', error.message)
+      console.error('[Auth/Login] Error:', error.message)
       throw createError({
         statusCode: 401,
-        statusMessage: error.message || 'Invalid email or password'
+        statusMessage: error.message || 'Invalid credentials'
       })
     }
 
     if (!data.session || !data.user) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Login failed - no session'
+        statusMessage: 'Login failed'
       })
     }
 
-    console.log('[Login API] ✅ Login successful for:', email)
+    console.log('[Auth/Login] ✅ Success for:', email)
 
     return {
       success: true,
@@ -67,7 +68,7 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Login API] Error:', error.message || error)
+    console.error('[Auth/Login] Error:', error.message)
     
     if (error.statusCode) {
       throw error
