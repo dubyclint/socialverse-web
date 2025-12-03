@@ -1,8 +1,8 @@
 // ============================================================================
-// server/api/translations.get.ts - TRANSLATIONS GET ENDPOINT (ROOT LEVEL)
+// server/api/translations.get.ts - TRANSLATIONS GET ENDPOINT (SIMPLIFIED)
 // ============================================================================
-// ✅ FIXED: Simpler endpoint at root level for translations
-// This endpoint is at /api/translations instead of /api/admin/translations
+// ✅ FIXED: Simple endpoint that returns empty array as fallback
+// This allows the app to use local translations without errors
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,43 +11,36 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Translations API] GET request for language:', language)
     
+    // ✅ Try to get from Supabase, but don't fail if unavailable
     try {
       const supabase = await serverSupabaseClient(event)
       
-      if (!supabase) {
-        console.warn('[Translations API] Supabase client not available - returning empty array')
-        return []
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('translations')
+            .select('key, value')
+            .eq('language', language)
+          
+          if (!error && data && Array.isArray(data) && data.length > 0) {
+            console.log('[Translations API] Loaded', data.length, 'translations from Supabase for language:', language)
+            return data
+          }
+        } catch (queryError) {
+          console.warn('[Translations API] Supabase query error:', queryError)
+        }
       }
-      
-      const { data, error } = await supabase
-        .from('translations')
-        .select('key, value')
-        .eq('language', language)
-      
-      if (error) {
-        console.error('[Translations API] Query error:', error)
-        // Return empty array to trigger fallback to local files
-        return []
-      }
-      
-      if (!data || !Array.isArray(data)) {
-        console.warn('[Translations API] Unexpected data format:', typeof data)
-        return []
-      }
-      
-      console.log('[Translations API] Loaded', data.length, 'translations for language:', language)
-      return data
-      
-    } catch (dbError) {
-      console.error('[Translations API] Database error:', dbError)
-      // Return empty array to trigger fallback to local files
-      return []
+    } catch (supabaseError) {
+      console.warn('[Translations API] Supabase client error:', supabaseError)
     }
     
+    // ✅ Fallback: return empty array to trigger local file loading
+    console.log('[Translations API] Returning empty array - will use local translations')
+    return []
+    
   } catch (error) {
-    console.error('[Translations API] Request error:', error)
-    // Return empty array instead of throwing error
-    // This allows the app to fall back to local translations
+    console.error('[Translations API] Unexpected error:', error)
+    // ✅ Always return empty array, never throw
     return []
   }
 })
