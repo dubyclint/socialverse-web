@@ -1,24 +1,9 @@
 # .nuxtignore - PREVENT SERVER CODE FROM PRERENDER BUNDLING
+# ============================================================================
+# ✅ FIXED: Only exclude prerender-specific files, NOT server/api
+# ============================================================================
 
-# ============================================================================
-# CRITICAL: Exclude all server-side code from prerender
-# ============================================================================
-server/api/**
-server/utils/**
-server/plugins/**
-server/middleware/**
-server/routes/**
-server/services/**
-server/controllers/**
-server/db/**
-server/ml/**
-server/models/**
-server/auth/**
-server/ws/**
-
-# ============================================================================
-# Build Cache Directories
-# ============================================================================
+# Build Cache Directories - SAFE TO EXCLUDE
 node_modules/.cache
 .nuxt
 .output
@@ -27,36 +12,40 @@ node_modules/.cache
 .turbo
 dist
 
-# ============================================================================
-# Development & IDE
-# ============================================================================
+# Development & IDE - SAFE TO EXCLUDE
 .vscode
 .idea
 .git
 .github
 
-# ============================================================================
-# Testing & Coverage
-# ============================================================================
+# Testing & Coverage - SAFE TO EXCLUDE
 coverage
-test
+.nyc_output
+*.lcov
 tests
 __tests__
-.test
-.spec
+*.test.ts
+*.spec.ts
 
-# ============================================================================
-# Documentation
-# ============================================================================
+# Documentation - SAFE TO EXCLUDE
+*.md
 docs
 README.md
 CHANGELOG.md
-LICENSE
 
-# ============================================================================
-# ✅ CRITICAL: Exclude problematic libraries
-# ============================================================================
-node_modules/gun
-node_modules/gun/**
-node_modules/@supabase/auth-js
-node_modules/@supabase/auth-js/**
+# Logs - SAFE TO EXCLUDE
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# CI/CD - SAFE TO EXCLUDE
+.gitlab-ci.yml
+.circleci
+.travis.yml
+azure-pipelines.yml
+.github/workflows
+
