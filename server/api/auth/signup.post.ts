@@ -1,38 +1,39 @@
-// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED WORKING VERSION
+// FILE: /server/api/auth/signup.post.ts
 // ============================================================================
-// ✅ SIMPLIFIED: Direct implementation without complex error handling
+// SIGNUP ENDPOINT - Create new user account
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
+  console.log('[Auth/Signup] POST request received')
+  
   try {
-    console.log('[Signup API] Request received')
-    
     const body = await readBody(event)
-    console.log('[Signup API] Body:', { email: body.email, username: body.username })
+    console.log('[Auth/Signup] Email:', body.email)
 
     const { email, password, username, fullName } = body
 
-    // Validate required fields
+    // Validate
     if (!email || !password || !username) {
-      console.error('[Signup API] Missing required fields')
+      console.error('[Auth/Signup] Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
       })
     }
 
-    // Get Supabase client
+    // Get Supabase
     const supabase = await serverSupabaseClient(event)
     if (!supabase) {
+      console.error('[Auth/Signup] Supabase not available')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database connection failed'
+        statusMessage: 'Database unavailable'
       })
     }
 
-    console.log('[Signup API] Creating auth user for:', email)
+    console.log('[Auth/Signup] Creating user:', email)
 
-    // Create auth user
+    // Sign up
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -45,7 +46,7 @@ export default defineEventHandler(async (event) => {
     })
 
     if (authError) {
-      console.error('[Signup API] Auth error:', authError.message)
+      console.error('[Auth/Signup] Error:', authError.message)
       throw createError({
         statusCode: 400,
         statusMessage: authError.message
@@ -59,28 +60,22 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[Signup API] Auth user created:', authData.user.id)
+    console.log('[Auth/Signup] User created:', authData.user.id)
 
     // Create profile
     try {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          username,
-          email,
-          full_name: fullName || '',
-          created_at: new Date().toISOString()
-        })
-
-      if (profileError) {
-        console.warn('[Signup API] Profile creation warning:', profileError.message)
-      }
-    } catch (profileErr) {
-      console.warn('[Signup API] Profile creation error:', profileErr)
+      await supabase.from('profiles').insert({
+        id: authData.user.id,
+        username,
+        email,
+        full_name: fullName || '',
+        created_at: new Date().toISOString()
+      })
+    } catch (err) {
+      console.warn('[Auth/Signup] Profile creation warning:', err)
     }
 
-    console.log('[Signup API] ✅ Signup successful')
+    console.log('[Auth/Signup] ✅ Success')
 
     return {
       success: true,
@@ -94,7 +89,7 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Signup API] Error:', error.message || error)
+    console.error('[Auth/Signup] Error:', error.message)
     
     if (error.statusCode) {
       throw error
