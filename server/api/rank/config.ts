@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
       } 
       else {
         throw createError({
-          statusCode: ,
+          statusCode: 400,
           statusMessage: 'Invalid action. Must be add, remove, or update'
         });
       }
