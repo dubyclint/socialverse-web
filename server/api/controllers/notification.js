@@ -106,7 +106,7 @@ export class NotificationController {
     try {
       const { notification_id } = req.params
 
-      await Notification.delete(notification_id)
+      await Notification.delete_(notification_id)
 
       return res.status(200).json({
         success: true,
