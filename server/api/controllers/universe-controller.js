@@ -106,7 +106,7 @@ export class UniverseController {
     try {
       const { message_id } = req.params
 
-      await UniverseMessage.delete(message_id)
+      await UniverseMessage.delete_(message_id)
 
       return res.status(200).json({
         success: true,
