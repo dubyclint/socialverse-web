@@ -1,15 +1,36 @@
-export default defineEventHandler(async (event) => {
-  if (event.req.method === 'GET') {
-    return await db.collection('feeSettings').find({}).toArray()
-  }
+// ============================================================================
+// 3. server/api/admin/fee-settings.ts - CORRECTED FOR SUPABASE
+// ============================================================================
+import { getSupabaseAdminClient } from '~/server/utils/database'
 
-  if (event.req.method === 'POST') {
-    const fee = await readBody(event)
-    await db.collection('feeSettings').updateOne(
-      { type: fee.type },
-      { $set: fee },
-      { upsert: true }
-    )
-    return { success: true }
+export default defineEventHandler(async (event) => {
+  try {
+    const supabase = await getSupabaseAdminClient()
+    const method = getMethod(event)
+
+    if (method === 'GET') {
+      const { data, error } = await supabase
+        .from('fee_settings')
+        .select('*')
+
+      if (error) throw error
+      return data || []
+    }
+
+    if (method === 'POST') {
+      const fee = await readBody(event)
+
+      const { error } = await supabase
+        .from('fee_settings')
+        .upsert(fee, { onConflict: 'type' })
+
+      if (error) throw error
+      return { success: true }
+    }
+  } catch (err) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to manage fee settings'
+    })
   }
 })
