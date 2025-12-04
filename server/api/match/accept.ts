@@ -1,6 +1,7 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
+  const supabase = await getSupabaseClient();
   const user = event.context.user;
   const { userId } = await readBody(event);
 
