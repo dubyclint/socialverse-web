@@ -1,7 +1,10 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
   try {
+    // Get Supabase client
+    const supabase = await getSupabaseClient();
+    
     const method = getMethod(event);
 
     if (method === 'GET') {
@@ -70,7 +73,7 @@ export default defineEventHandler(async (event) => {
       } 
       else {
         throw createError({
-          statusCode: 400,
+          statusCode: ,
           statusMessage: 'Invalid action. Must be add, remove, or update'
         });
       }
