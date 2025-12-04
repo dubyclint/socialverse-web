@@ -33,8 +33,15 @@ export interface Status {
   deletedAt?: string
 }
 
+export interface Presence {
+  user_id: string
+  status: 'online' | 'offline' | 'away' | 'busy'
+  last_seen: string | null
+  updated_at: string
+}
+
 // ============================================================================
-// MODEL CLASS
+// STATUS MODEL CLASS
 // ============================================================================
 export class StatusModel {
   static async createStatus(
@@ -138,6 +145,97 @@ export class StatusModel {
       if (error) throw error
     } catch (error) {
       console.error('[StatusModel] Error incrementing view count:', error)
+      throw error
+    }
+  }
+}
+
+// ============================================================================
+// PRESENCE MODEL CLASS
+// ============================================================================
+export class PresenceModel {
+  static async getPresence(userId: string): Promise<Presence | null> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_presence')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+
+      if (error) {
+        console.warn('[PresenceModel] Presence not found')
+        return null
+      }
+
+      return data as Presence
+    } catch (error) {
+      console.error('[PresenceModel] Error fetching presence:', error)
+      throw error
+    }
+  }
+
+  static async updatePresence(
+    userId: string,
+    status: 'online' | 'offline' | 'away' | 'busy'
+  ): Promise<Presence> {
+    try {
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
+      const { data, error } = await supabase
+        .from('user_presence')
+        .upsert({
+          user_id: userId,
+          status,
+          last_seen: status === 'offline' ? now : null,
+          updated_at: now
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as Presence
+    } catch (error) {
+      console.error('[PresenceModel] Error updating presence:', error)
+      throw error
+    }
+  }
+
+  static async setOffline(userId: string): Promise<void> {
+    try {
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
+      const { error } = await supabase
+        .from('user_presence')
+        .upsert({
+          user_id: userId,
+          status: 'offline',
+          last_seen: now,
+          updated_at: now
+        })
+
+      if (error) throw error
+    } catch (error) {
+      console.error('[PresenceModel] Error setting offline:', error)
+      throw error
+    }
+  }
+
+  static async getOnlineUsers(): Promise<Presence[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_presence')
+        .select('*')
+        .eq('status', 'online')
+        .order('updated_at', { ascending: false })
+
+      if (error) throw error
+      return (data || []) as Presence[]
+    } catch (error) {
+      console.error('[PresenceModel] Error fetching online users:', error)
       throw error
     }
   }
