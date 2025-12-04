@@ -3,7 +3,7 @@
 // MATCH FILTER MANAGEMENT - Handle user filter creation and approval
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 import { sendNotification } from '~/server/utils/send-notification'
 import { sendPushAlert } from '~/server/utils/send-push-alert'
 import { evaluateTrust } from '~/server/utils/evaluate-trust'
@@ -27,6 +27,9 @@ interface FilterResponse {
 
 export default defineEventHandler(async (event): Promise<FilterResponse> => {
   try {
+    // Get Supabase client
+    const supabase = await getSupabaseClient()
+    
     // Get authenticated user
     const user = event.context.user
     if (!user?.id) {
@@ -158,3 +161,4 @@ export default defineEventHandler(async (event): Promise<FilterResponse> => {
     })
   }
 })
+
