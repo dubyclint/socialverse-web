@@ -1,7 +1,7 @@
 // FILE: /server/api/auth/verify-email.post.ts - UPDATED
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
@@ -27,6 +27,7 @@ export default defineEventHandler(async (event) => {
     }
 
   // Use consolidated Supabase client
+    const supabase = await getSupabaseClient()
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: token,
       type: type as 'signup' | 'recovery' | 'invite' | 'magiclink' | 'email_change' | 'phone_change',
