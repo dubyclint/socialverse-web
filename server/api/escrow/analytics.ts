@@ -1,7 +1,8 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async () => {
   try {
+    const supabase = await getSupabaseClient();
     const now = new Date();
     const months = [];
     const volume = [];
@@ -45,4 +46,3 @@ export default defineEventHandler(async () => {
     });
   }
 });
-
