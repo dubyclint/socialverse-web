@@ -1,7 +1,8 @@
-import { supabase } from "~/server/utils/database"
+import { getSupabaseClient } from "~/server/utils/database"
 import { MatchScore } from '~/server/utils/match-score'
 
 export default defineEventHandler(async (event) => {
+  const supabase = await getSupabaseClient()
   const user = event.context.user
   const { size = 4, region, category, overrideGroup } = getQuery(event)
 
