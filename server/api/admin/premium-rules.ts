@@ -1,42 +1,60 @@
+// ============================================================================
+// 5. server/api/admin/premium-rules.ts - CORRECTED FOR SUPABASE
+// ============================================================================
+import { getSupabaseAdminClient } from '~/server/utils/database'
+
 export default defineEventHandler(async (event) => {
-  const method = event.req.method
-  const dbCollection = db.collection('premiumAccessRules')
+  try {
+    const supabase = await getSupabaseAdminClient()
+    const method = getMethod(event)
 
-  if (method === 'GET') {
-    const rules = await dbCollection.find({}).toArray()
-    return rules
-  }
+    if (method === 'GET') {
+      const { data, error } = await supabase
+        .from('premium_access_rules')
+        .select('*')
 
-  if (method === 'POST') {
-    const rule = await readBody(event)
-
-    if (!rule.target || !rule.value || !rule.features) {
-      return { success: false, message: 'Missing required fields.' }
+      if (error) throw error
+      return data || []
     }
 
-    rule.updatedAt = new Date()
-    rule.createdAt = rule.createdAt || new Date()
+    if (method === 'POST') {
+      const rule = await readBody(event)
 
-    await dbCollection.updateOne(
-      { target: rule.target, value: rule.value },
-      { $set: rule },
-      { upsert: true }
-    )
+      if (!rule.target || !rule.value || !rule.features) {
+        return { success: false, message: 'Missing required fields.' }
+      }
 
-    return { success: true, message: 'Rule saved.' }
-  }
+      rule.updated_at = new Date().toISOString()
+      rule.created_at = rule.created_at || new Date().toISOString()
 
-  if (method === 'DELETE') {
-    const { target, value } = await readBody(event)
+      const { error } = await supabase
+        .from('premium_access_rules')
+        .upsert(rule, { onConflict: 'target,value' })
 
-    if (!target || !value) {
-      return { success: false, message: 'Missing target or value.' }
+      if (error) throw error
+      return { success: true, message: 'Rule saved.' }
     }
 
-    await dbCollection.deleteOne({ target, value })
-    return { success: true, message: 'Rule deleted.' }
-  }
+    if (method === 'DELETE') {
+      const { target, value } = await readBody(event)
 
-  return { success: false, message: 'Unsupported method.' }
+      if (!target || !value) {
+        return { success: false, message: 'Missing target or value.' }
+      }
+
+      const { error } = await supabase
+        .from('premium_access_rules')
+        .delete()
+        .eq('target', target)
+        .eq('value', value)
+
+      if (error) throw error
+      return { success: true, message: 'Rule deleted.' }
+    }
+  } catch (err) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to manage premium rules'
+    })
+  }
 })
-
