@@ -1,7 +1,7 @@
 // FILE: /server/api/auth/resend-verification.post.ts - UPDATED
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Use consolidated Supabase client
+    const supabase = await getSupabaseClient()
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email,
