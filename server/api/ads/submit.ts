@@ -1,7 +1,9 @@
-import { supabase } from '~/server/utils/database';
+// server/api/ads/submit.ts - CORRECTED
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
   try {
+    const supabase = await getSupabaseClient();
     const ad = await readBody(event);
     
     const adData = {
@@ -25,4 +27,5 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+
 
