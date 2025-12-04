@@ -1,38 +1,61 @@
+// ============================================================================
+// 7. server/api/admin/support-agents.ts - CORRECTED FOR SUPABASE
+// ============================================================================
+import { getSupabaseAdminClient } from '~/server/utils/database'
+
 export default defineEventHandler(async (event) => {
-  const method = event.req.method
-  const dbCollection = db.collection('supportAgents')
+  try {
+    const supabase = await getSupabaseAdminClient()
+    const method = getMethod(event)
 
-  if (method === 'GET') {
-    const { region, feature } = getQuery(event)
-    const query: any = { active: true }
+    if (method === 'GET') {
+      const { region, feature } = getQuery(event)
+      let query = supabase
+        .from('support_agents')
+        .select('*')
+        .eq('active', true)
 
-    if (region) query.region = region
-    if (feature) query.assignedFeatures = feature
+      if (region) query = query.eq('region', region)
+      if (feature) query = query.eq('assigned_features', feature)
 
-    return await dbCollection.find(query).toArray()
-  }
+      const { data, error } = await query
 
-  if (method === 'POST') {
-    const agent = await readBody(event)
-
-    if (!agent.agentId || !agent.name || !agent.method) {
-      return { success: false, message: 'Missing required fields.' }
+      if (error) throw error
+      return data || []
     }
 
-    agent.lastSeen = new Date()
+    if (method === 'POST') {
+      const agent = await readBody(event)
 
-    await dbCollection.updateOne(
-      { agentId: agent.agentId },
-      { $set: agent },
-      { upsert: true }
-    )
+      if (!agent.agent_id || !agent.name || !agent.method) {
+        return { success: false, message: 'Missing required fields.' }
+      }
 
-    return { success: true, message: 'Agent saved.' }
-  }
+      agent.last_seen = new Date().toISOString()
 
-  if (method === 'DELETE') {
-    const { agentId } = await readBody(event)
-    await dbCollection.deleteOne({ agentId })
-    return { success: true, message: 'Agent removed.' }
+      const { error } = await supabase
+        .from('support_agents')
+        .upsert(agent, { onConflict: 'agent_id' })
+
+      if (error) throw error
+      return { success: true, message: 'Agent saved.' }
+    }
+
+    if (method === 'DELETE') {
+      const { agent_id } = await readBody(event)
+
+      const { error } = await supabase
+        .from('support_agents')
+        .delete()
+        .eq('agent_id', agent_id)
+
+      if (error) throw error
+      return { success: true, message: 'Agent removed.' }
+    }
+  } catch (err) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to manage support agents'
+    })
   }
 })
