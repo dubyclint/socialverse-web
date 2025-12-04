@@ -1,7 +1,10 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
   try {
+    // Get Supabase client
+    const supabase = await getSupabaseClient();
+    
     const query = getQuery(event);
     const userId = query.userId || event.context.user?.id;
 
@@ -33,4 +36,5 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+
 
