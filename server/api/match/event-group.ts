@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "~/server/utils/database"
-import { matchscore } from '~/server/utils/match-score'
+import { computeMatchScore } from '~/server/utils/match-score'
 import { sendNotification } from '~/server/utils/send-notification'
 import { sendPushAlert } from '~/server/utils/send-push-alert'
 
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
 
   const scored = allUsers?.map(u => ({
     ...u,
-    matchScore: matchscore(user, u)
+    matchScore: computeMatchScore(user, u)
   })).filter(u => u.matchScore > 30) || []
 
   let topCandidates = scored.sort((a, b) => b.matchScore - a.matchScore).slice(0, 30)
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
   while (topCandidates.length >= size - 1) {
     const seed = topCandidates.shift()
     const compatible = topCandidates.filter(u =>
-      matchscore(seed, u) > 25 &&
+      computeMatchScore(seed, u) > 25 &&
       !user.pals?.includes(u.id)
     ).slice(0, size - 1)
 
@@ -76,4 +76,5 @@ export default defineEventHandler(async (event) => {
     groupScore: group.reduce((acc, u) => acc + u.matchScore, 0)
   }))
 })
+
 
