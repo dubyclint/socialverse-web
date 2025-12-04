@@ -1,13 +1,7 @@
-// ============================================================================
-// FILE: /server/api/admin/support.ts - CORRECTED VERSION
-// ============================================================================
-// ADMIN SUPPORT CONTACTS MANAGEMENT
-// FIXED: Import supabase from auth-utils.ts instead of database.ts
-// ============================================================================
-
-import { supabase } from '~/server/utils/auth-utils'
+import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event)
   const method = getMethod(event)
   
   if (method === 'GET') {
@@ -30,16 +24,21 @@ export default defineEventHandler(async (event) => {
     try {
       const contacts = await readBody(event)
       
-      // Delete existing contacts
-      await supabase.from('support_contacts').delete().neq('id', 0)
+      // Delete existing contacts and insert new ones
+      const { error: deleteError } = await supabase
+        .from('support_contacts')
+        .delete()
+        .neq('id', ) // Delete all
+        
+      if (deleteError) throw deleteError
       
-      // Insert new contacts
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('support_contacts')
         .insert(contacts)
         
-      if (error) throw error
-      return { success: true }
+      if (insertError) throw insertError
+      
+      return { success: true, message: 'Support contacts updated.' }
     } catch (err) {
       throw createError({
         statusCode: 500,
@@ -47,9 +46,4 @@ export default defineEventHandler(async (event) => {
       })
     }
   }
-
-  throw createError({
-    statusCode: 405,
-    statusMessage: 'Method not allowed'
-  })
 })
