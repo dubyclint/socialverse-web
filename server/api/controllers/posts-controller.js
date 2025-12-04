@@ -131,7 +131,7 @@ export class PostController {
     try {
       const { post_id } = req.params
 
-      await Post.delete(post_id)
+      await Post.delete_(post_id)
 
       return res.status(200).json({
         success: true,
