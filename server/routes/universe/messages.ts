@@ -1,4 +1,4 @@
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 import { AuditLogModel } from '~/server/models/audit-log'
 
 interface UniverseMessageCreate {
@@ -29,6 +29,7 @@ export default defineEventHandler(async (event) => {
 })
 
 async function handleGetMessages(event: any) {
+  const supabase = await getSupabaseClient();
   const query = getQuery(event)
   const { limit = 50, offset = 0 } = query
 
@@ -60,6 +61,7 @@ async function handleGetMessages(event: any) {
 }
 
 async function handleCreateMessage(event: any) {
+  const supabase = await getSupabaseClient();
   const body = await readBody<UniverseMessageCreate>(event)
 
   if (!body.content || !body.content.trim()) {
@@ -77,7 +79,7 @@ async function handleCreateMessage(event: any) {
   }
 
   try {
-    // Get current user from session (you'll need to implement this based on your auth)
+    // Get current user from session
     const authHeader = getHeader(event, 'authorization')
     if (!authHeader) {
       throw createError({
