@@ -1,7 +1,8 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
   try {
+    const supabase = await getSupabaseClient();
     const { id, approve } = await readBody(event);
     const status = approve ? 'approved' : 'rejected';
 
