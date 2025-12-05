@@ -1,4 +1,4 @@
-import { supabase } from  '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface UserRestrictionsResponse {
   userId: string
@@ -11,6 +11,7 @@ interface UserRestrictionsResponse {
 
 export default defineEventHandler(async (event): Promise<UserRestrictionsResponse> => {
   try {
+    const supabase = await getSupabaseClient();
     const userId = getRouterParam(event, 'userId')
 
     if (!userId) {
@@ -46,3 +47,4 @@ export default defineEventHandler(async (event): Promise<UserRestrictionsRespons
     })
   }
 })
+
