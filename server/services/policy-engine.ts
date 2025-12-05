@@ -3,7 +3,7 @@
 // POLICY ENGINE - TYPESCRIPT CONVERSION
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 import { abTestService } from './ab-test-service'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -104,6 +104,7 @@ export class PolicyEngine {
    */
   private async getApplicablePolicies(feature: string, context: Record<string, any>): Promise<Policy[]> {
     try {
+      const supabase = await getSupabaseClient();
       const cacheKey = `policies:${feature}:${JSON.stringify(context)}`
 
       // Check cache
@@ -208,6 +209,7 @@ export class PolicyEngine {
    */
   private async evaluateUserTier(userId: string, operator: string, value: string): Promise<boolean> {
     try {
+      const supabase = await getSupabaseClient();
       const { data: user, error } = await supabase
         .from('users')
         .select('tier')
@@ -250,6 +252,7 @@ export class PolicyEngine {
    */
   private async evaluateRateLimit(userId: string, operator: string, value: number): Promise<boolean> {
     try {
+      const supabase = await getSupabaseClient();
       const { data: logs, error } = await supabase
         .from('audit_logs')
         .select('id')
