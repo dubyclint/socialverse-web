@@ -453,7 +453,7 @@ export async function generateThumbnail(buffer: Buffer, size: number = 200): Pro
         fit: 'cover',
         position: 'center'
       })
-      .jpeg({ quality:  })
+      .jpeg({ quality: 70 })
       .toBuffer()
     
     console.log(`[Storage] Thumbnail generated: ${thumbnail.length} bytes`)
