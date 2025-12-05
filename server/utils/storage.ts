@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE 5: /server/utils/storage.ts - COMPLETE FIXED VERSION
+// FILE : /server/utils/storage.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // STORAGE UTILITY - Supabase Storage Integration
 // FIXED: sharp package is now properly imported
@@ -233,7 +233,7 @@ export async function trackUpload(
 /**
  * Cleanup old temporary files
  */
-export async function cleanupOldTempFiles(event: H3Event, bucket: string, ageInDays: number = 7) {
+export async function cleanupOldTempFiles(event: H3Event, bucket: string, ageInDays: number =) {
   try {
     const supabase = await getSupabaseClient(event)
     
@@ -323,6 +323,142 @@ export async function copyFile(
     return true
   } catch (error) {
     console.error('[Storage] Copy file error:', error)
+    throw error
+  }
+}
+
+/**
+ * Get user storage usage
+ */
+export async function getUserStorageUsage(userId: string): Promise<{
+  totalSize: number
+  fileCount: number
+  buckets: Record<string, { size: number; count: number }>
+}> {
+  try {
+    console.log(`[Storage] Getting storage usage for user: ${userId}`)
+    
+    // Placeholder implementation - you would query your database
+    return {
+      totalSize: 0,
+      fileCount: 0,
+      buckets: {}
+    }
+  } catch (error) {
+    console.error('[Storage] Get user storage usage error:', error)
+    throw error
+  }
+}
+
+/**
+ * Get overall storage statistics (admin only)
+ */
+export async function getStorageStats(): Promise<{
+  totalUsers: number
+  totalSize: number
+  totalFiles: number
+  averagePerUser: number
+}> {
+  try {
+    console.log('[Storage] Getting overall storage stats')
+    
+    // Placeholder implementation
+    return {
+      totalUsers: 0,
+      totalSize: 0,
+      totalFiles: 0,
+      averagePerUser: 0
+    }
+  } catch (error) {
+    console.error('[Storage] Get storage stats error:', error)
+    throw error
+  }
+}
+
+/**
+ * Storage configuration
+ */
+export const STORAGE_CONFIG = {
+  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  MAX_STORAGE_PER_USER: 5 * 1024 * 1024 * 1024, // 5GB
+  ALLOWED_MIME_TYPES: [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'application/pdf'
+  ],
+  BUCKETS: {
+    AVATARS: 'avatars',
+    POSTS: 'posts',
+    MESSAGES: 'messages',
+    DOCUMENTS: 'documents'
+  }
+}
+
+/**
+ * Validate file
+ */
+export function validateFile(file: { size: number; type: string }, maxSize?: number): {
+  valid: boolean
+  error?: string
+} {
+  const maxFileSize = maxSize || STORAGE_CONFIG.MAX_FILE_SIZE
+  
+  if (file.size > maxFileSize) {
+    return {
+      valid: false,
+      error: `File size exceeds maximum allowed size of ${maxFileSize / 1024 / 1024}MB`
+    }
+  }
+  
+  if (!STORAGE_CONFIG.ALLOWED_MIME_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      error: `File type ${file.type} is not allowed`
+    }
+  }
+  
+  return { valid: true }
+}
+
+/**
+ * Optimize image
+ */
+export async function optimizeImage(buffer: Buffer, options?: {
+  width?: number
+  height?: number
+  quality?: number
+}): Promise<Buffer> {
+  return compressImage(buffer, {
+    width: options?.width || 1920,
+    height: options?.height || 1080,
+    quality: options?.quality || 80,
+    format: 'jpeg'
+  })
+}
+
+/**
+ * Generate thumbnail
+ */
+export async function generateThumbnail(buffer: Buffer, size: number = 200): Promise<Buffer> {
+  try {
+    console.log(`[Storage] Generating thumbnail: ${size}x${size}`)
+    
+    const thumbnail = await sharp(buffer)
+      .resize(size, size, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .jpeg({ quality: 70 })
+      .toBuffer()
+    
+    console.log(`[Storage] Thumbnail generated: ${thumbnail.length} bytes`)
+    return thumbnail
+  } catch (error) {
+    console.error('[Storage] Generate thumbnail error:', error)
     throw error
   }
 }
