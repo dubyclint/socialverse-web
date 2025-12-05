@@ -1,12 +1,12 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 // Rank thresholds
 const RANK_THRESHOLDS = [
   { name: 'Homie', minPoints: 0 },
   { name: 'Pal', minPoints: 100 },
-  { name: 'Buddy', minPoints: 500 },
+  { name: 'Buddy', minPoints:  },
   { name: 'Friend', minPoints: 1000 },
-  { name: 'BestFriend', minPoints: 2500 },
+  { name: 'BestFriend', minPoints: 2 },
   { name: 'Elite', minPoints: 5000 }
 ];
 
@@ -19,6 +19,9 @@ function calculateRank(points: number) {
 
 export default defineEventHandler(async (event) => {
   try {
+    // Initialize Supabase client
+    const supabase = await getSupabaseClient();
+    
     const { userId, delta } = await readBody(event);
 
     if (!userId || delta === undefined) {
@@ -54,15 +57,14 @@ export default defineEventHandler(async (event) => {
     if (updateError) throw updateError;
 
     return { 
-      success: true, 
-      newPoints, 
-      newRank: newRank.name,
-      delta 
+      success: true,
+      rank: newRank.name,
+      points: newPoints
     };
   } catch (err) {
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to update user rank'
+      statusMessage: 'Failed to update rank'
     });
   }
 });
