@@ -3,7 +3,7 @@
 
 import { EscrowTradeModel } from '~/server/models/escrow-trade'
 import { AuditLogModel } from '~/server/models/audit-log'
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface EscrowCreateRequest {
   buyerId: string
@@ -45,6 +45,7 @@ export default defineEventHandler(async (event) => {
 })
 
 async function handleGetEscrow(event: any) {
+  const supabase = await getSupabaseClient();
   const { tradeId } = getQuery(event)
   
   if (!tradeId) {
@@ -65,6 +66,7 @@ async function handleGetEscrow(event: any) {
 }
 
 async function handleCreateEscrow(event: any) {
+  const supabase = await getSupabaseClient();
   const body = await readBody<EscrowCreateRequest>(event)
   const { buyerId, sellerId, amount, token, tradeId } = body
 
@@ -74,6 +76,7 @@ async function handleCreateEscrow(event: any) {
       statusMessage: 'Missing required fields'
     })
   }
+
   const { data, error } = await supabase
     .from('escrow_trades')
     .insert([{
@@ -92,6 +95,7 @@ async function handleCreateEscrow(event: any) {
 }
 
 async function handleUpdateEscrow(event: any) {
+  const supabase = await getSupabaseClient();
   const body = await readBody<EscrowActionRequest>(event)
   const { tradeId, action, reason } = body
 
@@ -100,9 +104,9 @@ async function handleUpdateEscrow(event: any) {
       statusCode: 400,
       statusMessage: 'Missing required fields: tradeId, action'
     })
-}
+  }
 
-const { data, error } = await supabase
+  const { data, error } = await supabase
     .from('escrow_trades')
     .update({
       status: action === 'release' ? 'released' : 'refunded',
