@@ -1,4 +1,4 @@
-import { supabase } from "~/server/utils/database";
+import { getSupabaseClient } from "~/server/utils/database";
 import { EthClient } from '../../lib/eth-client';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -26,6 +26,7 @@ if (process.env.PROVIDER_URL && process.env.PRIVATE_KEY && process.env.CONTRACT_
 }
 
 export default defineEventHandler(async (event) => {
+  const supabase = await getSupabaseClient();
   const method = getMethod(event);
   const url = getRequestURL(event);
   
@@ -81,4 +82,3 @@ export default defineEventHandler(async (event) => {
     statusMessage: 'Method not allowed'
   });
 });
-
