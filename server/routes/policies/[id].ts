@@ -1,4 +1,4 @@
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface PolicyResponse {
   id: string
@@ -15,6 +15,7 @@ interface PolicyResponse {
 
 export default defineEventHandler(async (event): Promise<PolicyResponse> => {
   try {
+    const supabase = await getSupabaseClient();
     const id = getRouterParam(event, 'id')
 
     if (!id) {
