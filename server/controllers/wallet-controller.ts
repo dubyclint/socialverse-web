@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { UserWalletModel } from '~/server/models/user-wallet'
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 import type { H3Event } from 'h3'
 
 // ============================================================================
@@ -237,6 +237,7 @@ export class WalletController {
    */
   static async unlockWallet(event: H3Event) {
     try {
+      const supabase = await getSupabaseClient();
       const body = await readBody(event)
       const { lockId } = body
       const userId = event.context.user?.id
@@ -300,6 +301,7 @@ export class WalletController {
    */
   static async getWalletLocks(event: H3Event) {
     try {
+      const supabase = await getSupabaseClient();
       const userId = event.context.user?.id
 
       if (!userId) {
@@ -332,6 +334,7 @@ export class WalletController {
    */
   static async getTransactions(event: H3Event) {
     try {
+      const supabase = await getSupabaseClient();
       const userId = event.context.user?.id
       const query = getQuery(event)
       const limit = parseInt(query.limit as string) || 50
