@@ -1,4 +1,4 @@
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface BatchCheckRequest {
   userId: string
@@ -17,6 +17,8 @@ interface BatchCheckResponse {
 
 export default defineEventHandler(async (event): Promise<BatchCheckResponse> => {
   try {
+    const supabase = await getSupabaseClient();
+
     if (event.node.req.method !== 'POST') {
       throw createError({
         statusCode: 405,
