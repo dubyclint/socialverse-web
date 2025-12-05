@@ -4,9 +4,9 @@ import { getSupabaseClient } from '~/server/utils/database';
 const RANK_THRESHOLDS = [
   { name: 'Homie', minPoints: 0 },
   { name: 'Pal', minPoints: 100 },
-  { name: 'Buddy', minPoints:  },
+  { name: 'Buddy', minPoints: 500 },
   { name: 'Friend', minPoints: 1000 },
-  { name: 'BestFriend', minPoints: 2 },
+  { name: 'BestFriend', minPoints: 2500 },
   { name: 'Elite', minPoints: 5000 }
 ];
 
@@ -68,3 +68,4 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+
