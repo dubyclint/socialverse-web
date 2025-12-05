@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
   }
   
   throw createError({
-    statusCode:,
+    statusCode: 405,
     statusMessage: 'Method not allowed'
   });
 });
