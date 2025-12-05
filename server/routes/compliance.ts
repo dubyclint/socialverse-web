@@ -1,7 +1,7 @@
 // FILE: /server/routes/compliance.ts - FIXED
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface ComplianceCheckRequest {
   userId: string
@@ -17,6 +17,8 @@ interface ComplianceCheckResponse {
 
 export default defineEventHandler(async (event): Promise<ComplianceCheckResponse> => {
   try {
+    const supabase = await getSupabaseClient();
+
     // Only allow POST requests
     if (event.node.req.method !== 'POST') {
       throw createError({
@@ -34,6 +36,7 @@ export default defineEventHandler(async (event): Promise<ComplianceCheckResponse
         statusMessage: 'Missing required fields: userId, feature'
       })
     }
+
     // Check user compliance status
     const { data: userCompliance, error } = await supabase
       .from('user_compliance')
