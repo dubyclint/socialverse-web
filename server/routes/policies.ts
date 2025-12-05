@@ -1,7 +1,7 @@
 // FILE: /server/routes/policies.ts - FIXED
 // ============================================================================
 
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface PoliciesQuery {
   feature?: string
@@ -20,6 +20,7 @@ interface PoliciesResponse {
 
 export default defineEventHandler(async (event): Promise<PoliciesResponse> => {
   try {
+    const supabase = await getSupabaseClient();
     const query = getQuery<PoliciesQuery>(event)
 
     let supabaseQuery = supabase.from('policies').select('*', { count: 'exact' })
