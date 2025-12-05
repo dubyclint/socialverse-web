@@ -2,7 +2,7 @@
 // ============================================================================
 
 import { UserWalletModel } from '~/server/models/user-wallet'
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 
 interface WalletUpdateRequest {
   userId: string
@@ -39,7 +39,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
 async function handleGetWallet(event: any) {
+  const supabase = await getSupabaseClient();
   const { userId } = getQuery(event)
 
   if (!userId) {
@@ -72,6 +74,7 @@ async function handleGetWallet(event: any) {
 }
 
 async function handleUpdateWallet(event: any) {
+  const supabase = await getSupabaseClient();
   const body = await readBody<WalletUpdateRequest>(event)
   const { userId, balances } = body
 
@@ -82,7 +85,7 @@ async function handleUpdateWallet(event: any) {
     })
   }
 
-// Check if wallet exists
+  // Check if wallet exists
   const { data: existingWallet } = await supabase
     .from('user_wallets')
     .select('id')
