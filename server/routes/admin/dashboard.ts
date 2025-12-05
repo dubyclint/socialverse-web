@@ -1,4 +1,4 @@
-import { supabase } from '~/server/utils/database'
+import { getSupabaseClient } from '~/server/utils/database'
 import { AuditLogModel } from '~/server/models/audit-log'
 
 interface DashboardStats {
@@ -20,6 +20,8 @@ interface DashboardStats {
 
 export default defineEventHandler(async (event): Promise<DashboardStats> => {
   try {
+    const supabase = await getSupabaseClient();
+
     // Get total users
     const { count: totalUsers } = await supabase
       .from('users')
@@ -101,3 +103,4 @@ export default defineEventHandler(async (event): Promise<DashboardStats> => {
     })
   }
 })
+
