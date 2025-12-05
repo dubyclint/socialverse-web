@@ -68,7 +68,7 @@ export const generateToken = (payload: any, expiresIn: string = '24h') => {
 export const refreshToken = (oldToken: string) => {
   try {
     const decoded = jwt.verify(oldToken, JWT_SECRET, { ignoreExpiration: true })
-    const newToken = jwt.sign(decoded, JWT_SECRET, { expiresIn: '24h' })
+    const newToken = jwt.sign(decoded, JWT_SECRET, { expiresIn: 'h' })
     return { success: true, token: newToken }
   } catch (error) {
     console.error('[Auth] Token refresh error:', error)
@@ -109,6 +109,43 @@ export async function requireAdmin(event: H3Event) {
     }
 
     console.log(`[Admin] Admin user authenticated: ${user.id}`)
+    return user
+  } catch (error) {
+    if (error instanceof Error && 'statusCode' in error) {
+      throw error
+    }
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Authentication failed'
+    })
+  }
+}
+
+/**
+ * Require manager role
+ * Managers have elevated permissions but not full admin access
+ */
+export async function requireManager(event: H3Event) {
+  try {
+    const user = event.context.user
+
+    if (!user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized - No user in context'
+      })
+    }
+
+    // Check if user has manager or admin role
+    // Admins also have manager permissions
+    if (!user.is_manager && !user.is_admin) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden - Manager access required'
+      })
+    }
+
+    console.log(`[Manager] Manager user authenticated: ${user.id}`)
     return user
   } catch (error) {
     if (error instanceof Error && 'statusCode' in error) {
@@ -535,6 +572,16 @@ export const streamOperations = {
       return { success: true, status: 'ended' }
     } catch (error) {
       console.error('[Stream] End stream error:', error)
+      throw error
+    }
+  },
+
+  async getUserStreams(userId: string) {
+    try {
+      console.log(`[Stream] Getting streams for user ${userId}`)
+      return { streams: [] }
+    } catch (error) {
+      console.error('[Stream] Get user streams error:', error)
       throw error
     }
   }
