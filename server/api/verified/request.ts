@@ -1,7 +1,8 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
   try {
+    const supabase = await getSupabaseClient();
     const body = await readBody(event);
     const { name, socialLink, docUrl } = body;
     const userId = event.context.user.id;
@@ -37,3 +38,4 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+
