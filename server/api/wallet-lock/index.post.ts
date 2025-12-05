@@ -1,31 +1,89 @@
 // server/api/wallet-lock/index.post.ts
-import { 
-  authenticateUser, 
-  walletOperations, 
-  validateBody, 
-  handleError 
-} from '../../utils/auth-utils';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
   try {
-    const user = await authenticateUser(event);
+    const supabase = await getSupabaseClient();
+    const user = event.context.user;
+    
+    if (!user?.id) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized'
+      });
+    }
+
     const body = await readBody(event);
     const { action } = body;
 
-    validateBody(body, ['action']);
+    if (!action) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Action is required'
+      });
+    }
 
     let result;
 
     if (action === 'lock') {
-      validateBody(body, ['amount']);
-      result = await walletOperations.lockWallet(user.id, body);
+      // Lock wallet funds
+      if (!body.amount) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Amount is required for lock action'
+        });
+      }
+
+      const lockData = {
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        amount: body.amount,
+        reason: body.reason || 'Manual lock',
+        locked_at: new Date().toISOString(),
+        expires_at: body.expires_at || null,
+        status: 'active'
+      };
+
+      const { data, error } = await supabase
+        .from('wallet_locks')
+        .insert(lockData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      result = data;
     } 
     else if (action === 'unlock') {
-      validateBody(body, ['lock_id']);
-      result = await walletOperations.unlockWallet(body.lock_id);
+      // Unlock wallet funds
+      if (!body.lock_id) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Lock ID is required for unlock action'
+        });
+      }
+
+      const { error } = await supabase
+        .from('wallet_locks')
+        .update({ 
+          status: 'released',
+          released_at: new Date().toISOString()
+        })
+        .eq('id', body.lock_id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      result = { success: true, lock_id: body.lock_id };
     } 
     else if (action === 'get_locks') {
-      result = await walletOperations.getWalletLocks(user.id);
+      // Get all wallet locks for user
+      const { data, error } = await supabase
+        .from('wallet_locks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('locked_at', { ascending: false });
+
+      if (error) throw error;
+      result = data || [];
     } 
     else {
       throw createError({
@@ -40,6 +98,9 @@ export default defineEventHandler(async (event) => {
       data: result
     };
   } catch (error: any) {
-    return handleError(error, 'Wallet lock operation');
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Wallet lock operation failed'
+    });
   }
 });
