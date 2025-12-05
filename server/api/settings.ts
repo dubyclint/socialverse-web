@@ -1,6 +1,9 @@
-import { supabase } from '~/server/utils/database';
+import { getSupabaseClient } from '~/server/utils/database';
 
 export default defineEventHandler(async (event) => {
+  // Initialize Supabase client
+  const supabase = await getSupabaseClient();
+  
   const method = getMethod(event);
   
   if (method === 'GET') {
