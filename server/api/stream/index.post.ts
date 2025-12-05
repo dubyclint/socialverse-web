@@ -1,7 +1,6 @@
 // server/api/stream/index.post.ts
 import { 
   authenticateUser, 
-  rateLimit, 
   streamOperations, 
   validateBody, 
   handleError 
@@ -18,7 +17,7 @@ export default defineEventHandler(async (event) => {
     let result;
 
     if (action === 'create') {
-      await rateLimit(5, 60000)(event); // 5 requests per minute
+      // Rate limiting removed - can be added later with a proper rate limiting package
       validateBody(body, ['title']);
       result = await streamOperations.createStream(user.id, body);
     } 
