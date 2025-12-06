@@ -44,7 +44,7 @@
     "emoji-js": "^3.9.0",
     "ethers": "^6.15.0",
     "gun": "^0.2020.1241",
-    "helmet": "^.0",
+    "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
     "lodash-es": "^4.17.21",
@@ -86,6 +86,8 @@
     "eslint-plugin-vue": "^9.27.0",
     "prettier": "^3.2.5",
     "typescript": "^5.5.4",
-    "vitest": "^1.0.0"
+    "vitest":
   }
 }
+
+ 
