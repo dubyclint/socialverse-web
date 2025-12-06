@@ -4,32 +4,29 @@ import type { LoadBalancer } from '../utils/load-balancer'
 import type { MLService } from '../ml/core/ml-service'
 
 declare global {
-  namespace NodeJS {
-    interface Global {
-      cdnManager: CDNManager | null
-      loadBalancer: LoadBalancer | null
-      mlService: MLService | null
-    }
-  }
+  var cdnManager: CDNManager | null
+  var loadBalancer: LoadBalancer | null
+  var mlService: MLService | null
 }
 
-export default defineNitroPlugin(async (nitroApp) => {
+// ✅ FIX: Remove async from top-level plugin definition
+export default defineNitroPlugin((nitroApp) => {
   console.log('🚀 Initializing critical services...')
 
-  try {
-    // ========================================================================
-    // DEFERRED: All service initialization
-    // ========================================================================
-    // Don't initialize services at startup to prevent Supabase bundling
-    // Instead, initialize on-demand when first needed
-    global.cdnManager = null
-    global.loadBalancer = null
-    global.mlService = null
-    
-    console.log('⏳ Services deferred (will initialize on first use)')
+  // ========================================================================
+  // DEFERRED: All service initialization
+  // ========================================================================
+  // Don't initialize services at startup to prevent Supabase bundling
+  // Instead, initialize on-demand when first needed
+  global.cdnManager = null
+  global.loadBalancer = null
+  global.mlService = null
+  
+  console.log('⏳ Services deferred (will initialize on first use)')
 
-    // Make services available in event context
-    nitroApp.hooks.hook('request', async (event) => {
+  // Make services available in event context
+  nitroApp.hooks.hook('request', async (event) => {
+    try {
       // Lazy initialize CDNManager on first request that needs it
       if (!global.cdnManager) {
         try {
@@ -71,11 +68,10 @@ export default defineNitroPlugin(async (nitroApp) => {
       event.context.cdnManager = global.cdnManager
       event.context.loadBalancer = global.loadBalancer
       event.context.mlService = global.mlService
-    })
+    } catch (error) {
+      console.error('❌ Error in request hook:', error)
+    }
+  })
 
-    console.log('✅ All services deferred successfully')
-  } catch (error) {
-    console.error('❌ Failed to initialize services:', error)
-    throw error
-  }
+  console.log('✅ All services deferred successfully')
 })
