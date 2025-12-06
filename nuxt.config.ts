@@ -22,10 +22,10 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcOTM3ODMyNiwiZXhwIjoyMDcOTUMzI2fQ.4gjaVgOVj_PsVmylhwbqXnTmzchLmSsFFG',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNenJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcOTM3ODMyNiwiZXhwIjoyMDcOTUMzI2fQ.4gjaVgOVj_PsVmylhwbqXnTm3zchLmSsFFG',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-    supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
-    jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min-32-chars',
+    supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3kQEwTbECqNxwt_HaUjUGDlYsHWuPrQVjYI',
+    jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min--chars',
     brevoApiKey: process.env.BREVO_API_KEY || '',
     
     public: {
@@ -39,7 +39,7 @@ export default defineNuxtConfig({
       gunEnabled: process.env.NUXT_PUBLIC_GUN_ENABLED === 'true' || false,
       gunPeers: (process.env.NUXT_PUBLIC_GUN_PEERS || '').split(',').filter(Boolean) || [],
       nodeEnv: process.env.NODE_ENV || 'production',
-      port: process.env.PORT || '8080',
+      port: process.env.PORT || '080',
       logLevel: process.env.LOG_LEVEL || 'info',
       appName: process.env.APP_NAME || 'SocialVerse',
       enablePremium: process.env.NUXT_PUBLIC_ENABLE_PREMIUM === 'true' || true,
@@ -109,6 +109,9 @@ export default defineNuxtConfig({
     }
   },
 
+  // ============================================================================
+  // ✅ CRITICAL FIX: Nitro configuration with prerendering DISABLED
+  // ============================================================================
   nitro: {
     preset: 'node-server',
     noExternal: [
@@ -127,12 +130,13 @@ export default defineNuxtConfig({
       publicDir: '.output/public',
       serverDir: '.output/server',
     },
+    // ============================================================================
+    // ✅ CRITICAL FIX: Disable prerendering to prevent IIFE errors
+    // ============================================================================
     prerender: {
-      crawlLinks: true,
-      routes: ['/', '/login', '/explore', '/feed'],
-      ignore: ['/admin', '/manager', '/auth'],
+      crawlLinks: false,
+      routes: [],
       failOnError: false,
-      concurrency: 4,
     },
     esbuild: {
       options: {
