@@ -1,7 +1,5 @@
 // ============================================================================
-// FILE : /nuxt.config.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// FIXED: Added #utils alias, chunk splitting, and proper build configuration
+// FILE : /nuxt.config.ts - COMPLETE FIXED VERSION WITH BUILD OPTIMIZATIONS
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -24,7 +22,7 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_PsVmylhwbqXnTm3zch6LmSsFFG',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcOTM3ODMyNiwiZXhwIjoyMDcOTUMzI2fQ.4gjaVgOVj_PsVmylhwbqXnTmzchLmSsFFG',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min-32-chars',
@@ -64,7 +62,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX: Vite build configuration with chunk splitting
+  // ✅ FIX: Vite build configuration with better error handling
   // ============================================================================
   vite: {
     build: {
@@ -76,9 +74,38 @@ export default defineNuxtConfig({
             'chart': ['chart.js'],
             'vendor': ['lodash-es', 'date-fns', 'tslib'],
           }
+        },
+        // ✅ NEW: Better error handling during build
+        onwarn(warning, warn) {
+          // Suppress specific warnings that don't affect functionality
+          if (warning.code === 'EVAL' || warning.code === 'CIRCULAR_DEPENDENCY') {
+            return
+          }
+          warn(warning)
         }
       },
-      chunkSizeWarningLimit: 1000, // Increase limit to 1000kb
+      chunkSizeWarningLimit: 1000,
+      // ✅ NEW: Prevent build failures on warnings
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: process.env.NODE_ENV === 'production',
+          drop_debugger: true,
+        },
+      },
+    },
+    // ✅ NEW: Better optimization hints
+    optimizeDeps: {
+      include: [
+        '@supabase/supabase-js',
+        'lodash-es',
+        'date-fns',
+      ],
+      exclude: [
+        'gun',
+        '@tensorflow/tfjs',
+        '@tensorflow/tfjs-node',
+      ]
     }
   },
 
@@ -103,7 +130,6 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       routes: ['/', '/login', '/explore', '/feed'],
-      // ✅ CRITICAL FIX: Removed '/api' from ignore list - API routes MUST be compiled!
       ignore: ['/admin', '/manager', '/auth'],
       failOnError: false,
       concurrency: 4,
@@ -116,13 +142,15 @@ export default defineNuxtConfig({
         treeShaking: true,
       }
     },
-    minify: false,  // Disable global minification
+    minify: false,
     sourceMap: false,
     port: parseInt(process.env.PORT || '8080', 10),
     host: '0.0.0.0',
     logging: {
       level: process.env.LOG_LEVEL === 'debug' ? 'verbose' : 'info',
     },
+    // ✅ NEW: Better error handling for plugins
+    errorHandler: '~/server/error-handler',
     // ============================================================================
     // ✅ FIX: Nitro aliases - Use absolute paths from project root
     // ============================================================================
@@ -132,19 +160,22 @@ export default defineNuxtConfig({
       '#supabase/admin': './server/utils/supabase-admin.ts',
       '#utils': './server/utils',
     },
+    // ✅ NEW: Rollup options for better bundling
+    rollupConfig: {
+      external: ['gun', 'gun/gun', 'gun/sea'],
+      output: {
+        format: 'esm',
+      }
+    }
   },
 
   // ============================================================================
   // ✅ FIX: Route rules for proper caching
   // ============================================================================
   routeRules: {
-    // Cache API responses for 10 minutes
     '/api/**': { cache: { maxAge: 60 * 10 } },
-    // Don't cache auth endpoints
     '/api/auth/**': { cache: false },
-    // Don't cache translations
     '/api/translations': { cache: false },
-    // Don't cache test endpoint
     '/api/test': { cache: false },
   },
 
