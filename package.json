@@ -8,7 +8,7 @@
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0",
-    "npm":
+    "npm": ">=10.0.0"
   },
   "scripts": {
     "dev": "nuxt dev",
@@ -89,3 +89,4 @@
     "vitest": "^1.0.0"
   }
 }
+
