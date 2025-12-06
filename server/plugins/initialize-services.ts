@@ -1,16 +1,11 @@
 // /server/plugins/initialize-services.ts
-// TEMPORARY: Disabled to fix IIFE error
+// SIMPLIFIED VERSION - No dynamic imports during initialization
 
 export default defineNitroPlugin((nitroApp) => {
-  console.log('🚀 Services initialization DISABLED temporarily')
+  console.log('🚀 [Initialize Services] Plugin loaded')
   
-  // Set everything to null
-  if (typeof global !== 'undefined') {
-    (global as any).cdnManager = null;
-    (global as any).loadBalancer = null;
-    (global as any).mlService = null
-  }
+  // Don't initialize anything at startup
+  // Services will be lazy-loaded when needed by individual routes
   
-  console.log('✅ Plugin loaded successfully')
+  console.log('✅ [Initialize Services] Ready')
 })
-
