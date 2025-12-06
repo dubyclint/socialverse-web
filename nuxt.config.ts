@@ -116,7 +116,7 @@ export default defineNuxtConfig({
         treeShaking: true,
       }
     },
-    minify: true,
+    minify: false,  // Disable global minification
     sourceMap: false,
     port: parseInt(process.env.PORT || '8080', 10),
     host: '0.0.0.0',
