@@ -7,6 +7,20 @@ ENV BUILD_ID=$BUILD_ID
 
 WORKDIR /src
 
+# ✅ Install build dependencies for native modules (bcrypt, sharp, etc.)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    libjpeg-turbo-dev \
+    giflib-dev
+
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 
 # ✅ Install with legacy peer deps
@@ -26,8 +40,9 @@ RUN npm run build
 # ✅ Verify build succeeded
 RUN test -f .output/server/index.mjs || (echo "Build failed: .output/server/index.mjs not found" && exit 1)
 
-# ✅ Remove dev dependencies
-RUN npm prune --omit=dev
+# ✅ Remove dev dependencies and build tools to reduce image size
+RUN npm prune --omit=dev && \
+    apk del python3 make g++ gcc libc-dev pkgconfig
 
 EXPOSE 8080
 
