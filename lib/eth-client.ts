@@ -95,7 +95,7 @@ export class EthClient {
    * Initialize with web3.js
    */
   private async initializeWeb3(): Promise<void> {
-    const WebLib = await getWeb3();
+    const Web3Lib = await getWeb3();
     
     this.web3 = new Web3Lib(this.providerUrl);
     const account = this.web3.eth.accounts.privateKeyToAccount(this.privateKey);
@@ -137,7 +137,7 @@ export class EthClient {
         const account = this.web3.eth.accounts.wallet[0];
         return await this.contract.methods[method](...args).send({
           from: account.address,
-          gas: 000000
+          gas: 3000000  // ✅ Fixed: Regular number instead of octal
         });
       }
     } catch (error) {
@@ -165,4 +165,3 @@ export class EthClient {
     }
   }
 }
-
