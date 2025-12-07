@@ -54,14 +54,62 @@ export default defineEventHandler(async (event) => {
 
   if (!ethClient) {
     throw createError({
-      statusCode:,
+      statusCode: 503,
       message: 'ETH client not available'
     });
   }
 
-  // Rest of your handler code...
-  return {
-    status: 'ok',
-    message: 'Contract endpoint ready'
-  };
+  // Get query parameters
+  const query = getQuery(event);
+  const method = query.method as string;
+
+  if (!method) {
+    throw createError({
+      statusCode: 400,
+      message: 'Method parameter is required'
+    });
+  }
+
+  try {
+    // Initialize the client if not already done
+    await ethClient.initialize();
+
+    // Handle different contract methods
+    switch (method) {
+      case 'getBalance':
+        const address = query.address as string;
+        if (!address) {
+          throw createError({
+            statusCode: 400,
+            message: 'Address parameter is required'
+          });
+        }
+        const balance = await ethClient.getBalance(address);
+        return {
+          success: true,
+          balance
+        };
+
+      case 'call':
+        const callMethod = query.callMethod as string;
+        const callArgs = query.args ? JSON.parse(query.args as string) : [];
+        const result = await ethClient.call(callMethod, ...callArgs);
+        return {
+          success: true,
+          result
+        };
+
+      default:
+        throw createError({
+          statusCode: 400,
+          message: `Unknown method: ${method}`
+        });
+    }
+  } catch (error) {
+    console.error('[Contract] Request failed:', error);
+    throw createError({
+      statusCode: 500,
+      message: error instanceof Error ? error.message : 'Contract operation failed'
+    });
+  }
 });
