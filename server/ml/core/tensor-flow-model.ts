@@ -1,14 +1,33 @@
 // ============================================================================
-// FILE 6: /server/ml/core/tensor-flow-model.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// TENSORFLOW MODEL WRAPPER - Lazy loading support
-// FIXED: @tensorflow/tfjs-node is now properly imported as optional dependency
+// FILE: /server/ml/core/tensor-flow-model.ts - FIXED WITH LAZY LOADING
 // ============================================================================
 
-import * as tf from '@tensorflow/tfjs-node'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
+
+// Lazy load TensorFlow
+let tf: any = null;
+
+async function getTensorFlow() {
+  if (!tf) {
+    try {
+      tf = await import('@tensorflow/tfjs-node');
+      console.log('[TensorFlow] Loaded successfully');
+    } catch (error) {
+      console.error('[TensorFlow] Failed to load:', error);
+      // Fallback to browser version if node version fails
+      try {
+        tf = await import('@tensorflow/tfjs');
+        console.log('[TensorFlow] Loaded browser version as fallback');
+      } catch (fallbackError) {
+        console.error('[TensorFlow] All versions failed to load');
+        throw fallbackError;
+      }
+    }
+  }
+  return tf;
+}
 
 interface ModelMetrics {
   totalPredictions: number
@@ -23,7 +42,7 @@ interface ModelMetrics {
 export class TensorFlowModel {
   private modelName: string
   private modelPath: string
-  private model: tf.LayersModel | null
+  private model: any | null
   private isLoaded: boolean
   private version: string
   private inputShape: number[] | null
@@ -32,58 +51,60 @@ export class TensorFlowModel {
   private postprocessor: ((output: any) => any) | null
   private metrics: ModelMetrics
 
-  constructor(modelName: string, modelPath: string | null = null) {
+  constructor(
+    modelName: string,
+    modelPath: string,
+    version: string = '1.0.0',
+    preprocessor: ((input: any) => any) | null = null,
+    postprocessor: ((output: any) => any) | null =
+  ) {
     this.modelName = modelName
-    this.modelPath = modelPath || `./models/${modelName}`
+    this.modelPath = modelPath
     this.model = null
     this.isLoaded = false
-    this.version = '1.0.0'
+    this.version = version
     this.inputShape = null
     this.outputShape = null
-    this.preprocessor = null
-    this.postprocessor = null
-
+    this.preprocessor = preprocessor
+    this.postprocessor = postprocessor
     this.metrics = {
       totalPredictions: 0,
       avgLatency: 0,
       errorCount: 0,
       lastUsed: null
     }
-
-    console.log(`[TensorFlow] Model initialized: ${modelName}`)
   }
 
   /**
-   * Load model from file or URL
+   * Load the model
    */
   async load(): Promise<void> {
-    try {
-      console.log(`[TensorFlow] Loading model: ${this.modelName}`)
+    if (this.isLoaded && this.model) {
+      console.log(`[TensorFlow] Model ${this.modelName} already loaded`)
+      return
+    }
 
-      if (this.modelPath.startsWith('http')) {
-        // Load from URL
-        this.model = await tf.loadLayersModel(this.modelPath)
-      } else {
-        // Load from local file
-        this.model = await tf.loadLayersModel(`file://${this.modelPath}/model.json`)
+    try {
+      console.log(`[TensorFlow] Loading model ${this.modelName} from ${this.modelPath}`)
+      
+      const tfLib = await getTensorFlow();
+      this.model = await tfLib.loadLayersModel(this.modelPath)
+      
+      // Get input/output shapes
+      if (this.model.inputs && this.model.inputs.length > 0) {
+        this.inputShape = this.model.inputs[0].shape
+      }
+      if (this.model.outputs && this.model.outputs.length > 0) {
+        this.outputShape = this.model.outputs[0].shape
       }
 
       this.isLoaded = true
-      
-      // Extract model shapes
-      if (this.model) {
-        const inputLayer = this.model.inputs[0]
-        const outputLayer = this.model.outputs[0]
-        
-        this.inputShape = inputLayer.shape.slice(1) // Remove batch dimension
-        this.outputShape = outputLayer.shape.slice(1) // Remove batch dimension
-      }
-
-      console.log(`✅ [TensorFlow] Model ${this.modelName} loaded successfully`)
-      console.log(`   Input shape: ${JSON.stringify(this.inputShape)}`)
-      console.log(`   Output shape: ${JSON.stringify(this.outputShape)}`)
+      console.log(`[TensorFlow] Model ${this.modelName} loaded successfully`)
+      console.log(`[TensorFlow] Input shape:`, this.inputShape)
+      console.log(`[TensorFlow] Output shape:`, this.outputShape)
     } catch (error) {
-      console.error(`❌ [TensorFlow] Failed to load model ${this.modelName}:`, error)
+      console.error(`[TensorFlow] Failed to load model ${this.modelName}:`, error)
+      this.isLoaded = false
       throw error
     }
   }
@@ -93,12 +114,14 @@ export class TensorFlowModel {
    */
   async predict(input: any): Promise<any> {
     if (!this.isLoaded || !this.model) {
-      throw new Error(`Model ${this.modelName} is not loaded`)
+      await this.load()
     }
 
     const startTime = Date.now()
 
     try {
+      const tfLib = await getTensorFlow();
+      
       // Preprocess input
       let processedInput = input
       if (this.preprocessor) {
@@ -106,75 +129,53 @@ export class TensorFlowModel {
       }
 
       // Convert to tensor
-      const tensorInput = tf.tensor(processedInput)
+      const inputTensor = tfLib.tensor(processedInput)
+
+      // Make prediction
+      const outputTensor = this.model.predict(inputTensor)
       
-      // Run prediction
-      const output = this.model.predict(tensorInput) as tf.Tensor
-      const result = await output.data()
+      // Convert back to array
+      let output = await outputTensor.array()
 
       // Postprocess output
-      let processedOutput = Array.from(result)
       if (this.postprocessor) {
-        processedOutput = this.postprocessor(processedOutput)
+        output = this.postprocessor(output)
+      }
+
+      // Cleanup tensors
+      inputTensor.dispose()
+      if (Array.isArray(outputTensor)) {
+        outputTensor.forEach((t: any) => t.dispose())
+      } else {
+        outputTensor.dispose()
       }
 
       // Update metrics
       const latency = Date.now() - startTime
       this.metrics.totalPredictions++
-      this.metrics.avgLatency =
-        (this.metrics.avgLatency * (this.metrics.totalPredictions - 1) + latency) /
+      this.metrics.avgLatency = 
+        (this.metrics.avgLatency * (this.metrics.totalPredictions - 1) + latency) / 
         this.metrics.totalPredictions
       this.metrics.lastUsed = new Date()
 
-      // Cleanup tensors
-      tensorInput.dispose()
-      output.dispose()
-
-      console.log(`[TensorFlow] Prediction completed in ${latency}ms`)
-      return processedOutput
+      return output
     } catch (error) {
+      console.error(`[TensorFlow] Prediction failed for ${this.modelName}:`, error)
       this.metrics.errorCount++
-      console.error(`❌ [TensorFlow] Prediction error in model ${this.modelName}:`, error)
       throw error
     }
   }
 
   /**
-   * Batch prediction
+   * Unload model to free memory
    */
-  async predictBatch(inputs: any[]): Promise<any[]> {
-    if (!this.isLoaded || !this.model) {
-      throw new Error(`Model ${this.modelName} is not loaded`)
+  async unload(): Promise<void> {
+    if (this.model) {
+      this.model.dispose()
+      this.model = null
+      this.isLoaded = false
+      console.log(`[TensorFlow] Model ${this.modelName} unloaded`)
     }
-
-    try {
-      console.log(`[TensorFlow] Running batch prediction on ${inputs.length} samples`)
-      
-      const results = await Promise.all(
-        inputs.map(input => this.predict(input))
-      )
-      
-      return results
-    } catch (error) {
-      console.error(`[TensorFlow] Batch prediction error:`, error)
-      throw error
-    }
-  }
-
-  /**
-   * Set preprocessing function
-   */
-  setPreprocessor(fn: (input: any) => any): void {
-    this.preprocessor = fn
-    console.log(`[TensorFlow] Preprocessor set for ${this.modelName}`)
-  }
-
-  /**
-   * Set postprocessing function
-   */
-  setPostprocessor(fn: (output: any) => any): void {
-    this.postprocessor = fn
-    console.log(`[TensorFlow] Postprocessor set for ${this.modelName}`)
   }
 
   /**
@@ -190,47 +191,12 @@ export class TensorFlowModel {
   getInfo() {
     return {
       name: this.modelName,
+      version: this.version,
       path: this.modelPath,
       isLoaded: this.isLoaded,
-      version: this.version,
       inputShape: this.inputShape,
       outputShape: this.outputShape,
       metrics: this.metrics
-    }
-  }
-
-  /**
-   * Unload model and cleanup
-   */
-  async unload(): Promise<void> {
-    try {
-      if (this.model) {
-        this.model.dispose()
-        this.model = null
-        this.isLoaded = false
-        console.log(`[TensorFlow] Model ${this.modelName} unloaded`)
-      }
-    } catch (error) {
-      console.error(`[TensorFlow] Unload error:`, error)
-      throw error
-    }
-  }
-
-  /**
-   * Save model
-   */
-  async save(path: string): Promise<void> {
-    try {
-      if (!this.model) {
-        throw new Error('No model to save')
-      }
-
-      console.log(`[TensorFlow] Saving model to ${path}`)
-      await this.model.save(`file://${path}`)
-      console.log(`✅ [TensorFlow] Model saved successfully`)
-    } catch (error) {
-      console.error(`[TensorFlow] Save error:`, error)
-      throw error
     }
   }
 }
