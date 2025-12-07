@@ -56,7 +56,7 @@ export class TensorFlowModel {
     modelPath: string,
     version: string = '1.0.0',
     preprocessor: ((input: any) => any) | null = null,
-    postprocessor: ((output: any) => any) | null =
+    postprocessor: ((output: any) => any) | null = null  // ✅ Fixed: Added default value
   ) {
     this.modelName = modelName
     this.modelPath = modelPath
