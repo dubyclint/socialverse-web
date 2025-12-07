@@ -1,8 +1,8 @@
-// utils/contactUtils.js
+// utils/contact-utils.ts
 
-class ContactUtils {
+export class ContactUtils {
   // Normalize phone number
-  static normalizePhone(phone) {
+  static normalizePhone(phone: string | null): string | null {
     if (!phone) return null;
     
     // Remove all non-digits
@@ -15,91 +15,31 @@ class ContactUtils {
     } else if (digits.length === 11 && digits.startsWith('1')) {
       // US number with country code
       return `+${digits}`;
-    } else if (digits.length > 7) {
+    } else if (digits.length >) {
       // International number
       return `+${digits}`;
     }
     
-    return digits;
+    return null;
   }
 
   // Normalize email
-  static normalizeEmail(email) {
+  static normalizeEmail(email: string | null): string | null {
     if (!email) return null;
     return email.toLowerCase().trim();
   }
 
-  // Validate contact data
-  static validateContact(contact) {
-    const errors = [];
+  // Format phone for display
+  static formatPhone(phone: string): string {
+    if (!phone) return '';
     
-    if (!contact.name || contact.name.trim().length === 0) {
-      errors.push('Contact name is required');
+    const cleaned = phone.replace(/\D/g, '');
+    
+    if (cleaned.length ===  && cleaned.startsWith('1')) {
+      // US format: +1 (XXX) XXX-XXXX
+      return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
     }
     
-    if (!contact.phone && !contact.email) {
-      errors.push('Either phone or email is required');
-    }
-    
-    if (contact.phone && !this.isValidPhone(contact.phone)) {
-      errors.push('Invalid phone number format');
-    }
-    
-    if (contact.email && !this.isValidEmail(contact.email)) {
-      errors.push('Invalid email format');
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  // Validate phone number
-  static isValidPhone(phone) {
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    const normalizedPhone = phone.replace(/\D/g, '');
-    return phoneRegex.test(normalizedPhone) && normalizedPhone.length >= 7;
-  }
-
-  // Validate email
-  static isValidEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  // Generate invitation message
-  static generateInvitationMessage(senderName, customMessage) {
-    const defaultMessage = `Hey! ${senderName} invited you to join SocialVerse - a private social platform where you can connect with friends securely. Download the app: [APP_LINK]`;
-    
-    return customMessage || defaultMessage;
-  }
-
-  // Parse contacts from various formats
-  static parseContactsFromCSV(csvData) {
-    const contacts = [];
-    const lines = csvData.split('\n');
-    
-    // Skip header if present
-    const startIndex = lines[0].toLowerCase().includes('name') ? 1 : 0;
-    
-    for (let i = startIndex; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const [name, phone, email] = line.split(',').map(field => field.trim());
-      
-      if (name) {
-        contacts.push({
-          name,
-          phone: phone || null,
-          email: email || null
-        });
-      }
-    }
-    
-    return contacts;
+    return phone;
   }
 }
-
-module.exports = ContactUtils;
