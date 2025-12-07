@@ -1,36 +1,35 @@
 // ============================================================================
-// plugins/chart.client.ts - CHART.JS CLIENT PLUGIN
+// plugins/chart.client.ts - CHART.JS CLIENT PLUGIN (LAZY LOADED)
 // ============================================================================
-// This plugin initializes Chart.js for data visualization
-// Place this file at: /plugins/chart.client.ts
-
-import Chart from 'chart.js/auto'
 
 declare global {
   interface Window {
-    Chart?: typeof Chart
+    Chart?: any
   }
 }
 
-export default defineNuxtPlugin(() => {
-  // Register Chart.js globally
-  if (process.client) {
-    window.Chart = Chart
+let Chart: any = null;
+
+async function getChart() {
+  if (!Chart) {
+    const module = await import('chart.js/auto');
+    Chart = module.default;
   }
+  return Chart;
+}
 
-  // Configure Chart.js defaults
-  Chart.defaults.font.family = "'Inter', 'Helvetica', 'Arial', sans-serif"
-  Chart.defaults.color = '#6B7280'
-  Chart.defaults.borderColor = '#E5E7EB'
-
-  // Set responsive options
-  Chart.defaults.responsive = true
-  Chart.defaults.maintainAspectRatio = true
-
-  // Provide Chart to all components
+export default defineNuxtPlugin(() => {
   return {
     provide: {
-      Chart
+      chart: {
+        async create(ctx: any, config: any) {
+          const ChartLib = await getChart();
+          return new ChartLib(ctx, config);
+        },
+        async getChart() {
+          return await getChart();
+        }
+      }
     }
   }
 })
