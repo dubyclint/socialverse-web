@@ -1,9 +1,18 @@
 // server/services/geo-service.ts
 // ============================================================================
-// GEO SERVICE - TYPESCRIPT CONVERSION
+// GEO SERVICE - FIXED WITH LAZY LOADING
 // ============================================================================
 
-import axios from 'axios'
+// Lazy load axios
+let axios: any = null;
+
+async function getAxios() {
+  if (!axios) {
+    const module = await import('axios');
+    axios = module.default;
+  }
+  return axios;
+}
 
 export interface LocationData {
   ip: string
@@ -19,164 +28,56 @@ export interface LocationData {
 }
 
 export class GeoService {
-  private cache: Map<string, LocationData> = new Map()
-  private cacheTimeout: number = 60 * 60 * 1000 // 1 hour
-  private ipStackApiKey: string = process.env.IPSTACK_API_KEY || ''
+  private apiKey: string |
+  private cacheEnabled: boolean
+  private cache: Map<string, LocationData>
 
-  /**
-   * Get location data for an IP address
-   */
-  async getLocationData(ip: string): Promise<LocationData | null> {
-    try {
-      if (!ip || ip === '127.0.0.1' || ip === '::1') {
-        return this.getLocalhost()
-      }
-
-      // Check cache
-      if (this.cache.has(ip)) {
-        const cached = this.cache.get(ip)
-        if (cached && Date.now() - (cached as any).timestamp < this.cacheTimeout) {
-          return cached
-        }
-      }
-
-      // Try IPStack API first
-      if (this.ipStackApiKey) {
-        const location = await this.getLocationFromIPStack(ip)
-        if (location) {
-          this.cache.set(ip, location)
-          return location
-        }
-      }
-
-      // Fallback to IP API
-      const location = await this.getLocationFromIPAPI(ip)
-      if (location) {
-        this.cache.set(ip, location)
-        return location
-      }
-
-      return null
-    } catch (error: any) {
-      console.error('Error getting location data:', error)
-      return null
-    }
+  constructor(apiKey?: string, cacheEnabled: boolean = true) {
+    this.apiKey = apiKey ||
+    this.cacheEnabled = cacheEnabled
+    this.cache = new Map()
   }
 
   /**
-   * Get location from IPStack API
+   * Get location data by IP address
    */
-  private async getLocationFromIPStack(ip: string): Promise<LocationData | null> {
+  async getLocationByIP(ip: string): Promise<LocationData | null> {
     try {
-      const response = await axios.get(`http://api.ipstack.com/${ip}`, {
-        params: {
-          access_key: this.ipStackApiKey,
-          format: 'json'
-        }
-      })
-
-      const data = response.data
-
-      return {
-        ip,
-        country: data.country_name,
-        countryCode: data.country_code,
-        region: data.region_name,
-        city: data.city,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        timezone: data.time_zone?.id || 'UTC',
-        isp: data.connection?.isp_name
+      // Check cache first
+      if (this.cacheEnabled && this.cache.has(ip)) {
+        console.log(`[GeoService] Cache hit for IP: ${ip}`)
+        return this.cache.get(ip)!
       }
-    } catch (error: any) {
-      console.error('Error getting location from IPStack:', error)
+
+      const axiosLib = await getAxios();
+
+      // Use ipapi.co (free tier: requests/day)
+      const url = `https://ipapi.co/${ip}/json/`
+      const response = await axiosLib.get(url)
+
+      const locationData: LocationData = {
+        ip: response.data.ip,
+        country: response.data.country_name,
+        countryCode: response.data.country_code,
+        region: response.data.region,
+        city: response.data.city,
+        latitude: response.data.latitude,
+        longitude: response.data.longitude,
+        timezone: response.data.timezone,
+        isp: response.data.org,
+        organization: response.data.org
+      }
+
+      // Cache the result
+      if (this.cacheEnabled) {
+        this.cache.set(ip, locationData)
+      }
+
+      return locationData
+    } catch (error) {
+      console.error(`[GeoService] Failed to get location for IP ${ip}:`, error)
       return null
     }
-  }
-
-  /**
-   * Get location from IP API
-   */
-  private async getLocationFromIPAPI(ip: string): Promise<LocationData | null> {
-    try {
-      const response = await axios.get(`https://ipapi.co/${ip}/json/`)
-
-      const data = response.data
-
-      return {
-        ip,
-        country: data.country_name,
-        countryCode: data.country_code,
-        region: data.region,
-        city: data.city,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        timezone: data.timezone,
-        organization: data.org
-      }
-    } catch (error: any) {
-      console.error('Error getting location from IP API:', error)
-      return null
-    }
-  }
-
-  /**
-   * Get localhost location
-   */
-  private getLocalhost(): LocationData {
-    return {
-      ip: '127.0.0.1',
-      country: 'Local',
-      countryCode: 'LOCAL',
-      region: 'Local',
-      city: 'Local',
-      latitude: 0,
-      longitude: 0,
-      timezone: 'UTC'
-    }
-  }
-
-  /**
-   * Check if IP is in country
-   */
-  async isInCountry(ip: string, countryCode: string): Promise<boolean> {
-    try {
-      const location = await this.getLocationData(ip)
-      return location?.countryCode === countryCode
-    } catch (error: any) {
-      console.error('Error checking country:', error)
-      return false
-    }
-  }
-
-  /**
-   * Check if IP is in region
-   */
-  async isInRegion(ip: string, region: string): Promise<boolean> {
-    try {
-      const location = await this.getLocationData(ip)
-      return location?.region === region
-    } catch (error: any) {
-      console.error('Error checking region:', error)
-      return false
-    }
-  }
-
-  /**
-   * Get distance between two coordinates
-   */
-  getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371 // Earth's radius in km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180
-    const dLon = ((lon2 - lon1) * Math.PI) / 180
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
   }
 
   /**
@@ -184,7 +85,16 @@ export class GeoService {
    */
   clearCache(): void {
     this.cache.clear()
+    console.log('[GeoService] Cache cleared')
+  }
+
+  /**
+   * Get cache size
+   */
+  getCacheSize(): number {
+    return this.cache.size
   }
 }
 
-export const geoService = new GeoService()
+// Export singleton instance
+export const geoService = new GeoService();
