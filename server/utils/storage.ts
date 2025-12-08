@@ -19,6 +19,30 @@ async function getSharp() {
 }
 
 /**
+ * Storage configuration
+ */
+export const STORAGE_CONFIG = {
+  maxFileSize: 50 * 1024 * 1024, // 50MB
+  allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  allowedVideoTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
+  allowedAudioTypes: ['audio/mp', 'audio/wav', 'audio/ogg', 'audio/m4a'],
+  allowedDocumentTypes: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ],
+  thumbnailSize: { width: 200, height: 200 },
+  imageQuality: 80,
+  buckets: {
+    uploads: 'uploads',
+    avatars: 'avatars',
+    media: 'media',
+    temp: 'temp',
+    documents: 'documents'
+  }
+}
+
+/**
  * Lazy load Supabase client
  */
 async function getSupabaseClient(event: H3Event) {
@@ -33,6 +57,44 @@ async function getSupabaseClient(event: H3Event) {
   } catch (error) {
     console.error('[Storage] Failed to load Supabase client:', error)
     throw error
+  }
+}
+
+/**
+ * Validate file
+ */
+export function validateFile(file: { size: number; type: string }, fileType: 'image' | 'video' | 'audio' | 'document' = 'image') {
+  const errors: string[] = []
+
+  // Check file size
+  if (file.size > STORAGE_CONFIG.maxFileSize) {
+    errors.push(`File size exceeds maximum allowed size of ${STORAGE_CONFIG.maxFileSize / (1024 * 1024)}MB`)
+  }
+
+  // Check file type
+  let allowedTypes: string[] = []
+  switch (fileType) {
+    case 'image':
+      allowedTypes = STORAGE_CONFIG.allowedImageTypes
+      break
+    case 'video':
+      allowedTypes = STORAGE_CONFIG.allowedVideoTypes
+      break
+    case 'audio':
+      allowedTypes = STORAGE_CONFIG.allowedAudioTypes
+      break
+    case 'document':
+      allowedTypes = STORAGE_CONFIG.allowedDocumentTypes
+      break
+  }
+
+  if (!allowedTypes.includes(file.type)) {
+    errors.push(`File type ${file.type} is not allowed. Allowed types: ${allowedTypes.join(', ')}`)
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
   }
 }
 
@@ -95,11 +157,70 @@ export async function optimizeImage(
     }
 
     return await image
-      .jpeg({ quality: options.quality || 80 })
+      .jpeg({ quality: options.quality || STORAGE_CONFIG.imageQuality })
       .toBuffer()
   } catch (error) {
     console.error('[Storage] Image optimization failed:', error)
     throw error
+  }
+}
+
+/**
+ * Generate thumbnail
+ */
+export async function generateThumbnail(buffer: Buffer) {
+  try {
+    const sharpInstance = await getSharp()
+    
+    return await sharpInstance(buffer)
+      .resize(STORAGE_CONFIG.thumbnailSize.width, STORAGE_CONFIG.thumbnailSize.height, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .jpeg({ quality:  })
+      .toBuffer()
+  } catch (error) {
+    console.error('[Storage] Thumbnail generation failed:', error)
+    throw error
+  }
+}
+
+/**
+ * Track upload
+ */
+export async function trackUpload(event: H3Event, uploadData: {
+  userId: string
+  fileName: string
+  fileSize: number
+  fileType: string
+  bucket: string
+}) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    // Store upload record in database
+    const { data, error } = await supabase
+      .from('file_uploads')
+      .insert({
+        user_id: uploadData.userId,
+        file_name: uploadData.fileName,
+        file_size: uploadData.fileSize,
+        file_type: uploadData.fileType,
+        bucket: uploadData.bucket,
+        uploaded_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.warn('[Storage] Failed to track upload:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('[Storage] Track upload failed:', error)
+    return null
   }
 }
 
@@ -138,13 +259,7 @@ export async function cleanupOldTempFiles(hoursOld: number = 48): Promise<number
     console.log(`[Storage] Cleaning up temp files older than ${hoursOld} hours`)
     
     // TODO: Implement actual cleanup logic with Supabase Storage API
-    // Example implementation:
-    // const supabase = await getSupabaseClient()
-    // const cutoffDate = new Date(Date.now() - hoursOld * 60 * 60 * 1000)
-    // const { data: files } = await supabase.storage.from('temp').list()
-    // Filter and delete old files based on created_at timestamp
-    
-    return 0 // Return number of files deleted
+    return// Return number of files deleted
   } catch (error) {
     console.error('[Storage] Cleanup failed:', error)
     throw error
