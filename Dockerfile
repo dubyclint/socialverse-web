@@ -41,7 +41,7 @@ RUN npm run build
 RUN test -f .output/server/index.mjs || (echo "Build failed: .output/server/index.mjs not found" && exit 1)
 
 # ✅ Verify routes directory exists
-RUN test -d .output/server/chunks/routes || echo
+RUN test -d .output/server/chunks/routes || echo "Warning: No routes directory found"
 
 # ✅ Remove dev dependencies and build tools to reduce image size
 RUN npm prune --omit=dev && \
@@ -49,9 +49,10 @@ RUN npm prune --omit=dev && \
 
 EXPOSE 8080
 
-ENV PORT=
+ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 
 CMD ["node", ".output/server/index.mjs"]
+
 
