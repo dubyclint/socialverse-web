@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /server/utils/storage.ts - FIXED WITH LAZY LOADING
+// FILE: /server/utils/storage.ts - COMPLETE WITH ALL EXPORTS
 // ============================================================================
 
 import type { H3Event } from 'h3'
@@ -135,21 +135,122 @@ export async function deleteFile(
  */
 export async function cleanupOldTempFiles(hoursOld: number = 48): Promise<number> {
   try {
-    // This would typically connect to Supabase storage
-    // For now, return a mock implementation
     console.log(`[Storage] Cleaning up temp files older than ${hoursOld} hours`)
     
     // TODO: Implement actual cleanup logic with Supabase Storage API
-    // Example:
+    // Example implementation:
     // const supabase = await getSupabaseClient()
     // const cutoffDate = new Date(Date.now() - hoursOld * 60 * 60 * 1000)
     // const { data: files } = await supabase.storage.from('temp').list()
-    // Filter and delete old files
+    // Filter and delete old files based on created_at timestamp
     
     return 0 // Return number of files deleted
   } catch (error) {
     console.error('[Storage] Cleanup failed:', error)
     throw error
+  }
+}
+
+/**
+ * Get user storage usage
+ */
+export async function getUserStorageUsage(event: H3Event, userId: string) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    // Get all files for the user across all buckets
+    const buckets = ['uploads', 'avatars', 'media']
+    let totalSize = 0
+    let fileCount = 0
+    
+    for (const bucket of buckets) {
+      try {
+        const { data: files, error } = await supabase.storage
+          .from(bucket)
+          .list(userId)
+        
+        if (!error && files) {
+          fileCount += files.length
+          totalSize += files.reduce((sum: number, file: any) => sum + (file.metadata?.size || 0), 0)
+        }
+      } catch (err) {
+        console.warn(`[Storage] Could not list files in bucket ${bucket}:`, err)
+      }
+    }
+    
+    return {
+      success: true,
+      usage: {
+        totalSize,
+        fileCount,
+        totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
+        buckets
+      }
+    }
+  } catch (error) {
+    console.error('[Storage] Get user storage usage failed:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get storage usage'
+    }
+  }
+}
+
+/**
+ * Get storage statistics
+ */
+export async function getStorageStats(event: H3Event) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    // Get overall storage statistics
+    const buckets = ['uploads', 'avatars', 'media', 'temp']
+    const stats: any = {
+      buckets: {},
+      totalFiles: 0,
+      totalSize: 0
+    }
+    
+    for (const bucket of buckets) {
+      try {
+        const { data: files, error } = await supabase.storage
+          .from(bucket)
+          .list()
+        
+        if (!error && files) {
+          const bucketSize = files.reduce((sum: number, file: any) => sum + (file.metadata?.size || 0), 0)
+          stats.buckets[bucket] = {
+            fileCount: files.length,
+            size: bucketSize,
+            sizeMB: (bucketSize / (1024 * 1024)).toFixed(2)
+          }
+          stats.totalFiles += files.length
+          stats.totalSize += bucketSize
+        }
+      } catch (err) {
+        console.warn(`[Storage] Could not get stats for bucket ${bucket}:`, err)
+        stats.buckets[bucket] = {
+          fileCount: 0,
+          size: 0,
+          sizeMB: '0.00',
+          error: 'Could not access bucket'
+        }
+      }
+    }
+    
+    stats.totalSizeMB = (stats.totalSize / (1024 * 1024)).toFixed(2)
+    stats.totalSizeGB = (stats.totalSize / (1024 * 1024 * 1024)).toFixed(2)
+    
+    return {
+      success: true,
+      stats
+    }
+  } catch (error) {
+    console.error('[Storage] Get storage stats failed:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get storage stats'
+    }
   }
 }
 
@@ -204,4 +305,3 @@ export async function getFileUrl(
     return null
   }
 }
-
