@@ -129,3 +129,79 @@ export async function deleteFile(
     }
   }
 }
+
+/**
+ * Cleanup old temporary files
+ */
+export async function cleanupOldTempFiles(hoursOld: number = 48): Promise<number> {
+  try {
+    // This would typically connect to Supabase storage
+    // For now, return a mock implementation
+    console.log(`[Storage] Cleaning up temp files older than ${hoursOld} hours`)
+    
+    // TODO: Implement actual cleanup logic with Supabase Storage API
+    // Example:
+    // const supabase = await getSupabaseClient()
+    // const cutoffDate = new Date(Date.now() - hoursOld * 60 * 60 * 1000)
+    // const { data: files } = await supabase.storage.from('temp').list()
+    // Filter and delete old files
+    
+    return 0 // Return number of files deleted
+  } catch (error) {
+    console.error('[Storage] Cleanup failed:', error)
+    throw error
+  }
+}
+
+/**
+ * List files in a bucket
+ */
+export async function listFiles(
+  event: H3Event,
+  bucket: string = 'uploads',
+  folder: string = ''
+) {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(folder)
+
+    if (error) throw error
+
+    return {
+      success: true,
+      files: data
+    }
+  } catch (error) {
+    console.error('[Storage] List files failed:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'List failed'
+    }
+  }
+}
+
+/**
+ * Get file URL
+ */
+export async function getFileUrl(
+  event: H3Event,
+  fileName: string,
+  bucket: string = 'uploads'
+): Promise<string | null> {
+  try {
+    const supabase = await getSupabaseClient(event)
+    
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(fileName)
+
+    return data.publicUrl
+  } catch (error) {
+    console.error('[Storage] Get URL failed:', error)
+    return null
+  }
+}
+
