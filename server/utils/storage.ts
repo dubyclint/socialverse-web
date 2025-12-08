@@ -177,7 +177,7 @@ export async function generateThumbnail(buffer: Buffer) {
         fit: 'cover',
         position: 'center'
       })
-      .jpeg({ quality: })
+      .jpeg({ quality: 70 })
       .toBuffer()
   } catch (error) {
     console.error('[Storage] Thumbnail generation failed:', error)
@@ -259,7 +259,7 @@ export async function cleanupOldTempFiles(hoursOld: number = 48): Promise<number
     console.log(`[Storage] Cleaning up temp files older than ${hoursOld} hours`)
     
     // TODO: Implement actual cleanup logic with Supabase Storage API
-    return // Return number of files deleted
+    return 0
   } catch (error) {
     console.error('[Storage] Cleanup failed:', error)
     throw error
