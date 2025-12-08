@@ -1,38 +1,14 @@
-# Version Control
-.git
-.gitignore
-.gitattributes
-.github
+# Nuxt build outputs
+.nuxt
+.output
+.nitro
+dist
 
-# IDE & Editor
-.vscode
-.idea
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-*.sublime-project
-*.sublime-workspace
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Testing
-coverage
-.nyc_output
-*.lcov
-tests
-__tests__
-*.test.ts
-*.spec.ts
-jest.config.js
-vitest.config.ts
+# Dependencies
+node_modules
+node_modules/.cache
 
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -40,16 +16,60 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Environment files
+.env.local
+.env.*.local
+.env.development
+.env.test
+
+# Editor directories and files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Git
+.git
+.gitignore
+.github
+
+# Testing
+coverage
+*.tsbuildinfo
+.vitest
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+.cache
+
 # Documentation
 README.md
 CHANGELOG.md
-docs
-*.md
+LICENSE
 
 # CI/CD
 .gitlab-ci.yml
-.circleci
 .travis.yml
 azure-pipelines.yml
-.github/workflows
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Misc
+.prettierrc
+.prettierignore
+.eslintrc
+.eslintignore
+tsconfig.json
 
