@@ -2,8 +2,10 @@ FROM node:22-alpine
 LABEL "language"="nodejs"
 LABEL "framework"="nuxt"
 
-ARG BUILD_ID=default
+# Cache buster - change this to force rebuild
+ARG BUILD_ID=v.0.0-fixed
 ENV BUILD_ID=$BUILD_ID
+ENV FORCE_REBUILD=2025-12-08
 
 WORKDIR /src
 
@@ -28,11 +30,9 @@ RUN npm install --legacy-peer-deps
 
 COPY . .
 
-# ✅ Clean cache before build
-RUN npm cache clean --force
-
-# ✅ Clean previous builds
-RUN rm -rf .nuxt .output .nitro node_modules/.cache dist
+# ✅ Clean everything before build
+RUN npm cache clean --force && \
+    rm -rf .nuxt .output .nitro node_modules/.cache dist
 
 # ✅ Build with proper environment
 RUN npm run build
@@ -40,14 +40,18 @@ RUN npm run build
 # ✅ Verify build succeeded
 RUN test -f .output/server/index.mjs || (echo "Build failed: .output/server/index.mjs not found" && exit 1)
 
+# ✅ Verify routes directory exists
+RUN test -d .output/server/chunks/routes || echo
+
 # ✅ Remove dev dependencies and build tools to reduce image size
 RUN npm prune --omit=dev && \
     apk del python3 make g++ gcc libc-dev pkgconfig
 
 EXPOSE 8080
 
-ENV PORT=8080
+ENV PORT=
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 
 CMD ["node", ".output/server/index.mjs"]
+
