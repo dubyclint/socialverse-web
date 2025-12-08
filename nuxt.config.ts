@@ -22,7 +22,7 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNenJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcOTM3ODMyNiwiZXhwIjoyMDcOTUMzI2fQ.4gjaVgOVj_PsVmylhwbqXnTm3zchLmSsFFG',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNenJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcOTM3ODMyNiwiZXhwIjoyMDcOTUMzI2fQ.4gjaVgOVj_PsVmylhwbqXnTmzchLmSsFFG',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3kQEwTbECqNxwt_HaUjUGDlYsHWuPrQVjYI',
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min--chars',
@@ -39,7 +39,7 @@ export default defineNuxtConfig({
       gunEnabled: process.env.NUXT_PUBLIC_GUN_ENABLED === 'true' || false,
       gunPeers: (process.env.NUXT_PUBLIC_GUN_PEERS || '').split(',').filter(Boolean) || [],
       nodeEnv: process.env.NODE_ENV || 'production',
-      port: process.env.PORT || '080',
+      port: process.env.PORT || '8080',
       logLevel: process.env.LOG_LEVEL || 'info',
       appName: process.env.APP_NAME || 'SocialVerse',
       enablePremium: process.env.NUXT_PUBLIC_ENABLE_PREMIUM === 'true' || true,
@@ -205,25 +205,41 @@ export default defineNuxtConfig({
     }
   },
 
+  // ============================================================================
+  // ✅ FIX: App head configuration with favicon
+  // ============================================================================
   app: {
     head: {
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1',
+      title: 'SocialVerse - Modern Social Networking Platform',
       meta: [
         { 
           name: 'description', 
-          content: 'SocialVerse - A modern social networking platform' 
+          content: 'SocialVerse - A modern social networking platform with advanced features' 
         },
         {
           name: 'theme-color',
           content: '#000000'
+        },
+        {
+          name: 'apple-mobile-web-app-capable',
+          content: 'yes'
+        },
+        {
+          name: 'apple-mobile-web-app-status-bar-style',
+          content: 'black-translucent'
         }
       ],
       link: [
         {
           rel: 'icon',
-          type: 'image/x-icon',
-          href: '/favicon.ico'
+          type: 'image/svg+xml',
+          href: '/logo.svg'
+        },
+        {
+          rel: 'apple-touch-icon',
+          href: '/logo.svg'
         }
       ]
     }
