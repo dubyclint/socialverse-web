@@ -5,7 +5,7 @@ LABEL "framework"="nuxt"
 # Cache buster - change this to force rebuild
 ARG BUILD_ID=v.0.0-fixed
 ENV BUILD_ID=$BUILD_ID
-ENV FORCE_REBUILD=2025-12-08
+ENV FORCE_REBUILD=2025-12-09
 
 WORKDIR /src
 
@@ -54,5 +54,4 @@ ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 
 CMD ["node", ".output/server/index.mjs"]
-
 
