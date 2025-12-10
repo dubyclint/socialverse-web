@@ -9,3 +9,4 @@ export default defineNitroPlugin((nitroApp) => {
   
   console.log('✅ [Initialize Services] Ready')
 })
+
