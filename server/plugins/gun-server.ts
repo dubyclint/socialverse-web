@@ -28,3 +28,4 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
 
   (globalThis as any).gun = gunMock
 })
+
