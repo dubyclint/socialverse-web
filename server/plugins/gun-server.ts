@@ -1,31 +1,29 @@
-// ============================================================================
-// server/plugins/gun-server.ts - GUN DATABASE SERVER PLUGIN (DISABLED)
-// ============================================================================
-// ✅ TEMPORARY FIX: GUN disabled to prevent "Cannot set property state" error
+// server/plugins/gun-server.ts
+// FIXED: No type imports, simple mock
 
-import type { NitroApp } from 'nitropack'
-
-export default defineNitroPlugin((nitroApp: NitroApp) => {
+export default defineNitroPlugin((nitroApp) => {
   console.log('[Gun Server] GUN DISABLED - causes History error during build')
   
-  // ✅ Return safe mock
   const gunMock = {
-    get: (key: string) => ({
-      on: (callback: Function) => {},
-      once: (callback: Function) => {},
-      put: (data: any) => ({ on: () => {}, once: () => {} }),
+    get: () => ({
+      on: () => {},
+      once: () => {},
+      put: () => ({ on: () => {}, once: () => {} }),
     }),
-    put: (data: any) => ({
-      on: (callback: Function) => {},
-      once: (callback: Function) => {},
+    put: () => ({
+      on: () => {},
+      once: () => {},
     }),
-    set: (data: any) => ({
-      on: (callback: Function) => {},
-      once: (callback: Function) => {},
+    set: () => ({
+      on: () => {},
+      once: () => {},
     }),
     off: () => {},
   }
 
-  (globalThis as any).gun = gunMock
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as any).gun = gunMock
+  }
 })
+
 
