@@ -1,36 +1,16 @@
 // server/plugins/error-handler.ts
-import type { NitroApp } from 'nitropack'
+// FIXED: No type imports, simplified hooks
 
-export default defineNitroPlugin((nitroApp: NitroApp) => {
+export default defineNitroPlugin((nitroApp) => {
   console.log('[Error Handler Plugin] Initializing global error handler')
   
   try {
     nitroApp.hooks.hook('error', (error, context) => {
       console.error('[Global Error Handler] Error caught:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        url: context?.event?.node?.req?.url,
-        method: context?.event?.node?.req?.method,
+        message: error?.message || 'Unknown error',
+        stack: error?.stack,
         timestamp: new Date().toISOString()
       })
-    })
-
-    nitroApp.hooks.hook('request', (context) => {
-      const url = context.event?.node?.req?.url
-      const method = context.event?.node?.req?.method
-      
-      if (url?.includes('robots.txt') || url?.includes('sitemap.xml')) {
-        console.log(`[Request] ${method} ${url}`)
-      }
-    })
-
-    nitroApp.hooks.hook('afterResponse', (context) => {
-      const url = context.event?.node?.req?.url
-      const statusCode = context.event?.node?.res?.statusCode
-      
-      if (statusCode && statusCode >= 400) {
-        console.warn(`[Response Error] ${statusCode} - ${url}`)
-      }
     })
 
     console.log('[Error Handler Plugin] Successfully initialized')
