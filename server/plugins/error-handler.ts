@@ -26,14 +26,13 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
 
     nitroApp.hooks.hook('afterResponse', (context) => {
       const url = context.event?.node?.req?.url
-      const method = context.event?.node?.req?.method
       const statusCode = context.event?.node?.res?.statusCode
       
-      if (url?.includes('robots.txt') || url?.includes('sitemap.xml')) {
-        console.log(`[Response] ${method} ${url} - Status: ${statusCode}`)
+      if (statusCode && statusCode >= 400) {
+        console.warn(`[Response Error] ${statusCode} - ${url}`)
       }
     })
-    
+
     console.log('[Error Handler Plugin] Successfully initialized')
   } catch (error) {
     console.error('[Error Handler Plugin] Failed to initialize:', error)
