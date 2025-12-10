@@ -1,9 +1,7 @@
 // server/plugins/socket.ts
-// SIMPLIFIED VERSION - Lazy initialization only
+// FIXED: No type imports, simplified
 
-import type { NitroApp } from 'nitropack'
-
-export default defineNitroPlugin((nitroApp: NitroApp) => {
+export default defineNitroPlugin((nitroApp) => {
   console.log('[Socket.IO Plugin] Initializing...')
 
   if (process.env.NITRO_PRERENDER === 'true') {
@@ -11,9 +9,5 @@ export default defineNitroPlugin((nitroApp: NitroApp) => {
     return
   }
 
-  // Don't initialize Socket.IO at startup
-  // It will be initialized on-demand when first WebSocket connection is made
-  
   console.log('✅ [Socket.IO Plugin] Ready (lazy initialization)')
 })
-
