@@ -22,15 +22,15 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNenJodWNidmVcXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcOTM3ODMyNiwiZXhwIjoyMDcOTUMzI2fQ.4gjaVgOVj_PsVmylhwbqXnTmzchLmSsFFG',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-    supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3kQEwTbECqNxwt_HaUjUGDlYsHWuPrQVjYI',
+    supabaseKey: process.env.SUPABASE_KEY || '',
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-min--chars',
     brevoApiKey: process.env.BREVO_API_KEY || '',
     
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || '',
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
@@ -62,7 +62,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ FIX: Vite build configuration with better error handling
+  // ✅ FIX: Vite build configuration - SIMPLIFIED
   // ============================================================================
   vite: {
     build: {
@@ -75,26 +75,9 @@ export default defineNuxtConfig({
             'vendor': ['lodash-es', 'date-fns', 'tslib'],
           }
         },
-        // ✅ NEW: Better error handling during build
-        onwarn(warning, warn) {
-          // Suppress specific warnings that don't affect functionality
-          if (warning.code === 'EVAL' || warning.code === 'CIRCULAR_DEPENDENCY') {
-            return
-          }
-          warn(warning)
-        }
       },
       chunkSizeWarningLimit: 1000,
-      // ✅ NEW: Prevent build failures on warnings
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: process.env.NODE_ENV === 'production',
-          drop_debugger: true,
-        },
-      },
     },
-    // ✅ NEW: Better optimization hints
     optimizeDeps: {
       include: [
         '@supabase/supabase-js',
@@ -110,7 +93,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ✅ CRITICAL FIX: Nitro configuration with prerendering DISABLED
+  // ✅ CRITICAL FIX: Nitro configuration - SIMPLIFIED & FIXED
   // ============================================================================
   nitro: {
     preset: 'node-server',
@@ -138,22 +121,23 @@ export default defineNuxtConfig({
       routes: [],
       failOnError: false,
     },
+    // ============================================================================
+    // ✅ CRITICAL FIX: Remove conflicting minification settings
+    // Let Nitro handle minification with defaults
+    // ============================================================================
     esbuild: {
       options: {
         target: 'es2022',
-        minify: true,
         sourcemap: false,
         treeShaking: true,
       }
     },
-    minify: false,
     sourceMap: false,
     port: parseInt(process.env.PORT || '8080', 10),
     host: '0.0.0.0',
     logging: {
       level: process.env.LOG_LEVEL === 'debug' ? 'verbose' : 'info',
     },
-    // ✅ NEW: Better error handling for plugins
     errorHandler: '~/server/error-handler',
     // ============================================================================
     // ✅ FIX: Nitro aliases - Use absolute paths from project root
@@ -164,7 +148,6 @@ export default defineNuxtConfig({
       '#supabase/admin': './server/utils/supabase-admin.ts',
       '#utils': './server/utils',
     },
-    // ✅ NEW: Rollup options for better bundling
     rollupConfig: {
       external: ['gun', 'gun/gun', 'gun/sea'],
       output: {
