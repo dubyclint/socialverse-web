@@ -1,31 +1,35 @@
-// FILE: /server/api/auth/signup.post.ts - FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// SIGNUP ENDPOINT - Create new user account with proper error handling
+// SIGNUP ENDPOINT with comprehensive error handling and validation
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
-  console.log('[Auth/Signup] POST request received')
+  console.log('[Auth/Signup] 📝 POST request received')
   
   try {
     const body = await readBody(event)
-    console.log('[Auth/Signup] Request data:', { 
+    console.log('[Auth/Signup] Request:', { 
       email: body.email, 
       username: body.username,
-      hasPassword: !!body.password 
+      hasPassword: !!body.password,
+      hasFullName: !!body.fullName
     })
 
     const { email, password, username, fullName } = body
 
-    // Validate required fields
+    // ============================================================================
+    // VALIDATION
+    // ============================================================================
+    
     if (!email || !password || !username) {
-      console.error('[Auth/Signup] Missing required fields')
+      console.error('[Auth/Signup] ❌ Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
       })
     }
 
-    // Validate email format
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       throw createError({
@@ -34,7 +38,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate username format
+    // Username validation
     if (!/^[a-z0-9_-]+$/i.test(username)) {
       throw createError({
         statusCode: 400,
@@ -49,7 +53,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate password
+    // Password validation
     if (password.length < ) {
       throw createError({
         statusCode: 400,
@@ -57,60 +61,78 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[Auth/Signup] Validation passed, creating Supabase client...')
+    console.log('[Auth/Signup] ✅ Validation passed')
 
-    // Get Supabase client - Try multiple methods
+    // ============================================================================
+    // SUPABASE CLIENT INITIALIZATION
+    // ============================================================================
+    
     let supabase
     try {
-      // Method 1: Try serverSupabaseClient
+      // Try using Nuxt's serverSupabaseClient first
       supabase = await serverSupabaseClient(event)
+      console.log('[Auth/Signup] ✅ Using serverSupabaseClient')
     } catch (err) {
-      console.warn('[Auth/Signup] serverSupabaseClient failed, trying direct client...')
-      // Method 2: Try direct client creation
+      console.warn('[Auth/Signup] ⚠️ serverSupabaseClient failed, creating direct client')
+      
+      // Fallback: Create client directly
       const { createClient } = await import('@supabase/supabase-js')
       const supabaseUrl = process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL
       const supabaseKey = process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_KEY
       
       if (!supabaseUrl || !supabaseKey) {
-        throw new Error('Supabase credentials not configured')
+        console.error('[Auth/Signup] ❌ Missing Supabase credentials')
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Database configuration error'
+        })
       }
       
       supabase = createClient(supabaseUrl, supabaseKey, {
         auth: {
           autoRefreshToken: false,
-          persistSession: false
+          persistSession: false,
+          detectSessionInUrl: false
         }
       })
+      console.log('[Auth/Signup] ✅ Direct client created')
     }
 
     if (!supabase) {
-      console.error('[Auth/Signup] Supabase client creation failed')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database connection failed'
+        statusMessage: 'Failed to initialize database connection'
       })
     }
 
-    console.log('[Auth/Signup] Supabase client ready, checking username availability...')
-
-    // Check if username already exists
-    const { data: existingUser, error: checkError } = await supabase
+    // ============================================================================
+    // CHECK USERNAME AVAILABILITY
+    // ============================================================================
+    
+    console.log('[Auth/Signup] 🔍 Checking username availability...')
+    
+    const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
       .select('username')
       .eq('username', username)
-      .single()
+      .maybeSingle()
 
-    if (existingUser) {
-      console.log('[Auth/Signup] Username already taken:', username)
+    if (existingProfile) {
+      console.log('[Auth/Signup] ❌ Username already taken:', username)
       throw createError({
         statusCode: 400,
         statusMessage: 'Username already taken'
       })
     }
 
-    console.log('[Auth/Signup] Username available, creating user account...')
+    console.log('[Auth/Signup] ✅ Username available')
 
-    // Sign up user
+    // ============================================================================
+    // CREATE USER ACCOUNT
+    // ============================================================================
+    
+    console.log('[Auth/Signup] 👤 Creating user account...')
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -120,49 +142,63 @@ export default defineEventHandler(async (event) => {
           full_name: fullName || '',
           display_name: fullName || username
         },
-        emailRedirectTo: `${process.env.NUXT_PUBLIC_SITE_URL}/auth/verify-email`
+        emailRedirectTo: `${process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app'}/auth/verify-email`
       }
     })
 
+    // Handle Supabase auth errors
     if (authError) {
-      console.error('[Auth/Signup] Supabase auth error:', {
+      console.error('[Auth/Signup] ❌ Supabase auth error:', {
         message: authError.message,
         status: authError.status,
-        name: authError.name
+        code: authError.code
       })
       
-      // Handle specific Supabase errors
-      if (authError.message.includes('already registered')) {
+      // Specific error handling
+      if (authError.message.toLowerCase().includes('already registered') || 
+          authError.message.toLowerCase().includes('already been registered')) {
         throw createError({
           statusCode: 400,
-          statusMessage: 'Email already registered'
+          statusMessage: 'This email is already registered. Please sign in instead.'
         })
       }
       
-      if (authError.message.includes('password')) {
+      if (authError.message.toLowerCase().includes('password')) {
         throw createError({
           statusCode: 400,
-          statusMessage: 'Password does not meet requirements'
+          statusMessage: 'Password does not meet security requirements. Use at least 6 characters.'
+        })
+      }
+
+      if (authError.message.toLowerCase().includes('email')) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Invalid email address'
         })
       }
       
       throw createError({
-        statusCode: ,
+        statusCode: 400,
         statusMessage: authError.message || 'Signup failed'
       })
     }
 
-    if (!authData.user) {
-      console.error('[Auth/Signup] No user data returned')
+    if (!authData?.user) {
+      console.error('[Auth/Signup] ❌ No user data returned from Supabase')
       throw createError({
         statusCode: 500,
-        statusMessage: 'User creation failed - no user data'
+        statusMessage: 'User creation failed - no user data returned'
       })
     }
 
-    console.log('[Auth/Signup] User created successfully:', authData.user.id)
+    console.log('[Auth/Signup] ✅ User account created:', authData.user.id)
 
-    // Create profile in profiles table
+    // ============================================================================
+    // CREATE USER PROFILE
+    // ============================================================================
+    
+    console.log('[Auth/Signup] 📋 Creating user profile...')
+
     try {
       const { error: profileError } = await supabase
         .from('profiles')
@@ -181,19 +217,31 @@ export default defineEventHandler(async (event) => {
         })
 
       if (profileError) {
-        console.warn('[Auth/Signup] Profile creation warning:', profileError.message)
-        // Don't fail the signup if profile creation fails - it might be handled by triggers
+        console.warn('[Auth/Signup] ⚠️ Profile creation warning:', profileError.message)
+        // Don't fail - profile might be created by database trigger
       } else {
-        console.log('[Auth/Signup] Profile created successfully')
+        console.log('[Auth/Signup] ✅ Profile created')
       }
     } catch (profileErr: any) {
-      console.warn('[Auth/Signup] Profile creation exception:', profileErr.message)
-      // Continue anyway - profile might be created by database triggers
+      console.warn('[Auth/Signup] ⚠️ Profile creation exception:', profileErr.message)
+      // Continue - profile creation might be handled by triggers
     }
 
-    console.log('[Auth/Signup] ✅ Signup completed successfully')
+    // ============================================================================
+    // RETURN SUCCESS RESPONSE
+    // ============================================================================
+    
+    const needsConfirmation = !authData.session
+    const successMessage = needsConfirmation
+      ? 'Account created! Please check your email to verify your account.'
+      : 'Account created successfully!'
 
-    // Return success response
+    console.log('[Auth/Signup] ✅ Signup completed:', {
+      userId: authData.user.id,
+      needsConfirmation,
+      hasSession: !!authData.session
+    })
+
     return {
       success: true,
       user: {
@@ -204,28 +252,26 @@ export default defineEventHandler(async (event) => {
       },
       token: authData.session?.access_token ||,
       refreshToken: authData.session?.refresh_token || null,
-      needsConfirmation: !authData.session,
-      message: authData.session 
-        ? 'Account created successfully!' 
-        : 'Account created! Please check your email to verify your account.'
+      needsConfirmation,
+      message: successMessage
     }
 
   } catch (error: any) {
-    console.error('[Auth/Signup] Error:', {
+    console.error('[Auth/Signup] ❌ Error:', {
       message: error.message,
       statusCode: error.statusCode,
-      stack: error.stack
+      statusMessage: error.statusMessage
     })
     
-    // If it's already a createError, throw it
+    // Re-throw if it's already a formatted error
     if (error.statusCode) {
       throw error
     }
     
-    // Otherwise create a generic error
+    // Create generic error for unexpected issues
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'Signup failed'
+      statusMessage: error.message || 'An unexpected error occurred during signup'
     })
   }
 })
