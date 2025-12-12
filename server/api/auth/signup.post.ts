@@ -1,6 +1,6 @@
-// FILE: /server/api/auth/signup.post.ts - CORRECTED WITH SERVICE ROLE KEY
+// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED WITH DATABASE TRIGGER
 // ============================================================================
-// SIGNUP ENDPOINT - Use service role key for profile creation
+// SIGNUP ENDPOINT - Profile creation is now automatic via database trigger
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -78,18 +78,18 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] ✅ Validation passed')
 
     // ============================================================================
-    // SUPABASE CLIENT INITIALIZATION - ANON KEY FOR AUTH
+    // SUPABASE CLIENT INITIALIZATION
     // ============================================================================
     
-    console.log('[Auth/Signup] 🔌 Initializing Supabase client (anon key)...')
+    console.log('[Auth/Signup] 🔌 Initializing Supabase client...')
     
-    let supabaseAnon
+    let supabase
     
     try {
-      supabaseAnon = await serverSupabaseClient(event)
-      console.log('[Auth/Signup] ✅ Anon client initialized successfully')
+      supabase = await serverSupabaseClient(event)
+      console.log('[Auth/Signup] ✅ serverSupabaseClient initialized successfully')
     } catch (err: any) {
-      console.error('[Auth/Signup] ⚠️ Anon client failed:', err.message)
+      console.error('[Auth/Signup] ⚠️ serverSupabaseClient failed:', err.message)
       
       try {
         const { createClient } = await import('@supabase/supabase-js')
@@ -97,7 +97,9 @@ export default defineEventHandler(async (event) => {
         const supabaseUrl = process.env.NUXT_PUBLIC_SUPABASE_URL
         const supabaseKey = process.env.NUXT_PUBLIC_SUPABASE_KEY
         
-        console.log('[Auth/Signup] 🔧 Creating anon client directly...')
+        console.log('[Auth/Signup] 🔧 Attempting direct client creation...')
+        console.log('[Auth/Signup] URL exists:', !!supabaseUrl)
+        console.log('[Auth/Signup] Key exists:', !!supabaseKey)
         
         if (!supabaseUrl || !supabaseKey) {
           const errorMsg = 'Supabase configuration missing'
@@ -109,16 +111,16 @@ export default defineEventHandler(async (event) => {
           })
         }
         
-        supabaseAnon = createClient(supabaseUrl, supabaseKey, {
+        supabase = createClient(supabaseUrl, supabaseKey, {
           auth: {
             autoRefreshToken: false,
             persistSession: false,
             detectSessionInUrl: false
           }
         })
-        console.log('[Auth/Signup] ✅ Anon client created successfully')
+        console.log('[Auth/Signup] ✅ Direct Supabase client created successfully')
       } catch (createErr: any) {
-        const errorMsg = 'Failed to create Supabase anon client'
+        const errorMsg = 'Failed to create Supabase client'
         console.error('[Auth/Signup] ❌', errorMsg, createErr.message)
         throw createError({
           statusCode: 500,
@@ -128,58 +130,13 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    if (!supabaseAnon) {
-      const errorMsg = 'Supabase anon client is not initialized'
+    if (!supabase) {
+      const errorMsg = 'Supabase client is not initialized'
       console.error('[Auth/Signup] ❌', errorMsg)
       throw createError({
         statusCode: 500,
         statusMessage: errorMsg,
-        data: { details: 'Failed to initialize auth client' }
-      })
-    }
-
-    // ============================================================================
-    // SUPABASE SERVICE ROLE CLIENT - FOR PROFILE CREATION
-    // ============================================================================
-    
-    console.log('[Auth/Signup] 🔌 Initializing Supabase service role client...')
-    
-    let supabaseServiceRole
-    
-    try {
-      const { createClient } = await import('@supabase/supabase-js')
-      
-      const supabaseUrl = process.env.NUXT_PUBLIC_SUPABASE_URL
-      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-      
-      console.log('[Auth/Signup] URL exists:', !!supabaseUrl)
-      console.log('[Auth/Signup] Service key exists:', !!supabaseServiceKey)
-      
-      if (!supabaseUrl || !supabaseServiceKey) {
-        const errorMsg = 'Supabase service role configuration missing'
-        console.error('[Auth/Signup] ❌', errorMsg)
-        throw createError({
-          statusCode: 500,
-          statusMessage: errorMsg,
-          data: { details: 'SUPABASE_SERVICE_ROLE_KEY not configured' }
-        })
-      }
-      
-      supabaseServiceRole = createClient(supabaseUrl, supabaseServiceKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-          detectSessionInUrl: false
-        }
-      })
-      console.log('[Auth/Signup] ✅ Service role client created successfully')
-    } catch (err: any) {
-      const errorMsg = 'Failed to create service role client'
-      console.error('[Auth/Signup] ❌', errorMsg, err.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: errorMsg,
-        data: { details: err.message }
+        data: { details: 'Failed to initialize database connection' }
       })
     }
 
@@ -190,7 +147,7 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] 🔍 Checking username availability...')
     
     try {
-      const { data: existingUser, error: checkError } = await supabaseAnon
+      const { data: existingUser, error: checkError } = await supabase
         .from('user')
         .select('username')
         .eq('username', username)
@@ -219,14 +176,14 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // CREATE USER ACCOUNT (using anon key)
+    // CREATE USER ACCOUNT
     // ============================================================================
     
     console.log('[Auth/Signup] 👤 Creating user account...')
     console.log('[Auth/Signup] Email:', email)
     console.log('[Auth/Signup] Username:', username)
 
-    const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -306,49 +263,11 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] ✅ User account created:', authData.user.id)
 
     // ============================================================================
-    // CREATE USER PROFILE (using service role key to bypass RLS)
+    // PROFILE CREATION IS NOW AUTOMATIC VIA DATABASE TRIGGER
     // ============================================================================
-    
-    console.log('[Auth/Signup] 📋 Creating user profile with service role...')
-
-    try {
-      const { error: profileError } = await supabaseServiceRole
-        .from('user')
-        .insert({
-          user_id: authData.user.id,
-          username,
-          display_name: fullName || username,
-          email,
-          bio: '',
-          avatar_url: '',
-          status: 'active',
-          email_lower: email.toLowerCase(),
-          username_lower: username.toLowerCase(),
-          posts_count: 0,
-          followers_count: 0,
-          following_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-
-      if (profileError) {
-        console.error('[Auth/Signup] ❌ Profile creation error:', profileError.message)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Failed to create user profile',
-          data: { details: profileError.message }
-        })
-      } else {
-        console.log('[Auth/Signup] ✅ Profile created successfully')
-      }
-    } catch (profileErr: any) {
-      console.error('[Auth/Signup] ❌ Profile creation exception:', profileErr.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to create user profile',
-        data: { details: profileErr.message }
-      })
-    }
+    // The database trigger 'on_auth_user_created' will automatically create
+    // a user profile in the 'user' table when a new user is created in auth.users
+    console.log('[Auth/Signup] 📋 User profile will be created automatically by database trigger')
 
     // ============================================================================
     // RETURN SUCCESS RESPONSE
