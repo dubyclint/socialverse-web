@@ -1,6 +1,6 @@
-// FILE: /server/api/auth/signup.post.ts - FINAL FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - CORRECTED VERSION
 // ============================================================================
-// SIGNUP ENDPOINT with detailed error messages for debugging
+// SIGNUP ENDPOINT with proper Supabase client initialization
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -78,35 +78,50 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] ✅ Validation passed')
 
     // ============================================================================
-    // SUPABASE CLIENT INITIALIZATION
+    // SUPABASE CLIENT INITIALIZATION - FIXED VERSION
     // ============================================================================
     
     console.log('[Auth/Signup] 🔌 Initializing Supabase client...')
     
     let supabase
+    
+    // Try using serverSupabaseClient first (recommended for Nuxt)
     try {
       supabase = await serverSupabaseClient(event)
-      console.log('[Auth/Signup] ✅ serverSupabaseClient initialized')
+      console.log('[Auth/Signup] ✅ serverSupabaseClient initialized successfully')
     } catch (err: any) {
       console.error('[Auth/Signup] ⚠️ serverSupabaseClient failed:', err.message)
       
-      // Fallback: Create client directly
+      // Fallback: Create client directly with explicit environment variables
       try {
         const { createClient } = await import('@supabase/supabase-js')
-        const supabaseUrl = process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL
-        const supabaseKey = process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_KEY
+        
+        // FIXED: Get environment variables with proper fallbacks
+        const supabaseUrl = process.env.NUXT_PUBLIC_SUPABASE_URL
+        const supabaseKey = process.env.NUXT_PUBLIC_SUPABASE_KEY
         
         console.log('[Auth/Signup] 🔧 Attempting direct client creation...')
-        console.log('[Auth/Signup] URL:', supabaseUrl)
-        console.log('[Auth/Signup] Has Key:', !!supabaseKey)
+        console.log('[Auth/Signup] URL exists:', !!supabaseUrl)
+        console.log('[Auth/Signup] Key exists:', !!supabaseKey)
         
-        if (!supabaseUrl || !supabaseKey) {
-          const errorMsg = 'Supabase configuration missing'
+        if (!supabaseUrl) {
+          const errorMsg = 'Supabase URL not configured'
+          console.error('[Auth/Signup] ❌', errorMsg)
+          console.error('[Auth/Signup] Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
+          throw createError({
+            statusCode: 500,
+            statusMessage: errorMsg,
+            data: { details: 'NUXT_PUBLIC_SUPABASE_URL environment variable is missing' }
+          })
+        }
+        
+        if (!supabaseKey) {
+          const errorMsg = 'Supabase API key not configured'
           console.error('[Auth/Signup] ❌', errorMsg)
           throw createError({
             statusCode: 500,
             statusMessage: errorMsg,
-            data: { details: 'SUPABASE_URL or SUPABASE_KEY not configured' }
+            data: { details: 'NUXT_PUBLIC_SUPABASE_KEY environment variable is missing' }
           })
         }
         
@@ -117,7 +132,7 @@ export default defineEventHandler(async (event) => {
             detectSessionInUrl: false
           }
         })
-        console.log('[Auth/Signup] ✅ Direct client created')
+        console.log('[Auth/Signup] ✅ Direct Supabase client created successfully')
       } catch (createErr: any) {
         const errorMsg = 'Failed to create Supabase client'
         console.error('[Auth/Signup] ❌', errorMsg, createErr.message)
@@ -130,7 +145,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!supabase) {
-      const errorMsg = 'Supabase client is not initialized'
+      const errorMsg = 'Supabase client initialization failed'
       console.error('[Auth/Signup] ❌', errorMsg)
       throw createError({
         statusCode: 500,
@@ -239,7 +254,7 @@ export default defineEventHandler(async (event) => {
         })
       }
       
-      // Generic Supabase error - FIXED: Added 500 status code
+      // Generic Supabase error
       throw createError({
         statusCode: 500,
         statusMessage: authError.message || 'Signup failed',
@@ -345,3 +360,5 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
+
