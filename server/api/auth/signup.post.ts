@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - CORRECTED VERSION
+// FILE: /server/api/auth/signup.post.ts - FULLY CORRECTED VERSION
 // ============================================================================
 // SIGNUP ENDPOINT with comprehensive error handling and validation
 // ============================================================================
@@ -275,3 +275,4 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
