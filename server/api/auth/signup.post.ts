@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - FULLY CORRECTED VERSION
+// FILE: /server/api/auth/signup.post.ts - COMPLETELY FIXED VERSION
 // ============================================================================
 // SIGNUP ENDPOINT with comprehensive error handling and validation
 // ============================================================================
@@ -111,7 +111,7 @@ export default defineEventHandler(async (event) => {
     
     console.log('[Auth/Signup] 🔍 Checking username availability...')
     
-    const { data: existingProfile, error: checkError } = await supabase
+    const { data: existingProfile } = await supabase
       .from('profiles')
       .select('username')
       .eq('username', username)
@@ -218,13 +218,11 @@ export default defineEventHandler(async (event) => {
 
       if (profileError) {
         console.warn('[Auth/Signup] ⚠️ Profile creation warning:', profileError.message)
-        // Don't fail - profile might be created by database trigger
       } else {
         console.log('[Auth/Signup] ✅ Profile created')
       }
     } catch (profileErr: any) {
       console.warn('[Auth/Signup] ⚠️ Profile creation exception:', profileErr.message)
-      // Continue - profile creation might be handled by triggers
     }
 
     // ============================================================================
@@ -263,12 +261,10 @@ export default defineEventHandler(async (event) => {
       statusMessage: error.statusMessage
     })
     
-    // Re-throw if it's already a formatted error
     if (error.statusCode) {
       throw error
     }
     
-    // Create generic error for unexpected issues
     throw createError({
       statusCode: 500,
       statusMessage: error.message || 'An unexpected error occurred during signup'
