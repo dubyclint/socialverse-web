@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - CORRECTED VERSION
 // ============================================================================
 // SIGNUP ENDPOINT with comprehensive error handling and validation
 // ============================================================================
@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Password validation
-    if (password.length < ) {
+    if (password.length < 6) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Password must be at least 6 characters'
