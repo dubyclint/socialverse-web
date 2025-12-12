@@ -1,6 +1,6 @@
-// FILE: /server/api/auth/signup.post.ts - CORRECTED VERSION
+// FILE: /server/api/auth/signup.post.ts - CORRECTED FOR ACTUAL TABLE
 // ============================================================================
-// SIGNUP ENDPOINT with proper Supabase client initialization
+// SIGNUP ENDPOINT - Insert into 'user' table instead of 'profiles' view
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -78,25 +78,22 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] ✅ Validation passed')
 
     // ============================================================================
-    // SUPABASE CLIENT INITIALIZATION - FIXED VERSION
+    // SUPABASE CLIENT INITIALIZATION
     // ============================================================================
     
     console.log('[Auth/Signup] 🔌 Initializing Supabase client...')
     
     let supabase
     
-    // Try using serverSupabaseClient first (recommended for Nuxt)
     try {
       supabase = await serverSupabaseClient(event)
       console.log('[Auth/Signup] ✅ serverSupabaseClient initialized successfully')
     } catch (err: any) {
       console.error('[Auth/Signup] ⚠️ serverSupabaseClient failed:', err.message)
       
-      // Fallback: Create client directly with explicit environment variables
       try {
         const { createClient } = await import('@supabase/supabase-js')
         
-        // FIXED: Get environment variables with proper fallbacks
         const supabaseUrl = process.env.NUXT_PUBLIC_SUPABASE_URL
         const supabaseKey = process.env.NUXT_PUBLIC_SUPABASE_KEY
         
@@ -104,24 +101,13 @@ export default defineEventHandler(async (event) => {
         console.log('[Auth/Signup] URL exists:', !!supabaseUrl)
         console.log('[Auth/Signup] Key exists:', !!supabaseKey)
         
-        if (!supabaseUrl) {
-          const errorMsg = 'Supabase URL not configured'
-          console.error('[Auth/Signup] ❌', errorMsg)
-          console.error('[Auth/Signup] Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
-          throw createError({
-            statusCode: 500,
-            statusMessage: errorMsg,
-            data: { details: 'NUXT_PUBLIC_SUPABASE_URL environment variable is missing' }
-          })
-        }
-        
-        if (!supabaseKey) {
-          const errorMsg = 'Supabase API key not configured'
+        if (!supabaseUrl || !supabaseKey) {
+          const errorMsg = 'Supabase configuration missing'
           console.error('[Auth/Signup] ❌', errorMsg)
           throw createError({
             statusCode: 500,
             statusMessage: errorMsg,
-            data: { details: 'NUXT_PUBLIC_SUPABASE_KEY environment variable is missing' }
+            data: { details: 'SUPABASE_URL or SUPABASE_KEY not configured' }
           })
         }
         
@@ -145,7 +131,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!supabase) {
-      const errorMsg = 'Supabase client initialization failed'
+      const errorMsg = 'Supabase client is not initialized'
       console.error('[Auth/Signup] ❌', errorMsg)
       throw createError({
         statusCode: 500,
@@ -161,18 +147,17 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] 🔍 Checking username availability...')
     
     try {
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user')
         .select('username')
         .eq('username', username)
         .maybeSingle()
 
       if (checkError) {
         console.warn('[Auth/Signup] ⚠️ Username check error:', checkError.message)
-        // Continue anyway - table might not exist yet
       }
 
-      if (existingProfile) {
+      if (existingUser) {
         const errorMsg = 'Username already taken'
         console.log('[Auth/Signup] ❌', errorMsg, username)
         throw createError({
@@ -204,8 +189,7 @@ export default defineEventHandler(async (event) => {
       options: {
         data: {
           username,
-          full_name: fullName || '',
-          display_name: fullName || username
+          full_name: fullName || ''
         },
         emailRedirectTo: `${process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app'}/auth/verify-email`
       }
@@ -279,35 +263,48 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Signup] ✅ User account created:', authData.user.id)
 
     // ============================================================================
-    // CREATE USER PROFILE
+    // CREATE USER PROFILE - INSERT INTO 'user' TABLE
     // ============================================================================
     
     console.log('[Auth/Signup] 📋 Creating user profile...')
 
     try {
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('user')
         .insert({
-          id: authData.user.id,
+          user_id: authData.user.id,
           username,
-          email,
-          full_name: fullName || '',
           display_name: fullName || username,
+          email,
           bio: '',
           avatar_url: '',
-          email_verified: false,
-          profile_completed: false,
+          status: 'active',
+          email_lower: email.toLowerCase(),
+          username_lower: username.toLowerCase(),
+          posts_count: 0,
+          followers_count: 0,
+          following_count: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
 
       if (profileError) {
-        console.warn('[Auth/Signup] ⚠️ Profile creation warning:', profileError.message)
+        console.error('[Auth/Signup] ❌ Profile creation error:', profileError.message)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Failed to create user profile',
+          data: { details: profileError.message }
+        })
       } else {
-        console.log('[Auth/Signup] ✅ Profile created')
+        console.log('[Auth/Signup] ✅ Profile created successfully')
       }
     } catch (profileErr: any) {
-      console.warn('[Auth/Signup] ⚠️ Profile creation exception:', profileErr.message)
+      console.error('[Auth/Signup] ❌ Profile creation exception:', profileErr.message)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to create user profile',
+        data: { details: profileErr.message }
+      })
     }
 
     // ============================================================================
@@ -360,5 +357,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
-
