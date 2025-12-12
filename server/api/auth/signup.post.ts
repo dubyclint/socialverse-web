@@ -130,7 +130,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!supabase) {
-      const errorMsg = 'Supabase client is'
+      const errorMsg = 'Supabase client is not initialized'
       console.error('[Auth/Signup] ❌', errorMsg)
       throw createError({
         statusCode: 500,
@@ -239,9 +239,9 @@ export default defineEventHandler(async (event) => {
         })
       }
       
-      // Generic Supabase error
+      // Generic Supabase error - FIXED: Added 500 status code
       throw createError({
-        statusCode: ,
+        statusCode: 500,
         statusMessage: authError.message || 'Signup failed',
         data: { 
           details: authError.message,
@@ -318,7 +318,7 @@ export default defineEventHandler(async (event) => {
         username,
         full_name: fullName || ''
       },
-      token: authData.session?.access_token ||,
+      token: authData.session?.access_token || null,
       refreshToken: authData.session?.refresh_token || null,
       needsConfirmation,
       message: successMessage
@@ -337,12 +337,11 @@ export default defineEventHandler(async (event) => {
       throw error
     }
     
-    // Create generic error for unexpected issues
+    // Create a generic error response
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'An unexpected error occurred during signup',
-      data: { details: error.message, stack: error.stack }
+      statusMessage: 'An unexpected error occurred during signup',
+      data: { details: error.message }
     })
   }
 })
-
