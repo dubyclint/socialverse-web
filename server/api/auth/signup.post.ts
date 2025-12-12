@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - WITH DETAILED ERROR LOGGING
+// FILE: /server/api/auth/signup.post.ts - FINAL FIXED VERSION
 // ============================================================================
 // SIGNUP ENDPOINT with detailed error messages for debugging
 // ============================================================================
