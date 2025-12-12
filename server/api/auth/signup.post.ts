@@ -1,4 +1,4 @@
-// FILE: /server/api/auth/signup.post.ts - COMPLETELY FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - FINAL CORRECTED VERSION
 // ============================================================================
 // SIGNUP ENDPOINT with comprehensive error handling and validation
 // ============================================================================
@@ -248,7 +248,7 @@ export default defineEventHandler(async (event) => {
         username,
         full_name: fullName || ''
       },
-      token: authData.session?.access_token ||,
+      token: authData.session?.access_token || null,
       refreshToken: authData.session?.refresh_token || null,
       needsConfirmation,
       message: successMessage
@@ -271,4 +271,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
