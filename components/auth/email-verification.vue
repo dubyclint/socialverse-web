@@ -84,6 +84,7 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 const { verifyEmail, resendVerification } = useAuth()
 
 const token = ref('')
@@ -105,6 +106,8 @@ const handleManualVerification = async () => {
       success.value = 'Email verified successfully!'
       setTimeout(() => {
         emit('success')
+        // Also redirect to complete profile
+        router.push('/auth/complete-profile')
       }, 1500)
     } else {
       error.value = result.error || 'Verification failed'
@@ -149,15 +152,28 @@ const handleResendEmail = async () => {
   }
 }
 
-onMounted(() => {
-  // Check if token is in URL query
-  const tokenFromUrl = route.query.token as string
-  if (tokenFromUrl) {
-    token.value = tokenFromUrl
-    // Auto-verify
-    handleManualVerification()
-  } else {
+onMounted(async () => {
+  try {
+    // Check if token is in URL query (from email link)
+    const tokenFromUrl = route.query.token as string
+    const typeFromUrl = route.query.type as string
+    
+    console.log('[EmailVerification] Mounted with params:', {
+      hasToken: !!tokenFromUrl,
+      type: typeFromUrl
+    })
+
+    if (tokenFromUrl) {
+      token.value = tokenFromUrl
+      // Auto-verify with the token from URL
+      await handleManualVerification()
+    } else {
+      verifying.value = false
+    }
+  } catch (err: any) {
+    console.error('[EmailVerification] Mount error:', err)
     verifying.value = false
+    error.value = 'Failed to process verification'
   }
 })
 </script>
