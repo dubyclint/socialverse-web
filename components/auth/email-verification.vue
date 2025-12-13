@@ -100,20 +100,26 @@ const handleManualVerification = async () => {
   loading.value = true
 
   try {
+    console.log('[EmailVerification] Verifying token...')
     const result = await verifyEmail(token.value)
 
     if (result.success) {
       success.value = 'Email verified successfully!'
+      console.log('[EmailVerification] ✅ Verification successful')
+      
       setTimeout(() => {
+        console.log('[EmailVerification] Emitting success and redirecting...')
         emit('success')
-        // Also redirect to complete profile
+        // Redirect to complete profile
         router.push('/auth/complete-profile')
       }, 1500)
     } else {
       error.value = result.error || 'Verification failed'
+      console.error('[EmailVerification] ✗ Verification failed:', error.value)
     }
   } catch (err: any) {
     error.value = err.message || 'An error occurred'
+    console.error('[EmailVerification] ✗ Exception:', error.value)
   } finally {
     loading.value = false
   }
@@ -127,14 +133,18 @@ const handleResendEmail = async () => {
   try {
     const email = route.query.email as string
     if (!email) {
-      error.value = 'Email not found'
+      error.value = 'Email not found in URL'
+      console.warn('[EmailVerification] Email not found in query params')
       return
     }
 
+    console.log('[EmailVerification] Resending verification email to:', email)
     const result = await resendVerification(email)
 
     if (result.success) {
-      success.value = 'Verification email sent!'
+      success.value = 'Verification email sent! Check your inbox.'
+      console.log('[EmailVerification] ✅ Email resent successfully')
+      
       resendCooldown.value = 60
       const interval = setInterval(() => {
         resendCooldown.value--
@@ -144,9 +154,11 @@ const handleResendEmail = async () => {
       }, 1000)
     } else {
       error.value = result.error || 'Failed to resend email'
+      console.error('[EmailVerification] ✗ Resend failed:', error.value)
     }
   } catch (err: any) {
     error.value = err.message || 'An error occurred'
+    console.error('[EmailVerification] ✗ Exception:', error.value)
   } finally {
     loading.value = false
   }
@@ -154,20 +166,29 @@ const handleResendEmail = async () => {
 
 onMounted(async () => {
   try {
-    // Check if token is in URL query (from email link)
-    const tokenFromUrl = route.query.token as string
-    const typeFromUrl = route.query.type as string
+    console.log('[EmailVerification] Component mounted')
+    console.log('[EmailVerification] Route query params:', route.query)
+
+    // Check multiple possible parameter names for the token
+    const tokenFromUrl = (route.query.token as string) 
+      || (route.query.code as string) 
+      || (route.query.access_token as string)
     
-    console.log('[EmailVerification] Mounted with params:', {
+    const typeFromUrl = route.query.type as string
+
+    console.log('[EmailVerification] Token extraction:', {
       hasToken: !!tokenFromUrl,
-      type: typeFromUrl
+      type: typeFromUrl,
+      tokenLength: tokenFromUrl?.length || 0
     })
 
     if (tokenFromUrl) {
       token.value = tokenFromUrl
+      console.log('[EmailVerification] Found token in URL, auto-verifying...')
       // Auto-verify with the token from URL
       await handleManualVerification()
     } else {
+      console.log('[EmailVerification] No token in URL, showing manual entry form')
       verifying.value = false
     }
   } catch (err: any) {
