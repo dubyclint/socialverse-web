@@ -9,6 +9,28 @@
 
       <!-- Email Verification Component -->
       <EmailVerification @success="handleVerificationSuccess" />
+
+      <!-- Back Button / Help Link -->
+      <div class="text-center mt-6 space-y-3">
+        <p class="text-slate-400 text-sm">
+          Having trouble?
+        </p>
+        <div class="flex gap-4 justify-center">
+          <NuxtLink 
+            to="/auth/signin" 
+            class="text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            ← Back to Sign In
+          </NuxtLink>
+          <span class="text-slate-600">•</span>
+          <NuxtLink 
+            to="/auth/signup" 
+            class="text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            Create New Account
+          </NuxtLink>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -20,11 +42,15 @@ definePageMeta({
 })
 
 const router = useRouter()
-const route = useRoute()
 
+/**
+ * Handle successful email verification
+ * The component will handle the redirect, but we can add additional logic here if needed
+ */
 const handleVerificationSuccess = () => {
-  // Redirect to profile completion
-  router.push('/auth/complete-profile')
+  console.log('[VerifyEmailPage] Email verification successful')
+  // The component already redirects to /auth/complete-profile
+  // This is just a callback in case we need to do anything else
 }
 </script>
 
