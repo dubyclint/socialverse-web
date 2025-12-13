@@ -1,6 +1,7 @@
-// FILE: /composables/use-auth.ts - COMPLETE FIXED VERSION
+// FILE: /composables/use-auth.ts - COMPLETE FIXED VERSION WITH resendVerification
 // ============================================================================
 // ✅ FIXED: Proper token management, user storage, and detailed error handling
+// ✅ ADDED: resendVerification function for email verification resend
 // ============================================================================
 
 import { ref, computed } from 'vue'
@@ -244,6 +245,8 @@ export const useAuth = () => {
     error.value = ''
 
     try {
+      console.log('[useAuth] Verifying email with token...')
+
       const result = await $fetch('/api/auth/verify-email', {
         method: 'POST',
         body: { token }
@@ -259,6 +262,41 @@ export const useAuth = () => {
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Email verification failed:', errorMessage)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Resend verification email - NEW FUNCTION
+   */
+  const resendVerification = async (email: string) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      console.log('[useAuth] Resending verification email for:', email)
+
+      const result = await $fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        body: { email }
+      })
+
+      console.log('[useAuth] Resend verification response:', result)
+
+      if (result?.success) {
+        console.log('[useAuth] ✅ Verification email resent')
+        return { success: true, message: result.message }
+      }
+
+      throw new Error(result?.error || 'Failed to resend verification email')
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Resend verification failed:', errorMessage)
+      console.error('[useAuth] Full error:', err)
       error.value = errorMessage
       return { success: false, error: errorMessage }
     } finally {
@@ -391,10 +429,10 @@ export const useAuth = () => {
     logout,
     refreshToken,
     verifyEmail,
+    resendVerification,
     forgotPassword,
     resetPassword,
     checkUsername,
     initAuth
   }
-}
-
+    }
