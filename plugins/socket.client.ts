@@ -33,7 +33,6 @@ let socketState: SocketState = {
 
 export default defineNuxtPlugin(() => {
   const router = useRouter()
-  const auth = useAuth()
 
   return {
     provide: {
@@ -50,9 +49,13 @@ export default defineNuxtPlugin(() => {
 
             console.log('[Socket.IO Client] 🚀 Connecting to Socket.IO server...')
 
-            // Get authentication token
-            const { data: { session } } = await auth.getSession()
-            const token = session?.access_token
+            // Get authentication token from Supabase
+            const { data: { session } } = await useAsyncData('session', async () => {
+              const supabase = useSupabaseClient()
+              return await supabase.auth.getSession()
+            })
+
+            const token = session?.value?.session?.access_token
 
             if (!token) {
               console.warn('[Socket.IO Client] ⚠️ No authentication token available')
@@ -108,7 +111,6 @@ export default defineNuxtPlugin(() => {
             // ============================================================================
             socketInstance.on('chat:user-joined', (data: any) => {
               console.log('[Socket.IO Client] User joined chat:', data.email)
-              // Emit custom event for components to listen to
               window.dispatchEvent(new CustomEvent('socket:chat:user-joined', { detail: data }))
             })
 
