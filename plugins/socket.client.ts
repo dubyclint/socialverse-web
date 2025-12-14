@@ -3,11 +3,12 @@
 // ============================================================================
 // Features:
 // - Automatic connection management
-// - Token-based authentication
+// - Token-based authentication with Supabase
 // - Reconnection with exponential backoff
 // - Event listeners for all real-time features
 // - Error handling and logging
 // - Type-safe event emitters
+// - Async plugin initialization
 // ============================================================================
 
 import { io, Socket } from 'socket.io-client'
@@ -31,7 +32,7 @@ let socketState: SocketState = {
   authenticated: false
 }
 
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin(async (nuxtApp) => {
   const router = useRouter()
 
   return {
@@ -50,18 +51,24 @@ export default defineNuxtPlugin(() => {
             console.log('[Socket.IO Client] 🚀 Connecting to Socket.IO server...')
 
             // Get authentication token from Supabase
-            const { data: { session } } = await useAsyncData('session', async () => {
-              const supabase = useSupabaseClient()
-              return await supabase.auth.getSession()
-            })
+            const supabase = useSupabaseClient()
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-            const token = session?.value?.session?.access_token
+            if (sessionError) {
+              console.warn('[Socket.IO Client] ⚠️ Session error:', sessionError.message)
+              socketState.error = 'Session error: ' + sessionError.message
+              return null
+            }
+
+            const token = session?.access_token
 
             if (!token) {
               console.warn('[Socket.IO Client] ⚠️ No authentication token available')
               socketState.error = 'No authentication token'
               return null
             }
+
+            console.log('[Socket.IO Client] ✅ Token obtained, connecting...')
 
             const socketUrl = useRuntimeConfig().public.socketUrl || window.location.origin
 
