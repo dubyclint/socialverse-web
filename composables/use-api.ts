@@ -242,6 +242,46 @@ export const useApi = () => {
         console.error('[API] ❌ Error deleting post:', error)
         return null
       }
+    },
+
+    /**
+     * Like a post
+     */
+    async likePost(postId: string) {
+      try {
+        const userId = getUserId()
+        console.log('[API] Liking post:', postId)
+        
+        const response = await $fetch(`/api/posts/${postId}/like`, {
+          method: 'POST',
+          body: { user_id: userId }
+        })
+        console.log('[API] ✅ Post liked successfully')
+        return response
+      } catch (error) {
+        console.error('[API] ❌ Error liking post:', error)
+        return null
+      }
+    },
+
+    /**
+     * Unlike a post
+     */
+    async unlikePost(postId: string) {
+      try {
+        const userId = getUserId()
+        console.log('[API] Unliking post:', postId)
+        
+        const response = await $fetch(`/api/posts/${postId}/unlike`, {
+          method: 'POST',
+          body: { user_id: userId }
+        })
+        console.log('[API] ✅ Post unliked successfully')
+        return response
+      } catch (error) {
+        console.error('[API] ❌ Error unliking post:', error)
+        return null
+      }
     }
   }
 
@@ -357,7 +397,7 @@ export const useApi = () => {
   }
 
   // ============================================================================
-  // RETURN ALL OPERATIONS
+  // RETURN ALL OPERATIONS - NO EXTRA CLOSING BRACE
   // ============================================================================
   return {
     profile,
@@ -366,7 +406,6 @@ export const useApi = () => {
     admin,
     stream,
     wallet,
-    // Helper function for manual user ID retrieval
     getUserId
   }
 }
