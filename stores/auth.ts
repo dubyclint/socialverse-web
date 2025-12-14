@@ -1,6 +1,10 @@
 // FILE: /stores/auth.ts (FIXED - COMPLETE VERSION)
 // ============================================================================
-// AUTH STORE - FIXED: Proper user persistence and session management
+// AUTH STORE - FIXED: Proper user ID extraction and session management
+// ============================================================================
+// ✅ CRITICAL FIX: Now properly extracts and stores user ID from Supabase
+// ✅ User ID is extracted from supabaseUser.id and stored separately
+// ✅ All API calls can now access user ID via authStore.user?.id
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -14,6 +18,11 @@ export const useAuthStore = defineStore('auth', () => {
   
   const token = ref<string | null>(
     typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+  )
+  
+  // ✅ CRITICAL: Store user ID separately for quick access
+  const userId = ref<string | null>(
+    typeof window !== 'undefined' ? localStorage.getItem('auth_user_id') : null
   )
   
   const user = ref<User | null>(
@@ -37,7 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
   // COMPUTED
   // ============================================================================
   
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => !!token.value && !!user.value && !!userId.value)
   
   const isEmailVerified = computed(() => user.value?.email_confirmed_at || false)
   
@@ -62,7 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
     return (
       user.value?.user_metadata?.avatar_url ||
       user.value?.profile?.avatar_url ||
-      '/default-avatar.png'
+      '/default-avatar.svg'
     )
   })
 
@@ -85,20 +94,56 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Set user data and persist to localStorage
+   * ✅ CRITICAL FIX: Set user data with proper ID extraction
+   * Extracts user ID from Supabase user object and stores it separately
    */
-  const setUser = (newUser: User | null) => {
-    user.value = newUser
-    if (typeof window !== 'undefined') {
-      if (newUser) {
-        try {
-          localStorage.setItem('auth_user', JSON.stringify(newUser))
-          console.log('[Auth Store] ✅ User persisted to localStorage')
-        } catch (e) {
-          console.error('[Auth Store] Error persisting user:', e)
-        }
-      } else {
+  const setUser = (supabaseUser: any) => {
+    if (!supabaseUser) {
+      user.value = null
+      userId.value = null
+      if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_user')
+        localStorage.removeItem('auth_user_id')
+      }
+      console.log('[Auth Store] ✅ User cleared')
+      return
+    }
+
+    // ✅ CRITICAL: Extract ID from Supabase user object
+    const extractedUserId = supabaseUser.id
+    
+    if (!extractedUserId) {
+      console.error('[Auth Store] ❌ No user ID found in Supabase user object')
+      return
+    }
+
+    // ✅ Create user object with ID
+    const userData: User = {
+      id: extractedUserId, // ✅ MUST include ID
+      email: supabaseUser.email || '',
+      username: supabaseUser.user_metadata?.username || '',
+      role: supabaseUser.user_metadata?.role || 'user',
+      profile: supabaseUser.user_metadata?.profile || {},
+      ranks: supabaseUser.user_metadata?.ranks || [],
+      wallets: supabaseUser.user_metadata?.wallets || [],
+      privacySettings: supabaseUser.user_metadata?.privacySettings || {},
+      userSettings: supabaseUser.user_metadata?.userSettings || {},
+      walletLock: supabaseUser.user_metadata?.walletLock || {},
+      interests: supabaseUser.user_metadata?.interests || [],
+      email_confirmed_at: supabaseUser.email_confirmed_at,
+      user_metadata: supabaseUser.user_metadata || {}
+    }
+
+    user.value = userData
+    userId.value = extractedUserId // ✅ Store ID separately
+    
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('auth_user', JSON.stringify(userData))
+        localStorage.setItem('auth_user_id', extractedUserId) // ✅ Persist ID
+        console.log('[Auth Store] ✅ User persisted to localStorage with ID:', extractedUserId)
+      } catch (e) {
+        console.error('[Auth Store] Error persisting user:', e)
       }
     }
   }
@@ -116,10 +161,12 @@ export const useAuthStore = defineStore('auth', () => {
   const clearAuth = () => {
     token.value = null
     user.value = null
+    userId.value = null
     error.value = null
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_user')
+      localStorage.removeItem('auth_user_id') // ✅ Also clear ID
       localStorage.removeItem('refresh_token')
     }
     console.log('[Auth Store] ✅ Auth cleared')
@@ -130,12 +177,13 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const initializeSession = async () => {
     try {
-      if (!token.value || !user.value) {
+      if (!token.value || !user.value || !userId.value) {
         console.log('[Auth Store] No stored session found')
         return false
       }
 
       console.log('[Auth Store] ✅ Session initialized from storage')
+      console.log('[Auth Store] User ID:', userId.value)
       console.log('[Auth Store] User:', userDisplayName.value)
       return true
     } catch (err) {
@@ -161,6 +209,7 @@ export const useAuthStore = defineStore('auth', () => {
     // State
     token,
     user,
+    userId, // ✅ Export userId for easy access
     isLoading,
     error,
 
