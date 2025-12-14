@@ -1,9 +1,7 @@
+// FILE: /plugins/supabase-client.ts (COMPLETE FIXED VERSION)
 // ============================================================================
-// FILE: /plugins/supabase-client.ts
+// SUPABASE CLIENT PLUGIN - FIXED: Proper initialization and error handling
 // ============================================================================
-// ✅ FIXED - CLIENT-SIDE SUPABASE INITIALIZATION
-// Root Cause Fix: Disable detectSessionInUrl to prevent history.state error
-// This error occurs because Supabase tries to manipulate window.history during SSR
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
@@ -54,37 +52,17 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     }
 
     // ✅ CRITICAL FIX: Disable detectSessionInUrl to prevent history.state error
-    // This option causes Supabase to try to manipulate window.history which fails during SSR
     const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
       auth: {
+        detectSessionInUrl: false,
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,  // ✅ FIXED: Changed from true to false
-        flowType: 'pkce',           // ✅ ADDED: Use PKCE flow for better security
-      },
-      global: {
-        headers: {
-          'X-Client-Info': 'socialverse-web',
-        },
-      },
-    })
-
-    console.log('[Supabase Plugin] ✅ Supabase client initialized successfully (client-side only)')
-
-    // ✅ ADDED: Handle auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[Supabase Plugin] Auth state changed:', event)
-      
-      if (event === 'SIGNED_IN') {
-        console.log('[Supabase Plugin] User signed in')
-      } else if (event === 'SIGNED_OUT') {
-        console.log('[Supabase Plugin] User signed out')
-      } else if (event === 'TOKEN_REFRESHED') {
-        console.log('[Supabase Plugin] Token refreshed')
+        flowType: 'pkce'
       }
     })
 
-    // Provide to app with error handling
+    console.log('[Supabase Plugin] ✅ Supabase client initialized successfully')
+
     return {
       provide: {
         supabase,
@@ -92,17 +70,14 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         supabaseError: null,
       },
     }
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error))
-    console.error('[Supabase Plugin] ❌ Failed to initialize:', err.message)
-    console.error('[Supabase Plugin] Error Stack:', err.stack)
+  } catch (error: any) {
+    console.error('[Supabase Plugin] ❌ Fatal error during initialization:', error.message)
     
-    // Provide error state to prevent crashes
     return {
       provide: {
         supabase: null,
         supabaseReady: false,
-        supabaseError: err,
+        supabaseError: error,
       },
     }
   }
