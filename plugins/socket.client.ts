@@ -1,4 +1,4 @@
-// FILE: /plugins/socket.client.ts (FIXED - COMPLETE VERSION)
+// FILE: /plugins/socket.client.ts (FIXED - COMPLETE VERSION WITH PROPER CLOSING)
 // ============================================================================
 // SOCKET.IO CLIENT PLUGIN - FIXED: Wait for auth before connecting
 // ============================================================================
@@ -492,4 +492,5 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         }
       }
     }
-            }
+  }
+})
