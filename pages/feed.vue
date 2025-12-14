@@ -1,4 +1,4 @@
-<!-- FILE: /pages/feed.vue (REFACTORED) -->
+<!-- FIXED: /pages/feed.vue -->
 <template>
   <div class="feed-page">
     <!-- Header -->
@@ -122,7 +122,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useAuthStore } from '~/stores/auth'
 
 interface Post {
   id: string
@@ -157,11 +158,16 @@ interface SuggestedUser {
   avatar: string
 }
 
+// Initialize auth store
+const authStore = useAuthStore()
+
+// Get current user data from auth store
+const currentUserName = computed(() => authStore.userDisplayName || 'You')
+const currentUserAvatar = computed(() => authStore.userAvatar || '/default-avatar.png')
+
 const showCreatePostModal = ref(false)
 const isLoading = ref(false)
 const newPostContent = ref('')
-const currentUserName = 'You'
-const currentUserAvatar = '/default-avatar.png'
 
 const posts = reactive<Post[]>([
   {
@@ -228,10 +234,10 @@ const submitPost = () => {
   const newPost: Post = {
     id: Date.now().toString(),
     author: {
-      id: '1',
-      name: currentUserName,
-      username: 'yourname',
-      avatar: currentUserAvatar,
+      id: authStore.user?.id || '1',
+      name: currentUserName.value,
+      username: authStore.user?.user_metadata?.username || 'yourname',
+      avatar: currentUserAvatar.value,
       verified: false
     },
     content: newPostContent.value,
@@ -247,6 +253,13 @@ const submitPost = () => {
   newPostContent.value = ''
   showCreatePostModal.value = false
 }
+
+// Load user data on component mount
+onMounted(() => {
+  console.log('Feed page mounted')
+  console.log('Current user:', authStore.userDisplayName)
+  console.log('Current avatar:', authStore.userAvatar)
+})
 </script>
 
 <style scoped>
@@ -471,21 +484,17 @@ const submitPost = () => {
 
 .empty-state h3 {
   margin: 1rem 0 0.5rem;
-  color: white;
-}
-
-.empty-state p {
-  margin: 0;
+  color: #e2e8f0;
 }
 
 /* Right Sidebar */
 .right-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
   position: sticky;
   top: 80px;
   height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .sidebar-card {
@@ -499,11 +508,10 @@ const submitPost = () => {
   margin: 0 0 1rem;
   color: white;
   font-size: 1.1rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.trending-list,
-.suggestions-list {
+.trending-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -522,22 +530,28 @@ const submitPost = () => {
 
 .trend-category {
   margin: 0;
-  color: #94a3b8;
-  font-size: 0.8rem;
+  color: #64748b;
+  font-size: 0.85rem;
   text-transform: uppercase;
 }
 
 .trend-title {
   margin: 0.25rem 0;
-  color: white;
+  color: #e2e8f0;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
 .trend-count {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .suggestion-item {
@@ -568,8 +582,8 @@ const submitPost = () => {
 
 .suggestion-name {
   margin: 0;
-  color: white;
-  font-size: 0.9rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -578,8 +592,8 @@ const submitPost = () => {
 
 .suggestion-handle {
   margin: 0.25rem 0 0;
-  color: #94a3b8;
-  font-size: 0.8rem;
+  color: #64748b;
+  font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -616,7 +630,6 @@ const submitPost = () => {
 @media (max-width: 768px) {
   .feed-container {
     grid-template-columns: 1fr;
-    gap: 1rem;
     padding: 1rem;
   }
 
@@ -624,12 +637,8 @@ const submitPost = () => {
     display: none;
   }
 
-  .create-post-card {
-    padding: 0.75rem;
-  }
-
-  .create-post-input {
-    font-size: 0.9rem;
+  .feed-main {
+    padding-top: 60px;
   }
 }
 </style>
