@@ -1,10 +1,6 @@
-// FILE: /stores/auth.ts (FIXED - COMPLETE VERSION)
+// FILE: /stores/auth.ts (COMPLETE FIXED VERSION)
 // ============================================================================
 // AUTH STORE - FIXED: Proper user ID extraction and session management
-// ============================================================================
-// ✅ CRITICAL FIX: Now properly extracts and stores user ID from Supabase
-// ✅ User ID is extracted from supabaseUser.id and stored separately
-// ✅ All API calls can now access user ID via authStore.user?.id
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -50,182 +46,116 @@ export const useAuthStore = defineStore('auth', () => {
   
   const isEmailVerified = computed(() => user.value?.email_confirmed_at || false)
   
-  const isProfileCompleted = computed(() => {
-    return user.value && (
-      user.value.user_metadata?.username || 
-      user.value.profile?.username
-    )
-  })
-  
-  const userDisplayName = computed(() => {
-    return (
-      user.value?.user_metadata?.full_name ||
-      user.value?.profile?.full_name ||
-      user.value?.user_metadata?.username ||
-      user.value?.email?.split('@')[0] ||
-      'User'
-    )
-  })
-  
-  const userAvatar = computed(() => {
-    return (
-      user.value?.user_metadata?.avatar_url ||
-      user.value?.profile?.avatar_url ||
-      '/default-avatar.svg'
-    )
-  })
+  const isProfileComplete = computed(() => user.value?.user_metadata?.profile_completed || false)
 
   // ============================================================================
-  // METHODS
+  // ACTIONS
   // ============================================================================
 
   /**
-   * Set authentication token
+   * ✅ CRITICAL: Set token and persist to localStorage
    */
   const setToken = (newToken: string | null) => {
     token.value = newToken
-    if (typeof window !== 'undefined') {
-      if (newToken) {
-        localStorage.setItem('auth_token', newToken)
-      } else {
-        localStorage.removeItem('auth_token')
-      }
+    if (newToken) {
+      localStorage.setItem('auth_token', newToken)
+    } else {
+      localStorage.removeItem('auth_token')
     }
+    console.log('[Auth Store] Token updated')
   }
 
   /**
-   * ✅ CRITICAL FIX: Set user data with proper ID extraction
-   * Extracts user ID from Supabase user object and stores it separately
+   * ✅ CRITICAL: Set user and extract ID
    */
-  const setUser = (supabaseUser: any) => {
-    if (!supabaseUser) {
+  const setUser = (newUser: any) => {
+    if (!newUser) {
       user.value = null
       userId.value = null
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_user')
-        localStorage.removeItem('auth_user_id')
-      }
-      console.log('[Auth Store] ✅ User cleared')
+      localStorage.removeItem('auth_user')
+      localStorage.removeItem('auth_user_id')
       return
     }
 
-    // ✅ CRITICAL: Extract ID from Supabase user object
-    const extractedUserId = supabaseUser.id
+    // ✅ CRITICAL: Extract user ID from Supabase user object
+    const extractedId = newUser.id || newUser.user_id
     
-    if (!extractedUserId) {
-      console.error('[Auth Store] ❌ No user ID found in Supabase user object')
+    if (!extractedId) {
+      console.error('[Auth Store] ❌ No user ID found in user object')
       return
     }
 
     // ✅ Create user object with ID
-    const userData: User = {
-      id: extractedUserId, // ✅ MUST include ID
-      email: supabaseUser.email || '',
-      username: supabaseUser.user_metadata?.username || '',
-      role: supabaseUser.user_metadata?.role || 'user',
-      profile: supabaseUser.user_metadata?.profile || {},
-      ranks: supabaseUser.user_metadata?.ranks || [],
-      wallets: supabaseUser.user_metadata?.wallets || [],
-      privacySettings: supabaseUser.user_metadata?.privacySettings || {},
-      userSettings: supabaseUser.user_metadata?.userSettings || {},
-      walletLock: supabaseUser.user_metadata?.walletLock || {},
-      interests: supabaseUser.user_metadata?.interests || [],
-      email_confirmed_at: supabaseUser.email_confirmed_at,
-      user_metadata: supabaseUser.user_metadata || {}
+    const userObj: User = {
+      id: extractedId,
+      email: newUser.email,
+      full_name: newUser.user_metadata?.full_name || null,
+      username: newUser.user_metadata?.username || null,
+      avatar_url: newUser.user_metadata?.avatar_url || null,
+      bio: newUser.user_metadata?.bio || null,
+      email_confirmed_at: newUser.email_confirmed_at,
+      user_metadata: newUser.user_metadata || {},
+      profile: newUser.user_metadata?.profile || null
     }
 
-    user.value = userData
-    userId.value = extractedUserId // ✅ Store ID separately
-    
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('auth_user', JSON.stringify(userData))
-        localStorage.setItem('auth_user_id', extractedUserId) // ✅ Persist ID
-        console.log('[Auth Store] ✅ User persisted to localStorage with ID:', extractedUserId)
-      } catch (e) {
-        console.error('[Auth Store] Error persisting user:', e)
-      }
-    }
+    user.value = userObj
+    userId.value = extractedId
+
+    // ✅ Persist to localStorage
+    localStorage.setItem('auth_user', JSON.stringify(userObj))
+    localStorage.setItem('auth_user_id', extractedId)
+
+    console.log('[Auth Store] ✅ User persisted to localStorage with ID:', extractedId)
   }
 
   /**
-   * Set error message
-   */
-  const setError = (errorMsg: string | null) => {
-    error.value = errorMsg
-  }
-
-  /**
-   * Clear all authentication data
+   * Clear authentication
    */
   const clearAuth = () => {
     token.value = null
     user.value = null
     userId.value = null
     error.value = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
-      localStorage.removeItem('auth_user_id') // ✅ Also clear ID
-      localStorage.removeItem('refresh_token')
-    }
+    
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+    localStorage.removeItem('auth_user_id')
+    
     console.log('[Auth Store] ✅ Auth cleared')
   }
 
   /**
-   * Initialize session from stored token and user
+   * Set error
    */
-  const initializeSession = async () => {
-    try {
-      if (!token.value || !user.value || !userId.value) {
-        console.log('[Auth Store] No stored session found')
-        return false
-      }
-
-      console.log('[Auth Store] ✅ Session initialized from storage')
-      console.log('[Auth Store] User ID:', userId.value)
-      console.log('[Auth Store] User:', userDisplayName.value)
-      return true
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Session initialization failed'
-      console.error('[Auth Store] Session init error:', errorMsg)
-      setError(errorMsg)
-      return false
-    }
+  const setError = (err: string | null) => {
+    error.value = err
   }
 
   /**
-   * Update user profile data (partial update)
+   * Set loading
    */
-  const updateUserProfile = (updates: Partial<User>) => {
-    if (user.value) {
-      user.value = { ...user.value, ...updates }
-      setUser(user.value)
-      console.log('[Auth Store] ✅ User profile updated')
-    }
+  const setLoading = (loading: boolean) => {
+    isLoading.value = loading
   }
 
   return {
     // State
     token,
     user,
-    userId, // ✅ Export userId for easy access
+    userId,
     isLoading,
     error,
-
+    
     // Computed
     isAuthenticated,
     isEmailVerified,
-    isProfileCompleted,
-    userDisplayName,
-    userAvatar,
-
-    // Methods
+    isProfileComplete,
+    
+    // Actions
     setToken,
     setUser,
-    setError,
     clearAuth,
-    initializeSession,
-    updateUserProfile
+    setError,
+    setLoading
   }
 })
