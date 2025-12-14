@@ -1,10 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- Background -->
-  <rect width="200" height="200" fill="#e5e7eb"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
   
-  <!-- User head circle -->
-  <circle cx="100" cy="70" r="35" fill="#9ca3af"/>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="100" fill="url(#grad1)"/>
   
-  <!-- User body -->
-  <path d="M 50 150 Q 50 120 100 120 Q 150 120 150 150 L 150 200 L 50 200 Z" fill="#9ca3af"/>
+  <!-- Head -->
+  <circle cx="100" cy="70" r="35" fill="white" opacity="0.9"/>
+  
+  <!-- Body -->
+  <ellipse cx="100" cy="140" rx="40" ry="45" fill="white" opacity="0.9"/>
+  
+  <!-- Shadow/depth -->
+  <circle cx="100" cy="100" r="100" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
 </svg>
