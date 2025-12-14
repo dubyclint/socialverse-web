@@ -1,5 +1,4 @@
-// FILE:
-/server/api/follows/[userId].post.ts
+// FILE: /server/api/follows/[userId].post.ts
 // ============================================================================
 // FOLLOW/UNFOLLOW USER - PRODUCTION READY
 // ============================================================================
