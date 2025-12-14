@@ -1,114 +1,134 @@
-<!-- FILE: /components/feed/UserProfileCard.vue -->
+<!-- FILE: /components/feed/UserProfileCard.vue (FIXED) -->
 <template>
   <aside class="user-profile-card">
-    <!-- Avatar Section with Edit -->
-    <div class="avatar-section">
-      <div class="avatar-container">
-        <img 
-          v-if="user.avatar" 
-          :src="user.avatar" 
-          :alt="user.name"
-          class="avatar-image"
-        />
-        <div v-else class="avatar-placeholder">
-          {{ user.name?.charAt(0) || 'U' }}
-        </div>
-        <button 
-          class="avatar-edit-btn"
-          @click="showAvatarUpload = true"
-          title="Change profile picture"
-        >
-          <Icon name="camera" size="16" />
-        </button>
-      </div>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading profile...</p>
+    </div>
 
-      <!-- Avatar Upload Modal -->
-      <div v-if="showAvatarUpload" class="modal-overlay" @click="showAvatarUpload = false">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3>Update Profile Picture</h3>
-            <button class="close-btn" @click="showAvatarUpload = false">
-              <Icon name="x" size="20" />
-            </button>
+    <!-- Profile Content -->
+    <div v-else-if="user">
+      <!-- Avatar Section with Edit -->
+      <div class="avatar-section">
+        <div class="avatar-container">
+          <img 
+            v-if="user.avatar" 
+            :src="user.avatar" 
+            :alt="user.name"
+            class="avatar-image"
+          />
+          <div v-else class="avatar-placeholder">
+            {{ user.name?.charAt(0) || 'U' }}
           </div>
-          <div class="modal-body">
-            <ProfileAvatarUpload @uploaded="handleAvatarUpload" />
+          <button 
+            class="avatar-edit-btn"
+            @click="showAvatarUpload = true"
+            title="Change profile picture"
+          >
+            <Icon name="camera" size="16" />
+          </button>
+        </div>
+
+        <!-- Avatar Upload Modal -->
+        <div v-if="showAvatarUpload" class="modal-overlay" @click="showAvatarUpload = false">
+          <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h3>Update Profile Picture</h3>
+              <button class="close-btn" @click="showAvatarUpload = false">
+                <Icon name="x" size="20" />
+              </button>
+            </div>
+            <div class="modal-body">
+              <ProfileAvatarUpload @uploaded="handleAvatarUpload" />
+            </div>
           </div>
+        </div>
+      </div>
+
+      <!-- User Info -->
+      <div class="user-info">
+        <h2 class="user-name">{{ user.name }}</h2>
+        <p class="user-username">@{{ user.username }}</p>
+        <p v-if="user.bio" class="user-bio">{{ user.bio }}</p>
+      </div>
+
+      <!-- User Stats -->
+      <div class="user-stats">
+        <div class="stat">
+          <span class="stat-value">{{ userStats.followers }}</span>
+          <span class="stat-label">Followers</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ userStats.following }}</span>
+          <span class="stat-label">Following</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ userStats.posts }}</span>
+          <span class="stat-label">Posts</span>
+        </div>
+      </div>
+
+      <!-- Verification Badge -->
+      <div v-if="user.verified" class="verification-badge">
+        <Icon name="check-circle" size="16" />
+        <span>Verified</span>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <NuxtLink to="/profile" class="action-btn primary">
+          <Icon name="user" size="16" />
+          View Profile
+        </NuxtLink>
+        <NuxtLink to="/settings" class="action-btn secondary">
+          <Icon name="settings" size="16" />
+          Settings
+        </NuxtLink>
+      </div>
+
+      <!-- Divider -->
+      <div class="divider"></div>
+
+      <!-- Additional Info -->
+      <div class="additional-info">
+        <div v-if="user.location" class="info-item">
+          <Icon name="map-pin" size="16" />
+          <span>{{ user.location }}</span>
+        </div>
+        <div v-if="user.website" class="info-item">
+          <Icon name="link" size="16" />
+          <a :href="user.website" target="_blank" rel="noopener">
+            {{ formatUrl(user.website) }}
+          </a>
+        </div>
+        <div class="info-item">
+          <Icon name="calendar" size="16" />
+          <span>Joined {{ formatDate(user.createdAt) }}</span>
         </div>
       </div>
     </div>
 
-    <!-- User Info -->
-    <div class="user-info">
-      <h2 class="user-name">{{ user.name }}</h2>
-      <p class="user-username">@{{ user.username }}</p>
-      <p v-if="user.bio" class="user-bio">{{ user.bio }}</p>
-    </div>
-
-    <!-- User Stats -->
-    <div class="user-stats">
-      <div class="stat">
-        <span class="stat-value">{{ userStats.followers }}</span>
-        <span class="stat-label">Followers</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value">{{ userStats.following }}</span>
-        <span class="stat-label">Following</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value">{{ userStats.posts }}</span>
-        <span class="stat-label">Posts</span>
-      </div>
-    </div>
-
-    <!-- Verification Badge -->
-    <div v-if="user.verified" class="verification-badge">
-      <Icon name="check-circle" size="16" />
-      <span>Verified</span>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-      <NuxtLink to="/profile" class="action-btn primary">
-        <Icon name="user" size="16" />
-        View Profile
-      </NuxtLink>
-      <NuxtLink to="/settings" class="action-btn secondary">
-        <Icon name="settings" size="16" />
-        Settings
-      </NuxtLink>
-    </div>
-
-    <!-- Divider -->
-    <div class="divider"></div>
-
-    <!-- Additional Info -->
-    <div class="additional-info">
-      <div v-if="user.location" class="info-item">
-        <Icon name="map-pin" size="16" />
-        <span>{{ user.location }}</span>
-      </div>
-      <div v-if="user.website" class="info-item">
-        <Icon name="link" size="16" />
-        <a :href="user.website" target="_blank" rel="noopener">
-          {{ formatUrl(user.website) }}
-        </a>
-      </div>
-      <div class="info-item">
-        <Icon name="calendar" size="16" />
-        <span>Joined {{ formatDate(user.createdAt) }}</span>
-      </div>
+    <!-- Error State -->
+    <div v-else class="error-state">
+      <Icon name="alert-circle" size="48" />
+      <h3>Profile Not Found</h3>
+      <p>Unable to load your profile. Please try again.</p>
+      <button class="retry-btn" @click="loadUserProfile">
+        Retry
+      </button>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 
 interface User {
   id: string
   name: string
   username: string
+  email: string
   avatar?: string
   bio?: string
   verified: boolean
@@ -123,28 +143,66 @@ interface UserStats {
   posts: number
 }
 
+const authStore = useAuthStore()
 const showAvatarUpload = ref(false)
+const isLoading = ref(true)
 
-const user = reactive<User>({
-  id: '1',
-  name: 'John Doe',
-  username: 'johndoe',
-  avatar: '/default-avatar.png',
-  bio: 'Web developer & tech enthusiast',
-  verified: true,
-  location: 'San Francisco, CA',
-  website: 'https://johndoe.com',
-  createdAt: new Date('2023-01-15')
-})
+const user = ref<User | null>(null)
 
 const userStats = reactive<UserStats>({
-  followers: 1250,
-  following: 342,
-  posts: 156
+  followers: 0,
+  following: 0,
+  posts: 0
 })
 
+/**
+ * Load user profile from auth store or API
+ */
+const loadUserProfile = async () => {
+  isLoading.value = true
+  try {
+    // Get user from auth store
+    const authUser = authStore.user
+    
+    if (!authUser) {
+      console.warn('[UserProfileCard] No authenticated user found')
+      user.value = null
+      return
+    }
+
+    // Map auth user to profile user
+    user.value = {
+      id: authUser.id || '',
+      name: authUser.profile?.full_name || authUser.user_metadata?.full_name || 'User',
+      username: authUser.user_metadata?.username || authUser.email?.split('@')[0] || 'user',
+      email: authUser.email || '',
+      avatar: authUser.profile?.avatar_url || authUser.user_metadata?.avatar_url,
+      bio: authUser.profile?.bio || authUser.user_metadata?.bio,
+      verified: authUser.profile?.verified || false,
+      location: authUser.profile?.location || authUser.user_metadata?.location,
+      website: authUser.profile?.website || authUser.user_metadata?.website,
+      createdAt: authUser.created_at ? new Date(authUser.created_at) : new Date()
+    }
+
+    console.log('[UserProfileCard] ✅ Profile loaded:', user.value)
+
+    // TODO: Fetch stats from API
+    userStats.followers = 0
+    userStats.following = 0
+    userStats.posts = 0
+
+  } catch (error) {
+    console.error('[UserProfileCard] Error loading profile:', error)
+    user.value = null
+  } finally {
+    isLoading.value = false
+  }
+}
+
 const handleAvatarUpload = (avatarUrl: string) => {
-  user.avatar = avatarUrl
+  if (user.value) {
+    user.value.avatar = avatarUrl
+  }
   showAvatarUpload.value = false
   // TODO: Save to backend
 }
@@ -159,6 +217,16 @@ const formatDate = (date: Date): string => {
     month: 'long' 
   })
 }
+
+// Load profile on mount
+onMounted(() => {
+  loadUserProfile()
+})
+
+// Watch for auth changes
+watch(() => authStore.user, () => {
+  loadUserProfile()
+})
 </script>
 
 <style scoped>
@@ -172,6 +240,55 @@ const formatDate = (date: Date): string => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #334155;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-state h3 {
+  margin: 1rem 0 0.5rem;
+  color: white;
+}
+
+.error-state p {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.retry-btn {
+  background: #3b82f6;
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover {
+  background: #2563eb;
 }
 
 .avatar-section {
