@@ -1,9 +1,11 @@
+// FILE: /composables/use-profile.ts (COMPLETE FIXED VERSION)
 // ============================================================================
-// FILE: /composables/use-profile.ts
+// PROFILE COMPOSABLE - FIXED: Proper API integration
 // ============================================================================
-// ✅ FIXED: Added proper error handling for profile fetching
 
 export const useProfile = () => {
+  const { profile, posts } = useApi()
+
   const fetchUserProfile = async (userId: string) => {
     try {
       if (!userId) {
@@ -12,9 +14,8 @@ export const useProfile = () => {
 
       console.log('[Profile Composable] Fetching profile for user:', userId)
 
-      const response = await $fetch(`/api/profile/${userId}`, {
-        method: 'GET',
-      })
+      // ✅ CRITICAL FIX: Use the API composable method
+      const response = await profile.getProfile(userId)
 
       if (!response) {
         throw new Error('No profile data returned')
@@ -29,7 +30,7 @@ export const useProfile = () => {
     }
   }
 
-  const fetchUserPosts = async (userId: string, limit = 20, offset = 0) => {
+  const fetchUserPosts = async (userId: string, page: number = 1, limit: number = 12) => {
     try {
       if (!userId) {
         throw new Error('User ID is required')
@@ -37,50 +38,24 @@ export const useProfile = () => {
 
       console.log('[Profile Composable] Fetching posts for user:', userId)
 
-      const response = await $fetch(`/api/profile/${userId}/posts`, {
-        method: 'GET',
-        query: { limit, offset }
-      })
+      // ✅ CRITICAL FIX: Use the API composable method
+      const response = await posts.getUserPosts(userId, page, limit)
 
-      if (!Array.isArray(response)) {
-        console.warn('[Profile Composable] Posts response is not an array')
-        return []
+      if (!response) {
+        throw new Error('No posts data returned')
       }
 
-      console.log('[Profile Composable] Posts fetched successfully:', response.length)
-      return response
+      console.log('[Profile Composable] Posts fetched successfully:', response.posts?.length || 0)
+      return response.posts || []
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
-      console.error('[Profile Composable] Fetch posts error:', err.message)
+      console.error('[Profile Composable] Fetch error:', err.message)
       return []
-    }
-  }
-
-  const updateUserProfile = async (userId: string, data: any) => {
-    try {
-      if (!userId) {
-        throw new Error('User ID is required')
-      }
-
-      console.log('[Profile Composable] Updating profile for user:', userId)
-
-      const response = await $fetch(`/api/profile/${userId}`, {
-        method: 'PUT',
-        body: data
-      })
-
-      console.log('[Profile Composable] Profile updated successfully')
-      return response
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error))
-      console.error('[Profile Composable] Update error:', err.message)
-      throw err
     }
   }
 
   return {
     fetchUserProfile,
-    fetchUserPosts,
-    updateUserProfile
+    fetchUserPosts
   }
 }
