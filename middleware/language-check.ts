@@ -1,9 +1,12 @@
-// FILE: /middleware/language-check.ts (FIXED)
+// FILE: /middleware/language-check.ts (CORRECTED)
 // ============================================================================
-// LANGUAGE CHECK MIDDLEWARE - FIXED: Proper i18n initialization
+// LANGUAGE CHECK MIDDLEWARE - FIXED: Proper imports and error handling
 // ============================================================================
 
-export default defineRouteMiddleware(async (to, from) => {
+export default defineNuxtRouteMiddleware((to, from) => {
+  // Skip on server-side
+  if (process.server) return
+
   try {
     // Check if i18n is available
     const { locale } = useI18n()
@@ -14,7 +17,9 @@ export default defineRouteMiddleware(async (to, from) => {
     }
 
     // Get browser language
-    const browserLang = navigator?.language?.split('-')[0] || 'en'
+    const browserLang = typeof navigator !== 'undefined' 
+      ? navigator?.language?.split('-')[0] || 'en'
+      : 'en'
     
     // Set locale if not already set
     if (!locale.value) {
