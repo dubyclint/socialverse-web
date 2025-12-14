@@ -1,4 +1,4 @@
-<!-- FILE: /components/feed/FeedHeader.vue (UPDATED) -->
+<!-- FILE: /components/feed/FeedHeader.vue (FIXED - Proper watch import) -->
 <template>
   <header class="feed-header">
     <div class="header-top">
@@ -165,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -385,7 +385,6 @@ onMounted(() => {
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 99;
-  display: none;
 }
 
 .sidebar {
@@ -405,10 +404,6 @@ onMounted(() => {
 
 .sidebar.open {
   transform: translateX(0);
-}
-
-.sidebar.open ~ .sidebar-overlay {
-  display: block;
 }
 
 .sidebar-header {
