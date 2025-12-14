@@ -1,7 +1,6 @@
-// FILE: /middleware/language-check.ts - LANGUAGE PREFERENCE
+// FILE: /middleware/language-check.ts (FIXED)
 // ============================================================================
-// GLOBAL MIDDLEWARE - Applied to all routes
-// Purpose: Set user's language preference based on URL, user settings, or browser
+// LANGUAGE PREFERENCE MIDDLEWARE - FIXED
 // ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
@@ -9,8 +8,17 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (process.server) return
 
   try {
-    const { locale, setLocale } = useI18n()
+    // Check if useI18n is available (it might not be in all contexts)
+    let locale = 'en'
     
+    try {
+      const i18n = useI18n()
+      locale = i18n.locale.value || 'en'
+    } catch (e) {
+      console.warn('[Language Middleware] useI18n not available, using default locale')
+      locale = 'en'
+    }
+
     // Supported languages
     const supportedLanguages = ['en', 'fr', 'es', 'de']
 
@@ -18,50 +26,49 @@ export default defineNuxtRouteMiddleware((to, from) => {
     const urlLang = to.query.lang as string
     if (urlLang && supportedLanguages.includes(urlLang)) {
       console.log(`[Language Middleware] Setting language from URL: ${urlLang}`)
-      setLocale(urlLang)
+      try {
+        const i18n = useI18n()
+        i18n.setLocale(urlLang)
+      } catch (e) {
+        console.warn('[Language Middleware] Could not set locale')
+      }
       return
     }
 
     // 2. Check user's saved language preference from localStorage
     const savedLang = typeof window !== 'undefined' 
-      ? localStorage.getItem('user_language') 
+      ? localStorage.getItem('user_language_preference')
       : null
 
     if (savedLang && supportedLanguages.includes(savedLang)) {
-      if (savedLang !== locale.value) {
-        console.log(`[Language Middleware] Setting language from localStorage: ${savedLang}`)
-        setLocale(savedLang)
+      console.log(`[Language Middleware] Using saved language: ${savedLang}`)
+      try {
+        const i18n = useI18n()
+        i18n.setLocale(savedLang)
+      } catch (e) {
+        console.warn('[Language Middleware] Could not set locale')
       }
       return
     }
 
-    // 3. Try to get language from Supabase user metadata (if authenticated)
-    try {
-      const user = useSupabaseUser()
-      if (user.value?.user_metadata?.preferred_language) {
-        const userLang = user.value.user_metadata.preferred_language
-        if (supportedLanguages.includes(userLang) && userLang !== locale.value) {
-          console.log(`[Language Middleware] Setting language from user metadata: ${userLang}`)
-          setLocale(userLang)
-          return
-        }
-      }
-    } catch (error) {
-      console.log(`[Language Middleware] Could not get Supabase user`)
-    }
-
-    // 4. Detect browser language
+    // 3. Use browser language if supported
     if (typeof navigator !== 'undefined') {
       const browserLang = navigator.language.split('-')[0]
-      if (supportedLanguages.includes(browserLang) && browserLang !== locale.value) {
-        console.log(`[Language Middleware] Setting language from browser: ${browserLang}`)
-        setLocale(browserLang)
+      if (supportedLanguages.includes(browserLang)) {
+        console.log(`[Language Middleware] Using browser language: ${browserLang}`)
+        try {
+          const i18n = useI18n()
+          i18n.setLocale(browserLang)
+        } catch (e) {
+          console.warn('[Language Middleware] Could not set locale')
+        }
+        return
       }
     }
 
-    console.log(`[Language Middleware] Current language: ${locale.value}`)
+    console.log(`[Language Middleware] Using default language: en`)
   } catch (error) {
-    console.error(`[Language Middleware] Error:`, error)
-    // Don't block navigation on language errors
+    console.error('[Language Middleware] Error:', error)
+    // Don't throw - just continue with default
   }
 })
