@@ -1,4 +1,4 @@
-<!-- pages/profile/index.vue - Enhanced Profile Page (FIXED) -->
+<!-- FIXED: /pages/profile/index.vue - With Auth Store Fallback -->
 <template>
   <div class="profile-page">
     <div class="profile-container">
@@ -13,9 +13,9 @@
         <div class="profile-picture-section">
           <div class="profile-picture-container">
             <img 
-              v-if="profileData.avatar_url" 
-              :src="profileData.avatar_url" 
-              :alt="`${profileData.display_name || 'User'} profile picture`"
+              v-if="displayProfile.avatar_url" 
+              :src="displayProfile.avatar_url" 
+              :alt="`${displayProfile.display_name || 'User'} profile picture`"
               class="profile-picture"
             />
             <div v-else class="profile-picture-placeholder">
@@ -34,7 +34,7 @@
         <div class="profile-info">
           <div class="profile-name-section">
             <h1 class="profile-name">
-              {{ profileData.display_name || profileData.username || 'Anonymous User' }}
+              {{ displayProfile.display_name || displayProfile.username || 'User' }}
               <!-- Verification Badges -->
               <div v-if="verificationBadges.length > 0" class="verification-badges">
                 <button
@@ -50,26 +50,27 @@
                 </button>
               </div>
             </h1>
-            <p class="profile-username">@{{ profileData.username || 'unknown' }}</p>
+
+            <p class="profile-username">@{{ displayProfile.username || 'unknown' }}</p>
             <!-- User Rank -->
-            <div v-if="profileData.rank && !rankHidden" class="user-rank">
+            <div v-if="displayProfile.rank && !rankHidden" class="user-rank">
               <Icon name="star" size="14" />
-              <span>{{ profileData.rank }}</span>
-              <span class="rank-points">({{ formatNumber(profileData.rank_points || 0) }} pts)</span>
+              <span>{{ displayProfile.rank }}</span>
+              <span class="rank-points">({{ formatNumber(displayProfile.rank_points || 0) }} pts)</span>
             </div>
           </div>
 
           <div class="profile-stats">
             <div class="stat-item">
-              <span class="stat-number">{{ formatNumber(profileData.posts_count || 0) }}</span>
+              <span class="stat-number">{{ formatNumber(displayProfile.posts_count || 0) }}</span>
               <span class="stat-label">Posts</span>
             </div>
             <div class="stat-item">
-              <span class="stat-number">{{ formatNumber(profileData.followers_count || 0) }}</span>
+              <span class="stat-number">{{ formatNumber(displayProfile.followers_count || 0) }}</span>
               <span class="stat-label">Followers</span>
             </div>
             <div class="stat-item">
-              <span class="stat-number">{{ formatNumber(profileData.following_count || 0) }}</span>
+              <span class="stat-number">{{ formatNumber(displayProfile.following_count || 0) }}</span>
               <span class="stat-label">Following</span>
             </div>
           </div>
@@ -131,39 +132,39 @@
       <!-- Bio Section -->
       <div v-if="shouldShowBio && !loading" class="profile-bio-section">
         <div class="bio-content">
-          <p v-if="profileData.bio" class="bio-text">{{ profileData.bio }}</p>
+          <p v-if="displayProfile.bio" class="bio-text">{{ displayProfile.bio }}</p>
           
           <div class="bio-details-grid">
-            <div v-if="profileData.occupation" class="bio-item">
+            <div v-if="displayProfile.occupation" class="bio-item">
               <Icon name="briefcase" size="16" />
               <span class="bio-label">Occupation:</span>
-              <span class="bio-value">{{ profileData.occupation }}</span>
+              <span class="bio-value">{{ displayProfile.occupation }}</span>
             </div>
             
-            <div v-if="profileData.highest_education" class="bio-item">
+            <div v-if="displayProfile.highest_education" class="bio-item">
               <Icon name="graduation-cap" size="16" />
               <span class="bio-label">Education:</span>
-              <span class="bio-value">{{ profileData.highest_education }}</span>
+              <span class="bio-value">{{ displayProfile.highest_education }}</span>
             </div>
             
-            <div v-if="profileData.location" class="bio-item">
+            <div v-if="displayProfile.location" class="bio-item">
               <Icon name="map-pin" size="16" />
               <span class="bio-label">Location:</span>
-              <span class="bio-value">{{ profileData.location }}</span>
+              <span class="bio-value">{{ displayProfile.location }}</span>
             </div>
             
-            <div v-if="profileData.website_url" class="bio-item">
+            <div v-if="displayProfile.website_url" class="bio-item">
               <Icon name="globe" size="16" />
               <span class="bio-label">Website:</span>
-              <a :href="profileData.website_url" target="_blank" class="bio-link">{{ profileData.website_url }}</a>
+              <a :href="displayProfile.website_url" target="_blank" class="bio-link">{{ displayProfile.website_url }}</a>
             </div>
           </div>
 
           <!-- Skills Section -->
-          <div v-if="profileData.skills && profileData.skills.length > 0" class="skills-section">
+          <div v-if="displayProfile.skills && displayProfile.skills.length > 0" class="skills-section">
             <h3 class="section-title">Skills</h3>
             <div class="skills-list">
-              <span v-for="skill in profileData.skills" :key="skill" class="skill-tag">
+              <span v-for="skill in displayProfile.skills" :key="skill" class="skill-tag">
                 {{ skill }}
               </span>
             </div>
@@ -299,7 +300,7 @@
     
     <EditProfileModal 
       v-if="showEditProfile" 
-      :profile="profileData"
+      :profile="displayProfile"
       @close="showEditProfile = false"
       @updated="handleProfileUpdated"
     />
@@ -370,13 +371,34 @@ const isOwnProfile = computed(() => {
   return authStore.user?.id === profileData.value.id
 })
 
+// FIXED: Fallback to auth store data if API data is missing
+const displayProfile = computed(() => {
+  return {
+    id: profileData.value.id || authStore.user?.id,
+    display_name: profileData.value.display_name || authStore.userDisplayName || 'User',
+    username: profileData.value.username || authStore.user?.user_metadata?.username || 'unknown',
+    avatar_url: profileData.value.avatar_url || authStore.userAvatar || '/default-avatar.png',
+    bio: profileData.value.bio || '',
+    occupation: profileData.value.occupation || '',
+    highest_education: profileData.value.highest_education || '',
+    location: profileData.value.location || '',
+    website_url: profileData.value.website_url || '',
+    skills: profileData.value.skills || [],
+    posts_count: profileData.value.posts_count || 0,
+    followers_count: profileData.value.followers_count || 0,
+    following_count: profileData.value.following_count || 0,
+    rank: profileData.value.rank || '',
+    rank_points: profileData.value.rank_points || 0
+  }
+})
+
 const shouldShowBio = computed(() => {
-  return profileData.value.bio || 
-         profileData.value.occupation || 
-         profileData.value.highest_education ||
-         profileData.value.location ||
-         profileData.value.website_url ||
-         (profileData.value.skills && profileData.value.skills.length > 0) ||
+  return displayProfile.value.bio || 
+         displayProfile.value.occupation || 
+         displayProfile.value.highest_education ||
+         displayProfile.value.location ||
+         displayProfile.value.website_url ||
+         (displayProfile.value.skills && displayProfile.value.skills.length > 0) ||
          (socialLinks.value && socialLinks.value.length > 0)
 })
 
@@ -398,12 +420,28 @@ const loadProfile = async () => {
     loading.value = true
     const userId = route.params.id || authStore.user?.id
     
+    // If loading own profile, use auth store data as primary source
+    if (isOwnProfile.value && authStore.user) {
+      profileData.value = {
+        id: authStore.user.id,
+        display_name: authStore.userDisplayName,
+        username: authStore.user.user_metadata?.username || 'unknown',
+        avatar_url: authStore.userAvatar,
+        ...profileData.value
+      }
+    }
+    
     // Fetch profile data via API
-    const response = await $fetch(`/api/profile/${userId}`)
-    profileData.value = response.profile || response
-    privacySettings.value = response.privacy_settings || {}
-    socialLinks.value = response.social_links || []
-    verificationBadges.value = response.verification_badges || []
+    try {
+      const response = await $fetch(`/api/profile/${userId}`)
+      profileData.value = response.profile || response
+      privacySettings.value = response.privacy_settings || {}
+      socialLinks.value = response.social_links || []
+      verificationBadges.value = response.verification_badges || []
+    } catch (apiError) {
+      console.warn('API profile fetch failed, using auth store data:', apiError)
+      // API failed, but we already have fallback data from auth store
+    }
     
     // Load initial posts
     await loadUserPosts()
@@ -466,13 +504,56 @@ const handlePostCreated = (newPost: any) => {
 }
 
 const handleProfileUpdated = (updatedProfile: any) => {
-  profileData.value = updatedProfile
+  profileData.value = { ...profileData.value, ...updatedProfile }
   showEditProfile.value = false
 }
 
 const handleAvatarUploaded = (newAvatarUrl: string) => {
   profileData.value.avatar_url = newAvatarUrl
+  authStore.setUser({
+    ...authStore.user,
+    user_metadata: {
+      ...authStore.user?.user_metadata,
+      avatar_url: newAvatarUrl
+    }
+  })
   showAvatarUpload.value = false
+}
+
+const handleLike = (postId: string) => {
+  const post = userPosts.value.find(p => p.id === postId)
+  if (post) {
+    post.liked = !post.liked
+    post.likes += post.liked ? 1 : -1
+  }
+}
+
+const handleComment = (postId: string) => {
+  console.log('Comment on post:', postId)
+}
+
+const handleShare = (postId: string) => {
+  console.log('Share post:', postId)
+}
+
+const toggleFollow = async () => {
+  try {
+    const userId = route.params.id
+    const endpoint = isFollowing.value ? 'unfollow' : 'follow'
+    await $fetch(`/api/follows/${endpoint}/${userId}`, { method: 'POST' })
+    isFollowing.value = !isFollowing.value
+  } catch (error) {
+    console.error('Error toggling follow:', error)
+  }
+}
+
+const openChat = () => {
+  router.push(`/chat/${route.params.id}`)
+}
+
+const handleLogout = async () => {
+  authStore.clearAuth()
+  router.push('/auth/signin')
 }
 
 const openVerificationDetails = (badge: any) => {
@@ -480,111 +561,64 @@ const openVerificationDetails = (badge: any) => {
   showVerificationDetails.value = true
 }
 
-const toggleFollow = async () => {
-  try {
-    if (isFollowing.value) {
-      await $fetch(`/api/follows/${profileData.value.id}`, { method: 'DELETE' })
-      isFollowing.value = false
-      profileData.value.followers_count = (profileData.value.followers_count || 0) - 1
-    } else {
-      await $fetch(`/api/follows/${profileData.value.id}`, { method: 'POST' })
-      isFollowing.value = true
-      profileData.value.followers_count = (profileData.value.followers_count || 0) + 1
-    }
-  } catch (error) {
-    console.error('Error toggling follow:', error)
-  }
-}
-
-const openChat = () => {
-  router.push(`/chat?user=${profileData.value.id}`)
-}
-
-const handleLike = (postId: string) => {
-  // Implement like logic
-}
-
-const handleComment = (postId: string) => {
-  // Implement comment logic
-}
-
-const handleShare = (postId: string) => {
-  // Implement share logic
-}
-
 const openMediaModal = (post: any) => {
-  // Implement media modal logic
+  console.log('Open media modal:', post)
 }
 
-const handleLogout = async () => {
-  try {
-    await authStore.logout()
-    router.push('/login')
-  } catch (error) {
-    console.error('Error logging out:', error)
+const getBadgeIcon = (badgeType: string): string => {
+  const iconMap: Record<string, string> = {
+    'verified': 'check-circle',
+    'premium': 'star',
+    'moderator': 'shield',
+    'creator': 'award'
   }
+  return iconMap[badgeType] || 'badge'
 }
 
-// Utility functions
-const formatNumber = (num: number) => {
+const getSocialIcon = (platform: string): string => {
+  const iconMap: Record<string, string> = {
+    'twitter': 'twitter',
+    'instagram': 'instagram',
+    'facebook': 'facebook',
+    'linkedin': 'linkedin',
+    'github': 'github',
+    'youtube': 'youtube'
+  }
+  return iconMap[platform.toLowerCase()] || 'link'
+}
+
+const formatNumber = (num: number): string => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
 }
 
-const getBadgeIcon = (badgeType: string) => {
-  const icons: Record<string, string> = {
-    'verified': 'check-circle',
-    'k2_level_1': 'shield',
-    'k2_level_2': 'shield-check',
-    'business': 'briefcase',
-    'celebrity': 'star'
-  }
-  return icons[badgeType] || 'check-circle'
-}
-
-const getSocialIcon = (platform: string) => {
-  const icons: Record<string, string> = {
-    'twitter': 'twitter',
-    'instagram': 'instagram',
-    'linkedin': 'linkedin',
-    'facebook': 'facebook',
-    'github': 'github',
-    'youtube': 'youtube',
-    'tiktok': 'music',
-    'discord': 'message-square',
-    'telegram': 'send',
-    'website': 'globe'
-  }
-  return icons[platform] || 'link'
-}
-
 // Lifecycle
 onMounted(() => {
+  console.log('Profile page mounted')
+  console.log('Auth user:', authStore.user)
+  console.log('Display name:', authStore.userDisplayName)
   loadProfile()
 })
 
 // Watch for route changes
 watch(() => route.params.id, () => {
-  if (route.name === 'profile') {
-    currentPage.value = 1
-    loadProfile()
-  }
+  currentPage.value = 1
+  loadProfile()
 })
 </script>
 
 <style scoped>
 .profile-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  background: #0f172a;
+  min-height: 100vh;
+  padding-bottom: 2rem;
 }
 
 .profile-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
 }
 
 .loading-state {
@@ -593,40 +627,43 @@ watch(() => route.params.id, () => {
   align-items: center;
   justify-content: center;
   padding: 4rem 2rem;
-  color: #999;
+  color: #94a3b8;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f0f0f0;
-  border-top: 4px solid #667eea;
+  width: 48px;
+  height: 48px;
+  border: 4px solid #334155;
+  border-top-color: #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
 .profile-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
   gap: 2rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
   padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  margin-bottom: 2rem;
 }
 
 .profile-picture-section {
-  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .profile-picture-container {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 160px;
+  height: 160px;
 }
 
 .profile-picture {
@@ -634,43 +671,46 @@ watch(() => route.params.id, () => {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 4px solid white;
+  border: 4px solid #334155;
 }
 
 .profile-picture-placeholder {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: #0f172a;
+  border: 4px solid #334155;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 4px solid white;
+  color: #64748b;
 }
 
 .edit-avatar-btn {
   position: absolute;
   bottom: 0;
   right: 0;
+  background: #3b82f6;
+  border: none;
+  color: white;
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #667eea;
-  border: 2px solid white;
-  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .edit-avatar-btn:hover {
-  background: #764ba2;
+  background: #2563eb;
 }
 
 .profile-info {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .profile-name-section {
@@ -678,12 +718,13 @@ watch(() => route.params.id, () => {
 }
 
 .profile-name {
-  font-size: 2rem;
+  margin: 0 0 0.5rem;
+  color: white;
+  font-size: 1.75rem;
   font-weight: 700;
-  margin: 0;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
@@ -694,52 +735,51 @@ watch(() => route.params.id, () => {
 }
 
 .verification-badge {
-  display: inline-flex;
+  background: none;
+  border: none;
+  color: #fbbf24;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 20px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.875rem;
 }
 
 .verification-badge:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: #1e293b;
 }
 
 .badge-level {
-  font-weight: 700;
   font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .profile-username {
+  margin: 0;
+  color: #64748b;
   font-size: 1rem;
-  margin: 0.5rem 0 0 0;
-  opacity: 0.9;
 }
 
 .user-rank {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  color: #fbbf24;
+  font-size: 0.9rem;
   margin-top: 0.5rem;
-  opacity: 0.9;
 }
 
 .rank-points {
-  opacity: 0.7;
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 
 .profile-stats {
   display: flex;
   gap: 2rem;
-  margin: 1.5rem 0;
+  margin-bottom: 1.5rem;
 }
 
 .stat-item {
@@ -749,50 +789,51 @@ watch(() => route.params.id, () => {
 }
 
 .stat-number {
+  color: white;
   font-size: 1.5rem;
   font-weight: 700;
 }
 
 .stat-label {
-  font-size: 0.875rem;
-  opacity: 0.9;
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 
 .profile-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .btn-primary {
-  background: #667eea;
+  background: #3b82f6;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: #2563eb;
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: #334155;
+  color: #e2e8f0;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #475569;
 }
 
 .btn-danger {
@@ -805,50 +846,56 @@ watch(() => route.params.id, () => {
 }
 
 .profile-bio-section {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
   padding: 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 2rem;
 }
 
 .bio-content {
-  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .bio-text {
-  font-size: 1rem;
+  margin: 0;
+  color: #e2e8f0;
   line-height: 1.6;
-  margin: 0 0 1.5rem 0;
-  color: #333;
 }
 
 .bio-details-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
-  margin-bottom: 1.5rem;
 }
 
 .bio-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-radius: 6px;
+  color: #cbd5e1;
+}
+
+.bio-item svg {
+  color: #3b82f6;
+  flex-shrink: 0;
 }
 
 .bio-label {
   font-weight: 600;
-  color: #666;
-  min-width: 100px;
+  color: #e2e8f0;
 }
 
 .bio-value {
-  color: #333;
+  color: #cbd5e1;
 }
 
 .bio-link {
-  color: #667eea;
+  color: #3b82f6;
   text-decoration: none;
+  transition: all 0.2s;
 }
 
 .bio-link:hover {
@@ -857,14 +904,14 @@ watch(() => route.params.id, () => {
 
 .skills-section,
 .social-links-section {
-  margin-bottom: 1.5rem;
+  margin-top: 1rem;
 }
 
 .section-title {
-  font-size: 1.125rem;
+  margin: 0 0 1rem;
+  color: white;
+  font-size: 1.1rem;
   font-weight: 600;
-  margin: 0 0 1rem 0;
-  color: #333;
 }
 
 .skills-list {
@@ -874,13 +921,11 @@ watch(() => route.params.id, () => {
 }
 
 .skill-tag {
-  display: inline-block;
+  background: #334155;
+  color: #e2e8f0;
   padding: 0.5rem 1rem;
-  background: #e0e7ff;
-  color: #667eea;
   border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .social-links {
@@ -889,86 +934,101 @@ watch(() => route.params.id, () => {
 }
 
 .social-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #f0f0f0;
-  color: #667eea;
+  color: #3b82f6;
   transition: all 0.2s;
 }
 
 .social-link:hover {
-  background: #667eea;
-  color: white;
+  color: #60a5fa;
 }
 
 .profile-tabs {
   display: flex;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  gap: 1rem;
+  border-bottom: 1px solid #334155;
+  margin-bottom: 2rem;
+  overflow-x: auto;
 }
 
 .tab-button {
-  flex: 1;
-  padding: 1rem;
+  background: none;
   border: none;
-  background: transparent;
+  color: #94a3b8;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
-  color: #666;
-  transition: all 0.2s;
   border-bottom: 2px solid transparent;
-}
-
-.tab-button.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .tab-button:hover {
-  color: #667eea;
+  color: #e2e8f0;
+}
+
+.tab-button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
 }
 
 .tab-content {
-  padding: 2rem;
+  animation: fadeIn 0.3s ease-in;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: #999;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.empty-state h3 {
-  font-size: 1.25rem;
-  margin: 1rem 0 0.5rem 0;
-  color: #333;
-}
-
-.empty-state p {
-  margin: 0.5rem 0 1rem 0;
-}
-
-.posts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+.posts-tab,
+.media-tab,
+.likes-tab {
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  color: #94a3b8;
+}
+
+.empty-state svg {
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem;
+  color: #e2e8f0;
+  font-size: 1.25rem;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #64748b;
+}
+
+.posts-grid,
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
 }
 
 .media-item {
   position: relative;
-  overflow: hidden;
-  border-radius: 8px;
   cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
   aspect-ratio: 1;
 }
 
@@ -976,16 +1036,14 @@ watch(() => route.params.id, () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.2s;
-}
-
-.media-item:hover .media-thumbnail {
-  transform: scale(1.05);
 }
 
 .media-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -1000,7 +1058,8 @@ watch(() => route.params.id, () => {
 }
 
 .load-more-section {
-  text-align: center;
+  display: flex;
+  justify-content: center;
   padding: 2rem;
 }
 
@@ -1010,12 +1069,18 @@ watch(() => route.params.id, () => {
 
 @media (max-width: 768px) {
   .profile-header {
-    flex-direction: column;
-    align-items: center;
+    grid-template-columns: 1fr;
     text-align: center;
   }
 
+  .profile-picture-container {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+  }
+
   .profile-name {
+    font-size: 1.5rem;
     justify-content: center;
   }
 
@@ -1027,12 +1092,9 @@ watch(() => route.params.id, () => {
     justify-content: center;
   }
 
-  .posts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .bio-details-grid {
-    grid-template-columns: 1fr;
+  .posts-grid,
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 </style>
