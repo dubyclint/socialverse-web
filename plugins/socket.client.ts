@@ -198,8 +198,41 @@ export default defineNuxtPlugin(async (nuxtApp) => {
             socketState.authenticated = false
             console.log('[Socket.IO Client] ✅ Socket disconnected')
           }
+        },
+
+        /**
+         * Emit event
+         */
+        emit(event: string, data?: any) {
+          if (socketInstance?.connected) {
+            socketInstance.emit(event, data)
+            console.log('[Socket.IO Client] Emitted event:', event)
+          } else {
+            console.warn('[Socket.IO Client] ⚠️ Socket not connected, cannot emit:', event)
+          }
+        },
+
+        /**
+         * Listen to event
+         */
+        on(event: string, callback: (data: any) => void) {
+          if (socketInstance) {
+            socketInstance.on(event, callback)
+            console.log('[Socket.IO Client] Listening to event:', event)
+          }
+        },
+
+        /**
+         * Remove event listener
+         */
+        off(event: string) {
+          if (socketInstance) {
+            socketInstance.off(event)
+            console.log('[Socket.IO Client] Removed listener for event:', event)
+          }
         }
       }
     }
   }
 })
+
