@@ -1,4 +1,4 @@
-<!-- FILE: /components/feed/FeedHeader.vue (FIXED - Proper watch import) -->
+<!-- FIXED: /components/feed/FeedHeader.vue -->
 <template>
   <header class="feed-header">
     <div class="header-top">
@@ -13,7 +13,7 @@
         </NuxtLink>
       </div>
 
-      <!-- Center - Navigation Icons (UPDATED: Removed Explore, Added Wallet) -->
+      <!-- Center - Navigation Icons -->
       <nav class="header-center">
         <NuxtLink 
           to="/feed" 
@@ -74,7 +74,7 @@
     <!-- Mobile Sidebar Overlay -->
     <div v-if="sidebarOpen" class="sidebar-overlay" @click="toggleSidebar"></div>
 
-    <!-- Sidebar Menu (UPDATED: New items, no duplicates) -->
+    <!-- Sidebar Menu -->
     <aside :class="['sidebar', { open: sidebarOpen }]">
       <div class="sidebar-header">
         <h3>Menu</h3>
@@ -167,6 +167,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -470,14 +471,14 @@ onMounted(() => {
   padding-left: calc(1rem - 3px);
 }
 
-.sidebar-item .badge {
-  margin-left: auto;
-  background: #ef4444;
-  color: white;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 10px;
-  font-weight: 600;
+.sidebar-item.logout-btn {
+  color: #ef4444;
+  margin-top: auto;
+}
+
+.sidebar-item.logout-btn:hover {
+  background: #7f1d1d;
+  color: #fca5a5;
 }
 
 .sidebar-divider {
@@ -486,27 +487,19 @@ onMounted(() => {
   margin: 0.5rem 0;
 }
 
-.logout-btn {
-  color: #ef4444;
-}
-
-.logout-btn:hover {
-  background: #7f1d1d;
-  color: #fca5a5;
+.badge {
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: auto;
 }
 
 @media (max-width: 768px) {
   .header-center {
-    gap: 0.25rem;
-  }
-
-  .nav-label {
     display: none;
-  }
-
-  .sidebar {
-    width: 100%;
-    max-width: 280px;
   }
 }
 </style>
