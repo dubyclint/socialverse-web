@@ -1,6 +1,6 @@
 // FILE: /server/plugins/socket.ts
 // ============================================================================
-// SOCKET.IO SERVER PLUGIN - PRODUCTION READY (FIXED FOR NITRO)
+// SOCKET.IO SERVER PLUGIN - PRODUCTION READY
 // ============================================================================
 // Initializes Socket.IO server with:
 // - Proper CORS configuration
@@ -8,6 +8,7 @@
 // - Event handlers for all real-time features
 // - Connection pooling and management
 // - Error handling and logging
+// - Lazy initialization for Nitro compatibility
 // ============================================================================
 
 import { Server as SocketIOServer } from 'socket.io'
