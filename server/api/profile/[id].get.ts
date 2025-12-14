@@ -1,6 +1,6 @@
 // FILE: /server/api/profile/[id].get.ts
 // ============================================================================
-// GET PROFILE BY USER ID - PRODUCTION READY
+// GET PROFILE BY USER ID - PRODUCTION READY (FIXED)
 // ============================================================================
 // This endpoint fetches a user's complete profile including:
 // - Basic profile information (name, username, avatar, bio, etc.)
@@ -14,6 +14,7 @@
 // - Comprehensive error handling
 // - Detailed logging for debugging
 // - Optimized database queries
+// - Handles missing tables gracefully
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -301,43 +302,55 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     }
 
     try {
-      // Fetch followers count
-      const { count: followersCount, error: followersError } = await supabase
-        .from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('following_id', userId)
+      // Fetch followers count - with better error handling
+      try {
+        const { count: followersCount, error: followersError } = await supabase
+          .from('follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', userId)
 
-      if (!followersError && followersCount !== null) {
-        stats.followers = followersCount
-        console.log('[Profile API] ✅ Followers count:', stats.followers)
-      } else if (followersError) {
-        console.warn('[Profile API] ⚠️ Followers count query error:', followersError.message)
+        if (!followersError && followersCount !== null) {
+          stats.followers = followersCount
+          console.log('[Profile API] ✅ Followers count:', stats.followers)
+        } else if (followersError) {
+          console.warn('[Profile API] ⚠️ Followers count query error:', followersError.message)
+        }
+      } catch (err: any) {
+        console.warn('[Profile API] ⚠️ Followers count fetch failed:', err.message)
       }
 
-      // Fetch following count
-      const { count: followingCount, error: followingError } = await supabase
-        .from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('follower_id', userId)
+      // Fetch following count - with better error handling
+      try {
+        const { count: followingCount, error: followingError } = await supabase
+          .from('follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', userId)
 
-      if (!followingError && followingCount !== null) {
-        stats.following = followingCount
-        console.log('[Profile API] ✅ Following count:', stats.following)
-      } else if (followingError) {
-        console.warn('[Profile API] ⚠️ Following count query error:', followingError.message)
+        if (!followingError && followingCount !== null) {
+          stats.following = followingCount
+          console.log('[Profile API] ✅ Following count:', stats.following)
+        } else if (followingError) {
+          console.warn('[Profile API] ⚠️ Following count query error:', followingError.message)
+        }
+      } catch (err: any) {
+        console.warn('[Profile API] ⚠️ Following count fetch failed:', err.message)
       }
 
-      // Fetch posts count
-      const { count: postsCount, error: postsError } = await supabase
-        .from('posts')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
+      // Fetch posts count - with better error handling
+      try {
+        const { count: postsCount, error: postsError } = await supabase
+          .from('posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
 
-      if (!postsError && postsCount !== null) {
-        stats.posts = postsCount
-        console.log('[Profile API] ✅ Posts count:', stats.posts)
-      } else if (postsError) {
-        console.warn('[Profile API] ⚠️ Posts count query error:', postsError.message)
+        if (!postsError && postsCount !== null) {
+          stats.posts = postsCount
+          console.log('[Profile API] ✅ Posts count:', stats.posts)
+        } else if (postsError) {
+          console.warn('[Profile API] ⚠️ Posts count query error:', postsError.message)
+        }
+      } catch (err: any) {
+        console.warn('[Profile API] ⚠️ Posts count fetch failed:', err.message)
       }
     } catch (err: any) {
       console.warn('[Profile API] ⚠️ Statistics fetch failed:', err.message)
@@ -371,6 +384,7 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     console.error('[Profile API] ========================================')
     console.error('[Profile API] ❌ ERROR:', error.message)
     console.error('[Profile API] Status Code:', error.statusCode)
+    console.error('[Profile API] Stack:', error.stack)
     console.error('[Profile API] ========================================')
 
     // If it's already a proper error, throw it
