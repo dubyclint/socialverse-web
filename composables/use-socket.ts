@@ -7,7 +7,6 @@
 // ============================================================================
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useNuxtApp } from '#app'
 
 export const useSocket = () => {
   const nuxtApp = useNuxtApp()
@@ -27,11 +26,20 @@ export const useSocket = () => {
   /**
    * Initialize and connect to Socket.IO server
    */
-  const connect = () => {
+  const connect = async () => {
     try {
       console.log('[useSocket] Connecting to Socket.IO server...')
-      socket.connect()
-      // Note: connect() is typically fire-and-forget; use events for status
+      const result = await socket.connect()
+      
+      if (result) {
+        isConnected.value = true
+        isAuthenticated.value = true
+        connectionError.value = null
+        console.log('[useSocket] ✅ Connected successfully')
+      } else {
+        connectionError.value = 'Failed to connect'
+        console.error('[useSocket] ❌ Connection failed')
+      }
     } catch (err: any) {
       connectionError.value = err.message
       console.error('[useSocket] ❌ Connection error:', err.message)
@@ -41,9 +49,9 @@ export const useSocket = () => {
   /**
    * Disconnect from Socket.IO server
    */
-  const disconnect = () => {
+  const disconnect = async () => {
     try {
-      socket.disconnect()
+      await socket.disconnect()
       isConnected.value = false
       isAuthenticated.value = false
       activeChats.value.clear()
@@ -55,26 +63,22 @@ export const useSocket = () => {
   }
 
   /**
-   * Check connection status (if your socket plugin supports getState)
+   * Check connection status
    */
   const checkConnection = () => {
-    // Only use this if you've added getState() in your plugin
-    // Otherwise, use socket.connected directly
-    if (typeof socket.getState === 'function') {
-      const state = socket.getState()
-      isConnected.value = state.connected
-      isAuthenticated.value = state.authenticated
-      connectionError.value = state.error || null
-    } else {
-      isConnected.value = socket.connected
-      // isAuthenticated would need to be tracked separately
-    }
+    const state = socket.getState()
+    isConnected.value = state.connected
+    isAuthenticated.value = state.authenticated
+    connectionError.value = state.error || null
   }
 
   // ============================================================================
   // CHAT MANAGEMENT
   // ============================================================================
 
+  /**
+   * Join a chat room
+   */
   const joinChat = (chatId: string) => {
     try {
       socket.joinChat(chatId)
@@ -85,6 +89,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Leave a chat room
+   */
   const leaveChat = (chatId: string) => {
     try {
       socket.leaveChat(chatId)
@@ -95,6 +102,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Send a chat message
+   */
   const sendMessage = (chatId: string, message: string) => {
     try {
       socket.sendMessage(chatId, message)
@@ -104,6 +114,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Send typing indicator
+   */
   const sendTyping = (chatId: string) => {
     try {
       socket.sendTyping(chatId)
@@ -116,6 +129,9 @@ export const useSocket = () => {
   // PRESENCE MANAGEMENT
   // ============================================================================
 
+  /**
+   * Update user presence status
+   */
   const updatePresence = (status: 'online' | 'away' | 'offline' | 'dnd', activity?: string) => {
     try {
       socket.updatePresence(status, activity)
@@ -129,6 +145,9 @@ export const useSocket = () => {
   // NOTIFICATION MANAGEMENT
   // ============================================================================
 
+  /**
+   * Subscribe to notification types
+   */
   const subscribeNotifications = (types: string[]) => {
     try {
       socket.subscribeNotifications(types)
@@ -138,6 +157,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Unsubscribe from notification types
+   */
   const unsubscribeNotifications = (types: string[]) => {
     try {
       socket.unsubscribeNotifications(types)
@@ -151,6 +173,9 @@ export const useSocket = () => {
   // STREAM MANAGEMENT
   // ============================================================================
 
+  /**
+   * Start a live stream
+   */
   const startStream = (streamId: string, title: string) => {
     try {
       socket.startStream(streamId, title)
@@ -161,6 +186,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * End a live stream
+   */
   const endStream = (streamId: string) => {
     try {
       socket.endStream(streamId)
@@ -171,6 +199,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Join a live stream
+   */
   const joinStream = (streamId: string) => {
     try {
       socket.joinStream(streamId)
@@ -180,6 +211,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Leave a live stream
+   */
   const leaveStream = (streamId: string) => {
     try {
       socket.leaveStream(streamId)
@@ -193,6 +227,9 @@ export const useSocket = () => {
   // CALL MANAGEMENT (WebRTC)
   // ============================================================================
 
+  /**
+   * Initiate a call
+   */
   const initiateCall = (targetUserId: string, offer: any) => {
     try {
       socket.initiateCall(targetUserId, offer)
@@ -202,6 +239,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Answer a call
+   */
   const answerCall = (targetUserId: string, answer: any) => {
     try {
       socket.answerCall(targetUserId, answer)
@@ -211,6 +251,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * Send ICE candidate
+   */
   const sendIceCandidate = (targetUserId: string, candidate: any) => {
     try {
       socket.sendIceCandidate(targetUserId, candidate)
@@ -219,6 +262,9 @@ export const useSocket = () => {
     }
   }
 
+  /**
+   * End a call
+   */
   const endCall = (targetUserId: string) => {
     try {
       socket.endCall(targetUserId)
@@ -232,18 +278,30 @@ export const useSocket = () => {
   // EVENT LISTENERS
   // ============================================================================
 
+  /**
+   * Listen to socket events
+   */
   const on = (event: string, callback: (data: any) => void) => {
     socket.on(event, callback)
   }
 
+  /**
+   * Remove event listener
+   */
   const off = (event: string, callback?: (data: any) => void) => {
     socket.off(event, callback)
   }
 
+  /**
+   * Listen to custom window events
+   */
   const onCustomEvent = (eventName: string, callback: (event: CustomEvent) => void) => {
     window.addEventListener(eventName, callback as EventListener)
   }
 
+  /**
+   * Remove custom window event listener
+   */
   const offCustomEvent = (eventName: string, callback: (event: CustomEvent) => void) => {
     window.removeEventListener(eventName, callback as EventListener)
   }
@@ -320,4 +378,4 @@ export const useSocket = () => {
     onCustomEvent,
     offCustomEvent
   }
-}
+  }
