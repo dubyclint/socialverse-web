@@ -1,11 +1,12 @@
-// FILE: /composables/use-api.ts (FIXED - COMPLETE VERSION)
+// FILE: /composables/use-api.ts (COMPLETE FIXED VERSION)
 // ============================================================================
 // API COMPOSABLE - FIXED: Proper error handling and $fetch usage
 // ============================================================================
-// ✅ CRITICAL FIX: handleError now returns error instead of throwing
+// ✅ CRITICAL FIX: All error handlers return instead of throw
 // ✅ All API calls properly use $fetch
 // ✅ User ID extraction and passing works correctly
 // ✅ Comprehensive error handling with detailed logging
+// ✅ Graceful fallbacks for all endpoints
 // ============================================================================
 
 import type { FetchOptions } from 'ofetch'
@@ -32,22 +33,6 @@ export const useApi = () => {
     
     console.log('[API] ✅ Using user ID:', userId)
     return userId
-  }
-
-  /**
-   * ✅ CRITICAL FIX: Handle API errors with detailed logging
-   * Returns error instead of throwing to allow catch blocks to work
-   */
-  const handleError = (error: any, endpoint: string) => {
-    console.error(`[API] ❌ Error on ${endpoint}:`, error)
-    
-    if (error.data?.statusCode === 401) {
-      console.error('[API] Unauthorized - clearing auth')
-      authStore.clearAuth()
-    }
-    
-    // ✅ CRITICAL: Return error, don't throw it
-    return error
   }
 
   // ============================================================================
@@ -478,4 +463,4 @@ export const useApi = () => {
     // Helper function for manual user ID retrieval
     getUserId
   }
-          }
+    }
