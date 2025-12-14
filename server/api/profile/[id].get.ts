@@ -1,20 +1,18 @@
 // FILE: /server/api/profile/[id].get.ts
 // ============================================================================
-// GET PROFILE BY USER ID - PRODUCTION READY (FIXED)
+// GET PROFILE BY USER ID - CORRECTED FOR ACTUAL SCHEMA
 // ============================================================================
-// This endpoint fetches a user's complete profile including:
-// - Basic profile information (name, username, avatar, bio, etc.)
-// - Privacy settings
-// - Social links
-// - Verification badges
-// - User statistics (followers, following, posts)
+// Uses ONLY tables that actually exist in the codebase:
+// - profiles
+// - follows
+// - posts
+// - badge_requests
+// - ranks
 //
-// Features:
-// - Graceful fallback: Creates profile from auth data if not in database
-// - Comprehensive error handling
-// - Detailed logging for debugging
-// - Optimized database queries
-// - Handles missing tables gracefully
+// NO queries for non-existent tables:
+// - profile_privacy_settings (doesn't exist)
+// - social_links (doesn't exist)
+// - verified_badge (doesn't exist)
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -34,14 +32,13 @@ interface ProfileResponse {
     created_at: string
     updated_at: string
   }
-  privacy_settings: Record<string, any>
-  social_links: Array<any>
-  verification_badges: Array<any>
   stats: {
     followers: number
     following: number
     posts: number
   }
+  ranks: Array<any>
+  verification_status: string | null
 }
 
 export default defineEventHandler(async (event): Promise<ProfileResponse> => {
@@ -140,7 +137,6 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     console.log('[Profile API] Step 5: Fetching profile from database...')
     
     let profile = null
-    let profileError = null
 
     try {
       const { data, error } = await supabase
@@ -149,15 +145,13 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
         .eq('id', userId)
         .single()
 
-      profile = data
-      profileError = error
-
-      if (profileError && profileError.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') {
         // PGRST116 = no rows returned (not found)
-        console.warn('[Profile API] ⚠️ Profile query error:', profileError.message)
+        console.warn('[Profile API] ⚠️ Profile query error:', error.message)
       }
 
-      if (profile) {
+      if (data) {
+        profile = data
         console.log('[Profile API] ✅ Profile found in database')
       } else {
         console.log('[Profile API] ℹ️ Profile not found in database, will create from auth data')
@@ -187,7 +181,7 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
         updated_at: new Date().toISOString()
       }
 
-      console.log('[Profile API] ℹ️ Profile object created:', {
+      console.log('[Profile API] ℹ️ Profile object created from auth data:', {
         id: profile.id,
         email: profile.email,
         username: profile.username
@@ -203,7 +197,6 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
 
         if (insertError) {
           console.warn('[Profile API] ⚠️ Could not insert profile:', insertError.message)
-          // Continue anyway - we have the data from auth
           console.log('[Profile API] ℹ️ Will return profile data from auth (not persisted)')
         } else {
           console.log('[Profile API] ✅ Profile inserted into database')
@@ -215,85 +208,9 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     }
 
     // ============================================================================
-    // STEP 7: Fetch privacy settings
+    // STEP 7: Fetch user statistics (followers, following, posts)
     // ============================================================================
-    console.log('[Profile API] Step 7: Fetching privacy settings...')
-    
-    let privacySettings = {}
-
-    try {
-      const { data, error } = await supabase
-        .from('profile_privacy_settings')
-        .select('*')
-        .eq('user_id', userId)
-        .single()
-
-      if (error && error.code !== 'PGRST116') {
-        console.warn('[Profile API] ⚠️ Privacy settings query error:', error.message)
-      } else if (data) {
-        privacySettings = data
-        console.log('[Profile API] ✅ Privacy settings found')
-      } else {
-        console.log('[Profile API] ℹ️ No privacy settings found')
-      }
-    } catch (err: any) {
-      console.warn('[Profile API] ⚠️ Privacy settings fetch failed:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 8: Fetch social links
-    // ============================================================================
-    console.log('[Profile API] Step 8: Fetching social links...')
-    
-    let socialLinks = []
-
-    try {
-      const { data, error } = await supabase
-        .from('social_links')
-        .select('*')
-        .eq('user_id', userId)
-
-      if (error) {
-        console.warn('[Profile API] ⚠️ Social links query error:', error.message)
-      } else if (data) {
-        socialLinks = data
-        console.log('[Profile API] ✅ Found', socialLinks.length, 'social links')
-      } else {
-        console.log('[Profile API] ℹ️ No social links found')
-      }
-    } catch (err: any) {
-      console.warn('[Profile API] ⚠️ Social links fetch failed:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 9: Fetch verification badges
-    // ============================================================================
-    console.log('[Profile API] Step 9: Fetching verification badges...')
-    
-    let verificationBadges = []
-
-    try {
-      const { data, error } = await supabase
-        .from('verified_badge')
-        .select('*')
-        .eq('user_id', userId)
-
-      if (error) {
-        console.warn('[Profile API] ⚠️ Verification badges query error:', error.message)
-      } else if (data) {
-        verificationBadges = data
-        console.log('[Profile API] ✅ Found', verificationBadges.length, 'verification badges')
-      } else {
-        console.log('[Profile API] ℹ️ No verification badges found')
-      }
-    } catch (err: any) {
-      console.warn('[Profile API] ⚠️ Verification badges fetch failed:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 10: Fetch user statistics (followers, following, posts)
-    // ============================================================================
-    console.log('[Profile API] Step 10: Fetching user statistics...')
+    console.log('[Profile API] Step 7: Fetching user statistics...')
     
     let stats = {
       followers: 0,
@@ -357,21 +274,74 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     }
 
     // ============================================================================
-    // STEP 11: Build and return response
+    // STEP 8: Fetch user ranks
     // ============================================================================
-    console.log('[Profile API] Step 11: Building response...')
+    console.log('[Profile API] Step 8: Fetching user ranks...')
+    
+    let ranks = []
+
+    try {
+      const { data, error } = await supabase
+        .from('ranks')
+        .select('*')
+        .eq('user_id', userId)
+
+      if (error) {
+        console.warn('[Profile API] ⚠️ Ranks query error:', error.message)
+      } else if (data) {
+        ranks = data
+        console.log('[Profile API] ✅ Found', ranks.length, 'ranks')
+      } else {
+        console.log('[Profile API] ℹ️ No ranks found')
+      }
+    } catch (err: any) {
+      console.warn('[Profile API] ⚠️ Ranks fetch failed:', err.message)
+    }
+
+    // ============================================================================
+    // STEP 9: Fetch verification status from badge_requests
+    // ============================================================================
+    console.log('[Profile API] Step 9: Fetching verification status...')
+    
+    let verificationStatus = null
+
+    try {
+      const { data, error } = await supabase
+        .from('badge_requests')
+        .select('status')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows returned (not found)
+        console.warn('[Profile API] ⚠️ Badge request query error:', error.message)
+      } else if (data) {
+        verificationStatus = data.status
+        console.log('[Profile API] ✅ Verification status:', verificationStatus)
+      } else {
+        console.log('[Profile API] ℹ️ No verification badge request found')
+      }
+    } catch (err: any) {
+      console.warn('[Profile API] ⚠️ Verification status fetch failed:', err.message)
+    }
+
+    // ============================================================================
+    // STEP 10: Build and return response
+    // ============================================================================
+    console.log('[Profile API] Step 10: Building response...')
 
     const response: ProfileResponse = {
       success: true,
       profile: {
         ...profile,
         email: authUser.email || profile.email,
-        verified: verificationBadges.length > 0 || profile.verified
+        verified: verificationStatus === 'approved'
       },
-      privacy_settings: privacySettings,
-      social_links: socialLinks,
-      verification_badges: verificationBadges,
-      stats
+      stats,
+      ranks,
+      verification_status: verificationStatus
     }
 
     console.log('[Profile API] ========================================')
