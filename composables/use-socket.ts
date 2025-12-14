@@ -378,4 +378,4 @@ export const useSocket = () => {
     onCustomEvent,
     offCustomEvent
   }
-  }
+}
