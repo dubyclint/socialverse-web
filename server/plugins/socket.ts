@@ -146,6 +146,13 @@ function initializeSocketIO(server: any) {
         })
       })
 
+      socket.on('chat:stop-typing', () => {
+        console.log('[Socket.IO Chat] Stop typing from', socket.userId)
+        socket.broadcast.emit('chat:stop-typing', {
+          userId: socket.userId
+        })
+      })
+
       // ============================================================================
       // PRESENCE EVENTS
       // ============================================================================
@@ -161,6 +168,18 @@ function initializeSocketIO(server: any) {
         console.log('[Socket.IO Presence] User offline:', socket.userId)
         io?.emit('presence:offline', {
           userId: socket.userId,
+          timestamp: new Date().toISOString()
+        })
+      })
+
+      // ============================================================================
+      // NOTIFICATION EVENTS
+      // ============================================================================
+      socket.on('notification:send', (data: any) => {
+        console.log('[Socket.IO Notification] Notification from', socket.userId)
+        io?.emit('notification:received', {
+          ...data,
+          senderId: socket.userId,
           timestamp: new Date().toISOString()
         })
       })
