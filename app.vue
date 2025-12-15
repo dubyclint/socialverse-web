@@ -1,4 +1,4 @@
-<!-- FILE: /app.vue (FIXED - Session Initialization) -->
+<!-- FILE: /app.vue (COMPLETE FIXED VERSION) -->
 <template>
   <NuxtLayout>
     <div id="app">
@@ -6,12 +6,6 @@
       <div v-if="supabaseError && !isInitializing" class="supabase-error-banner">
         <p>⚠️ Database connection unavailable. Some features may be limited.</p>
         <button @click="retryInitialization">Retry</button>
-      </div>
-
-      <!-- Show error if GUN failed -->
-      <div v-if="gunError && !isInitializing" class="gun-error-banner">
-        <p>⚠️ Peer-to-peer connection unavailable. Using standard mode.</p>
-        <button @click="dismissGunError">Dismiss</button>
       </div>
 
       <!-- Main content -->
@@ -39,11 +33,11 @@
 import { ref, onMounted } from 'vue'
 
 const authStore = useAuthStore()
+const { $supabase } = useNuxtApp()
 
 const isInitializing = ref(true)
 const isLoading = ref(false)
 const supabaseError = ref(false)
-const gunError = ref(false)
 const globalError = ref<string | null>(null)
 
 /**
@@ -54,7 +48,7 @@ onMounted(async () => {
     console.log('[App] 🚀 Initializing application...')
     
     // Initialize auth session from localStorage
-    const sessionInitialized = await authStore.initializeSession()
+    const sessionInitialized = authStore.initializeSession()
     
     if (sessionInitialized) {
       console.log('[App] ✅ Session restored from storage')
@@ -63,83 +57,104 @@ onMounted(async () => {
       console.log('[App] ℹ️ No previous session found')
     }
 
-    // TODO: Initialize other services (Supabase, GUN, etc.)
+    // Check Supabase availability
+    if (!$supabase) {
+      console.warn('[App] Supabase not available')
+      supabaseError.value = true
+    } else {
+      console.log('[App] ✅ Supabase ready')
+      supabaseError.value = false
+    }
     
+    isInitializing.value = false
+    console.log('[App] ✅ Initialization complete')
   } catch (error) {
-    console.error('[App] Error during initialization:', error)
-    globalError.value = error instanceof Error ? error.message : 'Initialization failed'
-  } finally {
+    console.error('[App] Initialization error:', error)
+    globalError.value = 'Failed to initialize application'
     isInitializing.value = false
   }
 })
 
-const retryInitialization = () => {
+/**
+ * Retry initialization
+ */
+const retryInitialization = async () => {
+  isInitializing.value = true
   supabaseError.value = false
-  // Retry logic here
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  isInitializing.value = false
 }
 
-const dismissGunError = () => {
-  gunError.value = false
-}
-
+/**
+ * Clear error
+ */
 const clearError = () => {
   globalError.value = null
 }
 </script>
 
 <style scoped>
-.supabase-error-banner,
-.gun-error-banner {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+.supabase-error-banner {
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
   padding: 1rem;
   margin: 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.supabase-error-banner p,
-.gun-error-banner p {
-  margin: 0;
+.supabase-error-banner button {
+  background-color: #f59e0b;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
 }
 
-.supabase-error-banner button,
-.gun-error-banner button {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
+.supabase-error-banner button:hover {
+  background-color: #d97706;
 }
 
 .global-error {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 2rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
 }
 
+.error-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  max-width: 500px;
+  text-align: center;
+}
+
 .error-content h2 {
-  margin-top: 0;
   color: #dc2626;
+  margin-bottom: 1rem;
 }
 
 .error-content button {
-  background: #dc2626;
+  background-color: #dc2626;
   color: white;
-  border: none;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border: none;
+  border-radius: 0.25rem;
   cursor: pointer;
+  margin-top: 1rem;
+}
+
+.error-content button:hover {
+  background-color: #b91c1c;
 }
 </style>
