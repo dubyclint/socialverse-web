@@ -1,23 +1,52 @@
-// FILE: /server/api/profile/me.get.ts - UPDATE
+// FILE: /server/api/profile/me.get.ts - COMPLETE FIXED VERSION
+// ============================================================================
 // Get current user profile with all related data
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
-export default defineEventHandler(async (event) => {
-  try {
-    const supabase = await serverSupabaseClient(event)
-    const userId = event.context.user?.id
+interface MeResponse {
+  success: boolean
+  profile?: any
+  error?: string
+}
 
-    // STEP 1: VERIFY AUTHENTICATION
-    if (!userId) {
+export default defineEventHandler(async (event): Promise<MeResponse> => {
+  try {
+    console.log('[Profile Me API] Fetching current user profile...')
+
+    // ============================================================================
+    // STEP 1: Get Supabase client
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
+
+    if (!supabase) {
+      console.error('[Profile Me API] ❌ Supabase client not available')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Database connection failed'
+      })
+    }
+
+    // ============================================================================
+    // STEP 2: Get current user from auth context
+    // ============================================================================
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.error('[Profile Me API] ❌ Not authenticated')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized'
       })
     }
 
-    // STEP 2: FETCH PROFILE
+    const userId = user.id
+    console.log('[Profile Me API] ✅ User ID:', userId)
+
+    // ============================================================================
+    // STEP 3: Fetch profile
+    // ============================================================================
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -25,67 +54,49 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError || !profile) {
+      console.error('[Profile Me API] ❌ Profile not found')
       throw createError({
         statusCode: 404,
         statusMessage: 'Profile not found'
       })
     }
 
-    // STEP 3: FETCH RANKS
+    // ============================================================================
+    // STEP 4: Fetch ranks
+    // ============================================================================
     const { data: ranks } = await supabase
       .from('ranks')
       .select('*')
       .eq('user_id', userId)
 
-    // STEP 4: FETCH WALLETS
+    // ============================================================================
+    // STEP 5: Fetch wallets
+    // ============================================================================
     const { data: wallets } = await supabase
       .from('wallets')
       .select('*')
       .eq('user_id', userId)
 
-    // STEP 5: FETCH PRIVACY SETTINGS
-    const { data: privacySettings } = await supabase
-      .from('profile_privacy_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
+    console.log('[Profile Me API] ✅ Profile fetched successfully')
 
-    // STEP 6: FETCH USER SETTINGS
-    const { data: userSettings } = await supabase
-      .from('user_settings_categories')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-
-    // STEP 7: FETCH WALLET LOCK SETTINGS
-    const { data: walletLock } = await supabase
-      .from('wallet_lock_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-
-    // STEP 8: FETCH INTERESTS
-    const { data: userInterests } = await supabase
-      .from('user_interests')
-      .select('*, interests(*)')
-      .eq('user_id', userId)
-
-    // STEP 9: RETURN COMPLETE PROFILE
     return {
       success: true,
-      data: {
-        profile,
+      profile: {
+        ...profile,
         ranks: ranks || [],
         wallets: wallets || [],
-        privacySettings: privacySettings || {},
-        userSettings: userSettings || {},
-        walletLock: walletLock || {},
-        interests: userInterests?.map(ui => ui.interests) || []
-      }
+      },
     }
-
-  } catch (error) {
-    console.error('[GetProfile] Error:', error)
-    throw error
+  } catch (error: any) {
+    console.error('[Profile Me API] ❌ Error:', error.message || error)
+    
+    if (error.statusCode) {
+      throw error
+    }
+    
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Internal server error'
+    })
   }
 })
