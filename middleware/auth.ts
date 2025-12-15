@@ -1,4 +1,4 @@
-// FILE: /middleware/auth.ts - GLOBAL AUTH MIDDLEWARE
+// FILE: /middleware/auth.ts - GLOBAL AUTH MIDDLEWARE (COMPLETE & FIXED)
 // ============================================================================
 // GLOBAL MIDDLEWARE - Applied to all routes
 // Purpose: Protect routes that require authentication
