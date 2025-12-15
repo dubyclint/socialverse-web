@@ -1,49 +1,112 @@
-// FILE: /server/api/profile/update.post.ts - UPDATE
+// FILE: /server/api/profile/update.post.ts - FIXED FOR PROFILES VIEW
+// ============================================================================
 // Update user profile
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 interface UpdateProfileRequest {
-  firstName?: string
-  lastName?: string
-  phone?: string
+  full_name?: string
+  username?: string
   bio?: string
-  address?: string
-  avatarUrl?: string
-  website?: string
+  avatar_url?: string
 }
 
 export default defineEventHandler(async (event) => {
   try {
-    const supabase = await serverSupabaseClient(event)
-    const userId = event.context.user?.id
+    console.log('[Profile Update API] Processing update request...')
 
-    // STEP 1: VERIFY AUTHENTICATION
-    if (!userId) {
+    // ============================================================================
+    // STEP 1: Authentication
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    if (sessionError || !session?.user) {
+      console.error('[Profile Update API] ❌ Unauthorized')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized'
       })
     }
 
-    const body = await readBody<UpdateProfileRequest>(event)
+    const userId = session.user.id
+    console.log('[Profile Update API] User ID:', userId)
 
-    // STEP 2: BUILD UPDATE OBJECT (only include provided fields)
+    // ============================================================================
+    // STEP 2: Read request body
+    // ============================================================================
+    const body = await readBody<UpdateProfileRequest>(event)
+    console.log('[Profile Update API] Update data:', {
+      full_name: body.full_name,
+      username: body.username,
+      bio: body.bio,
+      avatar_url: body.avatar_url ? 'provided' : 'not provided'
+    })
+
+    // ============================================================================
+    // STEP 3: Validate input
+    // ============================================================================
+    if (body.full_name && body.full_name.length > 100) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Full name must be less than 100 characters'
+      })
+    }
+
+    if (body.bio && body.bio.length > 500) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bio must be less than 500 characters'
+      })
+    }
+
+    if (body.username) {
+      if (!/^[a-z0-9_-]+$/i.test(body.username)) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Username can only contain letters, numbers, underscores, and hyphens'
+        })
+      }
+
+      if (body.username.length < 3 || body.username.length > 30) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Username must be between 3 and 30 characters'
+        })
+      }
+
+      // Check if username is taken by another user
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user')
+        .select('user_id')
+        .eq('username', body.username.toLowerCase())
+        .neq('user_id', userId)
+        .single()
+
+      if (existingUser) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Username already taken'
+        })
+      }
+    }
+
+    // ============================================================================
+    // STEP 4: Update profile
+    // ============================================================================
+    console.log('[Profile Update API] Updating profile...')
+
     const updateData: any = {
       updated_at: new Date().toISOString()
     }
 
-    if (body.firstName && body.lastName) {
-      updateData.full_name = `${body.firstName} ${body.lastName}`
-    }
-    if (body.phone !== undefined) updateData.phone = body.phone || null
-    if (body.bio !== undefined) updateData.bio = body.bio || null
-    if (body.address !== undefined) updateData.location = body.address || null
-    if (body.avatarUrl !== undefined) updateData.avatar_url = body.avatarUrl || null
-    if (body.website !== undefined) updateData.website = body.website || null
+    if (body.full_name) updateData.full_name = body.full_name
+    if (body.username) updateData.username = body.username.toLowerCase()
+    if (body.bio !== undefined) updateData.bio = body.bio
+    if (body.avatar_url !== undefined) updateData.avatar_url = body.avatar_url
 
-    // STEP 3: UPDATE PROFILE
     const { data: updatedProfile, error: updateError } = await supabase
       .from('profiles')
       .update(updateData)
@@ -52,21 +115,33 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (updateError) {
+      console.error('[Profile Update API] ❌ Update error:', updateError.message)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to update profile'
+        statusMessage: 'Failed to update profile',
+        data: { details: updateError.message }
       })
     }
 
-    // STEP 4: RETURN SUCCESS
+    console.log('[Profile Update API] ✅ Profile updated successfully')
+
     return {
       success: true,
-      message: 'Profile updated successfully',
-      profile: updatedProfile
+      profile: updatedProfile,
+      message: 'Profile updated successfully'
     }
 
-  } catch (error) {
-    console.error('[UpdateProfile] Error:', error)
-    throw error
+  } catch (err: any) {
+    console.error('[Profile Update API] ❌ Error:', err)
+
+    if (err.statusCode) {
+      throw err
+    }
+
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to update profile',
+      data: { details: err.message }
+    })
   }
 })
