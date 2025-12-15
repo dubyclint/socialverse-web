@@ -1,6 +1,6 @@
-// FILE 4: /server/api/auth/signup.post.ts (CRITICAL - PROFILE CREATION)
+// FILE: /server/api/auth/signup.post.ts - FIXED FOR PROFILES VIEW
 // ============================================================================
-// SIGNUP ENDPOINT - FIXED: Creates profile immediately after user signup
+// SIGNUP ENDPOINT - FIXED: Works with profiles view and user table
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -11,12 +11,6 @@ interface SignupResponse {
     id: string
     email: string
     username: string
-    full_name: string | null
-  }
-  profile?: {
-    id: string
-    username: string
-    email: string
     full_name: string | null
   }
   message?: string
@@ -32,7 +26,6 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
       email: body.email, 
       username: body.username,
       hasPassword: !!body.password,
-      hasFullName: !!body.fullName
     })
 
     const { email, password, username, fullName } = body
@@ -120,8 +113,8 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
     
     try {
       const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
+        .from('user')
+        .select('user_id')
         .eq('username', username.toLowerCase())
         .single()
 
@@ -139,7 +132,10 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
       if (err.statusCode === 400) {
         throw err
       }
-      console.warn('[Auth/Signup] ⚠️ Username check warning:', err.message)
+      // PGRST116 = not found, which is what we want
+      if (err.code !== 'PGRST116') {
+        console.warn('[Auth/Signup] ⚠️ Username check warning:', err.message)
+      }
     }
 
     // ============================================================================
@@ -192,54 +188,28 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
     }
 
     // ============================================================================
-    // STEP 5: Create profile in profiles table
+    // STEP 5: Profile auto-created by database trigger
     // ============================================================================
-    console.log('[Auth/Signup] Step 5: Creating profile in database...')
+    console.log('[Auth/Signup] Step 5: Profile auto-created by database trigger')
     
-    let profile
+    // Wait a moment for trigger to execute
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Verify profile was created
     try {
-      const profileData = {
-        id: authUser.id,
-        email: authUser.email,
-        username: username.toLowerCase(),
-        full_name: fullName || username,
-        avatar_url: null,
-        bio: null,
-        location: null,
-        website: null,
-        verified: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      console.log('[Auth/Signup] Inserting profile:', {
-        id: profileData.id,
-        email: profileData.email,
-        username: profileData.username,
-        full_name: profileData.full_name
-      })
-
-      const { data: insertedProfile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .insert([profileData])
-        .select()
+        .select('*')
+        .eq('id', authUser.id)
         .single()
 
       if (profileError) {
-        console.error('[Auth/Signup] ❌ Profile creation error:', profileError.message)
-        
-        if (profileError.message.includes('does not exist')) {
-          console.warn('[Auth/Signup] ⚠️ Profiles table does not exist - user created but profile not saved')
-        } else {
-          throw profileError
-        }
-      } else {
-        profile = insertedProfile
-        console.log('[Auth/Signup] ✅ Profile created successfully')
+        console.warn('[Auth/Signup] ⚠️ Profile verification warning:', profileError.message)
+      } else if (profile) {
+        console.log('[Auth/Signup] ✅ Profile verified:', profile.id)
       }
     } catch (err: any) {
-      console.error('[Auth/Signup] ❌ Profile creation failed:', err.message)
-      console.warn('[Auth/Signup] ⚠️ Continuing despite profile creation error')
+      console.warn('[Auth/Signup] ⚠️ Profile verification error:', err.message)
     }
 
     // ============================================================================
@@ -255,25 +225,21 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
         username: username.toLowerCase(),
         full_name: fullName || username
       },
-      profile: profile || {
-        id: authUser.id,
-        email: authUser.email,
-        username: username.toLowerCase(),
-        full_name: fullName || username
-      },
       message: 'Signup successful! Please check your email to verify your account.'
     }
 
-  } catch (error: any) {
-    console.error('[Auth/Signup] ❌ Signup error:', error.message || error)
+  } catch (err: any) {
+    console.error('[Auth/Signup] ❌ Unexpected error:', err)
     
-    if (error.statusCode) {
-      throw error
+    if (err.statusCode) {
+      throw err
     }
 
     throw createError({
       statusCode: 500,
-      statusMessage: 'Signup failed: ' + (error.message || 'Unknown error')
+      statusMessage: 'An unexpected error occurred during signup',
+      data: { details: err.message }
     })
   }
 })
+
