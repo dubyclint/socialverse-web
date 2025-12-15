@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /nuxt.config.ts - MINIMAL WORKING VERSION
+// FILE: /nuxt.config.ts - COMPLETE FIXED VERSION
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -10,9 +10,12 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
-    '@pinia/nuxt'
+    '@pinia/nuxt',
   ],
 
+  // ============================================================================
+  // RUNTIME CONFIG
+  // ============================================================================
   runtimeConfig: {
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
@@ -39,12 +42,18 @@ export default defineNuxtConfig({
     },
   },
 
+  // ============================================================================
+  // BUILD CONFIGURATION
+  // ============================================================================
   build: {
     transpile: [
       '@supabase/supabase-js',
     ],
   },
 
+  // ============================================================================
+  // VITE CONFIGURATION
+  // ============================================================================
   vite: {
     build: {
       rollupOptions: {
@@ -53,6 +62,9 @@ export default defineNuxtConfig({
     },
   },
 
+  // ============================================================================
+  // NITRO CONFIGURATION (Server)
+  // ============================================================================
   nitro: {
     preset: 'node-server',
     
@@ -71,6 +83,9 @@ export default defineNuxtConfig({
     },
   },
 
+  // ============================================================================
+  // APP CONFIGURATION
+  // ============================================================================
   app: {
     head: {
       charset: 'utf-8',
