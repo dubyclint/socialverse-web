@@ -1,38 +1,48 @@
-// FILE: /server/api/posts/user/[userId].get.ts (COMPLETE FIXED VERSION)
+// FILE 8: /server/api/posts/user/[userId].get.ts
 // ============================================================================
-// GET POSTS BY USER ID - FIXED: Proper error handling and validation
+// GET POSTS BY USER ID - IMPROVED: Enhanced error handling and graceful fallbacks
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 interface PostsResponse {
   success: boolean
-  posts?: Array<any>
-  total?: number
-  page?: number
-  limit?: number
-  has_more?: boolean
+  posts: Array<any>
+  total: number
+  page: number
+  limit: number
+  has_more: boolean
+  message?: string
   error?: string
 }
 
 export default defineEventHandler(async (event): Promise<PostsResponse> => {
   try {
-    console.log('[Posts API] ======================================')
+    console.log('[Posts API] ========================================')
     console.log('[Posts API] Fetching user posts...')
-    console.log('[Posts API] ======================================')
+    console.log('[Posts API] ========================================')
 
     // ============================================================================
     // STEP 1: Initialize Supabase client
     // ============================================================================
     console.log('[Posts API] Step 1: Initializing Supabase client...')
     
-    const supabase = await serverSupabaseClient(event)
+    let supabase
+    try {
+      supabase = await serverSupabaseClient(event)
+    } catch (err: any) {
+      console.error('[Posts API] ❌ Supabase initialization error:', err.message)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Supabase initialization failed: ' + err.message
+      })
+    }
     
     if (!supabase) {
       console.error('[Posts API] ❌ Supabase client not available')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database connection failed'
+        statusMessage: 'Database client not available'
       })
     }
 
@@ -43,7 +53,6 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     // ============================================================================
     console.log('[Posts API] Step 2: Extracting user ID from route...')
     
-    // ✅ CRITICAL FIX: Properly extract user ID from route parameter
     const userId = getRouterParam(event, 'userId')
 
     if (!userId || userId.trim() === '') {
@@ -64,9 +73,14 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     
     if (!uuidRegex.test(userId)) {
-      console.warn('[Posts API] ⚠️ Invalid user ID format (not UUID):', userId)
-      // Continue anyway - might be a valid ID in different format
+      console.error('[Posts API] ❌ Invalid user ID format:', userId)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid user ID format'
+      })
     }
+
+    console.log('[Posts API] ✅ User ID format is valid')
 
     // ============================================================================
     // STEP 4: Extract and validate pagination parameters
@@ -74,78 +88,128 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     console.log('[Posts API] Step 4: Extracting pagination parameters...')
     
     const query = getQuery(event)
-    const page = Math.max(1, parseInt(query.page as string) || 1)
-    const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 12))
-
-    console.log('[Posts API] ✅ Pagination:', { page, limit })
-
-    // ============================================================================
-    // STEP 5: Fetch total count
-    // ============================================================================
-    console.log('[Posts API] Step 5: Fetching total count...')
     
-    const { count, error: countError } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-
-    if (countError) {
-      console.error('[Posts API] ❌ Count error:', countError.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to fetch posts count'
-      })
+    let page = 1
+    if (query.page) {
+      const parsedPage = parseInt(query.page as string)
+      if (!isNaN(parsedPage) && parsedPage > 0) {
+        page = parsedPage
+      }
     }
 
-    const total = count || 0
-    console.log('[Posts API] ✅ Total posts:', total)
+    let limit = 12
+    if (query.limit) {
+      const parsedLimit = parseInt(query.limit as string)
+      if (!isNaN(parsedLimit) && parsedLimit > 0 && parsedLimit <= 100) {
+        limit = parsedLimit
+      }
+    }
 
-    // ============================================================================
-    // STEP 6: Fetch posts with pagination
-    // ============================================================================
-    console.log('[Posts API] Step 6: Fetching posts...')
-    
     const offset = (page - 1) * limit
 
-    const { data: posts, error: postsError } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    console.log('[Posts API] ✅ Pagination: page=' + page + ', limit=' + limit + ', offset=' + offset)
 
-    if (postsError) {
-      console.error('[Posts API] ❌ Posts fetch error:', postsError.message)
+    // ============================================================================
+    // STEP 5: Fetch posts by user ID
+    // ============================================================================
+    console.log('[Posts API] Step 5: Fetching posts from database...')
+    
+    let posts = []
+    let total = 0
+
+    try {
+      const { data: fetchedPosts, error: postsError, count } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .is('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (postsError) {
+        console.warn('[Posts API] ⚠️ Posts query error:', postsError.message, 'Code:', postsError.code)
+
+        if (
+          postsError.message.includes('does not exist') ||
+          postsError.code === 'PGRST116' ||
+          postsError.code === '42P01'
+        ) {
+          console.log('[Posts API] ℹ️ Posts table does not exist yet')
+          
+          return {
+            success: true,
+            posts: [],
+            total: 0,
+            page,
+            limit,
+            has_more: false,
+            message: 'Posts table not yet created'
+          }
+        }
+
+        throw postsError
+      }
+
+      posts = fetchedPosts || []
+      total = count || 0
+
+      console.log('[Posts API] ✅ Posts fetched successfully')
+      console.log('[Posts API] Total posts:', total)
+      console.log('[Posts API] Posts in this page:', posts.length)
+
+    } catch (err: any) {
+      console.error('[Posts API] ❌ Posts fetch failed:', err.message)
+
+      if (
+        err.message?.includes('does not exist') ||
+        err.code === 'PGRST116' ||
+        err.code === '42P01'
+      ) {
+        console.log('[Posts API] ℹ️ Returning empty posts (table not found)')
+        
+        return {
+          success: true,
+          posts: [],
+          total: 0,
+          page,
+          limit,
+          has_more: false,
+          message: 'Posts table not yet created'
+        }
+      }
+
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to fetch posts'
+        statusMessage: 'Failed to fetch posts: ' + err.message
       })
     }
 
+    // ============================================================================
+    // STEP 6: Calculate pagination info
+    // ============================================================================
     const has_more = offset + limit < total
 
-    console.log('[Posts API] ✅ Posts fetched:', posts?.length || 0, `of ${total} total`)
+    console.log('[Posts API] ✅ Returning posts')
 
     return {
       success: true,
-      posts: posts || [],
+      posts,
       total,
       page,
       limit,
-      has_more,
+      has_more
     }
+
   } catch (error: any) {
     console.error('[Posts API] ❌ Error:', error.message || error)
     
-    // If it's already an H3 error, re-throw it
     if (error.statusCode) {
       throw error
     }
-    
-    // Otherwise, return 500 error
+
     throw createError({
       statusCode: 500,
-      statusMessage: 'Internal server error'
+      statusMessage: 'Failed to fetch posts: ' + (error.message || 'Unknown error')
     })
   }
 })
