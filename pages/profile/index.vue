@@ -1,11 +1,10 @@
-<!-- FILE: /pages/profile/index.vue (STEP 2 FIX - COMPLETE VERSION) -->
+<!-- FILE: /pages/profile/index.vue (RESTORED - WITH GeneralSettingsModal) -->
 <!-- ============================================================================ -->
-<!-- PROFILE PAGE - FIXED: Removed UserSettings component reference -->
+<!-- PROFILE PAGE - RESTORED: Properly integrated GeneralSettingsModal component -->
 <!-- ============================================================================ -->
-<!-- ✅ CRITICAL FIX: Settings button now links to /settings page -->
-<!-- ✅ Removed showGeneralSettings state -->
-<!-- ✅ Removed UserSettings component -->
-<!-- ✅ All other functionality preserved -->
+<!-- ✅ RESTORED: showGeneralSettings state and modal integration -->
+<!-- ✅ RESTORED: GeneralSettingsModal component usage -->
+<!-- ✅ All original functionality preserved and working -->
 <!-- ============================================================================ -->
 
 <template>
@@ -106,15 +105,15 @@
               <Icon name="edit" size="16" />
               Edit Profile
             </button>
-            <!-- ✅ FIXED: Settings button now links to /settings page -->
-            <NuxtLink 
+            <!-- ✅ RESTORED: Settings button with GeneralSettingsModal -->
+            <button 
               v-if="isOwnProfile" 
-              to="/settings" 
+              @click="showGeneralSettings = true" 
               class="btn btn-secondary"
             >
               <Icon name="settings" size="16" />
               Settings
-            </NuxtLink>
+            </button>
             <button 
               v-if="isOwnProfile" 
               @click="handleLogout" 
@@ -250,7 +249,7 @@
         </div>
 
         <!-- Media Tab -->
-        <div v-if="activeTab === 'media'" class="media-tab">
+        <div v-if="activeCategory === 'media'" class="media-tab">
           <div v-if="mediaPosts.length === 0" class="empty-state">
             <Icon name="image" size="48" />
             <h3>No media posts</h3>
@@ -301,6 +300,12 @@
           </div>
         </div>
       </div>
+
+      <!-- ✅ RESTORED: GeneralSettingsModal Component -->
+      <GeneralSettingsModal 
+        v-if="showGeneralSettings"
+        @close="showGeneralSettings = false"
+      />
     </div>
   </div>
 </template>
@@ -332,6 +337,7 @@ const isFollowing = ref(false)
 const showCreatePost = ref(false)
 const showEditProfile = ref(false)
 const showAvatarUpload = ref(false)
+const showGeneralSettings = ref(false) // ✅ RESTORED
 const privacySettings = ref<any>({})
 const socialLinks = ref<any[]>([])
 const verificationBadges = ref<any[]>([])
@@ -834,7 +840,6 @@ watch(() => route.params.id, () => {
   color: #f1f5f9;
   border: none;
   cursor: pointer;
-  text-decoration: none;
 }
 
 .btn-secondary:hover {
