@@ -1,12 +1,6 @@
-// FILE: /composables/use-chat.ts (COMPLETE FIXED VERSION)
+// FILE 3: /composables/use-chat.ts
 // ============================================================================
 // CHAT COMPOSABLE - FIXED: Proper Socket.IO initialization and error handling
-// ============================================================================
-// ✅ CRITICAL FIX: Removed direct Gun import that causes errors
-// ✅ Proper Socket.IO connection with authentication
-// ✅ Graceful error handling for socket connection failures
-// ✅ Proper cleanup on unmount
-// ✅ Token validation before socket connection
 // ============================================================================
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
