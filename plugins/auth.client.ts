@@ -1,87 +1,38 @@
-// FILE: /plugins/auth.client.ts (COMPLETE FIXED VERSION)
-// ============================================================================
-// AUTH PLUGIN - FIXED: Proper Supabase integration and error handling
-// ============================================================================
-
+// FILE: /plugins/auth.client.ts (FIXED FOR SSR)
 export default defineNuxtPlugin(async (nuxtApp) => {
   try {
+    // ✅ Only run on client-side
+    if (!process.client) {
+      console.log('[Auth Plugin] Running on server - skipping')
+      return
+    }
+
     const authStore = useAuthStore()
     const { $supabase } = nuxtApp
 
     console.log('[Auth Plugin] Starting initialization...')
 
-    // ============================================================================
-    // STEP 1: Check if Supabase is available
-    // ============================================================================
     if (!$supabase) {
-      console.warn('[Auth Plugin] ⚠️ Supabase client not available - skipping auth init')
+      console.warn('[Auth Plugin] ⚠️ Supabase client not available')
       return
     }
 
-    // ============================================================================
-    // STEP 2: Get current session from Supabase
-    // ============================================================================
-    try {
-      const { data: { session }, error: sessionError } = await $supabase.auth.getSession()
+    // Get current session
+    const { data: { session }, error } = await $supabase.auth.getSession()
 
-      if (sessionError) {
-        console.error('[Auth Plugin] Error getting session:', sessionError.message)
-      }
-
-      // ✅ CRITICAL: If session exists, set user and token in auth store
-      if (session?.user) {
-        console.log('[Auth Plugin] ✅ Session found, user ID:', session.user.id)
-        
-        // ✅ Set token first
-        authStore.setToken(session.access_token)
-        
-        // ✅ Set user with proper ID extraction
-        authStore.setUser(session.user)
-        
-        console.log('[Auth Plugin] ✅ User authenticated:', session.user.id)
-        console.log('[Auth Plugin] ✅ Token set:', !!session.access_token)
-      } else {
-        console.log('[Auth Plugin] No session found')
-      }
-    } catch (error: any) {
-      console.error('[Auth Plugin] Error processing session:', error.message)
+    if (error) {
+      console.error('[Auth Plugin] ❌ Session error:', error.message)
+      return
     }
 
-    // ============================================================================
-    // STEP 3: Listen for auth state changes
-    // ============================================================================
-    try {
-      const { data: { subscription } } = $supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          console.log('[Auth Plugin] Auth state changed:', event)
-
-          if (event === 'SIGNED_IN' && session?.user) {
-            // ✅ User signed in
-            console.log('[Auth Plugin] ✅ User signed in:', session.user.id)
-            authStore.setToken(session.access_token)
-            authStore.setUser(session.user)
-          } else if (event === 'SIGNED_OUT') {
-            // ✅ User signed out
-            console.log('[Auth Plugin] ✅ User signed out')
-            authStore.clearAuth()
-          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            // ✅ Token refreshed
-            console.log('[Auth Plugin] ✅ Token refreshed')
-            authStore.setToken(session.access_token)
-          }
-        }
-      )
-
-      // Cleanup subscription on app unmount
-      nuxtApp.hook('app:unmounted', () => {
-        subscription?.unsubscribe()
-      })
-    } catch (error: any) {
-      console.error('[Auth Plugin] Error setting up auth listener:', error.message)
+    if (session?.user) {
+      console.log('[Auth Plugin] ✅ User session found:', session.user.id)
+      authStore.setUser(session.user)
+    } else {
+      console.log('[Auth Plugin] No active session')
     }
-
-    console.log('[Auth Plugin] ✅ Initialization complete')
-  } catch (error) {
-    console.error('[Auth Plugin] ❌ Initialization error:', error)
+  } catch (err: any) {
+    console.error('[Auth Plugin] ❌ Error:', err.message)
   }
 })
+
