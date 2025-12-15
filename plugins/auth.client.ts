@@ -14,7 +14,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     // STEP 1: Check if Supabase is available
     // ============================================================================
     if (!$supabase) {
-      console.warn('[Auth Plugin] ⚠️ Supabase client not available')
+      console.warn('[Auth Plugin] ⚠️ Supabase client not available - skipping auth init')
       return
     }
 
@@ -73,17 +73,15 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       )
 
       // Cleanup subscription on app unmount
-      if (process.client) {
-        nuxtApp.hook('app:unmounted', () => {
-          subscription?.unsubscribe()
-        })
-      }
+      nuxtApp.hook('app:unmounted', () => {
+        subscription?.unsubscribe()
+      })
     } catch (error: any) {
       console.error('[Auth Plugin] Error setting up auth listener:', error.message)
     }
 
     console.log('[Auth Plugin] ✅ Initialization complete')
-  } catch (error: any) {
-    console.error('[Auth Plugin] ❌ Fatal error:', error.message)
+  } catch (error) {
+    console.error('[Auth Plugin] ❌ Initialization error:', error)
   }
 })
