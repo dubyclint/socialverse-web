@@ -1,4 +1,4 @@
-// FILE: /stores/auth.ts (COMPLETE FIXED VERSION WITH initializeSession)
+// FILE: /stores/auth.ts (COMPLETE FIXED VERSION WITH ALL METHODS)
 // ============================================================================
 // AUTH STORE - FIXED: Proper user ID extraction and session management
 // ============================================================================
@@ -22,7 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
   )
   
   const user = ref<User | null>(
-    typeof window !== 'undefined' 
+    typeof window !== 'undefined'
       ? (() => {
           try {
             const stored = localStorage.getItem('auth_user')
@@ -149,12 +149,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Clear authentication
+   * ✅ COMPLETE: Clear authentication
    */
   const clearAuth = () => {
     token.value = null
-    user.value = null
     userId.value = null
+    user.value = null
     error.value = null
     
     localStorage.removeItem('auth_token')
@@ -165,24 +165,34 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Set error
+   * ✅ NEW: Set loading state
    */
-  const setError = (err: string | null) => {
-    error.value = err
+  const setLoading = (value: boolean) => {
+    isLoading.value = value
   }
 
   /**
-   * Set loading
+   * ✅ NEW: Set error message
    */
-  const setLoading = (loading: boolean) => {
-    isLoading.value = loading
+  const setError = (message: string | null) => {
+    error.value = message
+    if (message) {
+      console.error('[Auth Store] Error:', message)
+    }
+  }
+
+  /**
+   * ✅ NEW: Clear error message
+   */
+  const clearError = () => {
+    error.value = null
   }
 
   return {
     // State
     token,
-    user,
     userId,
+    user,
     isLoading,
     error,
     
@@ -197,7 +207,8 @@ export const useAuthStore = defineStore('auth', () => {
     setUser,
     initializeSession,
     clearAuth,
+    setLoading,
     setError,
-    setLoading
+    clearError,
   }
 })
