@@ -1,5 +1,6 @@
-// FILE: /middleware/profile-completion.ts - CREATE
-// Profile Completion Middleware
+// FILE: /middleware/profile-completion.ts - PROFILE COMPLETION MIDDLEWARE (COMPLETE & FIXED)
+// ============================================================================
+// Purpose: Redirect users with incomplete profiles to complete-profile page
 // ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
@@ -31,21 +32,21 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   // Check if profile is completed
-  const profileCompleted = user.profile?.profile_completed || false
+  const profileCompleted = user.user_metadata?.profile_completed || false
 
   // If profile is not completed and user is trying to access protected routes
   if (!profileCompleted) {
     // Allow access to certain pages
     const allowedRoutes = [
-      '/auth/complete-profile',
       '/settings',
-      '/logout',
-      '/auth/verify-email'
+      '/profile',
+      '/auth/complete-profile'
     ]
 
     const isAllowed = allowedRoutes.some(route => to.path.startsWith(route))
 
     if (!isAllowed) {
+      console.log(`[Profile Completion] Redirecting to complete-profile`)
       return navigateTo('/auth/complete-profile')
     }
   }
