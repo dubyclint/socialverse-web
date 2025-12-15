@@ -1,85 +1,48 @@
-// FILE: /plugins/supabase-client.ts (COMPLETE FIXED VERSION)
-// ============================================================================
-// SUPABASE CLIENT PLUGIN - FIXED: Proper initialization and error handling
-// ============================================================================
-
+// FILE: /plugins/supabase-client.ts (FIXED FOR SSR)
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export default defineNuxtPlugin(async (nuxtApp) => {
   try {
-    // ✅ CRITICAL: Only initialize on client-side
-    if (!process.client) {
-      console.log('[Supabase Plugin] Running on server - skipping initialization')
-      return {
-        provide: {
-          supabase: null,
-          supabaseReady: false,
-          supabaseError: new Error('Supabase not available on server'),
-        },
-      }
-    }
-
     const config = useRuntimeConfig()
     
     const supabaseUrl = config.public.supabaseUrl
     const supabaseKey = config.public.supabaseKey
 
-    // Graceful degradation if credentials missing
     if (!supabaseUrl || !supabaseKey) {
-      console.warn('[Supabase Plugin] ⚠️ Missing SUPABASE_URL or SUPABASE_KEY - Running in degraded mode')
-      
+      console.warn('[Supabase Plugin] Missing Supabase credentials')
       return {
         provide: {
           supabase: null,
           supabaseReady: false,
-          supabaseError: new Error('Missing Supabase credentials'),
         },
       }
     }
 
-    // Validate URL format
-    if (!supabaseUrl.includes('supabase.co')) {
-      const error = new Error('Invalid Supabase URL format')
-      console.error('[Supabase Plugin]', error.message)
-      
-      return {
-        provide: {
-          supabase: null,
-          supabaseReady: false,
-          supabaseError: error,
-        },
-      }
-    }
-
-    // ✅ CRITICAL FIX: Disable detectSessionInUrl to prevent history.state error
-    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
+    const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
-        detectSessionInUrl: false,
-        persistSession: true,
-        autoRefreshToken: true,
-        flowType: 'pkce'
-      }
+        persistSession: process.client,
+        autoRefreshToken: process.client,
+        detectSessionInUrl: process.client,
+      },
     })
 
-    console.log('[Supabase Plugin] ✅ Supabase client initialized successfully')
+    console.log('[Supabase Plugin] ✅ Initialized')
 
     return {
       provide: {
         supabase,
         supabaseReady: true,
-        supabaseError: null,
       },
     }
   } catch (error) {
-    console.error('[Supabase Plugin] ❌ Initialization failed:', error)
-    
+    console.error('[Supabase Plugin] ❌ Error:', error)
     return {
       provide: {
         supabase: null,
         supabaseReady: false,
-        supabaseError: error instanceof Error ? error : new Error('Unknown error'),
       },
     }
   }
 })
+
 
