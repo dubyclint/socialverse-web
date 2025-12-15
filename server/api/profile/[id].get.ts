@@ -1,6 +1,6 @@
-// FILE: /server/api/profile/[id].get.ts (COMPLETE FIXED VERSION)
+// FILE 6: /server/api/profile/[id].get.ts
 // ============================================================================
-// GET PROFILE BY USER ID - FIXED: Proper error handling and response structure
+// GET PROFILE BY USER ID - IMPROVED: Enhanced error handling and diagnostics
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -20,27 +20,42 @@ interface ProfileResponse {
     created_at: string
     updated_at: string
   }
+  stats?: {
+    followers: number
+    following: number
+    posts: number
+  }
   error?: string
+  message?: string
 }
 
 export default defineEventHandler(async (event): Promise<ProfileResponse> => {
   try {
-    console.log('[Profile API] ======================================')
+    console.log('[Profile API] ========================================')
     console.log('[Profile API] Fetching profile...')
-    console.log('[Profile API] ======================================')
+    console.log('[Profile API] ========================================')
 
     // ============================================================================
     // STEP 1: Initialize Supabase client
     // ============================================================================
     console.log('[Profile API] Step 1: Initializing Supabase client...')
     
-    const supabase = await serverSupabaseClient(event)
+    let supabase
+    try {
+      supabase = await serverSupabaseClient(event)
+    } catch (err: any) {
+      console.error('[Profile API] ❌ Supabase initialization error:', err.message)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Supabase initialization failed: ' + err.message
+      })
+    }
     
     if (!supabase) {
       console.error('[Profile API] ❌ Supabase client not available')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database connection failed'
+        statusMessage: 'Database client not available'
       })
     }
 
@@ -51,7 +66,6 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     // ============================================================================
     console.log('[Profile API] Step 2: Extracting user ID from route...')
     
-    // ✅ CRITICAL FIX: Properly extract user ID from route parameter
     const userId = getRouterParam(event, 'id')
 
     if (!userId || userId.trim() === '') {
@@ -72,76 +86,108 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     
     if (!uuidRegex.test(userId)) {
-      console.warn('[Profile API] ⚠️ Invalid user ID format (not UUID):', userId)
-      // Continue anyway - might be a valid ID in different format
+      console.error('[Profile API] ❌ Invalid user ID format:', userId)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid user ID format'
+      })
     }
+
+    console.log('[Profile API] ✅ User ID format is valid')
 
     // ============================================================================
     // STEP 4: Fetch profile from database
     // ============================================================================
     console.log('[Profile API] Step 4: Fetching profile from database...')
     
-    const { data: profile, error: dbError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    let profile = null
+    let profileError = null
 
-    if (dbError) {
-      console.error('[Profile API] ❌ Database error:', dbError.message)
-      
-      if (dbError.code === 'PGRST116') {
-        // Not found
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Profile not found'
-        })
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.warn('[Profile API] ⚠️ Profile query error:', error.message, 'Code:', error.code)
+        profileError = error
+      } else {
+        profile = data
+        console.log('[Profile API] ✅ Profile found in database')
       }
-      
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to fetch profile'
-      })
+    } catch (err: any) {
+      console.error('[Profile API] ❌ Profile fetch error:', err.message)
+      profileError = err
     }
 
+    // ============================================================================
+    // STEP 5: If no profile, try to get from auth
+    // ============================================================================
     if (!profile) {
-      console.warn('[Profile API] ❌ Profile not found for user:', userId)
+      console.log('[Profile API] Step 5: Profile not found, trying auth...')
+      
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId)
+        
+        if (authError) {
+          console.warn('[Profile API] ⚠️ Auth fetch error:', authError.message)
+        } else if (user) {
+          console.log('[Profile API] ✅ User found in auth')
+          
+          profile = {
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || null,
+            username: user.user_metadata?.username || null,
+            avatar_url: user.user_metadata?.avatar_url || null,
+            bio: user.user_metadata?.bio || null,
+            location: user.user_metadata?.location || null,
+            website: user.user_metadata?.website || null,
+            verified: false,
+            created_at: user.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Profile API] ⚠️ Auth fallback error:', err.message)
+      }
+    }
+
+    // ============================================================================
+    // STEP 6: Return response
+    // ============================================================================
+    if (!profile) {
+      console.error('[Profile API] ❌ Profile not found')
       throw createError({
         statusCode: 404,
-        statusMessage: 'Profile not found'
+        statusMessage: 'User profile not found'
       })
     }
 
-    console.log('[Profile API] ✅ Profile fetched successfully:', userId)
+    console.log('[Profile API] ✅ Returning profile')
 
     return {
       success: true,
-      profile: {
-        id: profile.id,
-        email: profile.email,
-        full_name: profile.full_name,
-        username: profile.username,
-        avatar_url: profile.avatar_url,
-        bio: profile.bio,
-        location: profile.location,
-        website: profile.website,
-        verified: profile.verified,
-        created_at: profile.created_at,
-        updated_at: profile.updated_at,
-      },
+      profile,
+      stats: {
+        followers: 0,
+        following: 0,
+        posts: 0
+      }
     }
+
   } catch (error: any) {
     console.error('[Profile API] ❌ Error:', error.message || error)
     
-    // If it's already an H3 error, re-throw it
     if (error.statusCode) {
       throw error
     }
-    
-    // Otherwise, return 500 error
+
     throw createError({
       statusCode: 500,
-      statusMessage: 'Internal server error'
+      statusMessage: 'Failed to fetch profile: ' + (error.message || 'Unknown error')
     })
   }
 })
