@@ -235,4 +235,4 @@ export const useApi = () => {
     notifications,
     getUserId
   }
-                         }
+}
