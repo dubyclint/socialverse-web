@@ -1,4 +1,4 @@
-// FILE: /middleware/guest.ts - GUEST-ONLY MIDDLEWARE
+// FILE: /middleware/guest.ts - GUEST-ONLY MIDDLEWARE (COMPLETE & FIXED)
 // ============================================================================
 // NON-GLOBAL MIDDLEWARE - Applied to auth routes via definePageMeta
 // Purpose: Ensure only unauthenticated users can access auth pages
