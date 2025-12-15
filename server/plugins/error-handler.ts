@@ -1,21 +1,23 @@
-// server/plugins/error-handler.ts
-// FIXED: No type imports, simplified hooks
+// FILE: /server/plugins/error-handler.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// Global error handler for Nitro server
+// ============================================================================
 
 export default defineNitroPlugin((nitroApp) => {
-  console.log('[Error Handler Plugin] Initializing global error handler')
-  
-  try {
-    nitroApp.hooks.hook('error', (error, context) => {
-      console.error('[Global Error Handler] Error caught:', {
-        message: error?.message || 'Unknown error',
-        stack: error?.stack,
-        timestamp: new Date().toISOString()
-      })
-    })
+  console.log('[Error Handler Plugin] Initializing...')
 
-    console.log('[Error Handler Plugin] Successfully initialized')
-  } catch (error) {
-    console.error('[Error Handler Plugin] Failed to initialize:', error)
-  }
+  // Handle errors globally
+  nitroApp.hooks.hook('error', (error, context) => {
+    console.error('[Nitro Error]', {
+      message: error.message,
+      statusCode: error.statusCode,
+      statusMessage: error.statusMessage,
+      url: context?.event?.node?.req?.url,
+      method: context?.event?.node?.req?.method,
+    })
+  })
+
+  console.log('[Error Handler Plugin] ✅ Ready')
 })
+
 
