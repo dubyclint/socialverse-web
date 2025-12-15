@@ -1,11 +1,6 @@
-// FILE: /server/api/auth/signup.post.ts (COMPLETE FIXED VERSION)
+// FILE 4: /server/api/auth/signup.post.ts (CRITICAL - PROFILE CREATION)
 // ============================================================================
 // SIGNUP ENDPOINT - FIXED: Creates profile immediately after user signup
-// ============================================================================
-// ✅ CRITICAL FIX: Profile is created immediately, not relying on triggers
-// ✅ Stores username, full_name, and other metadata
-// ✅ Proper error handling at each step
-// ✅ Detailed logging for debugging
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -145,7 +140,6 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
         throw err
       }
       console.warn('[Auth/Signup] ⚠️ Username check warning:', err.message)
-      // Continue anyway
     }
 
     // ============================================================================
@@ -234,7 +228,6 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
       if (profileError) {
         console.error('[Auth/Signup] ❌ Profile creation error:', profileError.message)
         
-        // If profile table doesn't exist, log warning but continue
         if (profileError.message.includes('does not exist')) {
           console.warn('[Auth/Signup] ⚠️ Profiles table does not exist - user created but profile not saved')
         } else {
@@ -246,9 +239,6 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
       }
     } catch (err: any) {
       console.error('[Auth/Signup] ❌ Profile creation failed:', err.message)
-      
-      // Don't fail the entire signup if profile creation fails
-      // User is already created in auth
       console.warn('[Auth/Signup] ⚠️ Continuing despite profile creation error')
     }
 
