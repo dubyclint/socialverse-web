@@ -70,15 +70,16 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         supabaseError: null,
       },
     }
-  } catch (error: any) {
-    console.error('[Supabase Plugin] ❌ Fatal error during initialization:', error.message)
+  } catch (error) {
+    console.error('[Supabase Plugin] ❌ Initialization failed:', error)
     
     return {
       provide: {
         supabase: null,
         supabaseReady: false,
-        supabaseError: error,
+        supabaseError: error instanceof Error ? error : new Error('Unknown error'),
       },
     }
   }
 })
+
