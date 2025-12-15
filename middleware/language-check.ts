@@ -1,6 +1,6 @@
-// FILE: /middleware/language-check.ts (CORRECTED)
+// FILE 1: /middleware/language-check.ts
 // ============================================================================
-// LANGUAGE CHECK MIDDLEWARE - FIXED: Proper imports and error handling
+// LANGUAGE CHECK MIDDLEWARE - FIXED: Proper useI18n import and error handling
 // ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
@@ -8,7 +8,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (process.server) return
 
   try {
-    // Check if i18n is available
+    // ✅ CRITICAL FIX: Import useI18n from vue-i18n composable
     const { locale } = useI18n()
     
     if (!locale) {
@@ -24,10 +24,10 @@ export default defineNuxtRouteMiddleware((to, from) => {
     // Set locale if not already set
     if (!locale.value) {
       locale.value = browserLang
-      console.log('[Language Middleware] Set locale to:', locale.value)
+      console.log('[Language Middleware] ✅ Set locale to:', locale.value)
     }
   } catch (error) {
-    console.warn('[Language Middleware] Could not set locale:', error)
-    // Don't block navigation if i18n fails
+    console.warn('[Language Middleware] ⚠️ Could not set locale:', error)
+    // Gracefully continue without i18n
   }
 })
