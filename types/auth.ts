@@ -1,4 +1,5 @@
-// FILE: /types/auth.ts - CREATE
+// FILE: /types/auth.ts - COMPLETE FIXED VERSION
+// ============================================================================
 // Authentication related types
 // ============================================================================
 
@@ -41,96 +42,67 @@ export interface AuthResponse {
 export interface User {
   id: string
   email: string
-  username: string
-  role: 'user' | 'manager' | 'admin'
-  profile: UserProfile
-  ranks: Rank[]
-  wallets: Wallet[]
-  privacySettings: PrivacySettings
-  userSettings: UserSettings
-  walletLock: WalletLock
-  interests: Interest[]
+  full_name?: string | null
+  username?: string | null
+  avatar_url?: string | null
+  bio?: string | null
+  email_confirmed_at?: string | null
+  user_metadata?: Record<string, any>
+  profile?: UserProfile | null
+  role?: 'user' | 'manager' | 'admin'
+  ranks?: Rank[]
+  wallets?: Wallet[]
+  privacySettings?: PrivacySettings
+  userSettings?: UserSettings
+  walletLock?: WalletLock
+  interests?: Interest[]
 }
 
 export interface UserProfile {
   full_name?: string
-  phone?: string
+  username?: string
+  avatar_url?: string
   bio?: string
   location?: string
-  avatar_url?: string
   website?: string
-  email_verified: boolean
-  profile_completed: boolean
-  status: 'active' | 'suspended' | 'banned'
-  created_at: string
-  updated_at: string
-  last_login?: string
+  verified?: boolean
+  profile_completed?: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export interface Rank {
   id: string
-  user_id: string
-  category: 'trading' | 'social' | 'content' | 'overall'
-  current_rank: string
-  rank_level: number
-  points: number
-  next_rank: string
-  points_to_next: number
-  achievements: string[]
-  season_start: string
+  name: string
+  level: number
 }
 
 export interface Wallet {
   id: string
-  user_id: string
-  currency_code: string
-  currency_name: string
+  address: string
   balance: number
-  locked_balance: number
-  wallet_address?: string
-  wallet_type: string
-  is_locked: boolean
 }
 
 export interface PrivacySettings {
-  id?: string
-  user_id?: string
-  show_profile_views: boolean
-  show_online_status: boolean
-  allow_messages: boolean
-  allow_friend_requests: boolean
+  profile_visibility: 'public' | 'private' | 'friends'
   show_email: boolean
-  show_phone: boolean
   show_location: boolean
-  show_interests: boolean
-  profile_visibility: 'public' | 'private' | 'friends_only'
 }
 
 export interface UserSettings {
-  id?: string
-  user_id?: string
   notifications_enabled: boolean
   email_notifications: boolean
-  push_notifications: boolean
-  theme: 'light' | 'dark'
+  theme: 'light' | 'dark' | 'auto'
   language: string
-  two_factor_enabled: boolean
-  backup_codes: string[]
 }
 
 export interface WalletLock {
-  id?: string
-  user_id?: string
-  is_locked: boolean
+  locked: boolean
   locked_until?: string
-  lock_reason?: string
 }
 
 export interface Interest {
   id: string
   name: string
-  description?: string
   category: string
-  icon_url?: string
-  is_active: boolean
 }
