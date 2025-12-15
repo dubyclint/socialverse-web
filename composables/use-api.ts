@@ -1,12 +1,6 @@
-// FILE: /composables/use-api.ts (COMPLETE FIXED VERSION)
+// FILE 2: /composables/use-api.ts
 // ============================================================================
 // API COMPOSABLE - FIXED: Proper error handling and $fetch usage
-// ============================================================================
-// ✅ CRITICAL FIX: All API functions return null on error instead of throwing
-// ✅ Proper $fetch usage with correct error handling
-// ✅ User ID extraction works correctly
-// ✅ Comprehensive error logging
-// ✅ Graceful fallbacks for all endpoints
 // ============================================================================
 
 import type { FetchOptions } from 'ofetch'
@@ -14,10 +8,6 @@ import type { FetchOptions } from 'ofetch'
 export const useApi = () => {
   const { $fetch } = useNuxtApp()
   const authStore = useAuthStore()
-
-  // ============================================================================
-  // HELPER FUNCTIONS
-  // ============================================================================
 
   /**
    * ✅ CRITICAL: Get user ID from auth store
@@ -39,9 +29,6 @@ export const useApi = () => {
   // PROFILE OPERATIONS
   // ============================================================================
   const profile = {
-    /**
-     * Get current user's profile
-     */
     async getMe() {
       try {
         console.log('[API] Fetching current user profile...')
@@ -54,10 +41,6 @@ export const useApi = () => {
       }
     },
 
-    /**
-     * ✅ CRITICAL FIX: Get profile by user ID
-     * Now properly handles missing user ID
-     */
     async getProfile(userId?: string) {
       try {
         const id = userId || getUserId()
@@ -77,9 +60,6 @@ export const useApi = () => {
       }
     },
 
-    /**
-     * Update current user's profile
-     */
     async updateProfile(updates: any) {
       try {
         const userId = getUserId()
@@ -105,9 +85,6 @@ export const useApi = () => {
       }
     },
 
-    /**
-     * Complete user profile
-     */
     async completeProfile(profileData: any) {
       try {
         const userId = getUserId()
@@ -133,9 +110,6 @@ export const useApi = () => {
       }
     },
 
-    /**
-     * Upload avatar
-     */
     async uploadAvatar(file: File) {
       try {
         const userId = getUserId()
@@ -167,10 +141,6 @@ export const useApi = () => {
   // POSTS OPERATIONS
   // ============================================================================
   const posts = {
-    /**
-     * ✅ CRITICAL FIX: Get posts by user ID
-     * Now properly handles missing user ID
-     */
     async getUserPosts(userId?: string, page: number = 1, limit: number = 12) {
       try {
         const id = userId || getUserId()
@@ -192,9 +162,6 @@ export const useApi = () => {
       }
     },
 
-    /**
-     * Get feed posts
-     */
     async getFeed(page: number = 1, limit: number = 12) {
       try {
         console.log('[API] Fetching feed posts...')
@@ -209,9 +176,6 @@ export const useApi = () => {
       }
     },
 
-    /**
-     * Create a new post
-     */
     async createPost(content: string, media?: File[]) {
       try {
         const userId = getUserId()
@@ -250,9 +214,6 @@ export const useApi = () => {
   // NOTIFICATIONS OPERATIONS
   // ============================================================================
   const notifications = {
-    /**
-     * Get user notifications
-     */
     async getNotifications(page: number = 1, limit: number = 20) {
       try {
         console.log('[API] Fetching notifications...')
@@ -268,13 +229,10 @@ export const useApi = () => {
     }
   }
 
-  // ============================================================================
-  // RETURN PUBLIC API
-  // ============================================================================
   return {
     profile,
     posts,
     notifications,
     getUserId
   }
-}
+                         }
