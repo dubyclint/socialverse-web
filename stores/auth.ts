@@ -1,4 +1,4 @@
-// FILE: /stores/auth.ts (COMPLETE FIXED VERSION)
+// FILE: /stores/auth.ts (COMPLETE FIXED VERSION WITH initializeSession)
 // ============================================================================
 // AUTH STORE - FIXED: Proper user ID extraction and session management
 // ============================================================================
@@ -47,6 +47,13 @@ export const useAuthStore = defineStore('auth', () => {
   const isEmailVerified = computed(() => user.value?.email_confirmed_at || false)
   
   const isProfileComplete = computed(() => user.value?.user_metadata?.profile_completed || false)
+
+  const userDisplayName = computed(() => {
+    if (user.value?.full_name) return user.value.full_name
+    if (user.value?.username) return user.value.username
+    if (user.value?.email) return user.value.email
+    return 'User'
+  })
 
   // ============================================================================
   // ACTIONS
@@ -109,6 +116,39 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * ✅ NEW: Initialize session from localStorage
+   * This method restores the user session from localStorage on app startup
+   */
+  const initializeSession = (): boolean => {
+    try {
+      const storedToken = localStorage.getItem('auth_token')
+      const storedUser = localStorage.getItem('auth_user')
+      const storedUserId = localStorage.getItem('auth_user_id')
+      
+      // ✅ If all session data exists, restore it
+      if (storedToken && storedUser && storedUserId) {
+        token.value = storedToken
+        user.value = JSON.parse(storedUser)
+        userId.value = storedUserId
+        
+        console.log('[Auth Store] ✅ Session restored from localStorage')
+        console.log('[Auth Store] ✅ User ID:', userId.value)
+        console.log('[Auth Store] ✅ Authenticated:', isAuthenticated.value)
+        
+        return true
+      }
+      
+      console.log('[Auth Store] ℹ️ No session found in localStorage')
+      return false
+    } catch (error) {
+      console.error('[Auth Store] ❌ Error initializing session:', error)
+      // Clear corrupted data
+      clearAuth()
+      return false
+    }
+  }
+
+  /**
    * Clear authentication
    */
   const clearAuth = () => {
@@ -150,10 +190,12 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isEmailVerified,
     isProfileComplete,
+    userDisplayName,
     
     // Actions
     setToken,
     setUser,
+    initializeSession,
     clearAuth,
     setError,
     setLoading
