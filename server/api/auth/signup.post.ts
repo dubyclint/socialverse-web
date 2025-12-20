@@ -1,9 +1,10 @@
 // FILE: /server/api/auth/signup.post.ts - FIXED FOR PROFILES VIEW
 // ============================================================================
 // SIGNUP ENDPOINT - FIXED: Works with profiles view and user table
+// ✅ FIXED: Corrected import path for serverSupabaseClient
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient } from '~/server/utils/supabase-server'
 
 interface SignupResponse {
   success: boolean
