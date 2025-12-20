@@ -1,13 +1,18 @@
 <template>
   <div>
-    <h3>Your Notifications</h3>
-    <ul v-if="notifications.length">
-      <li v-for="note in notifications" :key="note._id">
-        <strong>{{ note.type.toUpperCase() }}:</strong> {{ note.message }}
-        <small>{{ formatTime(note.timestamp) }}</small>
-      </li>
-    </ul>
-    <p v-else>No notifications yet.</p>
+    <h>Your Notifications</h3>
+    
+    <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
+    <ClientOnly>
+      <ul v-if="notifications.length">
+        <li v-for="note in notifications" :key="note._id">
+          <strong>{{ note.type.toUpperCase() }}:</strong> {{ note.message }}
+          <small>{{ formatTime(note.timestamp) }}</small>
+        </li>
+      </ul>
+      <p v-else>No notifications yet.</p>
+    </ClientOnly>
+    <!-- ✅ END OF ClientOnly WRAPPER -->
   </div>
 </template>
 
