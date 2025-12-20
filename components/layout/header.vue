@@ -1,6 +1,14 @@
+<!-- FILE: /components/layout/header.vue - FIXED FOR SSR HYDRATION -->
+<!-- ============================================================================
+     HEADER COMPONENT - FIXED: All user-specific data wrapped in ClientOnly
+     ✅ FIXED: Wallet balance wrapped
+     ✅ FIXED: User profile data wrapped
+     ✅ FIXED: Notification badges wrapped
+     ============================================================================ -->
+
 <template>
   <header class="modern-header">
-    <!-- Top Navigation Bar -->
+    <!-- Top Navigation Bar ---->
     <div class="header-top">
       <!-- Left Side - Menu & Logo -->
       <div class="header-left">
@@ -25,7 +33,10 @@
         <NuxtLink to="/chat" class="nav-icon" :class="{ active: $route.path === '/chat' }">
           <Icon name="message-circle" size="24" />
           <span class="nav-label">Chat</span>
-          <span v-if="unreadMessages > 0" class="notification-badge">{{ unreadMessages }}</span>
+          <!-- ✅ FIXED: Wrap notification badge in ClientOnly -->
+          <ClientOnly>
+            <span v-if="unreadMessages > 0" class="notification-badge">{{ unreadMessages }}</span>
+          </ClientOnly>
         </NuxtLink>
 
         <!-- Posts Link -->
@@ -34,14 +45,17 @@
           <span class="nav-label">Post</span>
         </NuxtLink>
 
-        <!-- CORRECTED: Live Stream Link - Points to /streaming (streaming components) -->
+        <!-- Live Stream Link -->
         <NuxtLink to="/streaming" class="nav-icon" :class="{ active: $route.path === '/streaming' }">
           <Icon name="radio" size="24" />
           <span class="nav-label">Live</span>
-          <span v-if="isLiveStreaming" class="live-badge">LIVE</span>
+          <!-- ✅ FIXED: Wrap live badge in ClientOnly -->
+          <ClientOnly>
+            <span v-if="isLiveStreaming" class="live-badge">LIVE</span>
+          </ClientOnly>
         </NuxtLink>
 
-        <!-- Universe Link - Added to center navigation -->
+        <!-- Universe Link -->
         <NuxtLink to="/universe" class="nav-icon" :class="{ active: $route.path === '/universe' }">
           <Icon name="globe" size="24" />
           <span class="nav-label">Universe</span>
@@ -50,61 +64,65 @@
 
       <!-- Right Side - Profile & Wallet -->
       <div class="header-right">
-        <!-- Wallet Icon with Dropdown -->
-        <div class="wallet-container" @click="toggleWalletMenu">
-          <div class="wallet-icon">
-            <Icon name="wallet" size="24" />
-            <span class="wallet-balance">${{ walletBalance }}</span>
-          </div>
-          
-          <!-- Wallet Dropdown -->
-          <div v-if="showWalletMenu" class="wallet-dropdown">
-            <div class="wallet-option" @click="openP2P">
-              <Icon name="users" size="18" />
-              <span>P2P Trading</span>
+        <!-- ✅ FIXED: Wrap entire wallet section in ClientOnly -->
+        <ClientOnly>
+          <div class="wallet-container" @click="toggleWalletMenu">
+            <div class="wallet-icon">
+              <Icon name="wallet" size="24" />
+              <span class="wallet-balance">${{ walletBalance }}</span>
             </div>
-            <div class="wallet-option" @click="openPEW">
-              <Icon name="zap" size="18" />
-              <span>PEW Tokens</span>
-            </div>
-            <div class="wallet-option" @click="openEscrow">
-              <Icon name="shield" size="18" />
-              <span>Escrow</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Profile Picture with Status - DYNAMIC USER DATA -->
-        <div class="profile-container">
-          <div class="profile-avatar" @click="toggleProfileMenu">
-            <img :src="user.avatar" :alt="user.name" />
-            <div class="status-dot" :class="user.status"></div>
-          </div>
-          
-          <!-- Profile Dropdown - DYNAMIC USER DATA -->
-          <div v-if="showProfileMenu" class="profile-dropdown">
-            <div class="profile-info">
-              <img :src="user.avatar" :alt="user.name" />
-              <div>
-                <h4>{{ user.name }}</h4>
-                <p>@{{ user.username }}</p>
+            
+            <!-- Wallet Dropdown -->
+            <div v-if="showWalletMenu" class="wallet-dropdown">
+              <div class="wallet-option" @click="openP2P">
+                <Icon name="users" size="18" />
+                <span>P2P Trading</span>
+              </div>
+              <div class="wallet-option" @click="openPEW">
+                <Icon name="zap" size="18" />
+                <span>PEW Tokens</span>
+              </div>
+              <div class="wallet-option" @click="openEscrow">
+                <Icon name="shield" size="18" />
+                <span>Escrow</span>
               </div>
             </div>
-            <hr />
-            <NuxtLink to="/profile" class="dropdown-item">
-              <Icon name="user" size="18" />
-              <span>My Profile</span>
-            </NuxtLink>
-            <NuxtLink to="/settings" class="dropdown-item">
-              <Icon name="settings" size="18" />
-              <span>Settings</span>
-            </NuxtLink>
-            <button @click="handleLogout" class="dropdown-item logout-btn">
-              <Icon name="log-out" size="18" />
-              <span>Logout</span>
-            </button>
           </div>
-        </div>
+        </ClientOnly>
+
+        <!-- ✅ FIXED: Wrap entire profile section in ClientOnly -->
+        <ClientOnly>
+          <div class="profile-container">
+            <div class="profile-avatar" @click="toggleProfileMenu">
+              <img :src="user.avatar" :alt="user.name" />
+              <div class="status-dot" :class="user.status"></div>
+            </div>
+            
+            <!-- Profile Dropdown -->
+            <div v-if="showProfileMenu" class="profile-dropdown">
+              <div class="profile-info">
+                <img :src="user.avatar" :alt="user.name" />
+                <div>
+                  <h4>{{ user.name }}</h4>
+                  <p>@{{ user.username }}</p>
+                </div>
+              </div>
+              <hr />
+              <NuxtLink to="/profile" class="dropdown-item">
+                <Icon name="user" size="18" />
+                <span>My Profile</span>
+              </NuxtLink>
+              <NuxtLink to="/settings" class="dropdown-item">
+                <Icon name="settings" size="18" />
+                <span>Settings</span>
+              </NuxtLink>
+              <button @click="handleLogout" class="dropdown-item logout-btn">
+                <Icon name="log-out" size="18" />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </ClientOnly>
       </div>
     </div>
 
@@ -227,14 +245,14 @@ const showSidebar = ref(false)
 const showWalletMenu = ref(false)
 const showProfileMenu = ref(false)
 const unreadMessages = ref(3)
-const walletBalance = ref(1250.50)
+const walletBalance = ref(1.50)
 const isLiveStreaming = ref(false)
 
 // Computed properties from auth store - DYNAMIC USER DATA
 const user = computed(() => ({
   name: authStore.userDisplayName,
-  username: authStore.profile?.username || 'user',
-  avatar: authStore.profile?.avatar_url || '/default-avatar.png',
+  username: authStore.user?.username || 'user',
+  avatar: authStore.user?.avatar_url || '/default-avatar.png',
   status: 'online' // online, away, busy, offline
 }))
 
@@ -308,7 +326,7 @@ const openMediaItem = (item) => {
 const handleLogout = async () => {
   try {
     // Call your logout function from auth store
-    await authStore.logout()
+    await authStore.clearAuth()
     router.push('/auth/login')
   } catch (err) {
     console.error('Logout error:', err)
@@ -399,7 +417,7 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: alls;
   position: relative;
 }
 
@@ -414,15 +432,15 @@ onMounted(() => {
 }
 
 .nav-label {
-  font-size: 0.75rem;
+  font-size:rem;
   font-weight: 500;
 }
 
 .notification-badge {
   position: absolute;
-  top: -8px;
+  top: -px;
   right: -8px;
-  background: #ff4757;
+  background: #ff;
   color: white;
   border-radius: 50%;
   width: 20px;
@@ -480,7 +498,7 @@ onMounted(() => {
 }
 
 .wallet-balance {
-  font-weight: 600;
+  font-weight: ;
   font-size: 0.9rem;
 }
 
@@ -493,7 +511,7 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 200px;
   margin-top: 0.5rem;
-  z-index: 1001;
+  z-index: ;
 }
 
 .wallet-option {
@@ -501,7 +519,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  color: #333;
+  color: #;
   cursor: pointer;
   transition: all 0.3s;
   border: none;
@@ -550,7 +568,7 @@ onMounted(() => {
 }
 
 .status-dot.online {
-  background: #2ecc71;
+  background: #ecc71;
 }
 
 .status-dot.away {
@@ -562,7 +580,7 @@ onMounted(() => {
 }
 
 .status-dot.offline {
-  background: #95a5a6;
+  background: #a5a6;
 }
 
 .profile-dropdown {
@@ -600,7 +618,7 @@ onMounted(() => {
 .profile-info p {
   margin: 0;
   color: #666;
-  font-size: 0.85rem;
+  font-size: rem;
 }
 
 .profile-dropdown hr {
@@ -612,7 +630,7 @@ onMounted(() => {
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: rem;
   padding: 0.75rem 1rem;
   color: #333;
   text-decoration: none;
@@ -660,7 +678,7 @@ onMounted(() => {
 .media-thumbnail {
   position: relative;
   width: 100%;
-  height: 100px;
+  height:px;
   border-radius: 8px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.1);
@@ -692,11 +710,11 @@ onMounted(() => {
 }
 
 .media-info {
-  padding: 0.5rem 0;
+  padding: 0.5rem ;
 }
 
 .media-info h5 {
-  margin: 0.25rem 0;
+  margin: 0.rem 0;
   color: white;
   font-size: 0.8rem;
   white-space: nowrap;
@@ -714,9 +732,9 @@ onMounted(() => {
   display: inline-block;
   background: rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.8);
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.65rem;
+  padding: 0.rem 0.4rem;
+  border-radius:px;
+  font-size:rem;
   margin-top: 0.25rem;
 }
 
@@ -753,7 +771,7 @@ onMounted(() => {
 .sidebar-header h3 {
   margin: 0;
   color: #333;
-  font-size: 1.2rem;
+  font-size:rem;
 }
 
 .close-btn {
@@ -821,9 +839,8 @@ onMounted(() => {
   }
 
   .media-container {
-    padding: 0.75rem 1rem;
+    padding: .75rem 1rem;
   }
 }
 </style>
-
 
