@@ -1,12 +1,16 @@
 <template>
-  <div class="wallet-overview">
-    <h3>My Pocket</h3>
-    <ul>
-      <li v-for="(balance, currency) in wallet.balances" :key="currency">
-        {{ currency.toUpperCase() }}: {{ balance }} 
-      </li>
-    </ul>
-  </div>
+  <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
+  <ClientOnly>
+    <div class="wallet-overview">
+      <h3>My Pocket</h3>
+      <ul>
+        <li v-for="(balance, currency) in wallet.balances" :key="currency">
+          {{ currency.toUpperCase() }}: {{ balance }} 
+        </li>
+      </ul>
+    </div>
+  </ClientOnly>
+  <!-- ✅ END OF ClientOnly WRAPPER -->
 </template>
 
 <script setup>
