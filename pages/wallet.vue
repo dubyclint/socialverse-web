@@ -9,149 +9,153 @@
       <p class="subtitle">Manage your balance and transactions</p>
     </div>
 
-    <!-- Wallet Summary Cards -->
-    <div class="wallet-summary">
-      <div class="summary-card balance-card">
-        <div class="card-icon">💵</div>
-        <div class="card-content">
-          <p class="card-label">Total Balance</p>
-          <h2 class="card-value">${{ totalBalance.toFixed(2) }}</h2>
-        </div>
-      </div>
-
-      <div class="summary-card income-card">
-        <div class="card-icon">📈</div>
-        <div class="card-content">
-          <p class="card-label">Total Income</p>
-          <h2 class="card-value">${{ totalIncome.toFixed(2) }}</h2>
-        </div>
-      </div>
-
-      <div class="summary-card spent-card">
-        <div class="card-icon">📉</div>
-        <div class="card-content">
-          <p class="card-label">Total Spent</p>
-          <h2 class="card-value">${{ totalSpent.toFixed(2) }}</h2>
-        </div>
-      </div>
-
-      <div class="summary-card pending-card">
-        <div class="card-icon">⏳</div>
-        <div class="card-content">
-          <p class="card-label">Pending</p>
-          <h2 class="card-value">${{ pendingAmount.toFixed(2) }}</h2>
-        </div>
-      </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="wallet-actions">
-      <button class="btn btn-primary" @click="showDepositModal = true">
-        <span>➕</span> Add Funds
-      </button>
-      <button class="btn btn-secondary" @click="showWithdrawModal = true">
-        <span>➖</span> Withdraw
-      </button>
-      <button class="btn btn-tertiary" @click="showTransferModal = true">
-        <span>🔄</span> Transfer
-      </button>
-    </div>
-
-    <!-- Tabs -->
-    <div class="wallet-tabs">
-      <button 
-        v-for="tab in tabs" 
-        :key="tab"
-        :class="['tab-button', { active: activeTab === tab }]"
-        @click="activeTab = tab"
-      >
-        {{ tab }}
-      </button>
-    </div>
-
-    <!-- Transaction History -->
-    <div v-if="activeTab === 'Transactions'" class="transactions-section">
-      <h3>📋 Transaction History</h3>
-      <div v-if="transactions.length > 0" class="transactions-list">
-        <div v-for="tx in transactions" :key="tx.id" class="transaction-item">
-          <div class="tx-icon" :class="tx.type">
-            {{ tx.icon }}
+    <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
+    <ClientOnly>
+      <!-- Wallet Summary Cards -->
+      <div class="wallet-summary">
+        <div class="summary-card balance-card">
+          <div class="card-icon">💵</div>
+          <div class="card-content">
+            <p class="card-label">Total Balance</p>
+            <h class="card-value">${{ totalBalance.toFixed(2) }}</h2>
           </div>
-          <div class="tx-details">
-            <p class="tx-description">{{ tx.description }}</p>
-            <p class="tx-date">{{ formatDate(tx.date) }}</p>
+        </div>
+
+        <div class="summary-card income-card">
+          <div class="card-icon">📈</div>
+          <div class="card-content">
+            <p class="card-label">Total Income</p>
+            <h2 class="card-value">${{ totalIncome.toFixed(2) }}</h2>
           </div>
-          <div class="tx-amount" :class="tx.type">
-            {{ tx.type === 'income' ? '+' : '-' }}${{ tx.amount.toFixed(2) }}
+        </div>
+
+        <div class="summary-card spent-card">
+          <div class="card-icon">📉</div>
+          <div class="card-content">
+            <p class="card-label">Total Spent</p>
+            <h2 class="card-value">${{ totalSpent.toFixed(2) }}</h2>
+          </div>
+        </div>
+
+        <div class="summary-card pending-card">
+          <div class="card-icon">⏳</div>
+          <div class="card-content">
+            <p class="card-label">Pending</p>
+            <h2 class="card-value">${{ pendingAmount.toFixed(2) }}</h2>
           </div>
         </div>
       </div>
-      <div v-else class="empty-state">
-        <p>No transactions yet</p>
-      </div>
-    </div>
 
-    <!-- Payment Methods -->
-    <div v-if="activeTab === 'Payment Methods'" class="payment-methods-section">
-      <h3>💳 Payment Methods</h3>
-      <div class="payment-methods-list">
-        <div v-for="method in paymentMethods" :key="method.id" class="payment-method-item">
-          <div class="method-icon">{{ method.icon }}</div>
-          <div class="method-details">
-            <p class="method-name">{{ method.name }}</p>
-            <p class="method-info">{{ method.info }}</p>
-          </div>
-          <button class="btn-small btn-remove" @click="removePaymentMethod(method.id)">
-            Remove
-          </button>
-        </div>
+      <!-- Action Buttons -->
+      <div class="wallet-actions">
+        <button class="btn btn-primary" @click="showDepositModal = true">
+          <span>➕</span> Add Funds
+        </button>
+        <button class="btn btn-secondary" @click="showWithdrawModal = true">
+          <span>➖</span> Withdraw
+        </button>
+        <button class="btn btn-tertiary" @click="showTransferModal = true">
+          <span>🔄</span> Transfer
+        </button>
       </div>
-      <button class="btn btn-primary" @click="showAddPaymentModal = true">
-        <span>➕</span> Add Payment Method
-      </button>
-    </div>
 
-    <!-- Withdrawal History -->
-    <div v-if="activeTab === 'Withdrawals'" class="withdrawals-section">
-      <h3>🏦 Withdrawal History</h3>
-      <div v-if="withdrawals.length > 0" class="withdrawals-list">
-        <div v-for="withdrawal in withdrawals" :key="withdrawal.id" class="withdrawal-item">
-          <div class="withdrawal-status" :class="withdrawal.status">
-            {{ withdrawal.status }}
-          </div>
-          <div class="withdrawal-details">
-            <p class="withdrawal-amount">${{ withdrawal.amount.toFixed(2) }}</p>
-            <p class="withdrawal-date">{{ formatDate(withdrawal.date) }}</p>
-          </div>
-          <p class="withdrawal-method">{{ withdrawal.method }}</p>
-        </div>
+      <!-- Tabs -->
+      <div class="wallet-tabs">
+        <button 
+          v-for="tab in tabs" 
+          :key="tab"
+          :class="['tab-button', { active: activeTab === tab }]"
+          @click="activeTab = tab"
+        >
+          {{ tab }}
+        </button>
       </div>
-      <div v-else class="empty-state">
-        <p>No withdrawals yet</p>
-      </div>
-    </div>
 
-    <!-- Referral Earnings -->
-    <div v-if="activeTab === 'Referrals'" class="referrals-section">
-      <h3>🎁 Referral Earnings</h3>
-      <div class="referral-stats">
-        <div class="stat-card">
-          <p class="stat-label">Total Referrals</p>
-          <p class="stat-value">{{ totalReferrals }}</p>
+      <!-- Transaction History -->
+      <div v-if="activeTab === 'Transactions'" class="transactions-section">
+        <h3>📋 Transaction History</h3>
+        <div v-if="transactions.length > 0" class="transactions-list">
+          <div v-for="tx in transactions" :key="tx.id" class="transaction-item">
+            <div class="tx-icon" :class="tx.type">
+              {{ tx.icon }}
+            </div>
+            <div class="tx-details">
+              <p class="tx-description">{{ tx.description }}</p>
+              <p class="tx-date">{{ formatDate(tx.date) }}</p>
+            </div>
+            <div class="tx-amount" :class="tx.type">
+              {{ tx.type === 'income' ? '+' : '-' }}${{ tx.amount.toFixed(2) }}
+            </div>
+          </div>
         </div>
-        <div class="stat-card">
-          <p class="stat-label">Referral Earnings</p>
-          <p class="stat-value">${{ referralEarnings.toFixed(2) }}</p>
+        <div v-else class="empty-state">
+          <p>No transactions yet</p>
         </div>
       </div>
-      <div class="referral-code">
-        <p class="referral-label">Your Referral Code:</p>
-        <div class="code-display">
-          <input type="text" :value="referralCode" readonly class="code-input" />
-          <button class="btn-copy" @click="copyReferralCode">📋 Copy</button>
+
+      <!-- Payment Methods -->
+      <div v-if="activeTab === 'Payment Methods'" class="payment-methods-section">
+        <h3>💳 Payment Methods</h3>
+        <div class="payment-methods-list">
+          <div v-for="method in paymentMethods" :key="method.id" class="payment-method-item">
+            <div class="method-icon">{{ method.icon }}</div>
+            <div class="method-details">
+              <p class="method-name">{{ method.name }}</p>
+              <p class="method-info">{{ method.info }}</p>
+            </div>
+            <button class="btn-small btn-remove" @click="removePaymentMethod(method.id)">
+              Remove
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-primary" @click="showAddPaymentModal = true">
+          <span>➕</span> Add Payment Method
+        </button>
+      </div>
+
+      <!-- Withdrawal History -->
+      <div v-if="activeTab === 'Withdrawals'" class="withdrawals-section">
+        <h3>🏦 Withdrawal History</h3>
+        <div v-if="withdrawals.length > 0" class="withdrawals-list">
+          <div v-for="withdrawal in withdrawals" :key="withdrawal.id" class="withdrawal-item">
+            <div class="withdrawal-status" :class="withdrawal.status">
+              {{ withdrawal.status }}
+            </div>
+            <div class="withdrawal-details">
+              <p class="withdrawal-amount">${{ withdrawal.amount.toFixed(2) }}</p>
+              <p class="withdrawal-date">{{ formatDate(withdrawal.date) }}</p>
+            </div>
+            <p class="withdrawal-method">{{ withdrawal.method }}</p>
+          </div>
+        </div>
+        <div v-else class="empty-state">
+          <p>No withdrawals yet</p>
         </div>
       </div>
-    </div>
+
+      <!-- Referral Earnings -->
+      <div v-if="activeTab === 'Referrals'" class="referrals-section">
+        <h3>🎁 Referral Earnings</h3>
+        <div class="referral-stats">
+          <div class="stat-card">
+            <p class="stat-label">Total Referrals</p>
+            <p class="stat-value">{{ totalReferrals }}</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Referral Earnings</p>
+            <p class="stat-value">${{ referralEarnings.toFixed(2) }}</p>
+          </div>
+        </div>
+        <div class="referral-code">
+          <p class="referral-label">Your Referral Code:</p>
+          <div class="code-display">
+            <input type="text" :value="referralCode" readonly class="code-input" />
+            <button class="btn-copy" @click="copyReferralCode">📋 Copy</button>
+          </div>
+        </div>
+      </div>
+    </ClientOnly>
+    <!-- ✅ END OF ClientOnly WRAPPER -->
   </div>
 </template>
 
@@ -171,7 +175,7 @@ const showTransferModal = ref(false)
 const showAddPaymentModal = ref(false)
 
 // Wallet Data
-const totalBalance = ref(1250.50)
+const totalBalance = ref(.50)
 const totalIncome = ref(5000.00)
 const totalSpent = ref(3749.50)
 const pendingAmount = ref(150.00)
@@ -197,13 +201,13 @@ const paymentMethods = ref([
 const withdrawals = ref([
   { id: 1, amount: 500, date: new Date(Date.now() - 604800000), method: 'Bank Transfer', status: 'completed' },
   { id: 2, amount: 200, date: new Date(Date.now() - 432000000), method: 'PayPal', status: 'completed' },
-  { id: 3, amount: 150, date: new Date(Date.now() - 86400000), method: 'Bank Transfer', status: 'pending' },
+  { id: 3, amount:, date: new Date(Date.now() - 86400000), method: 'Bank Transfer', status: 'pending' },
 ])
 
 // Referral Data
 const totalReferrals = ref(12)
 const referralEarnings = ref(450.00)
-const referralCode = ref('SOCIALVERSE2024')
+const referralCode = ref('SOCIALVERSE024')
 
 // Methods
 const formatDate = (date) => {
@@ -237,7 +241,7 @@ const copyReferralCode = () => {
 
 .page-header h1 {
   font-size: 2.5rem;
-  margin: 0 0 0.5rem 0;
+  margin:0 0.5rem 0;
   color: #333;
 }
 
@@ -249,7 +253,7 @@ const copyReferralCode = () => {
 
 .wallet-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -429,7 +433,7 @@ const copyReferralCode = () => {
 }
 
 .tx-date {
-  margin: 0.25rem 0 0 0;
+  margin: 0.rem 0 0 0;
   color: #999;
   font-size: 0.9rem;
 }
@@ -449,7 +453,7 @@ const copyReferralCode = () => {
 
 .empty-state {
   text-align: center;
-  padding: 2rem;
+  padding: rem;
   color: #999;
 }
 
