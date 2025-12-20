@@ -1,30 +1,38 @@
-<!-- FILE: /app.vue (COMPLETE FIXED VERSION) -->
+<!-- FILE: /app.vue - FIXED FOR SSR HYDRATION -->
 <template>
   <NuxtLayout>
     <div id="app">
-      <!-- Show error if Supabase not ready -->
-      <div v-if="supabaseError && !isInitializing" class="supabase-error-banner">
-        <p>⚠️ Database connection unavailable. Some features may be limited.</p>
-        <button @click="retryInitialization">Retry</button>
-      </div>
+      <!-- Show error if Supabase not ready (client-only) -->
+      <ClientOnly>
+        <div v-if="supabaseError && !isInitializing" class="supabase-error-banner">
+          <p>⚠️ Database connection unavailable. Some features may be limited.</p>
+          <button @click="retryInitialization">Retry</button>
+        </div>
+      </ClientOnly>
 
       <!-- Main content -->
       <NuxtPage />
       
-      <!-- Global Notifications -->
-      <NotificationToast />
+      <!-- Global Notifications (client-only) -->
+      <ClientOnly>
+        <NotificationToast />
+      </ClientOnly>
       
-      <!-- Global Loading -->
-      <GlobalLoading v-if="isLoading" />
+      <!-- Global Loading (client-only) -->
+      <ClientOnly>
+        <GlobalLoading v-if="isLoading" />
+      </ClientOnly>
       
-      <!-- Global Error Boundary -->
-      <ErrorBoundary v-if="globalError" class="global-error">
-        <div class="error-content">
-          <h2>Something went wrong</h2>
-          <p>{{ globalError }}</p>
-          <button @click="clearError">Dismiss</button>
-        </div>
-      </ErrorBoundary>
+      <!-- Global Error Boundary (client-only) -->
+      <ClientOnly>
+        <ErrorBoundary v-if="globalError" class="global-error">
+          <div class="error-content">
+            <h2>Something went wrong</h2>
+            <p>{{ globalError }}</p>
+            <button @click="clearError">Dismiss</button>
+          </div>
+        </ErrorBoundary>
+      </ClientOnly>
     </div>
   </NuxtLayout>
 </template>
@@ -37,17 +45,17 @@ const { $supabase } = useNuxtApp()
 
 const isInitializing = ref(true)
 const isLoading = ref(false)
-const supabaseError = ref(false)
+const supabaseError = ref()
 const globalError = ref<string | null>(null)
 
 /**
- * Initialize app on mount
+ * Initialize app on mount (client-only)
  */
 onMounted(async () => {
   try {
     console.log('[App] 🚀 Initializing application...')
     
-    // Initialize auth session from localStorage
+    // ✅ Initialize auth session from localStorage (client-only)
     const sessionInitialized = authStore.initializeSession()
     
     if (sessionInitialized) {
@@ -110,7 +118,7 @@ const clearError = () => {
   color: white;
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 0.25rem;
+  border-radius:.25rem;
   cursor: pointer;
 }
 
@@ -126,8 +134,8 @@ const clearError = () => {
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 9999;
 }
 
@@ -139,22 +147,17 @@ const clearError = () => {
   text-align: center;
 }
 
-.error-content h2 {
-  color: #dc2626;
-  margin-bottom: 1rem;
-}
-
 .error-content button {
-  background-color: #dc2626;
+  margin-top: 1rem;
+  background-color: #ef4444;
   color: white;
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 0.25rem;
   cursor: pointer;
-  margin-top: 1rem;
 }
 
 .error-content button:hover {
-  background-color: #b91c1c;
+  background-color: #dc2626;
 }
 </style>
