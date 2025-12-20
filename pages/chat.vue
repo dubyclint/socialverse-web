@@ -1,7 +1,11 @@
 <!-- pages/chat.vue -->
 <template>
   <div class="chat-page">
-    <chatlayout />
+    <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
+    <ClientOnly>
+      <chatlayout />
+    </ClientOnly>
+    <!-- ✅ END OF ClientOnly WRAPPER -->
   </div>
 </template>
 
