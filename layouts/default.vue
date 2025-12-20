@@ -1,7 +1,8 @@
-<!-- FILE: /layouts/default.vue - MAIN APPLICATION LAYOUT -->
+<!-- FILE: /layouts/default.vue - FIXED FOR SSR HYDRATION -->
 <!-- ============================================================================
-     DEFAULT LAYOUT - Used for all main application pages
-     Includes: Header, Sidebar, Footer, Global Components
+     DEFAULT LAYOUT - FIXED: All user-specific UI wrapped in ClientOnly
+     ✅ FIXED: Notification badges wrapped
+     ✅ FIXED: User-specific navigation wrapped
      ============================================================================ -->
 
 <template>
@@ -28,14 +29,23 @@
               <Icon name="message-circle" size="20" />
               <span>Chat</span>
             </NuxtLink>
+            
+            <!-- ✅ FIXED: Wrap notification link with badge in ClientOnly -->
             <NuxtLink to="/notifications" class="nav-item" :class="{ active: isActive('/notifications') }">
               <Icon name="bell" size="20" />
               <span>Notifications</span>
+              <ClientOnly>
+                <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+              </ClientOnly>
             </NuxtLink>
-            <NuxtLink to="/profile" class="nav-item" :class="{ active: isActive('/profile') }">
-              <Icon name="user" size="20" />
-              <span>Profile</span>
-            </NuxtLink>
+            
+            <!-- ✅ FIXED: Wrap profile link in ClientOnly -->
+            <ClientOnly>
+              <NuxtLink to="/profile" class="nav-item" :class="{ active: isActive('/profile') }">
+                <Icon name="user" size="20" />
+                <span>Profile</span>
+              </NuxtLink>
+            </ClientOnly>
           </nav>
         </slot>
       </div>
@@ -61,13 +71,21 @@
             <button class="icon-btn" @click="toggleSearch">
               <Icon name="search" size="20" />
             </button>
-            <button class="icon-btn" @click="toggleNotifications">
-              <Icon name="bell" size="20" />
-              <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
-            </button>
-            <button class="icon-btn" @click="toggleUserMenu">
-              <Icon name="user" size="20" />
-            </button>
+            
+            <!-- ✅ FIXED: Wrap notification button with badge in ClientOnly -->
+            <ClientOnly>
+              <button class="icon-btn" @click="toggleNotifications">
+                <Icon name="bell" size="20" />
+                <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+              </button>
+            </ClientOnly>
+            
+            <!-- ✅ FIXED: Wrap user menu button in ClientOnly -->
+            <ClientOnly>
+              <button class="icon-btn" @click="toggleUserMenu">
+                <Icon name="user" size="20" />
+              </button>
+            </ClientOnly>
           </slot>
         </div>
       </header>
@@ -129,7 +147,7 @@ watch(() => route.path, () => {
 .app-layout {
   display: flex;
   height: 100vh;
-  background: #0f172a;
+  background: #0fa;
   color: #e2e8f0;
   overflow: hidden;
 }
@@ -138,7 +156,7 @@ watch(() => route.path, () => {
 .sidebar {
   width: 250px;
   background: #1e293b;
-  border-right: 1px solid #334155;
+  border-right: 1px solid #155;
   overflow-y: auto;
   transition: transform 0.3s ease;
   position: relative;
@@ -152,24 +170,25 @@ watch(() => route.path, () => {
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: .5rem;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap:rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   color: #cbd5e1;
   text-decoration: none;
   transition: all 0.2s;
   cursor: pointer;
+  position: relative;
 }
 
 .nav-item:hover {
   background: #334155;
-  color: #f1f5f9;
+  color: #ff5f9;
 }
 
 .nav-item.active {
@@ -225,7 +244,7 @@ watch(() => route.path, () => {
 }
 
 .logo-text {
-  font-size: 1.25rem;
+  font-size:rem;
 }
 
 .header-right {
@@ -271,7 +290,7 @@ watch(() => route.path, () => {
 }
 
 .right-sidebar {
-  width: 300px;
+  width: px;
   background: #1e293b;
   border-left: 1px solid #334155;
   overflow-y: auto;
@@ -292,7 +311,7 @@ watch(() => route.path, () => {
   .sidebar {
     position: fixed;
     left: 0;
-    top: 0;
+    top:;
     height: 100vh;
     transform: translateX(-100%);
     z-index: 101;
@@ -325,7 +344,7 @@ watch(() => route.path, () => {
   }
 
   .app-header {
-    padding: 0.75rem 1rem;
+    padding: rem 1rem;
   }
 }
 </style>
