@@ -1,24 +1,28 @@
 <template>
-  <div class="crypto-swap">
-    <h3>Swap Crypto</h3>
-    <form @submit.prevent="swap">
-      <label>From:</label>
-      <select v-model="fromCurrency">
-        <option v-for="c in currencies" :key="c" :value="c">{{ c }}</option>
-      </select>
+  <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
+  <ClientOnly>
+    <div class="crypto-swap">
+      <h3>Swap Crypto</h3>
+      <form @submit.prevent="swap">
+        <label>From:</label>
+        <select v-model="fromCurrency">
+          <option v-for="c in currencies" :key="c" :value="c">{{ c }}</option>
+        </select>
 
-      <label>To:</label>
-      <select v-model="toCurrency">
-        <option v-for="c in currencies" :key="c" :value="c">{{ c }}</option>
-      </select>
+        <label>To:</label>
+        <select v-model="toCurrency">
+          <option v-for="c in currencies" :key="c" :value="c">{{ c }}</option>
+        </select>
 
-      <label>Amount:</label>
-      <input type="number" v-model="amount" />
+        <label>Amount:</label>
+        <input type="number" v-model="amount" />
 
-      <button type="submit">Swap</button>
-    </form>
-    <p v-if="swapResult">Swap successful. Fee: {{ swapResult.fee }} USDC</p>
-  </div>
+        <button type="submit">Swap</button>
+      </form>
+      <p v-if="swapResult">Swap successful. Fee: {{ swapResult.fee }} USDC</p>
+    </div>
+  </ClientOnly>
+  <!-- ✅ END OF ClientOnly WRAPPER -->
 </template>
 
 <script setup>
