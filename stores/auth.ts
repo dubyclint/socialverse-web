@@ -1,6 +1,8 @@
-// FILE: /stores/auth.ts (COMPLETE FIXED VERSION WITH ALL METHODS)
+// FILE: /stores/auth.ts - FIXED FOR SSR HYDRATION
 // ============================================================================
-// AUTH STORE - FIXED: Proper user ID extraction and session management
+// AUTH STORE - FIXED: Proper SSR handling to prevent hydration mismatches
+// ✅ FIXED: No localStorage access during initial state setup
+// ✅ FIXED: State initialization happens only on client after mount
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -9,34 +11,15 @@ import type { User } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   // ============================================================================
-  // STATE
+  // STATE - NO localStorage access during initialization
   // ============================================================================
   
-  const token = ref<string | null>(
-    typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-  )
-  
-  // ✅ CRITICAL: Store user ID separately for quick access
-  const userId = ref<string | null>(
-    typeof window !== 'undefined' ? localStorage.getItem('auth_user_id') : null
-  )
-  
-  const user = ref<User | null>(
-    typeof window !== 'undefined'
-      ? (() => {
-          try {
-            const stored = localStorage.getItem('auth_user')
-            return stored ? JSON.parse(stored) : null
-          } catch (e) {
-            console.error('[Auth Store] Error parsing stored user:', e)
-            return null
-          }
-        })()
-      : null
-  )
-  
+  const token = ref<string | null>(null)
+  const userId = ref<string | null>(null)
+  const user = ref<User | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const isHydrated = ref(false) // ✅ NEW: Track hydration state
 
   // ============================================================================
   // COMPUTED
@@ -60,27 +43,34 @@ export const useAuthStore = defineStore('auth', () => {
   // ============================================================================
 
   /**
-   * ✅ CRITICAL: Set token and persist to localStorage
+   * ✅ CRITICAL: Set token and persist to localStorage (client-only)
    */
   const setToken = (newToken: string | null) => {
     token.value = newToken
-    if (newToken) {
-      localStorage.setItem('auth_token', newToken)
-    } else {
-      localStorage.removeItem('auth_token')
+    
+    if (process.client) {
+      if (newToken) {
+        localStorage.setItem('auth_token', newToken)
+      } else {
+        localStorage.removeItem('auth_token')
+      }
     }
+    
     console.log('[Auth Store] Token updated')
   }
 
   /**
-   * ✅ CRITICAL: Set user and extract ID
+   * ✅ CRITICAL: Set user and extract ID (client-only persistence)
    */
   const setUser = (newUser: any) => {
     if (!newUser) {
       user.value = null
       userId.value = null
-      localStorage.removeItem('auth_user')
-      localStorage.removeItem('auth_user_id')
+      
+      if (process.client) {
+        localStorage.removeItem('auth_user')
+        localStorage.removeItem('auth_user_id')
+      }
       return
     }
 
@@ -108,18 +98,25 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = userObj
     userId.value = extractedId
 
-    // ✅ Persist to localStorage
-    localStorage.setItem('auth_user', JSON.stringify(userObj))
-    localStorage.setItem('auth_user_id', extractedId)
-
-    console.log('[Auth Store] ✅ User persisted to localStorage with ID:', extractedId)
+    // ✅ Persist to localStorage (client-only)
+    if (process.client) {
+      localStorage.setItem('auth_user', JSON.stringify(userObj))
+      localStorage.setItem('auth_user_id', extractedId)
+      console.log('[Auth Store] ✅ User persisted to localStorage with ID:', extractedId)
+    }
   }
 
   /**
-   * ✅ NEW: Initialize session from localStorage
+   * ✅ NEW: Initialize session from localStorage (client-only)
    * This method restores the user session from localStorage on app startup
    */
   const initializeSession = (): boolean => {
+    // ✅ Only run on client
+    if (!process.client) {
+      console.log('[Auth Store] Skipping session init on server')
+      return false
+    }
+
     try {
       const storedToken = localStorage.getItem('auth_token')
       const storedUser = localStorage.getItem('auth_user')
@@ -130,6 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
         token.value = storedToken
         user.value = JSON.parse(storedUser)
         userId.value = storedUserId
+        isHydrated.value = true
         
         console.log('[Auth Store] ✅ Session restored from localStorage')
         console.log('[Auth Store] ✅ User ID:', userId.value)
@@ -138,12 +136,14 @@ export const useAuthStore = defineStore('auth', () => {
         return true
       }
       
+      isHydrated.value = true
       console.log('[Auth Store] ℹ️ No session found in localStorage')
       return false
     } catch (error) {
       console.error('[Auth Store] ❌ Error initializing session:', error)
       // Clear corrupted data
       clearAuth()
+      isHydrated.value = true
       return false
     }
   }
@@ -153,41 +153,58 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const clearAuth = () => {
     token.value = null
-    userId.value = null
     user.value = null
+    userId.value = null
     error.value = null
     
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    localStorage.removeItem('auth_user_id')
+    if (process.client) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+      localStorage.removeItem('auth_user_id')
+    }
     
     console.log('[Auth Store] ✅ Auth cleared')
   }
 
   /**
-   * ✅ NEW: Set loading state
+   * Update user profile data
    */
-  const setLoading = (value: boolean) => {
-    isLoading.value = value
-  }
-
-  /**
-   * ✅ NEW: Set error message
-   */
-  const setError = (message: string | null) => {
-    error.value = message
-    if (message) {
-      console.error('[Auth Store] Error:', message)
+  const updateUserProfile = (profileData: Partial<User>) => {
+    if (!user.value) {
+      console.error('[Auth Store] Cannot update profile - no user')
+      return
     }
+
+    user.value = {
+      ...user.value,
+      ...profileData
+    }
+
+    if (process.client) {
+      localStorage.setItem('auth_user', JSON.stringify(user.value))
+    }
+    
+    console.log('[Auth Store] User profile updated')
   }
 
   /**
-   * ✅ NEW: Clear error message
+   * Set loading state
    */
-  const clearError = () => {
-    error.value = null
+  const setLoading = (loading: boolean) => {
+    isLoading.value = loading
   }
 
+  /**
+   * Set error state
+   */
+  const setError = (errorMessage: string | null) => {
+    error.value = errorMessage
+  }
+
+  // ============================================================================
+  // RETURN
+  // ============================================================================
+  
   return {
     // State
     token,
@@ -195,6 +212,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isLoading,
     error,
+    isHydrated,
     
     // Computed
     isAuthenticated,
@@ -207,8 +225,8 @@ export const useAuthStore = defineStore('auth', () => {
     setUser,
     initializeSession,
     clearAuth,
+    updateUserProfile,
     setLoading,
     setError,
-    clearError,
   }
 })
