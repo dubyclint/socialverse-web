@@ -1,22 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background gradient -->
-  <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
-    </linearGradient>
-  </defs>
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="24" cy="24" r="24" fill="#a3b8"/>
   
-  <!-- Background circle -->
-  <circle cx="100" cy="100" r="100" fill="url(#grad1)"/>
-  
-  <!-- Head -->
-  <circle cx="100" cy="70" r="35" fill="white" opacity="0.9"/>
-  
-  <!-- Body -->
-  <ellipse cx="100" cy="140" rx="40" ry="45" fill="white" opacity="0.9"/>
-  
-  <!-- Shadow/depth -->
-  <circle cx="100" cy="100" r="100" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
+  <!-- User Icon -->
+  <g transform="translate(12, 12)">
+    <!-- Head -->
+    <circle cx="12" cy="8" r="5" fill="white"/>
+    
+    <!-- Body -->
+    <path d="M4 C4 18, 8 16, 12 16 C16 16, 20 18, 24 L20 24 L4 24 Z" fill="white"/>
+  </g>
 </svg>
