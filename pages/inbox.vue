@@ -1,137 +1,141 @@
 <template>
   <div class="inbox-page">
-    <div class="inbox-container">
-      <!-- Header -->
-      <div class="inbox-header">
-        <h1>Inbox</h1>
-        <div class="header-actions">
-          <button @click="markAllAsRead" class="btn-secondary" :disabled="unreadCount === 0">
-            Mark All Read
-          </button>
-          <button @click="showFilters = !showFilters" class="btn-secondary">
-            <Icon name="filter" size="16" />
-            Filters
-          </button>
-        </div>
-      </div>
-
-      <!-- Filters Panel -->
-      <div v-if="showFilters" class="filters-panel">
-        <div class="filter-group">
-          <label>Type:</label>
-          <select v-model="selectedType" class="filter-select">
-            <option value="all">All Types</option>
-            <option value="like">Likes</option>
-            <option value="comment">Comments</option>
-            <option value="follow">Follows</option>
-            <option value="mention">Mentions</option>
-            <option value="system">System</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Status:</label>
-          <select v-model="selectedStatus" class="filter-select">
-            <option value="all">All</option>
-            <option value="unread">Unread</option>
-            <option value="read">Read</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Time:</label>
-          <select v-model="selectedTimeframe" class="filter-select">
-            <option value="all">All Time</option>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="inbox-stats">
-        <div class="stat-item">
-          <span class="stat-number">{{ totalNotifications }}</span>
-          <span class="stat-label">Total</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number unread">{{ unreadCount }}</span>
-          <span class="stat-label">Unread</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number">{{ todayCount }}</span>
-          <span class="stat-label">Today</span>
-        </div>
-      </div>
-
-      <!-- Notifications List -->
-      <div class="notifications-list">
-        <div v-if="filteredNotifications.length === 0" class="empty-state">
-          <Icon name="inbox" size="64" />
-          <h3>No notifications</h3>
-          <p v-if="hasActiveFilters">Try adjusting your filters to see more notifications.</p>
-          <p v-else>You're all caught up! New notifications will appear here.</p>
-        </div>
-
-        <div 
-          v-for="notification in paginatedNotifications" 
-          :key="notification.id"
-          :class="['notification-item', { 'unread': !notification.isRead }]"
-          @click="handleNotificationClick(notification)"
-        >
-          <div class="notification-avatar">
-            <img 
-              v-if="notification.avatar"
-              :src="notification.avatar" 
-              :alt="notification.fromUser"
-              class="avatar-img"
-            />
-            <div v-else class="avatar-placeholder">
-              <Icon :name="getNotificationIcon(notification.type)" size="20" />
-            </div>
-          </div>
-
-          <div class="notification-content">
-            <div class="notification-text">
-              <span class="notification-message">{{ notification.message }}</span>
-              <span v-if="notification.preview" class="notification-preview">
-                "{{ notification.preview }}"
-              </span>
-            </div>
-            <div class="notification-meta">
-              <span class="notification-time">{{ formatTime(notification.createdAt) }}</span>
-              <span :class="['notification-type', notification.type]">
-                {{ formatType(notification.type) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="notification-actions">
-            <button 
-              v-if="!notification.isRead"
-              @click.stop="markAsRead(notification.id)"
-              class="action-btn"
-              title="Mark as read"
-            >
-              <Icon name="check" size="16" />
+    <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
+    <ClientOnly>
+      <div class="inbox-container">
+        <!-- Header -->
+        <div class="inbox-header">
+          <h1>Inbox</h1>
+          <div class="header-actions">
+            <button @click="markAllAsRead" class="btn-secondary" :disabled="unreadCount === 0">
+              Mark All Read
             </button>
-            <button 
-              @click.stop="deleteNotification(notification.id)"
-              class="action-btn delete-btn"
-              title="Delete"
-            >
-              <Icon name="trash-2" size="16" />
+            <button @click="showFilters = !showFilters" class="btn-secondary">
+              <Icon name="filter" size="16" />
+              Filters
             </button>
           </div>
         </div>
-      </div>
 
-      <!-- Load More -->
-      <div v-if="hasMoreNotifications" class="load-more-section">
-        <button @click="loadMore" class="btn-secondary" :disabled="loading">
-          {{ loading ? 'Loading...' : 'Load More' }}
-        </button>
+        <!-- Filters Panel -->
+        <div v-if="showFilters" class="filters-panel">
+          <div class="filter-group">
+            <label>Type:</label>
+            <select v-model="selectedType" class="filter-select">
+              <option value="all">All Types</option>
+              <option value="like">Likes</option>
+              <option value="comment">Comments</option>
+              <option value="follow">Follows</option>
+              <option value="mention">Mentions</option>
+              <option value="system">System</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status:</label>
+            <select v-model="selectedStatus" class="filter-select">
+              <option value="all">All</option>
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Time:</label>
+            <select v-model="selectedTimeframe" class="filter-select">
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="inbox-stats">
+          <div class="stat-item">
+            <span class="stat-number">{{ totalNotifications }}</span>
+            <span class="stat-label">Total</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number unread">{{ unreadCount }}</span>
+            <span class="stat-label">Unread</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ todayCount }}</span>
+            <span class="stat-label">Today</span>
+          </div>
+        </div>
+
+        <!-- Notifications List -->
+        <div class="notifications-list">
+          <div v-if="filteredNotifications.length === 0" class="empty-state">
+            <Icon name="inbox" size="64" />
+            <h3>No notifications</h3>
+            <p v-if="hasActiveFilters">Try adjusting your filters to see more notifications.</p>
+            <p v-else>You're all caught up! New notifications will appear here.</p>
+          </div>
+
+          <div 
+            v-for="notification in paginatedNotifications" 
+            :key="notification.id"
+            :class="['notification-item', { 'unread': !notification.isRead }]"
+            @click="handleNotificationClick(notification)"
+          >
+            <div class="notification-avatar">
+              <img 
+                v-if="notification.avatar"
+                :src="notification.avatar" 
+                :alt="notification.fromUser"
+                class="avatar-img"
+              />
+              <div v-else class="avatar-placeholder">
+                <Icon :name="getNotificationIcon(notification.type)" size="20" />
+              </div>
+            </div>
+
+            <div class="notification-content">
+              <div class="notification-text">
+                <span class="notification-message">{{ notification.message }}</span>
+                <span v-if="notification.preview" class="notification-preview">
+                  "{{ notification.preview }}"
+                </span>
+              </div>
+              <div class="notification-meta">
+                <span class="notification-time">{{ formatTime(notification.createdAt) }}</span>
+                <span :class="['notification-type', notification.type]">
+                  {{ formatType(notification.type) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="notification-actions">
+              <button 
+                v-if="!notification.isRead"
+                @click.stop="markAsRead(notification.id)"
+                class="action-btn"
+                title="Mark as read"
+              >
+                <Icon name="check" size="16" />
+              </button>
+              <button 
+                @click.stop="deleteNotification(notification.id)"
+                class="action-btn delete-btn"
+                title="Delete"
+              >
+                <Icon name="trash-" size="16" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Load More -->
+        <div v-if="hasMoreNotifications" class="load-more-section">
+          <button @click="loadMore" class="btn-secondary" :disabled="loading">
+            {{ loading ? 'Loading...' : 'Load More' }}
+          </button>
+        </div>
       </div>
-    </div>
+    </ClientOnly>
+    <!-- ✅ END OF ClientOnly WRAPPER -->
   </div>
 </template>
 
@@ -151,7 +155,7 @@ const selectedStatus = ref('all')
 const selectedTimeframe = ref('all')
 const loading = ref(false)
 const currentPage = ref(1)
-const itemsPerPage = 20
+const itemsPerPage = 
 
 // Computed properties
 const totalNotifications = computed(() => notifications.value.length)
@@ -219,7 +223,7 @@ const filteredNotifications = computed(() => {
 })
 
 const paginatedNotifications = computed(() => {
-  const start = 0
+  const start = 
   const end = currentPage.value * itemsPerPage
   return filteredNotifications.value.slice(start, end)
 })
@@ -240,7 +244,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/john.jpg',
         message: 'John Doe liked your post',
         preview: 'Just deployed my new app! 🚀',
-        createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+        createdAt: new Date(Date.now() - 1000 * 60 * ), // 30 minutes ago
         isRead: false,
         actionUrl: '/post/123'
       },
@@ -253,7 +257,7 @@ const loadNotifications = async () => {
         preview: 'Great work! How did you implement the authentication?',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
         isRead: false,
-        actionUrl: '/post/123#comment-456'
+        actionUrl: '/post/123#comment-'
       },
       {
         id: 3,
@@ -261,7 +265,7 @@ const loadNotifications = async () => {
         fromUser: 'Mike Johnson',
         avatar: '/avatars/mike.jpg',
         message: 'Mike Johnson started following you',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 *), // 5 hours ago
         isRead: true,
         actionUrl: '/profile/mikejohnson'
       },
@@ -273,15 +277,15 @@ const loadNotifications = async () => {
         message: 'Sarah Wilson mentioned you in a post',
         preview: 'Thanks @username for the inspiration!',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-        isRead: true,
+        isRead:,
         actionUrl: '/post/789'
       },
       {
         id: 5,
         type: 'system',
         message: 'Your post has been featured in trending!',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-        isRead: true,
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * * 2), // 2 days ago
+        isRead:,
         actionUrl: '/trending'
       }
     ]
@@ -380,7 +384,7 @@ onMounted(() => {
 .inbox-page {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: rem 1rem;
 }
 
 .inbox-header {
@@ -434,7 +438,7 @@ onMounted(() => {
   padding: 1rem;
   margin-bottom: 2rem;
   display: flex;
-  gap: 2rem;
+  gap:rem;
   flex-wrap: wrap;
 }
 
@@ -507,7 +511,7 @@ onMounted(() => {
 }
 
 .notification-item:hover {
-  background: #f9fafb;
+  background: #ffafb;
   border-color: #d1d5db;
 }
 
@@ -522,9 +526,9 @@ onMounted(() => {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width:px;
   background: #3b82f6;
-  border-radius: 0 0.5rem 0.5rem 0;
+  border-radius: 0 .5rem 0.5rem 0;
 }
 
 .notification-avatar {
@@ -586,7 +590,7 @@ onMounted(() => {
   font-size: 0.75rem;
   font-weight: 500;
   padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
+  border-radius:999px;
 }
 
 .notification-type.like {
@@ -610,8 +614,8 @@ onMounted(() => {
 }
 
 .notification-type.system {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: #ee7ff;
+  color: #3a3;
 }
 
 .notification-actions {
@@ -651,12 +655,12 @@ onMounted(() => {
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: rem 2rem;
   color: #6b7280;
 }
 
 .empty-state h3 {
-  margin: 1rem 0 0.5rem 0;
+  margin:rem 0 0.5rem 0;
   color: #1f2937;
 }
 
@@ -697,4 +701,3 @@ onMounted(() => {
   }
 }
 </style>
-
