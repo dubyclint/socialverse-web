@@ -30,6 +30,7 @@
               <option value="system">System</option>
             </select>
           </div>
+
           <div class="filter-group">
             <label>Status:</label>
             <select v-model="selectedStatus" class="filter-select">
@@ -38,8 +39,9 @@
               <option value="read">Read</option>
             </select>
           </div>
+
           <div class="filter-group">
-            <label>Time:</label>
+            <label>Timeframe:</label>
             <select v-model="selectedTimeframe" class="filter-select">
               <option value="all">All Time</option>
               <option value="today">Today</option>
@@ -47,6 +49,8 @@
               <option value="month">This Month</option>
             </select>
           </div>
+
+          <button @click="clearFilters" class="btn-text">Clear Filters</button>
         </div>
 
         <!-- Stats -->
@@ -244,7 +248,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/john.jpg',
         message: 'John Doe liked your post',
         preview: 'Just deployed my new app! 🚀',
-        createdAt: new Date(Date.now() - 1000 * 60 * ),
+        createdAt: new Date(Date.now() - 1000 * 60 * 5), // ✅ FIXED: 5 minutes ago
         isRead: false,
         actionUrl: '/post/123'
       },
@@ -254,10 +258,10 @@ const loadNotifications = async () => {
         fromUser: 'Jane Smith',
         avatar: '/avatars/jane.jpg',
         message: 'Jane Smith commented on your post',
-        preview: 'Great work! How did you implement the authentication?',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+        preview: 'Great work! Love the design.',
+        createdAt: new Date(Date.now() - 1000 * 60 *), // 30 minutes ago
         isRead: false,
-        actionUrl: '/post/#comment-'
+        actionUrl: '/post/123'
       },
       {
         id: 3,
@@ -265,28 +269,32 @@ const loadNotifications = async () => {
         fromUser: 'Mike Johnson',
         avatar: '/avatars/mike.jpg',
         message: 'Mike Johnson started following you',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 *),
+        preview: null,
+        createdAt: new Date(Date.now() - 1000 * 60 ** 2), // 2 hours ago
         isRead: true,
-        actionUrl: '/profile/mikejohnson'
+        actionUrl: '/profile/mike-johnson'
       },
       {
         id: 4,
         type: 'mention',
         fromUser: 'Sarah Wilson',
         avatar: '/avatars/sarah.jpg',
-        message: 'Sarah Wilson mentioned you in a post',
-        preview: 'Thanks @username for the inspiration!',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+        message: 'Sarah Wilson mentioned you in a comment',
+        preview: '@you Check this out!',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
         isRead: true,
-        actionUrl: '/post/789'
+        actionUrl: '/post/456'
       },
       {
         id: 5,
         type: 'system',
-        message: 'Your post has been featured in trending!',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-        isRead:,
-        actionUrl: '/trending'
+        fromUser: 'SocialVerse',
+        avatar: null,
+        message: 'Your profile has been verified!',
+        preview: null,
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+        isRead: true,
+        actionUrl: '/settings'
       }
     ]
   } catch (error) {
@@ -294,59 +302,53 @@ const loadNotifications = async () => {
   }
 }
 
+const markAsRead = (id) => {
+  const notification = notifications.value.find(n => n.id === id)
+  if (notification) {
+    notification.isRead = true
+  }
+}
+
+const markAllAsRead = () => {
+  notifications.value.forEach(n => n.isRead = true)
+}
+
+const deleteNotification = (id) => {
+  notifications.value = notifications.value.filter(n => n.id !== id)
+}
+
 const handleNotificationClick = (notification) => {
-  // Mark as read if unread
   if (!notification.isRead) {
     markAsRead(notification.id)
   }
-
-  // Navigate to the action URL
   if (notification.actionUrl) {
+    // Navigate to the action URL
     navigateTo(notification.actionUrl)
   }
 }
 
-const markAsRead = (notificationId) => {
-  const notification = notifications.value.find(n => n.id === notificationId)
-  if (notification) {
-    notification.isRead = true
-    // API call would go here
-  }
-}
-
-const markAllAsRead = async () => {
-  try {
-    notifications.value.forEach(notification => {
-      notification.isRead = true
-    })
-    // API call would go here
-  } catch (error) {
-    console.error('Error marking all as read:', error)
-  }
-}
-
-const deleteNotification = async (notificationId) => {
-  try {
-    notifications.value = notifications.value.filter(n => n.id !== notificationId)
-    // API call would go here
-  } catch (error) {
-    console.error('Error deleting notification:', error)
-  }
+const clearFilters = () => {
+  selectedType.value = 'all'
+  selectedStatus.value = 'all'
+  selectedTimeframe.value = 'all'
 }
 
 const loadMore = () => {
   currentPage.value++
 }
 
-const getNotificationIcon = (type) => {
-  const icons = {
-    like: 'heart',
-    comment: 'message-circle',
-    follow: 'user-plus',
-    mention: 'at-sign',
-    system: 'bell'
-  }
-  return icons[type] || 'bell'
+const formatTime = (date) => {
+  const now = new Date()
+  const diff = now - date
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString()
 }
 
 const formatType = (type) => {
@@ -360,21 +362,18 @@ const formatType = (type) => {
   return types[type] || type
 }
 
-const formatTime = (date) => {
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / (1000 * 60))
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString()
+const getNotificationIcon = (type) => {
+  const icons = {
+    like: 'heart',
+    comment: 'message-circle',
+    follow: 'user-plus',
+    mention: 'at-sign',
+    system: 'bell'
+  }
+  return icons[type] || 'bell'
 }
 
-// Lifecycle
+// Load notifications on mount
 onMounted(() => {
   loadNotifications()
 })
@@ -382,9 +381,14 @@ onMounted(() => {
 
 <style scoped>
 .inbox-page {
-  max-width: 800px;
+  min-height: 100vh;
+  background: #0fa;
+  padding: 2rem;
+}
+
+.inbox-container {
+  max-width:px;
   margin: 0 auto;
-  padding: rem 1rem;
 }
 
 .inbox-header {
@@ -392,15 +396,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .inbox-header h1 {
-  margin: 0;
+  color: white;
   font-size: 2rem;
-  font-weight:;
-  color: #1f2937;
+  margin: 0;
 }
 
 .header-actions {
@@ -409,21 +410,20 @@ onMounted(() => {
 }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
+  padding: rem 1.5rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: white;
   cursor: pointer;
-  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: all 0.3s;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
+  background: #334155;
 }
 
 .btn-secondary:disabled {
@@ -432,14 +432,15 @@ onMounted(() => {
 }
 
 .filters-panel {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.5rem;
   margin-bottom: 2rem;
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  align-items: end;
 }
 
 .filter-group {
@@ -449,38 +450,50 @@ onMounted(() => {
 }
 
 .filter-group label {
+  color: #cbd5e1;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
 }
 
 .filter-select {
+  padding: 0.5rem 1rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: white;
+  min-width: 150px;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  cursor: pointer;
+  font-weight: 500;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  background: white;
-  min-width: 120px;
 }
 
 .inbox-stats {
-  display: flex;
-  gap: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
   margin-bottom: 2rem;
-  padding: 1rem;
-  background: #f9fafb;
-  border-radius: 0.5rem;
 }
 
 .stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: px;
+  padding: 1.5rem;
+  text-align: center;
 }
 
 .stat-number {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
+  display: block;
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 0.5rem;
 }
 
 .stat-number.unread {
@@ -488,70 +501,57 @@ onMounted(() => {
 }
 
 .stat-label {
+  color: #94a3b8;
   font-size: 0.875rem;
-  color: #6b7280;
 }
 
 .notifications-list {
   display: flex;
   flex-direction: column;
-  gap:.5rem;
+  gap: 1rem;
 }
 
 .notification-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  background: #e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
   padding: 1rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  display: flex;
+  gap: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
 }
 
 .notification-item:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  border-color: #3b82f6;
+  transform: translateX(4px);
 }
 
 .notification-item.unread {
-  background: #eff6ff;
+  background: rgba(59, 130, 246, 0.1);
   border-color: #3b82f6;
 }
 
-.notification-item.unread::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width:px;
-  background: #3b82f6;
-  border-radius: 0.5rem 0 0 0.5rem;
-}
-
 .notification-avatar {
-  position: relative;
-}
-
-.avatar-img,
-.avatar-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .avatar-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   object-fit: cover;
 }
 
 .avatar-placeholder {
-  background: #ff4f6;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #334155;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 .notification-content {
@@ -560,144 +560,131 @@ onMounted(() => {
 }
 
 .notification-text {
+  display: flex;
+  flex-direction: column;
+  gap: rem;
   margin-bottom: 0.5rem;
 }
 
 .notification-message {
-  color: #1f2937;
+  color: white;
   font-weight: 500;
 }
 
 .notification-preview {
-  display: block;
-  color: #6b7280;
+  color: #94a3b8;
+  font-size: 0.875rem;
   font-style: italic;
-  margin-top: 0.25rem;
 }
 
 .notification-meta {
   display: flex;
-  align-items: center;
   gap: 1rem;
+  font-size: 0.75rem;
 }
 
 .notification-time {
-  font-size: 0.875rem;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .notification-type {
-  font-size: 0.75rem;
-  font-weight: 500;
   padding: 0.125rem 0.5rem;
-  border-radius:999px;
+  border-radius:px;
+  font-weight: 500;
 }
 
 .notification-type.like {
-  background: #fecaca;
-  color: #991b1b;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .notification-type.comment {
-  background: #dbeafe;
-  color: #1e40af;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
 }
 
 .notification-type.follow {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .notification-type.mention {
-  background: #fef3c7;
-  color: #92400e;
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
 }
 
 .notification-type.system {
-  background: #ee7ff;
-  color: #3a3;
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
 }
 
 .notification-actions {
   display: flex;
   gap: 0.5rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.notification-item:hover .notification-actions {
-  opacity: 1;
+  align-items: flex-start;
 }
 
 .action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #d1d5db;
-  background: white;
+  padding: 0.5rem;
+  background: #334155;
+  border: none;
+  border-radius: 6px;
+  color: #cbd5e1;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-  transition: all 0.2s;
+  transition: all 0.3s;
 }
 
 .action-btn:hover {
-  background: #f3f4f6;
+  background: #475569;
+  color: white;
 }
 
 .delete-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: #ef4444;
+  color: white;
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 2rem;
   text-align: center;
-  padding: rem rem;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .empty-state h3 {
-  margin:rem 0 0.5rem 0;
-  color: #1f2937;
+  color: #94a3b8;
+  margin:rem 0 0.5rem;
 }
 
 .load-more-section {
-  text-align: center;
+  display: flex;
+  justify-content: center;
   margin-top: 2rem;
 }
 
 @media (max-width: 768px) {
+  .inbox-page {
+    padding: 1rem;
+  }
+
   .inbox-header {
     flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-
-  .header-actions {
-    justify-content: center;
-  }
-
-  .filters-panel {
-    flex-direction: column;
+    align-items: flex-start;
     gap: 1rem;
   }
 
   .inbox-stats {
-    justify-content: center;
+    grid-template-columns: 1fr;
   }
 
-  .notification-item {
-    position: relative;
-    padding-left: 1.5rem;
-  }
-
-  .notification-meta {
+  .filters-panel {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
+  }
+
+  .filter-select {
+    width: 100%;
   }
 }
 </style>
