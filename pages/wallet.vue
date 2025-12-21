@@ -175,9 +175,9 @@ const showTransferModal = ref(false)
 const showAddPaymentModal = ref(false)
 
 // Wallet Data
-const totalBalance = ref(.50)
+const totalBalance = ref(1.50)
 const totalIncome = ref(5000.00)
-const totalSpent = ref(3749.50)
+const totalSpent = ref(3.50)
 const pendingAmount = ref(150.00)
 
 // Tabs
@@ -186,14 +186,14 @@ const tabs = ['Transactions', 'Payment Methods', 'Withdrawals', 'Referrals']
 // Sample Transactions
 const transactions = ref([
   { id: 1, type: 'income', description: 'Stream Earnings', amount: 250, date: new Date(), icon: '📺' },
-  { id: 2, type: 'expense', description: 'Purchase Gift', amount: 50, date: new Date(Date.now() - 86400000), icon: '🎁' },
+  { id: 2, type: 'expense', description: 'Purchase Gift', amount: , date: new Date(Date.now() - 86400000), icon: '🎁' },
   { id: 3, type: 'income', description: 'Referral Bonus', amount: 100, date: new Date(Date.now() - 172800000), icon: '🎯' },
   { id: 4, type: 'expense', description: 'Subscription', amount: 9.99, date: new Date(Date.now() - 259200000), icon: '📦' },
 ])
 
 // Payment Methods
 const paymentMethods = ref([
-  { id: 1, name: 'Visa Card', info: '**** **** **** 4242', icon: '💳' },
+  { id: 1, name: 'Visa Card', info: '**** **** **** 4', icon: '💳' },
   { id: 2, name: 'PayPal', info: 'user@example.com', icon: '🅿️' },
 ])
 
@@ -201,7 +201,7 @@ const paymentMethods = ref([
 const withdrawals = ref([
   { id: 1, amount: 500, date: new Date(Date.now() - 604800000), method: 'Bank Transfer', status: 'completed' },
   { id: 2, amount: 200, date: new Date(Date.now() - 432000000), method: 'PayPal', status: 'completed' },
-  { id: 3, amount:, date: new Date(Date.now() - 86400000), method: 'Bank Transfer', status: 'pending' },
+  { id: 3, amount: 150, date: new Date(Date.now() - 86400000), method: 'Bank Transfer', status: 'pending' },
 ])
 
 // Referral Data
@@ -253,7 +253,7 @@ const copyReferralCode = () => {
 
 .wallet-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -262,7 +262,7 @@ const copyReferralCode = () => {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -312,7 +312,7 @@ const copyReferralCode = () => {
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
+  padding:rem 1.5rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -377,7 +377,7 @@ const copyReferralCode = () => {
 }
 
 .tab-button:hover {
-  color: #333;
+  color: #;
 }
 
 .transactions-section,
@@ -433,7 +433,7 @@ const copyReferralCode = () => {
 }
 
 .tx-date {
-  margin: 0.rem 0 0 0;
+  margin: 0.25rem 0 0;
   color: #999;
   font-size: 0.9rem;
 }
@@ -453,7 +453,7 @@ const copyReferralCode = () => {
 
 .empty-state {
   text-align: center;
-  padding: rem;
+  padding: 2rem;
   color: #999;
 }
 
