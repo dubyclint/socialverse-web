@@ -121,7 +121,7 @@
                 class="action-btn delete-btn"
                 title="Delete"
               >
-                <Icon name="trash-" size="16" />
+                <Icon name="trash-2" size="16" />
               </button>
             </div>
           </div>
@@ -257,7 +257,7 @@ const loadNotifications = async () => {
         preview: 'Great work! How did you implement the authentication?',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
         isRead: false,
-        actionUrl: '/post/123#comment-456'
+        actionUrl: '/post/#comment-'
       },
       {
         id: 3,
@@ -285,7 +285,7 @@ const loadNotifications = async () => {
         type: 'system',
         message: 'Your post has been featured in trending!',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-        isRead: true,
+        isRead:,
         actionUrl: '/trending'
       }
     ]
@@ -384,7 +384,7 @@ onMounted(() => {
 .inbox-page {
   max-width: 800px;
   margin: 0 auto;
-  padding: rem rem;
+  padding: rem 1rem;
 }
 
 .inbox-header {
@@ -399,7 +399,7 @@ onMounted(() => {
 .inbox-header h1 {
   margin: 0;
   font-size: 2rem;
-  font-weight: 700;
+  font-weight:;
   color: #1f2937;
 }
 
@@ -495,7 +495,7 @@ onMounted(() => {
 .notifications-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap:.5rem;
 }
 
 .notification-item {
@@ -505,7 +505,7 @@ onMounted(() => {
   padding: 1rem;
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 0.rem;
+  border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -547,7 +547,7 @@ onMounted(() => {
 }
 
 .avatar-placeholder {
-  background: #f3f4f6;
+  background: #ff4f6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -600,7 +600,7 @@ onMounted(() => {
 
 .notification-type.comment {
   background: #dbeafe;
-  color: #e40af;
+  color: #1e40af;
 }
 
 .notification-type.follow {
@@ -701,4 +701,3 @@ onMounted(() => {
   }
 }
 </style>
-
