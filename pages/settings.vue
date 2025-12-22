@@ -1,5 +1,7 @@
+<!-- FILE: /pages/settings.vue - FIXED FOR SSR HYDRATION -->
+
 <template>
-  <div class="min-h-screen bg-slate-900">
+  <div class="settings-container">
     <Header />
 
     <ClientOnly>
@@ -14,7 +16,7 @@
             v-for="tab in settingsTabs"
             :key="tab.id"
             @click="activeTab = tab.id"
-            :class="getTabClass(tab.id)"
+            :class="['px-4 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap', activeTab === tab.id ? 'text-blue-500 border-blue-500' : 'text-slate-400 border-transparent hover:text-slate-300']"
           >
             {{ tab.label }}
           </button>
@@ -27,21 +29,11 @@
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Email</label>
-                  <input
-                    type="email"
-                    :value="user?.email"
-                    disabled
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 cursor-not-allowed"
-                  />
+                  <input type="email" :value="user?.email" disabled class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 cursor-not-allowed" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
-                  <input
-                    type="text"
-                    :value="user?.username"
-                    disabled
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 cursor-not-allowed"
-                  />
+                  <input type="text" :value="user?.username" disabled class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 cursor-not-allowed" />
                 </div>
               </div>
             </div>
@@ -53,47 +45,22 @@
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Display Name</label>
-                  <input
-                    v-model="profileData.displayName"
-                    type="text"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Your display name"
-                  />
+                  <input v-model="profileData.displayName" type="text" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" placeholder="Your display name" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Bio</label>
-                  <textarea
-                    v-model="profileData.bio"
-                    rows="4"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Tell us about yourself"
-                  />
+                  <textarea v-model="profileData.bio" rows="4" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" placeholder="Tell us about yourself" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Location</label>
-                  <input
-                    v-model="profileData.location"
-                    type="text"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Your location"
-                  />
+                  <input v-model="profileData.location" type="text" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" placeholder="Your location" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Website</label>
-                  <input
-                    v-model="profileData.website"
-                    type="url"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="https://yourwebsite.com"
-                  />
+                  <input v-model="profileData.website" type="url" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" placeholder="https://yourwebsite.com" />
                 </div>
               </div>
-              <button
-                @click="saveProfileSettings"
-                class="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Save Changes
-              </button>
+              <button @click="saveProfileSettings" class="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Save Changes</button>
             </div>
           </div>
 
@@ -125,35 +92,18 @@
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Current Password</label>
-                  <input
-                    v-model="securityData.currentPassword"
-                    type="password"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  />
+                  <input v-model="securityData.currentPassword" type="password" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">New Password</label>
-                  <input
-                    v-model="securityData.newPassword"
-                    type="password"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  />
+                  <input v-model="securityData.newPassword" type="password" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Confirm New Password</label>
-                  <input
-                    v-model="securityData.confirmPassword"
-                    type="password"
-                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  />
+                  <input v-model="securityData.confirmPassword" type="password" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
-              <button
-                @click="changePassword"
-                class="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Change Password
-              </button>
+              <button @click="changePassword" class="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Change Password</button>
             </div>
           </div>
         </div>
@@ -205,14 +155,6 @@ const settingsTabs = [
   { id: 'security', label: 'Security' }
 ]
 
-const getTabClass = (tabId: string) => {
-  const baseClass = 'px-4 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap'
-  const activeClass = activeTab.value === tabId 
-    ? 'text-blue-500 border-blue-500' 
-    : 'text-slate-400 border-transparent hover:text-slate-300'
-  return `${baseClass} ${activeClass}`
-}
-
 const saveProfileSettings = async () => {
   try {
     console.log('Saving profile settings:', profileData.value)
@@ -231,6 +173,11 @@ const changePassword = async () => {
 </script>
 
 <style scoped>
+.settings-container {
+  min-height: 100vh;
+  background: #0f172a;
+}
+
 .toggle {
   appearance: none;
   width: 48px;
