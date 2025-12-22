@@ -17,7 +17,7 @@
           <div class="card-icon">💵</div>
           <div class="card-content">
             <p class="card-label">Total Balance</p>
-            <h class="card-value">${{ totalBalance.toFixed(2) }}</h2>
+            <h2 class="card-value">${{ totalBalance.toFixed(2) }}</h2>
           </div>
         </div>
 
@@ -186,7 +186,7 @@ const tabs = ['Transactions', 'Payment Methods', 'Withdrawals', 'Referrals']
 // Sample Transactions
 const transactions = ref([
   { id: 1, type: 'income', description: 'Stream Earnings', amount: 250, date: new Date(), icon: '📺' },
-  { id: 2, type: 'expense', description: 'Purchase Gift', amount: , date: new Date(Date.now() - 86400000), icon: '🎁' },
+  { id: 2, type: 'expense', description: 'Purchase Gift', amount: 50, date: new Date(Date.now() - 86400000), icon: '🎁' },
   { id: 3, type: 'income', description: 'Referral Bonus', amount: 100, date: new Date(Date.now() - 172800000), icon: '🎯' },
   { id: 4, type: 'expense', description: 'Subscription', amount: 9.99, date: new Date(Date.now() - 259200000), icon: '📦' },
 ])
@@ -241,7 +241,7 @@ const copyReferralCode = () => {
 
 .page-header h1 {
   font-size: 2.5rem;
-  margin:0 0.5rem 0;
+  margin: 0 0 0.5rem 0;
   color: #333;
 }
 
@@ -262,7 +262,7 @@ const copyReferralCode = () => {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -312,7 +312,7 @@ const copyReferralCode = () => {
 }
 
 .btn {
-  padding:rem 1.5rem;
+  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -377,7 +377,7 @@ const copyReferralCode = () => {
 }
 
 .tab-button:hover {
-  color: #;
+  color: #333;
 }
 
 .transactions-section,
