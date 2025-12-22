@@ -125,7 +125,7 @@
                 class="action-btn delete-btn"
                 title="Delete"
               >
-                <Icon name="trash-" size="16" />
+                <Icon name="trash-2" size="16" />
               </button>
             </div>
           </div>
@@ -247,7 +247,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/john.jpg',
         message: 'John Doe liked your post',
         preview: 'Just deployed my new app! 🚀',
-        createdAt: new Date(Date.now() - 1000 * 60 * 5), // ✅ FIXED: 5 minutes ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 30),
         isRead: false,
         actionUrl: '/post/123'
       },
@@ -258,7 +258,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/jane.jpg',
         message: 'Jane Smith commented on your post',
         preview: 'Great work! Love the design.',
-        createdAt: new Date(Date.now() - 1000 * 60 * 30), // ✅ FIXED: 30 minutes ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60),
         isRead: false,
         actionUrl: '/post/123'
       },
@@ -269,7 +269,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/mike.jpg',
         message: 'Mike Johnson started following you',
         preview: null,
-        createdAt: new Date(Date.now() - 1000 * 60 * * 2), // ✅ FIXED: 2 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
         isRead: true,
         actionUrl: '/profile/mike-johnson'
       },
@@ -280,7 +280,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/sarah.jpg',
         message: 'Sarah Wilson mentioned you in a comment',
         preview: '@you Check this out!',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5), // ✅ FIXED: 5 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
         isRead: true,
         actionUrl: '/post/456'
       },
@@ -291,7 +291,7 @@ const loadNotifications = async () => {
         avatar: null,
         message: 'Your profile has been verified!',
         preview: null,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // ✅ FIXED: 1 day ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
         isRead: true,
         actionUrl: '/settings'
       }
@@ -380,8 +380,8 @@ onMounted(() => {
 <style scoped>
 .inbox-page {
   min-height: 100vh;
-  background: #f172a;
-  padding: rem;
+  background: #0f172a;
+  padding: 2rem;
 }
 
 .inbox-container {
@@ -481,7 +481,7 @@ onMounted(() => {
 .stat-item {
   background: #1e293b;
   border: 1px solid #334155;
-  border-radius: px;
+  border-radius: 12px;
   padding: 1.5rem;
   text-align: center;
 }
@@ -510,7 +510,7 @@ onMounted(() => {
 }
 
 .notification-item {
-  background: #e293b;
+  background: #1e293b;
   border: 1px solid #334155;
   border-radius: 12px;
   padding: 1rem;
@@ -560,7 +560,7 @@ onMounted(() => {
 .notification-text {
   display: flex;
   flex-direction: column;
-  gap: rem;
+  gap: 0.25rem;
   margin-bottom: 0.5rem;
 }
 
@@ -587,7 +587,7 @@ onMounted(() => {
 
 .notification-type {
   padding: 0.125rem 0.5rem;
-  border-radius:px;
+  border-radius: 9999px;
   font-weight: 500;
 }
 
@@ -653,7 +653,7 @@ onMounted(() => {
 
 .empty-state h3 {
   color: #94a3b8;
-  margin:rem 0 0.5rem;
+  margin: 1rem 0 0.5rem;
 }
 
 .load-more-section {
