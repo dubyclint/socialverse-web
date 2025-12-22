@@ -62,14 +62,14 @@
           <p>No groups found. Try adjusting your filters.</p>
         </div>
       </div>
-    </ClientOnly>
 
-    <template #fallback>
-      <div class="match-loading">
-        <div class="spinner"></div>
-        <p>Loading matches...</p>
-      </div>
-    </template>
+      <template #fallback>
+        <div class="match-loading">
+          <div class="spinner"></div>
+          <p>Loading matches...</p>
+        </div>
+      </template>
+    </ClientOnly>
   </div>
 </template>
 
