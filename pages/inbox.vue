@@ -1,6 +1,5 @@
 <template>
   <div class="inbox-page">
-    <!-- ✅ WRAPPED WITH ClientOnly TO PREVENT HYDRATION MISMATCH -->
     <ClientOnly>
       <div class="inbox-container">
         <!-- Header -->
@@ -150,7 +149,6 @@ definePageMeta({
  
 import { ref, computed, onMounted } from 'vue'
 
-// Reactive data
 const notifications = ref([])
 const showFilters = ref(false)
 const selectedType = ref('all')
@@ -160,7 +158,6 @@ const loading = ref(false)
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
-// Computed properties
 const totalNotifications = computed(() => notifications.value.length)
 
 const unreadCount = computed(() => 
@@ -184,19 +181,16 @@ const hasActiveFilters = computed(() =>
 const filteredNotifications = computed(() => {
   let filtered = [...notifications.value]
 
-  // Filter by type
   if (selectedType.value !== 'all') {
     filtered = filtered.filter(n => n.type === selectedType.value)
   }
 
-  // Filter by status
   if (selectedStatus.value !== 'all') {
     filtered = filtered.filter(n => 
       selectedStatus.value === 'read' ? n.isRead : !n.isRead
     )
   }
 
-  // Filter by timeframe
   if (selectedTimeframe.value !== 'all') {
     const now = new Date()
     let cutoff
@@ -221,7 +215,6 @@ const filteredNotifications = computed(() => {
     }
   }
 
-  // Sort by creation date (newest first)
   return filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 })
 
@@ -235,10 +228,8 @@ const hasMoreNotifications = computed(() =>
   paginatedNotifications.value.length < filteredNotifications.value.length
 )
 
-// Methods
 const loadNotifications = async () => {
   try {
-    // Mock data - replace with actual API call
     notifications.value = [
       {
         id: 1,
@@ -247,7 +238,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/john.jpg',
         message: 'John Doe liked your post',
         preview: 'Just deployed my new app! 🚀',
-        createdAt: new Date(Date.now() - 1000 * 60 * 30),
+        createdAt: new Date(Date.now() - 1000 * 60 * 5),
         isRead: false,
         actionUrl: '/post/123'
       },
@@ -258,7 +249,7 @@ const loadNotifications = async () => {
         avatar: '/avatars/jane.jpg',
         message: 'Jane Smith commented on your post',
         preview: 'Great work! Love the design.',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60),
+        createdAt: new Date(Date.now() - 1000 * 60 * 30),
         isRead: false,
         actionUrl: '/post/123'
       },
@@ -301,7 +292,7 @@ const loadNotifications = async () => {
   }
 }
 
-const markAsRead = (id) => {
+const markAsRead = (id: number) => {
   const notification = notifications.value.find(n => n.id === id)
   if (notification) {
     notification.isRead = true
@@ -312,11 +303,11 @@ const markAllAsRead = () => {
   notifications.value.forEach(n => n.isRead = true)
 }
 
-const deleteNotification = (id) => {
+const deleteNotification = (id: number) => {
   notifications.value = notifications.value.filter(n => n.id !== id)
 }
 
-const handleNotificationClick = (notification) => {
+const handleNotificationClick = (notification: any) => {
   if (!notification.isRead) {
     markAsRead(notification.id)
   }
@@ -335,9 +326,9 @@ const loadMore = () => {
   currentPage.value++
 }
 
-const formatTime = (date) => {
+const formatTime = (date: Date) => {
   const now = new Date()
-  const diff = now - date
+  const diff = now.getTime() - new Date(date).getTime()
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
@@ -346,11 +337,11 @@ const formatTime = (date) => {
   if (minutes < 60) return `${minutes}m ago`
   if (hours < 24) return `${hours}h ago`
   if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString()
+  return new Date(date).toLocaleDateString()
 }
 
-const formatType = (type) => {
-  const types = {
+const formatType = (type: string) => {
+  const types: Record<string, string> = {
     like: 'Like',
     comment: 'Comment',
     follow: 'Follow',
@@ -360,8 +351,8 @@ const formatType = (type) => {
   return types[type] || type
 }
 
-const getNotificationIcon = (type) => {
-  const icons = {
+const getNotificationIcon = (type: string) => {
+  const icons: Record<string, string> = {
     like: 'heart',
     comment: 'message-circle',
     follow: 'user-plus',
@@ -371,7 +362,6 @@ const getNotificationIcon = (type) => {
   return icons[type] || 'bell'
 }
 
-// Load notifications on mount
 onMounted(() => {
   loadNotifications()
 })
@@ -587,7 +577,7 @@ onMounted(() => {
 
 .notification-type {
   padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
+  border-radius: 4px;
   font-weight: 500;
 }
 
