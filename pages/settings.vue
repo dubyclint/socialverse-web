@@ -26,7 +26,7 @@
             :key="tab.id"
             @click="activeTab = tab.id"
             :class="[
-              'px-4 py font-semibold border-b-2 transition-colors whitespace-nowrap',
+              'px-4 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap',
               activeTab === tab.id
                 ? 'text-blue-500 border-blue-500'
                 : 'text-slate-400 border-transparent hover:text-slate-300'
@@ -255,7 +255,7 @@ const changePassword = async () => {
 <style scoped>
 .toggle {
   appearance: none;
-  width: px;
+  width: 48px;
   height: 24px;
   background: #475569;
   border-radius: 12px;
@@ -287,13 +287,15 @@ const changePassword = async () => {
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #334155;
+  border: 4px solid #475569;
   border-top-color: #3b82f6;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
