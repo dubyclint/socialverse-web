@@ -1,17 +1,7 @@
-<!-- FILE: /pages/settings.vue - FIXED FOR SSR HYDRATION -->
-<!-- ============================================================================
-     SETTINGS PAGE - FIXED: All user-specific data wrapped in ClientOnly
-     ✅ FIXED: User data wrapped
-     ✅ FIXED: Form inputs wrapped
-     ✅ FIXED: CSS class syntax errors
-     ============================================================================ -->
-
 <template>
   <div class="min-h-screen bg-slate-900">
-    <!-- Header -->
     <Header />
 
-    <!-- ✅ FIXED: Wrap entire settings content in ClientOnly -->
     <ClientOnly>
       <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-8">
@@ -19,26 +9,18 @@
           <p class="text-slate-400">Manage your account preferences and security</p>
         </div>
 
-        <!-- Settings Tabs -->
         <div class="flex gap-4 mb-8 border-b border-slate-700 overflow-x-auto">
           <button
             v-for="tab in settingsTabs"
             :key="tab.id"
             @click="activeTab = tab.id"
-            :class="[
-              'px-4 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap',
-              activeTab === tab.id
-                ? 'text-blue-500 border-blue-500'
-                : 'text-slate-400 border-transparent hover:text-slate-300'
-            ]"
+            :class="getTabClass(tab.id)"
           >
             {{ tab.label }}
           </button>
         </div>
 
-        <!-- Tab Content -->
         <div class="space-y-6">
-          <!-- Account Settings Tab -->
           <div v-if="activeTab === 'account'" class="space-y-6">
             <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
               <h2 class="text-xl font-bold text-white mb-4">Account Information</h2>
@@ -65,11 +47,9 @@
             </div>
           </div>
 
-          <!-- Profile Settings Tab -->
           <div v-if="activeTab === 'profile'" class="space-y-6">
             <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
               <h2 class="text-xl font-bold text-white mb-4">Profile Information</h2>
-              
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Display Name</label>
@@ -87,7 +67,7 @@
                     rows="4"
                     class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
                     placeholder="Tell us about yourself"
-                  ></textarea>
+                  />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-slate-300 mb-2">Location</label>
@@ -108,7 +88,6 @@
                   />
                 </div>
               </div>
-
               <button
                 @click="saveProfileSettings"
                 class="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -118,7 +97,6 @@
             </div>
           </div>
 
-          <!-- Privacy Settings Tab -->
           <div v-if="activeTab === 'privacy'" class="space-y-6">
             <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
               <h2 class="text-xl font-bold text-white mb-4">Privacy Settings</h2>
@@ -141,7 +119,6 @@
             </div>
           </div>
 
-          <!-- Security Settings Tab -->
           <div v-if="activeTab === 'security'" class="space-y-6">
             <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
               <h2 class="text-xl font-bold text-white mb-4">Security Settings</h2>
@@ -183,7 +160,6 @@
       </main>
     </ClientOnly>
 
-    <!-- Fallback for SSR -->
     <template #fallback>
       <div class="flex items-center justify-center min-h-screen">
         <div class="spinner"></div>
@@ -203,7 +179,6 @@ definePageMeta({
 
 const authStore = useAuthStore()
 
-// State
 const activeTab = ref('account')
 const profileData = ref({
   displayName: '',
@@ -221,10 +196,8 @@ const securityData = ref({
   confirmPassword: ''
 })
 
-// Computed
 const user = computed(() => authStore.user)
 
-// Tabs
 const settingsTabs = [
   { id: 'account', label: 'Account' },
   { id: 'profile', label: 'Profile' },
@@ -232,10 +205,16 @@ const settingsTabs = [
   { id: 'security', label: 'Security' }
 ]
 
-// Methods
+const getTabClass = (tabId: string) => {
+  const baseClass = 'px-4 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap'
+  const activeClass = activeTab.value === tabId 
+    ? 'text-blue-500 border-blue-500' 
+    : 'text-slate-400 border-transparent hover:text-slate-300'
+  return `${baseClass} ${activeClass}`
+}
+
 const saveProfileSettings = async () => {
   try {
-    // Save profile settings
     console.log('Saving profile settings:', profileData.value)
   } catch (error) {
     console.error('Error saving settings:', error)
@@ -244,7 +223,6 @@ const saveProfileSettings = async () => {
 
 const changePassword = async () => {
   try {
-    // Change password logic
     console.log('Changing password')
   } catch (error) {
     console.error('Error changing password:', error)
