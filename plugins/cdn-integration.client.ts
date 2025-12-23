@@ -1,127 +1,107 @@
 // ============================================================================
-// plugins/cdn-integration.client.ts - CDN INTEGRATION PLUGIN (FIXED)
+// FILE 6: /plugins/cdn-integration.client.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIXED: CDN plugin now properly checks configuration before enabling
-// This prevents warnings when CDN is not configured
+// ✅ FIXED: CDN plugin enabled
+// ✅ FIXED: Proper initialization and error handling
+// ✅ FIXED: Better logging
+// ✅ ENHANCED: CDN configuration
+// ============================================================================
 
 export default defineNuxtPlugin(() => {
-  const config = useRuntimeConfig()
-  const cdnUrl = config.public.cdnUrl
-  const cdnEnabled = config.public.cdnEnabled
-
-  // Check if CDN is properly configured
-  if (!cdnEnabled || !cdnUrl) {
-    console.log('[CDN Plugin] CDN is disabled or not configured')
+  console.log('[CDN Plugin] Initializing CDN integration')
+  
+  try {
+    // ============================================================================
+    // GET RUNTIME CONFIG
+    // ============================================================================
+    const config = useRuntimeConfig()
     
+    console.log('[CDN Plugin] Runtime config loaded')
+    console.log('[CDN Plugin] CDN Enabled:', config.public.cdnEnabled)
+    console.log('[CDN Plugin] CDN URL:', config.public.cdnUrl)
+
+    // ============================================================================
+    // INITIALIZE CDN CONFIGURATION
+    // ============================================================================
+    const cdnConfig = {
+      enabled: config.public.cdnEnabled || true,
+      baseUrl: config.public.cdnUrl || '/cdn',
+      cacheControl: 'public, max-age=31536000',
+      imageOptimization: true,
+      lazyLoading: true,
+      webpSupport: true,
+    }
+    
+    console.log('[CDN Plugin] ✅ CDN Configuration:')
+    console.log('[CDN Plugin]   - Enabled:', cdnConfig.enabled)
+    console.log('[CDN Plugin]   - Base URL:', cdnConfig.baseUrl)
+    console.log('[CDN Plugin]   - Cache Control:', cdnConfig.cacheControl)
+    console.log('[CDN Plugin]   - Image Optimization:', cdnConfig.imageOptimization)
+    console.log('[CDN Plugin]   - Lazy Loading:', cdnConfig.lazyLoading)
+    console.log('[CDN Plugin]   - WebP Support:', cdnConfig.webpSupport)
+
+    // ============================================================================
+    // PROVIDE CDN UTILITIES
+    // ============================================================================
+    const getCdnUrl = (path: string): string => {
+      if (!cdnConfig.enabled) {
+        return path
+      }
+      
+      // Remove leading slash if present
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path
+      
+      // Combine base URL with path
+      return `${cdnConfig.baseUrl}/${cleanPath}`
+    }
+
+    const getImageUrl = (path: string, options?: { width?: number; height?: number; quality?: number }): string => {
+      if (!cdnConfig.enabled || !cdnConfig.imageOptimization) {
+        return path
+      }
+
+      const cdnUrl = getCdnUrl(path)
+      
+      if (!options) {
+        return cdnUrl
+      }
+
+      // Build query parameters for image optimization
+      const params = new URLSearchParams()
+      if (options.width) params.append('w', options.width.toString())
+      if (options.height) params.append('h', options.height.toString())
+      if (options.quality) params.append('q', options.quality.toString())
+
+      return `${cdnUrl}?${params.toString()}`
+    }
+
+    console.log('[CDN Plugin] ✅ CDN utilities created')
+
+    // ============================================================================
+    // RETURN PLUGIN EXPORTS
+    // ============================================================================
     return {
       provide: {
-        cdnUrl: null,
-        cdnEnabled: false,
-        rewriteImageUrl: (url: string) => url,
-        rewriteAssetUrl: (url: string) => url,
-      },
-    }
-  }
-
-  console.log('[CDN Plugin] CDN enabled:', cdnUrl)
-
-  // ============================================================================
-  // REWRITE ASSET URLS TO USE CDN
-  // ============================================================================
-  
-  /**
-   * Rewrite image URLs to use CDN
-   */
-  const rewriteImageUrl = (url: string): string => {
-    if (!url) return url
-    
-    // Skip absolute URLs and data URLs
-    if (url.startsWith('http') || url.startsWith('data:')) {
-      return url
-    }
-    
-    // Skip relative URLs that are already CDN URLs
-    if (url.includes(cdnUrl)) {
-      return url
-    }
-    
-    // Rewrite relative URLs to use CDN
-    const cleanUrl = url.startsWith('/') ? url : `/${url}`
-    return `${cdnUrl}${cleanUrl}`
-  }
-
-  /**
-   * Rewrite asset URLs to use CDN
-   */
-  const rewriteAssetUrl = (url: string): string => {
-    if (!url) return url
-    
-    // Skip absolute URLs and data URLs
-    if (url.startsWith('http') || url.startsWith('data:')) {
-      return url
-    }
-    
-    // Skip relative URLs that are already CDN URLs
-    if (url.includes(cdnUrl)) {
-      return url
-    }
-    
-    // Rewrite relative URLs to use CDN
-    const cleanUrl = url.startsWith('/') ? url : `/${url}`
-    return `${cdnUrl}${cleanUrl}`
-  }
-
-  /**
-   * Intercept image loading in the DOM
-   */
-  if (process.client) {
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        rewriteImagesInDOM()
-      })
-    } else {
-      rewriteImagesInDOM()
-    }
-  }
-
-  function rewriteImagesInDOM() {
-    // Rewrite existing images
-    const images = document.querySelectorAll('img')
-    images.forEach((img) => {
-      if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:')) {
-        img.src = rewriteImageUrl(img.src)
-      }
-    })
-
-    // Observe for new images
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-          const newImages = mutation.addedNodes
-          newImages.forEach((node: any) => {
-            if (node.tagName === 'IMG') {
-              if (node.src && !node.src.startsWith('http') && !node.src.startsWith('data:')) {
-                node.src = rewriteImageUrl(node.src)
-              }
-            }
-          })
+        cdn: {
+          config: cdnConfig,
+          getUrl: getCdnUrl,
+          getImageUrl,
         }
-      })
-    })
+      }
+    }
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    })
-  }
-
-  return {
-    provide: {
-      cdnUrl,
-      cdnEnabled,
-      rewriteImageUrl,
-      rewriteAssetUrl,
-    },
+  } catch (error) {
+    console.error('[CDN Plugin] ❌ Initialization failed:', error)
+    
+    // Provide safe fallback
+    return {
+      provide: {
+        cdn: {
+          config: { enabled: false },
+          getUrl: (path: string) => path,
+          getImageUrl: (path: string) => path,
+        }
+      }
+    }
   }
 })
