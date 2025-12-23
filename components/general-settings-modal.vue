@@ -223,7 +223,7 @@ const settingsCategories = [
   { key: 'privacy', label: 'Privacy', icon: 'shield' },
   { key: 'notifications', label: 'Notifications', icon: 'bell' },
   { key: 'security', label: 'Security', icon: 'lock' },
-  { key: 'display', label: 'Display', icon: 'monitor' }
+  { key: 'display', label: 'Monitor', icon: 'monitor' }
 ]
 
 // Settings Data
@@ -247,7 +247,7 @@ const saveSettings = async () => {
   try {
     // Save settings logic
     console.log('Saving settings:', settings.value)
-    await new Promise(resolve => setTimeout(resolve,000))
+    await new Promise(resolve => setTimeout(resolve, 1000))
     emit('close')
   } catch (error) {
     console.error('Error saving settings:', error)
@@ -264,7 +264,7 @@ const saveSettings = async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, );
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -273,10 +273,10 @@ const saveSettings = async () => {
 }
 
 .modal-content {
-  background: #eb;
-  border-radius:px;
+  background: #1e293b;
+  border-radius: 12px;
   width: 100%;
-  max-width: px;
+  max-width: 800px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -299,7 +299,7 @@ const saveSettings = async () => {
 .close-btn {
   background: none;
   border: none;
-  color: #a3b8;
+  color: #94a3b8;
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 6px;
@@ -313,7 +313,7 @@ const saveSettings = async () => {
 
 .settings-container {
   display: grid;
-  grid-template-columns: px 1fr;
+  grid-template-columns: 200px 1fr;
   flex: 1;
   overflow: hidden;
 }
@@ -360,7 +360,7 @@ const saveSettings = async () => {
 .settings-section h3 {
   color: white;
   font-size: 1.25rem;
-  margin: 0 1.5rem 0;
+  margin: 0 0 1.5rem 0;
 }
 
 .setting-item {
@@ -381,14 +381,14 @@ const saveSettings = async () => {
 
 .setting-info p {
   margin: 0;
-  color: #748b;
+  color: #94a3b8;
   font-size: 0.75rem;
 }
 
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: px;
+  width: 48px;
   height: 24px;
 }
 
@@ -406,19 +406,19 @@ const saveSettings = async () => {
   right: 0;
   bottom: 0;
   background-color: #475569;
-  transition: 0.4s;
-  border-radius:px;
+  transition: 0.3s;
+  border-radius: 24px;
 }
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: 0.4s;
+  transition: 0.3s;
   border-radius: 50%;
 }
 
@@ -430,23 +430,8 @@ input:checked + .slider:before {
   transform: translateX(24px);
 }
 
-.btn-secondary {
-  padding: 0.5rem 1rem;
-  background: #334155;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.btn-secondary:hover {
-  background: #475569;
-}
-
 .setting-select {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem;
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 6px;
@@ -454,36 +439,55 @@ input:checked + .slider:before {
   cursor: pointer;
 }
 
+.setting-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: #475569;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: #64748b;
+}
+
 .modal-footer {
   display: flex;
-  gap: 1rem;
   justify-content: flex-end;
+  gap: 1rem;
   padding: 1.5rem;
   border-top: 1px solid #334155;
 }
 
-.btn-cancel,
-.btn-save {
+.btn-cancel {
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
+  background: #475569;
+  color: white;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
-  border: none;
-}
-
-.btn-cancel {
-  background: #334155;
-  color: white;
 }
 
 .btn-cancel:hover {
-  background: #475569;
+  background: #64748b;
 }
 
 .btn-save {
+  padding: 0.75rem 1.5rem;
   background: #3b82f6;
   color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
 .btn-save:hover:not(:disabled) {
@@ -491,7 +495,7 @@ input:checked + .slider:before {
 }
 
 .btn-save:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 </style>
