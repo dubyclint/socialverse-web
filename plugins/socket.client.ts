@@ -1,174 +1,88 @@
-// FILE: /plugins/socket.client.ts (COMPLETE FIXED VERSION)
 // ============================================================================
-// SOCKET.IO CLIENT PLUGIN - FIXED: Proper auth handling and token validation
+// FILE 3: /plugins/socket.client.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ CRITICAL FIX: Properly validate JWT token before connecting
-// ✅ Extract token from auth store correctly
-// ✅ Pass token in auth query parameter
-// ✅ Handle auth failures gracefully
-// ✅ Comprehensive error handling and logging
-// ✅ Type-safe event emitters
-// ✅ Automatic reconnection with exponential backoff
+// SOCKET.IO CLIENT PLUGIN - FIXED: Proper auth handling and connection
 // ============================================================================
 
 import { io, Socket } from 'socket.io-client'
 
-declare global {
-  interface Window {
-    $socket?: Socket
-  }
-}
-
-interface SocketState {
-  connected: boolean
-  authenticated: boolean
-  userId?: string
-  error?: string
-}
-
 let socketInstance: Socket | null = null
-let socketState: SocketState = {
-  connected: false,
-  authenticated: false
-}
 
 export default defineNuxtPlugin(async (nuxtApp) => {
-  const router = useRouter()
+  console.log('[Socket.IO Plugin] Initializing...')
 
   return {
     provide: {
       socket: {
         /**
-         * ✅ CRITICAL FIX: Initialize and connect to Socket.IO server
-         * Waits for auth store to be ready before connecting
+         * Connect to Socket.IO server with proper authentication
          */
         async connect(): Promise<Socket | null> {
           try {
+            // If already connected, return existing instance
             if (socketInstance?.connected) {
-              console.log('[Socket.IO Client] Already connected')
+              console.log('[Socket.IO] Already connected')
               return socketInstance
             }
 
-            console.log('[Socket.IO Client] 🚀 Connecting to Socket.IO server...')
+            console.log('[Socket.IO] 🚀 Connecting to server...')
 
-            // ============================================================================
-            // STEP 1: Wait for auth store to be ready
-            // ============================================================================
-            console.log('[Socket.IO Client] Step 1: Waiting for auth store...')
-
+            // Get auth store
             const authStore = useAuthStore()
             
-            // ✅ CRITICAL FIX: Wait for auth to be ready
-            let authReady = false
-            let waitAttempts = 0
-            const maxWaitAttempts = 50 // 5 seconds max (50 * 100ms)
-
-            while (!authReady && waitAttempts < maxWaitAttempts) {
-              if (authStore.user?.id && authStore.token) {
-                authReady = true
-                console.log('[Socket.IO Client] ✅ Auth store ready with token')
-                break
-              }
-              waitAttempts++
+            // Wait for auth to be ready (max 5 seconds)
+            let attempts = 0
+            while (!authStore.token && attempts < 50) {
               await new Promise(resolve => setTimeout(resolve, 100))
+              attempts++
             }
 
-            if (!authReady) {
-              console.warn('[Socket.IO Client] ⚠️ Auth store not ready after timeout')
-              socketState.error = 'Auth store not ready'
+            if (!authStore.token) {
+              console.warn('[Socket.IO] ⚠️ No auth token available')
               return null
             }
 
-            // ============================================================================
-            // STEP 2: Extract user ID and token from auth store
-            // ============================================================================
-            console.log('[Socket.IO Client] Step 2: Extracting credentials...')
-            
-            const userId = authStore.user?.id
-            const token = authStore.token
+            console.log('[Socket.IO] ✅ Auth token available, connecting...')
 
-            if (!userId) {
-              console.error('[Socket.IO Client] ❌ User ID not found in auth store')
-              socketState.error = 'User ID not found'
-              return null
-            }
+            // Get runtime config for socket URL
+            const config = useRuntimeConfig()
+            const socketUrl = config.public.socketUrl || window.location.origin
 
-            if (!token) {
-              console.error('[Socket.IO Client] ❌ Token not found in auth store')
-              socketState.error = 'Token not found'
-              return null
-            }
-
-            console.log('[Socket.IO Client] ✅ User ID:', userId)
-            console.log('[Socket.IO Client] ✅ Token available (length:', token.length, ')')
-
-            // ============================================================================
-            // STEP 3: Create Socket.IO connection with auth
-            // ============================================================================
-            console.log('[Socket.IO Client] Step 3: Creating Socket.IO connection...')
-
-            const socketUrl = process.env.NUXT_PUBLIC_SOCKET_URL || window.location.origin
-            
+            // Create Socket.IO connection with auth
             socketInstance = io(socketUrl, {
               auth: {
-                token: token,
-                userId: userId
+                token: authStore.token,
+                userId: authStore.userId
               },
               reconnection: true,
               reconnectionDelay: 1000,
               reconnectionDelayMax: 5000,
               reconnectionAttempts: 5,
-              transports: ['websocket', 'polling'],
-              secure: true,
-              rejectUnauthorized: false
+              transports: ['websocket', 'polling']
             })
 
-            // ============================================================================
-            // STEP 4: Setup event listeners
-            // ============================================================================
-            console.log('[Socket.IO Client] Step 4: Setting up event listeners...')
-
+            // Connection event handlers
             socketInstance.on('connect', () => {
-              console.log('[Socket.IO Client] ✅ Connected to server')
-              socketState.connected = true
-              socketState.userId = userId
-            })
-
-            socketInstance.on('authenticated', () => {
-              console.log('[Socket.IO Client] ✅ Authenticated successfully')
-              socketState.authenticated = true
-              socketState.error = undefined
-            })
-
-            socketInstance.on('auth_error', (error: any) => {
-              console.error('[Socket.IO Client] ❌ Authentication error:', error)
-              socketState.authenticated = false
-              socketState.error = error?.message || 'Authentication failed'
-            })
-
-            socketInstance.on('disconnect', (reason: string) => {
-              console.warn('[Socket.IO Client] ⚠️ Disconnected:', reason)
-              socketState.connected = false
-              socketState.authenticated = false
-            })
-
-            socketInstance.on('error', (error: any) => {
-              console.error('[Socket.IO Client] ❌ Socket error:', error)
-              socketState.error = error?.message || 'Socket error'
+              console.log('[Socket.IO] ✅ Connected to server')
             })
 
             socketInstance.on('connect_error', (error: any) => {
-              console.error('[Socket.IO Client] ❌ Connection error:', error)
-              socketState.error = error?.message || 'Connection error'
+              console.error('[Socket.IO] ❌ Connection error:', error.message)
             })
 
-            console.log('[Socket.IO Client] ✅ Socket.IO initialized successfully')
-            window.$socket = socketInstance
+            socketInstance.on('disconnect', (reason: string) => {
+              console.log('[Socket.IO] ⚠️ Disconnected:', reason)
+            })
+
+            socketInstance.on('error', (error: any) => {
+              console.error('[Socket.IO] ❌ Error:', error)
+            })
+
+            console.log('[Socket.IO] ✅ Socket instance created')
             return socketInstance
 
           } catch (error: any) {
-            console.error('[Socket.IO Client] ❌ Fatal error during connection:', error)
-            socketState.error = error?.message || 'Unknown error'
+            console.error('[Socket.IO] ❌ Connection failed:', error.message)
             return null
           }
         },
@@ -181,58 +95,52 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         },
 
         /**
-         * Get socket state
+         * Check if connected
          */
-        getState(): SocketState {
-          return { ...socketState }
+        isConnected(): boolean {
+          return socketInstance?.connected || false
         },
 
         /**
          * Disconnect socket
          */
-        disconnect() {
+        disconnect(): void {
           if (socketInstance) {
             socketInstance.disconnect()
             socketInstance = null
-            socketState.connected = false
-            socketState.authenticated = false
-            console.log('[Socket.IO Client] ✅ Socket disconnected')
+            console.log('[Socket.IO] ✅ Disconnected')
           }
         },
 
         /**
          * Emit event
          */
-        emit(event: string, data?: any) {
+        emit(event: string, data?: any): void {
           if (socketInstance?.connected) {
             socketInstance.emit(event, data)
-            console.log('[Socket.IO Client] Emitted event:', event)
           } else {
-            console.warn('[Socket.IO Client] ⚠️ Socket not connected, cannot emit:', event)
+            console.warn('[Socket.IO] ⚠️ Not connected, cannot emit:', event)
           }
         },
 
         /**
          * Listen to event
          */
-        on(event: string, callback: (data: any) => void) {
+        on(event: string, callback: (data: any) => void): void {
           if (socketInstance) {
             socketInstance.on(event, callback)
-            console.log('[Socket.IO Client] Listening to event:', event)
           }
         },
 
         /**
          * Remove event listener
          */
-        off(event: string) {
+        off(event: string, callback?: (data: any) => void): void {
           if (socketInstance) {
-            socketInstance.off(event)
-            console.log('[Socket.IO Client] Removed listener for event:', event)
+            socketInstance.off(event, callback)
           }
         }
       }
     }
   }
 })
-
