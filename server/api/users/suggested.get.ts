@@ -1,3 +1,7 @@
+// ============================================================================
+// COMPLETE FIX: /server/api/users/suggested.get.ts
+// ============================================================================
+
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
@@ -12,18 +16,45 @@ export default defineEventHandler(async (event) => {
 
     const query = getQuery(event)
     const limit = Math.min(parseInt(query.limit as string) || 5, 20)
+
     const supabase = await serverSupabaseClient(event)
 
-    const { data, error } = await supabase.rpc('get_suggested_users', {
-      user_id_param: user.id,
-      limit_param: limit
-    })
+    const { data: suggestedUsers, error } = await supabase
+      .from('users')
+      .select('id, name, username, avatar_url, bio')
+      .neq('id', user.id)
+      .is('deleted_at', null)
+      .limit(limit)
 
-    if (error) throw createError({ statusCode: 500, statusMessage: 'Failed to fetch suggested users' })
+    if (error) {
+      console.error('[Suggested Users API] Error:', error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to fetch suggested users'
+      })
+    }
 
-    return { success: true, data: data || [], total: data?.length || 0 }
+    const formatted = (suggestedUsers || []).map((u: any) => ({
+      id: u.id,
+      name: u.name || 'Unknown',
+      username: u.username || 'unknown',
+      avatar: u.avatar_url || '/default-avatar.svg',
+      bio: u.bio || '',
+      followers: 0,
+      isFollowing: false
+    }))
+
+    return {
+      success: true,
+      data: formatted,
+      total: formatted.length
+    }
+
   } catch (error: any) {
-    if (error.statusCode) throw error
-    throw createError({ statusCode: 500, statusMessage: 'Failed to fetch suggested users' })
+    console.error('[Suggested Users API] Error:', error.message)
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.message || 'Failed to fetch suggested users'
+    })
   }
 })
