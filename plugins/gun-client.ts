@@ -1,10 +1,9 @@
 // ============================================================================
-// FILE 7: /plugins/gun-client.ts - COMPLETE FIXED VERSION
+// FILE 2: /plugins/gun-client.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Gun plugin enabled
-// ✅ FIXED: Proper client-side only initialization
-// ✅ FIXED: Better error handling and logging
-// ✅ ENHANCED: Gun configuration
+// ✅ FIXED: Proper config reading with optional chaining
+// ✅ FIXED: Handle undefined/false values correctly
+// ✅ FIXED: Better logging for debugging
 // ============================================================================
 
 export default defineNuxtPlugin(() => {
@@ -27,11 +26,16 @@ export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig()
     
     console.log('[Gun] Runtime config loaded')
-    console.log('[Gun] Gun Enabled:', config.public.gunEnabled)
-    console.log('[Gun] Gun Peers:', config.public.gunPeers)
+    
+    // ✅ FIX: Check if config.public exists and has values
+    const gunEnabledFromConfig = config.public?.gunEnabled !== false
+    const gunPeersFromConfig = config.public?.gunPeers || []
+    
+    console.log('[Gun] Gun Enabled (from config):', gunEnabledFromConfig)
+    console.log('[Gun] Gun Peers (from config):', gunPeersFromConfig)
 
     // ============================================================================
-    // CHECK IF GUN IS AVAILABLE IN WINDOW
+    // CHECK IF WINDOW IS AVAILABLE
     // ============================================================================
     if (typeof window === 'undefined') {
       console.warn('[Gun] ⚠️ Window object not available')
@@ -42,11 +46,10 @@ export default defineNuxtPlugin(() => {
     // INITIALIZE GUN CONFIGURATION
     // ============================================================================
     const gunConfig = {
-      enabled: config.public.gunEnabled || true,
-      peers: config.public.gunPeers || [
-        // Add your Gun server peers here
-        // Example: 'https://gun-server.example.com/gun'
-      ],
+      // ✅ FIX: Use config value, default to true if not explicitly false
+      enabled: gunEnabledFromConfig,
+      // ✅ FIX: Use config peers or empty array
+      peers: Array.isArray(gunPeersFromConfig) ? gunPeersFromConfig : [],
       localStorage: true,
       radisk: true,
       multicast: false,
@@ -71,7 +74,6 @@ export default defineNuxtPlugin(() => {
       }
 
       try {
-        // Try to access Gun from window
         if (typeof window !== 'undefined' && (window as any).Gun) {
           console.log('[Gun] ✅ Gun instance available from window')
           return (window as any).Gun
