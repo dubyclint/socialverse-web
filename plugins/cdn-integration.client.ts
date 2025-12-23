@@ -1,10 +1,9 @@
 // ============================================================================
-// FILE 6: /plugins/cdn-integration.client.ts - COMPLETE FIXED VERSION
+// FILE 1: /plugins/cdn-integration.client.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIXED: CDN plugin enabled
-// ✅ FIXED: Proper initialization and error handling
-// ✅ FIXED: Better logging
-// ✅ ENHANCED: CDN configuration
+// ✅ FIXED: Proper config reading with optional chaining
+// ✅ FIXED: Handle undefined/false values correctly
+// ✅ FIXED: Better logging for debugging
 // ============================================================================
 
 export default defineNuxtPlugin(() => {
@@ -17,15 +16,22 @@ export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig()
     
     console.log('[CDN Plugin] Runtime config loaded')
-    console.log('[CDN Plugin] CDN Enabled:', config.public.cdnEnabled)
-    console.log('[CDN Plugin] CDN URL:', config.public.cdnUrl)
+    
+    // ✅ FIX: Check if config.public exists and has values
+    const cdnUrlFromConfig = config.public?.cdnUrl || ''
+    const cdnEnabledFromConfig = config.public?.cdnEnabled !== false
+    
+    console.log('[CDN Plugin] CDN Enabled (from config):', cdnEnabledFromConfig)
+    console.log('[CDN Plugin] CDN URL (from config):', cdnUrlFromConfig || 'not set')
 
     // ============================================================================
     // INITIALIZE CDN CONFIGURATION
     // ============================================================================
     const cdnConfig = {
-      enabled: config.public.cdnEnabled || true,
-      baseUrl: config.public.cdnUrl || '/cdn',
+      // ✅ FIX: Use config value, default to true if not explicitly false
+      enabled: cdnEnabledFromConfig,
+      // ✅ FIX: Use config URL or fallback to /cdn
+      baseUrl: cdnUrlFromConfig || '/cdn',
       cacheControl: 'public, max-age=31536000',
       imageOptimization: true,
       lazyLoading: true,
@@ -48,10 +54,7 @@ export default defineNuxtPlugin(() => {
         return path
       }
       
-      // Remove leading slash if present
       const cleanPath = path.startsWith('/') ? path.slice(1) : path
-      
-      // Combine base URL with path
       return `${cdnConfig.baseUrl}/${cleanPath}`
     }
 
@@ -66,7 +69,6 @@ export default defineNuxtPlugin(() => {
         return cdnUrl
       }
 
-      // Build query parameters for image optimization
       const params = new URLSearchParams()
       if (options.width) params.append('w', options.width.toString())
       if (options.height) params.append('h', options.height.toString())
@@ -77,9 +79,6 @@ export default defineNuxtPlugin(() => {
 
     console.log('[CDN Plugin] ✅ CDN utilities created')
 
-    // ============================================================================
-    // RETURN PLUGIN EXPORTS
-    // ============================================================================
     return {
       provide: {
         cdn: {
@@ -93,7 +92,6 @@ export default defineNuxtPlugin(() => {
   } catch (error) {
     console.error('[CDN Plugin] ❌ Initialization failed:', error)
     
-    // Provide safe fallback
     return {
       provide: {
         cdn: {
