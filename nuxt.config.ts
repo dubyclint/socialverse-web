@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /nuxt.config.ts - COMPLETE FIXED & ENHANCED VERSION
+// FILE 1: /nuxt.config.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // ✅ FIXED: Added favicon support
 // ✅ FIXED: Added proper static asset handling
@@ -41,8 +41,8 @@ export default defineNuxtConfig({
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
-      cdnEnabled: false,
-      gunEnabled: false,
+      cdnEnabled: true,
+      gunEnabled: true,
       gunPeers: [],
       nodeEnv: process.env.NODE_ENV || 'production',
       port: process.env.PORT || '8080',
@@ -71,7 +71,6 @@ export default defineNuxtConfig({
         external: ['gun', 'gun/gun', 'gun/sea'],
       },
     },
-    // ✅ NEW: Optimize dependencies
     optimizeDeps: {
       include: ['@supabase/supabase-js'],
     },
@@ -97,7 +96,7 @@ export default defineNuxtConfig({
       external: ['gun', 'gun/gun', 'gun/sea'],
     },
 
-    // ✅ NEW: Proper static asset handling
+    // ✅ FIXED: Proper static asset handling
     publicAssets: [
       {
         baseURL: '/',
@@ -106,7 +105,6 @@ export default defineNuxtConfig({
       }
     ],
 
-    // ✅ NEW: Compression
     compressPublicAssets: true,
   },
 
@@ -119,7 +117,7 @@ export default defineNuxtConfig({
       viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
       title: 'SocialVerse - Connect, Share, Grow',
       
-      // ✅ ENHANCED: Complete meta tags
+      // ✅ FIXED: Complete meta tags
       meta: [
         { name: 'description', content: 'SocialVerse - A modern social networking platform for connecting, sharing, and growing together.' },
         { name: 'keywords', content: 'social network, community, connect, share, socialverse' },
@@ -147,9 +145,9 @@ export default defineNuxtConfig({
         { name: 'apple-mobile-web-app-title', content: 'SocialVerse' },
       ],
       
-      // ✅ ENHANCED: Complete link tags
+      // ✅ FIXED: Complete link tags with all favicon variants
       link: [
-        // Favicon
+        // Favicon variants
         { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
@@ -163,14 +161,9 @@ export default defineNuxtConfig({
         { rel: 'dns-prefetch', href: 'https://cvzrhucbvezqwbesthek.supabase.co' },
       ],
 
-      // ✅ NEW: Scripts
-      script: [
-        // Add any analytics or tracking scripts here
-        // Example: Google Analytics, etc.
-      ],
+      script: [],
     },
 
-    // ✅ NEW: Page transitions
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
   },
@@ -195,10 +188,7 @@ export default defineNuxtConfig({
   // ============================================================================
   // CSS CONFIGURATION
   // ============================================================================
-  css: [
-    // Add global CSS files here if needed
-    // '~/assets/css/main.css',
-  ],
+  css: [],
 
   // ============================================================================
   // ROUTER CONFIGURATION
@@ -210,14 +200,11 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // HOOKS (for build-time customization)
+  // HOOKS
   // ============================================================================
   hooks: {
     'build:before': () => {
       console.log('🚀 Building SocialVerse...')
-    },
-    'build:done': () => {
-      console.log('✅ Build complete!')
     },
   },
 })
