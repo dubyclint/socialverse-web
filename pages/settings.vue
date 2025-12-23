@@ -108,13 +108,13 @@
           </div>
         </div>
       </main>
-    </ClientOnly>
 
-    <template #fallback>
-      <div class="flex items-center justify-center min-h-screen">
-        <div class="spinner"></div>
-      </div>
-    </template>
+      <template #fallback>
+        <div class="flex items-center justify-center min-h-screen">
+          <div class="spinner"></div>
+        </div>
+      </template>
+    </ClientOnly>
   </div>
 </template>
 
