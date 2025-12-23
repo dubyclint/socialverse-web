@@ -60,7 +60,7 @@
                     :title="`${badge.badge_type.replace('_', ' ').toUpperCase()}`"
                   >
                     <Icon :name="getBadgeIcon(badge.badge_type)" size="16" />
-                    <span v-if="badge.badge_level >" class="badge-level">{{ badge.badge_level }}</span>
+                    <span v-if="badge.badge_level > 0" class="badge-level">{{ badge.badge_level }}</span>
                   </button>
                 </div>
               </h1>
@@ -238,15 +238,15 @@
         <GeneralSettingsModal v-if="showGeneralSettings" @close="showGeneralSettings = false" />
         <AvatarUploadModal v-if="showAvatarUpload" @close="showAvatarUpload = false" />
       </div>
-    </ClientOnly>
 
-    <!-- Fallback for SSR -->
-    <template #fallback>
-      <div class="profile-loading">
-        <div class="spinner"></div>
-        <p>Loading profile...</p>
-      </div>
-    </template>
+      <!-- Fallback for SSR -->
+      <template #fallback>
+        <div class="profile-loading">
+          <div class="spinner"></div>
+          <p>Loading profile...</p>
+        </div>
+      </template>
+    </ClientOnly>
   </div>
 </template>
 
@@ -352,10 +352,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Keep your existing styles */
 .profile-page {
   min-height: 100vh;
-  background: #fa;
+  background: #0f172a;
 }
 
 .profile-loading {
@@ -380,5 +379,347 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
-/* Add all your other existing styles here */
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: #cbd5e1;
+}
+
+.profile-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #334155;
+}
+
+.profile-picture-section {
+  display: flex;
+  justify-content: center;
+}
+
+.profile-picture-container {
+  position: relative;
+  width: 150px;
+  height: 150px;
+}
+
+.profile-picture {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #3b82f6;
+}
+
+.default-avatar {
+  border-color: #475569;
+}
+
+.edit-avatar-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+.edit-avatar-btn:hover {
+  background: #2563eb;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.profile-name-section {
+  margin-bottom: 1rem;
+}
+
+.profile-name {
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.verification-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.verification-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.badge-verified {
+  background: #10b981;
+  color: white;
+}
+
+.badge-premium {
+  background: #f59e0b;
+  color: white;
+}
+
+.badge-developer {
+  background: #8b5cf6;
+  color: white;
+}
+
+.badge-level {
+  font-weight: bold;
+  margin-left: 0.25rem;
+}
+
+.profile-username {
+  font-size: 1.125rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.user-rank {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.rank-points {
+  color: #94a3b8;
+  font-weight: normal;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #475569;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #64748b;
+}
+
+.btn-tertiary {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+}
+
+.btn-tertiary:hover {
+  background: #334155;
+}
+
+.profile-bio {
+  margin-top: 1rem;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  color: #94a3b8;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-item a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.detail-item a:hover {
+  text-decoration: underline;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 2rem;
+  border-bottom: 1px solid #334155;
+  margin-bottom: 2rem;
+}
+
+.tab-button {
+  padding: 1rem 0;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.tab-button:hover {
+  color: #e2e8f0;
+}
+
+.tab-button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+.tab-content {
+  margin-top: 2rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-state h3 {
+  font-size: 1.25rem;
+  color: #e2e8f0;
+  margin-top: 1rem;
+}
+
+.empty-state p {
+  margin-top: 0.5rem;
+}
+
+.posts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.media-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  cursor: pointer;
+  aspect-ratio: 1;
+}
+
+.media-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.media-item:hover .media-thumbnail {
+  transform: scale(1.05);
+}
+
+.media-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.media-item:hover .media-overlay {
+  opacity: 1;
+}
 </style>
