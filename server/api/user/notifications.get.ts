@@ -1,4 +1,5 @@
-/server/api/user/notifications.get.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// FILE 5: /server/api/user/notifications.get.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // ✅ FIXED: Proper error handling for 500 errors
 // ✅ FIXED: Graceful fallback when table doesn't exist
