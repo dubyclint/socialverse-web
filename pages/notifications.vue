@@ -28,15 +28,15 @@
           <p>No notifications yet.</p>
         </div>
       </div>
-    </ClientOnly>
 
-    <!-- Fallback for SSR -->
-    <template #fallback>
-      <div class="notifications-loading">
-        <div class="spinner"></div>
-        <p>Loading notifications...</p>
-      </div>
-    </template>
+      <!-- Fallback for SSR -->
+      <template #fallback>
+        <div class="notifications-loading">
+          <div class="spinner"></div>
+          <p>Loading notifications...</p>
+        </div>
+      </template>
+    </ClientOnly>
   </div>
 </template>
 
