@@ -294,11 +294,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeMount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
-const { $auth } = useNuxtApp()
+const authStore = useAuthStore()
 
+// ============================================================================
+// REACTIVE STATE
+// ============================================================================
 const posts = ref([])
 const postsLoading = ref(true)
 const hasMorePosts = ref(true)
@@ -310,15 +314,21 @@ const trendingTopics = ref([])
 const unreadNotifications = ref(0)
 const isLiveStreaming = ref(false)
 
-const currentUser = computed(() => $auth.user)
+// ============================================================================
+// COMPUTED PROPERTIES - USER DATA FROM AUTH STORE
+// ============================================================================
+const currentUser = computed(() => authStore.user)
 const userName = computed(() => currentUser.value?.name || 'User')
 const userUsername = computed(() => currentUser.value?.username || 'username')
-const userAvatar = computed(() => currentUser.value?.avatar || '/default-avatar.svg')
+const userAvatar = computed(() => currentUser.value?.avatar_url || '/default-avatar.svg')
 const userStatus = computed(() => currentUser.value?.status || 'offline')
-const userFollowers = computed(() => currentUser.value?.followers || 0)
-const userFollowing = computed(() => currentUser.value?.following || 0)
-const userPosts = computed(() => currentUser.value?.posts || 0)
+const userFollowers = computed(() => currentUser.value?.followers_count || 0)
+const userFollowing = computed(() => currentUser.value?.following_count || 0)
+const userPosts = computed(() => currentUser.value?.posts_count || 0)
 
+// ============================================================================
+// METHODS
+// ============================================================================
 const toggleSidebar = () => {
   console.log('[Feed] Toggle sidebar')
 }
@@ -369,6 +379,9 @@ const formatTime = (date: string | Date) => {
   return d.toLocaleDateString()
 }
 
+// ============================================================================
+// FETCH DATA
+// ============================================================================
 const fetchPosts = async () => {
   try {
     console.log('[Feed] Fetching posts, page:', currentPage.value)
@@ -444,12 +457,27 @@ const fetchNotifications = async () => {
   }
 }
 
+// ============================================================================
+// LIFECYCLE HOOKS
+// ============================================================================
+onBeforeMount(() => {
+  console.log('[Feed] Before mount - checking auth')
+  
+  // ✅ FIXED: Check auth store instead of $auth
+  if (!authStore.user || !authStore.token) {
+    console.warn('[Feed] User not authenticated, redirecting to signin')
+    router.push('/auth/signin')
+  }
+})
+
 onMounted(async () => {
   console.log('[Feed] Component mounted')
   
+  // Only load data on client-side
   if (process.client) {
     console.log('[Feed] Loading data on client-side')
     
+    // Load all data in parallel
     await Promise.all([
       fetchPosts(),
       fetchSuggestedUsers(),
@@ -458,15 +486,6 @@ onMounted(async () => {
     ])
 
     console.log('[Feed] All data loaded')
-  }
-})
-
-onBeforeMount(() => {
-  console.log('[Feed] Before mount - checking auth')
-  
-  if (!currentUser.value) {
-    console.warn('[Feed] User not authenticated, redirecting to signin')
-    router.push('/auth/signin')
   }
 })
 </script>
