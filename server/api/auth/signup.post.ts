@@ -1,7 +1,9 @@
 // FILE: /server/api/auth/signup.post.ts - FIXED FOR PROFILES VIEW
 // ============================================================================
-// SIGNUP ENDPOINT - FIXED: Works with profiles view and user table
-// ✅ FIXED: Corrected import path for serverSupabaseClient
+// SIGNUP ENDPOINT - FIXED: Works with profiles view and consistent table usage
+// ✅ FIXED: Uses 'profiles' table consistently
+// ✅ FIXED: Proper profile creation verification with retries
+// ✅ FIXED: Comprehensive error handling and logging
 // ============================================================================
 
 import { serverSupabaseClient } from '~/server/utils/supabase-server'
@@ -108,14 +110,14 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
     console.log('[Auth/Signup] ✅ Supabase client initialized')
 
     // ============================================================================
-    // STEP 3: Check if username already exists
+    // STEP 3: Check if username already exists (FIXED: Use 'profiles' table)
     // ============================================================================
     console.log('[Auth/Signup] Step 3: Checking if username exists...')
     
     try {
       const { data: existingProfile, error: checkError } = await supabase
-        .from('user')
-        .select('user_id')
+        .from('profiles')  // ✅ FIXED: Use 'profiles' table consistently
+        .select('id')
         .eq('username', username.toLowerCase())
         .single()
 
@@ -189,32 +191,103 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
     }
 
     // ============================================================================
-    // STEP 5: Profile auto-created by database trigger
+    // STEP 5: Verify profile was created by database trigger (WITH RETRIES)
     // ============================================================================
-    console.log('[Auth/Signup] Step 5: Profile auto-created by database trigger')
+    console.log('[Auth/Signup] Step 5: Verifying profile creation...')
     
-    // Wait a moment for trigger to execute
-    await new Promise(resolve => setTimeout(resolve, 500))
+    let profileCreated = false
+    let retries = 0
+    const maxRetries = 5
+    const retryDelay = 200 // milliseconds
 
-    // Verify profile was created
-    try {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
+    while (!profileCreated && retries < maxRetries) {
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single()
 
-      if (profileError) {
-        console.warn('[Auth/Signup] ⚠️ Profile verification warning:', profileError.message)
-      } else if (profile) {
-        console.log('[Auth/Signup] ✅ Profile verified:', profile.id)
+        if (!profileError && profile) {
+          profileCreated = true
+          console.log('[Auth/Signup] ✅ Profile verified by trigger:', profile.id)
+          break
+        }
+
+        retries++
+        if (retries < maxRetries) {
+          console.log(`[Auth/Signup] ⏳ Profile not found yet, retrying... (${retries}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+        }
+      } catch (err: any) {
+        console.warn('[Auth/Signup] ⚠️ Profile check error:', err.message)
+        retries++
+        if (retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+        }
       }
-    } catch (err: any) {
-      console.warn('[Auth/Signup] ⚠️ Profile verification error:', err.message)
     }
 
     // ============================================================================
-    // STEP 6: Return success response
+    // STEP 6: If trigger failed, manually create profile
+    // ============================================================================
+    if (!profileCreated) {
+      console.warn('[Auth/Signup] ⚠️ Profile not auto-created by trigger, creating manually...')
+      
+      try {
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authUser.id,
+            username: username.toLowerCase(),
+            full_name: fullName || username,
+            email: email,
+            avatar_url: null,
+            bio: null,
+            profile_completed: false,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+
+        if (createError) {
+          console.error('[Auth/Signup] ❌ Manual profile creation failed:', createError.message)
+          throw createError
+        }
+
+        console.log('[Auth/Signup] ✅ Profile created manually:', newProfile.id)
+        profileCreated = true
+      } catch (err: any) {
+        console.error('[Auth/Signup] ❌ Failed to create profile:', err.message)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Failed to create user profile: ' + err.message
+        })
+      }
+    }
+
+    // ============================================================================
+    // STEP 7: Log signup event
+    // ============================================================================
+    try {
+      await supabase
+        .from('auth_logs')
+        .insert({
+          user_id: authUser.id,
+          action: 'signup',
+          details: {
+            email,
+            username: username.toLowerCase(),
+            timestamp: new Date().toISOString()
+          }
+        })
+        .catch(err => console.warn('[Auth/Signup] ⚠️ Failed to log signup:', err.message))
+    } catch (err: any) {
+      console.warn('[Auth/Signup] ⚠️ Logging error:', err.message)
+    }
+
+    // ============================================================================
+    // STEP 8: Return success response
     // ============================================================================
     console.log('[Auth/Signup] ✅ Signup completed successfully')
 
@@ -243,4 +316,3 @@ export default defineEventHandler(async (event): Promise<SignupResponse> => {
     })
   }
 })
-
