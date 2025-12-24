@@ -1,10 +1,22 @@
-// FILE: /stores/profile.ts - CREATE
-// Profile store
+// FILE: /stores/profile.ts - COMPLETE FIXED VERSION
 // ============================================================================
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Profile } from '~/types/profile'
+
+export interface Profile {
+  id: string
+  username: string
+  full_name: string
+  email: string
+  avatar_url: string | null
+  bio: string | null
+  is_verified: boolean
+  verification_status: string
+  profile_completed: boolean
+  created_at: string
+  updated_at: string
+}
 
 export const useProfileStore = defineStore('profile', () => {
   const profile = ref<Profile | null>(null)
@@ -14,9 +26,12 @@ export const useProfileStore = defineStore('profile', () => {
   const userSettings = ref<any>(null)
   const walletLock = ref<any>(null)
   const interests = ref<any[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
   const setProfile = (newProfile: Profile) => {
     profile.value = newProfile
+    console.log('[ProfileStore] Profile set:', newProfile.id)
   }
 
   const setProfileData = (data: any) => {
@@ -27,6 +42,14 @@ export const useProfileStore = defineStore('profile', () => {
     userSettings.value = data.userSettings || {}
     walletLock.value = data.walletLock || {}
     interests.value = data.interests || []
+    console.log('[ProfileStore] Profile data set')
+  }
+
+  const updateProfile = (updates: Partial<Profile>) => {
+    if (profile.value) {
+      profile.value = { ...profile.value, ...updates }
+      console.log('[ProfileStore] Profile updated')
+    }
   }
 
   const clearProfile = () => {
@@ -37,6 +60,17 @@ export const useProfileStore = defineStore('profile', () => {
     userSettings.value = null
     walletLock.value = null
     interests.value = []
+    loading.value = false
+    error.value = null
+    console.log('[ProfileStore] Profile cleared')
+  }
+
+  const setLoading = (value: boolean) => {
+    loading.value = value
+  }
+
+  const setError = (value: string | null) => {
+    error.value = value
   }
 
   return {
@@ -47,8 +81,13 @@ export const useProfileStore = defineStore('profile', () => {
     userSettings,
     walletLock,
     interests,
+    loading,
+    error,
     setProfile,
     setProfileData,
-    clearProfile
+    updateProfile,
+    clearProfile,
+    setLoading,
+    setError
   }
 })
