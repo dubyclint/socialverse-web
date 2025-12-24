@@ -1,4 +1,4 @@
-   // FILE: /server/api/upload.post.ts - FIXED
+// FILE: /server/api/upload.post.ts - FIXED
 // ============================================================================
 // FILE UPLOAD ENDPOINT - PRODUCTION READY
 // ✅ FIXED: File validation
@@ -27,11 +27,11 @@ interface UploadResponse {
 
 export default defineEventHandler(async (event): Promise<UploadResponse> => {
   try {
-    console.log('[Upload API] ========================================'')
+    console.log('[Upload API] ========================================')
     console.log('[Upload API] File upload request received')
-    console.log('[Upload API] ========================================'')
+    console.log('[Upload API] ========================================')
 
-    // ============================================================================
+    // ===========================================================================
     // STEP 1: Authentication
     // ============================================================================
     console.log('[Upload API] Step 1: Authenticating...')
