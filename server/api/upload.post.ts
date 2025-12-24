@@ -1,332 +1,221 @@
-// FILE: /server/api/upload.post.ts
+   // FILE: /server/api/upload.post.ts - FIXED
 // ============================================================================
 // FILE UPLOAD ENDPOINT - PRODUCTION READY
-// ============================================================================
-// This endpoint handles file uploads with:
-// - User authentication
-// - File validation (size, type)
-// - Supabase storage integration
-// - Public URL generation
-// - Comprehensive error handling
-// - Detailed logging
-//
-// Supported file types:
-// - Images: JPEG, PNG, GIF, WebP
-// - Videos: MP4
-//
-// Max file size: 10MB
-//
-// Features:
-// - Unique filename generation (prevents overwrites)
-// - Automatic bucket selection (avatars for images, uploads for videos)
-// - Public URL generation for immediate access
-// - Detailed error messages
+// ✅ FIXED: File validation
+// ✅ FIXED: Storage tracking
+// ✅ FIXED: Quota enforcement
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import {
+  STORAGE_CONFIG,
+  validateFile,
+  generateUniqueFilename,
+  trackUpload,
+  getUserStorageUsage,
+  getFileTypeCategory
+} from '~/server/utils/storage'
 
 interface UploadResponse {
   success: boolean
+  data?: any
   url?: string
-  path?: string
-  filename?: string
-  size?: number
-  type?: string
+  message?: string
   error?: string
-}
-
-// Configuration
-const CONFIG = {
-  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  ALLOWED_VIDEO_TYPES: ['video/mp4'],
-  ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4'],
-  IMAGE_BUCKET: 'avatars',
-  VIDEO_BUCKET: 'uploads'
 }
 
 export default defineEventHandler(async (event): Promise<UploadResponse> => {
   try {
-    console.log('[Upload API] ========================================')
+    console.log('[Upload API] ========================================'')
     console.log('[Upload API] File upload request received')
-    console.log('[Upload API] ========================================')
+    console.log('[Upload API] ========================================'')
 
     // ============================================================================
-    // STEP 1: Initialize Supabase client
+    // STEP 1: Authentication
     // ============================================================================
-    console.log('[Upload API] Step 1: Initializing Supabase client...')
+    console.log('[Upload API] Step 1: Authenticating...')
 
     const supabase = await serverSupabaseClient(event)
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-    if (!supabase) {
-      console.error('[Upload API] ❌ Supabase client not available')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Database connection failed'
-      })
-    }
-
-    console.log('[Upload API] ✅ Supabase client initialized')
-
-    // ============================================================================
-    // STEP 2: Authenticate user
-    // ============================================================================
-    console.log('[Upload API] Step 2: Authenticating user...')
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user?.id) {
-      console.error('[Upload API] ❌ Authentication failed:', authError?.message)
+    if (sessionError || !session?.user) {
+      console.error('[Upload API] ❌ Unauthorized')
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized - Please login first'
+        statusMessage: 'Unauthorized'
       })
     }
 
-    console.log('[Upload API] ✅ User authenticated:', user.email)
+    const userId = session.user.id
+    console.log('[Upload API] ✅ User authenticated:', userId)
 
     // ============================================================================
-    // STEP 3: Parse multipart form data
+    // STEP 2: Read multipart form data
     // ============================================================================
-    console.log('[Upload API] Step 3: Parsing multipart form data...')
+    console.log('[Upload API] Step 2: Reading form data...')
 
-    const form = await readMultipartFormData(event)
+    const formData = await readMultipartFormData(event)
+    
+    if (!formData) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'No form data provided'
+      })
+    }
 
-    if (!form || form.length === 0) {
-      console.error('[Upload API] ❌ No file provided in request')
+    const file = formData.find(part => part.name === 'file')
+    const bucketField = formData.find(part => part.name === 'bucket')
+    const bucket = bucketField?.data?.toString() || STORAGE_CONFIG.buckets.uploads
+
+    if (!file || !file.data) {
       throw createError({
         statusCode: 400,
         statusMessage: 'No file provided'
       })
     }
 
-    const file = form[0]
-
-    console.log('[Upload API] ✅ Form data parsed')
+    console.log('[Upload API] ✅ Form data read:', {
+      filename: file.filename,
+      size: file.data.length,
+      type: file.type,
+      bucket
+    })
 
     // ============================================================================
-    // STEP 4: Validate file exists and has data
+    // STEP 3: Validate file
     // ============================================================================
-    console.log('[Upload API] Step 4: Validating file object...')
+    console.log('[Upload API] Step 3: Validating file...')
 
-    if (!file.filename || !file.data) {
-      console.error('[Upload API] ❌ Invalid file object')
+    const allowedTypes = [
+      ...STORAGE_CONFIG.allowedImageTypes,
+      ...STORAGE_CONFIG.allowedVideoTypes,
+      ...STORAGE_CONFIG.allowedAudioTypes,
+      ...STORAGE_CONFIG.allowedDocumentTypes
+    ]
+
+    const validation = validateFile(file, allowedTypes, STORAGE_CONFIG.maxFileSize)
+
+    if (!validation.valid) {
+      console.error('[Upload API] ❌ File validation failed:', validation.error)
       throw createError({
         statusCode: 400,
-        statusMessage: 'Invalid file - missing filename or data'
+        statusMessage: validation.error || 'File validation failed'
       })
     }
 
-    console.log('[Upload API] ✅ File object valid')
-    console.log('[Upload API] Filename:', file.filename)
-    console.log('[Upload API] File size:', file.data.length, 'bytes')
-    console.log('[Upload API] File type:', file.type)
+    console.log('[Upload API] ✅ File validation passed')
 
     // ============================================================================
-    // STEP 5: Validate file size
+    // STEP 4: Check storage quota
     // ============================================================================
-    console.log('[Upload API] Step 5: Validating file size...')
+    console.log('[Upload API] Step 4: Checking storage quota...')
 
-    if (file.data.length === 0) {
-      console.error('[Upload API] ❌ File is empty')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'File is empty'
-      })
-    }
+    const usage = await getUserStorageUsage(userId)
 
-    if (file.data.length > CONFIG.MAX_FILE_SIZE) {
-      const maxSizeMB = CONFIG.MAX_FILE_SIZE / (1024 * 1024)
-      const fileSizeMB = (file.data.length / (1024 * 1024)).toFixed(2)
-      console.error('[Upload API] ❌ File too large:', fileSizeMB, 'MB (max:', maxSizeMB, 'MB)')
+    if (usage.isAtLimit) {
+      console.error('[Upload API] ❌ Storage quota exceeded')
       throw createError({
         statusCode: 413,
-        statusMessage: `File too large (${fileSizeMB}MB). Maximum size is ${maxSizeMB}MB`
+        statusMessage: 'Storage quota exceeded'
       })
     }
 
-    console.log('[Upload API] ✅ File size valid')
-
-    // ============================================================================
-    // STEP 6: Validate file type
-    // ============================================================================
-    console.log('[Upload API] Step 6: Validating file type...')
-
-    const fileType = file.type || 'application/octet-stream'
-
-    if (!CONFIG.ALLOWED_TYPES.includes(fileType)) {
-      console.error('[Upload API] ❌ Invalid file type:', fileType)
-      console.log('[Upload API] Allowed types:', CONFIG.ALLOWED_TYPES.join(', '))
+    if (usage.remaining < file.data.length) {
+      console.error('[Upload API] ❌ Insufficient storage space')
       throw createError({
-        statusCode: 400,
-        statusMessage: `Invalid file type: ${fileType}. Allowed: images (JPEG, PNG, GIF, WebP) and videos (MP4)`
+        statusCode: 413,
+        statusMessage: `Insufficient storage space. Need ${(file.data.length / 1024 / 1024).toFixed(2)}MB but only ${(usage.remaining / 1024 / 1024).toFixed(2)}MB available`
       })
     }
 
-    console.log('[Upload API] ✅ File type valid')
+    console.log('[Upload API] ✅ Storage quota check passed')
 
     // ============================================================================
-    // STEP 7: Determine bucket and validate extension
+    // STEP 5: Upload to Supabase storage
     // ============================================================================
-    console.log('[Upload API] Step 7: Determining storage bucket...')
+    console.log('[Upload API] Step 5: Uploading to storage...')
 
-    let bucket = CONFIG.VIDEO_BUCKET
-    let isImage = false
-
-    if (CONFIG.ALLOWED_IMAGE_TYPES.includes(fileType)) {
-      bucket = CONFIG.IMAGE_BUCKET
-      isImage = true
-      console.log('[Upload API] ✅ Image file - using bucket:', bucket)
-    } else if (CONFIG.ALLOWED_VIDEO_TYPES.includes(fileType)) {
-      bucket = CONFIG.VIDEO_BUCKET
-      console.log('[Upload API] ✅ Video file - using bucket:', bucket)
-    }
-
-    // ============================================================================
-    // STEP 8: Extract and validate file extension
-    // ============================================================================
-    console.log('[Upload API] Step 8: Extracting file extension...')
-
-    const originalFilename = file.filename
-    const filenameParts = originalFilename.split('.')
-    let ext = filenameParts[filenameParts.length - 1]?.toLowerCase() || 'bin'
-
-    // Validate extension matches file type
-    const validExtensions: Record<string, string[]> = {
-      'image/jpeg': ['jpg', 'jpeg'],
-      'image/png': ['png'],
-      'image/gif': ['gif'],
-      'image/webp': ['webp'],
-      'video/mp4': ['mp4']
-    }
-
-    const allowedExts = validExtensions[fileType] || []
-
-    if (!allowedExts.includes(ext)) {
-      console.warn('[Upload API] ⚠️ Extension mismatch - file type:', fileType, 'extension:', ext)
-      // Use first allowed extension
-      ext = allowedExts[0] || ext
-      console.log('[Upload API] Using extension:', ext)
-    }
-
-    console.log('[Upload API] ✅ File extension:', ext)
-
-    // ============================================================================
-    // STEP 9: Generate unique filename
-    // ============================================================================
-    console.log('[Upload API] Step 9: Generating unique filename...')
-
-    const timestamp = Date.now()
-    const random = Math.random().toString(36).substring(2, 8)
-    const uniqueFilename = `${user.id}/${timestamp}-${random}.${ext}`
-
-    console.log('[Upload API] ✅ Unique filename generated:', uniqueFilename)
-
-    // ============================================================================
-    // STEP 10: Upload file to Supabase Storage
-    // ============================================================================
-    console.log('[Upload API] Step 10: Uploading file to Supabase Storage...')
-    console.log('[Upload API] Bucket:', bucket)
-    console.log('[Upload API] Path:', uniqueFilename)
+    const filename = generateUniqueFilename(userId, file.filename || 'file')
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(uniqueFilename, file.data, {
-        contentType: fileType,
-        upsert: false,
-        cacheControl: '3600'
-      })
+      .upload(filename, file.data, { upsert: true })
 
     if (uploadError) {
-      console.error('[Upload API] ❌ Upload failed:', uploadError.message)
-      
-      // Check for specific errors
-      if (uploadError.message.includes('Bucket not found')) {
-        throw createError({
-          statusCode: 500,
-          statusMessage: `Storage bucket '${bucket}' not found. Please create it in Supabase.`
-        })
-      }
-
-      if (uploadError.message.includes('Permission denied')) {
-        throw createError({
-          statusCode: 403,
-          statusMessage: 'Permission denied - cannot upload to this bucket'
-        })
-      }
-
+      console.error('[Upload API] ❌ Upload error:', uploadError.message)
       throw createError({
         statusCode: 500,
-        statusMessage: `Upload failed: ${uploadError.message}`
-      })
-    }
-
-    if (!uploadData?.path) {
-      console.error('[Upload API] ❌ No path returned from upload')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Upload succeeded but no path returned'
+        statusMessage: 'Failed to upload file: ' + uploadError.message
       })
     }
 
     console.log('[Upload API] ✅ File uploaded successfully')
-    console.log('[Upload API] Upload path:', uploadData.path)
 
     // ============================================================================
-    // STEP 11: Get public URL
+    // STEP 6: Get public URL
     // ============================================================================
-    console.log('[Upload API] Step 11: Generating public URL...')
+    console.log('[Upload API] Step 6: Getting public URL...')
 
     const { data: { publicUrl } } = supabase.storage
       .from(bucket)
-      .getPublicUrl(uniqueFilename)
-
-    if (!publicUrl) {
-      console.error('[Upload API] ❌ Could not generate public URL')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Could not generate public URL'
-      })
-    }
+      .getPublicUrl(filename)
 
     console.log('[Upload API] ✅ Public URL generated:', publicUrl)
 
     // ============================================================================
-    // STEP 12: Build and return response
+    // STEP 7: Track upload
     // ============================================================================
-    console.log('[Upload API] Step 12: Building response...')
+    console.log('[Upload API] Step 7: Tracking upload...')
 
-    const response: UploadResponse = {
+    const fileType = getFileTypeCategory(file.type || '')
+
+    const tracked = await trackUpload(
+      userId,
+      filename,
+      file.data.length,
+      file.type || 'application/octet-stream',
+      bucket,
+      {
+        originalFilename: file.filename,
+        category: fileType
+      }
+    )
+
+    console.log('[Upload API] ✅ Upload tracked')
+
+    // ============================================================================
+    // STEP 8: Return success response
+    // ============================================================================
+    console.log('[Upload API] ✅ Upload completed successfully')
+
+    return {
       success: true,
+      data: {
+        id: tracked.id,
+        filename: file.filename,
+        size: file.data.length,
+        type: file.type,
+        bucket,
+        url: publicUrl,
+        uploadedAt: tracked.uploaded_at
+      },
       url: publicUrl,
-      path: uniqueFilename,
-      filename: originalFilename,
-      size: file.data.length,
-      type: fileType
+      message: 'File uploaded successfully'
     }
 
-    console.log('[Upload API] ========================================')
-    console.log('[Upload API] ✅ File uploaded successfully')
-    console.log('[Upload API] URL:', publicUrl)
-    console.log('[Upload API] ========================================')
-
-    return response
-
-  } catch (error: any) {
-    console.error('[Upload API] ========================================')
-    console.error('[Upload API] ❌ ERROR:', error.message)
-    console.error('[Upload API] Status Code:', error.statusCode)
-    console.error('[Upload API] ========================================')
-
-    // If it's already a proper error, throw it
-    if (error.statusCode) {
-      throw error
+  } catch (err: any) {
+    console.error('[Upload API] ❌ Unexpected error:', err)
+    
+    if (err.statusCode) {
+      throw err
     }
 
-    // Otherwise, wrap it
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'File upload failed'
+      statusMessage: 'An unexpected error occurred during upload',
+      data: { details: err.message }
     })
   }
 })
