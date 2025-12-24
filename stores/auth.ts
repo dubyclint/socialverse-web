@@ -3,6 +3,7 @@
 // AUTH STORE - FIXED: Proper SSR handling to prevent hydration mismatches
 // ✅ FIXED: No localStorage access during initial state setup
 // ✅ FIXED: State initialization happens only on client after mount
+// ✅ ADDED: setUserId, hydrate, and clearAuth methods
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -57,6 +58,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
     
     console.log('[Auth Store] Token updated')
+  }
+
+  /**
+   * ✅ NEW: Set user ID separately
+   */
+  const setUserId = (id: string) => {
+    userId.value = id
+    
+    if (process.client) {
+      localStorage.setItem('auth_user_id', id)
+    }
+    
+    console.log('[Auth Store] User ID set:', id)
   }
 
   /**
@@ -149,6 +163,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * ✅ NEW: Hydrate store from localStorage (alias for initializeSession)
+   */
+  const hydrate = () => {
+    return initializeSession()
+  }
+
+  /**
    * ✅ COMPLETE: Clear authentication
    */
   const clearAuth = () => {
@@ -222,8 +243,10 @@ export const useAuthStore = defineStore('auth', () => {
     
     // Actions
     setToken,
+    setUserId,
     setUser,
     initializeSession,
+    hydrate,
     clearAuth,
     updateUserProfile,
     setLoading,
