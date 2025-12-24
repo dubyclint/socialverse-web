@@ -1,11 +1,21 @@
 // FILE: /server/api/profile/me.get.ts - FIXED FOR PROFILES VIEW
 // ============================================================================
-// Get current user profile
+// Get current user profile - FIXED: Proper error handling and profile creation
+// ✅ FIXED: Queries 'profiles' table consistently
+// ✅ FIXED: Auto-creates profile if missing
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
-export default defineEventHandler(async (event) => {
+interface ProfileResponse {
+  success: boolean
+  data?: any
+  message?: string
+  error?: string
+}
+
+export default defineEventHandler(async (event): Promise<ProfileResponse> => {
   try {
     console.log('[Profile Me API] Fetching current user profile...')
 
@@ -28,13 +38,25 @@ export default defineEventHandler(async (event) => {
     console.log('[Profile Me API] User ID:', userId)
 
     // ============================================================================
-    // STEP 2: Fetch profile from profiles view
+    // STEP 2: Fetch profile from profiles table
     // ============================================================================
     console.log('[Profile Me API] Fetching profile...')
     
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
+      .select(`
+        id,
+        username,
+        full_name,
+        email,
+        avatar_url,
+        bio,
+        is_verified,
+        verification_status,
+        profile_completed,
+        created_at,
+        updated_at
+      `)
       .eq('id', userId)
       .single()
 
@@ -49,35 +71,36 @@ export default defineEventHandler(async (event) => {
           .from('profiles')
           .insert({
             id: userId,
-            user_id: userId,
-            username: session.user.user_metadata?.username || session.user.email,
+            username: session.user.user_metadata?.username || `user_${userId.slice(0, 8)}`,
             full_name: session.user.user_metadata?.full_name || session.user.email,
+            email: session.user.email,
             avatar_url: session.user.user_metadata?.avatar_url || null,
-            bio: null
+            bio: null,
+            profile_completed: false,
+            created_at: new Date().toISOString()
           })
           .select()
           .single()
 
         if (createError) {
-          console.error('[Profile Me API] ❌ Profile creation error:', createError.message)
+          console.error('[Profile Me API] ❌ Profile creation failed:', createError.message)
           throw createError({
             statusCode: 500,
-            statusMessage: 'Profile not found and could not be created'
+            statusMessage: 'Failed to create profile'
           })
         }
 
         console.log('[Profile Me API] ✅ Profile created successfully')
         return {
           success: true,
-          profile: newProfile,
+          data: newProfile,
           message: 'Profile created successfully'
         }
       }
 
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to fetch profile',
-        data: { details: profileError.message }
+        statusMessage: 'Failed to fetch profile: ' + profileError.message
       })
     }
 
@@ -93,20 +116,20 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      profile,
+      data: profile,
       message: 'Profile fetched successfully'
     }
 
   } catch (err: any) {
-    console.error('[Profile Me API] ❌ Error:', err)
-
+    console.error('[Profile Me API] ❌ Error:', err.message)
+    
     if (err.statusCode) {
       throw err
     }
 
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to fetch profile',
+      statusMessage: 'An error occurred while fetching profile',
       data: { details: err.message }
     })
   }
