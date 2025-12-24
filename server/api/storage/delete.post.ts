@@ -1,21 +1,53 @@
-// server/api/storage/delete.post.ts
+// FILE: /server/api/storage/delete.post.ts - FIXED
 // ============================================================================
-// DELETE FILE API - Remove files from storage
+// DELETE FILE API - Delete file and update storage usage
+// ✅ FIXED: Delete file from storage
+// ✅ FIXED: Remove file tracking
+// ✅ FIXED: Update storage usage
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { deleteFile } from '~/server/utils/storage'
 import { serverSupabaseClient } from '#supabase/server'
 
-interface DeleteRequest {
+interface DeleteFileRequest {
   bucket: string
   path: string
 }
 
-export default defineEventHandler(async (event) => {
-  try {
-    const user = await requireAuth(event)
-    const body = await readBody<DeleteRequest>(event)
+interface DeleteFileResponse {
+  success: boolean
+  message?: string
+  error?: string
+}
 
+export default defineEventHandler(async (event): Promise<DeleteFileResponse> => {
+  try {
+    console.log('[Delete File API] Processing file deletion...')
+
+    // ============================================================================
+    // STEP 1: Authentication
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    if (sessionError || !session?.user) {
+      console.error('[Delete File API] ❌ Unauthorized')
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized'
+      })
+    }
+
+    const userId = session.user.id
+    console.log('[Delete File API] User ID:', userId)
+
+    // ============================================================================
+    // STEP 2: Read request body
+    // ============================================================================
+    const body = await readBody<DeleteFileRequest>(event)
+    
     if (!body.bucket || !body.path) {
       throw createError({
         statusCode: 400,
@@ -23,40 +55,39 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ✅ Verify user owns the file (check if path starts with user ID)
-    if (!body.path.startsWith(user.id)) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'You can only delete your own files'
-      })
-    }
+    console.log('[Delete File API] Delete request:', {
+      bucket: body.bucket,
+      path: body.path
+    })
 
-    // ✅ Delete file
-    const deleted = await deleteFile(body.bucket, body.path)
+    // ============================================================================
+    // STEP 3: Delete file
+    // ============================================================================
+    console.log('[Delete File API] Deleting file...')
 
-    if (!deleted) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to delete file'
-      })
-    }
+    const result = await deleteFile(userId, body.bucket, body.path)
 
-    // ✅ Mark as deleted in tracking table
-    const supabase = await serverSupabaseClient(event)
-    await supabase
-      .from('storage_usage')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('file_path', body.path)
-      .eq('bucket_id', body.bucket)
+    console.log('[Delete File API] ✅ File deleted successfully')
 
+    // ============================================================================
+    // STEP 4: Return response
+    // ============================================================================
     return {
       success: true,
       message: 'File deleted successfully'
     }
-  } catch (error: any) {
+
+  } catch (err: any) {
+    console.error('[Delete File API] ❌ Error:', err.message)
+    
+    if (err.statusCode) {
+      throw err
+    }
+
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.message || 'Failed to delete file'
+      statusCode: 500,
+      statusMessage: 'An error occurred while deleting file',
+      data: { details: err.message }
     })
   }
 })
