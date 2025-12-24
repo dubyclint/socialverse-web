@@ -1,255 +1,453 @@
-// FILE: /stores/auth.ts - FIXED FOR SSR HYDRATION
+// FILE: /composables/use-auth.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// AUTH STORE - FIXED: Proper SSR handling to prevent hydration mismatches
-// ✅ FIXED: No localStorage access during initial state setup
-// ✅ FIXED: State initialization happens only on client after mount
-// ✅ ADDED: setUserId, hydrate, and clearAuth methods
+// ✅ FIXED: Proper token management, user storage, and detailed error handling
+// ✅ ADDED: resendVerification function for email verification resend
+// ✅ ADDED: Signup function with profile completion flow
 // ============================================================================
 
-import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User } from '~/types/auth'
 
-export const useAuthStore = defineStore('auth', () => {
-  // ============================================================================
-  // STATE - NO localStorage access during initialization
-  // ============================================================================
+export const useAuth = () => {
+  const authStore = useAuthStore()
+  const userStore = useUserStore()
   
-  const token = ref<string | null>(null)
-  const userId = ref<string | null>(null)
-  const user = ref<User | null>(null)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const isHydrated = ref(false) // ✅ NEW: Track hydration state
+  const loading = ref(false)
+  const error = ref('')
 
-  // ============================================================================
-  // COMPUTED
-  // ============================================================================
-  
-  const isAuthenticated = computed(() => !!token.value && !!user.value && !!userId.value)
-  
-  const isEmailVerified = computed(() => user.value?.email_confirmed_at || false)
-  
-  const isProfileComplete = computed(() => user.value?.user_metadata?.profile_completed || false)
-
-  const userDisplayName = computed(() => {
-    if (user.value?.full_name) return user.value.full_name
-    if (user.value?.username) return user.value.username
-    if (user.value?.email) return user.value.email
-    return 'User'
-  })
-
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
+  const isAuthenticated = computed(() => !!authStore.token)
+  const user = computed(() => authStore.user)
+  const token = computed(() => authStore.token)
 
   /**
-   * ✅ CRITICAL: Set token and persist to localStorage (client-only)
+   * Extract error message from response with detailed error handling
    */
-  const setToken = (newToken: string | null) => {
-    token.value = newToken
-    
-    if (process.client) {
-      if (newToken) {
-        localStorage.setItem('auth_token', newToken)
-      } else {
-        localStorage.removeItem('auth_token')
-      }
+  const extractErrorMessage = (err: any): string => {
+    // Check for detailed error in data.data.details (from our API)
+    if (err.data?.data?.details) {
+      return err.data.data.details
     }
     
-    console.log('[Auth Store] Token updated')
+    // Check for statusMessage in data
+    if (err.data?.statusMessage) {
+      return err.data.statusMessage
+    }
+    
+    // Check for direct statusMessage
+    if (err.statusMessage) {
+      return err.statusMessage
+    }
+    
+    // Check for message in data
+    if (err.data?.message) {
+      return err.data.message
+    }
+    
+    // Check for direct message
+    if (err.message) {
+      return err.message
+    }
+    
+    // Check if it's a string
+    if (typeof err === 'string') {
+      return err
+    }
+    
+    return 'An error occurred'
   }
 
   /**
-   * ✅ NEW: Set user ID separately
+   * Login user
    */
-  const setUserId = (id: string) => {
-    userId.value = id
-    
-    if (process.client) {
-      localStorage.setItem('auth_user_id', id)
-    }
-    
-    console.log('[Auth Store] User ID set:', id)
-  }
-
-  /**
-   * ✅ CRITICAL: Set user and extract ID (client-only persistence)
-   */
-  const setUser = (newUser: any) => {
-    if (!newUser) {
-      user.value = null
-      userId.value = null
-      
-      if (process.client) {
-        localStorage.removeItem('auth_user')
-        localStorage.removeItem('auth_user_id')
-      }
-      return
-    }
-
-    // ✅ CRITICAL: Extract user ID from Supabase user object
-    const extractedId = newUser.id || newUser.user_id
-    
-    if (!extractedId) {
-      console.error('[Auth Store] ❌ No user ID found in user object')
-      return
-    }
-
-    // ✅ Create user object with ID
-    const userObj: User = {
-      id: extractedId,
-      email: newUser.email,
-      full_name: newUser.user_metadata?.full_name || null,
-      username: newUser.user_metadata?.username || null,
-      avatar_url: newUser.user_metadata?.avatar_url || null,
-      bio: newUser.user_metadata?.bio || null,
-      email_confirmed_at: newUser.email_confirmed_at,
-      user_metadata: newUser.user_metadata || {},
-      profile: newUser.user_metadata?.profile || null
-    }
-
-    user.value = userObj
-    userId.value = extractedId
-
-    // ✅ Persist to localStorage (client-only)
-    if (process.client) {
-      localStorage.setItem('auth_user', JSON.stringify(userObj))
-      localStorage.setItem('auth_user_id', extractedId)
-      console.log('[Auth Store] ✅ User persisted to localStorage with ID:', extractedId)
-    }
-  }
-
-  /**
-   * ✅ NEW: Initialize session from localStorage (client-only)
-   * This method restores the user session from localStorage on app startup
-   */
-  const initializeSession = (): boolean => {
-    // ✅ Only run on client
-    if (!process.client) {
-      console.log('[Auth Store] Skipping session init on server')
-      return false
-    }
+  const login = async (email: string, password: string) => {
+    loading.value = true
+    error.value = ''
 
     try {
-      const storedToken = localStorage.getItem('auth_token')
-      const storedUser = localStorage.getItem('auth_user')
-      const storedUserId = localStorage.getItem('auth_user_id')
-      
-      // ✅ If all session data exists, restore it
-      if (storedToken && storedUser && storedUserId) {
-        token.value = storedToken
-        user.value = JSON.parse(storedUser)
-        userId.value = storedUserId
-        isHydrated.value = true
-        
-        console.log('[Auth Store] ✅ Session restored from localStorage')
-        console.log('[Auth Store] ✅ User ID:', userId.value)
-        console.log('[Auth Store] ✅ Authenticated:', isAuthenticated.value)
-        
-        return true
+      console.log('[useAuth] Login attempt:', email)
+
+      const result = await $fetch('/api/auth/login', {
+        method: 'POST',
+        body: {
+          email,
+          password
+        }
+      })
+
+      console.log('[useAuth] Login response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Login failed')
       }
+
+      if (!result.token) {
+        throw new Error('No token received from server')
+      }
+
+      // Store token and user data
+      authStore.setToken(result.token)
+      authStore.setUser(result.user)
       
-      isHydrated.value = true
-      console.log('[Auth Store] ℹ️ No session found in localStorage')
-      return false
-    } catch (error) {
-      console.error('[Auth Store] ❌ Error initializing session:', error)
-      // Clear corrupted data
-      clearAuth()
-      isHydrated.value = true
-      return false
+      // Store refresh token if provided
+      if (result.refreshToken && typeof window !== 'undefined') {
+        localStorage.setItem('refresh_token', result.refreshToken)
+      }
+
+      console.log('[useAuth] ✅ Login successful')
+      return { success: true, data: result }
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Login failed:', errorMessage)
+      console.error('[useAuth] Full error:', err)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
     }
   }
 
   /**
-   * ✅ NEW: Hydrate store from localStorage (alias for initializeSession)
+   * Signup user with detailed error handling
    */
-  const hydrate = () => {
-    return initializeSession()
+  const signup = async (data: {
+    email: string
+    password: string
+    username: string
+    fullName?: string
+    phone?: string
+    bio?: string
+    location?: string
+  }) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      console.log('[useAuth] Signup attempt:', data.email)
+
+      const result = await $fetch('/api/auth/signup', {
+        method: 'POST',
+        body: data
+      })
+
+      console.log('[useAuth] Signup response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Signup failed')
+      }
+
+      // ✅ FIXED: Store user data in auth store
+      authStore.setUser(result.user)
+      authStore.setUserId(result.user.id)
+
+      // If email confirmation is not needed and we have a token, auto-login
+      if (!result.needsConfirmation && result.token) {
+        authStore.setToken(result.token)
+        
+        if (result.refreshToken && typeof window !== 'undefined') {
+          localStorage.setItem('refresh_token', result.refreshToken)
+        }
+      }
+
+      // ✅ FIXED: Fetch and store full profile
+      try {
+        const profileResult = await $fetch('/api/profile/me')
+        if (profileResult?.success) {
+          const profileStore = useProfileStore()
+          profileStore.setProfile(profileResult.data)
+        }
+      } catch (profileErr) {
+        console.warn('[useAuth] Warning: Could not fetch profile after signup:', profileErr)
+      }
+
+      console.log('[useAuth] ✅ Signup successful')
+      return { 
+        success: true, 
+        data: result,
+        needsConfirmation: result.needsConfirmation,
+        message: result.message
+      }
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Signup failed:', errorMessage)
+      console.error('[useAuth] Full error:', err)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
+    }
   }
 
   /**
-   * ✅ COMPLETE: Clear authentication
+   * Logout user
    */
-  const clearAuth = () => {
-    token.value = null
-    user.value = null
-    userId.value = null
-    error.value = null
-    
-    if (process.client) {
+  const logout = async () => {
+    try {
+      console.log('[useAuth] Logging out...')
+      
+      // Call logout API
+      await $fetch('/api/auth/logout', {
+        method: 'POST'
+      })
+
+      // Clear auth store
+      authStore.clearAuth()
+      userStore.clearSession()
+
+      // Clear localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+      }
+
+      console.log('[useAuth] ✅ Logout successful')
+      return { success: true }
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Logout failed:', errorMessage)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  /**
+   * Refresh authentication token
+   */
+  const refreshToken = async () => {
+    try {
+      const refreshTokenValue = typeof window !== 'undefined' 
+        ? localStorage.getItem('refresh_token') 
+        : null
+
+      if (!refreshTokenValue) {
+        throw new Error('No refresh token available')
+      }
+
+      const result = await $fetch('/api/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken: refreshTokenValue }
+      })
+
+      if (result?.token) {
+        authStore.setToken(result.token)
+        if (result.refreshToken && typeof window !== 'undefined') {
+          localStorage.setItem('refresh_token', result.refreshToken)
+        }
+        return { success: true }
+      }
+
+      throw new Error('Token refresh failed')
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Token refresh failed:', errorMessage)
+      
+      // Clear auth on refresh failure
+      authStore.clearAuth()
+      userStore.clearSession()
+      
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  /**
+   * Verify email with token
+   */
+  const verifyEmail = async (token: string) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      console.log('[useAuth] Verifying email with token...')
+
+      const result = await $fetch('/api/auth/verify-email', {
+        method: 'POST',
+        body: { token }
+      })
+
+      if (result?.success) {
+        console.log('[useAuth] ✅ Email verified')
+        return { success: true }
+      }
+
+      throw new Error(result?.error || 'Email verification failed')
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Email verification failed:', errorMessage)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Resend verification email - NEW FUNCTION
+   */
+  const resendVerification = async (email: string) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      console.log('[useAuth] Resending verification email for:', email)
+
+      const result = await $fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        body: { email }
+      })
+
+      console.log('[useAuth] Resend verification response:', result)
+
+      if (result?.success) {
+        console.log('[useAuth] ✅ Verification email resent')
+        return { success: true, message: result.message }
+      }
+
+      throw new Error(result?.error || 'Failed to resend verification email')
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Resend verification failed:', errorMessage)
+      console.error('[useAuth] Full error:', err)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Request password reset
+   */
+  const forgotPassword = async (email: string) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      const result = await $fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        body: { email }
+      })
+
+      if (result?.success) {
+        console.log('[useAuth] ✅ Password reset email sent')
+        return { success: true, message: result.message }
+      }
+
+      throw new Error(result?.error || 'Password reset request failed')
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Password reset failed:', errorMessage)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Reset password with token
+   */
+  const resetPassword = async (token: string, newPassword: string) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      const result = await $fetch('/api/auth/reset-password', {
+        method: 'POST',
+        body: { token, password: newPassword }
+      })
+
+      if (result?.success) {
+        console.log('[useAuth] ✅ Password reset successful')
+        return { success: true }
+      }
+
+      throw new Error(result?.error || 'Password reset failed')
+
+    } catch (err: any) {
+      const errorMessage = extractErrorMessage(err)
+      console.error('[useAuth] ✗ Password reset failed:', errorMessage)
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Check if username is available
+   */
+  const checkUsername = async (username: string) => {
+    try {
+      const result = await $fetch('/api/auth/check-username', {
+        method: 'POST',
+        body: { username }
+      })
+
+      return { 
+        available: result?.available || false,
+        message: result?.message 
+      }
+
+    } catch (err: any) {
+      console.error('[useAuth] Username check failed:', err)
+      return { available: false, message: 'Failed to check username' }
+    }
+  }
+
+  /**
+   * Initialize auth from stored token
+   */
+  const initAuth = async () => {
+    if (typeof window === 'undefined') return
+
+    const storedToken = localStorage.getItem('auth_token')
+    if (!storedToken) return
+
+    try {
+      // Verify token is still valid
+      const result = await $fetch('/api/auth/me', {
+        headers: {
+          Authorization: `Bearer ${storedToken}`
+        }
+      })
+
+      if (result?.user) {
+        authStore.setToken(storedToken)
+        authStore.setUser(result.user)
+        console.log('[useAuth] ✅ Auth initialized from stored token')
+      }
+    } catch (err) {
+      console.warn('[useAuth] Stored token invalid, clearing auth')
+      authStore.clearAuth()
       localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
-      localStorage.removeItem('auth_user_id')
+      localStorage.removeItem('refresh_token')
     }
-    
-    console.log('[Auth Store] ✅ Auth cleared')
   }
 
-  /**
-   * Update user profile data
-   */
-  const updateUserProfile = (profileData: Partial<User>) => {
-    if (!user.value) {
-      console.error('[Auth Store] Cannot update profile - no user')
-      return
-    }
-
-    user.value = {
-      ...user.value,
-      ...profileData
-    }
-
-    if (process.client) {
-      localStorage.setItem('auth_user', JSON.stringify(user.value))
-    }
-    
-    console.log('[Auth Store] User profile updated')
-  }
-
-  /**
-   * Set loading state
-   */
-  const setLoading = (loading: boolean) => {
-    isLoading.value = loading
-  }
-
-  /**
-   * Set error state
-   */
-  const setError = (errorMessage: string | null) => {
-    error.value = errorMessage
-  }
-
-  // ============================================================================
-  // RETURN
-  // ============================================================================
-  
   return {
     // State
-    token,
-    userId,
-    user,
-    isLoading,
+    loading,
     error,
-    isHydrated,
-    
-    // Computed
     isAuthenticated,
-    isEmailVerified,
-    isProfileComplete,
-    userDisplayName,
+    user,
+    token,
     
-    // Actions
-    setToken,
-    setUserId,
-    setUser,
-    initializeSession,
-    hydrate,
-    clearAuth,
-    updateUserProfile,
-    setLoading,
-    setError,
+    // Methods
+    login,
+    signup,
+    logout,
+    refreshToken,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
+    checkUsername,
+    initAuth
   }
-})
+}
