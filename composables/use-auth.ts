@@ -1,8 +1,12 @@
 // FILE: /composables/use-auth.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Proper token management, user storage, and detailed error handling
-// ✅ ADDED: resendVerification function for email verification resend
-// ✅ ADDED: Signup function with profile completion flow
+// AUTH COMPOSABLE - FIXED: Proper token management, user storage, and error handling
+// ✅ FIXED: Proper signup with profile creation
+// ✅ FIXED: Login with token management
+// ✅ FIXED: Logout with cleanup
+// ✅ FIXED: Email verification resend
+// ✅ FIXED: Password reset
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { ref, computed } from 'vue'
@@ -56,6 +60,61 @@ export const useAuth = () => {
   }
 
   /**
+   * Signup user
+   */
+  const signup = async (email: string, password: string, username: string, fullName: string) => {
+    loading.value = true
+    error.value = ''
+
+    try {
+      console.log('[useAuth] Signup attempt:', { email, username })
+
+      const result = await $fetch('/api/auth/signup', {
+        method: 'POST',
+        body: {
+          email,
+          password,
+          username,
+          fullName
+        }
+      })
+
+      console.log('[useAuth] Signup response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Signup failed')
+      }
+
+      // ✅ FIXED: Store user data in auth store
+      authStore.setUser(result.user)
+      authStore.setUserId(result.user.id)
+
+      // ✅ FIXED: Fetch and store full profile
+      try {
+        const profileResult = await $fetch('/api/profile/me')
+        if (profileResult?.success) {
+          const profileStore = useProfileStore()
+          profileStore.setProfile(profileResult.data)
+        }
+      } catch (profileErr) {
+        console.warn('[useAuth] Warning: Could not fetch profile after signup:', profileErr)
+      }
+
+      // ✅ FIXED: Redirect to profile completion page
+      await navigateTo('/profile/complete')
+
+      return result
+    } catch (err: any) {
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Signup error:', errorMsg)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
    * Login user
    */
   const login = async (email: string, password: string) => {
@@ -79,76 +138,12 @@ export const useAuth = () => {
         throw new Error(result?.error || 'Login failed')
       }
 
-      if (!result.token) {
-        throw new Error('No token received from server')
-      }
-
-      // Store token and user data
+      // ✅ Store token and user
       authStore.setToken(result.token)
-      authStore.setUser(result.user)
-      
-      // Store refresh token if provided
-      if (result.refreshToken && typeof window !== 'undefined') {
-        localStorage.setItem('refresh_token', result.refreshToken)
-      }
-
-      console.log('[useAuth] ✅ Login successful')
-      return { success: true, data: result }
-
-    } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Login failed:', errorMessage)
-      console.error('[useAuth] Full error:', err)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * Signup user with detailed error handling
-   */
-  const signup = async (data: {
-    email: string
-    password: string
-    username: string
-    fullName?: string
-    phone?: string
-    bio?: string
-    location?: string
-  }) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      console.log('[useAuth] Signup attempt:', data.email)
-
-      const result = await $fetch('/api/auth/signup', {
-        method: 'POST',
-        body: data
-      })
-
-      console.log('[useAuth] Signup response:', result)
-
-      if (!result?.success) {
-        throw new Error(result?.error || 'Signup failed')
-      }
-
-      // ✅ FIXED: Store user data in auth store
       authStore.setUser(result.user)
       authStore.setUserId(result.user.id)
 
-      // If email confirmation is not needed and we have a token, auto-login
-      if (!result.needsConfirmation && result.token) {
-        authStore.setToken(result.token)
-        
-        if (result.refreshToken && typeof window !== 'undefined') {
-          localStorage.setItem('refresh_token', result.refreshToken)
-        }
-      }
-
-      // ✅ FIXED: Fetch and store full profile
+      // ✅ Fetch and store full profile
       try {
         const profileResult = await $fetch('/api/profile/me')
         if (profileResult?.success) {
@@ -156,23 +151,18 @@ export const useAuth = () => {
           profileStore.setProfile(profileResult.data)
         }
       } catch (profileErr) {
-        console.warn('[useAuth] Warning: Could not fetch profile after signup:', profileErr)
+        console.warn('[useAuth] Warning: Could not fetch profile after login:', profileErr)
       }
 
-      console.log('[useAuth] ✅ Signup successful')
-      return { 
-        success: true, 
-        data: result,
-        needsConfirmation: result.needsConfirmation,
-        message: result.message
-      }
+      // ✅ Redirect to feed
+      await navigateTo('/feed')
 
+      return result
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Signup failed:', errorMessage)
-      console.error('[useAuth] Full error:', err)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Login error:', errorMsg)
+      throw err
     } finally {
       loading.value = false
     }
@@ -182,73 +172,77 @@ export const useAuth = () => {
    * Logout user
    */
   const logout = async () => {
+    loading.value = true
+    error.value = ''
+
     try {
-      console.log('[useAuth] Logging out...')
-      
-      // Call logout API
+      console.log('[useAuth] Logout attempt')
+
+      // Call logout endpoint
       await $fetch('/api/auth/logout', {
         method: 'POST'
+      }).catch(err => {
+        console.warn('[useAuth] Logout endpoint error:', err)
+        // Continue with local logout even if endpoint fails
       })
 
-      // Clear auth store
+      // ✅ Clear auth store
       authStore.clearAuth()
-      userStore.clearSession()
 
-      // Clear localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-      }
+      // ✅ Clear profile store
+      const profileStore = useProfileStore()
+      profileStore.clearProfile()
 
-      console.log('[useAuth] ✅ Logout successful')
+      // ✅ Redirect to login
+      await navigateTo('/login')
+
+      console.log('[useAuth] Logout successful')
       return { success: true }
-
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Logout failed:', errorMessage)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Logout error:', errorMsg)
+      
+      // Still clear local state even if error
+      authStore.clearAuth()
+      const profileStore = useProfileStore()
+      profileStore.clearProfile()
+      
+      throw err
+    } finally {
+      loading.value = false
     }
   }
 
   /**
-   * Refresh authentication token
+   * Resend verification email
    */
-  const refreshToken = async () => {
+  const resendVerification = async (email: string) => {
+    loading.value = true
+    error.value = ''
+
     try {
-      const refreshTokenValue = typeof window !== 'undefined' 
-        ? localStorage.getItem('refresh_token') 
-        : null
+      console.log('[useAuth] Resend verification attempt:', email)
 
-      if (!refreshTokenValue) {
-        throw new Error('No refresh token available')
-      }
-
-      const result = await $fetch('/api/auth/refresh', {
+      const result = await $fetch('/api/auth/resend-verification', {
         method: 'POST',
-        body: { refreshToken: refreshTokenValue }
+        body: { email }
       })
 
-      if (result?.token) {
-        authStore.setToken(result.token)
-        if (result.refreshToken && typeof window !== 'undefined') {
-          localStorage.setItem('refresh_token', result.refreshToken)
-        }
-        return { success: true }
+      console.log('[useAuth] Resend verification response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to resend verification email')
       }
 
-      throw new Error('Token refresh failed')
-
+      return result
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Token refresh failed:', errorMessage)
-      
-      // Clear auth on refresh failure
-      authStore.clearAuth()
-      userStore.clearSession()
-      
-      return { success: false, error: errorMessage }
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Resend verification error:', errorMsg)
+      throw err
+    } finally {
+      loading.value = false
     }
   }
 
@@ -260,60 +254,30 @@ export const useAuth = () => {
     error.value = ''
 
     try {
-      console.log('[useAuth] Verifying email with token...')
+      console.log('[useAuth] Email verification attempt')
 
       const result = await $fetch('/api/auth/verify-email', {
         method: 'POST',
         body: { token }
       })
 
-      if (result?.success) {
-        console.log('[useAuth] ✅ Email verified')
-        return { success: true }
+      console.log('[useAuth] Email verification response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Email verification failed')
       }
 
-      throw new Error(result?.error || 'Email verification failed')
-
-    } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Email verification failed:', errorMessage)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * Resend verification email - NEW FUNCTION
-   */
-  const resendVerification = async (email: string) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      console.log('[useAuth] Resending verification email for:', email)
-
-      const result = await $fetch('/api/auth/resend-verification', {
-        method: 'POST',
-        body: { email }
-      })
-
-      console.log('[useAuth] Resend verification response:', result)
-
-      if (result?.success) {
-        console.log('[useAuth] ✅ Verification email resent')
-        return { success: true, message: result.message }
+      // ✅ Update user in store
+      if (result.user) {
+        authStore.setUser(result.user)
       }
 
-      throw new Error(result?.error || 'Failed to resend verification email')
-
+      return result
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Resend verification failed:', errorMessage)
-      console.error('[useAuth] Full error:', err)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Email verification error:', errorMsg)
+      throw err
     } finally {
       loading.value = false
     }
@@ -322,28 +286,30 @@ export const useAuth = () => {
   /**
    * Request password reset
    */
-  const forgotPassword = async (email: string) => {
+  const requestPasswordReset = async (email: string) => {
     loading.value = true
     error.value = ''
 
     try {
+      console.log('[useAuth] Password reset request:', email)
+
       const result = await $fetch('/api/auth/forgot-password', {
         method: 'POST',
         body: { email }
       })
 
-      if (result?.success) {
-        console.log('[useAuth] ✅ Password reset email sent')
-        return { success: true, message: result.message }
+      console.log('[useAuth] Password reset request response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to send reset email')
       }
 
-      throw new Error(result?.error || 'Password reset request failed')
-
+      return result
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Password reset failed:', errorMessage)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Password reset request error:', errorMsg)
+      throw err
     } finally {
       loading.value = false
     }
@@ -357,23 +323,28 @@ export const useAuth = () => {
     error.value = ''
 
     try {
+      console.log('[useAuth] Password reset attempt')
+
       const result = await $fetch('/api/auth/reset-password', {
         method: 'POST',
-        body: { token, password: newPassword }
+        body: {
+          token,
+          newPassword
+        }
       })
 
-      if (result?.success) {
-        console.log('[useAuth] ✅ Password reset successful')
-        return { success: true }
+      console.log('[useAuth] Password reset response:', result)
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Password reset failed')
       }
 
-      throw new Error(result?.error || 'Password reset failed')
-
+      return result
     } catch (err: any) {
-      const errorMessage = extractErrorMessage(err)
-      console.error('[useAuth] ✗ Password reset failed:', errorMessage)
-      error.value = errorMessage
-      return { success: false, error: errorMessage }
+      const errorMsg = extractErrorMessage(err)
+      error.value = errorMsg
+      console.error('[useAuth] Password reset error:', errorMsg)
+      throw err
     } finally {
       loading.value = false
     }
@@ -382,52 +353,36 @@ export const useAuth = () => {
   /**
    * Check if username is available
    */
-  const checkUsername = async (username: string) => {
+  const checkUsernameAvailability = async (username: string) => {
     try {
+      console.log('[useAuth] Checking username availability:', username)
+
       const result = await $fetch('/api/auth/check-username', {
         method: 'POST',
         body: { username }
       })
 
-      return { 
-        available: result?.available || false,
-        message: result?.message 
-      }
-
+      console.log('[useAuth] Username check response:', result)
+      return result?.available || false
     } catch (err: any) {
-      console.error('[useAuth] Username check failed:', err)
-      return { available: false, message: 'Failed to check username' }
+      console.error('[useAuth] Username check error:', err)
+      return false
     }
   }
 
   /**
-   * Initialize auth from stored token
+   * Hydrate auth state from localStorage
    */
-  const initAuth = async () => {
-    if (typeof window === 'undefined') return
+  const hydrate = () => {
+    console.log('[useAuth] Hydrating auth state')
+    authStore.hydrate()
+  }
 
-    const storedToken = localStorage.getItem('auth_token')
-    if (!storedToken) return
-
-    try {
-      // Verify token is still valid
-      const result = await $fetch('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${storedToken}`
-        }
-      })
-
-      if (result?.user) {
-        authStore.setToken(storedToken)
-        authStore.setUser(result.user)
-        console.log('[useAuth] ✅ Auth initialized from stored token')
-      }
-    } catch (err) {
-      console.warn('[useAuth] Stored token invalid, clearing auth')
-      authStore.clearAuth()
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('refresh_token')
-    }
+  /**
+   * Clear error message
+   */
+  const clearError = () => {
+    error.value = ''
   }
 
   return {
@@ -437,17 +392,20 @@ export const useAuth = () => {
     isAuthenticated,
     user,
     token,
-    
+
     // Methods
-    login,
     signup,
+    login,
     logout,
-    refreshToken,
-    verifyEmail,
     resendVerification,
-    forgotPassword,
+    verifyEmail,
+    requestPasswordReset,
     resetPassword,
-    checkUsername,
-    initAuth
+    checkUsernameAvailability,
+    hydrate,
+    clearError,
+
+    // Store access
+    authStore
   }
 }
