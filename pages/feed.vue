@@ -1,106 +1,26 @@
+<!-- FILE: /pages/feed.vue - COMPLETE FIXED VERSION -->
+<!-- ============================================================================
+     FEED PAGE - FIXED: Uses auth token, proper data fetching, sidebar integration
+     ✅ FIXED: Uses useFetchWithAuth composable
+     ✅ FIXED: Proper error handling and loading states
+     ✅ FIXED: Integrated sidebar menu from FeedHeader
+     ✅ FIXED: All API endpoints with auth token
+     ============================================================================ -->
+
 <template>
   <div class="feed-page">
-    <!-- HEADER SECTION -->
-    <header class="feed-header">
-      <div class="header-top">
-        <!-- Left Side - Menu & Logo -->
-        <div class="header-left">
-          <button @click="toggleSidebar" class="menu-btn" aria-label="Toggle menu">
-            <Icon name="menu" size="20" />
-          </button>
-          <NuxtLink to="/feed" class="logo">
-            <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
-            <span class="logo-text">SocialVerse</span>
-          </NuxtLink>
-        </div>
-
-        <!-- Center - Navigation Icons -->
-        <nav class="header-center">
-          <NuxtLink 
-            to="/feed" 
-            class="nav-icon" 
-            :class="{ active: route.path === '/feed' }"
-            aria-label="Feed"
-          >
-            <Icon name="home" size="24" />
-            <span class="nav-label">Feed</span>
-          </NuxtLink>
-
-          <NuxtLink 
-            to="/posts/create" 
-            class="nav-icon" 
-            :class="{ active: route.path === '/posts/create' }"
-            aria-label="Create Post"
-          >
-            <Icon name="plus-square" size="24" />
-            <span class="nav-label">Post</span>
-          </NuxtLink>
-
-          <NuxtLink 
-            to="/stream" 
-            class="nav-icon" 
-            :class="{ active: route.path === '/stream' }"
-            aria-label="Live Stream"
-          >
-            <Icon name="radio" size="24" />
-            <span class="nav-label">Live</span>
-            <ClientOnly>
-              <span v-if="isLiveStreaming" class="notification-badge live">LIVE</span>
-            </ClientOnly>
-          </NuxtLink>
-
-          <NuxtLink 
-            to="/wallet" 
-            class="nav-icon" 
-            :class="{ active: route.path === '/wallet' }"
-            aria-label="Wallet"
-          >
-            <Icon name="wallet" size="24" />
-            <span class="nav-label">Wallet</span>
-          </NuxtLink>
-
-          <NuxtLink 
-            to="/notifications" 
-            class="nav-icon" 
-            :class="{ active: route.path === '/notifications' }"
-            aria-label="Notifications"
-          >
-            <Icon name="bell" size="24" />
-            <span class="nav-label">Notify</span>
-            <ClientOnly>
-              <span v-if="unreadNotifications > 0" class="notification-badge">
-                {{ unreadNotifications }}
-              </span>
-            </ClientOnly>
-          </NuxtLink>
-        </nav>
-
-        <!-- Right Side - User Avatar -->
-        <ClientOnly>
-          <div class="header-right">
-            <div class="user-avatar-wrapper">
-              <img 
-                :src="userAvatar || '/default-avatar.svg'" 
-                :alt="userName" 
-                class="user-avatar"
-                @click="goToProfile"
-              />
-              <span class="status-indicator" :class="userStatus"></span>
-            </div>
-          </div>
-        </ClientOnly>
-      </div>
-    </header>
+    <!-- HEADER WITH INTEGRATED SIDEBAR -->
+    <FeedHeader />
 
     <!-- MAIN CONTENT -->
     <main class="feed-main">
-      <!-- Left Sidebar - User Profile -->
+      <!-- Left Sidebar - User Profile Card -->
       <ClientOnly>
         <aside class="feed-sidebar-left">
           <div class="profile-card">
             <div class="profile-header">
               <img 
-                :src="userAvatar || '/default-avatar.svg'" 
+                :src="userAvatar" 
                 :alt="userName" 
                 class="profile-avatar"
               />
@@ -137,7 +57,7 @@
           <div class="create-post-section">
             <div class="create-post-header">
               <img 
-                :src="userAvatar || '/default-avatar.svg'" 
+                :src="userAvatar" 
                 :alt="userName" 
                 class="create-post-avatar"
               />
@@ -180,31 +100,31 @@
             >
               <div class="post-header">
                 <img 
-                  :src="post.author?.avatar || '/default-avatar.svg'" 
-                  :alt="post.author?.name" 
+                  :src="post.author?.avatar_url || '/default-avatar.svg'" 
+                  :alt="post.author?.full_name" 
                   class="post-avatar"
                 />
                 <div class="post-author-info">
-                  <h4 class="post-author-name">{{ post.author?.name }}</h4>
+                  <h4 class="post-author-name">{{ post.author?.full_name }}</h4>
                   <p class="post-author-username">@{{ post.author?.username }}</p>
-                  <span class="post-timestamp">{{ formatTime(post.createdAt) }}</span>
+                  <span class="post-timestamp">{{ formatTime(post.created_at) }}</span>
                 </div>
               </div>
 
               <div class="post-content">
                 <p class="post-text">{{ post.content }}</p>
                 <img 
-                  v-if="post.image" 
-                  :src="post.image" 
+                  v-if="post.media && post.media.length > 0" 
+                  :src="post.media[0]" 
                   :alt="post.content" 
                   class="post-image"
                 />
               </div>
 
               <div class="post-stats">
-                <span class="stat">{{ post.likes }} Likes</span>
-                <span class="stat">{{ post.comments }} Comments</span>
-                <span class="stat">{{ post.shares }} Shares</span>
+                <span class="stat">{{ post.likes_count || 0 }} Likes</span>
+                <span class="stat">{{ post.comments_count || 0 }} Comments</span>
+                <span class="stat">{{ post.shares_count || 0 }} Shares</span>
               </div>
 
               <div class="post-actions">
@@ -242,24 +162,28 @@
         </ClientOnly>
       </section>
 
-      <!-- Right Sidebar - Recommendations -->
+      <!-- Right Sidebar - Recommendations & Trending -->
       <ClientOnly>
         <aside class="feed-sidebar-right">
+          <!-- Suggested Users Card -->
           <div class="recommendations-card">
             <h3 class="card-title">Suggested For You</h3>
-            <div class="recommendations-list">
+            <div v-if="suggestedUsersLoading" class="loading-small">
+              <div class="spinner-small"></div>
+            </div>
+            <div v-else-if="suggestedUsers.length > 0" class="recommendations-list">
               <div 
                 v-for="user in suggestedUsers" 
                 :key="user.id" 
                 class="recommendation-item"
               >
                 <img 
-                  :src="user.avatar || '/default-avatar.svg'" 
-                  :alt="user.name" 
+                  :src="user.avatar_url || '/default-avatar.svg'" 
+                  :alt="user.full_name" 
                   class="rec-avatar"
                 />
                 <div class="rec-info">
-                  <h4 class="rec-name">{{ user.name }}</h4>
+                  <h4 class="rec-name">{{ user.full_name }}</h4>
                   <p class="rec-username">@{{ user.username }}</p>
                 </div>
                 <button class="btn-follow" @click="followUser(user.id)">
@@ -267,11 +191,18 @@
                 </button>
               </div>
             </div>
+            <div v-else class="empty-state-small">
+              <p>No suggestions available</p>
+            </div>
           </div>
 
+          <!-- Trending Card -->
           <div class="trending-card">
             <h3 class="card-title">Trending</h3>
-            <div class="trending-list">
+            <div v-if="trendingLoading" class="loading-small">
+              <div class="spinner-small"></div>
+            </div>
+            <div v-else-if="trendingTopics.length > 0" class="trending-list">
               <div 
                 v-for="trend in trendingTopics" 
                 :key="trend.id" 
@@ -284,6 +215,9 @@
                 </div>
               </div>
             </div>
+            <div v-else class="empty-state-small">
+              <p>No trending topics</p>
+            </div>
           </div>
         </aside>
       </ClientOnly>
@@ -295,10 +229,12 @@
 import { ref, computed, onMounted, onBeforeMount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
+import { useFetchWithAuth } from '~/composables/use-fetch'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const fetchWithAuth = useFetchWithAuth()
 
 // ============================================================================
 // REACTIVE STATE
@@ -309,19 +245,20 @@ const hasMorePosts = ref(true)
 const currentPage = ref(1)
 
 const suggestedUsers = ref([])
+const suggestedUsersLoading = ref(false)
+
 const trendingTopics = ref([])
+const trendingLoading = ref(false)
 
 const unreadNotifications = ref(0)
-const isLiveStreaming = ref(false)
 
 // ============================================================================
 // COMPUTED PROPERTIES - USER DATA FROM AUTH STORE
 // ============================================================================
 const currentUser = computed(() => authStore.user)
-const userName = computed(() => currentUser.value?.name || 'User')
+const userName = computed(() => currentUser.value?.full_name || 'User')
 const userUsername = computed(() => currentUser.value?.username || 'username')
 const userAvatar = computed(() => currentUser.value?.avatar_url || '/default-avatar.svg')
-const userStatus = computed(() => currentUser.value?.status || 'offline')
 const userFollowers = computed(() => currentUser.value?.followers_count || 0)
 const userFollowing = computed(() => currentUser.value?.following_count || 0)
 const userPosts = computed(() => currentUser.value?.posts_count || 0)
@@ -329,10 +266,6 @@ const userPosts = computed(() => currentUser.value?.posts_count || 0)
 // ============================================================================
 // METHODS
 // ============================================================================
-const toggleSidebar = () => {
-  console.log('[Feed] Toggle sidebar')
-}
-
 const goToProfile = () => {
   console.log('[Feed] Go to profile')
   router.push(`/profile/${userUsername.value}`)
@@ -343,20 +276,54 @@ const goToCreatePost = () => {
   router.push('/posts/create')
 }
 
-const likePost = (postId: string) => {
-  console.log('[Feed] Like post:', postId)
+const likePost = async (postId: string) => {
+  try {
+    console.log('[Feed] Liking post:', postId)
+    await fetchWithAuth(`/api/posts/${postId}/like`, {
+      method: 'POST'
+    })
+    // Update UI - find post and increment likes
+    const post = posts.value.find(p => p.id === postId)
+    if (post) {
+      post.likes_count = (post.likes_count || 0) + 1
+    }
+  } catch (error) {
+    console.error('[Feed] Error liking post:', error)
+  }
 }
 
 const commentPost = (postId: string) => {
   console.log('[Feed] Comment on post:', postId)
+  router.push(`/posts/${postId}/comments`)
 }
 
-const sharePost = (postId: string) => {
-  console.log('[Feed] Share post:', postId)
+const sharePost = async (postId: string) => {
+  try {
+    console.log('[Feed] Sharing post:', postId)
+    await fetchWithAuth(`/api/posts/${postId}/share`, {
+      method: 'POST'
+    })
+    // Update UI - find post and increment shares
+    const post = posts.value.find(p => p.id === postId)
+    if (post) {
+      post.shares_count = (post.shares_count || 0) + 1
+    }
+  } catch (error) {
+    console.error('[Feed] Error sharing post:', error)
+  }
 }
 
-const followUser = (userId: string) => {
-  console.log('[Feed] Follow user:', userId)
+const followUser = async (userId: string) => {
+  try {
+    console.log('[Feed] Following user:', userId)
+    await fetchWithAuth(`/api/users/${userId}/follow`, {
+      method: 'POST'
+    })
+    // Remove from suggested users
+    suggestedUsers.value = suggestedUsers.value.filter(u => u.id !== userId)
+  } catch (error) {
+    console.error('[Feed] Error following user:', error)
+  }
 }
 
 const loadMorePosts = async () => {
@@ -380,13 +347,13 @@ const formatTime = (date: string | Date) => {
 }
 
 // ============================================================================
-// FETCH DATA
+// FETCH DATA WITH AUTH TOKEN
 // ============================================================================
 const fetchPosts = async () => {
   try {
     console.log('[Feed] Fetching posts, page:', currentPage.value)
     
-    const response = await $fetch('/api/posts/feed', {
+    const result = await fetchWithAuth('/api/posts/feed', {
       query: {
         page: currentPage.value,
         limit: 10
@@ -394,12 +361,12 @@ const fetchPosts = async () => {
     })
 
     if (currentPage.value === 1) {
-      posts.value = response.data || []
+      posts.value = result.posts || []
     } else {
-      posts.value.push(...(response.data || []))
+      posts.value.push(...(result.posts || []))
     }
 
-    hasMorePosts.value = response.hasMore || false
+    hasMorePosts.value = result.has_more || false
     console.log('[Feed] Posts loaded:', posts.value.length)
   } catch (error) {
     console.error('[Feed] Error loading posts:', error)
@@ -412,32 +379,38 @@ const fetchPosts = async () => {
 const fetchSuggestedUsers = async () => {
   try {
     console.log('[Feed] Fetching suggested users')
+    suggestedUsersLoading.value = true
     
-    const response = await $fetch('/api/users/suggested', {
+    const result = await fetchWithAuth('/api/users/suggested', {
       query: { limit: 5 }
     })
 
-    suggestedUsers.value = response.data || []
+    suggestedUsers.value = result.data || []
     console.log('[Feed] Suggested users loaded:', suggestedUsers.value.length)
   } catch (error) {
     console.error('[Feed] Error loading suggested users:', error)
     suggestedUsers.value = []
+  } finally {
+    suggestedUsersLoading.value = false
   }
 }
 
 const fetchTrendingTopics = async () => {
   try {
     console.log('[Feed] Fetching trending topics')
+    trendingLoading.value = true
     
-    const response = await $fetch('/api/trending', {
+    const result = await fetchWithAuth('/api/trending', {
       query: { limit: 5 }
     })
 
-    trendingTopics.value = response.data || []
+    trendingTopics.value = result.data || []
     console.log('[Feed] Trending topics loaded:', trendingTopics.value.length)
   } catch (error) {
     console.error('[Feed] Error loading trending topics:', error)
     trendingTopics.value = []
+  } finally {
+    trendingLoading.value = false
   }
 }
 
@@ -445,11 +418,11 @@ const fetchNotifications = async () => {
   try {
     console.log('[Feed] Fetching notifications')
     
-    const response = await $fetch('/api/user/notifications', {
-      query: { limit: 1 }
+    const result = await fetchWithAuth('/api/user/notifications', {
+      query: { limit: 10 }
     })
 
-    unreadNotifications.value = response.total || 0
+    unreadNotifications.value = result.total || 0
     console.log('[Feed] Unread notifications:', unreadNotifications.value)
   } catch (error) {
     console.error('[Feed] Error loading notifications:', error)
@@ -463,7 +436,6 @@ const fetchNotifications = async () => {
 onBeforeMount(() => {
   console.log('[Feed] Before mount - checking auth')
   
-  // ✅ FIXED: Check auth store instead of $auth
   if (!authStore.user || !authStore.token) {
     console.warn('[Feed] User not authenticated, redirecting to signin')
     router.push('/auth/signin')
@@ -473,7 +445,6 @@ onBeforeMount(() => {
 onMounted(async () => {
   console.log('[Feed] Component mounted')
   
-  // Only load data on client-side
   if (process.client) {
     console.log('[Feed] Loading data on client-side')
     
@@ -499,169 +470,22 @@ onMounted(async () => {
   color: #e2e8f0;
 }
 
-.feed-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background-color: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  padding: 1rem 2rem;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.menu-btn {
-  background: none;
-  border: none;
-  color: #e2e8f0;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s;
-}
-
-.menu-btn:hover {
-  background-color: rgba(148, 163, 184, 0.1);
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: #e2e8f0;
-  font-weight: 600;
-}
-
-.logo-img {
-  width: 32px;
-  height: 32px;
-}
-
-.logo-text {
-  font-size: 1.25rem;
-}
-
-.header-center {
-  display: flex;
-  gap: 2rem;
-  flex: 1;
-  justify-content: center;
-}
-
-.nav-icon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  text-decoration: none;
-  color: #94a3b8;
-  transition: color 0.2s;
-  position: relative;
-}
-
-.nav-icon:hover,
-.nav-icon.active {
-  color: #667eea;
-}
-
-.nav-label {
-  font-size: 0.75rem;
-}
-
-.notification-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #ef4444;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.notification-badge.live {
-  background-color: #f97316;
-  animation: pulse 2s infinite;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.user-avatar-wrapper {
-  position: relative;
-  cursor: pointer;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #667eea;
-  transition: transform 0.2s;
-}
-
-.user-avatar:hover {
-  transform: scale(1.05);
-}
-
-.status-indicator {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #0f172a;
-}
-
-.status-indicator.online {
-  background-color: #22c55e;
-}
-
-.status-indicator.offline {
-  background-color: #94a3b8;
-}
-
-.status-indicator.away {
-  background-color: #f59e0b;
-}
-
 .feed-main {
   display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  grid-template-columns: 300px 1fr 320px;
   gap: 2rem;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
   width: 100%;
+  padding: 2rem;
+  flex: 1;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .feed-main {
     grid-template-columns: 1fr;
     gap: 1rem;
+    padding: 1rem;
   }
 
   .feed-sidebar-left,
@@ -670,95 +494,100 @@ onMounted(async () => {
   }
 }
 
-.profile-card,
-.recommendations-card,
-.trending-card {
-  background-color: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  backdrop-filter: blur(10px);
+/* Left Sidebar */
+.feed-sidebar-left {
+  position: sticky;
+  top: 80px;
+  height: fit-content;
 }
 
-.card-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: #e2e8f0;
+.profile-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.5rem;
+  overflow: hidden;
 }
 
 .profile-header {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .profile-avatar {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  border: 3px solid #667eea;
+  object-fit: cover;
 }
 
 .profile-info {
-  text-align: center;
+  flex: 1;
 }
 
 .profile-name {
-  font-size: 1.125rem;
-  font-weight: 600;
   margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f1f5f9;
 }
 
 .profile-username {
-  color: #94a3b8;
   margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
 }
 
 .profile-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid #334155;
+  border-bottom: 1px solid #334155;
 }
 
 .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
 .stat-value {
-  display: block;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #667eea;
+  color: #60a5fa;
 }
 
 .stat-label {
-  display: block;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #94a3b8;
+  margin-top: 0.25rem;
 }
 
 .btn-edit-profile {
   width: 100%;
   padding: 0.75rem;
-  background-color: #667eea;
+  background: #3b82f6;
   color: white;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  margin-top: 1rem;
 }
 
 .btn-edit-profile:hover {
-  background-color: #5568d3;
+  background: #2563eb;
+  transform: translateY(-2px);
 }
 
+/* Center Feed */
 .feed-content {
   display: flex;
   flex-direction: column;
@@ -766,11 +595,10 @@ onMounted(async () => {
 }
 
 .create-post-section {
-  background-color: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 1rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
   padding: 1.5rem;
-  backdrop-filter: blur(10px);
 }
 
 .create-post-header {
@@ -783,23 +611,25 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 2px solid #667eea;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .create-post-input {
   flex: 1;
-  background-color: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 2rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 24px;
   padding: 0.75rem 1rem;
   color: #e2e8f0;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  outline: none;
+  transition: all 0.2s;
 }
 
 .create-post-input:focus {
-  outline: none;
-  border-color: #667eea;
+  border-color: #3b82f6;
+  background: #1e293b;
 }
 
 .create-post-input::placeholder {
@@ -809,25 +639,53 @@ onMounted(async () => {
 .create-post-actions {
   display: flex;
   gap: 1rem;
-  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #334155;
 }
 
 .action-btn {
+  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  background: none;
-  border: none;
+  padding: 0.75rem;
+  background: transparent;
   color: #94a3b8;
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  transition: color 0.2s, background-color 0.2s;
+  transition: all 0.2s;
+  font-size: 0.875rem;
 }
 
 .action-btn:hover {
-  color: #667eea;
-  background-color: rgba(102, 126, 234, 0.1);
+  background: #0f172a;
+  color: #60a5fa;
+}
+
+/* Posts List */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #94a3b8;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #334155;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .posts-list {
@@ -837,16 +695,16 @@ onMounted(async () => {
 }
 
 .feed-post {
-  background-color: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 1rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
   padding: 1.5rem;
-  backdrop-filter: blur(10px);
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .feed-post:hover {
-  border-color: rgba(102, 126, 234, 0.3);
+  border-color: #475569;
+  background: #1e293b;
 }
 
 .post-header {
@@ -859,7 +717,8 @@ onMounted(async () => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 2px solid #667eea;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .post-author-info {
@@ -868,21 +727,21 @@ onMounted(async () => {
 
 .post-author-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #f1f5f9;
 }
 
 .post-author-username {
   margin: 0.25rem 0 0 0;
-  color: #94a3b8;
   font-size: 0.875rem;
+  color: #94a3b8;
 }
 
 .post-timestamp {
   display: block;
+  font-size: 0.75rem;
   color: #64748b;
-  font-size: 0.875rem;
   margin-top: 0.25rem;
 }
 
@@ -892,14 +751,15 @@ onMounted(async () => {
 
 .post-text {
   margin: 0 0 1rem 0;
+  font-size: 0.95rem;
   line-height: 1.5;
   color: #e2e8f0;
 }
 
 .post-image {
   width: 100%;
-  border-radius: 0.5rem;
   max-height: 400px;
+  border-radius: 8px;
   object-fit: cover;
 }
 
@@ -907,111 +767,94 @@ onMounted(async () => {
   display: flex;
   gap: 1.5rem;
   padding: 1rem 0;
-  border-top: 1px solid rgba(148, 163, 184, 0.1);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  margin-bottom: 1rem;
+  border-top: 1px solid #334155;
+  border-bottom: 1px solid #334155;
   font-size: 0.875rem;
   color: #94a3b8;
-}
-
-.post-stats .stat {
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.post-stats .stat:hover {
-  color: #667eea;
 }
 
 .post-actions {
   display: flex;
   gap: 1rem;
+  margin-top: 1rem;
 }
 
-.post-actions .action-btn {
-  flex: 1;
+.load-more {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  padding: 2rem;
+}
+
+.btn-load-more {
+  padding: 0.75rem 2rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-load-more:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
 }
 
 .no-posts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
   text-align: center;
-  padding: 3rem 1.5rem;
-  background-color: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 1rem;
-  backdrop-filter: blur(10px);
+  color: #94a3b8;
 }
 
 .no-posts h3 {
   margin: 1rem 0 0.5rem 0;
-  font-size: 1.25rem;
   color: #e2e8f0;
-}
-
-.no-posts p {
-  margin: 0 0 1.5rem 0;
-  color: #94a3b8;
 }
 
 .btn-explore {
   display: inline-block;
+  margin-top: 1rem;
   padding: 0.75rem 1.5rem;
-  background-color: #667eea;
+  background: #3b82f6;
   color: white;
   text-decoration: none;
-  border-radius: 0.5rem;
+  border-radius: 8px;
   font-weight: 600;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-explore:hover {
-  background-color: #5568d3;
+  background: #2563eb;
 }
 
-.loading-state {
-  text-align: center;
-  padding: 3rem 1.5rem;
-  background-color: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 1rem;
-  backdrop-filter: blur(10px);
+/* Right Sidebar */
+.feed-sidebar-right {
+  position: sticky;
+  top: 80px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(102, 126, 234, 0.2);
-  border-top-color: #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-.loading-state p {
-  color: #94a3b8;
-}
-
-.load-more {
-  text-align: center;
+.recommendations-card,
+.trending-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
   padding: 1.5rem;
 }
 
-.btn-load-more {
-  padding: 0.75rem 1.5rem;
-  background-color: #667eea;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
+.card-title {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-load-more:hover {
-  background-color: #5568d3;
+  color: #f1f5f9;
 }
 
 .recommendations-list,
@@ -1026,98 +869,122 @@ onMounted(async () => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s;
+  background: #0f172a;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .recommendation-item:hover {
-  background-color: rgba(102, 126, 234, 0.1);
+  background: #1e293b;
 }
 
 .rec-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 2px solid #667eea;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .rec-info {
   flex: 1;
+  min-width: 0;
 }
 
 .rec-name {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rec-username {
   margin: 0.25rem 0 0 0;
   font-size: 0.75rem;
   color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btn-follow {
   padding: 0.5rem 1rem;
-  background-color: #667eea;
+  background: #3b82f6;
   color: white;
   border: none;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-follow:hover {
-  background-color: #5568d3;
+  background: #2563eb;
 }
 
 .trending-item {
   padding: 0.75rem;
-  border-radius: 0.5rem;
+  background: #0f172a;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .trending-item:hover {
-  background-color: rgba(102, 126, 234, 0.1);
+  background: #1e293b;
+}
+
+.trend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .trend-category {
   margin: 0;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #64748b;
   text-transform: uppercase;
 }
 
 .trend-title {
-  margin: 0.25rem 0 0 0;
+  margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #f1f5f9;
 }
 
 .trend-count {
-  margin: 0.25rem 0 0 0;
+  margin: 0;
   font-size: 0.75rem;
-  color: #64748b;
+  color: #94a3b8;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.loading-small {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #334155;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.empty-state-small {
+  text-align: center;
+  padding: 1rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
 }
 </style>
