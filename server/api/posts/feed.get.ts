@@ -1,90 +1,129 @@
+// FILE: /server/api/posts/feed.get.ts - FIXED
 // ============================================================================
-// COMPLETE FIX: /server/api/posts/feed.get.ts
+// GET FEED POSTS - FIXED: User's feed with pagination
+// ✅ FIXED: Pagination support
+// ✅ FIXED: Friend's posts only
+// ✅ FIXED: Sorting by date
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
-export default defineEventHandler(async (event) => {
+interface FeedResponse {
+  success: boolean
+  data?: {
+    posts: any[]
+    total: number
+    page: number
+    limit: number
+    hasMore: boolean
+  }
+  message?: string
+  error?: string
+}
+
+export default defineEventHandler(async (event): Promise<FeedResponse> => {
   try {
-    console.log('[Feed API] Starting feed fetch')
+    console.log('[Posts Feed API] Fetching feed posts...')
+
+    // ============================================================================
+    // STEP 1: Authentication
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
     
-    const user = await requireAuth(event)
-    if (!user?.id) {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+    if (sessionError || !session?.user) {
+      console.error('[Posts Feed API] ❌ Unauthorized')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized'
       })
     }
 
+    const userId = session.user.id
+    console.log('[Posts Feed API] User ID:', userId)
+
+    // ============================================================================
+    // STEP 2: Parse pagination parameters
+    // ============================================================================
     const query = getQuery(event)
-    const page = parseInt(query.page as string) || 1
-    const limit = Math.min(parseInt(query.limit as string) || 10, 50)
+    const page = Math.max(1, parseInt(query.page as string) || 1)
+    const limit = Math.min(50, Math.max(1, parseInt(query.limit as string) || 12))
     const offset = (page - 1) * limit
 
-    const supabase = await serverSupabaseClient(event)
+    console.log('[Posts Feed API] Pagination:', { page, limit, offset })
 
-    console.log('[Feed API] Fetching posts for user:', user.id)
+    // ============================================================================
+    // STEP 3: Get user's friends
+    // ============================================================================
+    console.log('[Posts Feed API] Getting user friends...')
 
-    const { data: posts, error } = await supabase
+    const { data: friendships } = await supabase
+      .from('friendships')
+      .select('user_id, friend_id')
+      .or(`(user_id.eq.${userId}),(friend_id.eq.${userId})`)
+      .eq('status', 'accepted')
+
+    const friendIds = friendships?.map(f => f.user_id === userId ? f.friend_id : f.user_id) || []
+    const allUserIds = [userId, ...friendIds]
+
+    console.log('[Posts Feed API] Friends count:', friendIds.length)
+
+    // ============================================================================
+    // STEP 4: Fetch feed posts
+    // ============================================================================
+    console.log('[Posts Feed API] Fetching posts...')
+
+    const { data: posts, error: postsError, count } = await supabase
       .from('posts')
-      .select(`
-        id,
-        content,
-        image_url,
-        video_url,
-        created_at,
-        updated_at,
-        user_id,
-        users:user_id (
-          id,
-          name,
-          username,
-          avatar_url
-        )
-      `)
-      .eq('deleted_at', null)
+      .select('*', { count: 'exact' })
+      .in('user_id', allUserIds)
+      .in('privacy', ['public', 'friends'])
+      .eq('is_draft', false)
+      .is('scheduled_at', null)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (error) {
-      console.error('[Feed API] Query error:', error)
+    if (postsError) {
+      console.error('[Posts Feed API] ❌ Posts fetch error:', postsError.message)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to fetch posts'
+        statusMessage: 'Failed to fetch posts: ' + postsError.message
       })
     }
 
-    console.log('[Feed API] ✅ Fetched', posts?.length || 0, 'posts')
+    console.log('[Posts Feed API] ✅ Posts fetched successfully')
 
-    const formattedPosts = (posts || []).map((post: any) => ({
-      id: post.id,
-      content: post.content,
-      image: post.image_url,
-      video: post.video_url,
-      createdAt: post.created_at,
-      updatedAt: post.updated_at,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      author: {
-        id: post.users?.id,
-        name: post.users?.name || 'Unknown',
-        username: post.users?.username || 'unknown',
-        avatar: post.users?.avatar_url || '/default-avatar.svg'
-      }
-    }))
+    // ============================================================================
+    // STEP 5: Return response
+    // ============================================================================
+    const total = count || 0
+    const hasMore = (page * limit) < total
 
     return {
       success: true,
-      data: formattedPosts,
-      hasMore: (posts?.length || 0) === limit
+      data: {
+        posts: posts || [],
+        total,
+        page,
+        limit,
+        hasMore
+      },
+      message: 'Feed posts fetched successfully'
     }
 
-  } catch (error: any) {
-    console.error('[Feed API] Error:', error.message)
+  } catch (err: any) {
+    console.error('[Posts Feed API] ❌ Error:', err.message)
+    
+    if (err.statusCode) {
+      throw err
+    }
+
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.message || 'Failed to fetch feed'
+      statusCode: 500,
+      statusMessage: 'An error occurred while fetching feed',
+      data: { details: err.message }
     })
   }
 })
