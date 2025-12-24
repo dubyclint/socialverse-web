@@ -1,215 +1,141 @@
-// FILE 8: /server/api/posts/user/[userId].get.ts
+// FILE: /server/api/posts/user/[userId].get.ts - FIXED
 // ============================================================================
-// GET POSTS BY USER ID - IMPROVED: Enhanced error handling and graceful fallbacks
+// GET POSTS BY USER ID - FIXED: Pagination, privacy filtering, sorting
+// ✅ FIXED: Pagination support
+// ✅ FIXED: Privacy filtering
+// ✅ FIXED: Sorting by date
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 interface PostsResponse {
   success: boolean
-  posts: Array<any>
-  total: number
-  page: number
-  limit: number
-  has_more: boolean
+  data?: {
+    posts: any[]
+    total: number
+    page: number
+    limit: number
+    hasMore: boolean
+  }
   message?: string
   error?: string
 }
 
 export default defineEventHandler(async (event): Promise<PostsResponse> => {
   try {
-    console.log('[Posts API] ========================================')
-    console.log('[Posts API] Fetching user posts...')
-    console.log('[Posts API] ========================================')
+    console.log('[Posts User API] Fetching user posts...')
 
     // ============================================================================
-    // STEP 1: Initialize Supabase client
+    // STEP 1: Get Supabase client and session
     // ============================================================================
-    console.log('[Posts API] Step 1: Initializing Supabase client...')
+    const supabase = await serverSupabaseClient(event)
     
-    let supabase
-    try {
-      supabase = await serverSupabaseClient(event)
-    } catch (err: any) {
-      console.error('[Posts API] ❌ Supabase initialization error:', err.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Supabase initialization failed: ' + err.message
-      })
-    }
-    
-    if (!supabase) {
-      console.error('[Posts API] ❌ Supabase client not available')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Database client not available'
-      })
-    }
-
-    console.log('[Posts API] ✅ Supabase client initialized')
+    const { data: { session } } = await supabase.auth.getSession()
+    const currentUserId = session?.user?.id
 
     // ============================================================================
-    // STEP 2: Extract user ID from route parameter
+    // STEP 2: Get user ID from route parameter
     // ============================================================================
-    console.log('[Posts API] Step 2: Extracting user ID from route...')
-    
     const userId = getRouterParam(event, 'userId')
+    const query = getQuery(event)
 
-    if (!userId || userId.trim() === '') {
-      console.error('[Posts API] ❌ No user ID provided')
+    if (!userId) {
       throw createError({
         statusCode: 400,
         statusMessage: 'User ID is required'
       })
     }
 
-    console.log('[Posts API] ✅ User ID extracted:', userId)
+    console.log('[Posts User API] User ID:', userId)
 
     // ============================================================================
-    // STEP 3: Validate user ID format (UUID)
+    // STEP 3: Parse pagination parameters
     // ============================================================================
-    console.log('[Posts API] Step 3: Validating user ID format...')
-    
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    
-    if (!uuidRegex.test(userId)) {
-      console.error('[Posts API] ❌ Invalid user ID format:', userId)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid user ID format'
-      })
-    }
-
-    console.log('[Posts API] ✅ User ID format is valid')
-
-    // ============================================================================
-    // STEP 4: Extract and validate pagination parameters
-    // ============================================================================
-    console.log('[Posts API] Step 4: Extracting pagination parameters...')
-    
-    const query = getQuery(event)
-    
-    let page = 1
-    if (query.page) {
-      const parsedPage = parseInt(query.page as string)
-      if (!isNaN(parsedPage) && parsedPage > 0) {
-        page = parsedPage
-      }
-    }
-
-    let limit = 12
-    if (query.limit) {
-      const parsedLimit = parseInt(query.limit as string)
-      if (!isNaN(parsedLimit) && parsedLimit > 0 && parsedLimit <= 100) {
-        limit = parsedLimit
-      }
-    }
-
+    const page = Math.max(1, parseInt(query.page as string) || 1)
+    const limit = Math.min(50, Math.max(1, parseInt(query.limit as string) || 12))
     const offset = (page - 1) * limit
 
-    console.log('[Posts API] ✅ Pagination: page=' + page + ', limit=' + limit + ', offset=' + offset)
+    console.log('[Posts User API] Pagination:', { page, limit, offset })
 
     // ============================================================================
-    // STEP 5: Fetch posts by user ID
+    // STEP 4: Build privacy filter
     // ============================================================================
-    console.log('[Posts API] Step 5: Fetching posts from database...')
-    
-    let posts = []
-    let total = 0
+    let privacyFilter = ['public']
 
-    try {
-      const { data: fetchedPosts, error: postsError, count } = await supabase
-        .from('posts')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .is('is_deleted', false)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1)
+    if (currentUserId === userId) {
+      // User viewing their own posts
+      privacyFilter = ['public', 'friends', 'private']
+    } else if (currentUserId) {
+      // Check if users are friends
+      const { data: friendship } = await supabase
+        .from('friendships')
+        .select('id')
+        .or(`(user_id.eq.${currentUserId},friend_id.eq.${userId}),(user_id.eq.${userId},friend_id.eq.${currentUserId})`)
+        .eq('status', 'accepted')
+        .single()
 
-      if (postsError) {
-        console.warn('[Posts API] ⚠️ Posts query error:', postsError.message, 'Code:', postsError.code)
-
-        if (
-          postsError.message.includes('does not exist') ||
-          postsError.code === 'PGRST116' ||
-          postsError.code === '42P01'
-        ) {
-          console.log('[Posts API] ℹ️ Posts table does not exist yet')
-          
-          return {
-            success: true,
-            posts: [],
-            total: 0,
-            page,
-            limit,
-            has_more: false,
-            message: 'Posts table not yet created'
-          }
-        }
-
-        throw postsError
+      if (friendship) {
+        privacyFilter = ['public', 'friends']
       }
+    }
 
-      posts = fetchedPosts || []
-      total = count || 0
+    console.log('[Posts User API] Privacy filter:', privacyFilter)
 
-      console.log('[Posts API] ✅ Posts fetched successfully')
-      console.log('[Posts API] Total posts:', total)
-      console.log('[Posts API] Posts in this page:', posts.length)
+    // ============================================================================
+    // STEP 5: Fetch posts with count
+    // ============================================================================
+    console.log('[Posts User API] Fetching posts...')
 
-    } catch (err: any) {
-      console.error('[Posts API] ❌ Posts fetch failed:', err.message)
+    const { data: posts, error: postsError, count } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .in('privacy', privacyFilter)
+      .eq('is_draft', false)
+      .is('scheduled_at', null)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
-      if (
-        err.message?.includes('does not exist') ||
-        err.code === 'PGRST116' ||
-        err.code === '42P01'
-      ) {
-        console.log('[Posts API] ℹ️ Returning empty posts (table not found)')
-        
-        return {
-          success: true,
-          posts: [],
-          total: 0,
-          page,
-          limit,
-          has_more: false,
-          message: 'Posts table not yet created'
-        }
-      }
-
+    if (postsError) {
+      console.error('[Posts User API] ❌ Posts fetch error:', postsError.message)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to fetch posts: ' + err.message
+        statusMessage: 'Failed to fetch posts: ' + postsError.message
       })
     }
 
-    // ============================================================================
-    // STEP 6: Calculate pagination info
-    // ============================================================================
-    const has_more = offset + limit < total
+    console.log('[Posts User API] ✅ Posts fetched successfully')
 
-    console.log('[Posts API] ✅ Returning posts')
+    // ============================================================================
+    // STEP 6: Return response
+    // ============================================================================
+    const total = count || 0
+    const hasMore = (page * limit) < total
 
     return {
       success: true,
-      posts,
-      total,
-      page,
-      limit,
-      has_more
+      data: {
+        posts: posts || [],
+        total,
+        page,
+        limit,
+        hasMore
+      },
+      message: 'Posts fetched successfully'
     }
 
-  } catch (error: any) {
-    console.error('[Posts API] ❌ Error:', error.message || error)
+  } catch (err: any) {
+    console.error('[Posts User API] ❌ Error:', err.message)
     
-    if (error.statusCode) {
-      throw error
+    if (err.statusCode) {
+      throw err
     }
 
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to fetch posts: ' + (error.message || 'Unknown error')
+      statusMessage: 'An error occurred while fetching posts',
+      data: { details: err.message }
     })
   }
 })
