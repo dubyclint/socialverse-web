@@ -1,193 +1,107 @@
-// FILE 6: /server/api/profile/[id].get.ts
+// FILE: /server/api/profile/[id].get.ts - FIXED
 // ============================================================================
-// GET PROFILE BY USER ID - IMPROVED: Enhanced error handling and diagnostics
+// Get user profile by ID - FIXED: Proper privacy and error handling
+// ✅ FIXED: Queries 'profiles' table
+// ✅ FIXED: Privacy filtering
+// ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 interface ProfileResponse {
   success: boolean
-  profile?: {
-    id: string
-    email: string
-    full_name: string | null
-    username: string | null
-    avatar_url: string | null
-    bio: string | null
-    location: string | null
-    website: string | null
-    verified: boolean
-    created_at: string
-    updated_at: string
-  }
-  stats?: {
-    followers: number
-    following: number
-    posts: number
-  }
-  error?: string
+  data?: any
   message?: string
+  error?: string
 }
 
 export default defineEventHandler(async (event): Promise<ProfileResponse> => {
   try {
-    console.log('[Profile API] ========================================')
-    console.log('[Profile API] Fetching profile...')
-    console.log('[Profile API] ========================================')
+    console.log('[Profile Get API] Fetching user profile...')
 
     // ============================================================================
-    // STEP 1: Initialize Supabase client
+    // STEP 1: Get Supabase client
     // ============================================================================
-    console.log('[Profile API] Step 1: Initializing Supabase client...')
+    const supabase = await serverSupabaseClient(event)
     
-    let supabase
-    try {
-      supabase = await serverSupabaseClient(event)
-    } catch (err: any) {
-      console.error('[Profile API] ❌ Supabase initialization error:', err.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Supabase initialization failed: ' + err.message
-      })
-    }
-    
-    if (!supabase) {
-      console.error('[Profile API] ❌ Supabase client not available')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Database client not available'
-      })
-    }
-
-    console.log('[Profile API] ✅ Supabase client initialized')
+    const { data: { session } } = await supabase.auth.getSession()
+    const currentUserId = session?.user?.id
 
     // ============================================================================
     // STEP 2: Get user ID from route parameter
     // ============================================================================
-    console.log('[Profile API] Step 2: Extracting user ID from route...')
-    
     const userId = getRouterParam(event, 'id')
 
-    if (!userId || userId.trim() === '') {
-      console.error('[Profile API] ❌ No user ID provided')
+    if (!userId) {
       throw createError({
         statusCode: 400,
         statusMessage: 'User ID is required'
       })
     }
 
-    console.log('[Profile API] ✅ User ID extracted:', userId)
+    console.log('[Profile Get API] User ID:', userId)
 
     // ============================================================================
-    // STEP 3: Validate user ID format (UUID)
+    // STEP 3: Fetch profile
     // ============================================================================
-    console.log('[Profile API] Step 3: Validating user ID format...')
+    console.log('[Profile Get API] Fetching profile...')
     
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    
-    if (!uuidRegex.test(userId)) {
-      console.error('[Profile API] ❌ Invalid user ID format:', userId)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        username,
+        full_name,
+        avatar_url,
+        bio,
+        is_verified,
+        created_at
+      `)
+      .eq('id', userId)
+      .single()
+
+    if (profileError) {
+      console.error('[Profile Get API] ❌ Profile fetch error:', profileError.message)
+      
+      if (profileError.code === 'PGRST116') {
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Profile not found'
+        })
+      }
+
       throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid user ID format'
+        statusCode: 500,
+        statusMessage: 'Failed to fetch profile: ' + profileError.message
       })
     }
 
-    console.log('[Profile API] ✅ User ID format is valid')
-
-    // ============================================================================
-    // STEP 4: Fetch profile from database
-    // ============================================================================
-    console.log('[Profile API] Step 4: Fetching profile from database...')
-    
-    let profile = null
-    let profileError = null
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        console.warn('[Profile API] ⚠️ Profile query error:', error.message, 'Code:', error.code)
-        profileError = error
-      } else {
-        profile = data
-        console.log('[Profile API] ✅ Profile found in database')
-      }
-    } catch (err: any) {
-      console.error('[Profile API] ❌ Profile fetch error:', err.message)
-      profileError = err
-    }
-
-    // ============================================================================
-    // STEP 5: If no profile, try to get from auth
-    // ============================================================================
     if (!profile) {
-      console.log('[Profile API] Step 5: Profile not found, trying auth...')
-      
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId)
-        
-        if (authError) {
-          console.warn('[Profile API] ⚠️ Auth fetch error:', authError.message)
-        } else if (user) {
-          console.log('[Profile API] ✅ User found in auth')
-          
-          profile = {
-            id: user.id,
-            email: user.email || '',
-            full_name: user.user_metadata?.full_name || null,
-            username: user.user_metadata?.username || null,
-            avatar_url: user.user_metadata?.avatar_url || null,
-            bio: user.user_metadata?.bio || null,
-            location: user.user_metadata?.location || null,
-            website: user.user_metadata?.website || null,
-            verified: false,
-            created_at: user.created_at || new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        }
-      } catch (err: any) {
-        console.warn('[Profile API] ⚠️ Auth fallback error:', err.message)
-      }
-    }
-
-    // ============================================================================
-    // STEP 6: Return response
-    // ============================================================================
-    if (!profile) {
-      console.error('[Profile API] ❌ Profile not found')
       throw createError({
         statusCode: 404,
-        statusMessage: 'User profile not found'
+        statusMessage: 'Profile not found'
       })
     }
 
-    console.log('[Profile API] ✅ Returning profile')
+    console.log('[Profile Get API] ✅ Profile fetched successfully')
 
     return {
       success: true,
-      profile,
-      stats: {
-        followers: 0,
-        following: 0,
-        posts: 0
-      }
+      data: profile,
+      message: 'Profile fetched successfully'
     }
 
-  } catch (error: any) {
-    console.error('[Profile API] ❌ Error:', error.message || error)
+  } catch (err: any) {
+    console.error('[Profile Get API] ❌ Error:', err.message)
     
-    if (error.statusCode) {
-      throw error
+    if (err.statusCode) {
+      throw err
     }
 
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to fetch profile: ' + (error.message || 'Unknown error')
+      statusMessage: 'An error occurred while fetching profile',
+      data: { details: err.message }
     })
   }
 })
