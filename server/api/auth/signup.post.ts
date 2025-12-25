@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     
     console.log('[API] Signup request body:', body)
 
-    const { email, password, username, fullName } = body
+    const { email, password, username, fullName, phone, bio, location } = body
 
     // ✅ VALIDATE: Only email and password are required for auth.users
     if (!email || !password) {
@@ -57,23 +57,29 @@ export default defineEventHandler(async (event) => {
     const userId = authData.user.id
     console.log('[API] ✅ Auth user created:', userId)
 
-    // ✅ STEP 2: INSERT user profile (NOT UPDATE - the row doesn't exist yet!)
+    // ✅ STEP 2: INSERT user profile with ALL required fields
     console.log('[API] Creating user profile...')
     const { data: profileData, error: profileError } = await supabase
       .from('user')
       .insert({
         user_id: userId,
         username: username.trim().toLowerCase(),
-        username_lower: username.trim().toLowerCase(),
         display_name: fullName?.trim() || username.trim(),
-        email: email.trim().toLowerCase(),
-        email_lower: email.trim().toLowerCase()
+        avatar_url: null, // Default avatar
+        bio: bio?.trim() || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select()
       .single()
 
     if (profileError) {
       console.error('[API] Profile creation error:', profileError)
+      
+      // ✅ CLEANUP: Delete the auth user if profile creation fails
+      console.log('[API] Cleaning up auth user due to profile creation failure...')
+      await supabase.auth.admin.deleteUser(userId)
+      
       throw createError({
         statusCode: 400,
         statusMessage: profileError.message || 'Failed to create user profile'
@@ -100,7 +106,9 @@ export default defineEventHandler(async (event) => {
         display_name: fullName?.trim() || username.trim()
       },
       token: sessionData?.session?.access_token || null,
-      refreshToken: sessionData?.session?.refresh_token || null
+      refreshToken: sessionData?.session?.refresh_token || null,
+      needsConfirmation: true,
+      message: 'Account created successfully! Please check your email to verify your account.'
     }
 
   } catch (error: any) {
