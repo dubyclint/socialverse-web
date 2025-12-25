@@ -1,7 +1,8 @@
 <!-- ============================================================================
-FILE: /pages/auth/verify-email.vue - EMAIL VERIFICATION PAGE
+FILE: /pages/auth/verify-email.vue - UPDATED EMAIL VERIFICATION PAGE
 ============================================================================
 This page handles email verification when user clicks the link in their email
+Updated to handle both query params and hash formats
 ============================================================================ -->
 
 <template>
@@ -50,6 +51,14 @@ This page handles email verification when user clicks the link in their email
         <div v-if="resendSuccess" class="resend-success">
           ✅ {{ resendSuccess }}
         </div>
+
+        <!-- Debug Info -->
+        <div class="debug-info">
+          <p><strong>Debug Info:</strong></p>
+          <p>URL: {{ currentUrl }}</p>
+          <p>Query Token: {{ queryToken || 'Not found' }}</p>
+          <p>Hash Token: {{ hashToken || 'Not found' }}</p>
+        </div>
       </div>
 
       <!-- Initial State (shouldn't show) -->
@@ -80,26 +89,60 @@ const resendLoading = ref(false)
 const resendSuccess = ref('')
 const userEmail = ref('')
 
+// Debug info
+const currentUrl = ref('')
+const queryToken = ref('')
+const hashToken = ref('')
+
 /**
- * Extract token from URL
+ * Extract token from URL - handles multiple formats
  */
-const getTokenFromUrl = (): string | null => {
-  const token = route.query.token as string
-  const hash = route.hash
+const getTokenFromUrl = (): { token: string | null; type: string } => {
+  // Store current URL for debugging
+  currentUrl.value = window.location.href
 
-  if (token) {
-    return token
-  }
-
-  // Try to extract from hash (some email clients modify URLs)
-  if (hash) {
-    const hashToken = hash.split('token=')[1]
-    if (hashToken) {
-      return hashToken.split('&')[0]
+  // Format 1: Query parameter (?token=...)
+  const queryTokenParam = route.query.token as string
+  if (queryTokenParam) {
+    console.log('[Verify Email] Token found in query params')
+    queryToken.value = queryTokenParam
+    return { 
+      token: queryTokenParam, 
+      type: (route.query.type as string) || 'email'
     }
   }
 
-  return null
+  // Format 2: Hash parameter (#token=...)
+  const hash = window.location.hash
+  if (hash) {
+    console.log('[Verify Email] Checking hash:', hash)
+    
+    // Extract token from hash
+    const tokenMatch = hash.match(/token=([^&]+)/)
+    if (tokenMatch && tokenMatch[1]) {
+      const token = tokenMatch[1]
+      console.log('[Verify Email] Token found in hash')
+      hashToken.value = token
+      
+      // Extract type from hash
+      const typeMatch = hash.match(/type=([^&]+)/)
+      const type = typeMatch && typeMatch[1] ? typeMatch[1] : 'email'
+      
+      return { token, type }
+    }
+  }
+
+  // Format 3: Fragment identifier (Supabase might use this)
+  const fragmentToken = route.hash.split('token=')[1]
+  if (fragmentToken) {
+    const token = fragmentToken.split('&')[0]
+    console.log('[Verify Email] Token found in fragment')
+    hashToken.value = token
+    return { token, type: 'email' }
+  }
+
+  console.log('[Verify Email] No token found in any format')
+  return { token: null, type: 'email' }
 }
 
 /**
@@ -107,19 +150,22 @@ const getTokenFromUrl = (): string | null => {
  */
 onMounted(async () => {
   console.log('[Verify Email Page] Component mounted')
+  console.log('[Verify Email Page] Route query:', route.query)
+  console.log('[Verify Email Page] Route hash:', route.hash)
+  console.log('[Verify Email Page] Window location:', window.location.href)
   
-  const token = getTokenFromUrl()
+  const { token, type } = getTokenFromUrl()
   
   if (!token) {
     console.error('[Verify Email Page] No token found in URL')
-    error.value = 'No verification token found. Please check your email link.'
+    error.value = 'No verification token found. Please check your email link or try resending the verification email.'
     loading.value = false
     return
   }
 
-  console.log('[Verify Email Page] Token found, verifying...')
+  console.log('[Verify Email Page] Token found, verifying...', { token: token.substring(0, 20) + '...', type })
 
-  const result = await verifyEmail(token, 'email')
+  const result = await verifyEmail(token, type as 'email' | 'recovery')
 
   if (result.success) {
     console.log('[Verify Email Page] ✅ Email verified successfully')
@@ -321,6 +367,23 @@ const resendEmail = async () => {
   font-size: 14px;
 }
 
+.debug-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 12px;
+  color: #666;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.debug-info p {
+  margin: 5px 0;
+  word-break: break-all;
+}
+
 /* Buttons */
 .btn-primary,
 .btn-secondary {
@@ -375,6 +438,10 @@ const resendEmail = async () => {
 
   .logo-icon {
     font-size: 28px;
+  }
+
+  .debug-info {
+    font-size: 11px;
   }
 }
 </style>
