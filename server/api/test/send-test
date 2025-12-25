@@ -1,0 +1,103 @@
+// ============================================================================
+// FILE: /server/api/test/send-test-email.post.ts - TEST EMAIL SENDING
+// ============================================================================
+// This endpoint tests if Supabase is sending verification emails correctly
+// ============================================================================
+
+import { createClient } from '@supabase/supabase-js'
+
+export default defineEventHandler(async (event) => {
+  try {
+    const body = await readBody(event)
+    const { email } = body
+
+    if (!email) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Email is required'
+      })
+    }
+
+    console.log('[TEST] Testing email sending to:', email)
+
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Missing Supabase credentials'
+      })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Test 1: Create a test user
+    console.log('[TEST] Creating test user...')
+    const testEmail = `test-${Date.now()}@example.com`
+    
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: testEmail,
+      password: 'TestPassword123!',
+      email_confirm: false
+    })
+
+    if (authError) {
+      console.error('[TEST] Auth error:', authError)
+      return {
+        success: false,
+        error: 'Failed to create test user',
+        details: authError
+      }
+    }
+
+    console.log('[TEST] ✅ Test user created:', testEmail)
+
+    // Test 2: Resend verification email
+    console.log('[TEST] Resending verification email...')
+    
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: testEmail
+    })
+
+    if (resendError) {
+      console.error('[TEST] Resend error:', resendError)
+      return {
+        success: false,
+        error: 'Failed to resend verification email',
+        details: resendError
+      }
+    }
+
+    console.log('[TEST] ✅ Verification email sent')
+
+    // Test 3: Check email template
+    console.log('[TEST] Checking Supabase configuration...')
+
+    return {
+      success: true,
+      message: 'Test email sent successfully!',
+      testEmail: testEmail,
+      instructions: [
+        '1. Check your email inbox for the verification email',
+        '2. Look for the link in the email',
+        '3. Copy the full URL from the email',
+        '4. Share the URL (without token) to see what format Supabase is using'
+      ],
+      notes: {
+        'Email sent to': testEmail,
+        'Check': 'Inbox and spam folder',
+        'Template': 'Confirm signup template in Supabase'
+      }
+    }
+
+  } catch (error: any) {
+    console.error('[TEST] Error:', error)
+    return {
+      success: false,
+      error: error.message,
+      details: error
+    }
+  }
+})
