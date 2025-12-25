@@ -1,8 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - FIXED VERSION (Remove createSession)
 // ============================================================================
-// ✅ FIXED: Proper error handling, database schema alignment
-// ✅ FIXED: Works with corrected Supabase trigger
+// Removed the problematic createSession call - not needed for signup
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -116,23 +115,6 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Auth user created:', userId)
     console.log('[API] ℹ️ Profile will be created automatically by trigger')
 
-    // ✅ STEP 2: Generate session token (optional - for auto-login)
-    let sessionData = null
-    try {
-      const { data: session, error: sessionError } = await supabase.auth.admin.createSession({
-        userId: userId
-      })
-
-      if (sessionError) {
-        console.warn('[API] Session creation warning:', sessionError.message)
-      } else {
-        sessionData = session
-        console.log('[API] ✅ Session created')
-      }
-    } catch (sessionErr) {
-      console.warn('[API] Session creation exception:', sessionErr)
-    }
-
     return {
       success: true,
       user: {
@@ -141,8 +123,6 @@ export default defineEventHandler(async (event) => {
         username: username.trim().toLowerCase(),
         display_name: fullName?.trim() || username.trim()
       },
-      token: sessionData?.session?.access_token || null,
-      refreshToken: sessionData?.session?.refresh_token || null,
       needsConfirmation: true,
       message: 'Account created successfully! Please check your email to verify your account.'
     }
