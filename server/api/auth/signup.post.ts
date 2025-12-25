@@ -1,4 +1,4 @@
-// server/api/auth/signup.post.ts
+// server/api/auth/signup.post.ts - IMPROVED VERSION WITH BETTER ERROR HANDLING
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
@@ -25,14 +25,43 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // ✅ Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid email format'
+      })
+    }
+
+    // ✅ Validate password length
+    if (password.length < 6) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Password must be at least 6 characters'
+      })
+    }
+
     // ✅ Create Supabase client with service role (for server-side)
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    console.log('[API] Supabase URL configured:', !!supabaseUrl)
+    console.log('[API] Service role key configured:', !!supabaseServiceKey)
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[API] Missing Supabase credentials')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Server configuration error: Missing Supabase credentials'
+      })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // ✅ STEP 1: Create user in auth.users
-    console.log('[API] Creating auth user...')
+    console.log('[API] Creating auth user with email:', email)
+    
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
@@ -40,17 +69,34 @@ export default defineEventHandler(async (event) => {
     })
 
     if (authError) {
-      console.error('[API] Auth creation error:', authError)
+      console.error('[API] Auth creation error:', {
+        message: authError.message,
+        status: authError.status,
+        code: authError.code
+      })
+      
+      // ⚠️ IMPORTANT: Provide more specific error messages
+      let errorMessage = authError.message || 'Failed to create user'
+      
+      if (authError.message?.includes('already exists')) {
+        errorMessage = 'This email is already registered'
+      } else if (authError.message?.includes('invalid')) {
+        errorMessage = 'Invalid email or password'
+      } else if (authError.status === 500) {
+        errorMessage = 'Supabase service error. Please try again later.'
+      }
+      
       throw createError({
         statusCode: 400,
-        statusMessage: authError.message || 'Failed to create user'
+        statusMessage: errorMessage
       })
     }
 
     if (!authData.user) {
+      console.error('[API] Auth user creation returned no user data')
       throw createError({
         statusCode: 500,
-        statusMessage: 'User creation failed'
+        statusMessage: 'User creation failed: No user data returned'
       })
     }
 
@@ -58,7 +104,8 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Auth user created:', userId)
 
     // ✅ STEP 2: INSERT user profile with ALL required fields
-    console.log('[API] Creating user profile...')
+    console.log('[API] Creating user profile for user_id:', userId)
+    
     const { data: profileData, error: profileError } = await supabase
       .from('user')
       .insert({
@@ -74,11 +121,20 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError) {
-      console.error('[API] Profile creation error:', profileError)
+      console.error('[API] Profile creation error:', {
+        message: profileError.message,
+        code: profileError.code,
+        details: profileError.details
+      })
       
       // ✅ CLEANUP: Delete the auth user if profile creation fails
       console.log('[API] Cleaning up auth user due to profile creation failure...')
-      await supabase.auth.admin.deleteUser(userId)
+      try {
+        await supabase.auth.admin.deleteUser(userId)
+        console.log('[API] ✅ Auth user cleaned up')
+      } catch (cleanupError) {
+        console.error('[API] Cleanup error:', cleanupError)
+      }
       
       throw createError({
         statusCode: 400,
@@ -89,12 +145,20 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ User profile created')
 
     // ✅ STEP 3: Generate session token (optional - for auto-login)
-    const { data: sessionData, error: sessionError } = await supabase.auth.admin.createSession({
-      userId: userId
-    })
+    let sessionData = null
+    try {
+      const { data: session, error: sessionError } = await supabase.auth.admin.createSession({
+        userId: userId
+      })
 
-    if (sessionError) {
-      console.warn('[API] Session creation warning:', sessionError)
+      if (sessionError) {
+        console.warn('[API] Session creation warning:', sessionError.message)
+      } else {
+        sessionData = session
+        console.log('[API] ✅ Session created')
+      }
+    } catch (sessionErr) {
+      console.warn('[API] Session creation exception:', sessionErr)
     }
 
     return {
@@ -112,7 +176,12 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[API] Signup error:', error)
+    console.error('[API] Signup error:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      statusMessage: error.statusMessage,
+      stack: error.stack
+    })
     throw error
   }
 })
