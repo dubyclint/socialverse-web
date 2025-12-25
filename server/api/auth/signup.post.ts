@@ -1,4 +1,10 @@
-// server/api/auth/signup.post.ts - IMPROVED VERSION WITH BETTER ERROR HANDLING
+// ============================================================================
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// ✅ FIXED: Proper error handling, database schema alignment
+// ✅ FIXED: Works with corrected Supabase trigger
+// ============================================================================
+
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
@@ -60,12 +66,18 @@ export default defineEventHandler(async (event) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // ✅ STEP 1: Create user in auth.users
+    // The trigger will automatically create the profile in public.user
     console.log('[API] Creating auth user with email:', email)
     
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
-      email_confirm: false // Require email confirmation
+      email_confirm: false, // Require email confirmation
+      user_metadata: {
+        username: username.trim().toLowerCase(),
+        full_name: fullName?.trim() || username.trim(),
+        avatar_url: null
+      }
     })
 
     if (authError) {
@@ -102,49 +114,9 @@ export default defineEventHandler(async (event) => {
 
     const userId = authData.user.id
     console.log('[API] ✅ Auth user created:', userId)
+    console.log('[API] ℹ️ Profile will be created automatically by trigger')
 
-    // ✅ STEP 2: INSERT user profile with ALL required fields
-    console.log('[API] Creating user profile for user_id:', userId)
-    
-    const { data: profileData, error: profileError } = await supabase
-      .from('user')
-      .insert({
-        user_id: userId,
-        username: username.trim().toLowerCase(),
-        display_name: fullName?.trim() || username.trim(),
-        avatar_url: null, // Default avatar
-        bio: bio?.trim() || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single()
-
-    if (profileError) {
-      console.error('[API] Profile creation error:', {
-        message: profileError.message,
-        code: profileError.code,
-        details: profileError.details
-      })
-      
-      // ✅ CLEANUP: Delete the auth user if profile creation fails
-      console.log('[API] Cleaning up auth user due to profile creation failure...')
-      try {
-        await supabase.auth.admin.deleteUser(userId)
-        console.log('[API] ✅ Auth user cleaned up')
-      } catch (cleanupError) {
-        console.error('[API] Cleanup error:', cleanupError)
-      }
-      
-      throw createError({
-        statusCode: 400,
-        statusMessage: profileError.message || 'Failed to create user profile'
-      })
-    }
-
-    console.log('[API] ✅ User profile created')
-
-    // ✅ STEP 3: Generate session token (optional - for auto-login)
+    // ✅ STEP 2: Generate session token (optional - for auto-login)
     let sessionData = null
     try {
       const { data: session, error: sessionError } = await supabase.auth.admin.createSession({
