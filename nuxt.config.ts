@@ -1,11 +1,12 @@
 // ============================================================================
-// COMPLETE NUXT CONFIG FILE - ALL FIXES MERGED
+// COMPLETE NUXT CONFIG FILE - ALL FIXES MERGED + ALIAS FIX
 // ============================================================================
 // ✅ FIXED: Added favicon support (Issue 1)
 // ✅ FIXED: Added proper static asset handling (Issue 1)
 // ✅ FIXED: Added PWA meta tags (Issue 1)
 // ✅ FIXED: Enabled CDN and Gun (Issues 6-7)
 // ✅ FIXED: Hydration mismatch fixes (Issue 8)
+// ✅ FIXED: Added Supabase server alias (CRITICAL FIX)
 // ✅ ENHANCED: Better SEO configuration
 // ✅ ENHANCED: Optimized build settings
 // ============================================================================
@@ -23,6 +24,13 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
   ],
+
+  // ============================================================================
+  // ALIAS CONFIGURATION - CRITICAL FIX FOR SERVER-SIDE IMPORTS
+  // ============================================================================
+  alias: {
+    '#supabase/server': './server/utils/supabase-server.ts',
+  },
 
   // ============================================================================
   // RUNTIME CONFIG
@@ -247,21 +255,11 @@ export default defineNuxtConfig({
 //    </ClientOnly>
 //
 // 2. Use useAsyncData or useFetch with proper keys:
-//    const { data } = await useAsyncData('key', () => fetchData())
+//    const { data } = await useAsyncData('key', () => $fetch('/api/data'))
 //
-// 3. Avoid using Math.random() or Date.now() directly in templates
+// 3. Use computed properties for reactive data:
+//    const count = computed(() => store.count)
 //
-// 4. Use process.client or process.server checks properly:
-//    if (process.client) {
-//      // Client-only code
-//    }
-//
-// 5. Ensure localStorage/sessionStorage access is wrapped in process.client check:
-//    if (process.client) {
-//      const value = localStorage.getItem('key')
-//    }
-//
-// 6. Use defineAsyncComponent for components that should only render on client:
-//    const MyComponent = defineAsyncComponent(() => import('~/components/MyComponent.vue'))
+// 4. Avoid direct DOM manipulation in setup()
 //
 // ============================================================================
