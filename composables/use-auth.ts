@@ -1,4 +1,8 @@
-// composables/use-auth.ts
+// composables/use-auth.ts - COMPLETE FIXED FILE
+// ============================================================================
+// LOGOUT FIX: Properly clears all localStorage items and session data
+// ============================================================================
+
 import { ref, computed } from 'vue'
 
 export const useAuth = () => {
@@ -174,32 +178,63 @@ export const useAuth = () => {
   }
 
   /**
-   * Logout user
+   * ✅ FIXED LOGOUT: Properly clears all localStorage items
    */
   const logout = async () => {
     try {
       console.log('[useAuth] Logging out...')
       
-      await $fetch('/api/auth/logout', {
-        method: 'POST'
-      })
+      // ✅ STEP 1: Call logout API to clear server-side session
+      try {
+        await $fetch('/api/auth/logout', {
+          method: 'POST'
+        })
+        console.log('[useAuth] Server logout successful')
+      } catch (apiErr) {
+        console.warn('[useAuth] Server logout failed (continuing with client logout):', apiErr)
+        // Continue with client-side logout even if API fails
+      }
 
+      // ✅ STEP 2: Clear auth store
       authStore.clearAuth()
       userStore.clearSession()
 
+      // ✅ STEP 3: Clear ALL localStorage items related to auth
       if (typeof window !== 'undefined') {
+        // Remove specific auth keys
         localStorage.removeItem('auth_token')
+        localStorage.removeItem('auth_user')
+        localStorage.removeItem('auth_user_id')
         localStorage.removeItem('refresh_token')
         localStorage.removeItem('user')
+        localStorage.removeItem('session')
+        
+        // Remove any other session-related items
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.includes('auth') || key.includes('session') || key.includes('user'))) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key))
       }
 
-      console.log('[useAuth] ✅ Logout successful')
+      // ✅ STEP 4: Clear sessionStorage as well
+      if (typeof window !== 'undefined') {
+        sessionStorage.clear()
+      }
+
+      console.log('[useAuth] ✅ Logout successful - all data cleared')
       return { success: true }
 
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Logout failed:', errorMessage)
       error.value = errorMessage
+      
+      // ✅ Even if logout fails, still clear local data
+      authStore.clearAuth()
       return { success: false, error: errorMessage }
     }
   }
