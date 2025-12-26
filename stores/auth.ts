@@ -1,9 +1,9 @@
-// FILE: /stores/auth.ts - FIXED FOR SSR HYDRATION
+// stores/auth.ts - COMPLETE FIXED FILE
 // ============================================================================
-// AUTH STORE - FIXED: Proper SSR handling to prevent hydration mismatches
+// AUTH STORE - FIXED: Proper logout clearing of all localStorage items
+// ✅ FIXED: clearAuth now removes ALL auth-related localStorage items
 // ✅ FIXED: No localStorage access during initial state setup
 // ✅ FIXED: State initialization happens only on client after mount
-// ✅ ADDED: setUserId, hydrate, and clearAuth methods
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -170,21 +170,57 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * ✅ COMPLETE: Clear authentication
+   * ✅ FIXED CLEARAUTH: Thoroughly clears ALL authentication data
    */
   const clearAuth = () => {
+    console.log('[Auth Store] Clearing authentication...')
+    
+    // ✅ Clear all reactive state
     token.value = null
     user.value = null
     userId.value = null
     error.value = null
+    isHydrated.value = false
     
+    // ✅ Clear localStorage - be thorough
     if (process.client) {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
-      localStorage.removeItem('auth_user_id')
+      try {
+        // Remove specific auth keys
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('auth_user')
+        localStorage.removeItem('auth_user_id')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('session')
+        
+        // Remove any other auth-related keys
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (
+            key.includes('auth') || 
+            key.includes('session') || 
+            key.includes('user') ||
+            key.includes('token')
+          )) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach(key => {
+          try {
+            localStorage.removeItem(key)
+          } catch (e) {
+            console.warn(`[Auth Store] Failed to remove ${key}:`, e)
+          }
+        })
+        
+        console.log('[Auth Store] ✅ Auth cleared from localStorage')
+      } catch (error) {
+        console.error('[Auth Store] Error clearing localStorage:', error)
+      }
     }
     
-    console.log('[Auth Store] ✅ Auth cleared')
+    console.log('[Auth Store] ✅ Auth cleared completely')
   }
 
   /**
@@ -250,6 +286,6 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth,
     updateUserProfile,
     setLoading,
-    setError,
+    setError
   }
 })
