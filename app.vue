@@ -1,4 +1,11 @@
-<!-- FILE: /app.vue - FIXED FOR SSR HYDRATION -->
+<!-- FILE: /app.vue - COMPLETE FIXED FILE -->
+<!-- ============================================================================
+     APP COMPONENT - FIXED: Proper session initialization and logout handling
+     ✅ FIXED: Validates session data before restoring
+     ✅ FIXED: Checks for logout query parameter
+     ✅ FIXED: Clears corrupted session data
+     ============================================================================ -->
+
 <template>
   <NuxtLayout>
     <div id="app">
@@ -39,7 +46,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const { $supabase } = useNuxtApp()
 
@@ -49,11 +58,21 @@ const supabaseError = ref()
 const globalError = ref<string | null>(null)
 
 /**
- * Initialize app on mount (client-only)
+ * ✅ FIXED: Initialize app on mount with proper session validation
  */
 onMounted(async () => {
   try {
     console.log('[App] 🚀 Initializing application...')
+    
+    // ✅ Check if user is being redirected from logout
+    const isLoggingOut = route.query.logout === 'true'
+    
+    if (isLoggingOut) {
+      console.log('[App] User is logging out, clearing session')
+      authStore.clearAuth()
+      isInitializing.value = false
+      return
+    }
     
     // ✅ Initialize auth session from localStorage (client-only)
     const sessionInitialized = authStore.initializeSession()
@@ -61,6 +80,13 @@ onMounted(async () => {
     if (sessionInitialized) {
       console.log('[App] ✅ Session restored from storage')
       console.log('[App] User:', authStore.userDisplayName)
+      console.log('[App] Authenticated:', authStore.isAuthenticated)
+      
+      // ✅ Verify token is still valid by checking if it's not empty
+      if (!authStore.token || !authStore.user) {
+        console.warn('[App] ⚠️ Session data incomplete, clearing')
+        authStore.clearAuth()
+      }
     } else {
       console.log('[App] ℹ️ No previous session found')
     }
@@ -79,6 +105,7 @@ onMounted(async () => {
   } catch (error) {
     console.error('[App] Initialization error:', error)
     globalError.value = 'Failed to initialize application'
+    authStore.clearAuth()
     isInitializing.value = false
   }
 })
@@ -118,7 +145,7 @@ const clearError = () => {
   color: white;
   padding: 0.5rem 1rem;
   border: none;
-  border-radius:.25rem;
+  border-radius: 0.25rem;
   cursor: pointer;
 }
 
@@ -149,15 +176,15 @@ const clearError = () => {
 
 .error-content button {
   margin-top: 1rem;
-  background-color: #ef4444;
-  color: white;
   padding: 0.5rem 1rem;
+  background-color: #667eea;
+  color: white;
   border: none;
   border-radius: 0.25rem;
   cursor: pointer;
 }
 
 .error-content button:hover {
-  background-color: #dc2626;
+  background-color: #764ba2;
 }
 </style>
