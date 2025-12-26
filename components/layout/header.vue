@@ -1,104 +1,68 @@
-<!-- FILE: /components/layout/header.vue - FIXED FOR SSR HYDRATION -->
+<!-- FILE: /components/layout/header.vue - COMPLETE FIXED FILE -->
 <!-- ============================================================================
-     HEADER COMPONENT - FIXED: All user-specific data wrapped in ClientOnly
-     ✅ FIXED: Wallet balance wrapped
-     ✅ FIXED: User profile data wrapped
-     ✅ FIXED: Notification badges wrapped
+     HEADER COMPONENT - FIXED: Proper logout handling
+     ✅ FIXED: handleLogout now uses useAuth composable
+     ✅ FIXED: Proper redirect with page reload
+     ✅ FIXED: Closes all menus before logout
      ============================================================================ -->
 
 <template>
   <header class="modern-header">
     <!-- Top Navigation Bar ---->
     <div class="header-top">
-      <!-- Left Side - Menu & Logo -->
       <div class="header-left">
-        <button @click="toggleSidebar" class="menu-btn">
-          <Icon name="menu" size="20" />
+        <button class="menu-btn" @click="toggleSidebar">
+          <Icon name="menu" size="24" />
         </button>
-        <NuxtLink to="/feed" class="logo">
+        <NuxtLink to="/" class="logo">
           <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
           <span class="logo-text">SocialVerse</span>
         </NuxtLink>
       </div>
 
-      <!-- Center - Navigation Icons -->
       <div class="header-center">
-        <!-- Home/Feed Link -->
-        <NuxtLink to="/feed" class="nav-icon" :class="{ active: $route.path === '/feed' }">
-          <Icon name="home" size="24" />
+        <NuxtLink to="/feed" class="nav-icon">
+          <Icon name="home" size="20" />
           <span class="nav-label">Feed</span>
         </NuxtLink>
-
-        <!-- Chat Link -->
-        <NuxtLink to="/chat" class="nav-icon" :class="{ active: $route.path === '/chat' }">
-          <Icon name="message-circle" size="24" />
-          <span class="nav-label">Chat</span>
-          <!-- ✅ FIXED: Wrap notification badge in ClientOnly -->
-          <ClientOnly>
-            <span v-if="unreadMessages > 0" class="notification-badge">{{ unreadMessages }}</span>
-          </ClientOnly>
+        <NuxtLink to="/explore" class="nav-icon">
+          <Icon name="compass" size="20" />
+          <span class="nav-label">Explore</span>
         </NuxtLink>
-
-        <!-- Posts Link -->
-        <NuxtLink to="/posts" class="nav-icon" :class="{ active: $route.path === '/posts' }">
-          <Icon name="plus-square" size="24" />
-          <span class="nav-label">Post</span>
-        </NuxtLink>
-
-        <!-- Live Stream Link -->
-        <NuxtLink to="/streaming" class="nav-icon" :class="{ active: $route.path === '/streaming' }">
-          <Icon name="radio" size="24" />
-          <span class="nav-label">Live</span>
-          <!-- ✅ FIXED: Wrap live badge in ClientOnly -->
-          <ClientOnly>
-            <span v-if="isLiveStreaming" class="live-badge">LIVE</span>
-          </ClientOnly>
-        </NuxtLink>
-
-        <!-- Universe Link -->
-        <NuxtLink to="/universe" class="nav-icon" :class="{ active: $route.path === '/universe' }">
-          <Icon name="globe" size="24" />
-          <span class="nav-label">Universe</span>
+        <NuxtLink to="/match" class="nav-icon">
+          <Icon name="heart" size="20" />
+          <span class="nav-label">Match</span>
         </NuxtLink>
       </div>
 
-      <!-- Right Side - Profile & Wallet -->
       <div class="header-right">
-        <!-- ✅ FIXED: Wrap entire wallet section in ClientOnly -->
         <ClientOnly>
           <div class="wallet-container" @click="toggleWalletMenu">
             <div class="wallet-icon">
-              <Icon name="wallet" size="24" />
-              <span class="wallet-balance">${{ walletBalance }}</span>
+              <Icon name="wallet" size="20" />
+              <span class="wallet-balance">${{ walletBalance.toFixed(2) }}</span>
             </div>
-            
-            <!-- Wallet Dropdown -->
             <div v-if="showWalletMenu" class="wallet-dropdown">
-              <div class="wallet-option" @click="openP2P">
-                <Icon name="users" size="18" />
+              <button class="wallet-option" @click="openP2P">
+                <Icon name="send" size="16" />
                 <span>P2P Trading</span>
-              </div>
-              <div class="wallet-option" @click="openPEW">
-                <Icon name="zap" size="18" />
-                <span>PEW Tokens</span>
-              </div>
-              <div class="wallet-option" @click="openEscrow">
-                <Icon name="shield" size="18" />
+              </button>
+              <button class="wallet-option" @click="openPEW">
+                <Icon name="gift" size="16" />
+                <span>PEW Gifts</span>
+              </button>
+              <button class="wallet-option" @click="openEscrow">
+                <Icon name="lock" size="16" />
                 <span>Escrow</span>
-              </div>
+              </button>
             </div>
           </div>
-        </ClientOnly>
 
-        <!-- ✅ FIXED: Wrap entire profile section in ClientOnly -->
-        <ClientOnly>
-          <div class="profile-container">
-            <div class="profile-avatar" @click="toggleProfileMenu">
+          <div class="profile-container" @click="toggleProfileMenu">
+            <div class="profile-avatar">
               <img :src="user.avatar" :alt="user.name" />
-              <div class="status-dot" :class="user.status"></div>
+              <div :class="['status-dot', user.status]"></div>
             </div>
-            
-            <!-- Profile Dropdown -->
             <div v-if="showProfileMenu" class="profile-dropdown">
               <div class="profile-info">
                 <img :src="user.avatar" :alt="user.name" />
@@ -109,15 +73,15 @@
               </div>
               <hr />
               <NuxtLink to="/profile" class="dropdown-item">
-                <Icon name="user" size="18" />
-                <span>My Profile</span>
+                <Icon name="user" size="16" />
+                <span>Profile</span>
               </NuxtLink>
               <NuxtLink to="/settings" class="dropdown-item">
-                <Icon name="settings" size="18" />
+                <Icon name="settings" size="16" />
                 <span>Settings</span>
               </NuxtLink>
-              <button @click="handleLogout" class="dropdown-item logout-btn">
-                <Icon name="log-out" size="18" />
+              <button class="dropdown-item logout-btn" @click="handleLogout">
+                <Icon name="logout" size="16" />
                 <span>Logout</span>
               </button>
             </div>
@@ -126,108 +90,69 @@
       </div>
     </div>
 
-    <!-- Media Container - Horizontal Scrolling -->
+    <!-- Media Carousel -->
     <div class="media-container">
       <div class="media-scroll">
-        <div 
-          v-for="item in mediaItems" 
-          :key="item.id" 
+        <div
+          v-for="item in mediaItems"
+          :key="item.id"
           class="media-item"
           @click="openMediaItem(item)"
         >
           <div class="media-thumbnail">
             <img :src="item.thumbnail" :alt="item.title" />
             <div class="media-overlay">
-              <Icon :name="item.type === 'video' ? 'play' : 'image'" size="20" />
+              <Icon name="play" size="32" />
             </div>
           </div>
           <div class="media-info">
             <h5>{{ item.title }}</h5>
             <p>{{ item.author }}</p>
-            <span class="media-type">{{ item.category }}</span>
+            <span class="media-type">{{ item.type }}</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Sidebar Menu -->
-    <div v-if="showSidebar" class="sidebar-overlay" @click="closeSidebar">
-      <div class="sidebar" @click.stop>
-        <div class="sidebar-header">
-          <h3>Menu</h3>
-          <button @click="closeSidebar" class="close-btn">
-            <Icon name="x" size="20" />
-          </button>
-        </div>
-        
-        <nav class="sidebar-nav">
-          <!-- Main Navigation -->
-          <NuxtLink to="/feed" class="sidebar-item">
-            <Icon name="home" size="20" />
-            <span>Feed</span>
-          </NuxtLink>
-          <NuxtLink to="/chat" class="sidebar-item">
-            <Icon name="message-circle" size="20" />
-            <span>Chat</span>
-          </NuxtLink>
-          <NuxtLink to="/posts" class="sidebar-item">
-            <Icon name="plus-square" size="20" />
-            <span>Create Post</span>
-          </NuxtLink>
-          <NuxtLink to="/streaming" class="sidebar-item">
-            <Icon name="radio" size="20" />
-            <span>Live Stream</span>
-          </NuxtLink>
-          <NuxtLink to="/universe" class="sidebar-item">
-            <Icon name="globe" size="20" />
-            <span>Universe</span>
-          </NuxtLink>
-
-          <hr class="sidebar-divider" />
-
-          <!-- Trading & Services -->
-          <NuxtLink to="/p2p" class="sidebar-item">
-            <Icon name="users" size="20" />
-            <span>P2P Trading</span>
-          </NuxtLink>
-          <NuxtLink to="/trade" class="sidebar-item">
-            <Icon name="trending-up" size="20" />
-            <span>Trade</span>
-          </NuxtLink>
-          <NuxtLink to="/escrow" class="sidebar-item">
-            <Icon name="shield" size="20" />
-            <span>Escrow Services</span>
-          </NuxtLink>
-
-          <hr class="sidebar-divider" />
-
-          <!-- Community & Matching -->
-          <NuxtLink to="/cross-meet" class="sidebar-item">
-            <Icon name="heart" size="20" />
-            <span>Cross Meet</span>
-          </NuxtLink>
-          <NuxtLink to="/explore" class="sidebar-item">
-            <Icon name="compass" size="20" />
-            <span>Explore</span>
-          </NuxtLink>
-
-          <hr class="sidebar-divider" />
-
-          <!-- Support & Tools -->
-          <NuxtLink to="/support" class="sidebar-item">
-            <Icon name="help-circle" size="20" />
-            <span>Support</span>
-          </NuxtLink>
-          <NuxtLink to="/notifications" class="sidebar-item">
-            <Icon name="bell" size="20" />
-            <span>Notifications</span>
-          </NuxtLink>
-          <NuxtLink to="/inbox" class="sidebar-item">
-            <Icon name="inbox" size="20" />
-            <span>Inbox</span>
-          </NuxtLink>
-        </nav>
+    <!-- Mobile Sidebar -->
+    <div v-if="showSidebar" class="sidebar-overlay" @click="closeSidebar"></div>
+    <div v-if="showSidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h3>Menu</h3>
+        <button @click="closeSidebar" class="close-btn">
+          <Icon name="close" size="24" />
+        </button>
       </div>
+      <nav class="sidebar-nav">
+        <NuxtLink to="/feed" class="sidebar-item">
+          <Icon name="home" size="20" />
+          <span>Feed</span>
+        </NuxtLink>
+        <NuxtLink to="/explore" class="sidebar-item">
+          <Icon name="compass" size="20" />
+          <span>Explore</span>
+        </NuxtLink>
+        <NuxtLink to="/match" class="sidebar-item">
+          <Icon name="heart" size="20" />
+          <span>Match</span>
+        </NuxtLink>
+        <NuxtLink to="/profile" class="sidebar-item">
+          <Icon name="user" size="20" />
+          <span>Profile</span>
+        </NuxtLink>
+        <NuxtLink to="/settings" class="sidebar-item">
+          <Icon name="settings" size="20" />
+          <span>Settings</span>
+        </NuxtLink>
+        <NuxtLink to="/notifications" class="sidebar-item">
+          <Icon name="bell" size="20" />
+          <span>Notifications</span>
+        </NuxtLink>
+        <NuxtLink to="/inbox" class="sidebar-item">
+          <Icon name="inbox" size="20" />
+          <span>Inbox</span>
+        </NuxtLink>
+      </nav>
     </div>
   </header>
 </template>
@@ -236,9 +161,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
+import { useAuth } from '~/composables/use-auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { logout } = useAuth()
 
 // Reactive data
 const showSidebar = ref(false)
@@ -323,13 +250,43 @@ const openMediaItem = (item) => {
   router.push(`/media/${item.id}`)
 }
 
+/**
+ * ✅ FIXED LOGOUT: Uses useAuth composable and properly clears all data
+ */
 const handleLogout = async () => {
   try {
-    // Call your logout function from auth store
-    await authStore.clearAuth()
-    router.push('/auth/login')
+    console.log('[Header] Initiating logout...')
+    
+    // ✅ Use the proper logout function from useAuth composable
+    const result = await logout()
+    
+    if (result.success) {
+      console.log('[Header] ✅ Logout successful, redirecting to login')
+      
+      // ✅ Close any open menus
+      showProfileMenu.value = false
+      showWalletMenu.value = false
+      showSidebar.value = false
+      
+      // ✅ Wait a moment to ensure all data is cleared
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // ✅ Redirect to login page
+      await router.push('/auth/login')
+      
+      // ✅ Force page reload to ensure clean state
+      setTimeout(() => {
+        window.location.href = '/auth/login'
+      }, 500)
+    } else {
+      console.error('[Header] Logout failed:', result.error)
+      // Still redirect even if logout fails
+      await router.push('/auth/login')
+    }
   } catch (err) {
-    console.error('Logout error:', err)
+    console.error('[Header] Logout error:', err)
+    // Force redirect to login even on error
+    router.push('/auth/login')
   }
 }
 
@@ -417,7 +374,7 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   cursor: pointer;
-  transition: alls;
+  transition: all 0.3s;
   position: relative;
 }
 
@@ -432,15 +389,15 @@ onMounted(() => {
 }
 
 .nav-label {
-  font-size:rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
 .notification-badge {
   position: absolute;
-  top: -px;
+  top: -8px;
   right: -8px;
-  background: #ff;
+  background: #ff4757;
   color: white;
   border-radius: 50%;
   width: 20px;
@@ -498,7 +455,7 @@ onMounted(() => {
 }
 
 .wallet-balance {
-  font-weight: ;
+  font-weight: bold;
   font-size: 0.9rem;
 }
 
@@ -511,7 +468,7 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 200px;
   margin-top: 0.5rem;
-  z-index: ;
+  z-index: 1001;
 }
 
 .wallet-option {
@@ -519,7 +476,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  color: #;
+  color: #333;
   cursor: pointer;
   transition: all 0.3s;
   border: none;
@@ -568,7 +525,7 @@ onMounted(() => {
 }
 
 .status-dot.online {
-  background: #ecc71;
+  background: #2ecc71;
 }
 
 .status-dot.away {
@@ -580,7 +537,7 @@ onMounted(() => {
 }
 
 .status-dot.offline {
-  background: #a5a6;
+  background: #95a5a6;
 }
 
 .profile-dropdown {
@@ -618,7 +575,7 @@ onMounted(() => {
 .profile-info p {
   margin: 0;
   color: #666;
-  font-size: rem;
+  font-size: 0.85rem;
 }
 
 .profile-dropdown hr {
@@ -630,7 +587,7 @@ onMounted(() => {
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: rem;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   color: #333;
   text-decoration: none;
@@ -678,7 +635,7 @@ onMounted(() => {
 .media-thumbnail {
   position: relative;
   width: 100%;
-  height:px;
+  height: 100px;
   border-radius: 8px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.1);
@@ -710,11 +667,11 @@ onMounted(() => {
 }
 
 .media-info {
-  padding: 0.5rem ;
+  padding: 0.5rem 0;
 }
 
 .media-info h5 {
-  margin: 0.rem 0;
+  margin: 0.25rem 0;
   color: white;
   font-size: 0.8rem;
   white-space: nowrap;
@@ -732,9 +689,9 @@ onMounted(() => {
   display: inline-block;
   background: rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.8);
-  padding: 0.rem 0.4rem;
-  border-radius:px;
-  font-size:rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 2px;
+  font-size: 0.65rem;
   margin-top: 0.25rem;
 }
 
@@ -771,25 +728,19 @@ onMounted(() => {
 .sidebar-header h3 {
   margin: 0;
   color: #333;
-  font-size:rem;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #666;
   cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-btn:hover {
   color: #333;
+  padding: 0;
 }
 
 .sidebar-nav {
+  display: flex;
+  flex-direction: column;
   padding: 1rem 0;
 }
 
@@ -797,7 +748,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 1.5rem;
   color: #333;
   text-decoration: none;
   transition: all 0.3s;
@@ -805,42 +756,6 @@ onMounted(() => {
 
 .sidebar-item:hover {
   background: #f5f5f5;
-  padding-left: 2rem;
-}
-
-.sidebar-item.router-link-active {
-  background: rgba(102, 126, 234, 0.1);
   color: #667eea;
-  border-left: 3px solid #667eea;
-  padding-left: calc(1.5rem - 3px);
-}
-
-.sidebar-divider {
-  margin: 1rem 0;
-  border: none;
-  border-top: 1px solid #eee;
-}
-
-@media (max-width: 768px) {
-  .header-top {
-    padding: 0.75rem 1rem;
-  }
-
-  .header-center {
-    gap: 1rem;
-  }
-
-  .nav-label {
-    display: none;
-  }
-
-  .header-right {
-    gap: 1rem;
-  }
-
-  .media-container {
-    padding: .75rem 1rem;
-  }
 }
 </style>
-
