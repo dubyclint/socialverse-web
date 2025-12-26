@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED VERSION (Remove createSession)
+// FILE: /server/api/auth/signup.post.ts - FIXED VERSION WITH EMAIL SENDING
 // ============================================================================
-// Removed the problematic createSession call - not needed for signup
+// Added automatic verification email sending after user creation
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
       
       // ⚠️ IMPORTANT: Provide more specific error messages
       let errorMessage = authError.message || 'Failed to create user'
-      
+  
       if (authError.message?.includes('already exists')) {
         errorMessage = 'This email is already registered'
       } else if (authError.message?.includes('invalid')) {
@@ -114,6 +114,25 @@ export default defineEventHandler(async (event) => {
     const userId = authData.user.id
     console.log('[API] ✅ Auth user created:', userId)
     console.log('[API] ℹ️ Profile will be created automatically by trigger')
+
+    // ✅ STEP 2: Send verification email
+    console.log('[API] Sending verification email to:', email)
+    
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim().toLowerCase()
+    })
+
+    if (resendError) {
+      console.error('[API] Error sending verification email:', {
+        message: resendError.message,
+        status: resendError.status
+      })
+      // Don't throw - user was created successfully, just email failed
+      // Log it but continue with response
+    } else {
+      console.log('[API] ✅ Verification email sent to:', email)
+    }
 
     return {
       success: true,
