@@ -1,8 +1,4 @@
-// composables/use-auth.ts - COMPLETE FIXED FILE
-// ============================================================================
-// LOGOUT FIX: Properly clears all localStorage items and session data
-// ============================================================================
-
+// composables/use-auth.ts
 import { ref, computed } from 'vue'
 
 export const useAuth = () => {
@@ -16,40 +12,28 @@ export const useAuth = () => {
   const user = computed(() => authStore.user)
   const token = computed(() => authStore.token)
 
-  /**
-   * Extract error message from response with detailed error handling
-   */
   const extractErrorMessage = (err: any): string => {
     if (err.data?.data?.details) {
       return err.data.data.details
     }
-    
     if (err.data?.statusMessage) {
       return err.data.statusMessage
     }
-    
     if (err.statusMessage) {
       return err.statusMessage
     }
-    
     if (err.data?.message) {
       return err.data.message
     }
-    
     if (err.message) {
       return err.message
     }
-    
     if (typeof err === 'string') {
       return err
     }
-    
     return 'An error occurred'
   }
 
-  /**
-   * Login user
-   */
   const login = async (email: string, password: string) => {
     loading.value = true
     error.value = ''
@@ -88,7 +72,6 @@ export const useAuth = () => {
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Login failed:', errorMessage)
-      console.error('[useAuth] Full error:', err)
       error.value = errorMessage
       return { success: false, error: errorMessage }
     } finally {
@@ -96,9 +79,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Signup user with detailed error handling
-   */
   const signup = async (data: {
     email: string
     password: string
@@ -114,12 +94,10 @@ export const useAuth = () => {
     try {
       console.log('[useAuth] Signup attempt:', { email: data.email, username: data.username })
 
-      // ✅ Validate required fields
       if (!data.email || !data.password || !data.username) {
         throw new Error('Email, password, and username are required')
       }
 
-      // ✅ Call signup API
       const result = await $fetch('/api/auth/signup', {
         method: 'POST',
         body: {
@@ -136,7 +114,6 @@ export const useAuth = () => {
         throw new Error(result?.message || 'Signup failed')
       }
 
-      // ✅ Store user data in auth store
       authStore.setUser({
         id: result.user.id,
         email: result.user.email,
@@ -150,7 +127,6 @@ export const useAuth = () => {
 
       authStore.setUserId(result.user.id)
 
-      // ✅ Store token if provided (for auto-login)
       if (result.token) {
         authStore.setToken(result.token)
         if (result.refreshToken) {
@@ -177,14 +153,10 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * ✅ FIXED LOGOUT: Properly clears all localStorage items
-   */
   const logout = async () => {
     try {
       console.log('[useAuth] Logging out...')
       
-      // ✅ STEP 1: Call logout API to clear server-side session
       try {
         await $fetch('/api/auth/logout', {
           method: 'POST'
@@ -192,16 +164,12 @@ export const useAuth = () => {
         console.log('[useAuth] Server logout successful')
       } catch (apiErr) {
         console.warn('[useAuth] Server logout failed (continuing with client logout):', apiErr)
-        // Continue with client-side logout even if API fails
       }
 
-      // ✅ STEP 2: Clear auth store
       authStore.clearAuth()
       userStore.clearSession()
 
-      // ✅ STEP 3: Clear ALL localStorage items related to auth
       if (typeof window !== 'undefined') {
-        // Remove specific auth keys
         localStorage.removeItem('auth_token')
         localStorage.removeItem('auth_user')
         localStorage.removeItem('auth_user_id')
@@ -209,7 +177,6 @@ export const useAuth = () => {
         localStorage.removeItem('user')
         localStorage.removeItem('session')
         
-        // Remove any other session-related items
         const keysToRemove = []
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
@@ -220,7 +187,6 @@ export const useAuth = () => {
         keysToRemove.forEach(key => localStorage.removeItem(key))
       }
 
-      // ✅ STEP 4: Clear sessionStorage as well
       if (typeof window !== 'undefined') {
         sessionStorage.clear()
       }
@@ -232,16 +198,11 @@ export const useAuth = () => {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Logout failed:', errorMessage)
       error.value = errorMessage
-      
-      // ✅ Even if logout fails, still clear local data
       authStore.clearAuth()
       return { success: false, error: errorMessage }
     }
   }
 
-  /**
-   * Refresh authentication token
-   */
   const refreshToken = async () => {
     try {
       const refreshTokenValue = typeof window !== 'undefined' 
@@ -278,9 +239,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Verify email with token
-   */
   const verifyEmail = async (token: string) => {
     loading.value = true
     error.value = ''
@@ -310,9 +268,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Resend verification email
-   */
   const resendVerification = async (email: string) => {
     loading.value = true
     error.value = ''
@@ -337,7 +292,6 @@ export const useAuth = () => {
     } catch (err: any) {
       const errorMessage = extractErrorMessage(err)
       console.error('[useAuth] ✗ Resend verification failed:', errorMessage)
-      console.error('[useAuth] Full error:', err)
       error.value = errorMessage
       return { success: false, error: errorMessage }
     } finally {
@@ -345,9 +299,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Request password reset
-   */
   const forgotPassword = async (email: string) => {
     loading.value = true
     error.value = ''
@@ -375,9 +326,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Reset password with token
-   */
   const resetPassword = async (token: string, newPassword: string) => {
     loading.value = true
     error.value = ''
@@ -405,9 +353,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Check if username is available
-   */
   const checkUsername = async (username: string) => {
     try {
       const result = await $fetch('/api/auth/check-username', {
@@ -426,9 +371,6 @@ export const useAuth = () => {
     }
   }
 
-  /**
-   * Initialize auth from stored token
-   */
   const initAuth = async () => {
     if (typeof window === 'undefined') return
 
