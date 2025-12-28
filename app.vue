@@ -1,15 +1,7 @@
-<!-- FILE: /app.vue - COMPLETE FIXED FILE -->
-<!-- ============================================================================
-     APP COMPONENT - FIXED: Proper session initialization and logout handling
-     ✅ FIXED: Validates session data before restoring
-     ✅ FIXED: Checks for logout query parameter
-     ✅ FIXED: Clears corrupted session data
-     ============================================================================ -->
-
+<!-- /app.vue -->
 <template>
   <NuxtLayout>
     <div id="app">
-      <!-- Show error if Supabase not ready (client-only) -->
       <ClientOnly>
         <div v-if="supabaseError && !isInitializing" class="supabase-error-banner">
           <p>⚠️ Database connection unavailable. Some features may be limited.</p>
@@ -17,20 +9,16 @@
         </div>
       </ClientOnly>
 
-      <!-- Main content -->
       <NuxtPage />
       
-      <!-- Global Notifications (client-only) -->
       <ClientOnly>
         <NotificationToast />
       </ClientOnly>
       
-      <!-- Global Loading (client-only) -->
       <ClientOnly>
         <GlobalLoading v-if="isLoading" />
       </ClientOnly>
       
-      <!-- Global Error Boundary (client-only) -->
       <ClientOnly>
         <ErrorBoundary v-if="globalError" class="global-error">
           <div class="error-content">
@@ -57,14 +45,10 @@ const isLoading = ref(false)
 const supabaseError = ref()
 const globalError = ref<string | null>(null)
 
-/**
- * ✅ FIXED: Initialize app on mount with proper session validation
- */
 onMounted(async () => {
   try {
     console.log('[App] 🚀 Initializing application...')
     
-    // ✅ Check if user is being redirected from logout
     const isLoggingOut = route.query.logout === 'true'
     
     if (isLoggingOut) {
@@ -74,7 +58,6 @@ onMounted(async () => {
       return
     }
     
-    // ✅ Initialize auth session from localStorage (client-only)
     const sessionInitialized = authStore.initializeSession()
     
     if (sessionInitialized) {
@@ -82,7 +65,6 @@ onMounted(async () => {
       console.log('[App] User:', authStore.userDisplayName)
       console.log('[App] Authenticated:', authStore.isAuthenticated)
       
-      // ✅ Verify token is still valid by checking if it's not empty
       if (!authStore.token || !authStore.user) {
         console.warn('[App] ⚠️ Session data incomplete, clearing')
         authStore.clearAuth()
@@ -91,7 +73,6 @@ onMounted(async () => {
       console.log('[App] ℹ️ No previous session found')
     }
 
-    // Check Supabase availability
     if (!$supabase) {
       console.warn('[App] Supabase not available')
       supabaseError.value = true
@@ -110,9 +91,6 @@ onMounted(async () => {
   }
 })
 
-/**
- * Retry initialization
- */
 const retryInitialization = async () => {
   isInitializing.value = true
   supabaseError.value = false
@@ -120,9 +98,6 @@ const retryInitialization = async () => {
   isInitializing.value = false
 }
 
-/**
- * Clear error
- */
 const clearError = () => {
   globalError.value = null
 }
