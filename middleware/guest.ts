@@ -1,29 +1,33 @@
-// FILE: /middleware/guest.ts - GUEST-ONLY MIDDLEWARE (COMPLETE & FIXED)
-// ============================================================================
-// NON-GLOBAL MIDDLEWARE - Applied to auth routes via definePageMeta
-// Purpose: Ensure only unauthenticated users can access auth pages
-// ============================================================================
-
+//file: /middleware/guest.ts - FIXED VERSION
 export default defineNuxtRouteMiddleware((to, from) => {
-  // Skip middleware on server-side rendering
   if (process.server) return
 
   console.log(`[Guest Middleware] Checking route: ${to.path}`)
 
   try {
-    // Check if user is already authenticated
-    const token = typeof window !== 'undefined' 
-      ? localStorage.getItem('auth_token') 
-      : null
+    const authStore = useAuthStore()
+    
+    console.log('[Guest Middleware] Auth Store State:', {
+      isAuthenticated: authStore.isAuthenticated,
+      hasToken: !!authStore.token,
+      hasUser: !!authStore.user,
+      isHydrated: authStore.isHydrated
+    })
 
-    // If authenticated user tries to access auth pages, redirect to feed
-    if (token) {
+    if (!authStore.isHydrated) {
+      console.log('[Guest Middleware] Store not hydrated yet, initializing...')
+      authStore.initializeSession()
+    }
+
+    if (authStore.isAuthenticated && authStore.token && authStore.user) {
       console.log(`[Guest Middleware] ✓ Authenticated user redirected from ${to.path} to /feed`)
       return navigateTo('/feed')
     }
 
-    console.log(`[Guest Middleware] ✓ Unauthenticated user allowed on: ${to.path}`)
+    console.log(`[Guest Middleware] ✓ Unauthenticated user allowed to access ${to.path}`)
+    return
   } catch (error) {
-    console.error(`[Guest Middleware] Error:`, error)
+    console.error('[Guest Middleware] Error:', error)
+    return
   }
 })
