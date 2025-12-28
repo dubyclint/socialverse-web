@@ -1,14 +1,6 @@
-<!-- FILE: /components/layout/header.vue - COMPLETE FIXED FILE -->
-<!-- ============================================================================
-     HEADER COMPONENT - FIXED: Proper logout handling
-     ✅ FIXED: handleLogout now uses useAuth composable
-     ✅ FIXED: Proper redirect with page reload
-     ✅ FIXED: Closes all menus before logout
-     ============================================================================ -->
-
+<!-- /components/layout/header.vue -->
 <template>
   <header class="modern-header">
-    <!-- Top Navigation Bar ---->
     <div class="header-top">
       <div class="header-left">
         <button class="menu-btn" @click="toggleSidebar">
@@ -90,7 +82,6 @@
       </div>
     </div>
 
-    <!-- Media Carousel -->
     <div class="media-container">
       <div class="media-scroll">
         <div
@@ -114,7 +105,6 @@
       </div>
     </div>
 
-    <!-- Mobile Sidebar -->
     <div v-if="showSidebar" class="sidebar-overlay" @click="closeSidebar"></div>
     <div v-if="showSidebar" class="sidebar">
       <div class="sidebar-header">
@@ -167,7 +157,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { logout } = useAuth()
 
-// Reactive data
 const showSidebar = ref(false)
 const showWalletMenu = ref(false)
 const showProfileMenu = ref(false)
@@ -175,15 +164,13 @@ const unreadMessages = ref(3)
 const walletBalance = ref(1.50)
 const isLiveStreaming = ref(false)
 
-// Computed properties from auth store - DYNAMIC USER DATA
 const user = computed(() => ({
   name: authStore.userDisplayName,
   username: authStore.user?.username || 'user',
   avatar: authStore.user?.avatar_url || '/default-avatar.png',
-  status: 'online' // online, away, busy, offline
+  status: 'online'
 }))
 
-// Media items for horizontal scroll
 const mediaItems = ref([
   {
     id: 1,
@@ -211,7 +198,6 @@ const mediaItems = ref([
   }
 ])
 
-// Methods
 const toggleSidebar = () => {
   showSidebar.value = !showSidebar.value
 }
@@ -246,51 +232,39 @@ const openEscrow = () => {
 }
 
 const openMediaItem = (item) => {
-  // Handle media item click
   router.push(`/media/${item.id}`)
 }
 
-/**
- * ✅ FIXED LOGOUT: Uses useAuth composable and properly clears all data
- */
 const handleLogout = async () => {
   try {
     console.log('[Header] Initiating logout...')
     
-    // ✅ Use the proper logout function from useAuth composable
     const result = await logout()
     
     if (result.success) {
-      console.log('[Header] ✅ Logout successful, redirecting to login')
+      console.log('[Header] Logout successful, redirecting to login')
       
-      // ✅ Close any open menus
       showProfileMenu.value = false
       showWalletMenu.value = false
       showSidebar.value = false
       
-      // ✅ Wait a moment to ensure all data is cleared
       await new Promise(resolve => setTimeout(resolve, 100))
       
-      // ✅ Redirect to login page
       await router.push('/auth/login')
       
-      // ✅ Force page reload to ensure clean state
       setTimeout(() => {
         window.location.href = '/auth/login'
       }, 500)
     } else {
       console.error('[Header] Logout failed:', result.error)
-      // Still redirect even if logout fails
       await router.push('/auth/login')
     }
   } catch (err) {
     console.error('[Header] Logout error:', err)
-    // Force redirect to login even on error
     router.push('/auth/login')
   }
 }
 
-// Close dropdowns when clicking outside
 onMounted(() => {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.wallet-container')) {
@@ -391,44 +365,6 @@ onMounted(() => {
 .nav-label {
   font-size: 0.75rem;
   font-weight: 500;
-}
-
-.notification-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ff4757;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: bold;
-}
-
-.live-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ff4757;
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: bold;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
 }
 
 .header-right {
