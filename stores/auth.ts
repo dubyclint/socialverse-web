@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const isHydrated = ref(false)
   const rememberMe = ref(false)
+  const lastTokenValidation = ref<number>(0)
 
   const isAuthenticated = computed(() => !!token.value && !!user.value && !!userId.value)
   
@@ -123,21 +124,63 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] Clearing all auth data')
     
     token.value = null
-    userId.value = null
     user.value = null
+    userId.value = null
     rememberMe.value = false
     error.value = null
+    lastTokenValidation.value = 0
 
     if (process.client) {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_user_id')
       localStorage.removeItem('auth_user')
       localStorage.removeItem('auth_remember_me')
+      localStorage.removeItem('auth_token_validation')
       console.log('[Auth Store] ✅ All auth data cleared from localStorage')
     }
   }
 
-  const hydrateFromStorage = () => {
+  const validateToken = async () => {
+    if (!process.client || !token.value) {
+      console.log('[Auth Store] No token to validate')
+      return false
+    }
+
+    // Don't validate more than once per minute
+    const now = Date.now()
+    if (lastTokenValidation.value && now - lastTokenValidation.value < 60000) {
+      console.log('[Auth Store] Token validation skipped (cached)')
+      return true
+    }
+
+    try {
+      console.log('[Auth Store] Validating token...')
+      
+      const result = await $fetch('/api/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+
+      if (result?.user) {
+        console.log('[Auth Store] ✅ Token is valid')
+        lastTokenValidation.value = now
+        setUser(result.user)
+        return true
+      }
+
+      console.warn('[Auth Store] Token validation failed - invalid response')
+      clearAuth()
+      return false
+
+    } catch (err: any) {
+      console.error('[Auth Store] Token validation failed:', err.message)
+      clearAuth()
+      return false
+    }
+  }
+
+  const hydrateFromStorage = async () => {
     if (!process.client || isHydrated.value) return
 
     console.log('[Auth Store] Hydrating from localStorage...')
@@ -176,12 +219,27 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] ✅ Remember me preference restored')
       }
 
+      // CRITICAL: Validate token if we have one
+      if (token.value && user.value) {
+        console.log('[Auth Store] Validating restored token...')
+        const isValid = await validateToken()
+        
+        if (!isValid) {
+          console.warn('[Auth Store] Restored token is invalid or user was deleted')
+          clearAuth()
+        }
+      }
+
       isHydrated.value = true
       console.log('[Auth Store] ✅ Hydration complete')
     } catch (err) {
       console.error('[Auth Store] ❌ Hydration error:', err)
       isHydrated.value = true
     }
+  }
+
+  const initializeSession = () => {
+    return hydrateFromStorage()
   }
 
   const setLoading = (value: boolean) => {
@@ -218,7 +276,9 @@ export const useAuthStore = defineStore('auth', () => {
     setRememberMe,
     getRememberMe,
     clearAuth,
+    validateToken,
     hydrateFromStorage,
+    initializeSession,
     setLoading,
     setError
   }
