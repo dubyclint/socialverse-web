@@ -6,8 +6,8 @@ import type { Ref } from 'vue'
 interface StorageConfig {
   prefix: string
   encrypt: boolean
-  ttl?: number // Time to live in milliseconds
-  maxSize?: number // Max size in bytes
+  ttl?: number
+  maxSize?: number
 }
 
 /**
@@ -33,11 +33,10 @@ class StorageManager {
       prefix: 'app_',
       encrypt: false,
       ttl: undefined,
-      maxSize: 5 * 1024 * 1024, // 5MB default
+      maxSize: 5 * 1024 * 1024,
       ...config
     }
 
-    // Check if localStorage is available
     this.isAvailable = this.checkAvailability()
     
     if (this.isAvailable) {
@@ -47,9 +46,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * Check if localStorage is available
-   */
   private checkAvailability(): boolean {
     if (!process.client) return false
 
@@ -64,24 +60,15 @@ class StorageManager {
     }
   }
 
-  /**
-   * Get full key with prefix
-   */
   private getKey(key: string): string {
     return `${this.config.prefix}${key}`
   }
 
-  /**
-   * Check if item has expired
-   */
   private isExpired(item: StorageItem): boolean {
     if (!item.ttl) return false
     return Date.now() - item.timestamp > item.ttl
   }
 
-  /**
-   * ✅ FIXED: Set item in storage
-   */
   public set<T = any>(key: string, value: T, ttl?: number): boolean {
     if (!process.client) return false
 
@@ -97,7 +84,6 @@ class StorageManager {
 
       const serialized = JSON.stringify(item)
       
-      // Check size
       if (serialized.length > (this.config.maxSize || 5 * 1024 * 1024)) {
         console.warn('[StorageManager] ⚠️ Item too large:', key)
         return false
@@ -109,7 +95,6 @@ class StorageManager {
           console.log('[StorageManager] ✅ Set:', key)
         } catch (e) {
           console.error('[StorageManager] ❌ Failed to set in localStorage:', e)
-          // Fallback to memory cache
           this.cache.set(fullKey, item)
         }
       } else {
@@ -123,9 +108,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Get item from storage
-   */
   public get<T = any>(key: string, defaultValue?: T): T | null {
     if (!process.client) return defaultValue || null
 
@@ -133,7 +115,6 @@ class StorageManager {
       const fullKey = this.getKey(key)
       let serialized: string | null = null
 
-      // Try localStorage first
       if (this.isAvailable) {
         try {
           serialized = localStorage.getItem(fullKey)
@@ -142,7 +123,6 @@ class StorageManager {
         }
       }
 
-      // Fallback to memory cache
       if (!serialized && this.cache.has(fullKey)) {
         const item = this.cache.get(fullKey)
         serialized = JSON.stringify(item)
@@ -154,7 +134,6 @@ class StorageManager {
 
       const item: StorageItem<T> = JSON.parse(serialized)
 
-      // Check expiration
       if (this.isExpired(item)) {
         console.log('[StorageManager] Item expired:', key)
         this.remove(key)
@@ -169,9 +148,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Remove item from storage
-   */
   public remove(key: string): boolean {
     if (!process.client) return false
 
@@ -195,9 +171,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Clear all items with prefix
-   */
   public clear(): boolean {
     if (!process.client) return false
 
@@ -215,7 +188,6 @@ class StorageManager {
         }
       }
 
-      // Clear memory cache
       const keysToDelete: string[] = []
       this.cache.forEach((_, key) => {
         if (key.startsWith(this.config.prefix)) {
@@ -232,9 +204,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Get all keys
-   */
   public keys(): string[] {
     if (!process.client) return []
 
@@ -253,7 +222,6 @@ class StorageManager {
         }
       }
 
-      // Add cache keys
       this.cache.forEach((_, key) => {
         if (key.startsWith(this.config.prefix)) {
           const cleanKey = key.replace(this.config.prefix, '')
@@ -270,9 +238,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Get storage size
-   */
   public getSize(): number {
     if (!process.client) return 0
 
@@ -298,9 +263,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Clean expired items
-   */
   public cleanup(): number {
     if (!process.client) return 0
 
@@ -323,9 +285,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * ✅ FIXED: Get storage info
-   */
   public getInfo(): {
     available: boolean
     size: number
@@ -343,9 +302,6 @@ class StorageManager {
   }
 }
 
-/**
- * ✅ FIXED: Create singleton instance
- */
 let storageManager: StorageManager | null = null
 
 export function useStorage(config?: Partial<StorageConfig>): StorageManager {
@@ -355,7 +311,4 @@ export function useStorage(config?: Partial<StorageConfig>): StorageManager {
   return storageManager
 }
 
-/**
- * ✅ FIXED: Export for direct use
- */
 export default StorageManager
