@@ -1,12 +1,3 @@
-// FILE: /composables/use-storage.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// STORAGE COMPOSABLE - FIXED: File management and storage tracking
-// ✅ FIXED: Get storage usage
-// ✅ FIXED: Upload file
-// ✅ FIXED: Delete file
-// ✅ FIXED: Comprehensive error handling
-// ============================================================================
-
 import { ref, computed } from 'vue'
 
 export const useStorage = () => {
