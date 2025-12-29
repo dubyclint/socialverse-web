@@ -113,6 +113,33 @@ export default defineNuxtConfig({
       external: ['gun', 'gun/gun', 'gun/sea'],
     },
 
+    // Add to nuxt.config.ts in the nitro section:
+
+nitro: {
+  // ... existing config ...
+  
+  // ✅ CRITICAL FIX: Add cache control headers
+  headers: {
+    'Cache-Control': 'public, max-age=0, must-revalidate',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+  },
+  
+  // ✅ CRITICAL FIX: Disable payload extraction to prevent hydration issues
+  payloadExtraction: false,
+  
+  // ✅ CRITICAL FIX: Proper static asset caching
+  publicAssets: [
+    {
+      baseURL: '/',
+      dir: 'public',
+      maxAge: 60 * 60 * 24 * 365, // 1 year for versioned assets
+    }
+  ],
+}
+
+
     // ✅ FIXED: Proper static asset handling (Issue 1)
     publicAssets: [
       {
