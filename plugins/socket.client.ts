@@ -1,13 +1,3 @@
-FIXED FILE 5: /plugins/socket.client.ts
-# ============================================================================
-# SOCKET.IO CLIENT PLUGIN - FIXED: Proper auth handling and localStorage
-# ============================================================================
-# ✅ FIXED: Uses auth store instead of direct localStorage
-# ✅ FIXED: Proper connection state management
-# ✅ FIXED: Comprehensive error handling
-# ✅ FIXED: Socket instance caching
-# ============================================================================
-
 import { io, Socket } from 'socket.io-client'
 
 let socketInstance: Socket | null = null
