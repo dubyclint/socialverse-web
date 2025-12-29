@@ -21,7 +21,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     provide: {
       socket: {
         /**
-         * ✅ FIXED: Connect to Socket.IO server with proper authentication
+         * Connect to Socket.IO server with proper authentication
          * Uses auth store instead of direct localStorage access
          */
         async connect(): Promise<Socket | null> {
@@ -34,7 +34,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
 
             console.log('[Socket.IO] 🚀 Connecting to server...')
 
-            // ✅ FIXED: Get auth store (not localStorage)
+            // Get auth store (not localStorage)
             const authStore = useAuthStore()
             
             // Wait for auth to be ready (max 5 seconds)
@@ -55,7 +55,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
             const config = useRuntimeConfig()
             const socketUrl = config.public.socketUrl || window.location.origin
 
-            // ✅ FIXED: Create Socket.IO connection with auth from store
+            // Create Socket.IO connection with auth from store
             socketInstance = io(socketUrl, {
               auth: {
                 token: authStore.token,
@@ -87,7 +87,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
               console.error('[Socket.IO] ❌ Error:', error)
             })
 
-            // ✅ FIXED: Listen for auth errors
+            // Listen for auth errors
             socketInstance.on('auth_error', (error: any) => {
               console.error('[Socket.IO] ❌ Auth error:', error)
               // Clear auth store on auth error
@@ -118,7 +118,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         },
 
         /**
-         * ✅ FIXED: Disconnect socket properly
+         * Disconnect socket properly
          */
         disconnect(): void {
           if (socketInstance) {
@@ -130,7 +130,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         },
 
         /**
-         * ✅ FIXED: Emit event with proper error handling
+         * Emit event with proper error handling
          */
         emit(event: string, data?: any): void {
           if (socketInstance?.connected) {
@@ -146,7 +146,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         },
 
         /**
-         * ✅ FIXED: Listen to event with proper error handling
+         * Listen to event with proper error handling
          */
         on(event: string, callback: (data: any) => void): void {
           if (socketInstance) {
@@ -174,7 +174,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         },
 
         /**
-         * ✅ FIXED: Reconnect with fresh auth token
+         * Reconnect with fresh auth token
          */
         async reconnect(): Promise<Socket | null> {
           console.log('[Socket.IO] 🔄 Reconnecting...')
@@ -184,21 +184,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
           await new Promise(resolve => setTimeout(resolve, 1000))
           
           return this.connect()
-        },
-
-        /**
-         * ✅ FIXED: Get connection status
-         */
-        getStatus(): {
-          connected: boolean
-          connectionAttempts: number
-          maxAttempts: number
-        } {
-          return {
-            connected: socketInstance?.connected || false,
-            connectionAttempts,
-            maxAttempts: MAX_CONNECTION_ATTEMPTS
-          }
         }
       }
     }
