@@ -1,12 +1,3 @@
-FIXED FILE 7: /composables/use-I18n.ts (EXTENDED)
-# ============================================================================
-# I18N COMPOSABLE - FIXED: Uses storage manager for language persistence
-# ============================================================================
-# ✅ FIXED: Added setLanguage() with storage persistence
-# ✅ FIXED: Added getStoredLanguage() method
-# ✅ FIXED: Proper error handling
-# ============================================================================
-
 import { ref } from 'vue'
 
 export const currentLang = ref('en')
@@ -24,7 +15,6 @@ export async function loadTranslations(lang: string = 'en') {
   try {
     console.log('[i18n] Loading translations for language:', lang)
     
-    // ✅ Try API first, but don't block if it fails
     let apiSuccess = false
     try {
       const { data, error } = await useFetch(`/api/translations?lang=${lang}`)
@@ -39,14 +29,12 @@ export async function loadTranslations(lang: string = 'en') {
       console.warn('[i18n] API fetch failed, using local files:', fetchErr)
     }
     
-    // ✅ If API didn't work, use local files
     if (!apiSuccess) {
       await loadLocalTranslations(lang)
     }
     
   } catch (err) {
     console.error('[i18n] Translation load failed:', err)
-    // ✅ Always load local files as last resort
     await loadLocalTranslations(lang)
   } finally {
     isLoadingTranslations.value = false
@@ -140,19 +128,16 @@ export function t(key: string, defaultValue?: string): string {
 }
 
 /**
- * ✅ FIXED: Set language with storage persistence
+ * Set language with storage persistence
  */
 export async function setLanguage(lang: string) {
   try {
     console.log('[i18n] Setting language:', lang)
     
-    // ✅ FIXED: Use storage manager to persist language
     const storage = useStorage({ prefix: 'i18n_' })
     
-    // Load translations
     await loadTranslations(lang)
     
-    // Store language preference
     storage.set('language', lang)
     currentLang.value = lang
     
@@ -163,7 +148,7 @@ export async function setLanguage(lang: string) {
 }
 
 /**
- * ✅ FIXED: Get stored language
+ * Get stored language
  */
 export function getStoredLanguage(): string {
   try {
@@ -182,14 +167,14 @@ export function getStoredLanguage(): string {
 }
 
 /**
- * ✅ FIXED: Get current language
+ * Get current language
  */
 export function getCurrentLang(): string {
   return currentLang.value
 }
 
 /**
- * ✅ FIXED: Detect browser language
+ * Detect browser language
  */
 export function detectBrowserLanguage(): string {
   try {
@@ -207,24 +192,21 @@ export function detectBrowserLanguage(): string {
 }
 
 /**
- * ✅ FIXED: Initialize i18n
+ * Initialize i18n
  */
 export async function initializeI18n() {
   try {
     console.log('[i18n] Initializing...')
     
-    // Get stored language or detect browser language
     const storedLang = getStoredLanguage()
     const browserLang = detectBrowserLanguage()
     const langToUse = storedLang || browserLang
     
-    // Load translations
     await loadTranslations(langToUse)
     
     console.log('[i18n] ✅ Initialized with language:', langToUse)
   } catch (err) {
     console.error('[i18n] ❌ Initialization error:', err)
-    // Fallback to English
     await loadTranslations('en')
   }
 }
