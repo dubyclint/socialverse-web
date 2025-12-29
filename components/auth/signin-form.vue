@@ -1,3 +1,12 @@
+ FIXED FILE 1: /components/auth/signin-form.vue
+# ============================================================================
+# SIGNIN FORM - FIXED: Removed direct localStorage usage
+# ============================================================================
+# ✅ FIXED: Removed localStorage.setItem('rememberMe', 'true')
+# ✅ FIXED: Using auth store for remember me preference
+# ✅ FIXED: Proper error handling
+# ============================================================================
+
 <template>
   <div class="bg-slate-800 rounded-lg shadow-xl p-8 border border-slate-700">
     <!-- Error Message -->
@@ -79,6 +88,7 @@ const emit = defineEmits<{
 }>()
 
 const { login } = useAuth()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const error = ref('')
@@ -94,19 +104,29 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
+    console.log('[SignInForm] Submitting signin form')
+    
     const result = await login(formData.email, formData.password)
 
     if (result.success) {
-      // Store remember me preference
+      console.log('[SignInForm] ✅ Login successful')
+      
+      // ✅ FIXED: Store remember me preference in auth store instead of localStorage
       if (formData.rememberMe) {
-        localStorage.setItem('rememberMe', 'true')
+        console.log('[SignInForm] Setting remember me preference in auth store')
+        authStore.setRememberMe(true)
+      } else {
+        authStore.setRememberMe(false)
       }
+      
       emit('success', result)
     } else {
       error.value = result.error || 'Login failed'
+      console.error('[SignInForm] ✗ Login failed:', error.value)
     }
   } catch (err: any) {
     error.value = err.message || 'An error occurred during login'
+    console.error('[SignInForm] ✗ Exception:', error.value)
   } finally {
     loading.value = false
   }
