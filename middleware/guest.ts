@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     // First, ensure store is hydrated
     if (!authStore.isHydrated) {
       console.log('[Guest Middleware] Store not hydrated, hydrating from storage...')
-      authStore.hydrateFromStorage()
+      await authStore.hydrateFromStorage()
     }
 
     // Only redirect if ALL conditions are true:
