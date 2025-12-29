@@ -1,11 +1,11 @@
-// ============================================================================
-// FILE 3: /middleware/language-check.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// ✅ FIXED: Removed useI18n from middleware (composables not available in middleware)
-// ✅ FIXED: Using localStorage for language persistence
-// ✅ FIXED: Proper client-side only execution
-// ✅ FIXED: Better error handling and logging
-// ============================================================================
+ FIXED FILE 6: /middleware/language-check.ts
+# ============================================================================
+# LANGUAGE CHECK MIDDLEWARE - FIXED: Uses storage manager
+# ============================================================================
+# ✅ FIXED: Replaced direct localStorage with storage manager
+# ✅ FIXED: Proper error handling
+# ✅ FIXED: Client-side only execution
+# ============================================================================
 
 export default defineNuxtRouteMiddleware((to, from) => {
   // ============================================================================
@@ -18,25 +18,12 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
   try {
     // ============================================================================
-    // ONLY RUN ON CLIENT-SIDE
+    // ✅ FIXED: Use storage manager instead of direct localStorage
     // ============================================================================
-    if (!process.client) {
-      console.log('[Language Middleware] Not on client - skipping')
-      return
-    }
-
-    // ============================================================================
-    // CHECK IF LOCALSTORAGE IS AVAILABLE
-    // ============================================================================
-    if (typeof localStorage === 'undefined') {
-      console.warn('[Language Middleware] ⚠️ localStorage not available')
-      return
-    }
-
-    // ============================================================================
-    // GET STORED LANGUAGE OR DETECT BROWSER LANGUAGE
-    // ============================================================================
-    const storedLang = localStorage.getItem('app-language')
+    const storage = useStorage({ prefix: 'i18n_' })
+    
+    // Get stored language
+    const storedLang = storage.get<string>('language')
     
     if (storedLang) {
       console.log('[Language Middleware] ✅ Using stored language:', storedLang)
@@ -44,26 +31,19 @@ export default defineNuxtRouteMiddleware((to, from) => {
     }
 
     // ============================================================================
-    // DETECT BROWSER LANGUAGE
+    // DETECT BROWSER LANGUAGE AS FALLBACK
     // ============================================================================
-    const browserLang = typeof navigator !== 'undefined' 
-      ? (navigator?.language || navigator?.userLanguage || 'en').split('-')[0]
-      : 'en'
+    const browserLang = navigator.language?.split('-')[0] || 'en'
+    const supportedLangs = ['en', 'es', 'fr', 'de', 'zh', 'ja']
+    const detectedLang = supportedLangs.includes(browserLang) ? browserLang : 'en'
 
-    // ============================================================================
-    // VALIDATE LANGUAGE CODE
-    // ============================================================================
-    const supportedLanguages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko']
-    const finalLang = supportedLanguages.includes(browserLang) ? browserLang : 'en'
-
-    // ============================================================================
-    // STORE LANGUAGE IN LOCALSTORAGE
-    // ============================================================================
-    localStorage.setItem('app-language', finalLang)
-    console.log('[Language Middleware] ✅ Set language to:', finalLang)
-
-  } catch (error) {
-    console.warn('[Language Middleware] ⚠️ Error setting language:', error)
-    // Continue anyway - app should work without language middleware
+    console.log('[Language Middleware] ✅ Detected browser language:', detectedLang)
+    
+    // ✅ FIXED: Store detected language using storage manager
+    storage.set('language', detectedLang)
+    
+  } catch (err) {
+    console.error('[Language Middleware] ❌ Error:', err)
+    // Continue anyway - app should work without language detection
   }
 })
