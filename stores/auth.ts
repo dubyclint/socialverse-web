@@ -1,14 +1,3 @@
- FIXED FILE 2: /stores/auth.ts
-# ============================================================================
-# AUTH STORE - FIXED: Proper localStorage management with store methods
-# ============================================================================
-# ✅ FIXED: Added setRememberMe() method
-# ✅ FIXED: Added getRememberMe() method
-# ✅ FIXED: Centralized all localStorage access
-# ✅ FIXED: Proper hydration handling
-# ✅ FIXED: Comprehensive error handling
-# ============================================================================
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User } from '~/types/auth'
@@ -35,9 +24,6 @@ export const useAuthStore = defineStore('auth', () => {
     return 'User'
   })
 
-  // ============================================================================
-  // ✅ FIXED: Token Management
-  // ============================================================================
   const setToken = (newToken: string | null) => {
     token.value = newToken
     
@@ -54,9 +40,6 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] Token updated')
   }
 
-  // ============================================================================
-  // ✅ FIXED: User ID Management
-  // ============================================================================
   const setUserId = (id: string) => {
     userId.value = id
     
@@ -68,9 +51,6 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] User ID set:', id)
   }
 
-  // ============================================================================
-  // ✅ FIXED: User Data Management
-  // ============================================================================
   const setUser = (newUser: any) => {
     if (!newUser) {
       user.value = null
@@ -114,9 +94,6 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] User set:', extractedId)
   }
 
-  // ============================================================================
-  // ✅ FIXED: Remember Me Management (NEW)
-  // ============================================================================
   const setRememberMe = (value: boolean) => {
     rememberMe.value = value
     
@@ -142,9 +119,6 @@ export const useAuthStore = defineStore('auth', () => {
     return value
   }
 
-  // ============================================================================
-  // ✅ FIXED: Clear All Auth Data
-  // ============================================================================
   const clearAuth = () => {
     console.log('[Auth Store] Clearing all auth data')
     
@@ -163,9 +137,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Hydrate from localStorage
-  // ============================================================================
   const hydrateFromStorage = () => {
     if (!process.client || isHydrated.value) return
 
@@ -213,16 +184,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Set Loading State
-  // ============================================================================
   const setLoading = (value: boolean) => {
     isLoading.value = value
   }
 
-  // ============================================================================
-  // ✅ FIXED: Set Error
-  // ============================================================================
   const setError = (err: string | null) => {
     error.value = err
     if (err) {
