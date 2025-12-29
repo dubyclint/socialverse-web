@@ -11,6 +11,32 @@
      ✅ FIXED: Accessibility improvements
      ✅ FIXED: Performance optimizations
      ============================================================================ -->
+<template>
+  <div class="feed-page">
+    <!-- HEADER WITH INTEGRATED SIDEBAR - From FeedHeader Component -->
+    <FeedHeader />
+
+    <!-- MAIN CONTENT WRAPPER - ✅ CRITICAL FIX: Wrap in ClientOnly -->
+    <ClientOnly>
+      <main class="feed-main-wrapper">
+        <!-- Left Sidebar - User Profile & Navigation Menu -->
+        <aside class="feed-sidebar-left">
+          <!-- ... existing sidebar content ... -->
+        </aside>
+
+        <!-- Center Feed -->
+        <section class="feed-content">
+          <!-- ... existing feed content ... -->
+        </section>
+
+        <!-- Right Sidebar - Recommendations & Trending -->
+        <aside class="feed-sidebar-right">
+          <!-- ... existing sidebar content ... -->
+        </aside>
+      </main>
+    </ClientOnly>
+  </div>
+</template>
 
 <template>
   <div class="feed-page">
