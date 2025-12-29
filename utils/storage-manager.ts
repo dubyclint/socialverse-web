@@ -1,15 +1,3 @@
-UTILITY WRAPPER: /utils/storage-manager.ts
-# ============================================================================
-# CENTRALIZED STORAGE MANAGEMENT UTILITY
-# ============================================================================
-# ✅ FIXED: Single source of truth for all localStorage operations
-# ✅ FIXED: Proper error handling and validation
-# ✅ FIXED: Type-safe operations
-# ✅ FIXED: Encryption support for sensitive data
-# ✅ FIXED: Quota management
-# ✅ FIXED: Automatic cleanup
-# ============================================================================
-
 import type { Ref } from 'vue'
 
 /**
