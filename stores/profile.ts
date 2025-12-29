@@ -1,13 +1,3 @@
- FIXED FILE 3: /stores/profile.ts
-# ============================================================================
-# PROFILE STORE - FIXED: Proper localStorage management
-# ============================================================================
-# ✅ FIXED: Added cacheProfile() method
-# ✅ FIXED: Added restoreProfileFromCache() method
-# ✅ FIXED: Centralized localStorage access for profile data
-# ✅ FIXED: Proper hydration handling
-# ============================================================================
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
@@ -37,29 +27,18 @@ export const useProfileStore = defineStore('profile', () => {
   const error = ref<string | null>(null)
   const isCached = ref(false)
 
-  // ============================================================================
-  // COMPUTED
-  // ============================================================================
   const profileId = computed(() => profile.value?.id || null)
   const profileUsername = computed(() => profile.value?.username || null)
   const profileEmail = computed(() => profile.value?.email || null)
   const isProfileComplete = computed(() => profile.value?.profile_completed || false)
   const isVerified = computed(() => profile.value?.is_verified || false)
 
-  // ============================================================================
-  // ✅ FIXED: Set Profile
-  // ============================================================================
   const setProfile = (newProfile: Profile) => {
     profile.value = newProfile
     console.log('[ProfileStore] ✅ Profile set:', newProfile.id)
-    
-    // ✅ Cache profile to localStorage
     cacheProfile(newProfile)
   }
 
-  // ============================================================================
-  // ✅ FIXED: Set Profile Data (Multiple fields)
-  // ============================================================================
   const setProfileData = (data: any) => {
     profile.value = data.profile
     ranks.value = data.ranks || []
@@ -70,28 +49,19 @@ export const useProfileStore = defineStore('profile', () => {
     interests.value = data.interests || []
     console.log('[ProfileStore] ✅ Profile data set')
     
-    // ✅ Cache profile data
     if (data.profile) {
       cacheProfile(data.profile)
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Update Profile
-  // ============================================================================
   const updateProfile = (updates: Partial<Profile>) => {
     if (profile.value) {
       profile.value = { ...profile.value, ...updates }
       console.log('[ProfileStore] ✅ Profile updated')
-      
-      // ✅ Update cache
       cacheProfile(profile.value)
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Cache Profile to localStorage
-  // ============================================================================
   const cacheProfile = (profileData: Profile) => {
     if (!process.client) return
 
@@ -105,9 +75,6 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Restore Profile from Cache
-  // ============================================================================
   const restoreProfileFromCache = (userId: string): Profile | null => {
     if (!process.client) return null
 
@@ -124,7 +91,6 @@ export const useProfileStore = defineStore('profile', () => {
       }
     } catch (err) {
       console.error('[ProfileStore] ❌ Failed to restore profile from cache:', err)
-      // Clear corrupted cache
       try {
         localStorage.removeItem(`profile_${userId}`)
       } catch (e) {
@@ -135,9 +101,6 @@ export const useProfileStore = defineStore('profile', () => {
     return null
   }
 
-  // ============================================================================
-  // ✅ FIXED: Clear Profile Cache
-  // ============================================================================
   const clearProfileCache = (userId?: string) => {
     if (!process.client) return
 
@@ -147,7 +110,6 @@ export const useProfileStore = defineStore('profile', () => {
         localStorage.removeItem(cacheKey)
         console.log('[ProfileStore] ✅ Profile cache cleared:', cacheKey)
       } else {
-        // Clear all profile caches
         const keys = Object.keys(localStorage)
         keys.forEach(key => {
           if (key.startsWith('profile_')) {
@@ -162,9 +124,6 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Clear Profile
-  // ============================================================================
   const clearProfile = () => {
     const userId = profile.value?.id
     
@@ -181,22 +140,15 @@ export const useProfileStore = defineStore('profile', () => {
     
     console.log('[ProfileStore] ✅ Profile cleared')
     
-    // ✅ Clear cache
     if (userId) {
       clearProfileCache(userId)
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Set Loading
-  // ============================================================================
   const setLoading = (value: boolean) => {
     loading.value = value
   }
 
-  // ============================================================================
-  // ✅ FIXED: Set Error
-  // ============================================================================
   const setError = (value: string | null) => {
     error.value = value
     if (value) {
@@ -204,32 +156,22 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: Update Interests
-  // ============================================================================
   const updateInterests = (newInterests: any[]) => {
     interests.value = newInterests
     console.log('[ProfileStore] ✅ Interests updated')
   }
 
-  // ============================================================================
-  // ✅ FIXED: Update Privacy Settings
-  // ============================================================================
   const updatePrivacySettings = (settings: any) => {
     privacySettings.value = settings
     console.log('[ProfileStore] ✅ Privacy settings updated')
   }
 
-  // ============================================================================
-  // ✅ FIXED: Update User Settings
-  // ============================================================================
   const updateUserSettings = (settings: any) => {
     userSettings.value = settings
     console.log('[ProfileStore] ✅ User settings updated')
   }
 
   return {
-    // State
     profile,
     ranks,
     wallets,
@@ -240,15 +182,11 @@ export const useProfileStore = defineStore('profile', () => {
     loading,
     error,
     isCached,
-
-    // Computed
     profileId,
     profileUsername,
     profileEmail,
     isProfileComplete,
     isVerified,
-
-    // Methods
     setProfile,
     setProfileData,
     updateProfile,
