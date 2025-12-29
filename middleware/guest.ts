@@ -1,4 +1,3 @@
-//file: /middleware/guest.ts
 export default defineNuxtRouteMiddleware(async (to, from) => {
   if (process.server) return
 
@@ -7,23 +6,25 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   try {
     const authStore = useAuthStore()
     
+    // First, ensure store is hydrated
     if (!authStore.isHydrated) {
-      console.log('[Guest Middleware] Store not hydrated yet, initializing...')
-      authStore.initializeSession()
+      console.log('[Guest Middleware] Store not hydrated, hydrating from storage...')
+      authStore.hydrateFromStorage()
     }
 
-    // Check if we have a token and it's not expired
-    if (authStore.token && authStore.user) {
-      // Verify token is still valid by checking if it has an expiration
-      // If token exists but user data is incomplete, clear it
-      if (!authStore.user.id || !authStore.user.email) {
-        console.log('[Guest Middleware] Invalid user data detected, clearing auth')
-        authStore.clearAuth()
-        return
-      }
-
+    // Only redirect if ALL conditions are true:
+    // 1. Store is hydrated
+    // 2. Has valid token
+    // 3. Has valid user data with id and email
+    if (authStore.isHydrated && authStore.token && authStore.user && authStore.user.id && authStore.user.email) {
       console.log(`[Guest Middleware] ✓ Authenticated user redirected from ${to.path} to /feed`)
       return navigateTo('/feed')
+    }
+
+    // If we have stale data (token but no valid user), clear it
+    if (authStore.token && (!authStore.user || !authStore.user.id || !authStore.user.email)) {
+      console.log('[Guest Middleware] Stale auth data detected, clearing...')
+      authStore.clearAuth()
     }
 
     console.log(`[Guest Middleware] ✓ Unauthenticated user allowed to access ${to.path}`)
@@ -33,4 +34,3 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     return
   }
 })
-
