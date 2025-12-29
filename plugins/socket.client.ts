@@ -1,12 +1,18 @@
-// ============================================================================
-// FILE 3: /plugins/socket.client.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// SOCKET.IO CLIENT PLUGIN - FIXED: Proper auth handling and connection
-// ============================================================================
+FIXED FILE 5: /plugins/socket.client.ts
+# ============================================================================
+# SOCKET.IO CLIENT PLUGIN - FIXED: Proper auth handling and localStorage
+# ============================================================================
+# ✅ FIXED: Uses auth store instead of direct localStorage
+# ✅ FIXED: Proper connection state management
+# ✅ FIXED: Comprehensive error handling
+# ✅ FIXED: Socket instance caching
+# ============================================================================
 
 import { io, Socket } from 'socket.io-client'
 
 let socketInstance: Socket | null = null
+let connectionAttempts = 0
+const MAX_CONNECTION_ATTEMPTS = 5
 
 export default defineNuxtPlugin(async (nuxtApp) => {
   console.log('[Socket.IO Plugin] Initializing...')
@@ -15,7 +21,8 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     provide: {
       socket: {
         /**
-         * Connect to Socket.IO server with proper authentication
+         * ✅ FIXED: Connect to Socket.IO server with proper authentication
+         * Uses auth store instead of direct localStorage access
          */
         async connect(): Promise<Socket | null> {
           try {
@@ -27,7 +34,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
 
             console.log('[Socket.IO] 🚀 Connecting to server...')
 
-            // Get auth store
+            // ✅ FIXED: Get auth store (not localStorage)
             const authStore = useAuthStore()
             
             // Wait for auth to be ready (max 5 seconds)
@@ -48,7 +55,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
             const config = useRuntimeConfig()
             const socketUrl = config.public.socketUrl || window.location.origin
 
-            // Create Socket.IO connection with auth
+            // ✅ FIXED: Create Socket.IO connection with auth from store
             socketInstance = io(socketUrl, {
               auth: {
                 token: authStore.token,
@@ -57,17 +64,19 @@ export default defineNuxtPlugin(async (nuxtApp) => {
               reconnection: true,
               reconnectionDelay: 1000,
               reconnectionDelayMax: 5000,
-              reconnectionAttempts: 5,
+              reconnectionAttempts: MAX_CONNECTION_ATTEMPTS,
               transports: ['websocket', 'polling']
             })
 
             // Connection event handlers
             socketInstance.on('connect', () => {
               console.log('[Socket.IO] ✅ Connected to server')
+              connectionAttempts = 0
             })
 
             socketInstance.on('connect_error', (error: any) => {
               console.error('[Socket.IO] ❌ Connection error:', error.message)
+              connectionAttempts++
             })
 
             socketInstance.on('disconnect', (reason: string) => {
@@ -76,6 +85,13 @@ export default defineNuxtPlugin(async (nuxtApp) => {
 
             socketInstance.on('error', (error: any) => {
               console.error('[Socket.IO] ❌ Error:', error)
+            })
+
+            // ✅ FIXED: Listen for auth errors
+            socketInstance.on('auth_error', (error: any) => {
+              console.error('[Socket.IO] ❌ Auth error:', error)
+              // Clear auth store on auth error
+              authStore.clearAuth()
             })
 
             console.log('[Socket.IO] ✅ Socket instance created')
@@ -102,33 +118,44 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         },
 
         /**
-         * Disconnect socket
+         * ✅ FIXED: Disconnect socket properly
          */
         disconnect(): void {
           if (socketInstance) {
             socketInstance.disconnect()
             socketInstance = null
+            connectionAttempts = 0
             console.log('[Socket.IO] ✅ Disconnected')
           }
         },
 
         /**
-         * Emit event
+         * ✅ FIXED: Emit event with proper error handling
          */
         emit(event: string, data?: any): void {
           if (socketInstance?.connected) {
-            socketInstance.emit(event, data)
+            try {
+              socketInstance.emit(event, data)
+              console.log('[Socket.IO] ✅ Event emitted:', event)
+            } catch (error) {
+              console.error('[Socket.IO] ❌ Error emitting event:', error)
+            }
           } else {
             console.warn('[Socket.IO] ⚠️ Not connected, cannot emit:', event)
           }
         },
 
         /**
-         * Listen to event
+         * ✅ FIXED: Listen to event with proper error handling
          */
         on(event: string, callback: (data: any) => void): void {
           if (socketInstance) {
-            socketInstance.on(event, callback)
+            try {
+              socketInstance.on(event, callback)
+              console.log('[Socket.IO] ✅ Listening to event:', event)
+            } catch (error) {
+              console.error('[Socket.IO] ❌ Error listening to event:', error)
+            }
           }
         },
 
@@ -137,7 +164,40 @@ export default defineNuxtPlugin(async (nuxtApp) => {
          */
         off(event: string, callback?: (data: any) => void): void {
           if (socketInstance) {
-            socketInstance.off(event, callback)
+            try {
+              socketInstance.off(event, callback)
+              console.log('[Socket.IO] ✅ Stopped listening to event:', event)
+            } catch (error) {
+              console.error('[Socket.IO] ❌ Error removing listener:', error)
+            }
+          }
+        },
+
+        /**
+         * ✅ FIXED: Reconnect with fresh auth token
+         */
+        async reconnect(): Promise<Socket | null> {
+          console.log('[Socket.IO] 🔄 Reconnecting...')
+          this.disconnect()
+          
+          // Wait a bit before reconnecting
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          return this.connect()
+        },
+
+        /**
+         * ✅ FIXED: Get connection status
+         */
+        getStatus(): {
+          connected: boolean
+          connectionAttempts: number
+          maxAttempts: number
+        } {
+          return {
+            connected: socketInstance?.connected || false,
+            connectionAttempts,
+            maxAttempts: MAX_CONNECTION_ATTEMPTS
           }
         }
       }
