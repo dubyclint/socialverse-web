@@ -8,7 +8,7 @@ FIXED FILE 8: /app.vue (SCRIPT SECTION)
 # ============================================================================
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeMount } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -20,16 +20,41 @@ const isLoading = ref(false)
 const supabaseError = ref()
 const globalError = ref<string | null>(null)
 
+// ✅ CRITICAL FIX: Hydrate BEFORE component mounts
+onBeforeMount(async () => {
+  console.log('[App] 🚀 Before mount - hydrating auth store...')
+  
+  if (process.client) {
+    try {
+      // Restore auth state from localStorage IMMEDIATELY
+      const storedToken = localStorage.getItem('auth_token')
+      const storedUser = localStorage.getItem('auth_user')
+      const storedUserId = localStorage.getItem('auth_user_id')
+      
+      if (storedToken && storedUser && storedUserId) {
+        try {
+          const user = JSON.parse(storedUser)
+          authStore.setToken(storedToken)
+          authStore.setUserId(storedUserId)
+          authStore.setUser(user)
+          console.log('[App] ✅ Auth state restored before mount')
+        } catch (e) {
+          console.error('[App] Failed to parse stored user:', e)
+          authStore.clearAuth()
+        }
+      }
+      
+      authStore.isHydrated = true
+    } catch (error) {
+      console.error('[App] Hydration error:', error)
+      authStore.isHydrated = true
+    }
+  }
+})
+
 onMounted(async () => {
   try {
     console.log('[App] 🚀 Initializing application...')
-    
-    // ============================================================================
-    // ✅ FIXED: Hydrate auth store from localStorage FIRST
-    // ============================================================================
-    console.log('[App] Hydrating auth store from localStorage...')
-    authStore.hydrateFromStorage()
-    console.log('[App] ✅ Auth store hydrated')
     
     const isLoggingOut = route.query.logout === 'true'
     
@@ -40,12 +65,8 @@ onMounted(async () => {
       return
     }
     
-    // ============================================================================
-    // Initialize session (if not already hydrated)
-    // ============================================================================
-    if (!authStore.isAuthenticated) {
-      console.log('[App] ℹ️ No previous session found')
-    } else {
+    // Validate token if we have one
+    if (authStore.token && authStore.user) {
       console.log('[App] ✅ Session restored from storage')
       console.log('[App] User:', authStore.userDisplayName)
       console.log('[App] Authenticated:', authStore.isAuthenticated)
@@ -54,11 +75,11 @@ onMounted(async () => {
         console.warn('[App] ⚠️ Session data incomplete, clearing')
         authStore.clearAuth()
       }
+    } else {
+      console.log('[App] ℹ️ No previous session found')
     }
 
-    // ============================================================================
     // Check Supabase availability
-    // ============================================================================
     if (!$supabase) {
       console.warn('[App] Supabase not available')
       supabaseError.value = true
@@ -88,6 +109,7 @@ const clearError = () => {
   globalError.value = null
 }
 </script>
+
 
 <template>
   <NuxtLayout>
