@@ -1217,9 +1217,10 @@ watch(() => route.path, () => {
   align-items: center;
   gap: 1rem;
   flex: 0 0 auto;
+  min-width: 0;  /* ✅ ADD THIS */
 }
 
-.menu-btn {
+     .menu-btn {
   background: none;
   border: none;
   color: #e2e8f0;
@@ -1227,6 +1228,28 @@ watch(() => route.path, () => {
   padding: 0.5rem;
   border-radius: 6px;
   transition: all 0.2s;
+  display: flex;  /* ✅ ADD THIS */
+  align-items: center;  /* ✅ ADD THIS */
+  justify-content: center;  /* ✅ ADD THIS */
+  width: 40px;  /* ✅ ADD THIS */
+  height: 40px;  /* ✅ ADD THIS */
+  min-width: 40px;  /* ✅ ADD THIS */
+}
+
+.menu-btn:hover {
+  background: #1e293b;
+  color: #60a5fa;
+}
+
+/* ✅ ADD THIS NEW RULE */
+.menu-btn :deep(svg) {
+  display: block;
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .menu-btn:hover {
@@ -1242,13 +1265,15 @@ watch(() => route.path, () => {
   color: white;
   font-weight: 700;
   font-size: 1.1rem;
+  white-space: nowrap;  /* ✅ ADD THIS */
 }
 
 .logo-img {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;  /* ✅ ADD THIS */
 }
-
+ 
 .logo-text {
   display: none;
 }
