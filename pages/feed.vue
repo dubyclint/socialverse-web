@@ -11,6 +11,7 @@
      ✅ FIXED: Accessibility improvements
      ✅ FIXED: Performance optimizations
      ============================================================================ -->
+
 <template>
   <div class="feed-page">
     <!-- HEADER WITH INTEGRATED SIDEBAR - From FeedHeader Component -->
@@ -20,33 +21,6 @@
     <ClientOnly>
       <main class="feed-main-wrapper">
         <!-- Left Sidebar - User Profile & Navigation Menu -->
-        <aside class="feed-sidebar-left">
-          <!-- ... existing sidebar content ... -->
-        </aside>
-
-        <!-- Center Feed -->
-        <section class="feed-content">
-          <!-- ... existing feed content ... -->
-        </section>
-
-        <!-- Right Sidebar - Recommendations & Trending -->
-        <aside class="feed-sidebar-right">
-          <!-- ... existing sidebar content ... -->
-        </aside>
-      </main>
-    </ClientOnly>
-  </div>
-</template>
-
-<template>
-  <div class="feed-page">
-    <!-- HEADER WITH INTEGRATED SIDEBAR - From FeedHeader Component -->
-    <FeedHeader />
-
-    <!-- MAIN CONTENT WRAPPER -->
-    <main class="feed-main-wrapper">
-      <!-- Left Sidebar - User Profile & Navigation Menu -->
-      <ClientOnly>
         <aside class="feed-sidebar-left">
           <!-- User Profile Card -->
           <div class="profile-card">
@@ -108,7 +82,7 @@
             </div>
           </div>
 
-          <!-- Main Sidebar Navigation Menu (FIXED: Consolidated from FeedHeader) -->
+          <!-- Main Sidebar Navigation Menu -->
           <div class="sidebar-menu-card">
             <h4 class="card-title">Menu</h4>
             <nav class="sidebar-menu">
@@ -191,25 +165,23 @@
             </nav>
           </div>
         </aside>
-      </ClientOnly>
 
-      <!-- Center Feed -->
-      <section class="feed-content">
-        <!-- Feed Tabs/Filters -->
-        <div class="feed-tabs">
-          <button 
-            v-for="tab in feedTabs" 
-            :key="tab.id"
-            :class="['feed-tab', { active: activeTab === tab.id }]"
-            @click="activeTab = tab.id; refreshFeed()"
-          >
-            <Icon :name="tab.icon" size="18" />
-            <span>{{ tab.label }}</span>
-          </button>
-        </div>
+        <!-- Center Feed -->
+        <section class="feed-content">
+          <!-- Feed Tabs/Filters -->
+          <div class="feed-tabs">
+            <button 
+              v-for="tab in feedTabs" 
+              :key="tab.id"
+              :class="['feed-tab', { active: activeTab === tab.id }]"
+              @click="activeTab = tab.id; refreshFeed()"
+            >
+              <Icon :name="tab.icon" size="18" />
+              <span>{{ tab.label }}</span>
+            </button>
+          </div>
 
-        <!-- Create Post Section -->
-        <ClientOnly>
+          <!-- Create Post Section -->
           <div class="create-post-section">
             <div class="create-post-header">
               <img 
@@ -246,10 +218,8 @@
               </button>
             </div>
           </div>
-        </ClientOnly>
 
-        <!-- Posts Feed -->
-        <ClientOnly>
+          <!-- Posts Feed -->
           <!-- Loading State -->
           <div v-if="postsLoading && posts.length === 0" class="loading-state">
             <div class="spinner"></div>
@@ -400,11 +370,9 @@
               </button>
             </div>
           </div>
-        </ClientOnly>
-      </section>
+        </section>
 
-      <!-- Right Sidebar - Recommendations & Trending -->
-      <ClientOnly>
+        <!-- Right Sidebar - Recommendations & Trending -->
         <aside class="feed-sidebar-right">
           <!-- Search Card -->
           <div class="search-card">
@@ -493,10 +461,11 @@
             </div>
           </div>
         </aside>
-      </ClientOnly>
-    </main>
+      </main>
+    </ClientOnly>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeMount, watch } from 'vue'
