@@ -1,5 +1,5 @@
 // ============================================================================
-// COMPLETE NUXT CONFIG FILE - ALL FIXES MERGED
+// COMPLETE NUXT CONFIG FILE - GLOBAL RESPONSIVE SYSTEM
 // ============================================================================
 // ✅ FIXED: Added favicon support
 // ✅ FIXED: Added proper static asset handling
@@ -7,9 +7,11 @@
 // ✅ FIXED: Enabled CDN and Gun
 // ✅ FIXED: Hydration mismatch fixes
 // ✅ FIXED: Added Supabase server alias
-// ✅ FIXED: Removed duplicate nitro block (SYNTAX ERROR FIX)
+// ✅ FIXED: Removed duplicate nitro block
+// ✅ FIXED: Added global CSS for responsive system
 // ✅ ENHANCED: Better SEO configuration
 // ✅ ENHANCED: Optimized build settings
+// ✅ ENHANCED: Mobile-first responsive design
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -135,12 +137,19 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
+  // CSS CONFIGURATION - GLOBAL RESPONSIVE STYLES
+  // ============================================================================
+  css: [
+    '~/assets/css/app.css',
+  ],
+
+  // ============================================================================
   // APP CONFIGURATION
   // ============================================================================
   app: {
     head: {
       charset: 'utf-8',
-      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+      viewport: 'width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover',
       title: 'SocialVerse - Connect, Share, Grow',
       
       // ✅ FIXED: Complete meta tags
@@ -148,7 +157,11 @@ export default defineNuxtConfig({
         { name: 'description', content: 'SocialVerse - A modern social networking platform for connecting, sharing, and growing together.' },
         { name: 'keywords', content: 'social network, community, connect, share, socialverse' },
         { name: 'author', content: 'SocialVerse Team' },
-        { name: 'theme-color', content: '#667eea' },
+        { name: 'theme-color', content: '#3b82f6' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'apple-mobile-web-app-title', content: 'SocialVerse' },
         
         // Open Graph / Facebook
         { property: 'og:type', content: 'website' },
@@ -163,12 +176,6 @@ export default defineNuxtConfig({
         { name: 'twitter:title', content: 'SocialVerse - Connect, Share, Grow' },
         { name: 'twitter:description', content: 'A modern social networking platform for connecting, sharing, and growing together.' },
         { name: 'twitter:image', content: 'https://socialverse-web.zeabur.app/og-image.png' },
-        
-        // PWA
-        { name: 'mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-        { name: 'apple-mobile-web-app-title', content: 'SocialVerse' },
       ],
       
       // ✅ FIXED: Complete link tags with all favicon variants
@@ -224,11 +231,6 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // CSS CONFIGURATION
-  // ============================================================================
-  css: [],
-
-  // ============================================================================
   // ROUTER CONFIGURATION
   // ============================================================================
   router: {
@@ -242,7 +244,7 @@ export default defineNuxtConfig({
   // ============================================================================
   hooks: {
     'build:before': () => {
-      console.log('🚀 Building SocialVerse...')
+      console.log('🚀 Building SocialVerse with Global Responsive System...')
     },
   },
 })
