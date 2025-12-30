@@ -12,6 +12,9 @@ export const useAuthStore = defineStore('auth', () => {
   const rememberMe = ref(false)
   const lastTokenValidation = ref<number>(0)
 
+  // ============================================================================
+  // COMPUTED PROPERTIES - MUST BE BEFORE RETURN STATEMENT
+  // ============================================================================
   const isAuthenticated = computed(() => !!token.value && !!user.value && !!userId.value)
   
   const isEmailVerified = computed(() => user.value?.email_confirmed_at || false)
@@ -25,6 +28,28 @@ export const useAuthStore = defineStore('auth', () => {
     return 'User'
   })
 
+  // ✅ CRITICAL FIX: Add missing computed properties for FeedHeader
+  const userAvatar = computed(() => {
+    return user.value?.avatar_url || 
+           user.value?.user_metadata?.avatar_url ||
+           '/default-avatar.png'
+  })
+
+  const userFollowers = computed(() => {
+    return user.value?.user_metadata?.followers_count || 0
+  })
+
+  const userFollowing = computed(() => {
+    return user.value?.user_metadata?.following_count || 0
+  })
+
+  const userPosts = computed(() => {
+    return user.value?.user_metadata?.posts_count || 0
+  })
+
+  // ============================================================================
+  // METHODS
+  // ============================================================================
   const setToken = (newToken: string | null) => {
     token.value = newToken
     
@@ -146,7 +171,6 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
 
-    // Don't validate more than once per minute
     const now = Date.now()
     if (lastTokenValidation.value && now - lastTokenValidation.value < 60000) {
       console.log('[Auth Store] Token validation skipped (cached)')
@@ -186,21 +210,18 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] Hydrating from localStorage...')
 
     try {
-      // Restore token
       const storedToken = localStorage.getItem('auth_token')
       if (storedToken) {
         token.value = storedToken
         console.log('[Auth Store] ✅ Token restored from localStorage')
       }
 
-      // Restore user ID
       const storedUserId = localStorage.getItem('auth_user_id')
       if (storedUserId) {
         userId.value = storedUserId
         console.log('[Auth Store] ✅ User ID restored from localStorage')
       }
 
-      // Restore user data
       const storedUser = localStorage.getItem('auth_user')
       if (storedUser) {
         try {
@@ -212,14 +233,12 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
 
-      // Restore remember me preference
       const storedRememberMe = localStorage.getItem('auth_remember_me')
       if (storedRememberMe === 'true') {
         rememberMe.value = true
         console.log('[Auth Store] ✅ Remember me preference restored')
       }
 
-      // CRITICAL: Validate token if we have one
       if (token.value && user.value) {
         console.log('[Auth Store] Validating restored token...')
         const isValid = await validateToken()
@@ -238,33 +257,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Add these computed properties to the return statement:
-
-const userAvatar = computed(() => {
-  return user.value?.avatar_url || 
-         user.value?.user_metadata?.avatar_url ||
-         '/default-avatar.png'
-})
-
-const userFollowers = computed(() => {
-  return user.value?.user_metadata?.followers_count || 0
-})
-
-const userFollowing = computed(() => {
-  return user.value?.user_metadata?.following_count || 0
-})
-
-const userPosts = computed(() => {
-  return user.value?.user_metadata?.posts_count || 0
-})
-
-// Add to return object:
-userAvatar,
-userFollowers,
-userFollowing,
-userPosts,
-
-
   const initializeSession = () => {
     return hydrateFromStorage()
   }
@@ -280,8 +272,10 @@ userPosts,
     }
   }
 
+  // ============================================================================
+  // RETURN STATEMENT - INCLUDES ALL COMPUTED PROPERTIES
+  // ============================================================================
   return {
-    // State
     token,
     userId,
     user,
@@ -289,14 +283,14 @@ userPosts,
     error,
     isHydrated,
     rememberMe,
-
-    // Computed
     isAuthenticated,
     isEmailVerified,
     isProfileComplete,
     userDisplayName,
-
-    // Methods
+    userAvatar,
+    userFollowers,
+    userFollowing,
+    userPosts,
     setToken,
     setUserId,
     setUser,
