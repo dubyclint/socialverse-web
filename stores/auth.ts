@@ -238,6 +238,33 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Add these computed properties to the return statement:
+
+const userAvatar = computed(() => {
+  return user.value?.avatar_url || 
+         user.value?.user_metadata?.avatar_url ||
+         '/default-avatar.png'
+})
+
+const userFollowers = computed(() => {
+  return user.value?.user_metadata?.followers_count || 0
+})
+
+const userFollowing = computed(() => {
+  return user.value?.user_metadata?.following_count || 0
+})
+
+const userPosts = computed(() => {
+  return user.value?.user_metadata?.posts_count || 0
+})
+
+// Add to return object:
+userAvatar,
+userFollowers,
+userFollowing,
+userPosts,
+
+
   const initializeSession = () => {
     return hydrateFromStorage()
   }
