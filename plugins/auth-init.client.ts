@@ -1,16 +1,26 @@
-export default defineNuxtPlugin({
-  name: 'auth-init',
-  enforce: 'pre', // ✅ CRITICAL: Run BEFORE all other plugins
-  
-  async setup(nuxtApp) {
-    if (!process.client) return
+// FILE: /plugins/auth-init.client.ts - FIXED VERSION
+// ============================================================================
+// AUTH INITIALIZATION PLUGIN - FIXED
+// ✅ FIXED: Wait for Pinia to be ready before using stores
+// ============================================================================
 
+export default defineNuxtPlugin(async (nuxtApp) => {
+  // Only run on client-side
+  if (!process.server) {
     console.log('[Auth Init Plugin] 🚀 Starting auth initialization...')
 
     try {
+      // ✅ CRITICAL FIX: Wait for Pinia to be ready
+      const pinia = nuxtApp.$pinia
+      
+      if (!pinia) {
+        console.warn('[Auth Init Plugin] ⚠️ Pinia not available yet, skipping hydration')
+        return
+      }
+
+      // Now we can safely use the store
       const authStore = useAuthStore()
       
-      // ✅ CRITICAL FIX: Hydrate store from localStorage IMMEDIATELY
       console.log('[Auth Init Plugin] Hydrating auth store from localStorage...')
       await authStore.hydrateFromStorage()
       
