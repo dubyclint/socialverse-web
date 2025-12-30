@@ -1,16 +1,8 @@
-// FILE: /middleware/auth.ts - GLOBAL AUTH MIDDLEWARE (COMPLETE & FIXED)
-// ============================================================================
-// GLOBAL MIDDLEWARE - Applied to all routes
-// Purpose: Protect routes that require authentication
-// ============================================================================
-
 export default defineNuxtRouteMiddleware((to, from) => {
-  // Skip middleware on server-side rendering
   if (process.server) return
 
   console.log(`[Auth Middleware] Checking route: ${to.path}`)
 
-  // Define routes that are PUBLIC (don't require authentication)
   const publicRoutes = [
     '/',
     '/login',
@@ -26,24 +18,26 @@ export default defineNuxtRouteMiddleware((to, from) => {
     '/about',
   ]
 
-  // Check if the current route is public
   const isPublicRoute = publicRoutes.some(route => 
     to.path === route || to.path.startsWith(route + '/')
   )
 
-  // If it's a public route, allow access without authentication
   if (isPublicRoute) {
     console.log(`[Auth Middleware] ✓ Public route allowed: ${to.path}`)
     return
   }
 
-  // For protected routes, check if user has a valid auth token
   try {
-    const token = typeof window !== 'undefined' 
-      ? localStorage.getItem('auth_token') 
-      : null
+    const authStore = useAuthStore()
+    
+    // ✅ CRITICAL FIX: Wait for store to be hydrated
+    if (!authStore.isHydrated) {
+      console.log(`[Auth Middleware] ⏳ Store not hydrated yet, waiting...`)
+      return
+    }
 
-    if (!token) {
+    // ✅ CRITICAL FIX: Check store state instead of localStorage directly
+    if (!authStore.isAuthenticated || !authStore.token || !authStore.user) {
       console.warn(`[Auth Middleware] ✗ Unauthorized access to protected route: ${to.path}`)
       return navigateTo('/auth/signin')
     }
