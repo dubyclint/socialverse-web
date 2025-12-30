@@ -1,12 +1,13 @@
 // ============================================================================
-// COMPLETE NUXT CONFIG FILE - ALL FIXES MERGED + ALIAS FIX
+// COMPLETE NUXT CONFIG FILE - ALL FIXES MERGED
 // ============================================================================
-// ✅ FIXED: Added favicon support (Issue 1)
-// ✅ FIXED: Added proper static asset handling (Issue 1)
-// ✅ FIXED: Added PWA meta tags (Issue 1)
-// ✅ FIXED: Enabled CDN and Gun (Issues 6-7)
-// ✅ FIXED: Hydration mismatch fixes (Issue 8)
-// ✅ FIXED: Added Supabase server alias (CRITICAL FIX)
+// ✅ FIXED: Added favicon support
+// ✅ FIXED: Added proper static asset handling
+// ✅ FIXED: Added PWA meta tags
+// ✅ FIXED: Enabled CDN and Gun
+// ✅ FIXED: Hydration mismatch fixes
+// ✅ FIXED: Added Supabase server alias
+// ✅ FIXED: Removed duplicate nitro block (SYNTAX ERROR FIX)
 // ✅ ENHANCED: Better SEO configuration
 // ✅ ENHANCED: Optimized build settings
 // ============================================================================
@@ -51,7 +52,6 @@ export default defineNuxtConfig({
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
-      // ✅ FIXED: Enable CDN and Gun (Issues 6-7)
       cdnEnabled: true,
       gunEnabled: true,
       gunPeers: [],
@@ -82,19 +82,17 @@ export default defineNuxtConfig({
         external: ['gun', 'gun/gun', 'gun/sea'],
       },
     },
-    // ✅ FIXED: Optimize dependencies
     optimizeDeps: {
       include: ['@supabase/supabase-js'],
       exclude: ['gun', 'gun/gun', 'gun/sea'],
     },
-    // ✅ FIXED: Prevent hydration issues (Issue 8)
     ssr: {
       noExternal: ['@supabase/supabase-js'],
     },
   },
 
   // ============================================================================
-  // NITRO CONFIGURATION (Server)
+  // NITRO CONFIGURATION (Server) - FIXED: Removed duplicate block
   // ============================================================================
   nitro: {
     preset: 'node-server',
@@ -113,34 +111,18 @@ export default defineNuxtConfig({
       external: ['gun', 'gun/gun', 'gun/sea'],
     },
 
-    // Add to nuxt.config.ts in the nitro section:
-
-nitro: {
-  // ... existing config ...
-  
-  // ✅ CRITICAL FIX: Add cache control headers
-  headers: {
-    'Cache-Control': 'public, max-age=0, must-revalidate',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-  },
-  
-  // ✅ CRITICAL FIX: Disable payload extraction to prevent hydration issues
-  payloadExtraction: false,
-  
-  // ✅ CRITICAL FIX: Proper static asset caching
-  publicAssets: [
-    {
-      baseURL: '/',
-      dir: 'public',
-      maxAge: 60 * 60 * 24 * 365, // 1 year for versioned assets
-    }
-  ],
-}
-
-
-    // ✅ FIXED: Proper static asset handling (Issue 1)
+    // ✅ CRITICAL FIX: Add cache control headers
+    headers: {
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+    },
+    
+    // ✅ CRITICAL FIX: Disable payload extraction to prevent hydration issues
+    payloadExtraction: false,
+    
+    // ✅ FIXED: Proper static asset handling
     publicAssets: [
       {
         baseURL: '/',
@@ -150,9 +132,6 @@ nitro: {
     ],
 
     compressPublicAssets: true,
-    
-    // ✅ FIXED: Disable payload extraction to prevent hydration issues (Issue 8)
-    payloadExtraction: false,
   },
 
   // ============================================================================
@@ -164,7 +143,7 @@ nitro: {
       viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
       title: 'SocialVerse - Connect, Share, Grow',
       
-      // ✅ FIXED: Complete meta tags (Issue 1)
+      // ✅ FIXED: Complete meta tags
       meta: [
         { name: 'description', content: 'SocialVerse - A modern social networking platform for connecting, sharing, and growing together.' },
         { name: 'keywords', content: 'social network, community, connect, share, socialverse' },
@@ -192,7 +171,7 @@ nitro: {
         { name: 'apple-mobile-web-app-title', content: 'SocialVerse' },
       ],
       
-      // ✅ FIXED: Complete link tags with all favicon variants (Issue 1)
+      // ✅ FIXED: Complete link tags with all favicon variants
       link: [
         // Favicon variants
         { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
@@ -208,11 +187,11 @@ nitro: {
         { rel: 'dns-prefetch', href: 'https://cvzrhucbvezqwbesthek.supabase.co' },
       ],
 
-      // ✅ FIXED: Disable automatic script injection that causes hydration issues (Issue 8)
+      // ✅ FIXED: Disable automatic script injection that causes hydration issues
       script: [],
     },
 
-    // ✅ FIXED: Page and layout transitions (Issue 8)
+    // ✅ FIXED: Page and layout transitions
     pageTransition: { 
       name: 'page', 
       mode: 'out-in',
@@ -226,15 +205,13 @@ nitro: {
   },
 
   // ============================================================================
-  // EXPERIMENTAL FEATURES (Issue 8)
+  // EXPERIMENTAL FEATURES
   // ============================================================================
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
     typedPages: false,
-    // ✅ FIXED: Better async handling
     asyncEntry: true,
-    // ✅ FIXED: Better SSR handling
     noScripts: false,
   },
 
@@ -269,24 +246,3 @@ nitro: {
     },
   },
 })
-
-// ============================================================================
-// HYDRATION BEST PRACTICES
-// ============================================================================
-// 
-// To avoid hydration mismatches in your components:
-//
-// 1. Use <ClientOnly> wrapper for client-only components:
-//    <ClientOnly>
-//      <YourComponent />
-//    </ClientOnly>
-//
-// 2. Use useAsyncData or useFetch with proper keys:
-//    const { data } = await useAsyncData('key', () => $fetch('/api/data'))
-//
-// 3. Use computed properties for reactive data:
-//    const count = computed(() => store.count)
-//
-// 4. Avoid direct DOM manipulation in setup()
-//
-// ============================================================================
