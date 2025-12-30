@@ -657,8 +657,17 @@ const handleLogout = async () => {
   try {
     console.log('[Feed] Logging out user')
     sidebarOpen.value = false
-    await authStore.logout()
-    router.push('/auth/signin')
+    
+    // ✅ FIX: Use useAuth composable instead of authStore
+    const { logout } = useAuth()
+    const result = await logout()
+    
+    if (result.success) {
+      console.log('[Feed] ✅ Logout successful')
+      router.push('/auth/signin')
+    } else {
+      console.error('[Feed] ✗ Logout failed:', result.error)
+    }
   } catch (error) {
     console.error('[Feed] Error logging out:', error)
   }
