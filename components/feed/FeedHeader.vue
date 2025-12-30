@@ -178,32 +178,23 @@ const unreadMessages = ref(0)
 const isLiveStreaming = ref(false)
 const userStatus = ref('online')
 
-// Get user data from store
-const userName = computed(() => authStore.userDisplayName || 'User')
-const userAvatar = computed(() => authStore.userAvatar || '/default-avatar.png')
-
-const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value
-}
-
-const goToProfile = () => {
-  sidebarOpen.value = false
-  router.push('/profile')
-}
-
-const handleLogout = async () => {
-  sidebarOpen.value = false
-  authStore.clearAuth()
-  router.push('/auth/signin')
-}
-
-// Close sidebar on route change
-onMounted(() => {
-  watch(() => route.path, () => {
-    sidebarOpen.value = false
-  })
+// ✅ CRITICAL FIX: Get user data from store with proper fallbacks
+const userName = computed(() => {
+  return authStore.user?.full_name || 
+         authStore.user?.username || 
+         authStore.userDisplayName || 
+         'User'
 })
+
+const userAvatar = computed(() => {
+  return authStore.user?.avatar_url || 
+         authStore.user?.user_metadata?.avatar_url ||
+         '/default-avatar.png'
+})
+
+// ... rest of component ...
 </script>
+
 
 <style scoped>
 .feed-header {
