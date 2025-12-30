@@ -566,6 +566,10 @@
 </template>
 
 <script setup lang="ts">
+ definePageMeta({
+  layout: 'blank'
+})
+    
 import { ref, computed, onMounted, onBeforeMount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
