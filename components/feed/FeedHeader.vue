@@ -169,16 +169,24 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 
+// ============================================================================
+// SETUP & INITIALIZATION
+// ============================================================================
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
+// ============================================================================
+// REACTIVE STATE
+// ============================================================================
 const sidebarOpen = ref(false)
 const unreadMessages = ref(0)
 const isLiveStreaming = ref(false)
 const userStatus = ref('online')
 
-// ✅ CRITICAL FIX: Get user data from store with proper fallbacks
+// ============================================================================
+// COMPUTED PROPERTIES - Get user data from store with proper fallbacks
+// ============================================================================
 const userName = computed(() => {
   return authStore.user?.full_name || 
          authStore.user?.username || 
@@ -189,14 +197,59 @@ const userName = computed(() => {
 const userAvatar = computed(() => {
   return authStore.user?.avatar_url || 
          authStore.user?.user_metadata?.avatar_url ||
+         authStore.userAvatar ||
          '/default-avatar.png'
 })
 
-// ... rest of component ...
+// ============================================================================
+// METHODS - SIDEBAR TOGGLE
+// ============================================================================
+const toggleSidebar = () => {
+  console.log('[FeedHeader] Toggle sidebar')
+  sidebarOpen.value = !sidebarOpen.value
+}
+
+// ============================================================================
+// METHODS - NAVIGATION
+// ============================================================================
+const goToProfile = () => {
+  console.log('[FeedHeader] Navigate to profile')
+  sidebarOpen.value = false
+  router.push('/profile')
+}
+
+// ============================================================================
+// METHODS - LOGOUT
+// ============================================================================
+const handleLogout = async () => {
+  try {
+    console.log('[FeedHeader] Logging out user')
+    sidebarOpen.value = false
+    authStore.clearAuth()
+    router.push('/auth/signin')
+  } catch (error) {
+    console.error('[FeedHeader] Error logging out:', error)
+  }
+}
+
+// ============================================================================
+// LIFECYCLE HOOKS
+// ============================================================================
+onMounted(() => {
+  console.log('[FeedHeader] Component mounted')
+  
+  // Close sidebar on route change
+  watch(() => route.path, () => {
+    console.log('[FeedHeader] Route changed, closing sidebar')
+    sidebarOpen.value = false
+  })
+})
 </script>
 
-
 <style scoped>
+/* ============================================================================
+   HEADER STYLES
+   ============================================================================ */
 .feed-header {
   background: #0f172a;
   border-bottom: 1px solid #334155;
@@ -215,6 +268,9 @@ const userAvatar = computed(() => {
   margin: 0 auto;
 }
 
+/* ============================================================================
+   HEADER LEFT - MENU & LOGO
+   ============================================================================ */
 .header-left {
   display: flex;
   align-items: center;
@@ -262,6 +318,9 @@ const userAvatar = computed(() => {
   }
 }
 
+/* ============================================================================
+   HEADER CENTER - NAVIGATION
+   ============================================================================ */
 .header-center {
   display: flex;
   justify-content: center;
@@ -321,6 +380,9 @@ const userAvatar = computed(() => {
   50% { opacity: 0.7; }
 }
 
+/* ============================================================================
+   HEADER RIGHT - USER AVATAR
+   ============================================================================ */
 .header-right {
   display: flex;
   align-items: center;
@@ -368,7 +430,9 @@ const userAvatar = computed(() => {
   background: #6b7280;
 }
 
-/* Sidebar Styles */
+/* ============================================================================
+   SIDEBAR OVERLAY
+   ============================================================================ */
 .sidebar-overlay {
   position: fixed;
   top: 0;
@@ -379,6 +443,9 @@ const userAvatar = computed(() => {
   z-index: 99;
 }
 
+/* ============================================================================
+   SIDEBAR MENU
+   ============================================================================ */
 .sidebar {
   position: fixed;
   top: 0;
@@ -488,9 +555,32 @@ const userAvatar = computed(() => {
   margin-left: auto;
 }
 
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
 @media (max-width: 768px) {
   .header-center {
     display: none;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   REDUCED MOTION SUPPORT
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .notification-badge.live {
+    animation: none;
+    transition: none;
   }
 }
 </style>
