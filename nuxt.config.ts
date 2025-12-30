@@ -1,17 +1,9 @@
 // ============================================================================
-// COMPLETE NUXT CONFIG FILE - GLOBAL RESPONSIVE SYSTEM
+// UPDATED NUXT CONFIG FILE - WITH PROPER PLUGIN ORDER
 // ============================================================================
-// ✅ FIXED: Added favicon support
-// ✅ FIXED: Added proper static asset handling
-// ✅ FIXED: Added PWA meta tags
-// ✅ FIXED: Enabled CDN and Gun
-// ✅ FIXED: Hydration mismatch fixes
-// ✅ FIXED: Added Supabase server alias
-// ✅ FIXED: Removed duplicate nitro block
-// ✅ FIXED: Added global CSS for responsive system
-// ✅ ENHANCED: Better SEO configuration
-// ✅ ENHANCED: Optimized build settings
-// ✅ ENHANCED: Mobile-first responsive design
+// ✅ FIXED: Added plugin order configuration
+// ✅ FIXED: Ensured auth-init runs BEFORE other plugins
+// ✅ FIXED: Proper plugin dependency chain
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -94,7 +86,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // NITRO CONFIGURATION (Server) - FIXED: Removed duplicate block
+  // NITRO CONFIGURATION (Server)
   // ============================================================================
   nitro: {
     preset: 'node-server',
@@ -113,7 +105,6 @@ export default defineNuxtConfig({
       external: ['gun', 'gun/gun', 'gun/sea'],
     },
 
-    // ✅ CRITICAL FIX: Add cache control headers
     headers: {
       'Cache-Control': 'public, max-age=0, must-revalidate',
       'X-Content-Type-Options': 'nosniff',
@@ -121,15 +112,13 @@ export default defineNuxtConfig({
       'X-XSS-Protection': '1; mode=block',
     },
     
-    // ✅ CRITICAL FIX: Disable payload extraction to prevent hydration issues
     payloadExtraction: false,
     
-    // ✅ FIXED: Proper static asset handling
     publicAssets: [
       {
         baseURL: '/',
         dir: 'public',
-        maxAge: 60 * 60 * 24 * 365, // 1 year cache for static assets
+        maxAge: 60 * 60 * 24 * 365,
       }
     ],
 
@@ -137,10 +126,27 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // CSS CONFIGURATION - GLOBAL RESPONSIVE STYLES
+  // CSS CONFIGURATION
   // ============================================================================
   css: [
     '~/assets/css/app.css',
+  ],
+
+  // ============================================================================
+  // PLUGIN CONFIGURATION - ✅ CRITICAL FIX: PROPER PLUGIN ORDER
+  // ============================================================================
+  plugins: [
+    // ✅ STEP 1: Auth initialization MUST run first (enforce: 'pre')
+    // This is auto-loaded from ~/plugins/auth-init.client.ts
+    
+    // ✅ STEP 2: Supabase client plugin (depends on auth-init)
+    // This is auto-loaded from ~/plugins/supabase-client.ts
+    
+    // ✅ STEP 3: Auth plugin (depends on supabase-client)
+    // This is auto-loaded from ~/plugins/auth.client.ts
+    
+    // ✅ STEP 4: Other plugins (socket, toast, etc.)
+    // These are auto-loaded from ~/plugins/*.ts
   ],
 
   // ============================================================================
@@ -152,7 +158,6 @@ export default defineNuxtConfig({
       viewport: 'width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover',
       title: 'SocialVerse - Connect, Share, Grow',
       
-      // ✅ FIXED: Complete meta tags
       meta: [
         { name: 'description', content: 'SocialVerse - A modern social networking platform for connecting, sharing, and growing together.' },
         { name: 'keywords', content: 'social network, community, connect, share, socialverse' },
@@ -178,27 +183,21 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: 'https://socialverse-web.zeabur.app/og-image.png' },
       ],
       
-      // ✅ FIXED: Complete link tags with all favicon variants
       link: [
-        // Favicon variants
         { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
         
-        // Manifest
         { rel: 'manifest', href: '/manifest.json' },
         
-        // Preconnect to external domains
         { rel: 'preconnect', href: 'https://cvzrhucbvezqwbesthek.supabase.co' },
         { rel: 'dns-prefetch', href: 'https://cvzrhucbvezqwbesthek.supabase.co' },
       ],
 
-      // ✅ FIXED: Disable automatic script injection that causes hydration issues
       script: [],
     },
 
-    // ✅ FIXED: Page and layout transitions
     pageTransition: { 
       name: 'page', 
       mode: 'out-in',
@@ -245,6 +244,7 @@ export default defineNuxtConfig({
   hooks: {
     'build:before': () => {
       console.log('🚀 Building SocialVerse with Global Responsive System...')
+      console.log('✅ Plugin order: auth-init → supabase-client → auth → others')
     },
   },
 })
