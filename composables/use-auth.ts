@@ -1,4 +1,11 @@
-// composables/use-auth.ts
+// composables/use-auth.ts - COMPLETE FIXED VERSION
+// ============================================================================
+// ✅ CRITICAL FIXES:
+// 1. Fetch complete user profile after login (includes username, full_name)
+// 2. Fetch complete user profile after signup
+// 3. Proper error handling and logging
+// ============================================================================
+
 import { ref, computed } from 'vue'
 
 export const useAuth = () => {
@@ -34,6 +41,9 @@ export const useAuth = () => {
     return 'An error occurred'
   }
 
+  // ============================================================================
+  // ✅ FIXED: LOGIN WITH COMPLETE PROFILE FETCH
+  // ============================================================================
   const login = async (email: string, password: string) => {
     loading.value = true
     error.value = ''
@@ -59,11 +69,48 @@ export const useAuth = () => {
         throw new Error('No token received from server')
       }
 
+      // ✅ CRITICAL FIX: Set token first
       authStore.setToken(result.token)
+      
+      // ✅ CRITICAL FIX: Set initial user data from login response
       authStore.setUser(result.user)
       
       if (result.refreshToken && typeof window !== 'undefined') {
         localStorage.setItem('refresh_token', result.refreshToken)
+      }
+
+      // ✅ CRITICAL FIX: Fetch complete user profile with username and full_name
+      try {
+        console.log('[useAuth] Fetching complete user profile...')
+        const profileResult = await $fetch('/api/auth/me', {
+          headers: {
+            Authorization: `Bearer ${result.token}`
+          }
+        })
+
+        if (profileResult?.user) {
+          console.log('[useAuth] ✅ Complete user profile fetched:', profileResult.user)
+          
+          // ✅ CRITICAL: Update store with complete user data including username
+          authStore.setUser({
+            id: profileResult.user.id,
+            email: profileResult.user.email,
+            full_name: profileResult.user.full_name || profileResult.user.user_metadata?.full_name,
+            username: profileResult.user.username || profileResult.user.user_metadata?.username,
+            avatar_url: profileResult.user.avatar_url || profileResult.user.user_metadata?.avatar_url,
+            email_confirmed_at: profileResult.user.email_confirmed_at,
+            user_metadata: profileResult.user.user_metadata || {},
+            role: profileResult.user.role || 'user'
+          })
+          
+          console.log('[useAuth] ✅ Auth store updated with complete profile')
+          console.log('[useAuth] User ID:', profileResult.user.id)
+          console.log('[useAuth] Username:', profileResult.user.username)
+          console.log('[useAuth] Full Name:', profileResult.user.full_name)
+        }
+      } catch (profileErr) {
+        console.warn('[useAuth] ⚠️ Failed to fetch complete profile, using login response data:', profileErr)
+        // Continue with login response data if profile fetch fails
       }
 
       console.log('[useAuth] ✅ Login successful')
@@ -79,6 +126,9 @@ export const useAuth = () => {
     }
   }
 
+  // ============================================================================
+  // ✅ FIXED: SIGNUP WITH COMPLETE PROFILE FETCH
+  // ============================================================================
   const signup = async (data: {
     email: string
     password: string
@@ -114,23 +164,61 @@ export const useAuth = () => {
         throw new Error(result?.message || 'Signup failed')
       }
 
+      // ✅ CRITICAL FIX: Set token first if available
+      if (result.token) {
+        authStore.setToken(result.token)
+      }
+
+      // ✅ CRITICAL FIX: Set user with complete data from signup response
       authStore.setUser({
         id: result.user.id,
         email: result.user.email,
-        username: result.user.username,
-        full_name: result.user.display_name,
+        username: result.user.username || data.username,
+        full_name: result.user.display_name || data.fullName || null,
         user_metadata: {
-          username: result.user.username,
-          full_name: result.user.display_name
+          username: result.user.username || data.username,
+          full_name: result.user.display_name || data.fullName
         }
       })
 
       authStore.setUserId(result.user.id)
 
       if (result.token) {
-        authStore.setToken(result.token)
         if (result.refreshToken) {
           localStorage.setItem('refresh_token', result.refreshToken)
+        }
+        
+        // ✅ CRITICAL FIX: Fetch complete profile after signup
+        try {
+          console.log('[useAuth] Fetching complete profile after signup...')
+          const profileResult = await $fetch('/api/auth/me', {
+            headers: {
+              Authorization: `Bearer ${result.token}`
+            }
+          })
+
+          if (profileResult?.user) {
+            console.log('[useAuth] ✅ Complete profile fetched after signup:', profileResult.user)
+            
+            authStore.setUser({
+              id: profileResult.user.id,
+              email: profileResult.user.email,
+              full_name: profileResult.user.full_name || profileResult.user.user_metadata?.full_name,
+              username: profileResult.user.username || profileResult.user.user_metadata?.username,
+              avatar_url: profileResult.user.avatar_url || profileResult.user.user_metadata?.avatar_url,
+              email_confirmed_at: profileResult.user.email_confirmed_at,
+              user_metadata: profileResult.user.user_metadata || {},
+              role: profileResult.user.role || 'user'
+            })
+            
+            console.log('[useAuth] ✅ Auth store updated with complete profile after signup')
+            console.log('[useAuth] User ID:', profileResult.user.id)
+            console.log('[useAuth] Username:', profileResult.user.username)
+            console.log('[useAuth] Full Name:', profileResult.user.full_name)
+          }
+        } catch (profileErr) {
+          console.warn('[useAuth] ⚠️ Failed to fetch complete profile after signup:', profileErr)
+          // Continue with signup response data if profile fetch fails
         }
       }
 
