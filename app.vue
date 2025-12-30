@@ -1,12 +1,3 @@
-FIXED FILE 8: /app.vue (SCRIPT SECTION)
-# ============================================================================
-# APP.VUE - FIXED: Added hydration call
-# ============================================================================
-# ✅ FIXED: Added authStore.hydrateFromStorage() call
-# ✅ FIXED: Proper initialization order
-# ✅ FIXED: Error handling
-# ============================================================================
-
 <script setup lang="ts">
 import { ref, onMounted, onBeforeMount } from 'vue'
 import { useRoute } from 'vue-router'
@@ -17,7 +8,7 @@ const { $supabase } = useNuxtApp()
 
 const isInitializing = ref(true)
 const isLoading = ref(false)
-const supabaseError = ref()
+const supabaseError = ref(false)
 const globalError = ref<string | null>(null)
 
 // ✅ CRITICAL FIX: Hydrate BEFORE component mounts
@@ -26,7 +17,6 @@ onBeforeMount(async () => {
   
   if (process.client) {
     try {
-      // Restore auth state from localStorage IMMEDIATELY
       const storedToken = localStorage.getItem('auth_token')
       const storedUser = localStorage.getItem('auth_user')
       const storedUserId = localStorage.getItem('auth_user_id')
@@ -65,7 +55,6 @@ onMounted(async () => {
       return
     }
     
-    // Validate token if we have one
     if (authStore.token && authStore.user) {
       console.log('[App] ✅ Session restored from storage')
       console.log('[App] User:', authStore.userDisplayName)
@@ -79,7 +68,6 @@ onMounted(async () => {
       console.log('[App] ℹ️ No previous session found')
     }
 
-    // Check Supabase availability
     if (!$supabase) {
       console.warn('[App] Supabase not available')
       supabaseError.value = true
@@ -109,7 +97,6 @@ const clearError = () => {
   globalError.value = null
 }
 </script>
-
 
 <template>
   <NuxtLayout>
@@ -158,11 +145,13 @@ const clearError = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .supabase-error-banner p {
   margin: 0;
   color: #92400e;
+  font-weight: 500;
 }
 
 .supabase-error-banner button {
@@ -172,10 +161,12 @@ const clearError = () => {
   border-radius: 0.25rem;
   cursor: pointer;
   font-weight: 600;
+  transition: all 0.2s;
 }
 
 .supabase-error-banner button:hover {
   background-color: #f59e0b;
+  transform: translateY(-1px);
 }
 
 .global-error {
@@ -189,6 +180,7 @@ const clearError = () => {
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  backdrop-filter: blur(4px);
 }
 
 .error-content {
@@ -198,16 +190,31 @@ const clearError = () => {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   max-width: 500px;
   text-align: center;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .error-content h2 {
   margin-top: 0;
+  margin-bottom: 1rem;
   color: #dc2626;
+  font-size: 1.5rem;
 }
 
 .error-content p {
   color: #666;
   margin-bottom: 1.5rem;
+  line-height: 1.6;
 }
 
 .error-content button {
@@ -218,9 +225,29 @@ const clearError = () => {
   border-radius: 0.25rem;
   cursor: pointer;
   font-weight: 600;
+  transition: all 0.2s;
 }
 
 .error-content button:hover {
   background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+@media (max-width: 768px) {
+  .supabase-error-banner {
+    margin: 0.5rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .supabase-error-banner button {
+    width: 100%;
+  }
+
+  .error-content {
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+  }
 }
 </style>
