@@ -1,37 +1,79 @@
-<!-- FILE: /layouts/default.vue - FIXED FOR SSR HYDRATION -->
+<!-- FILE: /layouts/default.vue - COMPLETE MOBILE RESPONSIVE FIX -->
 <!-- ============================================================================
-     DEFAULT LAYOUT - FIXED: All user-specific UI wrapped in ClientOnly
-     ✅ FIXED: Notification badges wrapped
-     ✅ FIXED: User-specific navigation wrapped
+     DEFAULT LAYOUT - MOBILE RESPONSIVE VERSION
+     ✅ FIXED: All CSS broken values corrected
+     ✅ FIXED: Missing imports added
+     ✅ FIXED: Mobile-first responsive design
+     ✅ FIXED: Proper sidebar behavior on all devices
+     ✅ FIXED: Touch-friendly button sizes
+     ✅ FIXED: Tailwind utility classes integrated
      ============================================================================ -->
 
 <template>
   <div class="app-layout">
     <!-- Sidebar Navigation -->
     <aside class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
+      <div class="sidebar-header">
+        <NuxtLink to="/feed" class="sidebar-logo">
+          <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
+          <span class="logo-text">SocialVerse</span>
+        </NuxtLink>
+        <button @click="closeSidebar" class="sidebar-close md:hidden">
+          <Icon name="x" size="24" />
+        </button>
+      </div>
+
       <div class="sidebar-content">
         <slot name="sidebar">
           <!-- Default sidebar content -->
           <nav class="sidebar-nav">
-            <NuxtLink to="/feed" class="nav-item" :class="{ active: isActive('/feed') }">
+            <NuxtLink 
+              to="/feed" 
+              class="nav-item" 
+              :class="{ active: isActive('/feed') }"
+              @click="closeSidebar"
+            >
               <Icon name="home" size="20" />
               <span>Feed</span>
             </NuxtLink>
-            <NuxtLink to="/explore" class="nav-item" :class="{ active: isActive('/explore') }">
+
+            <NuxtLink 
+              to="/explore" 
+              class="nav-item" 
+              :class="{ active: isActive('/explore') }"
+              @click="closeSidebar"
+            >
               <Icon name="compass" size="20" />
               <span>Explore</span>
             </NuxtLink>
-            <NuxtLink to="/match" class="nav-item" :class="{ active: isActive('/match') }">
+
+            <NuxtLink 
+              to="/match" 
+              class="nav-item" 
+              :class="{ active: isActive('/match') }"
+              @click="closeSidebar"
+            >
               <Icon name="heart" size="20" />
               <span>Match</span>
             </NuxtLink>
-            <NuxtLink to="/chat" class="nav-item" :class="{ active: isActive('/chat') }">
+
+            <NuxtLink 
+              to="/chat" 
+              class="nav-item" 
+              :class="{ active: isActive('/chat') }"
+              @click="closeSidebar"
+            >
               <Icon name="message-circle" size="20" />
               <span>Chat</span>
             </NuxtLink>
             
             <!-- ✅ FIXED: Wrap notification link with badge in ClientOnly -->
-            <NuxtLink to="/notifications" class="nav-item" :class="{ active: isActive('/notifications') }">
+            <NuxtLink 
+              to="/notifications" 
+              class="nav-item" 
+              :class="{ active: isActive('/notifications') }"
+              @click="closeSidebar"
+            >
               <Icon name="bell" size="20" />
               <span>Notifications</span>
               <ClientOnly>
@@ -41,7 +83,12 @@
             
             <!-- ✅ FIXED: Wrap profile link in ClientOnly -->
             <ClientOnly>
-              <NuxtLink to="/profile" class="nav-item" :class="{ active: isActive('/profile') }">
+              <NuxtLink 
+                to="/profile" 
+                class="nav-item" 
+                :class="{ active: isActive('/profile') }"
+                @click="closeSidebar"
+              >
                 <Icon name="user" size="20" />
                 <span>Profile</span>
               </NuxtLink>
@@ -56,10 +103,10 @@
       <!-- Header -->
       <header class="app-header">
         <div class="header-left">
-          <button @click="toggleSidebar" class="sidebar-toggle">
+          <button @click="toggleSidebar" class="sidebar-toggle lg:hidden">
             <Icon name="menu" size="24" />
           </button>
-          <NuxtLink to="/feed" class="logo">
+          <NuxtLink to="/feed" class="logo hidden sm:flex">
             <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
             <span class="logo-text">SocialVerse</span>
           </NuxtLink>
@@ -68,7 +115,7 @@
         <div class="header-right">
           <slot name="header-actions">
             <!-- Default header actions -->
-            <button class="icon-btn" @click="toggleSearch">
+            <button class="icon-btn hidden sm:flex" @click="toggleSearch">
               <Icon name="search" size="20" />
             </button>
             
@@ -97,39 +144,54 @@
     </main>
 
     <!-- Right Sidebar (Optional) -->
-    <aside v-if="showRightSidebar" class="right-sidebar">
+    <aside v-if="showRightSidebar" class="right-sidebar hidden lg:block">
       <slot name="right-sidebar">
         <!-- Default right sidebar content -->
       </slot>
     </aside>
 
     <!-- Mobile Overlay -->
-    <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+    <div v-if="sidebarOpen" class="sidebar-overlay" @click="closeSidebar"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+// ============================================================================
+// SETUP & INITIALIZATION
+// ============================================================================
 const route = useRoute()
 const sidebarOpen = ref(false)
 const showRightSidebar = ref(false)
 const unreadCount = ref(0)
 
+// ============================================================================
+// METHODS
+// ============================================================================
 const toggleSidebar = () => {
+  console.log('[Layout] Toggle sidebar')
   sidebarOpen.value = !sidebarOpen.value
 }
 
+const closeSidebar = () => {
+  console.log('[Layout] Close sidebar')
+  sidebarOpen.value = false
+}
+
 const toggleSearch = () => {
+  console.log('[Layout] Toggle search')
   // Handle search toggle
 }
 
 const toggleNotifications = () => {
+  console.log('[Layout] Toggle notifications')
   // Handle notifications toggle
 }
 
 const toggleUserMenu = () => {
+  console.log('[Layout] Toggle user menu')
   // Handle user menu toggle
 }
 
@@ -137,46 +199,107 @@ const isActive = (path: string) => {
   return route.path.startsWith(path)
 }
 
-// Close sidebar on route change
+// ============================================================================
+// WATCHERS - Close sidebar on route change
+// ============================================================================
 watch(() => route.path, () => {
+  console.log('[Layout] Route changed, closing sidebar')
   sidebarOpen.value = false
 })
 </script>
 
 <style scoped>
+/* ============================================================================
+   GLOBAL LAYOUT - MOBILE FIRST
+   ============================================================================ */
 .app-layout {
   display: flex;
   height: 100vh;
-  background: #0fa;
+  background: #0f172a;
   color: #e2e8f0;
   overflow: hidden;
 }
 
-/* Sidebar */
+/* ============================================================================
+   SIDEBAR - MOBILE FIRST RESPONSIVE
+   ============================================================================ */
 .sidebar {
-  width: 250px;
+  width: 100%;
+  max-width: 280px;
   background: #1e293b;
-  border-right: 1px solid #155;
+  border-right: 1px solid #334155;
   overflow-y: auto;
   transition: transform 0.3s ease;
-  position: relative;
-  z-index: 100;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 101;
+  transform: translateX(-100%);
+}
+
+.sidebar.sidebar-open {
+  transform: translateX(0);
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #334155;
+  gap: 1rem;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: white;
+  font-weight: 600;
+  flex: 1;
+}
+
+.logo-img {
+  width: 32px;
+  height: 32px;
+}
+
+.logo-text {
+  font-size: 1rem;
+}
+
+.sidebar-close {
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.sidebar-close:hover {
+  color: #60a5fa;
 }
 
 .sidebar-content {
-  padding: 1rem;
+  padding: 1rem 0;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: .5rem;
+  gap: 0.5rem;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap:rem;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   color: #cbd5e1;
@@ -184,11 +307,13 @@ watch(() => route.path, () => {
   transition: all 0.2s;
   cursor: pointer;
   position: relative;
+  margin: 0 0.5rem;
+  font-size: 0.95rem;
 }
 
 .nav-item:hover {
   background: #334155;
-  color: #ff5f9;
+  color: #60a5fa;
 }
 
 .nav-item.active {
@@ -196,28 +321,37 @@ watch(() => route.path, () => {
   color: white;
 }
 
-/* Main Content */
+/* ============================================================================
+   MAIN CONTENT
+   ============================================================================ */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  width: 100%;
 }
 
+/* ============================================================================
+   HEADER - MOBILE FIRST RESPONSIVE
+   ============================================================================ */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   background: #1e293b;
   border-bottom: 1px solid #334155;
-  height: 60px;
+  height: auto;
+  min-height: 56px;
+  gap: 1rem;
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 1;
 }
 
 .sidebar-toggle {
@@ -226,7 +360,16 @@ watch(() => route.path, () => {
   color: #cbd5e1;
   cursor: pointer;
   padding: 0.5rem;
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.sidebar-toggle:hover {
+  color: #60a5fa;
 }
 
 .logo {
@@ -238,19 +381,10 @@ watch(() => route.path, () => {
   font-weight: 600;
 }
 
-.logo-img {
-  width: 32px;
-  height: 32px;
-}
-
-.logo-text {
-  font-size:rem;
-}
-
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .icon-btn {
@@ -261,10 +395,15 @@ watch(() => route.path, () => {
   padding: 0.5rem;
   position: relative;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .icon-btn:hover {
-  color: #f1f5f9;
+  color: #60a5fa;
 }
 
 .badge {
@@ -283,19 +422,30 @@ watch(() => route.path, () => {
   font-weight: 600;
 }
 
+/* ============================================================================
+   PAGE CONTENT - MOBILE FIRST RESPONSIVE
+   ============================================================================ */
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  overflow-x: hidden;
+  padding: 1rem;
+  width: 100%;
 }
 
+/* ============================================================================
+   RIGHT SIDEBAR
+   ============================================================================ */
 .right-sidebar {
-  width: px;
+  width: 320px;
   background: #1e293b;
   border-left: 1px solid #334155;
   overflow-y: auto;
 }
 
+/* ============================================================================
+   SIDEBAR OVERLAY
+   ============================================================================ */
 .sidebar-overlay {
   position: fixed;
   top: 0;
@@ -303,48 +453,108 @@ watch(() => route.path, () => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 99;
+  z-index: 100;
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
+/* ============================================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================================ */
+
+/* Tablet (768px and up) */
+@media (min-width: 768px) {
   .sidebar {
-    position: fixed;
-    left: 0;
-    top:;
-    height: 100vh;
-    transform: translateX(-100%);
-    z-index: 101;
-  }
-
-  .sidebar.sidebar-open {
+    position: relative;
     transform: translateX(0);
+    width: 280px;
+    height: 100%;
   }
 
-  .sidebar-toggle {
-    display: block;
+  .sidebar-overlay {
+    display: none;
   }
 
-  .right-sidebar {
+  .sidebar-close {
     display: none;
   }
 
   .page-content {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar {
-    width: 100%;
-  }
-
-  .logo-text {
-    display: none;
+    padding: 1.5rem;
   }
 
   .app-header {
-    padding: rem 1rem;
+    padding: 1rem 1.5rem;
+    min-height: 60px;
+  }
+}
+
+/* Desktop (1024px and up) */
+@media (min-width: 1024px) {
+  .app-layout {
+    gap: 0;
+  }
+
+  .page-content {
+    padding: 2rem;
+  }
+
+  .app-header {
+    padding: 1rem 2rem;
+  }
+}
+
+/* Large Desktop (1280px and up) */
+@media (min-width: 1280px) {
+  .page-content {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
+/* ============================================================================
+   SCROLLBAR STYLING
+   ============================================================================ */
+.sidebar::-webkit-scrollbar,
+.page-content::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track,
+.page-content::-webkit-scrollbar-track,
+.right-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.page-content::-webkit-scrollbar-thumb,
+.right-sidebar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover,
+.page-content::-webkit-scrollbar-thumb:hover,
+.right-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   REDUCED MOTION SUPPORT
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .nav-item,
+  .icon-btn {
+    transition: none;
   }
 }
 </style>
