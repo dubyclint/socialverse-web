@@ -6,11 +6,8 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   try {
-    // Use storage manager instead of direct localStorage
-    const storage = useStorage({ prefix: 'i18n_' })
-    
-    // Get stored language
-    const storedLang = storage.get<string>('language')
+    // Get stored language from localStorage directly (no useStorage needed)
+    const storedLang = localStorage.getItem('i18n_language')
     
     if (storedLang) {
       console.log('[Language Middleware] ✅ Using stored language:', storedLang)
@@ -24,11 +21,10 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
     console.log('[Language Middleware] ✅ Detected browser language:', detectedLang)
     
-    // Store detected language using storage manager
-    storage.set('language', detectedLang)
+    // Store detected language directly to localStorage
+    localStorage.setItem('i18n_language', detectedLang)
     
   } catch (err) {
     console.error('[Language Middleware] ❌ Error:', err)
-    // Continue anyway - app should work without language detection
   }
 })
