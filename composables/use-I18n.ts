@@ -128,42 +128,17 @@ export function t(key: string, defaultValue?: string): string {
 }
 
 /**
- * Set language with storage persistence
+ * Set language
  */
 export async function setLanguage(lang: string) {
   try {
     console.log('[i18n] Setting language:', lang)
-    
-    const storage = useStorage({ prefix: 'i18n_' })
-    
     await loadTranslations(lang)
-    
-    storage.set('language', lang)
     currentLang.value = lang
-    
-    console.log('[i18n] ✅ Language set and persisted:', lang)
+    console.log('[i18n] ✅ Language set:', lang)
   } catch (err) {
     console.error('[i18n] ❌ Error setting language:', err)
   }
-}
-
-/**
- * Get stored language
- */
-export function getStoredLanguage(): string {
-  try {
-    const storage = useStorage({ prefix: 'i18n_' })
-    const stored = storage.get<string>('language')
-    
-    if (stored) {
-      console.log('[i18n] ✅ Retrieved stored language:', stored)
-      return stored
-    }
-  } catch (err) {
-    console.warn('[i18n] Error retrieving stored language:', err)
-  }
-  
-  return 'en'
 }
 
 /**
@@ -197,14 +172,9 @@ export function detectBrowserLanguage(): string {
 export async function initializeI18n() {
   try {
     console.log('[i18n] Initializing...')
-    
-    const storedLang = getStoredLanguage()
     const browserLang = detectBrowserLanguage()
-    const langToUse = storedLang || browserLang
-    
-    await loadTranslations(langToUse)
-    
-    console.log('[i18n] ✅ Initialized with language:', langToUse)
+    await loadTranslations(browserLang)
+    console.log('[i18n] ✅ Initialized with language:', browserLang)
   } catch (err) {
     console.error('[i18n] ❌ Initialization error:', err)
     await loadTranslations('en')
