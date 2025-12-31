@@ -1,69 +1,47 @@
-// FILE: /composables/use-profile.ts - COMPLETE FIXED VERSION
-// ============================================================================
-// PROFILE COMPOSABLE - FIXED: Proper API integration
-// ✅ FIXED: Uses the API composable methods correctly
-// ✅ FIXED: Proper error handling and logging
-// ✅ FIXED: Returns data in expected format
-// ============================================================================
-
 import { ref } from 'vue'
+import type { Profile } from '~/stores/profile'
 
 export const useProfile = () => {
   const loading = ref(false)
-  const error = ref('')
+  const error = ref<string | null>(null)
+  const profile = ref<Profile | null>(null)
 
   /**
-   * Fetch current user profile
+   * Fetch profile by username
    */
-  const fetchMyProfile = async () => {
+  const fetchProfile = async (username: string): Promise<Profile | null> => {
     loading.value = true
-    error.value = ''
+    error.value = null
 
     try {
-      console.log('[useProfile] Fetching my profile...')
+      console.log('[useProfile] Fetching profile for user:', username)
 
-      const result = await $fetch('/api/profile/me')
+      const { data, error: fetchError } = await useFetch(`/api/profile/${username}`)
 
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to fetch profile')
+      if (fetchError.value) {
+        throw new Error(fetchError.value.message || 'Failed to fetch profile')
       }
 
-      console.log('[useProfile] ✅ Profile fetched successfully')
-      return result.data
+      if (!data.value?.data) {
+        throw new Error('User not found')
+      }
+
+      // Ensure all fields have defaults
+      const profileData: Profile = {
+        is_verified: false,
+        verification_status: 'unverified',
+        profile_completed: false,
+        email: null,
+        avatar_url: null,
+        bio: null,
+        ...data.value.data
+      }
+
+      profile.value = profileData
+      console.log('[useProfile] ✅ Profile fetched:', profileData.username)
+      return profileData
     } catch (err: any) {
-      const errorMsg = err.data?.statusMessage || err.message || 'Failed to fetch profile'
-      error.value = errorMsg
-      console.error('[useProfile] ❌ Error:', errorMsg)
-      return null
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * Fetch user profile by ID
-   */
-  const fetchUserProfile = async (userId: string) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      if (!userId) {
-        throw new Error('User ID is required')
-      }
-
-      console.log('[useProfile] Fetching profile for user:', userId)
-
-      const result = await $fetch(`/api/profile/${userId}`)
-
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to fetch profile')
-      }
-
-      console.log('[useProfile] ✅ Profile fetched successfully')
-      return result.data
-    } catch (err: any) {
-      const errorMsg = err.data?.statusMessage || err.message || 'Failed to fetch profile'
+      const errorMsg = err.message || 'Failed to fetch profile'
       error.value = errorMsg
       console.error('[useProfile] ❌ Error:', errorMsg)
       return null
@@ -75,117 +53,53 @@ export const useProfile = () => {
   /**
    * Update profile
    */
-  const updateProfile = async (updates: any) => {
+  const updateProfile = async (updates: Partial<Profile>): Promise<boolean> => {
     loading.value = true
-    error.value = ''
+    error.value = null
 
     try {
-      console.log('[useProfile] Updating profile...')
+      console.log('[useProfile] Updating profile:', updates)
 
-      const result = await $fetch('/api/profile/update', {
+      const { data, error: updateError } = await useFetch('/api/profile/update', {
         method: 'POST',
         body: updates
       })
 
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to update profile')
+      if (updateError.value) {
+        throw new Error(updateError.value.message || 'Failed to update profile')
       }
 
-      console.log('[useProfile] ✅ Profile updated successfully')
-      return result.data
+      if (profile.value) {
+        profile.value = { ...profile.value, ...updates }
+      }
+
+      console.log('[useProfile] ✅ Profile updated')
+      return true
     } catch (err: any) {
-      const errorMsg = err.data?.statusMessage || err.message || 'Failed to update profile'
+      const errorMsg = err.message || 'Failed to update profile'
       error.value = errorMsg
       console.error('[useProfile] ❌ Error:', errorMsg)
-      throw err
+      return false
     } finally {
       loading.value = false
     }
   }
 
   /**
-   * Complete profile
+   * Clear profile
    */
-  const completeProfile = async (profileData: any) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      console.log('[useProfile] Completing profile...')
-
-      const result = await $fetch('/api/profile/complete', {
-        method: 'POST',
-        body: profileData
-      })
-
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to complete profile')
-      }
-
-      console.log('[useProfile] ✅ Profile completed successfully')
-      return result.data
-    } catch (err: any) {
-      const errorMsg = err.data?.statusMessage || err.message || 'Failed to complete profile'
-      error.value = errorMsg
-      console.error('[useProfile] ❌ Error:', errorMsg)
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * Upload avatar
-   */
-  const uploadAvatar = async (file: File) => {
-    loading.value = true
-    error.value = ''
-
-    try {
-      console.log('[useProfile] Uploading avatar...')
-
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const result = await $fetch('/api/profile/avatar-upload', {
-        method: 'POST',
-        body: formData
-      })
-
-      if (!result?.success) {
-        throw new Error(result?.error || 'Failed to upload avatar')
-      }
-
-      console.log('[useProfile] ✅ Avatar uploaded successfully')
-      return {
-        profile: result.data,
-        url: result.url
-      }
-    } catch (err: any) {
-      const errorMsg = err.data?.statusMessage || err.message || 'Failed to upload avatar'
-      error.value = errorMsg
-      console.error('[useProfile] ❌ Error:', errorMsg)
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * Clear error
-   */
-  const clearError = () => {
-    error.value = ''
+  const clearProfile = () => {
+    profile.value = null
+    error.value = null
+    console.log('[useProfile] ✅ Profile cleared')
   }
 
   return {
     loading,
     error,
-    fetchMyProfile,
-    fetchUserProfile,
+    profile,
+    fetchProfile,
     updateProfile,
-    completeProfile,
-    uploadAvatar,
-    clearError
+    clearProfile
   }
 }
