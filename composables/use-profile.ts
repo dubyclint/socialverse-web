@@ -28,13 +28,18 @@ export const useProfile = () => {
 
       // Ensure all fields have defaults
       const profileData: Profile = {
-        is_verified: false,
-        verification_status: 'unverified',
-        profile_completed: false,
-        email: null,
-        avatar_url: null,
-        bio: null,
-        ...data.value.data
+        id: data.value.data.id || '',
+        user_id: data.value.data.user_id || '',
+        username: data.value.data.username || '',
+        full_name: data.value.data.full_name || '',
+        email: data.value.data.email || null,
+        avatar_url: data.value.data.avatar_url || null,
+        bio: data.value.data.bio || null,
+        is_verified: data.value.data.is_verified || false,
+        verification_status: data.value.data.verification_status || 'unverified',
+        profile_completed: data.value.data.profile_completed || false,
+        created_at: data.value.data.created_at || new Date().toISOString(),
+        updated_at: data.value.data.updated_at || new Date().toISOString()
       }
 
       profile.value = profileData
