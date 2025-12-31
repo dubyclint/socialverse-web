@@ -1,34 +1,26 @@
 <template>
   <div class="profile-container">
-    <!-- Loading State -->
     <div v-if="loading" class="loading">
       <p>Loading profile...</p>
+      <p style="font-size: 12px; color: #999;">Username: {{ routeUsername }}</p>
     </div>
 
-    <!-- Error State -->
     <div v-else-if="error" class="error">
       <p>{{ error }}</p>
       <button @click="goBack">Go Back</button>
     </div>
 
-    <!-- Profile Content -->
     <div v-else-if="profile" class="profile-content">
-      <!-- Header -->
       <div class="profile-header">
         <img v-if="profile.avatar_url" :src="profile.avatar_url" :alt="profile.full_name" class="avatar" />
         <div class="profile-info">
           <h1>{{ profile.full_name }}</h1>
           <p class="username">@{{ profile.username }}</p>
           <p v-if="profile.bio" class="bio">{{ profile.bio }}</p>
-          
-          <!-- Verification Badge -->
-          <div v-if="profile.is_verified" class="verified-badge">
-            ✓ Verified
-          </div>
+          <div v-if="profile.is_verified" class="verified-badge">✓ Verified</div>
         </div>
       </div>
 
-      <!-- Stats -->
       <div class="profile-stats">
         <div class="stat">
           <span class="label">Posts</span>
@@ -44,18 +36,15 @@
         </div>
       </div>
 
-      <!-- Email (if available) -->
       <div v-if="profile.email" class="profile-email">
         <strong>Email:</strong> {{ profile.email }}
       </div>
 
-      <!-- Verification Status -->
       <div class="verification-status">
         <strong>Status:</strong> {{ profile.verification_status }}
       </div>
     </div>
 
-    <!-- Not Found -->
     <div v-else class="not-found">
       <p>User not found</p>
       <button @click="goBack">Go Back</button>
@@ -64,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Profile } from '~/stores/profile'
 
@@ -75,108 +64,49 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const profile = ref<Profile | null>(null)
 
-/**
- * Fetch profile data
- */
+const routeUsername = computed(() => {
+  try {
+    return String(route.params.username || 'unknown')
+  } catch {
+    return 'error'
+  }
+})
+
+const goBack = () => {
+  router.back()
+}
+
 const loadProfile = async () => {
   loading.value = true
   error.value = null
 
   try {
-    const username = route.params.username as string
-    console.log('[Profile] Component mounted, loading profile for user:', username)
-
-    if (!username) {
-      error.value = 'Username is required'
+    const username = String(route.params.username)
+    
+    if (!username || username === 'undefined') {
+      error.value = 'Invalid username'
       loading.value = false
       return
     }
 
-    console.log('[Profile] Attempting to fetch from /api/profile/' + username)
+    const url = `/api/profile/${username}`
+    const response = await fetch(url)
+    const data = await response.json()
 
-    // Use native fetch with explicit error handling
-    let response
-    try {
-      response = await fetch(`/api/profile/${username}`)
-    } catch (fetchErr) {
-      console.error('[Profile] Fetch error:', fetchErr)
-      error.value = 'Network error: ' + (fetchErr as any).message
-      loading.value = false
-      return
-    }
-
-    console.log('[Profile] Response status:', response.status)
-
-    if (!response.ok) {
-      error.value = `HTTP ${response.status}: ${response.statusText}`
-      loading.value = false
-      return
-    }
-
-    let data
-    try {
-      data = await response.json()
-    } catch (parseErr) {
-      console.error('[Profile] JSON parse error:', parseErr)
-      error.value = 'Invalid response format'
-      loading.value = false
-      return
-    }
-
-    console.log('[Profile] Response data:', data)
-
-    if (!data?.data) {
+    if (data?.data) {
+      profile.value = data.data as Profile
+    } else {
       error.value = 'User not found'
-      loading.value = false
-      return
     }
-
-    // Map API response to Profile interface
-    profile.value = {
-      id: data.data.id || '',
-      user_id: data.data.user_id || '',
-      username: data.data.username || '',
-      full_name: data.data.full_name || data.data.display_name || '',
-      email: data.data.email || null,
-      avatar_url: data.data.avatar_url || null,
-      bio: data.data.bio || null,
-      is_verified: data.data.is_verified || false,
-      verification_status: data.data.verification_status || 'unverified',
-      profile_completed: data.data.profile_completed || false,
-      created_at: data.data.created_at || new Date().toISOString(),
-      updated_at: data.data.updated_at || new Date().toISOString()
-    }
-
-    console.log('[Profile] ✅ Profile loaded:', profile.value.username)
-  } catch (err: any) {
-    console.error('[Profile] ❌ Unexpected error:', err)
-    error.value = 'Unexpected error: ' + (err?.message || String(err))
+  } catch (err) {
+    error.value = String(err)
   } finally {
     loading.value = false
   }
 }
 
-/**
- * Go back to previous page
- */
-const goBack = () => {
-  try {
-    router.back()
-  } catch (err) {
-    console.error('[Profile] Router error:', err)
-    window.history.back()
-  }
-}
-
 onMounted(() => {
-  try {
-    console.log('[Profile] onMounted hook called')
-    loadProfile()
-  } catch (err) {
-    console.error('[Profile] onMounted error:', err)
-    error.value = 'Failed to initialize: ' + (err as any).message
-    loading.value = false
-  }
+  loadProfile()
 })
 </script>
 
@@ -187,15 +117,12 @@ onMounted(() => {
   padding: 20px;
 }
 
-.loading,
-.error,
-.not-found {
+.loading, .error, .not-found {
   text-align: center;
   padding: 40px 20px;
 }
 
-.error,
-.not-found {
+.error, .not-found {
   color: #e74c3c;
 }
 
@@ -269,8 +196,7 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.profile-email,
-.verification-status {
+.profile-email, .verification-status {
   padding: 10px;
   margin-bottom: 10px;
   background: #f9f9f9;
