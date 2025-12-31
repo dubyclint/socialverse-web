@@ -1,4 +1,11 @@
 // server/api/profile/[username].ts
+// ============================================================================
+// Get user profile by username
+// ✅ FIXED: Proper Supabase client initialization
+// ✅ FIXED: Query profiles view instead of user table
+// ✅ FIXED: Comprehensive error handling
+// ============================================================================
+
 export default defineEventHandler(async (event) => {
   try {
     const username = getRouterParam(event, 'username')
@@ -12,20 +19,21 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Create Supabase client with service role key for server-side queries
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Fetch user profile by username
+    // Fetch user profile from profiles view by username
     const { data: profile, error } = await supabase
-      .from('user')
+      .from('profiles')
       .select('*')
       .eq('username', username.toLowerCase())
       .single()
 
     if (error) {
-      console.error('[API] Error fetching profile:', error)
+      console.error('[API] Error fetching profile:', error.message)
       throw createError({
         statusCode: 404,
         statusMessage: 'User not found'
@@ -47,7 +55,7 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[API] Profile error:', error)
+    console.error('[API] Profile error:', error.message)
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || 'Failed to fetch profile'
