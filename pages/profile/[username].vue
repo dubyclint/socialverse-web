@@ -76,7 +76,7 @@ const error = ref<string | null>(null)
 const profile = ref<Profile | null>(null)
 
 /**
- * Fetch profile data using native fetch API
+ * Fetch profile data
  */
 const loadProfile = async () => {
   loading.value = true
@@ -87,20 +87,48 @@ const loadProfile = async () => {
     console.log('[Profile] Component mounted, loading profile for user:', username)
 
     if (!username) {
-      throw new Error('Username is required')
+      error.value = 'Username is required'
+      loading.value = false
+      return
     }
 
-    // Use native fetch API instead of Nuxt composables
-    const response = await fetch(`/api/profile/${username}`)
+    console.log('[Profile] Attempting to fetch from /api/profile/' + username)
+
+    // Use native fetch with explicit error handling
+    let response
+    try {
+      response = await fetch(`/api/profile/${username}`)
+    } catch (fetchErr) {
+      console.error('[Profile] Fetch error:', fetchErr)
+      error.value = 'Network error: ' + (fetchErr as any).message
+      loading.value = false
+      return
+    }
+
+    console.log('[Profile] Response status:', response.status)
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      error.value = `HTTP ${response.status}: ${response.statusText}`
+      loading.value = false
+      return
     }
 
-    const data = await response.json()
+    let data
+    try {
+      data = await response.json()
+    } catch (parseErr) {
+      console.error('[Profile] JSON parse error:', parseErr)
+      error.value = 'Invalid response format'
+      loading.value = false
+      return
+    }
+
+    console.log('[Profile] Response data:', data)
 
     if (!data?.data) {
-      throw new Error('User not found')
+      error.value = 'User not found'
+      loading.value = false
+      return
     }
 
     // Map API response to Profile interface
@@ -121,9 +149,8 @@ const loadProfile = async () => {
 
     console.log('[Profile] ✅ Profile loaded:', profile.value.username)
   } catch (err: any) {
-    const errorMsg = err.message || 'Failed to load profile'
-    error.value = errorMsg
-    console.error('[Profile] ❌ Load error:', errorMsg, err)
+    console.error('[Profile] ❌ Unexpected error:', err)
+    error.value = 'Unexpected error: ' + (err?.message || String(err))
   } finally {
     loading.value = false
   }
@@ -133,11 +160,23 @@ const loadProfile = async () => {
  * Go back to previous page
  */
 const goBack = () => {
-  router.back()
+  try {
+    router.back()
+  } catch (err) {
+    console.error('[Profile] Router error:', err)
+    window.history.back()
+  }
 }
 
 onMounted(() => {
-  loadProfile()
+  try {
+    console.log('[Profile] onMounted hook called')
+    loadProfile()
+  } catch (err) {
+    console.error('[Profile] onMounted error:', err)
+    error.value = 'Failed to initialize: ' + (err as any).message
+    loading.value = false
+  }
 })
 </script>
 
