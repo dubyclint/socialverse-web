@@ -3,9 +3,10 @@ import { ref, computed } from 'vue'
 
 export interface Profile {
   id: string
+  user_id: string
   username: string
   full_name: string
-  email: string
+  email: string | null
   avatar_url: string | null
   bio: string | null
   is_verified: boolean
