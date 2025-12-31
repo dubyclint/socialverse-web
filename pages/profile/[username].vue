@@ -76,7 +76,7 @@ const error = ref<string | null>(null)
 const profile = ref<Profile | null>(null)
 
 /**
- * Fetch profile data using $fetch directly
+ * Fetch profile data
  */
 const loadProfile = async () => {
   loading.value = true
@@ -90,8 +90,14 @@ const loadProfile = async () => {
       throw new Error('Username is required')
     }
 
-    // Use $fetch directly instead of useFetch to avoid composable issues
-    const response = await $fetch(`/api/profile/${username}`)
+    // Use the Nuxt app context to access $fetch
+    const { $fetch: nuxtFetch } = useNuxtApp()
+    
+    if (!nuxtFetch) {
+      throw new Error('Fetch function not available')
+    }
+
+    const response = await nuxtFetch(`/api/profile/${username}`)
 
     if (!response?.data) {
       throw new Error('User not found')
@@ -117,7 +123,7 @@ const loadProfile = async () => {
   } catch (err: any) {
     const errorMsg = err.message || 'Failed to load profile'
     error.value = errorMsg
-    console.error('[Profile] ❌ Load error:', errorMsg)
+    console.error('[Profile] ❌ Load error:', errorMsg, err)
   } finally {
     loading.value = false
   }
