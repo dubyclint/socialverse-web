@@ -1,10 +1,13 @@
 // server/api/profile/[username].ts
 // ============================================================================
 // Get user profile by username
+// ✅ FIXED: Added missing imports
 // ✅ FIXED: Proper Supabase client initialization
 // ✅ FIXED: Query profiles view instead of user table
 // ✅ FIXED: Comprehensive error handling
 // ============================================================================
+
+import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   try {
