@@ -76,7 +76,7 @@ const error = ref<string | null>(null)
 const profile = ref<Profile | null>(null)
 
 /**
- * Fetch profile data
+ * Fetch profile data using native fetch API
  */
 const loadProfile = async () => {
   loading.value = true
@@ -90,33 +90,33 @@ const loadProfile = async () => {
       throw new Error('Username is required')
     }
 
-    // Use the Nuxt app context to access $fetch
-    const { $fetch: nuxtFetch } = useNuxtApp()
-    
-    if (!nuxtFetch) {
-      throw new Error('Fetch function not available')
+    // Use native fetch API instead of Nuxt composables
+    const response = await fetch(`/api/profile/${username}`)
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const response = await nuxtFetch(`/api/profile/${username}`)
+    const data = await response.json()
 
-    if (!response?.data) {
+    if (!data?.data) {
       throw new Error('User not found')
     }
 
     // Map API response to Profile interface
     profile.value = {
-      id: response.data.id || '',
-      user_id: response.data.user_id || '',
-      username: response.data.username || '',
-      full_name: response.data.full_name || response.data.display_name || '',
-      email: response.data.email || null,
-      avatar_url: response.data.avatar_url || null,
-      bio: response.data.bio || null,
-      is_verified: response.data.is_verified || false,
-      verification_status: response.data.verification_status || 'unverified',
-      profile_completed: response.data.profile_completed || false,
-      created_at: response.data.created_at || new Date().toISOString(),
-      updated_at: response.data.updated_at || new Date().toISOString()
+      id: data.data.id || '',
+      user_id: data.data.user_id || '',
+      username: data.data.username || '',
+      full_name: data.data.full_name || data.data.display_name || '',
+      email: data.data.email || null,
+      avatar_url: data.data.avatar_url || null,
+      bio: data.data.bio || null,
+      is_verified: data.data.is_verified || false,
+      verification_status: data.data.verification_status || 'unverified',
+      profile_completed: data.data.profile_completed || false,
+      created_at: data.data.created_at || new Date().toISOString(),
+      updated_at: data.data.updated_at || new Date().toISOString()
     }
 
     console.log('[Profile] ✅ Profile loaded:', profile.value.username)
