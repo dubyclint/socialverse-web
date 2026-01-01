@@ -1,6 +1,8 @@
 // plugins/session-timeout.client.ts
 // Session timeout and auto-logout plugin
 
+import { watch } from 'vue'
+
 export default defineNuxtPlugin(() => {
   const authStore = useAuthStore()
   const router = useRouter()
@@ -108,8 +110,7 @@ export default defineNuxtPlugin(() => {
     provide: {
       sessionTimeout: {
         resetTimer: resetInactivityTimer,
-        clearTimer: clearInactivityTimer,
-        getLastActivityTime: () => lastActivityTime
+        clearTimer: clearInactivityTimer
       }
     }
   }
