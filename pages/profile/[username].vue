@@ -113,19 +113,25 @@ definePageMeta({
 const route = useRoute()
 const authStore = useAuthStore()
 
-// State
+// ============================================================================
+// STATE
+// ============================================================================
 const loading = ref(true)
 const error = ref<string | null>(null)
 const profile = ref<any>(null)
 const userPosts = ref<any[]>([])
 const requestedUsername = ref<string>('')
 
-// Computed
+// ============================================================================
+// COMPUTED
+// ============================================================================
 const isOwnProfile = computed(() => {
   return profile.value?.username === authStore.user?.username
 })
 
-// Methods
+// ============================================================================
+// METHODS
+// ============================================================================
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -192,7 +198,9 @@ const fetchProfile = async (username: string) => {
   }
 }
 
-// Lifecycle
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
 onMounted(async () => {
   try {
     // Get username from route params
