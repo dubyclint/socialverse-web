@@ -105,7 +105,7 @@
           <!-- Login Link -->
           <div class="login-link">
             <p>Already have an account? 
-              <NuxtLink to="/auth/login">Login here</NuxtLink>
+              <NuxtLink to="/auth/signin">Login here</NuxtLink>
             </p>
           </div>
 
@@ -146,6 +146,7 @@ const handleSignup = async () => {
   error.value = ''
   successMessage.value = ''
 
+  console.log('[Signup Page] ============ SIGNUP START ============')
   console.log('[Signup Page] Submitting signup form...')
   
   // Client-side validation
@@ -159,18 +160,21 @@ const handleSignup = async () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(formData.value.email)) {
     error.value = 'Please enter a valid email address'
+    console.error('[Signup Page] Invalid email format')
     return
   }
 
   // Password validation
   if (formData.value.password.length < 6) {
     error.value = 'Password must be at least 6 characters long'
+    console.error('[Signup Page] Password too short')
     return
   }
 
   // Username validation
   if (formData.value.username.length < 3) {
     error.value = 'Username must be at least 3 characters long'
+    console.error('[Signup Page] Username too short')
     return
   }
 
@@ -190,6 +194,10 @@ const handleSignup = async () => {
       console.log('[Signup Page] ✅ Signup successful')
       successMessage.value = result.message || 'Account created! Please check your email to confirm.'
       
+      // ✅ FIX: Store email in sessionStorage for verification page
+      console.log('[Signup Page] Storing email in sessionStorage:', formData.value.email)
+      sessionStorage.setItem('verificationEmail', formData.value.email)
+      
       // Clear form
       formData.value = {
         email: '',
@@ -199,6 +207,7 @@ const handleSignup = async () => {
       }
       
       // Redirect after 2 seconds
+      console.log('[Signup Page] Redirecting to verify-email page...')
       setTimeout(() => {
         navigateTo('/auth/verify-email')
       }, 2000)
@@ -489,3 +498,4 @@ watch(() => authError.value, (newError) => {
   }
 }
 </style>
+
