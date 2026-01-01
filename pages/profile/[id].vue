@@ -257,6 +257,7 @@ import { ref, computed, onMounted } from 'vue'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const rankStore = useRankStore()  // ✅ ADDED: Import rank store
 const { fetchProfile, fetchUserProfile, fetchUserPosts } = useProfile()
 
 // ✅ FIXED: Get the correct parameter - could be either 'id' or 'username'
@@ -275,11 +276,12 @@ const profilePosts = ref<any[]>([])
 const profileGallery = ref<any[]>([])
 const recentFollowers = ref<any[]>([])
 
+// ✅ FIXED: Initialize profileStats with proper structure
 const profileStats = ref({
   posts: 0,
   followers: 0,
   following: 0,
-  rank: 'Bronze I'
+  rank: 'Bronze I'  // Will be updated dynamically
 })
 
 const profileTabs = [
@@ -369,6 +371,19 @@ const isUsernameParam = (): boolean => {
   return !(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier))
 }
 
+// ✅ FIXED: Load rank data separately
+const loadRankData = async (userId: string) => {
+  try {
+    console.log('[Profile] Loading rank data for user:', userId)
+    const rankData = await rankStore.fetchRank(userId)
+    profileStats.value.rank = rankData.rank || 'Bronze I'
+    console.log('[Profile] ✅ Rank loaded:', profileStats.value.rank)
+  } catch (err) {
+    console.error('[Profile] Error loading rank:', err)
+    profileStats.value.rank = 'Bronze I'  // Fallback
+  }
+}
+
 const loadProfile = async () => {
   try {
     loading.value = true
@@ -399,10 +414,23 @@ const loadProfile = async () => {
 
     profile.value = profileData
 
+    // ✅ FIXED: Update rank from profile data
+    profileStats.value.rank = profileData.rank || 'Bronze I'
+    console.log('[Profile] Rank from profile:', profileStats.value.rank)
+
+    // ✅ FIXED: Also load rank data from rank store for additional info
+    if (profileData.user_id) {
+      await loadRankData(profileData.user_id)
+    }
+
     // ✅ FIXED: Fetch posts using the user ID from profile
     const posts = await fetchUserPosts(profileData.user_id)
     profilePosts.value = posts || []
     profileStats.value.posts = profilePosts.value.length
+
+    // ✅ FIXED: Update followers and following counts from profile
+    profileStats.value.followers = profileData.followers_count || 0
+    profileStats.value.following = profileData.following_count || 0
 
     console.log('[Profile] ✅ Profile loaded successfully')
   } catch (err) {
