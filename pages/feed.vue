@@ -1,10 +1,12 @@
-<!-- FILE: /pages/feed.vue - PART 1 & 2 - TEMPLATE SECTION (FIXED) -->
+<!-- FILE: /pages/feed.vue - COMPLETE FIXED VERSION -->
 <!-- ============================================================================
-     FEED PAGE - COMPLETE FIXED VERSION
-     ✅ FIXED: Profile navigation validation
+     FEED PAGE - COMPLETE FIXED VERSION WITH ALL NAVIGATION FIXES
+     ✅ FIXED: Profile navigation validation with comprehensive checks
      ✅ FIXED: Safe null-checks on all avatar clicks
-     ✅ FIXED: Dynamic sidebar profile link
+     ✅ FIXED: Dynamic sidebar profile link with username validation
      ✅ FIXED: User profile navigation protection
+     ✅ FIXED: Proper error handling and logging
+     ✅ FIXED: All watchers for reactive updates
      ============================================================================ -->
 
 <template>
@@ -98,7 +100,12 @@
         <nav class="sidebar-nav">
           <!-- Primary Navigation Section -->
           <!-- ✅ FIX: Dynamic profile link with username validation -->
-          <NuxtLink :to="`/profile/${userUsername}`" class="sidebar-item" @click="toggleSidebar">
+          <NuxtLink 
+            :to="`/profile/${userUsername}`" 
+            class="sidebar-item" 
+            @click="toggleSidebar"
+            :class="{ disabled: !userUsername || userUsername === 'username' }"
+          >
             <Icon name="user" size="18" />
             <span>Profile</span>
           </NuxtLink>
@@ -196,7 +203,7 @@
                   :src="userAvatar" 
                   :alt="userName" 
                   class="profile-avatar"
-                  @click="userUsername && goToProfile()"
+                  @click="goToProfile()"
                 />
                 <span :class="['status-indicator', userStatus]"></span>
               </div>
@@ -626,41 +633,50 @@ const isVerified = ref(false)
 // ============================================================================
 const currentUser = computed(() => authStore.user)
 
-const userName = computed(() => 
-  currentUser.value?.user_metadata?.full_name || 
-  currentUser.value?.full_name || 
-  'User'
-)
+const userName = computed(() => {
+  const name = currentUser.value?.user_metadata?.full_name || 
+               currentUser.value?.full_name || 
+               'User'
+  console.log('[Feed] userName computed:', name)
+  return name
+})
 
+// ✅ FIXED: Proper username extraction with detailed logging
 const userUsername = computed(() => {
   const username = currentUser.value?.user_metadata?.username || 
                    currentUser.value?.username || 
                    ''
-  console.log('[Feed] userUsername computed:', username)
+  console.log('[Feed] userUsername computed:', {
+    value: username,
+    isEmpty: !username,
+    isValid: username && username.trim() !== '' && username !== 'username'
+  })
   return username
 })
 
-const userAvatar = computed(() => 
-  currentUser.value?.user_metadata?.avatar_url || 
-  currentUser.value?.avatar_url || 
-  '/default-avatar.svg'
-)
+const userAvatar = computed(() => {
+  const avatar = currentUser.value?.user_metadata?.avatar_url || 
+                 currentUser.value?.avatar_url || 
+                 '/default-avatar.svg'
+  console.log('[Feed] userAvatar computed:', avatar)
+  return avatar
+})
 
-const userFollowers = computed(() => 
-  currentUser.value?.user_metadata?.followers_count || 0
-)
+const userFollowers = computed(() => {
+  return currentUser.value?.user_metadata?.followers_count || 0
+})
 
-const userFollowing = computed(() => 
-  currentUser.value?.user_metadata?.following_count || 0
-)
+const userFollowing = computed(() => {
+  return currentUser.value?.user_metadata?.following_count || 0
+})
 
-const userPosts = computed(() => 
-  currentUser.value?.user_metadata?.posts_count || 0
-)
+const userPosts = computed(() => {
+  return currentUser.value?.user_metadata?.posts_count || 0
+})
 
-const userStatus = computed(() => 
-  currentUser.value?.user_metadata?.status || 'online'
-)
+const userStatus = computed(() => {
+  return currentUser.value?.user_metadata?.status || 'online'
+})
 
 // ============================================================================
 // FEED TABS CONFIGURATION
@@ -672,7 +688,7 @@ const feedTabs = [
 ]
 
 // ============================================================================
-// METHODS - HEADER & SIDEBAR (FROM FEEDHEADER)
+// METHODS - HEADER & SIDEBAR
 // ============================================================================
 const toggleSidebar = () => {
   console.log('[Feed] Toggle sidebar')
@@ -700,96 +716,180 @@ const handleLogout = async () => {
 }
 
 // ============================================================================
-// NAVIGATION METHODS - ✅ FIXED WITH VALIDATION
+// NAVIGATION METHODS - ✅ FIXED WITH COMPREHENSIVE VALIDATION
 // ============================================================================
 
 /**
  * ✅ FIX 1: Navigate to current user's profile with validation
+ * This is the main profile navigation from the sidebar and profile card
  */
 const goToProfile = () => {
-  console.log('[Feed] Navigate to profile, username:', userUsername.value)
+  console.log('[Feed] goToProfile() called')
+  console.log('[Feed] Current user:', {
+    id: currentUser.value?.id,
+    username: userUsername.value,
+    email: currentUser.value?.email
+  })
   
-  // ✅ VALIDATION: Check if username is valid
-  if (!userUsername.value || userUsername.value === 'username' || userUsername.value.trim() === '') {
-    console.warn('[Feed] ❌ Invalid username, cannot navigate to profile')
+  // ✅ VALIDATION 1: Check if user is authenticated
+  if (!currentUser.value || !currentUser.value.id) {
+    console.error('[Feed] ❌ User not authenticated')
     return
   }
   
+  // ✅ VALIDATION 2: Check if username exists and is valid
+  if (!userUsername.value || userUsername.value.trim() === '') {
+    console.error('[Feed] ❌ Username is empty or missing')
+    console.error('[Feed] Available data:', {
+      username: userUsername.value,
+      email: currentUser.value?.email,
+      userId: currentUser.value?.id
+    })
+    return
+  }
+  
+  // ✅ VALIDATION 3: Check if username is a placeholder
+  if (userUsername.value === 'username' || userUsername.value === 'user') {
+    console.error('[Feed] ❌ Username is a placeholder:', userUsername.value)
+    return
+  }
+  
+  // ✅ VALIDATION 4: Check if username contains invalid characters
+  if (!/^[a-z0-9_-]+$/.test(userUsername.value.toLowerCase())) {
+    console.error('[Feed] ❌ Username contains invalid characters:', userUsername.value)
+    return
+  }
+  
+  console.log('[Feed] ✅ All validations passed, navigating to profile:', userUsername.value)
   sidebarOpen.value = false
   router.push(`/profile/${userUsername.value}`)
 }
 
 /**
  * ✅ FIX 2: Navigate to any user's profile with validation
+ * This is used for post author avatars and suggested users
  */
 const goToUserProfile = (username: string) => {
-  console.log('[Feed] Navigate to user profile:', username)
+  console.log('[Feed] goToUserProfile() called with username:', username)
   
-  // ✅ VALIDATION: Check if username is valid
-  if (!username || username.trim() === '' || username === 'username') {
-    console.warn('[Feed] ❌ Invalid username provided:', username)
+  // ✅ VALIDATION 1: Check if username is provided
+  if (!username) {
+    console.error('[Feed] ❌ Username not provided')
     return
   }
   
+  // ✅ VALIDATION 2: Check if username is a string
+  if (typeof username !== 'string') {
+    console.error('[Feed] ❌ Username is not a string:', typeof username)
+    return
+  }
+  
+  // ✅ VALIDATION 3: Trim and check if empty
+  const trimmedUsername = username.trim()
+  if (trimmedUsername === '') {
+    console.error('[Feed] ❌ Username is empty after trim')
+    return
+  }
+  
+  // ✅ VALIDATION 4: Check if username is a placeholder
+  if (trimmedUsername === 'username' || trimmedUsername === 'user' || trimmedUsername === 'User') {
+    console.error('[Feed] ❌ Username is a placeholder:', trimmedUsername)
+    return
+  }
+  
+  // ✅ VALIDATION 5: Check if username contains invalid characters
+  if (!/^[a-z0-9_-]+$/.test(trimmedUsername.toLowerCase())) {
+    console.error('[Feed] ❌ Username contains invalid characters:', trimmedUsername)
+    return
+  }
+  
+  console.log('[Feed] ✅ All validations passed, navigating to user profile:', trimmedUsername)
   sidebarOpen.value = false
-  router.push(`/profile/${username}`)
+  router.push(`/profile/${trimmedUsername}`)
 }
 
+/**
+ * ✅ FIX 3: Navigate to followers list
+ */
 const goToFollowers = () => {
-  console.log('[Feed] Navigate to followers')
+  console.log('[Feed] goToFollowers() called')
   
   // ✅ VALIDATION: Check username before navigation
-  if (!userUsername.value || userUsername.value === 'username') {
-    console.warn('[Feed] ❌ Invalid username, cannot navigate to followers')
+  if (!userUsername.value || userUsername.value.trim() === '' || userUsername.value === 'username') {
+    console.error('[Feed] ❌ Invalid username, cannot navigate to followers')
     return
   }
   
+  console.log('[Feed] ✅ Navigating to followers for:', userUsername.value)
   router.push(`/profile/${userUsername.value}/followers`)
 }
 
+/**
+ * ✅ FIX 4: Navigate to following list
+ */
 const goToFollowing = () => {
-  console.log('[Feed] Navigate to following')
+  console.log('[Feed] goToFollowing() called')
   
   // ✅ VALIDATION: Check username before navigation
-  if (!userUsername.value || userUsername.value === 'username') {
-    console.warn('[Feed] ❌ Invalid username, cannot navigate to following')
+  if (!userUsername.value || userUsername.value.trim() === '' || userUsername.value === 'username') {
+    console.error('[Feed] ❌ Invalid username, cannot navigate to following')
     return
   }
   
+  console.log('[Feed] ✅ Navigating to following for:', userUsername.value)
   router.push(`/profile/${userUsername.value}/following`)
 }
 
+/**
+ * ✅ FIX 5: Navigate to user's posts
+ */
 const goToUserPosts = () => {
-  console.log('[Feed] Navigate to user posts')
+  console.log('[Feed] goToUserPosts() called')
   
   // ✅ VALIDATION: Check username before navigation
-  if (!userUsername.value || userUsername.value === 'username') {
-    console.warn('[Feed] ❌ Invalid username, cannot navigate to user posts')
+  if (!userUsername.value || userUsername.value.trim() === '' || userUsername.value === 'username') {
+    console.error('[Feed] ❌ Invalid username, cannot navigate to user posts')
     return
   }
   
+  console.log('[Feed] ✅ Navigating to user posts for:', userUsername.value)
   router.push(`/profile/${userUsername.value}/posts`)
 }
 
+/**
+ * ✅ FIX 6: Navigate to create post page
+ */
 const goToCreatePost = () => {
-  console.log('[Feed] Navigate to create post')
+  console.log('[Feed] goToCreatePost() called')
   sidebarOpen.value = false
   router.push('/posts/create')
 }
 
+/**
+ * ✅ FIX 7: Share current user's profile
+ */
 const shareProfile = async () => {
-  console.log('[Feed] Share profile')
+  console.log('[Feed] shareProfile() called')
+  
+  // ✅ VALIDATION: Check username before sharing
+  if (!userUsername.value || userUsername.value.trim() === '') {
+    console.error('[Feed] ❌ Cannot share profile - username is invalid')
+    return
+  }
+  
   try {
+    const profileUrl = `${window.location.origin}/profile/${userUsername.value}`
+    
     if (navigator.share) {
       await navigator.share({
         title: `Check out ${userName.value}`,
         text: `Follow ${userName.value} on SocialVerse!`,
-        url: `${window.location.origin}/profile/${userUsername.value}`
+        url: profileUrl
       })
+      console.log('[Feed] ✅ Profile shared via native share')
     } else {
-      const profileUrl = `${window.location.origin}/profile/${userUsername.value}`
       await navigator.clipboard.writeText(profileUrl)
-      console.log('[Feed] Profile URL copied to clipboard')
+      console.log('[Feed] ✅ Profile URL copied to clipboard')
     }
   } catch (error) {
     console.error('[Feed] Error sharing profile:', error)
@@ -835,14 +935,15 @@ const sharePost = async (postId: string) => {
     const post = posts.value.find(p => p.id === postId)
     if (!post) return
 
+    const postUrl = `${window.location.origin}/posts/${postId}`
+    
     if (navigator.share) {
       await navigator.share({
         title: 'Check out this post',
         text: post.content,
-        url: `${window.location.origin}/posts/${postId}`
+        url: postUrl
       })
     } else {
-      const postUrl = `${window.location.origin}/posts/${postId}`
       await navigator.clipboard.writeText(postUrl)
       console.log('[Feed] Post URL copied to clipboard')
     }
@@ -1024,7 +1125,7 @@ const formatTime = (date: string | Date) => {
   }
 }
 
-// ============================================================================
+    // ============================================================================
 // DATA FETCHING METHODS - POSTS
 // ============================================================================
 const fetchPosts = async () => {
@@ -1163,6 +1264,11 @@ const fetchUserProfileData = async () => {
 // ============================================================================
 onBeforeMount(() => {
   console.log('[Feed] Before mount - checking auth')
+  console.log('[Feed] Auth store state:', {
+    isAuthenticated: authStore.isAuthenticated,
+    user: authStore.user?.id,
+    token: !!authStore.token
+  })
   
   if (!authStore.user || !authStore.token) {
     console.warn('[Feed] User not authenticated, redirecting to signin')
@@ -1175,6 +1281,11 @@ onBeforeMount(() => {
 // ============================================================================
 onMounted(async () => {
   console.log('[Feed] Component mounted')
+  console.log('[Feed] Current user:', {
+    id: currentUser.value?.id,
+    email: currentUser.value?.email,
+    username: userUsername.value
+  })
   
   if (process.client) {
     console.log('[Feed] Loading data on client-side')
@@ -1199,15 +1310,225 @@ onMounted(async () => {
 // ============================================================================
 // WATCHERS - REACTIVE UPDATES
 // ============================================================================
+
+/**
+ * Watch for active tab changes and refresh feed
+ */
 watch(() => activeTab.value, () => {
   console.log('[Feed] Active tab changed to:', activeTab.value)
   refreshFeed()
 })
 
+/**
+ * Watch for route changes and close menus
+ */
 watch(() => route.path, () => {
+  console.log('[Feed] Route changed to:', route.path)
   activePostMenu.value = null
   sidebarOpen.value = false
 })
+
+/**
+ * Watch for username changes
+ */
+watch(() => userUsername.value, (newUsername, oldUsername) => {
+  console.log('[Feed] Username changed:', {
+    old: oldUsername,
+    new: newUsername,
+    isValid: newUsername && newUsername.trim() !== '' && newUsername !== 'username'
+  })
+})
+
+/**
+ * Watch for current user changes
+ */
+watch(() => currentUser.value, (newUser, oldUser) => {
+  console.log('[Feed] Current user changed:', {
+    oldId: oldUser?.id,
+    newId: newUser?.id,
+    oldUsername: oldUser?.user_metadata?.username,
+    newUsername: newUser?.user_metadata?.username
+  })
+}, { deep: true })
+
+/**
+ * Watch for user avatar changes
+ */
+watch(() => userAvatar.value, (newAvatar, oldAvatar) => {
+  console.log('[Feed] User avatar changed:', {
+    old: oldAvatar,
+    new: newAvatar
+  })
+})
+
+/**
+ * Watch for user name changes
+ */
+watch(() => userName.value, (newName, oldName) => {
+  console.log('[Feed] User name changed:', {
+    old: oldName,
+    new: newName
+  })
+})
+
+/**
+ * Watch for user status changes
+ */
+watch(() => userStatus.value, (newStatus, oldStatus) => {
+  console.log('[Feed] User status changed:', {
+    old: oldStatus,
+    new: newStatus
+  })
+})
+
+/**
+ * Watch for sidebar state changes
+ */
+watch(() => sidebarOpen.value, (isOpen) => {
+  console.log('[Feed] Sidebar state changed:', isOpen ? 'opened' : 'closed')
+})
+
+/**
+ * Watch for search query changes
+ */
+watch(() => searchQuery.value, (newQuery, oldQuery) => {
+  console.log('[Feed] Search query changed:', {
+    old: oldQuery,
+    new: newQuery
+  })
+})
+
+/**
+ * Watch for posts loading state
+ */
+watch(() => postsLoading.value, (isLoading) => {
+  console.log('[Feed] Posts loading state changed:', isLoading ? 'loading' : 'loaded')
+})
+
+/**
+ * Watch for suggested users loading state
+ */
+watch(() => suggestedUsersLoading.value, (isLoading) => {
+  console.log('[Feed] Suggested users loading state changed:', isLoading ? 'loading' : 'loaded')
+})
+
+/**
+ * Watch for trending loading state
+ */
+watch(() => trendingLoading.value, (isLoading) => {
+  console.log('[Feed] Trending loading state changed:', isLoading ? 'loading' : 'loaded')
+})
+
+/**
+ * Watch for posts array changes
+ */
+watch(() => posts.value.length, (newLength, oldLength) => {
+  console.log('[Feed] Posts array changed:', {
+    old: oldLength,
+    new: newLength
+  })
+})
+
+/**
+ * Watch for suggested users array changes
+ */
+watch(() => suggestedUsers.value.length, (newLength, oldLength) => {
+  console.log('[Feed] Suggested users array changed:', {
+    old: oldLength,
+    new: newLength
+  })
+})
+
+/**
+ * Watch for trending topics array changes
+ */
+watch(() => trendingTopics.value.length, (newLength, oldLength) => {
+  console.log('[Feed] Trending topics array changed:', {
+    old: oldLength,
+    new: newLength
+  })
+})
+
+/**
+ * Watch for unread notifications changes
+ */
+watch(() => unreadNotifications.value, (newCount, oldCount) => {
+  console.log('[Feed] Unread notifications changed:', {
+    old: oldCount,
+    new: newCount
+  })
+})
+
+/**
+ * Watch for unread messages changes
+ */
+watch(() => unreadMessages.value, (newCount, oldCount) => {
+  console.log('[Feed] Unread messages changed:', {
+    old: oldCount,
+    new: newCount
+  })
+})
+
+/**
+ * Watch for wallet balance changes
+ */
+watch(() => walletBalance.value, (newBalance, oldBalance) => {
+  console.log('[Feed] Wallet balance changed:', {
+    old: oldBalance,
+    new: newBalance
+  })
+})
+
+/**
+ * Watch for verification status changes
+ */
+watch(() => isVerified.value, (newStatus, oldStatus) => {
+  console.log('[Feed] Verification status changed:', {
+    old: oldStatus,
+    new: newStatus
+  })
+})
+
+/**
+ * Watch for active post menu changes
+ */
+watch(() => activePostMenu.value, (newPostId, oldPostId) => {
+  console.log('[Feed] Active post menu changed:', {
+    old: oldPostId,
+    new: newPostId
+  })
+})
+
+/**
+ * Watch for current page changes
+ */
+watch(() => currentPage.value, (newPage, oldPage) => {
+  console.log('[Feed] Current page changed:', {
+    old: oldPage,
+    new: newPage
+  })
+})
+
+/**
+ * Watch for has more posts changes
+ */
+watch(() => hasMorePosts.value, (hasMore) => {
+  console.log('[Feed] Has more posts:', hasMore)
+})
+
+/**
+ * Watch for loading more state
+ */
+watch(() => loadingMore.value, (isLoading) => {
+  console.log('[Feed] Loading more state:', isLoading ? 'loading' : 'idle')
+})
+
+/**
+ * Watch for is live streaming state
+ */
+watch(() => isLiveStreaming.value, (isLive) => {
+  console.log('[Feed] Live streaming state:', isLive ? 'live' : 'offline')
+}) 
 </script>
 
 <style scoped>
@@ -1564,6 +1885,12 @@ watch(() => route.path, () => {
   color: #60a5fa;
   border-left: 3px solid #60a5fa;
   padding-left: calc(1rem - 3px);
+}
+
+.sidebar-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .sidebar-item.logout-btn {
@@ -2068,6 +2395,7 @@ watch(() => route.path, () => {
 
 .post-avatar:hover {
   border-color: #3b82f6;
+  transform: scale(1.05);
 }
 
 .post-author-info {
@@ -2538,6 +2866,7 @@ watch(() => route.path, () => {
 
 .rec-avatar:hover {
   border-color: #3b82f6;
+  transform: scale(1.05);
 }
 
 .rec-info {
@@ -2735,4 +3064,4 @@ input:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
-</style>    
+</style>
