@@ -77,7 +77,8 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[API] Creating new profile for user:', userId)
     
-    const { data: newProfile, error: createError: createProfileError } = await supabase
+    // ✅ FIX: Changed from "error: createError: createProfileError" to "error: createProfileError"
+    const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
       .insert({
         id: userId,
