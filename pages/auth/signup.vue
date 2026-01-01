@@ -64,13 +64,13 @@
 
             <!-- Error Message -->
             <div v-if="error" class="error-message">
-              <Icon name="alert-circle" size="16" />
+              <span class="error-icon">⚠️</span>
               {{ error }}
             </div>
 
             <!-- Success Message -->
             <div v-if="successMessage" class="success-message">
-              <Icon name="check-circle" size="16" />
+              <span class="success-icon">✓</span>
               {{ successMessage }}
             </div>
 
@@ -93,11 +93,11 @@
           <!-- Social Login (Optional) -->
           <div class="social-login">
             <button type="button" class="social-btn google-btn" :disabled="loading">
-              <Icon name="google" size="18" />
+              <span>🔵</span>
               Sign up with Google
             </button>
             <button type="button" class="social-btn github-btn" :disabled="loading">
-              <Icon name="github" size="18" />
+              <span>⚫</span>
               Sign up with GitHub
             </button>
           </div>
@@ -123,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useAuth } from '~/composables/use-auth'
 
 definePageMeta({
@@ -163,8 +163,8 @@ const handleSignup = async () => {
   }
 
   // Password validation
-  if (formData.value.password.length < 8) {
-    error.value = 'Password must be at least 8 characters long'
+  if (formData.value.password.length < 6) {
+    error.value = 'Password must be at least 6 characters long'
     return
   }
 
@@ -310,6 +310,10 @@ watch(() => authError.value, (newError) => {
   border-left: 4px solid #dc2626;
 }
 
+.error-icon {
+  font-size: 1.25rem;
+}
+
 .success-message {
   display: flex;
   align-items: center;
@@ -320,6 +324,10 @@ watch(() => authError.value, (newError) => {
   border-radius: 6px;
   font-size: 0.875rem;
   border-left: 4px solid #059669;
+}
+
+.success-icon {
+  font-size: 1.25rem;
 }
 
 .submit-btn {
