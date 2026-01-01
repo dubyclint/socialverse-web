@@ -257,9 +257,13 @@ import { ref, computed, onMounted } from 'vue'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { fetchUserProfile, fetchUserPosts } = useProfile()
+const { fetchProfile, fetchUserProfile, fetchUserPosts } = useProfile()
 
+// ✅ FIXED: Get the correct parameter - could be either 'id' or 'username'
 const userId = route.params.id as string
+const username = route.params.username as string
+const identifier = userId || username
+
 const loading = ref(true)
 const error = ref<string | null>(null)
 const activeTab = ref('posts')
@@ -284,12 +288,10 @@ const profileTabs = [
   { id: 'gallery', label: '🖼️ Gallery' }
 ]
 
-// ✅ FIXED: Add null checks for currentUser
 const currentUser = computed(() => authStore.user || null)
 const isOwnProfile = computed(() => {
-  // ✅ FIXED: Safely check if it's own profile
-  if (!currentUser.value || !userId) return false
-  return userId === currentUser.value.id
+  if (!currentUser.value || !identifier) return false
+  return identifier === currentUser.value.id || identifier === currentUser.value.username
 })
 
 const formatDate = (date: string) => {
@@ -308,18 +310,17 @@ const formatDate = (date: string) => {
 const handleFollowUser = async () => {
   try {
     isFollowing.value = !isFollowing.value
-    // Call API to follow/unfollow
-    console.log('[Profile] Follow/unfollow user:', userId)
+    console.log('[Profile] Follow/unfollow user:', identifier)
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err))
     console.error('[Profile] Follow error:', error.message)
-    isFollowing.value = !isFollowing.value // Revert on error
+    isFollowing.value = !isFollowing.value
   }
 }
 
 const handleMessageUser = () => {
   try {
-    router.push(`/inbox?user=${userId}`)
+    router.push(`/inbox?user=${identifier}`)
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err))
     console.error('[Profile] Message navigation error:', error.message)
@@ -361,20 +362,35 @@ const goBack = () => {
   router.back()
 }
 
+// ✅ FIXED: Determine if parameter is username or user ID
+const isUsernameParam = (): boolean => {
+  // If it looks like a UUID (contains hyphens and is 36 chars), it's a user ID
+  // Otherwise, it's a username
+  return !(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier))
+}
+
 const loadProfile = async () => {
   try {
     loading.value = true
     error.value = null
 
-    if (!userId) {
-      error.value = 'User ID not found'
+    if (!identifier) {
+      error.value = 'User identifier not found'
       return
     }
 
-    // ✅ FIXED: Use correct function name and handle errors properly
-    console.log('[Profile] Loading profile for user ID:', userId)
+    console.log('[Profile] Loading profile for identifier:', identifier)
     
-    const profileData = await fetchUserProfile(userId)
+    let profileData = null
+
+    // ✅ FIXED: Use correct function based on parameter type
+    if (isUsernameParam()) {
+      console.log('[Profile] Treating as username, calling fetchProfile()')
+      profileData = await fetchProfile(identifier)
+    } else {
+      console.log('[Profile] Treating as user ID, calling fetchUserProfile()')
+      profileData = await fetchUserProfile(identifier)
+    }
     
     if (!profileData) {
       error.value = 'User not found'
@@ -382,9 +398,9 @@ const loadProfile = async () => {
     }
 
     profile.value = profileData
-    
-    // ✅ FIXED: Fetch posts using the new function
-    const posts = await fetchUserPosts(userId)
+
+    // ✅ FIXED: Fetch posts using the user ID from profile
+    const posts = await fetchUserPosts(profileData.user_id)
     profilePosts.value = posts || []
     profileStats.value.posts = profilePosts.value.length
 
@@ -399,7 +415,7 @@ const loadProfile = async () => {
 }
 
 onMounted(() => {
-  console.log('[Profile] Component mounted, loading profile for user:', userId)
+  console.log('[Profile] Component mounted, loading profile for identifier:', identifier)
   loadProfile()
 })
 </script>
