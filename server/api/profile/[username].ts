@@ -1,10 +1,11 @@
+// ============================================================================
 // COMPLETE FIX: /server/api/profile/[username].ts
 // ============================================================================
-// GET PROFILE BY USERNAME - FIXED: Proper error handling and database queries
-// ✅ FIXED: Correct Supabase client initialization
-// ✅ FIXED: Proper error handling for missing profiles
-// ✅ FIXED: Case-insensitive username search
-// ✅ FIXED: Comprehensive logging
+// GET PROFILE BY USERNAME - FIXED: Robust error handling
+// ✅ FIXED: Handle missing profiles view
+// ✅ FIXED: Fallback to user table if profiles view doesn't exist
+// ✅ FIXED: Only select columns that exist
+// ✅ FIXED: Comprehensive error handling and logging
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -41,46 +42,63 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     console.log('[Profile Username API] Username:', username)
 
     // ============================================================================
-    // STEP 3: Fetch profile from profiles view
+    // STEP 3: Try to fetch from profiles view first
     // ============================================================================
-    console.log('[Profile Username API] Querying profiles table...')
+    console.log('[Profile Username API] Attempting to query profiles view...')
     
-    const { data: profile, error: profileError } = await supabase
+    let profile = null
+    let profileError = null
+
+    // Try profiles view first (with minimal columns)
+    const { data: profileData, error: viewError } = await supabase
       .from('profiles')
-      .select(`
-        id,
-        user_id,
-        username,
-        full_name,
-        email,
-        avatar_url,
-        bio,
-        is_verified,
-        verification_status,
-        profile_completed,
-        created_at,
-        updated_at
-      `)
-      .ilike('username', username)  // Case-insensitive search
+      .select('*')
+      .ilike('username', username)
       .single()
 
-    if (profileError) {
-      console.error('[Profile Username API] ❌ Profile fetch error:', profileError.message)
+    if (!viewError && profileData) {
+      profile = profileData
+      console.log('[Profile Username API] ✅ Profile found in profiles view')
+    } else if (viewError) {
+      console.warn('[Profile Username API] ⚠️ Profiles view error:', viewError.message)
       
-      // Handle "no rows returned" error
-      if (profileError.code === 'PGRST116') {
-        throw createError({
-          statusCode: 404,
-          statusMessage: `User with username "${username}" not found`
-        })
-      }
+      // ============================================================================
+      // STEP 4: Fallback to user table if profiles view doesn't exist
+      // ============================================================================
+      console.log('[Profile Username API] Falling back to user table...')
+      
+      const { data: userData, error: userError } = await supabase
+        .from('user')
+        .select('*')
+        .ilike('username', username)
+        .single()
 
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to fetch profile: ' + profileError.message
-      })
+      if (userError) {
+        console.error('[Profile Username API] ❌ User table error:', userError.message)
+        profileError = userError
+      } else if (userData) {
+        // Map user table columns to profile format
+        profile = {
+          id: userData.user_id || userData.id,
+          user_id: userData.user_id || userData.id,
+          username: userData.username,
+          full_name: userData.display_name || userData.full_name || 'User',
+          email: userData.email,
+          avatar_url: userData.avatar_url,
+          bio: userData.bio,
+          is_verified: userData.is_verified || false,
+          verification_status: userData.verification_status || 'unverified',
+          profile_completed: userData.profile_completed || false,
+          created_at: userData.created_at,
+          updated_at: userData.updated_at
+        }
+        console.log('[Profile Username API] ✅ Profile found in user table')
+      }
     }
 
+    // ============================================================================
+    // STEP 5: Handle not found
+    // ============================================================================
     if (!profile) {
       console.error('[Profile Username API] ❌ Profile not found for username:', username)
       throw createError({
@@ -99,6 +117,7 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
 
   } catch (err: any) {
     console.error('[Profile Username API] ❌ Error:', err.message)
+    console.error('[Profile Username API] ❌ Error details:', err)
     
     if (err.statusCode) {
       throw err
