@@ -1,4 +1,3 @@
-<!-- FILE: /pages/auth/signin.vue - COMPLETE FIXED VERSION -->
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -125,11 +124,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useAuth } from '~/composables/use-auth'
 
 // No auth required - public page
 definePageMeta({
   layout: 'blank',
-  middleware: []
+  middleware: 'guest'
 })
 
 const { login } = useAuth()
@@ -152,9 +152,12 @@ const handleSignin = async () => {
   error.value = ''
   success.value = ''
 
+  console.log('[Signin Page] Submitting signin form...')
+
   // Validate form
   if (!formData.value.email || !formData.value.password) {
     error.value = 'Please fill in all fields'
+    console.error('[Signin Page] Missing required fields')
     return
   }
 
@@ -162,15 +165,26 @@ const handleSignin = async () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(formData.value.email)) {
     error.value = 'Please enter a valid email address'
+    console.error('[Signin Page] Invalid email format')
     return
   }
 
   loading.value = true
 
   try {
-    console.log('[Signin Page] Submitting signin form...')
+    console.log('[Signin Page] Calling login function with:', {
+      email: formData.value.email,
+      password: '***'
+    })
 
-    const result = await login(formData.value.email, formData.value.password)
+    // Call login with object parameter (not separate parameters)
+    const result = await login({
+      email: formData.value.email,
+      password: formData.value.password,
+      rememberMe: false
+    })
+
+    console.log('[Signin Page] Login result:', result)
 
     if (result.success) {
       console.log('[Signin Page] ✅ Signin successful')
