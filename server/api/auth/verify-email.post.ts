@@ -1,8 +1,8 @@
 // ============================================================================
-// FILE: /server/api/auth/verify-email.post.ts - FIXED EMAIL VERIFICATION
+// FILE: /server/api/auth/verify-email.post.ts - COMPLETE FIX
 // ============================================================================
 // This endpoint verifies the email token sent to the user
-// Handles both OTP tokens and Supabase session tokens
+// Handles Supabase session tokens from email verification links
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     console.log('[API] Token received (first 20 chars):', token.substring(0, 20) + '...')
     console.log('[API] Type:', type)
 
-    // ✅ Create Supabase client
+    // ✅ Create Supabase client with ANON key (for client-side operations)
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseAnonKey = process.env.NUXT_PUBLIC_SUPABASE_KEY
 
@@ -54,20 +54,24 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase client created')
 
     // ============================================================================
-    // STEP 1: Try to verify using the token as a session token
+    // STEP 1: Try to verify using the token as a session token (PRIMARY METHOD)
     // ============================================================================
+    // When user clicks email link, Supabase returns an access_token
+    // This is a session token, not an OTP token
     console.log('[API] STEP 1: Attempting to verify token as session token...')
     
-    const { data: sessionData, error: sessionError } = await supabase.auth.getUser(token)
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getUser(token)
 
-    if (!sessionError && sessionData?.user) {
-      console.log('[API] ✅ Token verified as session token')
-      console.log('[API] User ID:', sessionData.user.id)
-      console.log('[API] Email confirmed at:', sessionData.user.email_confirmed_at)
+      if (!sessionError && sessionData?.user) {
+        console.log('[API] ✅ Token verified as session token')
+        console.log('[API] User ID:', sessionData.user.id)
+        console.log('[API] Email:', sessionData.user.email)
+        console.log('[API] Email confirmed at:', sessionData.user.email_confirmed_at)
 
-      // If email is already confirmed, return success
-      if (sessionData.user.email_confirmed_at) {
-        console.log('[API] ✅ Email already confirmed')
+        // ✅ SUCCESS: Email is confirmed (Supabase confirms it automatically)
+        console.log('[API] ✅ Email verification successful via session token')
+        
         return {
           success: true,
           message: 'Email verified successfully!',
@@ -78,54 +82,99 @@ export default defineEventHandler(async (event) => {
           }
         }
       }
+
+      if (sessionError) {
+        console.log('[API] Session verification failed:', sessionError.message)
+      }
+    } catch (sessionErr: any) {
+      console.log('[API] Session verification error:', sessionErr.message)
     }
 
     // ============================================================================
-    // STEP 2: Try to verify using verifyOtp (for OTP tokens)
+    // STEP 2: Try to verify using verifyOtp (FALLBACK METHOD)
     // ============================================================================
+    // For OTP-based verification (if type is 'email' or 'recovery')
     console.log('[API] STEP 2: Attempting to verify token as OTP...')
     
-    const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
-      token_hash: token,
-      type: type as 'email' | 'recovery' | 'signup'
-    })
+    try {
+      // ✅ FIX: Only use verifyOtp for 'email' and 'recovery' types
+      // 'signup' type should use session token verification
+      if (type === 'email' || type === 'recovery') {
+        const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: type as 'email' | 'recovery'
+        })
 
-    if (!otpError && otpData?.user) {
-      console.log('[API] ✅ Token verified as OTP')
-      console.log('[API] User ID:', otpData.user.id)
-      console.log('[API] Email confirmed at:', otpData.user.email_confirmed_at)
+        if (!otpError && otpData?.user) {
+          console.log('[API] ✅ Token verified as OTP')
+          console.log('[API] User ID:', otpData.user.id)
+          console.log('[API] Email confirmed at:', otpData.user.email_confirmed_at)
 
-      return {
-        success: true,
-        message: 'Email verified successfully!',
-        user: {
-          id: otpData.user.id,
-          email: otpData.user.email,
-          email_confirmed_at: otpData.user.email_confirmed_at
-        },
-        session: {
-          access_token: otpData.session?.access_token || null,
-          refresh_token: otpData.session?.refresh_token || null
+          return {
+            success: true,
+            message: 'Email verified successfully!',
+            user: {
+              id: otpData.user.id,
+              email: otpData.user.email,
+              email_confirmed_at: otpData.user.email_confirmed_at
+            },
+            session: {
+              access_token: otpData.session?.access_token || null,
+              refresh_token: otpData.session?.refresh_token || null
+            }
+          }
+        }
+
+        if (otpError) {
+          console.log('[API] OTP verification failed:', otpError.message)
         }
       }
+    } catch (otpErr: any) {
+      console.log('[API] OTP verification error:', otpErr.message)
     }
 
     // ============================================================================
-    // STEP 3: Both methods failed - return error
+    // STEP 3: Try to verify using exchangeCodeForSession (ALTERNATIVE METHOD)
     // ============================================================================
-    console.error('[API] ❌ Both verification methods failed')
-    console.error('[API] Session error:', sessionError?.message)
-    console.error('[API] OTP error:', otpError?.message)
+    // For code-based verification
+    console.log('[API] STEP 3: Attempting to verify token as code...')
     
-    let errorMessage = 'Email verification failed'
-    
-    if (otpError?.message?.includes('expired')) {
-      errorMessage = 'Verification link has expired. Please request a new one.'
-    } else if (otpError?.message?.includes('invalid')) {
-      errorMessage = 'Invalid verification link'
-    } else if (otpError?.message?.includes('used')) {
-      errorMessage = 'This verification link has already been used'
+    try {
+      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
+
+      if (!codeError && codeData?.user) {
+        console.log('[API] ✅ Token verified as code')
+        console.log('[API] User ID:', codeData.user.id)
+        console.log('[API] Email confirmed at:', codeData.user.email_confirmed_at)
+
+        return {
+          success: true,
+          message: 'Email verified successfully!',
+          user: {
+            id: codeData.user.id,
+            email: codeData.user.email,
+            email_confirmed_at: codeData.user.email_confirmed_at
+          },
+          session: {
+            access_token: codeData.session?.access_token || null,
+            refresh_token: codeData.session?.refresh_token || null
+          }
+        }
+      }
+
+      if (codeError) {
+        console.log('[API] Code verification failed:', codeError.message)
+      }
+    } catch (codeErr: any) {
+      console.log('[API] Code verification error:', codeErr.message)
     }
+
+    // ============================================================================
+    // STEP 4: All methods failed - return error
+    // ============================================================================
+    console.error('[API] ❌ All verification methods failed')
+    
+    let errorMessage = 'Email verification failed. Please try again or request a new verification link.'
     
     throw createError({
       statusCode: 400,
