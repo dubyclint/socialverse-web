@@ -1,8 +1,5 @@
 // ============================================================================
-// FILE: /server/api/auth/verify-email.post.ts - COMPLETE FIX
-// ============================================================================
-// This endpoint verifies the email token sent to the user
-// Handles Supabase session tokens from email verification links
+// FILE: /server/api/auth/verify-email.post.ts - SIMPLIFIED FIX
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -25,20 +22,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ✅ VALIDATE: Type should be 'email', 'recovery', or 'signup'
-    const validTypes = ['email', 'recovery', 'signup']
-    if (!type || !validTypes.includes(type)) {
-      console.error('[API] ❌ Invalid verification type:', type)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid verification type'
-      })
-    }
-
     console.log('[API] Token received (first 20 chars):', token.substring(0, 20) + '...')
-    console.log('[API] Type:', type)
+    console.log('[API] Type:', type || 'not specified')
 
-    // ✅ Create Supabase client with ANON key (for client-side operations)
+    // ✅ Create Supabase client
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseAnonKey = process.env.NUXT_PUBLIC_SUPABASE_KEY
 
@@ -54,23 +41,16 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase client created')
 
     // ============================================================================
-    // STEP 1: Try to verify using the token as a session token (PRIMARY METHOD)
+    // STEP 1: Try session token verification (PRIMARY)
     // ============================================================================
-    // When user clicks email link, Supabase returns an access_token
-    // This is a session token, not an OTP token
-    console.log('[API] STEP 1: Attempting to verify token as session token...')
+    console.log('[API] STEP 1: Attempting session token verification...')
     
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getUser(token)
 
       if (!sessionError && sessionData?.user) {
-        console.log('[API] ✅ Token verified as session token')
+        console.log('[API] ✅ Session token verified')
         console.log('[API] User ID:', sessionData.user.id)
-        console.log('[API] Email:', sessionData.user.email)
-        console.log('[API] Email confirmed at:', sessionData.user.email_confirmed_at)
-
-        // ✅ SUCCESS: Email is confirmed (Supabase confirms it automatically)
-        console.log('[API] ✅ Email verification successful via session token')
         
         return {
           success: true,
@@ -82,71 +62,49 @@ export default defineEventHandler(async (event) => {
           }
         }
       }
-
-      if (sessionError) {
-        console.log('[API] Session verification failed:', sessionError.message)
-      }
-    } catch (sessionErr: any) {
-      console.log('[API] Session verification error:', sessionErr.message)
+    } catch (err: any) {
+      console.log('[API] Session verification error:', err.message)
     }
 
     // ============================================================================
-    // STEP 2: Try to verify using verifyOtp (FALLBACK METHOD)
+    // STEP 2: Try OTP verification (FALLBACK)
     // ============================================================================
-    // For OTP-based verification (if type is 'email' or 'recovery')
-    console.log('[API] STEP 2: Attempting to verify token as OTP...')
+    console.log('[API] STEP 2: Attempting OTP verification...')
     
     try {
-      // ✅ FIX: Only use verifyOtp for 'email' and 'recovery' types
-      // 'signup' type should use session token verification
-      if (type === 'email' || type === 'recovery') {
-        const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: type as 'email' | 'recovery'
-        })
+      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'email'
+      })
 
-        if (!otpError && otpData?.user) {
-          console.log('[API] ✅ Token verified as OTP')
-          console.log('[API] User ID:', otpData.user.id)
-          console.log('[API] Email confirmed at:', otpData.user.email_confirmed_at)
-
-          return {
-            success: true,
-            message: 'Email verified successfully!',
-            user: {
-              id: otpData.user.id,
-              email: otpData.user.email,
-              email_confirmed_at: otpData.user.email_confirmed_at
-            },
-            session: {
-              access_token: otpData.session?.access_token || null,
-              refresh_token: otpData.session?.refresh_token || null
-            }
+      if (!otpError && otpData?.user) {
+        console.log('[API] ✅ OTP verified')
+        
+        return {
+          success: true,
+          message: 'Email verified successfully!',
+          user: {
+            id: otpData.user.id,
+            email: otpData.user.email,
+            email_confirmed_at: otpData.user.email_confirmed_at
           }
         }
-
-        if (otpError) {
-          console.log('[API] OTP verification failed:', otpError.message)
-        }
       }
-    } catch (otpErr: any) {
-      console.log('[API] OTP verification error:', otpErr.message)
+    } catch (err: any) {
+      console.log('[API] OTP verification error:', err.message)
     }
 
     // ============================================================================
-    // STEP 3: Try to verify using exchangeCodeForSession (ALTERNATIVE METHOD)
+    // STEP 3: Try code exchange (ALTERNATIVE)
     // ============================================================================
-    // For code-based verification
-    console.log('[API] STEP 3: Attempting to verify token as code...')
+    console.log('[API] STEP 3: Attempting code exchange...')
     
     try {
       const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
 
       if (!codeError && codeData?.user) {
-        console.log('[API] ✅ Token verified as code')
-        console.log('[API] User ID:', codeData.user.id)
-        console.log('[API] Email confirmed at:', codeData.user.email_confirmed_at)
-
+        console.log('[API] ✅ Code exchange verified')
+        
         return {
           success: true,
           message: 'Email verified successfully!',
@@ -154,39 +112,26 @@ export default defineEventHandler(async (event) => {
             id: codeData.user.id,
             email: codeData.user.email,
             email_confirmed_at: codeData.user.email_confirmed_at
-          },
-          session: {
-            access_token: codeData.session?.access_token || null,
-            refresh_token: codeData.session?.refresh_token || null
           }
         }
       }
-
-      if (codeError) {
-        console.log('[API] Code verification failed:', codeError.message)
-      }
-    } catch (codeErr: any) {
-      console.log('[API] Code verification error:', codeErr.message)
+    } catch (err: any) {
+      console.log('[API] Code exchange error:', err.message)
     }
 
     // ============================================================================
-    // STEP 4: All methods failed - return error
+    // All methods failed
     // ============================================================================
     console.error('[API] ❌ All verification methods failed')
     
-    let errorMessage = 'Email verification failed. Please try again or request a new verification link.'
-    
     throw createError({
       statusCode: 400,
-      statusMessage: errorMessage
+      statusMessage: 'Email verification failed. Please try again or request a new verification link.'
     })
 
   } catch (error: any) {
     console.error('[API] ============ VERIFICATION ERROR ============')
-    console.error('[API] Error message:', error.message)
-    console.error('[API] Error status:', error.statusCode)
-    console.error('[API] Error details:', error.statusMessage)
-    console.error('[API] ============ END ERROR ============')
+    console.error('[API] Error:', error.message)
     throw error
   }
 })
