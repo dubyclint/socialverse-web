@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const { $supabase } = useNuxtApp()
 
 const isInitializing = ref(true)
 const isLoading = ref(false)
@@ -68,7 +67,11 @@ onMounted(async () => {
       console.log('[App] ℹ️ No previous session found')
     }
 
-    if (!$supabase) {
+    // ✅ FIXED: Safely check for Supabase without destructuring
+    const nuxtApp = useNuxtApp()
+    const supabaseClient = nuxtApp.$supabase
+    
+    if (!supabaseClient) {
       console.warn('[App] Supabase not available')
       supabaseError.value = true
     } else {
@@ -119,13 +122,13 @@ const clearError = () => {
       </ClientOnly>
       
       <ClientOnly>
-        <ErrorBoundary v-if="globalError" class="global-error">
+        <div v-if="globalError" class="global-error">
           <div class="error-content">
             <h2>Something went wrong</h2>
             <p>{{ globalError }}</p>
             <button @click="clearError">Dismiss</button>
           </div>
-        </ErrorBoundary>
+        </div>
       </ClientOnly>
     </div>
   </NuxtLayout>
@@ -212,16 +215,15 @@ const clearError = () => {
 }
 
 .error-content p {
-  color: #666;
   margin-bottom: 1.5rem;
-  line-height: 1.6;
+  color: #666;
 }
 
 .error-content button {
   background-color: #3b82f6;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1.5rem;
   border-radius: 0.25rem;
   cursor: pointer;
   font-weight: 600;
@@ -230,24 +232,6 @@ const clearError = () => {
 
 .error-content button:hover {
   background-color: #2563eb;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-@media (max-width: 768px) {
-  .supabase-error-banner {
-    margin: 0.5rem;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .supabase-error-banner button {
-    width: 100%;
-  }
-
-  .error-content {
-    margin: 1rem;
-    max-width: calc(100% - 2rem);
-  }
+  transform: translateY(-1px);
 }
 </style>
