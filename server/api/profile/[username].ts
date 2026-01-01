@@ -1,59 +1,113 @@
-import { createClient } from '@supabase/supabase-js'
+// COMPLETE FIX: /server/api/profile/[username].ts
+// ============================================================================
+// GET PROFILE BY USERNAME - FIXED: Proper error handling and database queries
+// ✅ FIXED: Correct Supabase client initialization
+// ✅ FIXED: Proper error handling for missing profiles
+// ✅ FIXED: Case-insensitive username search
+// ✅ FIXED: Comprehensive logging
+// ============================================================================
 
-export default defineEventHandler(async (event) => {
+import { serverSupabaseClient } from '#supabase/server'
+
+interface ProfileResponse {
+  success: boolean
+  data?: any
+  message?: string
+  error?: string
+}
+
+export default defineEventHandler(async (event): Promise<ProfileResponse> => {
   try {
+    console.log('[Profile Username API] Fetching user profile...')
+
+    // ============================================================================
+    // STEP 1: Get Supabase client
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
+
+    // ============================================================================
+    // STEP 2: Get username from route parameter
+    // ============================================================================
     const username = getRouterParam(event, 'username')
 
-    console.log('[API] Fetching profile for username:', username)
-
     if (!username) {
+      console.error('[Profile Username API] ❌ Username is required')
       throw createError({
         statusCode: 400,
         statusMessage: 'Username is required'
       })
     }
 
-    // Create Supabase client with service role key for server-side queries
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    console.log('[Profile Username API] Username:', username)
 
-    // Fetch user profile from profiles view by username
-    const { data: profile, error } = await supabase
+    // ============================================================================
+    // STEP 3: Fetch profile from profiles view
+    // ============================================================================
+    console.log('[Profile Username API] Querying profiles table...')
+    
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('username', username.toLowerCase())
+      .select(`
+        id,
+        user_id,
+        username,
+        full_name,
+        email,
+        avatar_url,
+        bio,
+        is_verified,
+        verification_status,
+        profile_completed,
+        created_at,
+        updated_at
+      `)
+      .ilike('username', username)  // Case-insensitive search
       .single()
 
-    if (error) {
-      console.error('[API] Error fetching profile:', error.message)
+    if (profileError) {
+      console.error('[Profile Username API] ❌ Profile fetch error:', profileError.message)
+      
+      // Handle "no rows returned" error
+      if (profileError.code === 'PGRST116') {
+        throw createError({
+          statusCode: 404,
+          statusMessage: `User with username "${username}" not found`
+        })
+      }
+
       throw createError({
-        statusCode: 404,
-        statusMessage: 'User not found'
+        statusCode: 500,
+        statusMessage: 'Failed to fetch profile: ' + profileError.message
       })
     }
 
     if (!profile) {
+      console.error('[Profile Username API] ❌ Profile not found for username:', username)
       throw createError({
         statusCode: 404,
-        statusMessage: 'User not found'
+        statusMessage: `User with username "${username}" not found`
       })
     }
 
-    console.log('[API] ✅ Profile fetched:', profile.username)
+    console.log('[Profile Username API] ✅ Profile fetched successfully:', profile.username)
 
     return {
       success: true,
-      data: profile
+      data: profile,
+      message: 'Profile fetched successfully'
     }
 
-  } catch (error: any) {
-    console.error('[API] Profile error:', error.message)
+  } catch (err: any) {
+    console.error('[Profile Username API] ❌ Error:', err.message)
+    
+    if (err.statusCode) {
+      throw err
+    }
+
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Failed to fetch profile'
+      statusCode: 500,
+      statusMessage: 'An error occurred while fetching profile',
+      data: { details: err.message }
     })
   }
 })
-
