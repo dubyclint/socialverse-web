@@ -52,6 +52,7 @@
           <p>Query Token: {{ queryToken || 'Not found' }}</p>
           <p>Hash Token: {{ hashToken || 'Not found' }}</p>
           <p>Stored Email: {{ storedEmail || 'Not found' }}</p>
+          <p>Window Hash: {{ windowHash || 'Not found' }}</p>
         </div>
       </div>
 
@@ -88,6 +89,7 @@ const currentUrl = ref('')
 const queryToken = ref('')
 const hashToken = ref('')
 const storedEmail = ref('')
+const windowHash = ref('')
 
 /**
  * Extract token from Supabase email link
@@ -96,8 +98,11 @@ const storedEmail = ref('')
  */
 const getTokenFromUrl = (): { token: string | null; type: string } => {
   currentUrl.value = window.location.href
+  windowHash.value = window.location.hash
+  
   console.log('[Verify Email] ============ TOKEN EXTRACTION START ============')
   console.log('[Verify Email] Current URL:', currentUrl.value)
+  console.log('[Verify Email] Window hash:', windowHash.value)
   console.log('[Verify Email] Route query:', route.query)
   console.log('[Verify Email] Route hash:', route.hash)
 
@@ -162,6 +167,14 @@ onMounted(async () => {
   console.log('[Verify Email Page] Route query:', route.query)
   console.log('[Verify Email Page] Route hash:', route.hash)
   console.log('[Verify Email Page] Window location:', window.location.href)
+  console.log('[Verify Email Page] Window hash:', window.location.hash)
+  
+  // ✅ NEW: Check if we came from Supabase redirect (root path with hash)
+  // If so, the hash should be in window.location.hash
+  if (!route.hash && window.location.hash) {
+    console.log('[Verify Email Page] ✅ Hash found in window.location, using it')
+    // The hash is already in window.location, getTokenFromUrl will find it
+  }
   
   // Get stored email from sessionStorage (set by signup page)
   storedEmail.value = sessionStorage.getItem('verificationEmail') || ''
