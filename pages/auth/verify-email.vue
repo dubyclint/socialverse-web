@@ -1,10 +1,3 @@
-<!-- ============================================================================
-FILE: /pages/auth/verify-email.vue - UPDATED EMAIL VERIFICATION PAGE
-============================================================================
-This page handles email verification when user clicks the link in their email
-Updated to handle both query params and hash formats
-============================================================================ -->
-
 <template>
   <div class="verify-email-container">
     <div class="verify-email-card">
@@ -58,6 +51,7 @@ Updated to handle both query params and hash formats
           <p>URL: {{ currentUrl }}</p>
           <p>Query Token: {{ queryToken || 'Not found' }}</p>
           <p>Hash Token: {{ hashToken || 'Not found' }}</p>
+          <p>Stored Email: {{ storedEmail || 'Not found' }}</p>
         </div>
       </div>
 
@@ -93,84 +87,110 @@ const userEmail = ref('')
 const currentUrl = ref('')
 const queryToken = ref('')
 const hashToken = ref('')
+const storedEmail = ref('')
 
 /**
- * Extract token from URL - handles multiple formats
+ * Extract token from Supabase email link
+ * Supabase sends: #access_token=xxx&type=signup&refresh_token=yyy
+ * ✅ FIX: Handle hash-based tokens from Supabase
  */
 const getTokenFromUrl = (): { token: string | null; type: string } => {
-  // Store current URL for debugging
   currentUrl.value = window.location.href
+  console.log('[Verify Email] ============ TOKEN EXTRACTION START ============')
+  console.log('[Verify Email] Current URL:', currentUrl.value)
+  console.log('[Verify Email] Route query:', route.query)
+  console.log('[Verify Email] Route hash:', route.hash)
 
-  // Format 1: Query parameter (?token=...)
-  const queryTokenParam = route.query.token as string
-  if (queryTokenParam) {
-    console.log('[Verify Email] Token found in query params')
-    queryToken.value = queryTokenParam
-    return { 
-      token: queryTokenParam, 
-      type: (route.query.type as string) || 'email'
-    }
-  }
-
-  // Format 2: Hash parameter (#token=...)
+  // ✅ FORMAT 1: Supabase hash format (#access_token=...)
+  // This is the PRIMARY format Supabase uses for email verification links
   const hash = window.location.hash
   if (hash) {
-    console.log('[Verify Email] Checking hash:', hash)
+    console.log('[Verify Email] Hash found:', hash)
     
-    // Extract token from hash
-    const tokenMatch = hash.match(/token=([^&]+)/)
-    if (tokenMatch && tokenMatch[1]) {
-      const token = tokenMatch[1]
-      console.log('[Verify Email] Token found in hash')
-      hashToken.value = token
+    // Extract access_token from hash (Supabase format)
+    const accessTokenMatch = hash.match(/access_token=([^&]+)/)
+    if (accessTokenMatch && accessTokenMatch[1]) {
+      const token = accessTokenMatch[1]
+      console.log('[Verify Email] ✅ Token found in hash (access_token)')
+      hashToken.value = token.substring(0, 20) + '...'
       
       // Extract type from hash
       const typeMatch = hash.match(/type=([^&]+)/)
-      const type = typeMatch && typeMatch[1] ? typeMatch[1] : 'email'
+      const type = typeMatch && typeMatch[1] ? typeMatch[1] : 'signup'
+      
+      console.log('[Verify Email] Type:', type)
+      console.log('[Verify Email] ============ TOKEN EXTRACTION END ============')
       
       return { token, type }
     }
   }
 
-  // Format 3: Fragment identifier (Supabase might use this)
+  // ✅ FORMAT 2: Query parameter (?token=...)
+  // Fallback format for manual testing or alternative flows
+  const queryTokenParam = route.query.token as string
+  if (queryTokenParam) {
+    console.log('[Verify Email] ✅ Token found in query params')
+    queryToken.value = queryTokenParam.substring(0, 20) + '...'
+    return { 
+      token: queryTokenParam, 
+      type: (route.query.type as string) || 'signup'
+    }
+  }
+
+  // ✅ FORMAT 3: Fragment identifier
+  // Alternative format for some edge cases
   const fragmentToken = route.hash.split('token=')[1]
   if (fragmentToken) {
     const token = fragmentToken.split('&')[0]
-    console.log('[Verify Email] Token found in fragment')
-    hashToken.value = token
-    return { token, type: 'email' }
+    console.log('[Verify Email] ✅ Token found in fragment')
+    hashToken.value = token.substring(0, 20) + '...'
+    console.log('[Verify Email] ============ TOKEN EXTRACTION END ============')
+    return { token, type: 'signup' }
   }
 
-  console.log('[Verify Email] No token found in any format')
-  return { token: null, type: 'email' }
+  console.error('[Verify Email] ❌ No token found in any format')
+  console.log('[Verify Email] ============ TOKEN EXTRACTION END ============')
+  return { token: null, type: 'signup' }
 }
 
 /**
  * Verify email on page load
+ * ✅ FIX: Properly extract and verify token
  */
 onMounted(async () => {
-  console.log('[Verify Email Page] Component mounted')
+  console.log('[Verify Email Page] ============ MOUNTED ============')
   console.log('[Verify Email Page] Route query:', route.query)
   console.log('[Verify Email Page] Route hash:', route.hash)
   console.log('[Verify Email Page] Window location:', window.location.href)
   
+  // Get stored email from sessionStorage (set by signup page)
+  storedEmail.value = sessionStorage.getItem('verificationEmail') || ''
+  console.log('[Verify Email Page] Stored email:', storedEmail.value)
+  
   const { token, type } = getTokenFromUrl()
   
   if (!token) {
-    console.error('[Verify Email Page] No token found in URL')
+    console.error('[Verify Email Page] ❌ No token found')
     error.value = 'No verification token found. Please check your email link or try resending the verification email.'
     loading.value = false
     return
   }
 
-  console.log('[Verify Email Page] Token found, verifying...', { token: token.substring(0, 20) + '...', type })
+  console.log('[Verify Email Page] ✅ Token found, verifying...', { 
+    token: token.substring(0, 20) + '...', 
+    type 
+  })
 
-  const result = await verifyEmail(token, type as 'email' | 'recovery')
+  // Call the verification API
+  const result = await verifyEmail(token, type as 'email' | 'recovery' | 'signup')
 
   if (result.success) {
     console.log('[Verify Email Page] ✅ Email verified successfully')
     success.value = true
     loading.value = false
+
+    // Clear stored email
+    sessionStorage.removeItem('verificationEmail')
 
     // Redirect to login after countdown
     const interval = setInterval(() => {
@@ -181,7 +201,7 @@ onMounted(async () => {
       }
     }, 1000)
   } else {
-    console.error('[Verify Email Page] ✗ Verification failed:', result.error)
+    console.error('[Verify Email Page] ❌ Verification failed:', result.error)
     error.value = result.error || 'Email verification failed'
     loading.value = false
   }
@@ -191,7 +211,12 @@ onMounted(async () => {
  * Resend verification email
  */
 const resendEmail = async () => {
-  const email = prompt('Please enter your email address:')
+  // Use stored email if available, otherwise prompt user
+  let email = storedEmail.value
+  
+  if (!email) {
+    email = prompt('Please enter your email address:') || ''
+  }
   
   if (!email) {
     return
@@ -201,14 +226,17 @@ const resendEmail = async () => {
   resendSuccess.value = ''
 
   try {
+    console.log('[Verify Email Page] Resending verification email to:', email)
     const { resendVerificationEmail } = useEmailVerification()
     const result = await resendVerificationEmail(email)
 
     if (result.success) {
       resendSuccess.value = 'Verification email sent! Check your inbox.'
       userEmail.value = email
+      console.log('[Verify Email Page] ✅ Verification email resent')
     } else {
       error.value = result.error || 'Failed to resend email'
+      console.error('[Verify Email Page] ❌ Resend failed:', result.error)
     }
   } catch (err) {
     console.error('[Verify Email Page] Resend error:', err)
