@@ -7,7 +7,7 @@ export const useAuth = () => {
   const error = ref<string | null>(null)
 
   // ============================================================================
-  // SIGNUP METHOD
+  // SIGNUP METHOD - IMPROVED ERROR HANDLING
   // ============================================================================
   const signup = async (credentials: {
     email: string
@@ -26,6 +26,21 @@ export const useAuth = () => {
         email: credentials.email,
         username: credentials.username
       })
+
+      // Validate on client side first
+      if (!credentials.email || !credentials.password || !credentials.username) {
+        throw new Error('Email, password, and username are required')
+      }
+
+      if (credentials.password.length < 6) {
+        throw new Error('Password must be at least 6 characters')
+      }
+
+      if (credentials.username.length < 3) {
+        throw new Error('Username must be at least 3 characters')
+      }
+
+      console.log('[useAuth] Client validation passed, calling API...')
 
       const response = await $fetch('/api/auth/signup', {
         method: 'POST',
@@ -50,9 +65,18 @@ export const useAuth = () => {
     } catch (err: any) {
       console.error('[useAuth] ✗ Signup failed:', err)
       
-      const errorMessage = err.data?.statusMessage || 
-                          err.message || 
-                          'Signup failed. Please try again.'
+      // Extract error message from different error formats
+      let errorMessage = 'Signup failed. Please try again.'
+
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      }
+
+      console.error('[useAuth] Error message:', errorMessage)
       
       error.value = errorMessage
       
@@ -107,9 +131,13 @@ export const useAuth = () => {
     } catch (err: any) {
       console.error('[useAuth] ✗ Login failed:', err)
       
-      const errorMessage = err.data?.statusMessage || 
-                          err.message || 
-                          'Login failed. Please try again.'
+      let errorMessage = 'Login failed. Please try again.'
+
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      }
       
       error.value = errorMessage
       
@@ -182,9 +210,13 @@ export const useAuth = () => {
     } catch (err: any) {
       console.error('[useAuth] ✗ Email verification failed:', err)
       
-      const errorMessage = err.data?.statusMessage || 
-                          err.message || 
-                          'Email verification failed'
+      let errorMessage = 'Email verification failed'
+
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      }
       
       error.value = errorMessage
       
@@ -221,9 +253,13 @@ export const useAuth = () => {
     } catch (err: any) {
       console.error('[useAuth] ✗ Password reset failed:', err)
       
-      const errorMessage = err.data?.statusMessage || 
-                          err.message || 
-                          'Password reset failed'
+      let errorMessage = 'Password reset failed'
+
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      }
       
       error.value = errorMessage
       
@@ -260,9 +296,13 @@ export const useAuth = () => {
     } catch (err: any) {
       console.error('[useAuth] ✗ Password update failed:', err)
       
-      const errorMessage = err.data?.statusMessage || 
-                          err.message || 
-                          'Password update failed'
+      let errorMessage = 'Password update failed'
+
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      }
       
       error.value = errorMessage
       
