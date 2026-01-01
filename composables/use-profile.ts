@@ -56,6 +56,78 @@ export const useProfile = () => {
   }
 
   /**
+   * Fetch profile by user ID
+   */
+  const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
+    loading.value = true
+    error.value = null
+
+    try {
+      console.log('[useProfile] Fetching profile for user ID:', userId)
+
+      const { data, error: fetchError } = await useFetch(`/api/users/${userId}/profile`)
+
+      if (fetchError.value) {
+        throw new Error(fetchError.value.message || 'Failed to fetch profile')
+      }
+
+      if (!data.value?.data) {
+        throw new Error('User not found')
+      }
+
+      // Ensure all fields have defaults
+      const profileData: Profile = {
+        id: data.value.data.id || '',
+        user_id: data.value.data.user_id || '',
+        username: data.value.data.username || '',
+        full_name: data.value.data.full_name || '',
+        email: data.value.data.email || null,
+        avatar_url: data.value.data.avatar_url || null,
+        bio: data.value.data.bio || null,
+        is_verified: data.value.data.is_verified || false,
+        verification_status: data.value.data.verification_status || 'unverified',
+        profile_completed: data.value.data.profile_completed || false,
+        created_at: data.value.data.created_at || new Date().toISOString(),
+        updated_at: data.value.data.updated_at || new Date().toISOString()
+      }
+
+      profile.value = profileData
+      console.log('[useProfile] ✅ Profile fetched:', profileData.username)
+      return profileData
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to fetch profile'
+      error.value = errorMsg
+      console.error('[useProfile] ❌ Error:', errorMsg)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Fetch user posts
+   */
+  const fetchUserPosts = async (userId: string): Promise<any[]> => {
+    try {
+      console.log('[useProfile] Fetching posts for user ID:', userId)
+
+      const { data, error: fetchError } = await useFetch(`/api/users/${userId}/posts`)
+
+      if (fetchError.value) {
+        throw new Error(fetchError.value.message || 'Failed to fetch posts')
+      }
+
+      const posts = data.value?.data || []
+      console.log('[useProfile] ✅ Posts fetched:', posts.length)
+      return posts
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to fetch posts'
+      console.error('[useProfile] ❌ Error fetching posts:', errorMsg)
+      return []
+    }
+  }
+
+  /**
    * Update profile
    */
   const updateProfile = async (updates: Partial<Profile>): Promise<boolean> => {
@@ -104,6 +176,8 @@ export const useProfile = () => {
     error,
     profile,
     fetchProfile,
+    fetchUserProfile,
+    fetchUserPosts,
     updateProfile,
     clearProfile
   }
