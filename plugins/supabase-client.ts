@@ -1,13 +1,14 @@
-// FILE: /plugins/supabase-client.ts - FIXED FOR SSR
+// FILE: /plugins/supabase-client.ts - FIXED WITH REDIRECT URL
 // ============================================================================
-// SUPABASE CLIENT PLUGIN - FIXED: Proper plugin naming
-// ✅ FIXED: Added plugin name for dependency management
+// SUPABASE CLIENT PLUGIN - FIXED: Proper redirect URL configuration
+// ✅ FIXED: Added redirect URL for email verification
+// ✅ FIXED: Detect session in URL from hash
 // ============================================================================
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export default defineNuxtPlugin({
-  name: 'supabase-client', // ✅ NEW: Named plugin for dependency tracking
+  name: 'supabase-client',
   
   async setup(nuxtApp) {
     try {
@@ -15,6 +16,7 @@ export default defineNuxtPlugin({
       
       const supabaseUrl = config.public.supabaseUrl
       const supabaseKey = config.public.supabaseKey
+      const siteUrl = config.public.siteUrl || 'https://socialverse-web.zeabur.app'
 
       if (!supabaseUrl || !supabaseKey) {
         console.warn('[Supabase Plugin] ⚠️ Missing Supabase credentials')
@@ -26,15 +28,28 @@ export default defineNuxtPlugin({
         }
       }
 
+      console.log('[Supabase Plugin] Initializing with site URL:', siteUrl)
+
+      // ✅ FIX: Configure Supabase with proper redirect URL
       const supabase = createClient(supabaseUrl, supabaseKey, {
         auth: {
           persistSession: process.client,
           autoRefreshToken: process.client,
           detectSessionInUrl: process.client,
+          
+          // ✅ CRITICAL: Set redirect URL for email verification
+          redirectTo: `${siteUrl}/auth/verify-email`,
+          
+          // ✅ Storage configuration
+          storage: process.client ? window.localStorage : undefined,
+          storageKey: 'sb-auth-token',
+          
+          // ✅ Flow type
+          flowType: 'pkce',
         },
       })
 
-      console.log('[Supabase Plugin] ✅ Initialized')
+      console.log('[Supabase Plugin] ✅ Initialized with redirect URL:', `${siteUrl}/auth/verify-email`)
 
       return {
         provide: {
