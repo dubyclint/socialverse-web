@@ -371,7 +371,9 @@ const loadProfile = async () => {
       return
     }
 
-    // ✅ FIXED: Fetch profile with error handling
+    // ✅ FIXED: Use correct function name and handle errors properly
+    console.log('[Profile] Loading profile for user ID:', userId)
+    
     const profileData = await fetchUserProfile(userId)
     
     if (!profileData) {
@@ -381,12 +383,12 @@ const loadProfile = async () => {
 
     profile.value = profileData
     
-    // Fetch posts
+    // ✅ FIXED: Fetch posts using the new function
     const posts = await fetchUserPosts(userId)
     profilePosts.value = posts || []
     profileStats.value.posts = profilePosts.value.length
 
-    console.log('[Profile] Profile loaded successfully')
+    console.log('[Profile] ✅ Profile loaded successfully')
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to load profile'
     console.error('[Profile] Load error:', errorMsg)
