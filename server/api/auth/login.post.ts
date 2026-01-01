@@ -1,12 +1,15 @@
 // ============================================================================
-// FILE 4: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION WITH PROFILE CHECK
 // ============================================================================
 // ✅ FIXED: Proper error handling for 401 responses
 // ✅ FIXED: Email confirmation check
 // ✅ FIXED: Better error messages
 // ✅ FIXED: Proper response structure
 // ✅ ENHANCED: Detailed logging for debugging
+// ✅ NEW: Profile creation if missing
 // ============================================================================
+
+import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   console.log('[Auth/Login] POST request received')
@@ -108,8 +111,58 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] ✅ User ID:', data.user.id)
 
     // ============================================================================
-    // STEP 6: Return success response
+    // STEP 6: Check if profile exists (create if missing)
     // ============================================================================
+    console.log('[Auth/Login] Checking if profile exists for user:', data.user.id)
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single()
+
+    if (profileError && profileError.code === 'PGRST116') {
+      // Profile doesn't exist - create it
+      console.log('[Auth/Login] ⚠️ Profile not found, creating...')
+      
+      const username = data.user.user_metadata?.username || data.user.email?.split('@')[0] || 'user'
+      const fullName = data.user.user_metadata?.full_name || username
+      
+      const { error: createProfileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          username: username.toLowerCase(),
+          username_lower: username.toLowerCase(),
+          full_name: fullName,
+          email: data.user.email,
+          avatar_url: null,
+          bio: '',
+          location: '',
+          website: '',
+          verified: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      
+      if (createProfileError) {
+        console.warn('[Auth/Login] ⚠️ Failed to create profile:', createProfileError.message)
+        // Don't fail login - profile creation is non-critical
+      } else {
+        console.log('[Auth/Login] ✅ Profile created successfully')
+      }
+    } else if (profileError) {
+      console.warn('[Auth/Login] ⚠️ Error checking profile:', profileError.message)
+      // Don't fail login - profile check is non-critical
+    } else {
+      console.log('[Auth/Login] ✅ Profile exists for user:', data.user.id)
+    }
+
+    // ============================================================================
+    // STEP 7: Return success response
+    // ============================================================================
+    console.log('[Auth/Login] ✅ Login complete, returning response')
+    
     return {
       success: true,
       token: data.session.access_token,
