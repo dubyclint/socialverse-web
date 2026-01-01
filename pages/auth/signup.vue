@@ -19,7 +19,7 @@
             
             <div class="resend-section">
               <p class="resend-text">Didn't receive the email?</p>
-              <button @click="resendVerificationEmail" :disabled="resendLoading" class="resend-btn">
+              <button @click="handleResendEmail" :disabled="resendLoading" class="resend-btn">
                 {{ resendLoading ? 'Sending...' : 'Resend Verification Email' }}
               </button>
             </div>
@@ -245,9 +245,10 @@ const handleSignup = async () => {
 }
 
 /**
+ * ✅ FIX: Renamed to handleResendEmail to avoid naming conflict
  * Resend verification email
  */
-const resendVerificationEmail = async () => {
+const handleResendEmail = async () => {
   const email = formData.value.email
   
   if (!email) {
