@@ -1,7 +1,7 @@
 <template>
-  <div style="padding: 20px; max-width: 800px; margin: 0 auto;">
+  <div style="padding: 20px;">
     <div v-if="loading">Loading...</div>
-    <div v-else-if="error" style="color: red;">{{ error }}</div>
+    <div v-else-if="error" style="color: red;">Error: {{ error }}</div>
     <div v-else-if="profile">
       <h1>{{ profile.full_name }}</h1>
       <p>@{{ profile.username }}</p>
@@ -13,6 +13,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+
+definePageMeta({
+  layout: false
+})
 
 const route = useRoute()
 const loading = ref(false)
