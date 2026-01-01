@@ -1,7 +1,10 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - COMPLETE FIX WITH DETAILED LOGGING
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIX WITH PROFILE CREATION
 // ============================================================================
-// Signup endpoint with comprehensive error handling and logging
+// Signup endpoint with comprehensive error handling and profile creation
+// ✅ FIXED: Now creates profile in profiles table after auth user creation
+// ✅ FIXED: Stores username, full_name, and avatar_url in profiles table
+// ✅ FIXED: Proper error handling for profile creation
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -170,9 +173,54 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Auth user created:', userId)
 
     // ============================================================================
-    // STEP 2: Send Verification Email
+    // STEP 2: Create Profile in profiles table
     // ============================================================================
-    console.log('[API] STEP 2: Sending verification email...')
+    console.log('[API] STEP 2: Creating profile in profiles table...')
+    
+    const profileData = {
+      id: userId,
+      username: username.trim().toLowerCase(),
+      username_lower: username.trim().toLowerCase(),
+      full_name: fullName?.trim() || username.trim(),
+      email: email.trim().toLowerCase(),
+      avatar_url: null,
+      bio: bio || '',
+      location: location || '',
+      verified: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('[API] Profile data to insert:', {
+      id: profileData.id,
+      username: profileData.username,
+      full_name: profileData.full_name,
+      email: profileData.email
+    })
+
+    const { data: profileResult, error: profileError } = await supabase
+      .from('profiles')
+      .insert([profileData])
+      .select()
+
+    if (profileError) {
+      console.error('[API] ❌ Profile creation error:', {
+        message: profileError.message,
+        code: profileError.code,
+        details: profileError.details
+      })
+      
+      // ⚠️ IMPORTANT: Don't fail signup if profile creation fails
+      // The user is already created in auth, so we log the error but continue
+      console.warn('[API] ⚠️ Profile creation failed, but user was created in auth')
+    } else {
+      console.log('[API] ✅ Profile created successfully:', profileResult)
+    }
+
+    // ============================================================================
+    // STEP 3: Send Verification Email
+    // ============================================================================
+    console.log('[API] STEP 3: Sending verification email...')
     
     const { error: resendError } = await supabase.auth.resend({
       type: 'signup',
@@ -198,7 +246,8 @@ export default defineEventHandler(async (event) => {
         id: userId,
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase(),
-        display_name: fullName?.trim() || username.trim()
+        display_name: fullName?.trim() || username.trim(),
+        avatar_url: null
       },
       needsConfirmation: true,
       message: 'Account created successfully! Please check your email to verify your account.'
