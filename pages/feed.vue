@@ -625,13 +625,42 @@ const isVerified = ref(false)
 // COMPUTED PROPERTIES - USER DATA FROM AUTH STORE
 // ============================================================================
 const currentUser = computed(() => authStore.user)
-const userName = computed(() => currentUser.value?.full_name || 'User')
-const userUsername = computed(() => currentUser.value?.username || 'username')
-const userAvatar = computed(() => currentUser.value?.avatar_url || '/default-avatar.svg')
-const userFollowers = computed(() => currentUser.value?.followers_count || 0)
-const userFollowing = computed(() => currentUser.value?.following_count || 0)
-const userPosts = computed(() => currentUser.value?.posts_count || 0)
-const userStatus = computed(() => currentUser.value?.status || 'online')
+
+const userName = computed(() => 
+  currentUser.value?.user_metadata?.full_name || 
+  currentUser.value?.full_name || 
+  'User'
+)
+
+const userUsername = computed(() => {
+  const username = currentUser.value?.user_metadata?.username || 
+                   currentUser.value?.username || 
+                   ''
+  console.log('[Feed] userUsername computed:', username)
+  return username
+})
+
+const userAvatar = computed(() => 
+  currentUser.value?.user_metadata?.avatar_url || 
+  currentUser.value?.avatar_url || 
+  '/default-avatar.svg'
+)
+
+const userFollowers = computed(() => 
+  currentUser.value?.user_metadata?.followers_count || 0
+)
+
+const userFollowing = computed(() => 
+  currentUser.value?.user_metadata?.following_count || 0
+)
+
+const userPosts = computed(() => 
+  currentUser.value?.user_metadata?.posts_count || 0
+)
+
+const userStatus = computed(() => 
+  currentUser.value?.user_metadata?.status || 'online'
+)
 
 // ============================================================================
 // FEED TABS CONFIGURATION
