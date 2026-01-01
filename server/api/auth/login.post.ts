@@ -1,12 +1,11 @@
 // ============================================================================
-// FILE: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION WITH PROFILE CHECK
+// FILE: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION WITH PROFILE FETCH
 // ============================================================================
-// ✅ FIXED: Proper error handling for 401 responses
-// ✅ FIXED: Email confirmation check
-// ✅ FIXED: Better error messages
-// ✅ FIXED: Proper response structure
-// ✅ ENHANCED: Detailed logging for debugging
-// ✅ NEW: Profile creation if missing
+// Login endpoint with comprehensive error handling and profile data fetching
+// ✅ FIXED: Now fetches profile from profiles table to get real username
+// ✅ FIXED: Returns complete user data with username, full_name, avatar_url
+// ✅ FIXED: Proper error handling for profile fetch
+// ✅ FIXED: Auto-creates profile if missing during login
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -111,55 +110,112 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] ✅ User ID:', data.user.id)
 
     // ============================================================================
-    // STEP 6: Check if profile exists (create if missing)
+    // STEP 6: Fetch profile from profiles table
     // ============================================================================
-    console.log('[Auth/Login] Checking if profile exists for user:', data.user.id)
+    console.log('[Auth/Login] Fetching profile from profiles table...')
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, username, full_name, email, avatar_url, bio, location, verified')
       .eq('id', data.user.id)
       .single()
 
-    if (profileError && profileError.code === 'PGRST116') {
-      // Profile doesn't exist - create it
-      console.log('[Auth/Login] ⚠️ Profile not found, creating...')
+    if (profileError) {
+      console.warn('[Auth/Login] ⚠️ Profile fetch error:', profileError.message)
       
-      const username = data.user.user_metadata?.username || data.user.email?.split('@')[0] || 'user'
-      const fullName = data.user.user_metadata?.full_name || username
-      
-      const { error: createProfileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          username: username.toLowerCase(),
-          username_lower: username.toLowerCase(),
-          full_name: fullName,
-          email: data.user.email,
-          avatar_url: null,
-          bio: '',
-          location: '',
-          website: '',
-          verified: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      
-      if (createProfileError) {
-        console.warn('[Auth/Login] ⚠️ Failed to create profile:', createProfileError.message)
-        // Don't fail login - profile creation is non-critical
-      } else {
+      // If profile doesn't exist, try to create it
+      if (profileError.code === 'PGRST116') {
+        console.log('[Auth/Login] Profile not found, attempting to create...')
+        
+        const username = data.user.user_metadata?.username || data.user.email?.split('@')[0] || 'user'
+        const fullName = data.user.user_metadata?.full_name || username
+        
+        const { data: newProfile, error: createProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: username.toLowerCase(),
+            username_lower: username.toLowerCase(),
+            full_name: fullName,
+            email: data.user.email,
+            avatar_url: null,
+            bio: '',
+            location: '',
+            verified: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+        
+        if (createProfileError) {
+          console.warn('[Auth/Login] ⚠️ Failed to create profile:', createProfileError.message)
+          // Don't fail login - use auth user metadata as fallback
+          console.log('[Auth/Login] Using auth user metadata as fallback')
+          
+          return {
+            success: true,
+            token: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+            expiresIn: data.session.expires_in,
+            user: {
+              id: data.user.id,
+              email: data.user.email,
+              username: data.user.user_metadata?.username || username,
+              full_name: data.user.user_metadata?.full_name || fullName,
+              avatar_url: data.user.user_metadata?.avatar_url || null
+            }
+          }
+        }
+        
         console.log('[Auth/Login] ✅ Profile created successfully')
+        
+        return {
+          success: true,
+          token: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+          expiresIn: data.session.expires_in,
+          user: {
+            id: newProfile.id,
+            email: newProfile.email,
+            username: newProfile.username,
+            full_name: newProfile.full_name,
+            avatar_url: newProfile.avatar_url
+          }
+        }
       }
-    } else if (profileError) {
-      console.warn('[Auth/Login] ⚠️ Error checking profile:', profileError.message)
-      // Don't fail login - profile check is non-critical
-    } else {
-      console.log('[Auth/Login] ✅ Profile exists for user:', data.user.id)
+      
+      // For other errors, use auth user metadata as fallback
+      console.warn('[Auth/Login] Using auth user metadata as fallback')
+      
+      return {
+        success: true,
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresIn: data.session.expires_in,
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          username: data.user.user_metadata?.username || 'user',
+          full_name: data.user.user_metadata?.full_name || 'User',
+          avatar_url: data.user.user_metadata?.avatar_url || null
+        }
+      }
     }
 
+    if (!profile) {
+      console.error('[Auth/Login] ❌ Profile not found and could not be created')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Profile not found'
+      })
+    }
+
+    console.log('[Auth/Login] ✅ Profile fetched successfully')
+    console.log('[Auth/Login] Profile username:', profile.username)
+
     // ============================================================================
-    // STEP 7: Return success response
+    // STEP 7: Return success response with complete user data
     // ============================================================================
     console.log('[Auth/Login] ✅ Login complete, returning response')
     
@@ -169,11 +225,11 @@ export default defineEventHandler(async (event) => {
       refreshToken: data.session.refresh_token,
       expiresIn: data.session.expires_in,
       user: {
-        id: data.user.id,
-        email: data.user.email,
-        username: data.user.user_metadata?.username || '',
-        avatar: data.user.user_metadata?.avatar || null,
-        name: data.user.user_metadata?.name || ''
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url
       }
     }
 
