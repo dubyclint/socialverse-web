@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
 import { useRouter } from 'vue-router'
-import { onMounted } from 'vue'
+import { onMounted, onBeforeMount } from 'vue'
 
 // ============================================================================
 // CRITICAL: Initialize auth store on client side only
@@ -51,9 +51,7 @@ const router = useRouter()
 
 /**
  * ✅ FIX: Handle Supabase auth hash redirect
- * When user clicks email verification link, Supabase redirects to:
- * https://socialverse-web.zeabur.app/#access_token=xxx&type=signup
- * We need to redirect this to /auth/verify-email with the hash preserved
+ * This runs IMMEDIATELY when the component is created (before mount)
  */
 const handleAuthHashRedirect = () => {
   const hash = window.location.hash
@@ -78,11 +76,18 @@ const handleAuthHashRedirect = () => {
   return false
 }
 
+// ✅ NEW: Check for auth hash BEFORE mount (in setup)
+// This ensures we redirect before any Vue rendering happens
+if (process.client) {
+  console.log('[App] Setup phase - checking for auth hash redirect')
+  handleAuthHashRedirect()
+}
+
 // Initialize auth when component mounts (client-side only)
 onMounted(async () => {
   console.log('[App] 🚀 Initializing application...')
   
-  // ✅ FIRST: Check for Supabase auth hash redirect
+  // ✅ Double-check for auth hash redirect (in case it wasn't caught in setup)
   if (handleAuthHashRedirect()) {
     // If redirect happened, stop here
     return
