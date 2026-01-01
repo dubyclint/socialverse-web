@@ -40,17 +40,54 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { useRouter } from 'vue-router'
 import { onMounted } from 'vue'
 
 // ============================================================================
 // CRITICAL: Initialize auth store on client side only
 // ============================================================================
 const authStore = useAuthStore()
+const router = useRouter()
+
+/**
+ * ✅ FIX: Handle Supabase auth hash redirect
+ * When user clicks email verification link, Supabase redirects to:
+ * https://socialverse-web.zeabur.app/#access_token=xxx&type=signup
+ * We need to redirect this to /auth/verify-email with the hash preserved
+ */
+const handleAuthHashRedirect = () => {
+  const hash = window.location.hash
+  const path = window.location.pathname
+
+  console.log('[App] ============ AUTH HASH REDIRECT CHECK ============')
+  console.log('[App] Current path:', path)
+  console.log('[App] Current hash:', hash)
+
+  // ✅ If we're on root path with access_token in hash, redirect to verify-email
+  if (path === '/' && hash && hash.includes('access_token')) {
+    console.log('[App] ✅ Detected Supabase auth hash on root path')
+    console.log('[App] Redirecting to /auth/verify-email with hash preserved')
+    
+    // Use window.location to preserve the hash and perform a full redirect
+    window.location.href = `/auth/verify-email${hash}`
+    return true
+  }
+
+  console.log('[App] ℹ️ No auth hash redirect needed')
+  console.log('[App] ============ AUTH HASH REDIRECT CHECK END ============')
+  return false
+}
 
 // Initialize auth when component mounts (client-side only)
 onMounted(async () => {
   console.log('[App] 🚀 Initializing application...')
   
+  // ✅ FIRST: Check for Supabase auth hash redirect
+  if (handleAuthHashRedirect()) {
+    // If redirect happened, stop here
+    return
+  }
+
   try {
     // Check if we have a previous session
     if (authStore.token && authStore.user) {
