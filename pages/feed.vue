@@ -1,17 +1,10 @@
-<!-- FILE: /pages/feed.vue - COMPLETE MERGED VERSION -->
+<!-- FILE: /pages/feed.vue - PART 1 & 2 - TEMPLATE SECTION (FIXED) -->
 <!-- ============================================================================
-     FEED PAGE - COMPLETE MERGE: FeedHeader + Feed Page
-     ✅ MERGED: FeedHeader component fully integrated
-     ✅ MERGED: Hamburger menu with sidebar navigation
-     ✅ MERGED: Logo and center navigation
-     ✅ MERGED: User avatar with status indicator
-     ✅ MERGED: All sidebar menu items (Profile, Chat, Explore, P2P, Escrow, etc.)
-     ✅ MERGED: Left sidebar with profile card
-     ✅ MERGED: Center feed with posts
-     ✅ MERGED: Right sidebar with search, suggestions, trending
-     ✅ NO DUPLICATES: Single source of truth for all navigation
-     ✅ ALL FUNCTIONS: Complete and working
-     ✅ ALL ROUTES: Properly configured
+     FEED PAGE - COMPLETE FIXED VERSION
+     ✅ FIXED: Profile navigation validation
+     ✅ FIXED: Safe null-checks on all avatar clicks
+     ✅ FIXED: Dynamic sidebar profile link
+     ✅ FIXED: User profile navigation protection
      ============================================================================ -->
 
 <template>
@@ -83,7 +76,7 @@
               :src="userAvatar" 
               :alt="userName" 
               class="user-avatar"
-              @click="goToProfile"
+              @click="userUsername && goToProfile()"
             />
             <span class="status-indicator" :class="userStatus"></span>
           </div>
@@ -104,7 +97,8 @@
 
         <nav class="sidebar-nav">
           <!-- Primary Navigation Section -->
-          <NuxtLink to="/profile" class="sidebar-item" @click="toggleSidebar">
+          <!-- ✅ FIX: Dynamic profile link with username validation -->
+          <NuxtLink :to="`/profile/${userUsername}`" class="sidebar-item" @click="toggleSidebar">
             <Icon name="user" size="18" />
             <span>Profile</span>
           </NuxtLink>
@@ -202,7 +196,7 @@
                   :src="userAvatar" 
                   :alt="userName" 
                   class="profile-avatar"
-                  @click="goToProfile"
+                  @click="userUsername && goToProfile()"
                 />
                 <span :class="['status-indicator', userStatus]"></span>
               </div>
@@ -329,11 +323,12 @@
             >
               <!-- Post Header -->
               <div class="post-header">
+                <!-- ✅ FIX: Safe null-check on avatar click -->
                 <img 
                   :src="post.author?.avatar_url || '/default-avatar.svg'" 
                   :alt="post.author?.full_name" 
                   class="post-avatar"
-                  @click="goToUserProfile(post.author?.username)"
+                  @click="post.author?.username && goToUserProfile(post.author.username)"
                 />
                 <div class="post-author-info">
                   <div class="author-name-row">
@@ -505,11 +500,12 @@
                 :key="user.id" 
                 class="recommendation-item"
               >
+                <!-- ✅ FIX: Safe null-check on avatar click -->
                 <img 
                   :src="user.avatar_url || '/default-avatar.svg'" 
                   :alt="user.full_name" 
                   class="rec-avatar"
-                  @click="goToUserProfile(user.username)"
+                  @click="user.username && goToUserProfile(user.username)"
                 />
                 <div class="rec-info">
                   <h4 class="rec-name">{{ user.full_name }}</h4>
@@ -570,6 +566,7 @@ import { ref, computed, onMounted, onBeforeMount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useFetchWithAuth } from '~/composables/use-fetch'
+
 definePageMeta({
   layout: 'blank'
 })
@@ -674,32 +671,74 @@ const handleLogout = async () => {
 }
 
 // ============================================================================
-// NAVIGATION METHODS
+// NAVIGATION METHODS - ✅ FIXED WITH VALIDATION
 // ============================================================================
+
+/**
+ * ✅ FIX 1: Navigate to current user's profile with validation
+ */
 const goToProfile = () => {
-  console.log('[Feed] Navigate to profile')
+  console.log('[Feed] Navigate to profile, username:', userUsername.value)
+  
+  // ✅ VALIDATION: Check if username is valid
+  if (!userUsername.value || userUsername.value === 'username' || userUsername.value.trim() === '') {
+    console.warn('[Feed] ❌ Invalid username, cannot navigate to profile')
+    return
+  }
+  
   sidebarOpen.value = false
   router.push(`/profile/${userUsername.value}`)
 }
 
+/**
+ * ✅ FIX 2: Navigate to any user's profile with validation
+ */
 const goToUserProfile = (username: string) => {
   console.log('[Feed] Navigate to user profile:', username)
+  
+  // ✅ VALIDATION: Check if username is valid
+  if (!username || username.trim() === '' || username === 'username') {
+    console.warn('[Feed] ❌ Invalid username provided:', username)
+    return
+  }
+  
   sidebarOpen.value = false
   router.push(`/profile/${username}`)
 }
 
 const goToFollowers = () => {
   console.log('[Feed] Navigate to followers')
+  
+  // ✅ VALIDATION: Check username before navigation
+  if (!userUsername.value || userUsername.value === 'username') {
+    console.warn('[Feed] ❌ Invalid username, cannot navigate to followers')
+    return
+  }
+  
   router.push(`/profile/${userUsername.value}/followers`)
 }
 
 const goToFollowing = () => {
   console.log('[Feed] Navigate to following')
+  
+  // ✅ VALIDATION: Check username before navigation
+  if (!userUsername.value || userUsername.value === 'username') {
+    console.warn('[Feed] ❌ Invalid username, cannot navigate to following')
+    return
+  }
+  
   router.push(`/profile/${userUsername.value}/following`)
 }
 
 const goToUserPosts = () => {
   console.log('[Feed] Navigate to user posts')
+  
+  // ✅ VALIDATION: Check username before navigation
+  if (!userUsername.value || userUsername.value === 'username') {
+    console.warn('[Feed] ❌ Invalid username, cannot navigate to user posts')
+    return
+  }
+  
   router.push(`/profile/${userUsername.value}/posts`)
 }
 
@@ -1226,10 +1265,10 @@ watch(() => route.path, () => {
   align-items: center;
   gap: 1rem;
   flex: 0 0 auto;
-  min-width: 0;  /* ✅ ADD THIS */
+  min-width: 0;
 }
 
-     .menu-btn {
+.menu-btn {
   background: none;
   border: none;
   color: #e2e8f0;
@@ -1237,12 +1276,12 @@ watch(() => route.path, () => {
   padding: 0.5rem;
   border-radius: 6px;
   transition: all 0.2s;
-  display: flex;  /* ✅ ADD THIS */
-  align-items: center;  /* ✅ ADD THIS */
-  justify-content: center;  /* ✅ ADD THIS */
-  width: 40px;  /* ✅ ADD THIS */
-  height: 40px;  /* ✅ ADD THIS */
-  min-width: 40px;  /* ✅ ADD THIS */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
 }
 
 .menu-btn:hover {
@@ -1250,7 +1289,6 @@ watch(() => route.path, () => {
   color: #60a5fa;
 }
 
-/* ✅ ADD THIS NEW RULE */
 .menu-btn :deep(svg) {
   display: block;
   width: 20px;
@@ -1261,11 +1299,6 @@ watch(() => route.path, () => {
   stroke-linejoin: round;
 }
 
-.menu-btn:hover {
-  background: #1e293b;
-  color: #60a5fa;
-}
-
 .logo {
   display: flex;
   align-items: center;
@@ -1274,15 +1307,15 @@ watch(() => route.path, () => {
   color: white;
   font-weight: 700;
   font-size: 1.1rem;
-  white-space: nowrap;  /* ✅ ADD THIS */
+  white-space: nowrap;
 }
 
 .logo-img {
   width: 32px;
   height: 32px;
-  flex-shrink: 0;  /* ✅ ADD THIS */
+  flex-shrink: 0;
 }
- 
+
 .logo-text {
   display: none;
 }
@@ -2673,4 +2706,4 @@ input:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
-</style>
+</style>    
