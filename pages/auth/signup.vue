@@ -9,8 +9,28 @@
             <p>Join SocialVerse today</p>
           </div>
 
-          <!-- Form -->
-          <form @submit.prevent="handleSignup" class="signup-form">
+          <!-- ✅ NEW: Email Sent State -->
+          <div v-if="emailSent" class="email-sent-state">
+            <div class="success-icon">📧</div>
+            <h2>Check Your Email!</h2>
+            <p>We've sent a verification link to:</p>
+            <p class="email-display">{{ formData.email }}</p>
+            <p class="instruction">Click the link in your email to verify your account and complete signup.</p>
+            
+            <div class="resend-section">
+              <p class="resend-text">Didn't receive the email?</p>
+              <button @click="resendVerificationEmail" :disabled="resendLoading" class="resend-btn">
+                {{ resendLoading ? 'Sending...' : 'Resend Verification Email' }}
+              </button>
+            </div>
+
+            <NuxtLink to="/" class="back-link">
+              Back to Home
+            </NuxtLink>
+          </div>
+
+          <!-- Form (hidden when email is sent) -->
+          <form v-else @submit.prevent="handleSignup" class="signup-form">
             <!-- Email -->
             <div class="form-group">
               <label for="email">Email Address</label>
@@ -86,12 +106,12 @@
           </form>
 
           <!-- Divider -->
-          <div class="divider">
+          <div v-if="!emailSent" class="divider">
             <span>or</span>
           </div>
 
           <!-- Social Login (Optional) -->
-          <div class="social-login">
+          <div v-if="!emailSent" class="social-login">
             <button type="button" class="social-btn google-btn" :disabled="loading">
               <span>🔵</span>
               Sign up with Google
@@ -103,14 +123,14 @@
           </div>
 
           <!-- Login Link -->
-          <div class="login-link">
+          <div v-if="!emailSent" class="login-link">
             <p>Already have an account? 
               <NuxtLink to="/auth/signin">Login here</NuxtLink>
             </p>
           </div>
 
           <!-- Terms -->
-          <div class="terms">
+          <div v-if="!emailSent" class="terms">
             <p>By signing up, you agree to our 
               <a href="/terms">Terms of Service</a> and 
               <a href="/privacy">Privacy Policy</a>
@@ -125,6 +145,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useAuth } from '~/composables/use-auth'
+import { useEmailVerification } from '~/composables/use-email-verification'
 
 definePageMeta({
   layout: 'auth',
@@ -132,8 +153,12 @@ definePageMeta({
 })
 
 const { signup, loading, error: authError } = useAuth()
+const { resendVerificationEmail } = useEmailVerification()
+
 const successMessage = ref('')
 const error = ref('')
+const emailSent = ref(false)
+const resendLoading = ref(false)
 
 const formData = ref({
   email: '',
@@ -198,6 +223,10 @@ const handleSignup = async () => {
       console.log('[Signup Page] Storing email in sessionStorage:', formData.value.email)
       sessionStorage.setItem('verificationEmail', formData.value.email)
       
+      // ✅ NEW: Show email sent state instead of redirecting
+      console.log('[Signup Page] Showing email sent state')
+      emailSent.value = true
+      
       // Clear form
       formData.value = {
         email: '',
@@ -205,12 +234,6 @@ const handleSignup = async () => {
         username: '',
         fullName: ''
       }
-      
-      // Redirect after 2 seconds
-      console.log('[Signup Page] Redirecting to verify-email page...')
-      setTimeout(() => {
-        navigateTo('/auth/verify-email')
-      }, 2000)
     } else {
       console.error('[Signup Page] Signup failed:', result.error)
       error.value = result.error || 'Signup failed. Please try again.'
@@ -218,6 +241,39 @@ const handleSignup = async () => {
   } catch (err: any) {
     console.error('[Signup Page] Unexpected error:', err)
     error.value = 'An unexpected error occurred. Please try again.'
+  }
+}
+
+/**
+ * Resend verification email
+ */
+const resendVerificationEmail = async () => {
+  const email = formData.value.email
+  
+  if (!email) {
+    error.value = 'Email not found. Please sign up again.'
+    return
+  }
+
+  resendLoading.value = true
+  error.value = ''
+
+  try {
+    console.log('[Signup Page] Resending verification email to:', email)
+    const result = await resendVerificationEmail(email)
+
+    if (result.success) {
+      successMessage.value = 'Verification email sent! Check your inbox.'
+      console.log('[Signup Page] ✅ Verification email resent')
+    } else {
+      error.value = result.error || 'Failed to resend email'
+      console.error('[Signup Page] ❌ Resend failed:', result.error)
+    }
+  } catch (err) {
+    console.error('[Signup Page] Resend error:', err)
+    error.value = 'Failed to resend verification email'
+  } finally {
+    resendLoading.value = false
   }
 }
 
@@ -267,6 +323,94 @@ watch(() => authError.value, (newError) => {
   color: #6b7280;
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* ✅ NEW: Email Sent State */
+.email-sent-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 3rem;
+}
+
+.email-sent-state h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #28a745;
+  margin: 0;
+}
+
+.email-sent-state p {
+  color: #6b7280;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.email-display {
+  font-weight: 600;
+  color: #1f2937;
+  background: #f3f4f6;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.instruction {
+  color: #667eea;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.resend-section {
+  width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.resend-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.resend-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.resend-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.resend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.back-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+  margin-top: 1rem;
+}
+
+.back-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
 }
 
 .signup-form {
@@ -333,10 +477,6 @@ watch(() => authError.value, (newError) => {
   border-radius: 6px;
   font-size: 0.875rem;
   border-left: 4px solid #059669;
-}
-
-.success-icon {
-  font-size: 1.25rem;
 }
 
 .submit-btn {
@@ -498,4 +638,3 @@ watch(() => authError.value, (newError) => {
   }
 }
 </style>
-
