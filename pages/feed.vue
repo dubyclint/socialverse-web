@@ -348,6 +348,14 @@
             <p>Loading posts...</p>
           </div>
 
+          <EmailVerificationBanner 
+  :isVerified="authStore.isEmailVerified"
+  :email="authStore.userEmail"
+  @send-verification="handleVerificationSent"
+  @dismiss="handleBannerDismissed"
+  @verified="handleEmailVerified"
+/>
+          
           <!-- Posts List -->
           <div v-else-if="posts.length > 0" class="posts-list">
             <article 
@@ -605,6 +613,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useProfileStore } from '~/stores/profile'
 import { useFetchWithAuth } from '~/composables/use-fetch'
 import { useAuth } from '~/composables/use-auth'
+import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue'
 
 definePageMeta({
   layout: 'blank',
