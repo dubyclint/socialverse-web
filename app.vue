@@ -1,185 +1,233 @@
-<template>
-  <div>
-    <!-- ============================================================================
-         CRITICAL: Wrap entire app in ClientOnly to prevent hydration mismatches
-         The auth store uses localStorage which is only available on client
-         ============================================================================ -->
-    <ClientOnly>
-      <!-- Initialize auth on client mount -->
-      <div v-if="!authStore.isHydrated" class="hydration-loading">
-        <div class="spinner"></div>
-        <p>Initializing...</p>
-      </div>
-      
-      <!-- Main app content (only render after hydration) -->
-      <div v-else>
-        <NuxtLayoutErrorBoundary>
-          <template #default>
-            <NuxtPage />
-          </template>
-          <template #error="{ error }">
-            <div class="error-boundary">
-              <h1>Something went wrong</h1>
-              <p>{{ error.message }}</p>
-              <NuxtLink to="/">Go Home</NuxtLink>
-            </div>
-          </template>
-        </NuxtLayoutErrorBoundary>
-      </div>
+// ============================================================================
+// FILE 3: /app.vue - COMPLETE APP INITIALIZATION
+// ============================================================================
+// FIXES:
+// ✅ Initialize auth store on app load
+// ✅ Ensure session is hydrated before rendering
+// ✅ Add loading state while hydrating
+// ✅ Prevent flash of unauthenticated content
+// ============================================================================
 
-      <!-- Fallback during hydration -->
-      <template #fallback>
-        <div class="hydration-loading">
-          <div class="spinner"></div>
-          <p>Loading...</p>
-        </div>
-      </template>
-    </ClientOnly>
+<template>
+  <div id="app" class="app-container">
+    <!-- ====================================================================== -->
+    <!-- LOADING STATE - Show while hydrating -->
+    <!-- ====================================================================== -->
+    <div v-if="isHydrating" class="hydration-loader">
+      <div class="loader-content">
+        <div class="spinner"></div>
+        <p class="loader-text">Loading SocialVerse...</p>
+      </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- MAIN APP CONTENT - Show after hydration complete -->
+    <!-- ====================================================================== -->
+    <div v-else class="app-content">
+      <NuxtPage />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from '~/stores/auth'
-import { useRouter } from 'vue-router'
-import { onMounted, onBeforeMount } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 // ============================================================================
-// CRITICAL: Initialize auth store on client side only
+// COMPONENT STATE
+// ============================================================================
+const isHydrating = ref(true)
+
+// ============================================================================
+// GET STORES
 // ============================================================================
 const authStore = useAuthStore()
-const router = useRouter()
+const profileStore = useProfileStore()
 
-/**
- * ✅ FIX: Handle Supabase auth hash redirect
- * This runs IMMEDIATELY when the component is created (before mount)
- */
-const handleAuthHashRedirect = () => {
-  const hash = window.location.hash
-  const path = window.location.pathname
-
-  console.log('[App] ============ AUTH HASH REDIRECT CHECK ============')
-  console.log('[App] Current path:', path)
-  console.log('[App] Current hash:', hash)
-
-  // ✅ If we're on root path with access_token in hash, redirect to verify-email
-  if (path === '/' && hash && hash.includes('access_token')) {
-    console.log('[App] ✅ Detected Supabase auth hash on root path')
-    console.log('[App] Redirecting to /auth/verify-email with hash preserved')
-    
-    // Use window.location to preserve the hash and perform a full redirect
-    window.location.href = `/auth/verify-email${hash}`
-    return true
-  }
-
-  console.log('[App] ℹ️ No auth hash redirect needed')
-  console.log('[App] ============ AUTH HASH REDIRECT CHECK END ============')
-  return false
-}
-
-// ✅ NEW: Check for auth hash BEFORE mount (in setup)
-// This ensures we redirect before any Vue rendering happens
-if (process.client) {
-  console.log('[App] Setup phase - checking for auth hash redirect')
-  handleAuthHashRedirect()
-}
-
-// Initialize auth when component mounts (client-side only)
+// ============================================================================
+// INITIALIZE APP ON MOUNT
+// ============================================================================
 onMounted(async () => {
-  console.log('[App] 🚀 Initializing application...')
-  
-  // ✅ Double-check for auth hash redirect (in case it wasn't caught in setup)
-  if (handleAuthHashRedirect()) {
-    // If redirect happened, stop here
-    return
-  }
+  console.log('[App] ============ APP INITIALIZATION START ============')
+  console.log('[App] Component mounted, starting hydration...')
 
   try {
-    // Check if we have a previous session
-    if (authStore.token && authStore.user) {
-      console.log('[App] ℹ️ Previous session found, validating...')
-      const isValid = await authStore.validateToken()
-      if (!isValid) {
-        console.warn('[App] ⚠️ Previous session invalid, clearing...')
-        authStore.clearAuth()
-      }
+    // ============================================================================
+    // STEP 1: Initialize auth store
+    // ============================================================================
+    console.log('[App] STEP 1: Initializing auth store...')
+    
+    if (!authStore.isHydrated) {
+      console.log('[App] Auth store not hydrated, initializing...')
+      await authStore.initializeSession()
+      console.log('[App] ✅ Auth store initialized')
     } else {
-      console.log('[App] ℹ️ No previous session found')
+      console.log('[App] Auth store already hydrated')
     }
 
-    // Hydrate from localStorage
-    await authStore.hydrateFromStorage()
-    console.log('[App] ✅ Supabase ready')
-  } catch (error) {
-    console.error('[App] ❌ Initialization error:', error)
-    authStore.clearAuth()
-  }
+    // ============================================================================
+    // STEP 2: Initialize profile store
+    // ============================================================================
+    console.log('[App] STEP 2: Initializing profile store...')
+    
+    if (!profileStore.isHydrated) {
+      console.log('[App] Profile store not hydrated, initializing...')
+      await profileStore.hydrateFromStorage()
+      console.log('[App] ✅ Profile store hydrated')
+    } else {
+      console.log('[App] Profile store already hydrated')
+    }
 
-  console.log('[App] ✅ Initialization complete')
+    // ============================================================================
+    // STEP 3: If user is authenticated, initialize profile
+    // ============================================================================
+    console.log('[App] STEP 3: Checking authentication status...')
+    
+    if (authStore.isAuthenticated && authStore.user?.id) {
+      console.log('[App] User is authenticated:', authStore.user.id)
+      console.log('[App] Initializing profile for user...')
+      
+      await profileStore.initializeProfile(authStore.user.id)
+      console.log('[App] ✅ Profile initialized')
+    } else {
+      console.log('[App] User is not authenticated')
+    }
+
+    // ============================================================================
+    // STEP 4: Setup auth state change listener
+    // ============================================================================
+    console.log('[App] STEP 4: Setting up auth state change listener...')
+    
+    setupAuthStateListener()
+    console.log('[App] ✅ Auth state listener set up')
+
+    console.log('[App] ✅ App initialization complete')
+    console.log('[App] ============ APP INITIALIZATION END ============')
+
+  } catch (err: any) {
+    console.error('[App] ============ INITIALIZATION ERROR ============')
+    console.error('[App] Error:', err.message)
+    console.error('[App] ============ END ERROR ============')
+    // Continue anyway - app should still work
+  } finally {
+    // ============================================================================
+    // STEP 5: Hide loading state
+    // ============================================================================
+    console.log('[App] Hiding loading state...')
+    isHydrating.value = false
+    console.log('[App] ✅ App ready for user interaction')
+  }
 })
+
+// ============================================================================
+// SETUP AUTH STATE CHANGE LISTENER
+// ============================================================================
+const setupAuthStateListener = () => {
+  console.log('[App] Setting up auth state change watcher...')
+
+  // Watch for authentication changes
+  watch(
+    () => authStore.isAuthenticated,
+    async (isAuthenticated) => {
+      console.log('[App] Auth state changed:', isAuthenticated)
+
+      if (isAuthenticated && authStore.user?.id) {
+        console.log('[App] User authenticated, initializing profile...')
+        await profileStore.initializeProfile(authStore.user.id)
+        console.log('[App] ✅ Profile initialized on auth change')
+      } else {
+        console.log('[App] User not authenticated, clearing profile...')
+        profileStore.clearProfile()
+        console.log('[App] ✅ Profile cleared on logout')
+      }
+    }
+  )
+
+  // Watch for user changes
+  watch(
+    () => authStore.user?.id,
+    async (userId) => {
+      if (userId) {
+        console.log('[App] User ID changed:', userId)
+        console.log('[App] Initializing profile for new user...')
+        await profileStore.initializeProfile(userId)
+        console.log('[App] ✅ Profile initialized for new user')
+      }
+    }
+  )
+
+  console.log('[App] ✅ Auth state change watcher set up')
+}
 </script>
 
 <style scoped>
-.hydration-loading {
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.app-content {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ========================================================================== */
+/* HYDRATION LOADER STYLES */
+/* ========================================================================== */
+.hydration-loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 100%;
+}
+
+.loader-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: #f9fafb;
+  gap: 2rem;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
-.hydration-loading p {
-  color: #6b7280;
-  font-size: 1rem;
-  margin: 0;
-}
-
-.error-boundary {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: #f9fafb;
-  text-align: center;
-  padding: 2rem;
-}
-
-.error-boundary h1 {
-  color: #dc2626;
-  margin-bottom: 1rem;
-}
-
-.error-boundary p {
-  color: #6b7280;
-  margin-bottom: 2rem;
-  max-width: 500px;
-}
-
-.error-boundary a {
-  padding: 0.75rem 1.5rem;
-  background: #3b82f6;
+.loader-text {
   color: white;
-  text-decoration: none;
-  border-radius: 6px;
-  transition: background 0.3s;
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: 0.5px;
 }
 
-.error-boundary a:hover {
-  background: #2563eb;
+/* ========================================================================== */
+/* RESPONSIVE STYLES */
+/* ========================================================================== */
+@media (max-width: 768px) {
+  .loader-text {
+    font-size: 1rem;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border-width: 3px;
+  }
 }
 </style>
