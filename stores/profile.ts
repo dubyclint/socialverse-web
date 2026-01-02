@@ -1,12 +1,14 @@
 // ============================================================================
-// FILE 2: /stores/profile.ts - COMPLETE PROFILE STORE
+// FILE 2: /stores/profile.ts - ENHANCED VERSION WITH AVATAR UPLOAD
+// PHASE 3: Add upload avatar action
 // ============================================================================
-// FIXES:
-// ✅ Create dedicated profile store
-// ✅ Store profile data separately from auth
-// ✅ Provide computed properties for profile fields
-// ✅ Handle profile updates and mutations
-// ✅ Sync with auth store
+// ENHANCEMENTS:
+// ✅ Add uploadAvatar action
+// ✅ Add uploadAvatarProgress state
+// ✅ Handle avatar upload with progress tracking
+// ✅ Update profile with new avatar URL
+// ✅ Error handling for upload failures
+// ✅ Comprehensive logging
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -18,6 +20,11 @@ export const useProfileStore = defineStore('profile', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isHydrated = ref(false)
+  
+  // ✅ NEW: Avatar upload state
+  const isUploadingAvatar = ref(false)
+  const uploadAvatarProgress = ref(0)
+  const uploadAvatarError = ref<string | null>(null)
 
   // ============================================================================
   // COMPUTED PROPERTIES - Profile field accessors
@@ -151,6 +158,9 @@ export const useProfileStore = defineStore('profile', () => {
     profile.value = null
     error.value = null
     isLoading.value = false
+    isUploadingAvatar.value = false
+    uploadAvatarProgress.value = 0
+    uploadAvatarError.value = null
 
     if (process.client) {
       try {
@@ -294,6 +304,127 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
+  // ✅ NEW: UPLOAD AVATAR METHOD
+  // ============================================================================
+  const uploadAvatar = async (file: File): Promise<string | null> => {
+    console.log('[Profile Store] ============ UPLOAD AVATAR START ============')
+    console.log('[Profile Store] Uploading avatar:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    })
+
+    if (!profile.value) {
+      console.error('[Profile Store] ❌ No profile to update avatar')
+      uploadAvatarError.value = 'No profile loaded'
+      return null
+    }
+
+    // ============================================================================
+    // VALIDATE FILE
+    // ============================================================================
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      console.error('[Profile Store] ❌ Invalid file type:', file.type)
+      uploadAvatarError.value = 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'
+      return null
+    }
+
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      console.error('[Profile Store] ❌ File size exceeds limit:', file.size)
+      uploadAvatarError.value = 'File size exceeds 5MB limit.'
+      return null
+    }
+
+    isUploadingAvatar.value = true
+    uploadAvatarProgress.value = 0
+    uploadAvatarError.value = null
+
+    try {
+      // ============================================================================
+      // CREATE FORMDATA
+      // ============================================================================
+      const formData = new FormData()
+      formData.append('file', file)
+
+      console.log('[Profile Store] FormData created, starting upload...')
+
+      // ============================================================================
+      // SIMULATE PROGRESS (since fetch doesn't support real progress)
+      // ============================================================================
+      const progressInterval = setInterval(() => {
+        if (uploadAvatarProgress.value < 90) {
+          uploadAvatarProgress.value += Math.random() * 30
+        }
+      }, 200)
+
+      // ============================================================================
+      // UPLOAD FILE
+      // ============================================================================
+      console.log('[Profile Store] Sending upload request to /api/profile/avatar-upload')
+
+      const response = await fetch('/api/profile/avatar-upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      clearInterval(progressInterval)
+      uploadAvatarProgress.value = 100
+
+      console.log('[Profile Store] Upload response status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('[Profile Store] ✅ Upload successful:', data)
+
+      if (!data.success || !data.url) {
+        throw new Error('Invalid upload response')
+      }
+
+      // ============================================================================
+      // UPDATE PROFILE WITH NEW AVATAR URL
+      // ============================================================================
+      const updatedProfile = {
+        ...profile.value,
+        avatar_url: data.url,
+        updated_at: new Date().toISOString()
+      }
+
+      setProfile(updatedProfile)
+
+      console.log('[Profile Store] ✅ Avatar updated in profile store')
+      console.log('[Profile Store] ============ UPLOAD AVATAR END ============')
+
+      return data.url
+
+    } catch (error: any) {
+      console.error('[Profile Store] ============ UPLOAD AVATAR ERROR ============')
+      console.error('[Profile Store] Error:', error.message)
+
+      uploadAvatarError.value = error.message || 'Failed to upload avatar'
+      console.error('[Profile Store] ============ END ERROR ============')
+
+      return null
+
+    } finally {
+      isUploadingAvatar.value = false
+    }
+  }
+
+  // ============================================================================
+  // ✅ NEW: CLEAR AVATAR UPLOAD ERROR
+  // ============================================================================
+  const clearAvatarUploadError = () => {
+    console.log('[Profile Store] Clearing avatar upload error')
+    uploadAvatarError.value = null
+  }
+
+  // ============================================================================
   // HYDRATE FROM STORAGE METHOD
   // ============================================================================
   const hydrateFromStorage = async () => {
@@ -422,6 +553,11 @@ export const useProfileStore = defineStore('profile', () => {
     isLoading,
     error,
     isHydrated,
+    
+    // ✅ NEW: Avatar upload state
+    isUploadingAvatar,
+    uploadAvatarProgress,
+    uploadAvatarError,
 
     // Computed Properties
     username,
@@ -445,6 +581,11 @@ export const useProfileStore = defineStore('profile', () => {
     clearProfile,
     fetchProfile,
     updateProfile,
+    
+    // ✅ NEW: Avatar upload methods
+    uploadAvatar,
+    clearAvatarUploadError,
+    
     hydrateFromStorage,
     syncWithAuthStore,
     initializeProfile
