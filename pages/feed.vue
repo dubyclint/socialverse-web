@@ -1,14 +1,3 @@
-<!-- FILE: /pages/feed.vue - COMPLETE FIXED VERSION -->
-<!-- ============================================================================
-     FEED PAGE - COMPLETE FIXED VERSION WITH ALL NAVIGATION FIXES
-     ✅ FIXED: Profile navigation validation with comprehensive checks
-     ✅ FIXED: Safe null-checks on all avatar clicks
-     ✅ FIXED: Dynamic sidebar profile link with username validation
-     ✅ FIXED: User profile navigation protection
-     ✅ FIXED: Proper error handling and logging
-     ✅ FIXED: All watchers for reactive updates
-     ============================================================================ -->
-
 <template>
   <div class="feed-page">
     <!-- ========================================================================
@@ -99,12 +88,23 @@
 
         <nav class="sidebar-nav">
           <!-- Primary Navigation Section -->
-          <!-- ✅ FIX: Dynamic profile link with username validation -->
+          <!-- ✅ FIX PHASE 2: Enhanced profile link with validation and loading state -->
+          <div 
+            v-if="!userUsername || userUsername === 'username'"
+            class="sidebar-item disabled-info"
+            title="Profile username not loaded yet"
+          >
+            <Icon name="user" size="18" />
+            <span>Profile</span>
+            <div v-if="profileLoading" class="spinner-tiny"></div>
+            <span v-else class="warning-badge">!</span>
+          </div>
+          
           <NuxtLink 
+            v-else
             :to="`/profile/${userUsername}`" 
             class="sidebar-item" 
             @click="toggleSidebar"
-            :class="{ disabled: !userUsername || userUsername === 'username' }"
           >
             <Icon name="user" size="18" />
             <span>Profile</span>
@@ -195,8 +195,24 @@
       <!-- Left Sidebar - User Profile & Quick Actions -->
       <ClientOnly>
         <aside class="feed-sidebar-left">
-          <!-- User Profile Card -->
-          <div class="profile-card">
+          <!-- ✅ FIX PHASE 2: Profile card with loading and error states -->
+          <div v-if="profileLoading" class="profile-card loading">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-text"></div>
+            <div class="skeleton-text short"></div>
+          </div>
+
+          <div v-else-if="profileError" class="profile-card error">
+            <Icon name="alert-circle" size="32" />
+            <p>Failed to load profile</p>
+            <button @click="retryProfileLoad" class="btn-retry">
+              <Icon name="refresh-cw" size="14" />
+              Retry
+            </button>
+          </div>
+
+          <div v-else class="profile-card">
+            <!-- User Profile Card -->
             <div class="profile-header">
               <div class="profile-avatar-wrapper">
                 <img 
@@ -209,7 +225,7 @@
               </div>
               <div class="profile-info">
                 <h3 class="profile-name">{{ userName }}</h3>
-                <p class="profile-username">@{{ userUsername }}</p>
+                <p class="profile-username">@{{ userUsername || 'loading...' }}</p>
               </div>
             </div>
 
@@ -252,6 +268,18 @@
                   {{ isVerified ? '✓ Verified' : '⏳ Pending' }}
                 </span>
               </div>
+            </div>
+
+            <!-- ✅ FIX PHASE 2: Profile completion prompt if needed -->
+            <div v-if="!profileComplete" class="profile-completion-prompt">
+              <Icon name="info" size="16" />
+              <div class="prompt-content">
+                <p class="prompt-title">Complete Your Profile</p>
+                <p class="prompt-text">Add a bio and profile picture to get started</p>
+              </div>
+              <button @click="goToProfile" class="btn-complete">
+                <Icon name="arrow-right" size="14" />
+              </button>
             </div>
           </div>
         </aside>
@@ -330,12 +358,13 @@
             >
               <!-- Post Header -->
               <div class="post-header">
-                <!-- ✅ FIX: Safe null-check on avatar click -->
+                <!-- ✅ FIX PHASE 2: Safe null-check on avatar click with validation -->
                 <img 
                   :src="post.author?.avatar_url || '/default-avatar.svg'" 
                   :alt="post.author?.full_name" 
                   class="post-avatar"
                   @click="post.author?.username && goToUserProfile(post.author.username)"
+                  :style="{ cursor: post.author?.username ? 'pointer' : 'default' }"
                 />
                 <div class="post-author-info">
                   <div class="author-name-row">
@@ -507,12 +536,13 @@
                 :key="user.id" 
                 class="recommendation-item"
               >
-                <!-- ✅ FIX: Safe null-check on avatar click -->
+                <!-- ✅ FIX PHASE 2: Safe null-check on avatar click -->
                 <img 
                   :src="user.avatar_url || '/default-avatar.svg'" 
                   :alt="user.full_name" 
                   class="rec-avatar"
                   @click="user.username && goToUserProfile(user.username)"
+                  :style="{ cursor: user.username ? 'pointer' : 'default' }"
                 />
                 <div class="rec-info">
                   <h4 class="rec-name">{{ user.full_name }}</h4>
@@ -572,10 +602,13 @@
 import { ref, computed, onMounted, onBeforeMount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
+import { useProfileStore } from '~/stores/profile'
 import { useFetchWithAuth } from '~/composables/use-fetch'
+import { useAuth } from '~/composables/use-auth'
 
 definePageMeta({
-  layout: 'blank'
+  layout: 'blank',
+  middleware: 'auth' // ✅ FIX PHASE 2: Add auth middleware protection
 })
 
 // ============================================================================
@@ -584,7 +617,9 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const profileStore = useProfileStore() // ✅ FIX PHASE 2: Add profile store
 const fetchWithAuth = useFetchWithAuth()
+const { logout } = useAuth()
 
 // ============================================================================
 // REACTIVE STATE - HEADER & SIDEBAR
@@ -629,33 +664,49 @@ const walletBalance = ref('$0.00')
 const isVerified = ref(false)
 
 // ============================================================================
+// ✅ FIX PHASE 2: NEW REACTIVE STATE - PROFILE DATA LAYER
+// ============================================================================
+const profileLoading = ref(true) // Profile data loading state
+const profileError = ref<string | null>(null) // Profile error message
+const profileComplete = ref(false) // Profile completion status
+const profileSyncing = ref(false) // Profile sync in progress
+const lastProfileSync = ref<Date | null>(null) // Last sync timestamp
+
+// ============================================================================
 // COMPUTED PROPERTIES - USER DATA FROM AUTH STORE
 // ============================================================================
 const currentUser = computed(() => authStore.user)
 
 const userName = computed(() => {
-  const name = currentUser.value?.user_metadata?.full_name || 
+  // ✅ FIX PHASE 2: Enhanced with profile store fallback
+  const name = profileStore.profile?.full_name ||
+               currentUser.value?.user_metadata?.full_name || 
                currentUser.value?.full_name || 
                'User'
   console.log('[Feed] userName computed:', name)
   return name
 })
 
-// ✅ FIXED: Proper username extraction with detailed logging
+// ✅ FIX PHASE 2: Proper username extraction with detailed logging
 const userUsername = computed(() => {
-  const username = currentUser.value?.user_metadata?.username || 
+  // ✅ FIX PHASE 2: Check profile store first, then auth store
+  const username = profileStore.profile?.username ||
+                   currentUser.value?.user_metadata?.username || 
                    currentUser.value?.username || 
                    ''
   console.log('[Feed] userUsername computed:', {
     value: username,
     isEmpty: !username,
-    isValid: username && username.trim() !== '' && username !== 'username'
+    isValid: username && username.trim() !== '' && username !== 'username',
+    source: profileStore.profile?.username ? 'profileStore' : 'authStore'
   })
   return username
 })
 
 const userAvatar = computed(() => {
-  const avatar = currentUser.value?.user_metadata?.avatar_url || 
+  // ✅ FIX PHASE 2: Check profile store first, then auth store
+  const avatar = profileStore.profile?.avatar_url ||
+                 currentUser.value?.user_metadata?.avatar_url || 
                  currentUser.value?.avatar_url || 
                  '/default-avatar.svg'
   console.log('[Feed] userAvatar computed:', avatar)
@@ -663,19 +714,27 @@ const userAvatar = computed(() => {
 })
 
 const userFollowers = computed(() => {
-  return currentUser.value?.user_metadata?.followers_count || 0
+  // ✅ FIX PHASE 2: Use profile store data
+  return profileStore.profile?.followers_count ||
+         currentUser.value?.user_metadata?.followers_count || 0
 })
 
 const userFollowing = computed(() => {
-  return currentUser.value?.user_metadata?.following_count || 0
+  // ✅ FIX PHASE 2: Use profile store data
+  return profileStore.profile?.following_count ||
+         currentUser.value?.user_metadata?.following_count || 0
 })
 
 const userPosts = computed(() => {
-  return currentUser.value?.user_metadata?.posts_count || 0
+  // ✅ FIX PHASE 2: Use profile store data
+  return profileStore.profile?.posts_count ||
+         currentUser.value?.user_metadata?.posts_count || 0
 })
 
 const userStatus = computed(() => {
-  return currentUser.value?.user_metadata?.status || 'online'
+  // ✅ FIX PHASE 2: Use profile store data
+  return profileStore.profile?.status ||
+         currentUser.value?.user_metadata?.status || 'online'
 })
 
 // ============================================================================
@@ -700,8 +759,9 @@ const handleLogout = async () => {
     console.log('[Feed] Logging out user')
     sidebarOpen.value = false
     
-    // ✅ FIX: Use useAuth composable instead of authStore
-    const { logout } = useAuth()
+    // ✅ FIX PHASE 2: Clear profile store on logout
+    profileStore.clearProfile()
+    
     const result = await logout()
     
     if (result.success) {
@@ -713,6 +773,16 @@ const handleLogout = async () => {
   } catch (error) {
     console.error('[Feed] Error logging out:', error)
   }
+}
+
+// ============================================================================
+// ✅ FIX PHASE 2: NEW METHOD - RETRY PROFILE LOAD
+// ============================================================================
+const retryProfileLoad = async () => {
+  console.log('[Feed] Retrying profile load')
+  profileError.value = null
+  profileLoading.value = true
+  await fetchProfileData()
 }
 
 // ============================================================================
@@ -1125,7 +1195,7 @@ const formatTime = (date: string | Date) => {
   }
 }
 
-    // ============================================================================
+// ============================================================================
 // DATA FETCHING METHODS - POSTS
 // ============================================================================
 const fetchPosts = async () => {
@@ -1240,22 +1310,75 @@ const fetchMessages = async () => {
 }
 
 // ============================================================================
-// DATA FETCHING METHODS - USER PROFILE DATA
+// ✅ FIX PHASE 2: NEW METHOD - FETCH PROFILE DATA
 // ============================================================================
-const fetchUserProfileData = async () => {
+/**
+ * Fetch profile data from the profiles table
+ * This is called on app load and when profile needs to be synced
+ */
+const fetchProfileData = async () => {
   try {
-    console.log('[Feed] Fetching user profile data')
+    console.log('[Feed] Fetching profile data')
+    profileLoading.value = true
+    profileError.value = null
+    profileSyncing.value = true
     
+    // Fetch from /api/user/profile endpoint
     const result = await fetchWithAuth('/api/user/profile')
     
-    if (result) {
-      walletBalance.value = result.wallet_balance || '$0.00'
-      isVerified.value = result.is_verified || false
+    if (result && result.data) {
+      console.log('[Feed] ✅ Profile data fetched:', result.data)
+      
+      // ✅ FIX PHASE 2: Update profile store with fetched data
+      profileStore.setProfile(result.data)
+      
+      // Update local state
+      walletBalance.value = result.data.wallet_balance || '$0.00'
+      isVerified.value = result.data.is_verified || false
+      profileComplete.value = result.data.profile_complete || false
+      
+      lastProfileSync.value = new Date()
+      console.log('[Feed] ✅ Profile data synced to store')
+    } else {
+      throw new Error('No profile data returned')
+    }
+  } catch (error) {
+    console.error('[Feed] Error loading profile data:', error)
+    profileError.value = error instanceof Error ? error.message : 'Failed to load profile'
+  } finally {
+    profileLoading.value = false
+    profileSyncing.value = false
+  }
+}
+
+// ============================================================================
+// ✅ FIX PHASE 2: NEW METHOD - SYNC PROFILE DATA
+// ============================================================================
+/**
+ * Sync profile data periodically or on demand
+ */
+const syncProfileData = async () => {
+  try {
+    console.log('[Feed] Syncing profile data')
+    
+    // Don't sync if already syncing
+    if (profileSyncing.value) {
+      console.log('[Feed] Profile sync already in progress')
+      return
     }
     
-    console.log('[Feed] User profile data loaded')
+    // Don't sync if synced recently (within 30 seconds)
+    if (lastProfileSync.value) {
+      const timeSinceLastSync = Date.now() - lastProfileSync.value.getTime()
+      if (timeSinceLastSync < 30000) {
+        console.log('[Feed] Profile synced recently, skipping')
+        return
+      }
+    }
+    
+    await fetchProfileData()
   } catch (error) {
-    console.error('[Feed] Error loading user profile data:', error)
+    console.error('[Feed] Error syncing profile data:', error)
   }
 }
 
@@ -1291,13 +1414,15 @@ onMounted(async () => {
     console.log('[Feed] Loading data on client-side')
     
     try {
+      // ✅ FIX PHASE 2: Fetch profile data first, then other data
+      await fetchProfileData()
+      
       await Promise.all([
         fetchPosts(),
         fetchSuggestedUsers(),
         fetchTrendingTopics(),
         fetchNotifications(),
-        fetchMessages(),
-        fetchUserProfileData()
+        fetchMessages()
       ])
 
       console.log('[Feed] All data loaded successfully')
@@ -1307,7 +1432,7 @@ onMounted(async () => {
   }
 })
 
-// ============================================================================
+ // ============================================================================
 // WATCHERS - REACTIVE UPDATES
 // ============================================================================
 
@@ -1528,8 +1653,244 @@ watch(() => loadingMore.value, (isLoading) => {
  */
 watch(() => isLiveStreaming.value, (isLive) => {
   console.log('[Feed] Live streaming state:', isLive ? 'live' : 'offline')
-}) 
+})
+
+// ============================================================================
+// ✅ FIX PHASE 2: NEW WATCHERS - PROFILE DATA LAYER
+// ============================================================================
+
+/**
+ * Watch for profile loading state changes
+ * Triggers when profile data is being fetched
+ */
+watch(() => profileLoading.value, (isLoading) => {
+  console.log('[Feed] Profile loading state changed:', isLoading ? 'loading' : 'loaded')
+  
+  if (!isLoading && !profileError.value) {
+    console.log('[Feed] ✅ Profile loaded successfully')
+  }
+})
+
+/**
+ * Watch for profile error state changes
+ * Triggers when profile fetch fails
+ */
+watch(() => profileError.value, (error, oldError) => {
+  console.log('[Feed] Profile error state changed:', {
+    old: oldError,
+    new: error
+  })
+  
+  if (error) {
+    console.error('[Feed] ❌ Profile error:', error)
+  }
+})
+
+/**
+ * Watch for profile completion status changes
+ * Triggers when profile completion status changes
+ */
+watch(() => profileComplete.value, (isComplete, wasComplete) => {
+  console.log('[Feed] Profile completion status changed:', {
+    old: wasComplete,
+    new: isComplete
+  })
+  
+  if (isComplete && !wasComplete) {
+    console.log('[Feed] ✅ Profile marked as complete')
+  }
+})
+
+/**
+ * Watch for profile syncing state changes
+ * Triggers when profile sync starts/stops
+ */
+watch(() => profileSyncing.value, (isSyncing) => {
+  console.log('[Feed] Profile syncing state changed:', isSyncing ? 'syncing' : 'idle')
+})
+
+/**
+ * Watch for last profile sync timestamp changes
+ * Triggers when profile is synced
+ */
+watch(() => lastProfileSync.value, (newSync, oldSync) => {
+  console.log('[Feed] Profile sync timestamp changed:', {
+    old: oldSync?.toISOString(),
+    new: newSync?.toISOString()
+  })
+})
+
+/**
+ * Watch for profile store data changes
+ * Triggers when profile store is updated
+ */
+watch(() => profileStore.profile, (newProfile, oldProfile) => {
+  console.log('[Feed] Profile store data changed:', {
+    oldId: oldProfile?.id,
+    newId: newProfile?.id,
+    oldUsername: oldProfile?.username,
+    newUsername: newProfile?.username
+  })
+  
+  if (newProfile && !oldProfile) {
+    console.log('[Feed] ✅ Profile store initialized')
+  }
+}, { deep: true })
+
+/**
+ * Watch for profile store loading state
+ * Triggers when profile store loading state changes
+ */
+watch(() => profileStore.loading, (isLoading) => {
+  console.log('[Feed] Profile store loading state changed:', isLoading ? 'loading' : 'loaded')
+})
+
+/**
+ * Watch for profile store error state
+ * Triggers when profile store error state changes
+ */
+watch(() => profileStore.error, (error) => {
+  console.log('[Feed] Profile store error state changed:', error)
+})
+
+/**
+ * Watch for user followers count changes
+ * Triggers when followers count changes
+ */
+watch(() => userFollowers.value, (newCount, oldCount) => {
+  console.log('[Feed] User followers count changed:', {
+    old: oldCount,
+    new: newCount
+  })
+})
+
+/**
+ * Watch for user following count changes
+ * Triggers when following count changes
+ */
+watch(() => userFollowing.value, (newCount, oldCount) => {
+  console.log('[Feed] User following count changed:', {
+    old: oldCount,
+    new: newCount
+  })
+})
+
+/**
+ * Watch for user posts count changes
+ * Triggers when posts count changes
+ */
+watch(() => userPosts.value, (newCount, oldCount) => {
+  console.log('[Feed] User posts count changed:', {
+    old: oldCount,
+    new: newCount
+  })
+})
+
+/**
+ * Watch for auth store user changes
+ * Triggers when auth store user is updated
+ * This is important for syncing profile when auth changes
+ */
+watch(() => authStore.user, async (newUser, oldUser) => {
+  console.log('[Feed] Auth store user changed:', {
+    oldId: oldUser?.id,
+    newId: newUser?.id
+  })
+  
+  // If user changed, sync profile data
+  if (newUser && newUser.id !== oldUser?.id) {
+    console.log('[Feed] User changed, syncing profile data')
+    await syncProfileData()
+  }
+}, { deep: true })
+
+/**
+ * Watch for auth store token changes
+ * Triggers when auth token is updated
+ */
+watch(() => authStore.token, (newToken, oldToken) => {
+  console.log('[Feed] Auth store token changed:', {
+    old: !!oldToken,
+    new: !!newToken
+  })
+  
+  // If token was cleared, profile should be cleared too
+  if (!newToken && oldToken) {
+    console.log('[Feed] Token cleared, clearing profile')
+    profileStore.clearProfile()
+  }
+})
+
+/**
+ * Watch for auth store authentication status
+ * Triggers when authentication status changes
+ */
+watch(() => authStore.isAuthenticated, (isAuth) => {
+  console.log('[Feed] Auth store authentication status changed:', isAuth ? 'authenticated' : 'unauthenticated')
+  
+  if (!isAuth) {
+    console.log('[Feed] User unauthenticated, clearing profile')
+    profileStore.clearProfile()
+  }
+})
+
+/**
+ * Combined watcher for profile data readiness
+ * Triggers when profile data is ready to use
+ */
+watch(
+  () => ({
+    profileLoading: profileLoading.value,
+    profileError: profileError.value,
+    username: userUsername.value,
+    profileStoreReady: !!profileStore.profile
+  }),
+  (state) => {
+    console.log('[Feed] Profile data readiness state:', state)
+    
+    const isReady = !state.profileLoading && 
+                    !state.profileError && 
+                    state.username && 
+                    state.username !== 'username' &&
+                    state.profileStoreReady
+    
+    console.log('[Feed] Profile data ready:', isReady)
+  },
+  { deep: true }
+)
+
+/**
+ * Watcher for profile sync interval
+ * Periodically syncs profile data every 5 minutes
+ */
+let syncInterval: NodeJS.Timeout | null = null
+
+watch(() => authStore.isAuthenticated, (isAuth) => {
+  if (isAuth && !syncInterval) {
+    console.log('[Feed] Starting profile sync interval')
+    syncInterval = setInterval(() => {
+      console.log('[Feed] Profile sync interval triggered')
+      syncProfileData()
+    }, 5 * 60 * 1000) // 5 minutes
+  } else if (!isAuth && syncInterval) {
+    console.log('[Feed] Stopping profile sync interval')
+    clearInterval(syncInterval)
+    syncInterval = null
+  }
+})
+
+/**
+ * Cleanup on component unmount
+ */
+onUnmounted(() => {
+  console.log('[Feed] Component unmounting, cleaning up')
+  if (syncInterval) {
+    clearInterval(syncInterval)
+    syncInterval = null
+  }
+})    
 </script>
+
 
 <style scoped>
 /* ============================================================================
@@ -1887,6 +2248,16 @@ watch(() => isLiveStreaming.value, (isLive) => {
   padding-left: calc(1rem - 3px);
 }
 
+/* ✅ FIX PHASE 2: Enhanced disabled state styling */
+.sidebar-item.disabled-info {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #1e293b;
+  border-left: 3px solid #f59e0b;
+  padding-left: calc(1rem - 3px);
+}
+
 .sidebar-item.disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -1916,6 +2287,31 @@ watch(() => isLiveStreaming.value, (isLive) => {
   padding: 0.15rem 0.4rem;
   border-radius: 10px;
   font-weight: 600;
+  margin-left: auto;
+}
+
+/* ✅ FIX PHASE 2: New spinner and warning badge styles */
+.spinner-tiny {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #334155;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: auto;
+}
+
+.warning-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #f59e0b;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
   margin-left: auto;
 }
 
@@ -1959,7 +2355,7 @@ watch(() => isLiveStreaming.value, (isLive) => {
   background: #475569;
 }
 
-/* Profile Card */
+/* ✅ FIX PHASE 2: Profile Card with loading and error states */
 .profile-card {
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid #334155;
@@ -1973,6 +2369,77 @@ watch(() => isLiveStreaming.value, (isLive) => {
 .profile-card:hover {
   border-color: #475569;
   box-shadow: 0 8px 12px rgba(59, 130, 246, 0.1);
+}
+
+/* ✅ FIX PHASE 2: Loading state skeleton */
+.profile-card.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.skeleton-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.skeleton-text {
+  height: 12px;
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-text.short {
+  width: 60%;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ✅ FIX PHASE 2: Error state */
+.profile-card.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: #ef4444;
+}
+
+.profile-card.error p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.btn-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.btn-retry:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
 }
 
 .profile-header {
@@ -2145,6 +2612,62 @@ watch(() => isLiveStreaming.value, (isLive) => {
 
 .quick-stat .value.pending {
   color: #f59e0b;
+}
+
+/* ✅ FIX PHASE 2: Profile completion prompt */
+.profile-completion-prompt {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f59e0b15 0%, #f59e0b08 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  margin-top: 1rem;
+  color: #f59e0b;
+}
+
+.profile-completion-prompt :deep(svg) {
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.prompt-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.prompt-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.prompt-text {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
+  color: #f59e0b;
+  opacity: 0.8;
+}
+
+.btn-complete {
+  flex-shrink: 0;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-complete:hover {
+  background: #d97706;
+  transform: translateY(-2px);
 }
 
 /* ============================================================================
@@ -2996,13 +3519,136 @@ watch(() => isLiveStreaming.value, (isLive) => {
 }
 
 /* ============================================================================
+   ANIMATIONS - KEYFRAMES
+   ============================================================================ */
+
+/* Spin animation for loading spinners */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Pulse animation for live badges */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide in animation */
+@keyframes slideIn {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Bounce animation */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* ============================================================================
    ACCESSIBILITY & FOCUS STATES
    ============================================================================ */
+
+/* Focus visible for keyboard navigation */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+/* Enhanced focus states for better accessibility */
+.sidebar-item:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.btn-edit-profile:focus-visible,
+.btn-share-profile:focus-visible,
+.btn-follow:focus-visible,
+.btn-load-more:focus-visible,
+.action-btn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.feed-tab:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Skip to main content link (for screen readers) */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #3b82f6;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-to-main:focus {
+  top: 0;
+}
+
+/* Reduced motion support for animations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  .feed-post,
+  .profile-card,
+  .create-post-section,
+  .recommendations-card,
+  .trending-card,
+  .search-card {
+    border-width: 2px;
+  }
+
+  .btn-edit-profile,
+  .btn-load-more,
+  .btn-follow,
+  .action-btn {
+    border: 2px solid currentColor;
+  }
+
+  .sidebar-item {
+    border-left-width: 4px;
+  }
+
+  .feed-tab.active {
+    border-bottom-width: 4px;
+  }
+}
+
+/* Dark mode support (already in dark mode, but for completeness) */
+@media (prefers-color-scheme: dark) {
+  /* Already styled for dark mode */
+}
+
+/* Light mode support (if needed in future) */
+@media (prefers-color-scheme: light) {
+  /* Can be added if light mode is implemented */
 }
 
 /* ============================================================================
@@ -3014,54 +3660,477 @@ input:focus-visible {
   .feed-sidebar-right,
   .create-post-section,
   .post-actions,
-  .post-menu-btn {
+  .post-menu-btn,
+  .sidebar,
+  .sidebar-overlay {
     display: none;
   }
 
   .feed-main-wrapper {
     grid-template-columns: 1fr;
     gap: 0;
+    padding: 0;
   }
 
   .feed-post {
     page-break-inside: avoid;
     border: 1px solid #ccc;
+    margin-bottom: 1rem;
+  }
+
+  .post-header,
+  .post-content,
+  .post-stats {
+    color: #000;
+  }
+
+  .feed-page {
+    background: white;
+    color: black;
   }
 }
 
 /* ============================================================================
-   DARK MODE SUPPORT (Already in dark mode, but for completeness)
+   UTILITY CLASSES
    ============================================================================ */
-@media (prefers-color-scheme: dark) {
-  /* Already styled for dark mode */
+
+/* Text truncation */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Flex utilities */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Opacity utilities */
+.opacity-50 {
+  opacity: 0.5;
+}
+
+.opacity-75 {
+  opacity: 0.75;
+}
+
+/* Cursor utilities */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-not-allowed {
+  cursor: not-allowed;
+}
+
+/* Display utilities */
+.hidden {
+  display: none !important;
+}
+
+.visible {
+  display: block !important;
 }
 
 /* ============================================================================
-   HIGH CONTRAST MODE SUPPORT
+   RESPONSIVE UTILITIES
    ============================================================================ */
-@media (prefers-contrast: more) {
-  .feed-post,
-  .profile-card,
+
+/* Mobile first approach */
+@media (max-width: 640px) {
+  .feed-main-wrapper {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .feed-sidebar-left,
+  .feed-sidebar-right {
+    display: none;
+  }
+
+  .feed-post {
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .profile-card {
+    padding: 1rem;
+  }
+
   .create-post-section {
-    border-width: 2px;
+    padding: 1rem;
   }
 
-  .btn-edit-profile,
-  .btn-load-more,
-  .btn-follow,
-  .action-btn {
-    border: 2px solid currentColor;
+  .post-header {
+    gap: 0.75rem;
+  }
+
+  .post-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .profile-avatar {
+    width: 56px;
+    height: 56px;
+  }
+
+  .stat-value {
+    font-size: 1rem;
+  }
+
+  .post-author-name {
+    font-size: 0.875rem;
+  }
+}
+
+/* Tablet */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .feed-main-wrapper {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .feed-sidebar-left,
+  .feed-sidebar-right {
+    display: none;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .feed-main-wrapper {
+    grid-template-columns: 280px 1fr 320px;
+    gap: 2rem;
+    padding: 2rem 1rem;
+  }
+
+  .feed-sidebar-left,
+  .feed-sidebar-right {
+    display: flex;
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1400px) {
+  .feed-main-wrapper {
+    gap: 2.5rem;
+    padding: 2rem 2rem;
   }
 }
 
 /* ============================================================================
-   REDUCED MOTION SUPPORT
+   SCROLLBAR STYLING
    ============================================================================ */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ============================================================================
+   FORM ELEMENTS STYLING
+   ============================================================================ */
+
+/* Input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+textarea:hover {
+  border-color: #475569;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="search"]::placeholder,
+textarea::placeholder {
+  color: #64748b;
+}
+
+/* ============================================================================
+   BUTTON STYLING CONSISTENCY
+   ============================================================================ */
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   LINK STYLING
+   ============================================================================ */
+
+a {
+  color: #3b82f6;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+a:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+a:active {
+  color: #1e40af;
+}
+
+/* ============================================================================
+   CARD STYLING CONSISTENCY
+   ============================================================================ */
+
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s;
+}
+
+.card:hover {
+  border-color: #475569;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   BADGE STYLING
+   ============================================================================ */
+
+.badge-primary {
+  background: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-warning {
+  background: #f59e0b;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-danger {
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   SHADOW UTILITIES
+   ============================================================================ */
+
+.shadow-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.shadow {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-md {
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+.shadow-lg {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   BORDER RADIUS UTILITIES
+   ============================================================================ */
+
+.rounded-sm {
+  border-radius: 4px;
+}
+
+.rounded {
+  border-radius: 8px;
+}
+
+.rounded-md {
+  border-radius: 12px;
+}
+
+.rounded-lg {
+  border-radius: 16px;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+/* ============================================================================
+   SPACING UTILITIES
+   ============================================================================ */
+
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-5 { gap: 1.25rem; }
+.gap-6 { gap: 1.5rem; }
+
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+.p-5 { padding: 1.25rem; }
+.p-6 { padding: 1.5rem; }
+
+.m-1 { margin: 0.25rem; }
+.m-2 { margin: 0.5rem; }
+.m-3 { margin: 0.75rem; }
+.m-4 { margin: 1rem; }
+.m-5 { margin: 1.25rem; }
+.m-6 { margin: 1.5rem; }
+
+/* ============================================================================
+   TEXT UTILITIES
+   ============================================================================ */
+
+.text-xs { font-size: 0.75rem; }
+.text-sm { font-size: 0.875rem; }
+.text-base { font-size: 1rem; }
+.text-lg { font-size: 1.125rem; }
+.text-xl { font-size: 1.25rem; }
+
+.font-light { font-weight: 300; }
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.text-primary { color: #3b82f6; }
+.text-secondary { color: #94a3b8; }
+.text-success { color: #10b981; }
+.text-warning { color: #f59e0b; }
+.text-danger { color: #ef4444; }
+
+/* ============================================================================
+   BACKGROUND UTILITIES
+   ============================================================================ */
+
+.bg-primary { background: #3b82f6; }
+.bg-secondary { background: #1e293b; }
+.bg-success { background: #10b981; }
+.bg-warning { background: #f59e0b; }
+.bg-danger { background: #ef4444; }
+
+/* ============================================================================
+   TRANSITION UTILITIES
+   ============================================================================ */
+
+.transition-fast { transition: all 0.1s; }
+.transition { transition: all 0.2s; }
+.transition-slow { transition: all 0.3s; }
+
+/* ============================================================================
+   Z-INDEX UTILITIES
+   ============================================================================ */
+
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-40 { z-index: 40; }
+.z-50 { z-index: 50; }
+.z-auto { z-index: auto; }
+    
 </style>
