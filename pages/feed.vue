@@ -341,173 +341,174 @@
         </ClientOnly>
 
         <!-- Posts Feed -->
-        <ClientOnly>
-          <!-- Loading State -->
-          <div v-if="postsLoading && posts.length === 0" class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading posts...</p>
+<ClientOnly>
+  <!-- Email Verification Banner -->
+  <EmailVerificationBanner 
+    :isVerified="authStore.isEmailVerified"
+    :email="authStore.userEmail"
+    @send-verification="handleVerificationSent"
+    @dismiss="handleBannerDismissed"
+    @verified="handleEmailVerified"
+  />
+
+  <!-- Loading State -->
+  <div v-if="postsLoading && posts.length === 0" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading posts...</p>
+  </div>
+  
+  <!-- Posts List -->
+  <div v-else-if="posts.length > 0" class="posts-list">
+    <article 
+      v-for="post in posts" 
+      :key="post.id" 
+      class="feed-post"
+      :class="{ 'has-media': post.media && post.media.length > 0 }"
+    >
+      <!-- Post Header -->
+      <div class="post-header">
+        <!-- ✅ FIX PHASE 2: Safe null-check on avatar click with validation -->
+        <img 
+          :src="post.author?.avatar_url || '/default-avatar.svg'" 
+          :alt="post.author?.full_name" 
+          class="post-avatar"
+          @click="post.author?.username && goToUserProfile(post.author.username)"
+          :style="{ cursor: post.author?.username ? 'pointer' : 'default' }"
+        />
+        <div class="post-author-info">
+          <div class="author-name-row">
+            <h4 class="post-author-name">{{ post.author?.full_name }}</h4>
+            <span v-if="post.author?.verified" class="verified-badge" title="Verified">
+              <Icon name="check-circle" size="14" />
+            </span>
           </div>
+          <p class="post-author-username">@{{ post.author?.username }}</p>
+          <span class="post-timestamp">{{ formatTime(post.created_at) }}</span>
+        </div>
+        <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options">
+          <Icon name="more-vertical" size="20" />
+        </button>
+        <!-- Post Menu -->
+        <div v-if="activePostMenu === post.id" class="post-menu">
+          <button class="menu-item" @click="reportPost(post.id)">
+            <Icon name="flag" size="16" />
+            Report Post
+          </button>
+          <button v-if="post.author?.id === currentUser?.id" class="menu-item" @click="deletePost(post.id)">
+            <Icon name="trash-2" size="16" />
+            Delete Post
+          </button>
+          <button class="menu-item" @click="copyPostLink(post.id)">
+            <Icon name="link" size="16" />
+            Copy Link
+          </button>
+        </div>
+      </div>
 
-          <EmailVerificationBanner 
-  :isVerified="authStore.isEmailVerified"
-  :email="authStore.userEmail"
-  @send-verification="handleVerificationSent"
-  @dismiss="handleBannerDismissed"
-  @verified="handleEmailVerified"
-/>
-          
-          <!-- Posts List -->
-          <div v-else-if="posts.length > 0" class="posts-list">
-            <article 
-              v-for="post in posts" 
-              :key="post.id" 
-              class="feed-post"
-              :class="{ 'has-media': post.media && post.media.length > 0 }"
-            >
-              <!-- Post Header -->
-              <div class="post-header">
-                <!-- ✅ FIX PHASE 2: Safe null-check on avatar click with validation -->
-                <img 
-                  :src="post.author?.avatar_url || '/default-avatar.svg'" 
-                  :alt="post.author?.full_name" 
-                  class="post-avatar"
-                  @click="post.author?.username && goToUserProfile(post.author.username)"
-                  :style="{ cursor: post.author?.username ? 'pointer' : 'default' }"
-                />
-                <div class="post-author-info">
-                  <div class="author-name-row">
-                    <h4 class="post-author-name">{{ post.author?.full_name }}</h4>
-                    <span v-if="post.author?.verified" class="verified-badge" title="Verified">
-                      <Icon name="check-circle" size="14" />
-                    </span>
-                  </div>
-                  <p class="post-author-username">@{{ post.author?.username }}</p>
-                  <span class="post-timestamp">{{ formatTime(post.created_at) }}</span>
-                </div>
-                <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options">
-                  <Icon name="more-vertical" size="20" />
-                </button>
-                <!-- Post Menu -->
-                <div v-if="activePostMenu === post.id" class="post-menu">
-                  <button class="menu-item" @click="reportPost(post.id)">
-                    <Icon name="flag" size="16" />
-                    Report Post
-                  </button>
-                  <button v-if="post.author?.id === currentUser?.id" class="menu-item" @click="deletePost(post.id)">
-                    <Icon name="trash-2" size="16" />
-                    Delete Post
-                  </button>
-                  <button class="menu-item" @click="copyPostLink(post.id)">
-                    <Icon name="link" size="16" />
-                    Copy Link
-                  </button>
-                </div>
-              </div>
+      <!-- Post Content -->
+      <div class="post-content">
+        <p class="post-text">{{ post.content }}</p>
+        
+        <!-- Post Media Gallery -->
+        <div v-if="post.media && post.media.length > 0" class="post-media-gallery">
+          <img 
+            v-for="(media, index) in post.media" 
+            :key="index"
+            :src="media" 
+            :alt="`Post media ${index + 1}`" 
+            class="post-image"
+            @click="openMediaViewer(media)"
+          />
+        </div>
 
-              <!-- Post Content -->
-              <div class="post-content">
-                <p class="post-text">{{ post.content }}</p>
-                
-                <!-- Post Media Gallery -->
-                <div v-if="post.media && post.media.length > 0" class="post-media-gallery">
-                  <img 
-                    v-for="(media, index) in post.media" 
-                    :key="index"
-                    :src="media" 
-                    :alt="`Post media ${index + 1}`" 
-                    class="post-image"
-                    @click="openMediaViewer(media)"
-                  />
-                </div>
+        <!-- Post Hashtags -->
+        <div v-if="post.hashtags && post.hashtags.length > 0" class="post-hashtags">
+          <NuxtLink 
+            v-for="tag in post.hashtags" 
+            :key="tag"
+            :to="`/explore?tag=${tag}`"
+            class="hashtag"
+          >
+            #{{ tag }}
+          </NuxtLink>
+        </div>
+      </div>
 
-                <!-- Post Hashtags -->
-                <div v-if="post.hashtags && post.hashtags.length > 0" class="post-hashtags">
-                  <NuxtLink 
-                    v-for="tag in post.hashtags" 
-                    :key="tag"
-                    :to="`/explore?tag=${tag}`"
-                    class="hashtag"
-                  >
-                    #{{ tag }}
-                  </NuxtLink>
-                </div>
-              </div>
+      <!-- Post Stats -->
+      <div class="post-stats">
+        <span class="stat" @click="viewPostLikes(post.id)">
+          <Icon name="heart" size="14" />
+          {{ post.likes_count || 0 }} Likes
+        </span>
+        <span class="stat" @click="viewPostComments(post.id)">
+          <Icon name="message-circle" size="14" />
+          {{ post.comments_count || 0 }} Comments
+        </span>
+        <span class="stat" @click="viewPostShares(post.id)">
+          <Icon name="share-2" size="14" />
+          {{ post.shares_count || 0 }} Shares
+        </span>
+      </div>
 
-              <!-- Post Stats -->
-              <div class="post-stats">
-                <span class="stat" @click="viewPostLikes(post.id)">
-                  <Icon name="heart" size="14" />
-                  {{ post.likes_count || 0 }} Likes
-                </span>
-                <span class="stat" @click="viewPostComments(post.id)">
-                  <Icon name="message-circle" size="14" />
-                  {{ post.comments_count || 0 }} Comments
-                </span>
-                <span class="stat" @click="viewPostShares(post.id)">
-                  <Icon name="share-2" size="14" />
-                  {{ post.shares_count || 0 }} Shares
-                </span>
-              </div>
+      <!-- Post Actions -->
+      <div class="post-actions">
+        <button 
+          :class="['action-btn', { liked: post.liked_by_me }]" 
+          @click="likePost(post.id)"
+          :title="post.liked_by_me ? 'Unlike' : 'Like'"
+        >
+          <Icon :name="post.liked_by_me ? 'heart' : 'heart'" size="18" :fill="post.liked_by_me" />
+          <span>{{ post.liked_by_me ? 'Liked' : 'Like' }}</span>
+        </button>
+        <button class="action-btn" @click="commentPost(post.id)" title="Comment">
+          <Icon name="message-circle" size="18" />
+          <span>Comment</span>
+        </button>
+        <button class="action-btn" @click="sharePost(post.id)" title="Share">
+          <Icon name="share-2" size="18" />
+          <span>Share</span>
+        </button>
+        <button class="action-btn" @click="savePost(post.id)" title="Save">
+          <Icon name="bookmark" size="18" />
+          <span>Save</span>
+        </button>
+      </div>
+    </article>
 
-              <!-- Post Actions -->
-              <div class="post-actions">
-                <button 
-                  :class="['action-btn', { liked: post.liked_by_me }]" 
-                  @click="likePost(post.id)"
-                  :title="post.liked_by_me ? 'Unlike' : 'Like'"
-                >
-                  <Icon :name="post.liked_by_me ? 'heart' : 'heart'" size="18" :fill="post.liked_by_me" />
-                  <span>{{ post.liked_by_me ? 'Liked' : 'Like' }}</span>
-                </button>
-                <button class="action-btn" @click="commentPost(post.id)" title="Comment">
-                  <Icon name="message-circle" size="18" />
-                  <span>Comment</span>
-                </button>
-                <button class="action-btn" @click="sharePost(post.id)" title="Share">
-                  <Icon name="share-2" size="18" />
-                  <span>Share</span>
-                </button>
-                <button class="action-btn" @click="savePost(post.id)" title="Save">
-                  <Icon name="bookmark" size="18" />
-                  <span>Save</span>
-                </button>
-              </div>
-            </article>
+    <!-- Load More Button -->
+    <div v-if="hasMorePosts" class="load-more">
+      <button 
+        v-if="!loadingMore"
+        @click="loadMorePosts" 
+        class="btn-load-more"
+      >
+        Load More Posts
+      </button>
+      <div v-else class="loading-more">
+        <div class="spinner-small"></div>
+        <span>Loading...</span>
+      </div>
+    </div>
+  </div>
 
-            <!-- Load More Button -->
-            <div v-if="hasMorePosts" class="load-more">
-              <button 
-                v-if="!loadingMore"
-                @click="loadMorePosts" 
-                class="btn-load-more"
-              >
-                Load More Posts
-              </button>
-              <div v-else class="loading-more">
-                <div class="spinner-small"></div>
-                <span>Loading...</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- No Posts State -->
-          <div v-else class="no-posts">
-            <Icon name="inbox" size="48" />
-            <h3>No posts yet</h3>
-            <p>Start following people to see their posts!</p>
-            <div class="no-posts-actions">
-              <NuxtLink to="/explore" class="btn-explore">
-                <Icon name="compass" size="18" />
-                Explore People
-              </NuxtLink>
-              <button @click="goToCreatePost" class="btn-create">
-                <Icon name="plus-square" size="18" />
-                Create Post
-              </button>
-            </div>
-          </div>
-        </ClientOnly>
-      </section>
+  <!-- No Posts State -->
+  <div v-else class="no-posts">
+    <Icon name="inbox" size="48" />
+    <h3>No posts yet</h3>
+    <p>Start following people to see their posts!</p>
+    <div class="no-posts-actions">
+      <NuxtLink to="/explore" class="btn-explore">
+        <Icon name="compass" size="18" />
+        Explore People
+      </NuxtLink>
+      <button @click="goToCreatePost" class="btn-create">
+        <Icon name="plus-square" size="18" />
+        Create Post
+      </button>
+    </div>
+  </div>
+</ClientOnly>
+ </section>
 
       <!-- Right Sidebar - Recommendations & Trending -->
       <ClientOnly>
