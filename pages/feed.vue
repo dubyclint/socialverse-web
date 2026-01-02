@@ -666,6 +666,20 @@ const searchQuery = ref('')
 const unreadNotifications = ref(0)
 const unreadMessages = ref(0)
 
+  // ============================================================================
+  // EVENT HANDLERS - EVENT HANDLE
+  const handleVerificationSent = () => {
+  console.log('[Feed] Verification email sent')
+}
+
+const handleBannerDismissed = () => {
+  console.log('[Feed] Verification banner dismissed')
+}
+
+const handleEmailVerified = () => {
+  console.log('[Feed] Email verified, banner hidden')
+}
+
 // ============================================================================
 // REACTIVE STATE - USER PROFILE
 // ============================================================================
