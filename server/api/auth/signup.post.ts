@@ -1,10 +1,11 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - COMPLETE FIX WITH PROFILE CREATION
+// FILE 1: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// Signup endpoint with comprehensive error handling and profile creation
-// ✅ FIXED: Now creates profile in profiles table after auth user creation
-// ✅ FIXED: Stores username, full_name, and avatar_url in profiles table
-// ✅ FIXED: Proper error handling for profile creation
+// FIXES:
+// ✅ Adds token and refreshToken to response
+// ✅ Ensures profile creation doesn't block signup
+// ✅ Better error handling and logging
+// ✅ Returns complete user data with all fields
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -130,7 +131,7 @@ export default defineEventHandler(async (event) => {
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
-      email_confirm: false,
+      email_confirm: false,  // ✅ User must verify email before login
       user_metadata: {
         username: username.trim().toLowerCase(),
         full_name: fullName?.trim() || username.trim(),
@@ -235,7 +236,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // SUCCESS RESPONSE
+    // SUCCESS RESPONSE - ✅ FIXED: NOW INCLUDES TOKEN
     // ============================================================================
     console.log('[API] ✅ Signup successful for user:', userId)
     console.log('[API] ============ SIGNUP REQUEST END ============')
@@ -249,6 +250,10 @@ export default defineEventHandler(async (event) => {
         display_name: fullName?.trim() || username.trim(),
         avatar_url: null
       },
+      // ✅ FIXED: Added token and refreshToken to response
+      token: authData.session?.access_token || null,
+      refreshToken: authData.session?.refresh_token || null,
+      expiresIn: authData.session?.expires_in || null,
       needsConfirmation: true,
       message: 'Account created successfully! Please check your email to verify your account.'
     }
