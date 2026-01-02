@@ -1,12 +1,12 @@
 // ============================================================================
-// FILE 4: /stores/auth.ts - COMPLETE FIXED VERSION
+// FILE: /stores/auth.ts - COMPLETE ENHANCED VERSION WITH PHASE 6 IMPROVEMENTS
 // ============================================================================
-// FIXES:
-// ✅ Verify setUser method properly extracts all fields
-// ✅ Ensure username is accessible
-// ✅ Verify token persistence
-// ✅ Better computed properties
-// ✅ Improved user data handling
+// PHASE 6 ENHANCEMENTS:
+// ✅ Enhanced clearAuth method with comprehensive clearing
+// ✅ Added forceCompleteLogout method for emergency scenarios
+// ✅ Cookie clearing in clearAuth
+// ✅ Verification of complete clearing
+// ✅ All existing methods preserved and improved
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -246,34 +246,169 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // ============================================================================
-  // CLEAR AUTH METHOD - ✅ IMPROVED
+  // CLEAR AUTH METHOD - ✅ PHASE 6 ENHANCED VERSION
   // ============================================================================
   const clearAuth = () => {
     console.log('[Auth Store] ============ CLEAR AUTH START ============')
     console.log('[Auth Store] Clearing all auth data')
     
+    // ============================================================================
+    // CLEAR ALL STATE VARIABLES
+    // ============================================================================
     token.value = null
     user.value = null
     userId.value = null
     rememberMe.value = false
     error.value = null
     lastTokenValidation.value = 0
+    isHydrated.value = false  // ✅ NEW: Reset hydration flag
 
+    console.log('[Auth Store] ✅ All state variables cleared')
+
+    // ============================================================================
+    // CLEAR LOCALSTORAGE
+    // ============================================================================
     if (process.client) {
       try {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('auth_user_id')
-        localStorage.removeItem('auth_user')
-        localStorage.removeItem('auth_remember_me')
-        localStorage.removeItem('auth_token_validation')
-        localStorage.removeItem('auth_refresh_token')
-        console.log('[Auth Store] ✅ All auth data cleared from localStorage')
+        // List of auth-related keys to remove
+        const authKeys = [
+          'auth_token',
+          'auth_user_id',
+          'auth_user',
+          'auth_remember_me',
+          'auth_token_validation',
+          'auth_refresh_token'
+        ]
+
+        console.log('[Auth Store] Clearing localStorage keys:', authKeys)
+
+        authKeys.forEach(key => {
+          try {
+            localStorage.removeItem(key)
+            console.log('[Auth Store] ✅ Removed localStorage key:', key)
+          } catch (err) {
+            console.warn('[Auth Store] ⚠️ Failed to remove localStorage key:', key, err)
+          }
+        })
+
+        console.log('[Auth Store] ✅ All auth localStorage data cleared')
       } catch (err) {
         console.error('[Auth Store] ❌ Failed to clear localStorage:', err)
       }
     }
+
+    // ============================================================================
+    // CLEAR COOKIES
+    // ============================================================================
+    if (process.client) {
+      try {
+        console.log('[Auth Store] Clearing auth cookies...')
+
+        // Clear auth token cookie
+        try {
+          const authTokenCookie = useCookie('auth_token')
+          authTokenCookie.value = null
+          console.log('[Auth Store] ✅ Auth token cookie cleared')
+        } catch (err) {
+          console.warn('[Auth Store] ⚠️ Failed to clear auth_token cookie:', err)
+        }
+
+        // Clear refresh token cookie
+        try {
+          const refreshTokenCookie = useCookie('auth_refresh_token')
+          refreshTokenCookie.value = null
+          console.log('[Auth Store] ✅ Refresh token cookie cleared')
+        } catch (err) {
+          console.warn('[Auth Store] ⚠️ Failed to clear auth_refresh_token cookie:', err)
+        }
+
+        // Clear user cookie
+        try {
+          const userCookie = useCookie('auth_user')
+          userCookie.value = null
+          console.log('[Auth Store] ✅ User cookie cleared')
+        } catch (err) {
+          console.warn('[Auth Store] ⚠️ Failed to clear auth_user cookie:', err)
+        }
+
+        console.log('[Auth Store] ✅ All auth cookies cleared')
+      } catch (err) {
+        console.error('[Auth Store] ❌ Failed to clear cookies:', err)
+      }
+    }
+
+    // ============================================================================
+    // VERIFY COMPLETE CLEARING
+    // ============================================================================
+    console.log('[Auth Store] Verifying complete clearing...')
     
+    const verifyState = {
+      token: token.value,
+      user: user.value,
+      userId: userId.value,
+      rememberMe: rememberMe.value,
+      error: error.value,
+      isAuthenticated: isAuthenticated.value
+    }
+
+    console.log('[Auth Store] ✅ Final state after clearing:', verifyState)
+
+    if (token.value || user.value || userId.value) {
+      console.warn('[Auth Store] ⚠️ WARNING: Some auth data still exists after clearing!')
+    } else {
+      console.log('[Auth Store] ✅ All auth data successfully cleared')
+    }
+
     console.log('[Auth Store] ============ CLEAR AUTH END ============')
+  }
+
+  // ============================================================================
+  // ✅ NEW: FORCE COMPLETE LOGOUT METHOD
+  // ============================================================================
+  // Add this new method for emergency logout scenarios
+  const forceCompleteLogout = () => {
+    console.log('[Auth Store] ============ FORCE COMPLETE LOGOUT START ============')
+    console.log('[Auth Store] Performing emergency logout...')
+
+    try {
+      // Clear all state
+      clearAuth()
+
+      // Additional emergency clearing
+      if (process.client) {
+        try {
+          // Clear all localStorage
+          console.log('[Auth Store] Clearing ALL localStorage (emergency)...')
+          localStorage.clear()
+          console.log('[Auth Store] ✅ All localStorage cleared')
+        } catch (err) {
+          console.error('[Auth Store] ❌ Failed to clear all localStorage:', err)
+        }
+
+        try {
+          // Clear all sessionStorage
+          console.log('[Auth Store] Clearing ALL sessionStorage (emergency)...')
+          sessionStorage.clear()
+          console.log('[Auth Store] ✅ All sessionStorage cleared')
+        } catch (err) {
+          console.error('[Auth Store] ❌ Failed to clear all sessionStorage:', err)
+        }
+
+        try {
+          // Reload page to ensure clean state
+          console.log('[Auth Store] Reloading page for clean state...')
+          window.location.href = '/login'
+        } catch (err) {
+          console.error('[Auth Store] ❌ Failed to reload page:', err)
+        }
+      }
+
+      console.log('[Auth Store] ✅ Emergency logout completed')
+      console.log('[Auth Store] ============ FORCE COMPLETE LOGOUT END ============')
+    } catch (err) {
+      console.error('[Auth Store] ❌ Emergency logout error:', err)
+      console.log('[Auth Store] ============ FORCE COMPLETE LOGOUT END ============')
+    }
   }
 
   // ============================================================================
@@ -487,6 +622,7 @@ export const useAuthStore = defineStore('auth', () => {
     setRememberMe,
     getRememberMe,
     clearAuth,
+    forceCompleteLogout,  // ✅ NEW: Add this
     validateToken,
     hydrateFromStorage,
     initializeSession,
