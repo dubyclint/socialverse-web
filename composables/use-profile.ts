@@ -1,361 +1,421 @@
 // ============================================================================
-// FILE 5: /composables/use-profile.ts - COMPLETE PROFILE COMPOSABLE
+// FILE: /composables/use-profile.ts
+// PHASE 3: Profile Composable
 // ============================================================================
-// FIXES:
-// ✅ Create composable to fetch and manage profile data
-// ✅ Fetch profile from profiles table
-// ✅ Merge with auth store data
-// ✅ Provide profile data to components
-// ✅ Handle profile updates
+// Features:
+// ✅ Fetch profile by username
+// ✅ Fetch current user profile
+// ✅ Update profile information
+// ✅ Upload avatar
+// ✅ Follow/unfollow user
+// ✅ Error handling
+// ✅ Loading states
 // ============================================================================
 
-import { computed, ref } from 'vue'
-import type { Profile, ProfileUpdate } from '~/types/auth'
+import { ref, computed } from 'vue'
+import { useProfileStore } from '~/stores/profile'
+import { useAuthStore } from '~/stores/auth'
 
+/**
+ * Profile data interface
+ */
+export interface Profile {
+  id: string
+  username: string
+  full_name: string
+  bio?: string
+  avatar_url?: string
+  email: string
+  is_verified: boolean
+  followers_count: number
+  following_count: number
+  posts_count: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Profile composable for managing profile operations
+ */
 export const useProfile = () => {
   const profileStore = useProfileStore()
   const authStore = useAuthStore()
+
+  // ============================================================================
+  // STATE
+  // ============================================================================
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const isFollowing = ref(false)
 
   // ============================================================================
-  // COMPUTED PROPERTIES - Profile data accessors
+  // COMPUTED
   // ============================================================================
 
-  const profile = computed(() => profileStore.profile)
+  /**
+   * Get current profile from store
+   */
+  const currentProfile = computed(() => profileStore.profile)
 
-  const username = computed(() => profileStore.username)
+  /**
+   * Check if profile is loading
+   */
+  const isLoading = computed(() => loading.value)
 
-  const displayName = computed(() => profileStore.displayName)
-
-  const avatar = computed(() => profileStore.avatar)
-
-  const email = computed(() => profileStore.email)
-
-  const bio = computed(() => profileStore.bio)
-
-  const location = computed(() => profileStore.location)
-
-  const website = computed(() => profileStore.website)
-
-  const followers = computed(() => profileStore.followers)
-
-  const following = computed(() => profileStore.following)
-
-  const posts = computed(() => profileStore.posts)
-
-  const verified = computed(() => profileStore.verified)
-
-  const isProfileComplete = computed(() => profileStore.isProfileComplete)
-
-  const hasAvatar = computed(() => profileStore.hasAvatar)
-
-  const isLoading = computed(() => profileStore.isLoading || loading.value)
-
-  const isError = computed(() => profileStore.error || error.value)
+  /**
+   * Get error message
+   */
+  const errorMessage = computed(() => error.value)
 
   // ============================================================================
-  // FETCH PROFILE METHOD
+  // METHODS - FETCH PROFILE
   // ============================================================================
-  const fetchProfile = async (userId?: string) => {
-    console.log('[useProfile] ============ FETCH PROFILE START ============')
-    console.log('[useProfile] Fetching profile...')
 
-    const targetUserId = userId || authStore.user?.id
-
-    if (!targetUserId) {
-      console.error('[useProfile] ❌ No user ID provided')
-      error.value = 'No user ID provided'
-      return
-    }
-
-    console.log('[useProfile] Target user ID:', targetUserId)
-
-    loading.value = true
-    error.value = null
-
+  /**
+   * Fetch profile by username
+   */
+  const fetchProfileByUsername = async (username: string): Promise<Profile | null> => {
     try {
-      console.log('[useProfile] Calling profile store fetchProfile...')
-      await profileStore.fetchProfile(targetUserId)
-      console.log('[useProfile] ✅ Profile fetched successfully')
-      console.log('[useProfile] ============ FETCH PROFILE END ============')
+      console.log('[useProfile] Fetching profile for username:', username)
+      loading.value = true
+      error.value = null
+
+      // Validate username
+      if (!username || username.trim() === '') {
+        throw new Error('Username is required')
+      }
+
+      // Fetch profile
+      const response = await fetch(`/api/profile/${encodeURIComponent(username)}`)
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`User @${username} not found`)
+        }
+        throw new Error(`Failed to fetch profile (${response.status})`)
+      }
+
+      const data = await response.json()
+
+      if (!data.success || !data.data) {
+        throw new Error('Invalid response format')
+      }
+
+      console.log('[useProfile] ✅ Profile fetched:', data.data.username)
+      return data.data
     } catch (err: any) {
-      console.error('[useProfile] ❌ Fetch error:', err.message)
+      console.error('[useProfile] Error fetching profile:', err)
       error.value = err.message || 'Failed to fetch profile'
-      console.log('[useProfile] ============ FETCH PROFILE END ============')
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Fetch current user profile
+   */
+  const fetchCurrentProfile = async (): Promise<Profile | null> => {
+    try {
+      console.log('[useProfile] Fetching current user profile')
+      loading.value = true
+      error.value = null
+
+      // Check if profile is already in store
+      if (profileStore.profile) {
+        console.log('[useProfile] Profile already in store')
+        return profileStore.profile
+      }
+
+      // Fetch from API
+      const response = await fetch('/api/user/profile')
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profile (${response.status})`)
+      }
+
+      const data = await response.json()
+
+      if (!data.data) {
+        throw new Error('No profile data returned')
+      }
+
+      // Update store
+      profileStore.setProfile(data.data)
+
+      console.log('[useProfile] ✅ Current profile fetched and stored')
+      return data.data
+    } catch (err: any) {
+      console.error('[useProfile] Error fetching current profile:', err)
+      error.value = err.message || 'Failed to fetch profile'
+      return null
     } finally {
       loading.value = false
     }
   }
 
   // ============================================================================
-  // FETCH CURRENT USER PROFILE METHOD
+  // METHODS - UPDATE PROFILE
   // ============================================================================
-  const fetchCurrentUserProfile = async () => {
-    console.log('[useProfile] ============ FETCH CURRENT USER PROFILE START ============')
 
-    if (!authStore.isAuthenticated) {
-      console.error('[useProfile] ❌ User not authenticated')
-      error.value = 'User not authenticated'
-      return
-    }
-
-    if (!authStore.user?.id) {
-      console.error('[useProfile] ❌ No user ID in auth store')
-      error.value = 'No user ID found'
-      return
-    }
-
-    console.log('[useProfile] Current user ID:', authStore.user.id)
-    await fetchProfile(authStore.user.id)
-    console.log('[useProfile] ============ FETCH CURRENT USER PROFILE END ============')
-  }
-
-  // ============================================================================
-  // UPDATE PROFILE METHOD
-  // ============================================================================
-  const updateProfile = async (updates: Partial<Profile>) => {
-    console.log('[useProfile] ============ UPDATE PROFILE START ============')
-    console.log('[useProfile] Updating profile with:', {
-      full_name: updates.full_name,
-      bio: updates.bio,
-      location: updates.location
-    })
-
-    if (!profile.value) {
-      console.error('[useProfile] ❌ No profile loaded')
-      error.value = 'No profile loaded'
-      return
-    }
-
-    loading.value = true
-    error.value = null
-
+  /**
+   * Update profile information
+   */
+  const updateProfile = async (updates: Partial<Profile>): Promise<Profile | null> => {
     try {
-      console.log('[useProfile] Calling profile store updateProfile...')
-      await profileStore.updateProfile(updates)
-      console.log('[useProfile] ✅ Profile updated successfully')
-      console.log('[useProfile] ============ UPDATE PROFILE END ============')
+      console.log('[useProfile] Updating profile:', updates)
+      loading.value = true
+      error.value = null
+
+      // Validate required fields
+      if (updates.full_name !== undefined && !updates.full_name?.trim()) {
+        throw new Error('Full name is required')
+      }
+
+      if (updates.username !== undefined && !updates.username?.trim()) {
+        throw new Error('Username is required')
+      }
+
+      // Send update request
+      const response = await fetch('/api/profile/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update profile')
+      }
+
+      const data = await response.json()
+
+      if (!data.data) {
+        throw new Error('No profile data returned')
+      }
+
+      // Update store
+      profileStore.setProfile(data.data)
+
+      console.log('[useProfile] ✅ Profile updated')
+      return data.data
     } catch (err: any) {
-      console.error('[useProfile] ❌ Update error:', err.message)
+      console.error('[useProfile] Error updating profile:', err)
       error.value = err.message || 'Failed to update profile'
-      console.log('[useProfile] ============ UPDATE PROFILE END ============')
+      return null
     } finally {
       loading.value = false
     }
   }
 
   // ============================================================================
-  // UPDATE PROFILE FIELD METHOD
+  // METHODS - AVATAR UPLOAD
   // ============================================================================
-  const updateProfileField = async (field: keyof Profile, value: any) => {
-    console.log('[useProfile] ============ UPDATE PROFILE FIELD START ============')
-    console.log('[useProfile] Updating field:', field, 'with value:', value)
 
-    if (!profile.value) {
-      console.error('[useProfile] ❌ No profile loaded')
-      error.value = 'No profile loaded'
-      return
-    }
-
-    const updates: Partial<Profile> = {
-      [field]: value
-    }
-
-    console.log('[useProfile] Calling updateProfile with:', updates)
-    await updateProfile(updates)
-    console.log('[useProfile] ============ UPDATE PROFILE FIELD END ============')
-  }
-
-  // ============================================================================
-  // UPDATE AVATAR METHOD
-  // ============================================================================
-  const updateAvatar = async (avatarUrl: string) => {
-    console.log('[useProfile] ============ UPDATE AVATAR START ============')
-    console.log('[useProfile] Updating avatar URL...')
-
-    await updateProfileField('avatar_url', avatarUrl)
-    console.log('[useProfile] ============ UPDATE AVATAR END ============')
-  }
-
-  // ============================================================================
-  // UPDATE BIO METHOD
-  // ============================================================================
-  const updateBio = async (newBio: string) => {
-    console.log('[useProfile] ============ UPDATE BIO START ============')
-    console.log('[useProfile] Updating bio...')
-
-    await updateProfileField('bio', newBio)
-    console.log('[useProfile] ============ UPDATE BIO END ============')
-  }
-
-  // ============================================================================
-  // UPDATE LOCATION METHOD
-  // ============================================================================
-  const updateLocation = async (newLocation: string) => {
-    console.log('[useProfile] ============ UPDATE LOCATION START ============')
-    console.log('[useProfile] Updating location...')
-
-    await updateProfileField('location', newLocation)
-    console.log('[useProfile] ============ UPDATE LOCATION END ============')
-  }
-
-  // ============================================================================
-  // UPDATE FULL NAME METHOD
-  // ============================================================================
-  const updateFullName = async (newFullName: string) => {
-    console.log('[useProfile] ============ UPDATE FULL NAME START ============')
-    console.log('[useProfile] Updating full name...')
-
-    await updateProfileField('full_name', newFullName)
-    console.log('[useProfile] ============ UPDATE FULL NAME END ============')
-  }
-
-  // ============================================================================
-  // CLEAR PROFILE METHOD
-  // ============================================================================
-  const clearProfile = () => {
-    console.log('[useProfile] ============ CLEAR PROFILE START ============')
-    console.log('[useProfile] Clearing profile...')
-
-    profileStore.clearProfile()
-    error.value = null
-    loading.value = false
-
-    console.log('[useProfile] ✅ Profile cleared')
-    console.log('[useProfile] ============ CLEAR PROFILE END ============')
-  }
-
-  // ============================================================================
-  // CLEAR ERROR METHOD
-  // ============================================================================
-  const clearError = () => {
-    console.log('[useProfile] Clearing error...')
-    error.value = null
-  }
-
-  // ============================================================================
-  // REFRESH PROFILE METHOD
-  // ============================================================================
-  const refreshProfile = async () => {
-    console.log('[useProfile] ============ REFRESH PROFILE START ============')
-    console.log('[useProfile] Refreshing profile...')
-
-    await fetchCurrentUserProfile()
-    console.log('[useProfile] ✅ Profile refreshed')
-    console.log('[useProfile] ============ REFRESH PROFILE END ============')
-  }
-
-  // ============================================================================
-  // GET PROFILE BY USERNAME METHOD
-  // ============================================================================
-  const getProfileByUsername = async (username: string) => {
-    console.log('[useProfile] ============ GET PROFILE BY USERNAME START ============')
-    console.log('[useProfile] Fetching profile for username:', username)
-
-    if (!username) {
-      console.error('[useProfile] ❌ No username provided')
-      error.value = 'No username provided'
-      return null
-    }
-
-    loading.value = true
-    error.value = null
-
+  /**
+   * Upload avatar
+   */
+  const uploadAvatar = async (file: File): Promise<string | null> => {
     try {
-      console.log('[useProfile] Calling API to fetch profile by username...')
+      console.log('[useProfile] Uploading avatar:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      })
+      loading.value = true
+      error.value = null
 
-      const response = await $fetch('/api/profile/by-username', {
-        method: 'GET',
-        query: { username }
+      // Validate file
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.')
+      }
+
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (file.size > maxSize) {
+        throw new Error('File size exceeds 5MB limit.')
+      }
+
+      // Create FormData
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // Upload
+      const response = await fetch('/api/profile/avatar-upload', {
+        method: 'POST',
+        body: formData
       })
 
-      console.log('[useProfile] ✅ Profile fetched by username:', {
-        id: response?.id,
-        username: response?.username
-      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to upload avatar')
+      }
 
-      console.log('[useProfile] ============ GET PROFILE BY USERNAME END ============')
-      return response
+      const data = await response.json()
 
+      if (!data.success || !data.url) {
+        throw new Error('Invalid upload response')
+      }
+
+      // Update store
+      if (profileStore.profile) {
+        profileStore.setProfile({
+          ...profileStore.profile,
+          avatar_url: data.url
+        })
+      }
+
+      console.log('[useProfile] ✅ Avatar uploaded:', data.url)
+      return data.url
     } catch (err: any) {
-      console.error('[useProfile] ❌ Error:', err.message)
-      error.value = err.message || 'Failed to fetch profile'
-      console.log('[useProfile] ============ GET PROFILE BY USERNAME END ============')
+      console.error('[useProfile] Error uploading avatar:', err)
+      error.value = err.message || 'Failed to upload avatar'
       return null
-
     } finally {
       loading.value = false
     }
   }
 
   // ============================================================================
-  // CHECK IF PROFILE IS CURRENT USER METHOD
+  // METHODS - FOLLOW/UNFOLLOW
   // ============================================================================
-  const isCurrentUserProfile = computed(() => {
-    if (!profile.value || !authStore.user) {
+
+  /**
+   * Follow user
+   */
+  const followUser = async (userId: string): Promise<boolean> => {
+    try {
+      console.log('[useProfile] Following user:', userId)
+      loading.value = true
+      error.value = null
+
+      const response = await fetch(`/api/users/${userId}/follow`, {
+        method: 'POST'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to follow user')
+      }
+
+      isFollowing.value = true
+      console.log('[useProfile] ✅ User followed')
+      return true
+    } catch (err: any) {
+      console.error('[useProfile] Error following user:', err)
+      error.value = err.message || 'Failed to follow user'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Unfollow user
+   */
+  const unfollowUser = async (userId: string): Promise<boolean> => {
+    try {
+      console.log('[useProfile] Unfollowing user:', userId)
+      loading.value = true
+      error.value = null
+
+      const response = await fetch(`/api/users/${userId}/unfollow`, {
+        method: 'POST'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to unfollow user')
+      }
+
+      isFollowing.value = false
+      console.log('[useProfile] ✅ User unfollowed')
+      return true
+    } catch (err: any) {
+      console.error('[useProfile] Error unfollowing user:', err)
+      error.value = err.message || 'Failed to unfollow user'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Check if following user
+   */
+  const checkFollowStatus = async (userId: string): Promise<boolean> => {
+    try {
+      console.log('[useProfile] Checking follow status for user:', userId)
+
+      const response = await fetch(`/api/users/${userId}/follow-status`)
+
+      if (!response.ok) {
+        throw new Error('Failed to check follow status')
+      }
+
+      const data = await response.json()
+      isFollowing.value = data.is_following || false
+
+      console.log('[useProfile] Follow status:', isFollowing.value)
+      return isFollowing.value
+    } catch (err: any) {
+      console.error('[useProfile] Error checking follow status:', err)
       return false
     }
-    return profile.value.id === authStore.user.id
-  })
+  }
 
   // ============================================================================
-  // GET PROFILE COMPLETION PERCENTAGE METHOD
+  // METHODS - UTILITY
   // ============================================================================
-  const getProfileCompletionPercentage = computed(() => {
-    if (!profile.value) return 0
 
-    let completedFields = 0
-    const totalFields = 6
+  /**
+   * Clear profile data
+   */
+  const clearProfile = () => {
+    console.log('[useProfile] Clearing profile')
+    profileStore.clearProfile()
+    error.value = null
+    isFollowing.value = false
+  }
 
-    if (profile.value.username) completedFields++
-    if (profile.value.full_name) completedFields++
-    if (profile.value.email) completedFields++
-    if (profile.value.avatar_url) completedFields++
-    if (profile.value.bio) completedFields++
-    if (profile.value.location) completedFields++
-
-    return Math.round((completedFields / totalFields) * 100)
-  })
+  /**
+   * Clear error
+   */
+  const clearError = () => {
+    error.value = null
+  }
 
   // ============================================================================
-  // RETURN COMPOSABLE
+  // RETURN
   // ============================================================================
   return {
     // State
-    profile,
-    loading: isLoading,
-    error: isError,
+    loading,
+    error,
+    isFollowing,
 
-    // Computed Properties
-    username,
-    displayName,
-    avatar,
-    email,
-    bio,
-    location,
-    website,
-    followers,
-    following,
-    posts,
-    verified,
-    isProfileComplete,
-    hasAvatar,
-    isCurrentUserProfile,
-    getProfileCompletionPercentage,
+    // Computed
+    currentProfile,
+    isLoading,
+    errorMessage,
 
-    // Methods
-    fetchProfile,
-    fetchCurrentUserProfile,
+    // Methods - Fetch
+    fetchProfileByUsername,
+    fetchCurrentProfile,
+
+    // Methods - Update
     updateProfile,
-    updateProfileField,
-    updateAvatar,
-    updateBio,
-    updateLocation,
-    updateFullName,
+
+    // Methods - Avatar
+    uploadAvatar,
+
+    // Methods - Follow
+    followUser,
+    unfollowUser,
+    checkFollowStatus,
+
+    // Methods - Utility
     clearProfile,
-    clearError,
-    refreshProfile,
-    getProfileByUsername
+    clearError
   }
 }
