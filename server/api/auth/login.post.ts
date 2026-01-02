@@ -1,26 +1,30 @@
 // ============================================================================
-// FILE: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION WITH PROFILE FETCH
+// FILE 6: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION (FINAL)
 // ============================================================================
-// Login endpoint with comprehensive error handling and profile data fetching
-// ✅ FIXED: Now fetches profile from profiles table to get real username
-// ✅ FIXED: Returns complete user data with username, full_name, avatar_url
-// ✅ FIXED: Proper error handling for profile fetch
-// ✅ FIXED: Auto-creates profile if missing during login
+// FIXES:
+// ✅ Verify it returns complete user data
+// ✅ Ensure token is returned
+// ✅ Better error handling
+// ✅ Profile fetch on login
+// ✅ Auto-create profile if missing
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
-  console.log('[Auth/Login] POST request received')
+  console.log('[Auth/Login] ============ LOGIN REQUEST START ============')
   
   try {
     // ============================================================================
     // STEP 1: Read and validate request body
     // ============================================================================
+    console.log('[Auth/Login] STEP 1: Reading request body...')
+    
     const body = await readBody(event)
     const { email, password } = body
 
     console.log('[Auth/Login] Email:', email)
+    console.log('[Auth/Login] Password provided:', !!password)
 
     if (!email || !password) {
       console.error('[Auth/Login] ❌ Missing email or password')
@@ -30,10 +34,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    console.log('[Auth/Login] ✅ Request body validated')
+
     // ============================================================================
     // STEP 2: Initialize Supabase client
     // ============================================================================
-    console.log('[Auth/Login] Initializing Supabase client...')
+    console.log('[Auth/Login] STEP 2: Initializing Supabase client...')
     
     const supabase = await serverSupabaseClient(event)
     
@@ -50,7 +56,7 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 3: Authenticate with Supabase
     // ============================================================================
-    console.log('[Auth/Login] Authenticating user:', email)
+    console.log('[Auth/Login] STEP 3: Authenticating user:', email)
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -61,7 +67,11 @@ export default defineEventHandler(async (event) => {
     // STEP 4: Handle authentication errors
     // ============================================================================
     if (error) {
-      console.error('[Auth/Login] ✗ Authentication failed:', error.message)
+      console.error('[Auth/Login] ✗ Authentication failed:', {
+        message: error.message,
+        status: error.status,
+        code: error.code
+      })
       
       // Check for specific error messages
       if (error.message.includes('Email not confirmed')) {
@@ -98,6 +108,8 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 5: Validate response data
     // ============================================================================
+    console.log('[Auth/Login] STEP 5: Validating response data...')
+    
     if (!data.session || !data.user) {
       console.error('[Auth/Login] ❌ No session or user in response')
       throw createError({
@@ -108,11 +120,12 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Auth/Login] ✅ Login successful for:', email)
     console.log('[Auth/Login] ✅ User ID:', data.user.id)
+    console.log('[Auth/Login] ✅ Session created')
 
     // ============================================================================
     // STEP 6: Fetch profile from profiles table
     // ============================================================================
-    console.log('[Auth/Login] Fetching profile from profiles table...')
+    console.log('[Auth/Login] STEP 6: Fetching profile from profiles table...')
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -121,14 +134,27 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError) {
-      console.warn('[Auth/Login] ⚠️ Profile fetch error:', profileError.message)
+      console.warn('[Auth/Login] ⚠️ Profile fetch error:', {
+        message: profileError.message,
+        code: profileError.code
+      })
       
-      // If profile doesn't exist, try to create it
+      // ============================================================================
+      // FALLBACK 1: Profile doesn't exist - try to create it
+      // ============================================================================
       if (profileError.code === 'PGRST116') {
-        console.log('[Auth/Login] Profile not found, attempting to create...')
+        console.log('[Auth/Login] Profile not found (PGRST116), attempting to create...')
         
-        const username = data.user.user_metadata?.username || data.user.email?.split('@')[0] || 'user'
+        const username = data.user.user_metadata?.username || 
+                        data.user.email?.split('@')[0] || 
+                        'user'
         const fullName = data.user.user_metadata?.full_name || username
+        
+        console.log('[Auth/Login] Creating profile with:', {
+          username,
+          fullName,
+          email: data.user.email
+        })
         
         const { data: newProfile, error: createProfileError } = await supabase
           .from('profiles')
@@ -149,9 +175,16 @@ export default defineEventHandler(async (event) => {
           .single()
         
         if (createProfileError) {
-          console.warn('[Auth/Login] ⚠️ Failed to create profile:', createProfileError.message)
-          // Don't fail login - use auth user metadata as fallback
+          console.warn('[Auth/Login] ⚠️ Failed to create profile:', {
+            message: createProfileError.message,
+            code: createProfileError.code
+          })
           console.log('[Auth/Login] Using auth user metadata as fallback')
+          
+          // ============================================================================
+          // FALLBACK 2: Profile creation failed - use auth metadata
+          // ============================================================================
+          console.log('[Auth/Login] ✅ Returning login response with fallback data')
           
           return {
             success: true,
@@ -169,6 +202,17 @@ export default defineEventHandler(async (event) => {
         }
         
         console.log('[Auth/Login] ✅ Profile created successfully')
+        console.log('[Auth/Login] New profile:', {
+          id: newProfile.id,
+          username: newProfile.username,
+          full_name: newProfile.full_name
+        })
+        
+        // ============================================================================
+        // STEP 7: Return success response with newly created profile
+        // ============================================================================
+        console.log('[Auth/Login] ✅ Returning login response with newly created profile')
+        console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
         
         return {
           success: true,
@@ -185,8 +229,12 @@ export default defineEventHandler(async (event) => {
         }
       }
       
-      // For other errors, use auth user metadata as fallback
+      // ============================================================================
+      // FALLBACK 3: Other profile fetch errors - use auth metadata
+      // ============================================================================
       console.warn('[Auth/Login] Using auth user metadata as fallback')
+      console.log('[Auth/Login] ✅ Returning login response with fallback data')
+      console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
       
       return {
         success: true,
@@ -212,12 +260,27 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('[Auth/Login] ✅ Profile fetched successfully')
-    console.log('[Auth/Login] Profile username:', profile.username)
+    console.log('[Auth/Login] Profile data:', {
+      id: profile.id,
+      username: profile.username,
+      full_name: profile.full_name,
+      email: profile.email,
+      avatar_url: profile.avatar_url
+    })
 
     // ============================================================================
     // STEP 7: Return success response with complete user data
     // ============================================================================
+    console.log('[Auth/Login] STEP 7: Building success response...')
     console.log('[Auth/Login] ✅ Login complete, returning response')
+    console.log('[Auth/Login] Response includes:', {
+      token: !!data.session.access_token,
+      refreshToken: !!data.session.refresh_token,
+      userId: profile.id,
+      username: profile.username
+    })
+    
+    console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
     
     return {
       success: true,
@@ -234,7 +297,12 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('[Auth/Login] ❌ Error:', error.message || error)
+    console.error('[Auth/Login] ============ LOGIN ERROR ============')
+    console.error('[Auth/Login] Error type:', error.constructor.name)
+    console.error('[Auth/Login] Error message:', error.message || error)
+    console.error('[Auth/Login] Error status:', error.statusCode)
+    console.error('[Auth/Login] Error details:', error.statusMessage)
+    console.error('[Auth/Login] ============ END ERROR ============')
     
     // If it's already a formatted error, throw it
     if (error.statusCode) {
