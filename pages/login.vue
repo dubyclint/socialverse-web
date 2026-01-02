@@ -1,3 +1,14 @@
+// ============================================================================
+// FILE 2: /pages/login.vue - COMPLETE FIXED VERSION
+// ============================================================================
+// FIXES:
+// ✅ Fixed login function call signature (pass object not params)
+// ✅ Fixed redirect to /feed after successful signup
+// ✅ Better error handling and validation
+// ✅ Improved email verification UX
+// ✅ Clear success/error messaging
+// ============================================================================
+
 <!-- FILE: /pages/login.vue - AUTHENTICATION PAGE -->
 <!-- AUTH FORM - Sign In / Sign Up -->
 
@@ -128,6 +139,18 @@
           <span class="success-icon">✅</span>
           {{ success }}
         </div>
+
+        <!-- Email Verification Notice -->
+        <div v-if="showVerificationNotice" class="verification-notice">
+          <span class="info-icon">ℹ️</span>
+          <div>
+            <strong>Check your email!</strong>
+            <p>We've sent a verification link to {{ email }}. Please click it to verify your account.</p>
+            <button type="button" @click="resendVerificationEmail" class="resend-button" :disabled="resendLoading">
+              {{ resendLoading ? 'Sending...' : 'Resend Email' }}
+            </button>
+          </div>
+        </div>
       </form>
       
       <!-- Toggle Sign-Up/Sign-In -->
@@ -186,9 +209,14 @@ const phone = ref('')
 const bio = ref('')
 const location = ref('')
 const loading = ref(false)
+const resendLoading = ref(false)
 const error = ref('')
 const success = ref('')
+const showVerificationNotice = ref(false)
 
+// ============================================================================
+// MAIN AUTH HANDLER - FIXED
+// ============================================================================
 const handleAuth = async () => {
   // Validate required fields
   if (!email.value || !password.value) {
@@ -217,12 +245,19 @@ const handleAuth = async () => {
   loading.value = true
   error.value = ''
   success.value = ''
+  showVerificationNotice.value = false
   
   try {
     let result
     
     if (isSignUp.value) {
-      // ✅ FIX: Pass all required fields to signup
+      // ✅ FIXED: Pass all required fields to signup
+      console.log('[Login] Calling signup with:', {
+        email: email.value,
+        username: username.value,
+        fullName: fullName.value
+      })
+      
       result = await signup({
         email: email.value,
         password: password.value,
@@ -233,39 +268,66 @@ const handleAuth = async () => {
         location: location.value
       })
       
-      if (result.success) {
-        if (result.needsConfirmation) {
-          success.value = 'Account created! Please check your email to verify your account.'
-          // Don't redirect - wait for email verification
-        } else {
-          success.value = 'Account created successfully!'
-          setTimeout(() => navigateTo('/feed'), 1500)
-        }
-      }
-    } else {
-      result = await login(email.value, password.value)
+      console.log('[Login] Signup result:', result)
       
       if (result.success) {
-        success.value = 'Signed in successfully!'
-        setTimeout(() => navigateTo('/feed'), 1000)
+        if (result.needsConfirmation) {
+          // ✅ FIXED: Show verification notice instead of redirecting
+          success.value = 'Account created successfully!'
+          showVerificationNotice.value = true
+          console.log('[Login] Email verification required - showing notice')
+          // Don't redirect - wait for email verification
+        } else {
+          // ✅ FIXED: If no confirmation needed, redirect to feed
+          success.value = 'Account created successfully! Redirecting to feed...'
+          console.log('[Login] No email verification needed - redirecting to feed')
+          setTimeout(() => {
+            navigateTo('/feed')
+          }, 1500)
+        }
+      } else {
+        error.value = result.error || 'Signup failed'
+        console.error('[Login] Signup error:', error.value)
+      }
+    } else {
+      // ✅ FIXED: Pass object to login instead of separate params
+      console.log('[Login] Calling login with:', { email: email.value })
+      
+      result = await login({
+        email: email.value,
+        password: password.value
+      })
+      
+      console.log('[Login] Login result:', result)
+      
+      if (result.success) {
+        success.value = 'Signed in successfully! Redirecting...'
+        console.log('[Login] Login successful - redirecting to feed')
+        setTimeout(() => {
+          navigateTo('/feed')
+        }, 1000)
+      } else {
+        error.value = result.error || 'Login failed'
+        console.error('[Login] Login error:', error.value)
       }
     }
     
-    if (!result.success) {
-      error.value = result.error || 'Authentication failed'
-    }
-    
-  } catch (err) {
+  } catch (err: any) {
+    console.error('[Login] Unexpected error:', err)
     error.value = err.message || 'An unexpected error occurred'
   } finally {
     loading.value = false
   }
 }
 
+// ============================================================================
+// TOGGLE BETWEEN SIGNUP AND LOGIN
+// ============================================================================
 const toggleMode = () => {
   isSignUp.value = !isSignUp.value
   error.value = ''
   success.value = ''
+  showVerificationNotice.value = false
   // Reset form fields
   email.value = ''
   password.value = ''
@@ -274,6 +336,40 @@ const toggleMode = () => {
   phone.value = ''
   bio.value = ''
   location.value = ''
+}
+
+// ============================================================================
+// RESEND VERIFICATION EMAIL
+// ============================================================================
+const resendVerificationEmail = async () => {
+  if (!email.value) {
+    error.value = 'Email is required'
+    return
+  }
+
+  resendLoading.value = true
+  error.value = ''
+
+  try {
+    console.log('[Login] Resending verification email to:', email.value)
+    
+    const response = await $fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      body: { email: email.value }
+    })
+
+    console.log('[Login] Resend response:', response)
+    success.value = 'Verification email sent! Check your inbox.'
+    
+    setTimeout(() => {
+      success.value = ''
+    }, 5000)
+  } catch (err: any) {
+    console.error('[Login] Resend error:', err)
+    error.value = err.data?.statusMessage || err.message || 'Failed to resend email'
+  } finally {
+    resendLoading.value = false
+  }
 }
 </script>
 
@@ -408,6 +504,7 @@ const toggleMode = () => {
 
 .error-icon {
   font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 .success-message {
@@ -424,6 +521,58 @@ const toggleMode = () => {
 
 .success-icon {
   font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* ✅ NEW: Verification Notice Styles */
+.verification-notice {
+  padding: 1rem;
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border-radius: 6px;
+  border-left: 4px solid #1565c0;
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.info-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.verification-notice strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #0d47a1;
+}
+
+.verification-notice p {
+  margin: 0.25rem 0;
+  line-height: 1.4;
+}
+
+.resend-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #1565c0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.resend-button:hover:not(:disabled) {
+  background: #0d47a1;
+}
+
+.resend-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .auth-toggle {
@@ -547,6 +696,9 @@ const toggleMode = () => {
   .social-auth {
     grid-template-columns: 1fr;
   }
+
+  .verification-notice {
+    flex-direction: column;
+  }
 }
 </style>
-
