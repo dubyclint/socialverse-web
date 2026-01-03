@@ -1,22 +1,14 @@
 // ============================================================================
-// FILE 5: /plugins/auth.client.ts - COMPLETE FIXED VERSION
+// CORRECTED FILE 1: /plugins/auth.client.ts
 // ============================================================================
-// FIXES:
-// ✅ Verify profile data is merged correctly
-// ✅ Ensure fallback works if profile missing
-// ✅ Better error handling
-// ✅ Improved logging
-// ✅ Profile data fetching on session restore
+// FIX: Change 'verified' to 'is_verified' in Supabase query
 // ============================================================================
 
 export default defineNuxtPlugin({
   name: 'auth-plugin',
-  dependsOn: ['supabase-client'], // ✅ Wait for Supabase to initialize first
+  dependsOn: ['supabase-client'],
   
   async setup(nuxtApp) {
-    // ============================================================================
-    // ONLY RUN ON CLIENT-SIDE
-    // ============================================================================
     if (!process.client) {
       console.log('[Auth Plugin] Running on server - skipping')
       return
@@ -25,9 +17,6 @@ export default defineNuxtPlugin({
     console.log('[Auth Plugin] ============ INITIALIZATION START ============')
 
     try {
-      // ============================================================================
-      // GET REQUIRED DEPENDENCIES
-      // ============================================================================
       const authStore = useAuthStore()
       const { $supabase, $supabaseReady } = nuxtApp
 
@@ -35,9 +24,6 @@ export default defineNuxtPlugin({
       console.log('[Auth Plugin] Supabase available:', !!$supabase)
       console.log('[Auth Plugin] Supabase ready:', !!$supabaseReady)
 
-      // ============================================================================
-      // CHECK SUPABASE AVAILABILITY
-      // ============================================================================
       if (!$supabase || !$supabaseReady) {
         console.warn('[Auth Plugin] ⚠️ Supabase client not available - skipping auth initialization')
         return
@@ -45,9 +31,6 @@ export default defineNuxtPlugin({
 
       console.log('[Auth Plugin] ✅ Supabase client available')
 
-      // ============================================================================
-      // GET CURRENT SESSION
-      // ============================================================================
       console.log('[Auth Plugin] Getting current session...')
       
       const { data: { session }, error } = await $supabase.auth.getSession()
@@ -59,9 +42,6 @@ export default defineNuxtPlugin({
 
       console.log('[Auth Plugin] Session retrieved:', !!session)
 
-      // ============================================================================
-      // RESTORE SESSION IF EXISTS
-      // ============================================================================
       if (session?.user) {
         console.log('[Auth Plugin] ✅ User session found:', session.user.id)
         console.log('[Auth Plugin] User email:', session.user.email)
@@ -70,14 +50,12 @@ export default defineNuxtPlugin({
           full_name: session.user.user_metadata?.full_name
         })
         
-        // ============================================================================
-        // STEP 1: Fetch profile from profiles table
-        // ============================================================================
         console.log('[Auth Plugin] STEP 1: Fetching profile from profiles table...')
         
+        // ✅ FIX: Changed 'verified' to 'is_verified'
         const { data: profile, error: profileError } = await $supabase
           .from('profiles')
-          .select('id, username, full_name, email, avatar_url, bio, location, verified')
+          .select('id, username, full_name, email, avatar_url, bio, location, is_verified')
           .eq('id', session.user.id)
           .single()
 
@@ -87,9 +65,6 @@ export default defineNuxtPlugin({
             code: profileError.code
           })
           
-          // ============================================================================
-          // FALLBACK 1: Profile doesn't exist - try to create it
-          // ============================================================================
           if (profileError.code === 'PGRST116') {
             console.log('[Auth Plugin] Profile not found (PGRST116), attempting to create...')
             
@@ -115,7 +90,7 @@ export default defineNuxtPlugin({
                 avatar_url: null,
                 bio: '',
                 location: '',
-                verified: false,
+                is_verified: false,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               })
@@ -129,9 +104,6 @@ export default defineNuxtPlugin({
               })
               console.log('[Auth Plugin] Using auth user metadata as fallback')
               
-              // ============================================================================
-              // FALLBACK 2: Profile creation failed - use auth metadata
-              // ============================================================================
               const completeUser = {
                 ...session.user,
                 user_metadata: {
@@ -165,9 +137,6 @@ export default defineNuxtPlugin({
               full_name: newProfile.full_name
             })
             
-            // ============================================================================
-            // STEP 2: Merge newly created profile data with auth user
-            // ============================================================================
             console.log('[Auth Plugin] STEP 2: Merging profile data with auth user...')
             
             const completeUser = {
@@ -197,9 +166,6 @@ export default defineNuxtPlugin({
             return
           }
           
-          // ============================================================================
-          // FALLBACK 3: Other profile fetch errors - use auth metadata
-          // ============================================================================
           console.warn('[Auth Plugin] ⚠️ Other profile error, using auth user metadata as fallback')
           
           const completeUser = {
@@ -231,9 +197,6 @@ export default defineNuxtPlugin({
         if (!profile) {
           console.warn('[Auth Plugin] ⚠️ Profile is null')
           
-          // ============================================================================
-          // FALLBACK 4: Profile query returned null - use auth metadata
-          // ============================================================================
           const completeUser = {
             ...session.user,
             user_metadata: {
@@ -269,9 +232,6 @@ export default defineNuxtPlugin({
           avatar_url: profile.avatar_url
         })
         
-        // ============================================================================
-        // STEP 3: Merge profile data with auth user
-        // ============================================================================
         console.log('[Auth Plugin] STEP 3: Merging profile data with auth user...')
         
         const completeUser = {
@@ -292,10 +252,8 @@ export default defineNuxtPlugin({
           avatar_url: completeUser.user_metadata.avatar_url
         })
         
-        // Set user in auth store
         authStore.setUser(completeUser)
         
-        // Set token if available
         if (session.access_token) {
           console.log('[Auth Plugin] Setting access token...')
           authStore.setToken(session.access_token)
@@ -309,9 +267,6 @@ export default defineNuxtPlugin({
         console.log('[Auth Plugin] ============ INITIALIZATION END ============')
       }
 
-      // ============================================================================
-      // LISTEN FOR AUTH STATE CHANGES
-      // ============================================================================
       console.log('[Auth Plugin] Setting up auth state change listener...')
       
       $supabase.auth.onAuthStateChange(async (event, session) => {
@@ -321,20 +276,17 @@ export default defineNuxtPlugin({
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('[Auth Plugin] User signed in:', session.user.id)
           
-          // ============================================================================
-          // FETCH PROFILE FOR NEWLY SIGNED IN USER
-          // ============================================================================
           console.log('[Auth Plugin] Fetching profile for newly signed in user...')
           
+          // ✅ FIX: Changed 'verified' to 'is_verified'
           const { data: profile, error: profileError } = await $supabase
             .from('profiles')
-            .select('id, username, full_name, email, avatar_url, bio, location, verified')
+            .select('id, username, full_name, email, avatar_url, bio, location, is_verified')
             .eq('id', session.user.id)
             .single()
           
           if (profileError) {
             console.warn('[Auth Plugin] ⚠️ Profile fetch error on sign in:', profileError.message)
-            // Use auth user metadata as fallback
             const completeUser = {
               ...session.user,
               user_metadata: {
@@ -347,7 +299,6 @@ export default defineNuxtPlugin({
             authStore.setUser(completeUser)
             console.log('[Auth Plugin] ✅ User set with fallback data')
           } else if (profile) {
-            // Merge profile data with auth user
             const completeUser = {
               ...session.user,
               user_metadata: {
@@ -377,15 +328,13 @@ export default defineNuxtPlugin({
           authStore.setToken(session.access_token)
           console.log('[Auth Plugin] ✅ Token updated')
           
-          // ============================================================================
-          // REFRESH PROFILE DATA ON TOKEN REFRESH
-          // ============================================================================
           if (session.user) {
             console.log('[Auth Plugin] Refreshing profile data on token refresh...')
             
+            // ✅ FIX: Changed 'verified' to 'is_verified'
             const { data: profile, error: profileError } = await $supabase
               .from('profiles')
-              .select('id, username, full_name, email, avatar_url, bio, location, verified')
+              .select('id, username, full_name, email, avatar_url, bio, location, is_verified')
               .eq('id', session.user.id)
               .single()
             
@@ -419,7 +368,6 @@ export default defineNuxtPlugin({
     } catch (err: any) {
       console.error('[Auth Plugin] ❌ Initialization error:', err.message)
       console.error('[Auth Plugin] Error stack:', err.stack)
-      // Don't throw - allow app to continue without auth
     }
   }
 })
