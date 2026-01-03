@@ -1,5 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/verify-email.post.ts - SIMPLIFIED FIX
+// CORRECTED FILE: /server/api/auth/verify-email.post.ts
+// ============================================================================
+// FIX: Properly handle Supabase verification codes
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -41,33 +43,41 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase client created')
 
     // ============================================================================
-    // STEP 1: Try session token verification (PRIMARY)
+    // STEP 1: Try code exchange (PRIMARY - for ?code= format)
     // ============================================================================
-    console.log('[API] STEP 1: Attempting session token verification...')
+    console.log('[API] STEP 1: Attempting code exchange...')
     
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getUser(token)
+      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
 
-      if (!sessionError && sessionData?.user) {
-        console.log('[API] ✅ Session token verified')
-        console.log('[API] User ID:', sessionData.user.id)
+      if (!codeError && codeData?.user) {
+        console.log('[API] ✅ Code exchange successful')
+        console.log('[API] User ID:', codeData.user.id)
+        console.log('[API] Email confirmed:', codeData.user.email_confirmed_at)
         
         return {
           success: true,
           message: 'Email verified successfully!',
           user: {
-            id: sessionData.user.id,
-            email: sessionData.user.email,
-            email_confirmed_at: sessionData.user.email_confirmed_at
-          }
+            id: codeData.user.id,
+            email: codeData.user.email,
+            email_confirmed_at: codeData.user.email_confirmed_at,
+            username: codeData.user.user_metadata?.username,
+            full_name: codeData.user.user_metadata?.full_name
+          },
+          session: codeData.session
         }
       }
+      
+      if (codeError) {
+        console.log('[API] Code exchange error:', codeError.message)
+      }
     } catch (err: any) {
-      console.log('[API] Session verification error:', err.message)
+      console.log('[API] Code exchange exception:', err.message)
     }
 
     // ============================================================================
-    // STEP 2: Try OTP verification (FALLBACK)
+    // STEP 2: Try OTP verification (FALLBACK - for token_hash format)
     // ============================================================================
     console.log('[API] STEP 2: Attempting OTP verification...')
     
@@ -86,52 +96,68 @@ export default defineEventHandler(async (event) => {
           user: {
             id: otpData.user.id,
             email: otpData.user.email,
-            email_confirmed_at: otpData.user.email_confirmed_at
-          }
+            email_confirmed_at: otpData.user.email_confirmed_at,
+            username: otpData.user.user_metadata?.username,
+            full_name: otpData.user.user_metadata?.full_name
+          },
+          session: otpData.session
         }
       }
+      
+      if (otpError) {
+        console.log('[API] OTP verification error:', otpError.message)
+      }
     } catch (err: any) {
-      console.log('[API] OTP verification error:', err.message)
+      console.log('[API] OTP verification exception:', err.message)
     }
 
     // ============================================================================
-    // STEP 3: Try code exchange (ALTERNATIVE)
+    // STEP 3: Try session token verification (ALTERNATIVE)
     // ============================================================================
-    console.log('[API] STEP 3: Attempting code exchange...')
+    console.log('[API] STEP 3: Attempting session token verification...')
     
     try {
-      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
+      const { data: sessionData, error: sessionError } = await supabase.auth.getUser(token)
 
-      if (!codeError && codeData?.user) {
-        console.log('[API] ✅ Code exchange verified')
+      if (!sessionError && sessionData?.user) {
+        console.log('[API] ✅ Session token verified')
+        console.log('[API] User ID:', sessionData.user.id)
         
         return {
           success: true,
           message: 'Email verified successfully!',
           user: {
-            id: codeData.user.id,
-            email: codeData.user.email,
-            email_confirmed_at: codeData.user.email_confirmed_at
+            id: sessionData.user.id,
+            email: sessionData.user.email,
+            email_confirmed_at: sessionData.user.email_confirmed_at,
+            username: sessionData.user.user_metadata?.username,
+            full_name: sessionData.user.user_metadata?.full_name
           }
         }
       }
+      
+      if (sessionError) {
+        console.log('[API] Session verification error:', sessionError.message)
+      }
     } catch (err: any) {
-      console.log('[API] Code exchange error:', err.message)
+      console.log('[API] Session verification exception:', err.message)
     }
 
     // ============================================================================
     // All methods failed
     // ============================================================================
     console.error('[API] ❌ All verification methods failed')
+    console.error('[API] Token format not recognized or invalid')
     
     throw createError({
       statusCode: 400,
-      statusMessage: 'Email verification failed. Please try again or request a new verification link.'
+      statusMessage: 'Email verification failed. The verification link may have expired. Please request a new verification email.'
     })
 
   } catch (error: any) {
     console.error('[API] ============ VERIFICATION ERROR ============')
     console.error('[API] Error:', error.message)
+    console.error('[API] Status:', error.statusCode)
     throw error
   }
 })
