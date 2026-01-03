@@ -127,7 +127,7 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['route-guard', 'language-check', 'security-middleware'],
+  middleware: ['route-guard', 'profile-completion', 'language-check', 'security-middleware'],
   layout: 'admin'
 })
  
