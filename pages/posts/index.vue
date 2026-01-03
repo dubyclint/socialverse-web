@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['auth', 'language-check'],
+  middleware: ['auth','profile-completion', 'language-check'],
   layout: 'default'
 })
   
