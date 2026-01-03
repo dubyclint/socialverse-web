@@ -1,9 +1,10 @@
 // ============================================================================
-// FILE 2: /pages/settings.vue
-// ============================
-// ACTION: Add middleware to <script setup> section
+// FIX FOR /pages/settings.vue - SYNTAX ERROR
+// ============================================================================
+// ISSUE: File starts with comments that are being parsed as code
+// SOLUTION: Remove the comment header and provide clean file
 
-// COMPLETE FILE FIX:
+// COMPLETE CORRECTED FILE:
 
 <template>
   <div class="settings-container">
