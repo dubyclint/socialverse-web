@@ -77,7 +77,7 @@
 import { ref } from 'vue'
 
 definePageMeta({
-  middleware: ['auth'],
+  middleware: ['auth','profile-completion'],
   layout: 'default'
 })
 
