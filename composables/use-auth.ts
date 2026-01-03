@@ -1,762 +1,401 @@
 // ============================================================================
-// FILE: /composables/use-auth.ts - COMPLETE ENHANCED VERSION
+// CORRECTED FILE 1: /composables/use-auth.ts
 // ============================================================================
-// PHASE 6 ENHANCEMENTS:
-// ✅ Enhanced logout method with profile store clearing
-// ✅ Complete localStorage/sessionStorage clearing
-// ✅ Other stores clearing (notifications, messages, chat, user)
-// ✅ Comprehensive logging and error handling
-// ✅ All existing methods preserved and improved
+// Complete auth composable with proper signup/login/logout handling
 // ============================================================================
 
 import { ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
+import { useProfileStore } from '~/stores/profile'
 
 export const useAuth = () => {
   const authStore = useAuthStore()
-  const loading = ref(false)
+  const profileStore = useProfileStore()
+  const supabase = useSupabaseClient()
+  const router = useRouter()
+
+  const isLoading = ref(false)
   const error = ref<string | null>(null)
 
   // ============================================================================
-  // SIGNUP METHOD - IMPROVED WITH BETTER TOKEN HANDLING
+  // SIGNUP METHOD - CORRECTED
   // ============================================================================
-  const signup = async (credentials: {
-    email: string
-    password: string
-    username: string
-    fullName?: string
-    phone?: string
-    bio?: string
-    location?: string
-  }) => {
-    loading.value = true
+  const signup = async (email: string, password: string, username: string) => {
+    console.log('[useAuth] ============ SIGNUP START ============')
+    console.log('[useAuth] Signup attempt:', { email, username })
+
+    isLoading.value = true
     error.value = null
 
     try {
-      console.log('[useAuth] ============ SIGNUP START ============')
-      console.log('[useAuth] Signup attempt:', {
-        email: credentials.email,
-        username: credentials.username,
-        fullName: credentials.fullName
-      })
-
-      // ============================================================================
-      // CLIENT-SIDE VALIDATION
-      // ============================================================================
-      console.log('[useAuth] Performing client-side validation...')
-      
-      if (!credentials.email || !credentials.password || !credentials.username) {
-        const validationError = 'Email, password, and username are required'
-        console.error('[useAuth] ❌ Validation failed:', validationError)
-        throw new Error(validationError)
-      }
-
-      if (credentials.password.length < 6) {
-        const validationError = 'Password must be at least 6 characters'
-        console.error('[useAuth] ❌ Validation failed:', validationError)
-        throw new Error(validationError)
-      }
-
-      if (credentials.username.length < 3) {
-        const validationError = 'Username must be at least 3 characters'
-        console.error('[useAuth] ❌ Validation failed:', validationError)
-        throw new Error(validationError)
-      }
-
-      console.log('[useAuth] ✅ Client validation passed')
-
-      // ============================================================================
-      // CALL SIGNUP API
-      // ============================================================================
-      console.log('[useAuth] Calling signup API...')
-
-      const response = await $fetch('/api/auth/signup', {
-        method: 'POST',
-        body: credentials
-      })
-
-      console.log('[useAuth] ✅ Signup API response received:', {
-        success: response.success,
-        userId: response.user?.id,
-        hasToken: !!response.token,
-        needsConfirmation: response.needsConfirmation
-      })
-
-      // ============================================================================
-      // HANDLE SIGNUP RESPONSE
-      // ============================================================================
-      if (!response.success) {
-        const apiError = response.message || 'Signup failed'
-        console.error('[useAuth] ❌ API returned success: false -', apiError)
-        throw new Error(apiError)
-      }
-
-      if (!response.user) {
-        const apiError = 'No user data returned from signup'
-        console.error('[useAuth] ❌', apiError)
-        throw new Error(apiError)
-      }
-
-      console.log('[useAuth] ✅ Signup successful, user data received')
-
-      // ============================================================================
-      // SET USER IN AUTH STORE
-      // ============================================================================
-      console.log('[useAuth] Setting user in auth store...')
-      
-      // Create complete user object with all metadata
-      const completeUser = {
-        id: response.user.id,
-        email: response.user.email,
-        user_metadata: {
-          username: response.user.username,
-          full_name: response.user.display_name || response.user.fullName,
-          avatar_url: response.user.avatar_url || null
+      // Step 1: Create auth user in Supabase
+      console.log('[useAuth] Step 1: Creating auth user...')
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            full_name: username,
+            avatar_url: '/default-avatar.svg'
+          }
         }
-      }
-
-      authStore.setUser(completeUser)
-      console.log('[useAuth] ✅ User set in auth store:', {
-        id: completeUser.id,
-        email: completeUser.email,
-        username: completeUser.user_metadata.username
       })
 
-      // ============================================================================
-      // SET TOKEN IN AUTH STORE - ✅ FIXED
-      // ============================================================================
-      console.log('[useAuth] Handling token from signup response...')
-      
-      if (response.token) {
-        console.log('[useAuth] ✅ Token received from API, setting in store')
-        authStore.setToken(response.token)
-        console.log('[useAuth] ✅ Token set in auth store')
+      if (authError) {
+        console.error('[useAuth] ❌ Auth signup failed:', authError.message)
+        throw new Error(authError.message)
+      }
+
+      if (!authData.user) {
+        throw new Error('No user returned from signup')
+      }
+
+      console.log('[useAuth] ✅ Auth user created:', authData.user.id)
+
+      // Step 2: Create profile record in database
+      console.log('[useAuth] Step 2: Creating profile record...')
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: authData.user.id,
+            username: username.toLowerCase(),
+            full_name: username,
+            email: email,
+            avatar_url: '/default-avatar.svg',
+            bio: '',
+            location: '',
+            website: '',
+            is_verified: false,
+            profile_completed: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ])
+        .select()
+
+      if (profileError) {
+        console.error('[useAuth] ⚠️ Profile creation failed:', profileError.message)
+        // Don't throw - profile can be created later
       } else {
-        console.warn('[useAuth] ⚠️ No token in signup response')
-        // This is OK for email verification flow - user will get token after verification
+        console.log('[useAuth] ✅ Profile record created')
       }
 
-      // ============================================================================
-      // SET REFRESH TOKEN IF PROVIDED
-      // ============================================================================
-      if (response.refreshToken) {
-        console.log('[useAuth] ✅ Refresh token received, storing in localStorage')
-        if (process.client) {
-          localStorage.setItem('auth_refresh_token', response.refreshToken)
-        }
+      // Step 3: Store email for verification
+      console.log('[useAuth] Step 3: Storing email for verification...')
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('signup_email', email)
+        sessionStorage.setItem('signup_user_id', authData.user.id)
+        console.log('[useAuth] ✅ Email stored in sessionStorage')
       }
 
       console.log('[useAuth] ============ SIGNUP END ============')
 
       return {
         success: true,
-        message: response.message || 'Account created successfully!',
-        user: response.user,
-        token: response.token || null,
-        needsConfirmation: response.needsConfirmation || false
+        message: 'Signup successful! Check your email to verify your account.',
+        user: authData.user,
+        requiresEmailVerification: true
       }
-
     } catch (err: any) {
-      console.error('[useAuth] ============ SIGNUP ERROR ============')
-      console.error('[useAuth] Error type:', err.constructor.name)
-      console.error('[useAuth] Error message:', err.message)
-      
-      // Extract error message from different error formats
-      let errorMessage = 'Signup failed. Please try again.'
-
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-        console.error('[useAuth] Error from API:', errorMessage)
-      } else if (err.message) {
-        errorMessage = err.message
-        console.error('[useAuth] Error from exception:', errorMessage)
-      } else if (typeof err === 'string') {
-        errorMessage = err
-        console.error('[useAuth] Error from string:', errorMessage)
-      }
-
-      console.error('[useAuth] ============ END ERROR ============')
-      
-      error.value = errorMessage
+      console.error('[useAuth] ❌ Signup error:', err.message)
+      error.value = err.message
       
       return {
         success: false,
-        error: errorMessage
+        error: err.message,
+        requiresEmailVerification: false
       }
     } finally {
-      loading.value = false
+      isLoading.value = false
     }
   }
 
   // ============================================================================
-  // LOGIN METHOD - IMPROVED WITH BETTER TOKEN HANDLING
+  // LOGIN METHOD - CORRECTED
   // ============================================================================
-  const login = async (credentials: {
-    email: string
-    password: string
-    rememberMe?: boolean
-  }) => {
-    loading.value = true
+  const login = async (email: string, password: string) => {
+    console.log('[useAuth] ============ LOGIN START ============')
+    console.log('[useAuth] Login attempt:', { email })
+
+    isLoading.value = true
     error.value = null
 
     try {
-      console.log('[useAuth] ============ LOGIN START ============')
-      console.log('[useAuth] Login attempt:', { email: credentials.email })
-
-      // ============================================================================
-      // CLIENT-SIDE VALIDATION
-      // ============================================================================
-      console.log('[useAuth] Performing client-side validation...')
-      
-      if (!credentials.email || !credentials.password) {
-        const validationError = 'Email and password are required'
-        console.error('[useAuth] ❌ Validation failed:', validationError)
-        throw new Error(validationError)
-      }
-
-      console.log('[useAuth] ✅ Client validation passed')
-
-      // ============================================================================
-      // CALL LOGIN API
-      // ============================================================================
-      console.log('[useAuth] Calling login API...')
-
-      const response = await $fetch('/api/auth/login', {
-        method: 'POST',
-        body: {
-          email: credentials.email,
-          password: credentials.password
-        }
+      // Step 1: Authenticate with Supabase
+      console.log('[useAuth] Step 1: Authenticating with Supabase...')
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       })
 
-      console.log('[useAuth] ✅ Login API response received:', {
-        success: response.success,
-        userId: response.user?.id,
-        hasToken: !!response.token
-      })
-
-      // ============================================================================
-      // HANDLE LOGIN RESPONSE
-      // ============================================================================
-      if (!response.success) {
-        const apiError = response.message || 'Login failed'
-        console.error('[useAuth] ❌ API returned success: false -', apiError)
-        throw new Error(apiError)
+      if (authError) {
+        console.error('[useAuth] ❌ Login failed:', authError.message)
+        throw new Error(authError.message)
       }
 
-      if (!response.user) {
-        const apiError = 'No user data returned from login'
-        console.error('[useAuth] ❌', apiError)
-        throw new Error(apiError)
+      if (!authData.session) {
+        throw new Error('No session returned from login')
       }
 
-      console.log('[useAuth] ✅ Login successful, user data received')
+      console.log('[useAuth] ✅ Authentication successful')
+      console.log('[useAuth] User ID:', authData.user?.id)
+      console.log('[useAuth] Token received:', !!authData.session.access_token)
 
-      // ============================================================================
-      // SET USER IN AUTH STORE
-      // ============================================================================
-      console.log('[useAuth] Setting user in auth store...')
+      // Step 2: Update auth store
+      console.log('[useAuth] Step 2: Updating auth store...')
+      authStore.setUser(authData.user)
+      authStore.setToken(authData.session.access_token)
       
-      // Create complete user object with all metadata
-      const completeUser = {
-        id: response.user.id,
-        email: response.user.email,
-        user_metadata: {
-          username: response.user.username,
-          full_name: response.user.full_name,
-          avatar_url: response.user.avatar_url || null
-        }
+      if (authData.session.refresh_token) {
+        authStore.setRefreshToken(authData.session.refresh_token)
       }
 
-      authStore.setUser(completeUser)
-      console.log('[useAuth] ✅ User set in auth store:', {
-        id: completeUser.id,
-        email: completeUser.email,
-        username: completeUser.user_metadata.username
-      })
+      console.log('[useAuth] ✅ Auth store updated')
 
-      // ============================================================================
-      // SET TOKEN IN AUTH STORE - ✅ FIXED
-      // ============================================================================
-      console.log('[useAuth] Handling token from login response...')
-      
-      if (response.token) {
-        console.log('[useAuth] ✅ Token received from API, setting in store')
-        authStore.setToken(response.token)
-        console.log('[useAuth] ✅ Token set in auth store')
+      // Step 3: Fetch and set profile
+      console.log('[useAuth] Step 3: Fetching profile...')
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single()
+
+      if (profileError) {
+        console.warn('[useAuth] ⚠️ Profile fetch failed:', profileError.message)
+        // Use auth data as fallback
+        profileStore.setProfile({
+          id: authData.user.id,
+          username: authData.user.user_metadata?.username || 'user',
+          full_name: authData.user.user_metadata?.full_name || authData.user.email,
+          email: authData.user.email,
+          avatar_url: authData.user.user_metadata?.avatar_url || '/default-avatar.svg'
+        })
       } else {
-        const tokenError = 'No token in login response'
-        console.error('[useAuth] ❌', tokenError)
-        throw new Error(tokenError)
+        console.log('[useAuth] ✅ Profile fetched')
+        profileStore.setProfile(profileData)
       }
 
-      // ============================================================================
-      // SET REFRESH TOKEN IF PROVIDED
-      // ============================================================================
-      if (response.refreshToken) {
-        console.log('[useAuth] ✅ Refresh token received, storing in localStorage')
-        if (process.client) {
-          localStorage.setItem('auth_refresh_token', response.refreshToken)
-        }
-      }
-
-      // ============================================================================
-      // HANDLE REMEMBER ME
-      // ============================================================================
-      if (credentials.rememberMe) {
-        console.log('[useAuth] Setting remember me preference')
-        authStore.setRememberMe(true)
-      }
+      // Step 4: Check email verification
+      console.log('[useAuth] Step 4: Checking email verification...')
+      const isEmailVerified = authData.user.email_confirmed_at !== null
+      console.log('[useAuth] Email verified:', isEmailVerified)
 
       console.log('[useAuth] ============ LOGIN END ============')
 
       return {
         success: true,
         message: 'Login successful!',
-        user: response.user
+        user: authData.user,
+        isEmailVerified,
+        requiresEmailVerification: !isEmailVerified
       }
-
     } catch (err: any) {
-      console.error('[useAuth] ============ LOGIN ERROR ============')
-      console.error('[useAuth] Error type:', err.constructor.name)
-      console.error('[useAuth] Error message:', err.message)
-      
-      let errorMessage = 'Login failed. Please try again.'
-
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-        console.error('[useAuth] Error from API:', errorMessage)
-      } else if (err.message) {
-        errorMessage = err.message
-        console.error('[useAuth] Error from exception:', errorMessage)
-      }
-
-      console.error('[useAuth] ============ END ERROR ============')
-      
-      error.value = errorMessage
+      console.error('[useAuth] ❌ Login error:', err.message)
+      error.value = err.message
       
       return {
         success: false,
-        error: errorMessage
+        error: err.message,
+        isEmailVerified: false,
+        requiresEmailVerification: false
       }
     } finally {
-      loading.value = false
+      isLoading.value = false
     }
   }
 
   // ============================================================================
-  // LOGOUT METHOD - ✅ PHASE 6 ENHANCED VERSION
+  // LOGOUT METHOD - CORRECTED
   // ============================================================================
   const logout = async () => {
-    loading.value = true
-    error.value = null
+    console.log('[useAuth] ============ LOGOUT START ============')
 
     try {
-      console.log('[useAuth] ============ LOGOUT START ============')
-      console.log('[useAuth] Logout attempt')
+      // Step 1: Sign out from Supabase
+      console.log('[useAuth] Step 1: Signing out from Supabase...')
+      const { error: signOutError } = await supabase.auth.signOut()
 
-      // ============================================================================
-      // CALL LOGOUT API
-      // ============================================================================
-      console.log('[useAuth] Calling logout API...')
-      
-      try {
-        await $fetch('/api/auth/logout', {
-          method: 'POST'
-        })
-        console.log('[useAuth] ✅ Logout API call successful')
-      } catch (apiError: any) {
-        console.warn('[useAuth] ⚠️ Logout API error:', apiError.message)
-        // Continue anyway - we'll still clear client-side data
+      if (signOutError) {
+        console.warn('[useAuth] ⚠️ Supabase signout warning:', signOutError.message)
+        // Continue with local logout even if Supabase fails
+      } else {
+        console.log('[useAuth] ✅ Signed out from Supabase')
       }
 
-      // ============================================================================
-      // CLEAR AUTH STORE
-      // ============================================================================
-      console.log('[useAuth] Clearing auth store...')
+      // Step 2: Clear profile store
+      console.log('[useAuth] Step 2: Clearing profile store...')
+      profileStore.clearProfile()
+      console.log('[useAuth] ✅ Profile store cleared')
+
+      // Step 3: Clear auth store
+      console.log('[useAuth] Step 3: Clearing auth store...')
       authStore.clearAuth()
       console.log('[useAuth] ✅ Auth store cleared')
 
-      // ============================================================================
-      // CLEAR PROFILE STORE
-      // ============================================================================
-      console.log('[useAuth] Clearing profile store...')
-      try {
-        const profileStore = useProfileStore()
-        profileStore.clearProfile()
-        console.log('[useAuth] ✅ Profile store cleared')
-      } catch (profileError: any) {
-        console.warn('[useAuth] ⚠️ Profile store clearing error:', profileError.message)
+      // Step 4: Clear session storage
+      console.log('[useAuth] Step 4: Clearing session storage...')
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('signup_email')
+        sessionStorage.removeItem('signup_user_id')
+        console.log('[useAuth] ✅ Session storage cleared')
       }
 
-      // ============================================================================
-      // CLEAR OTHER STORES (if they exist)
-      // ============================================================================
-      console.log('[useAuth] Clearing other stores...')
-      
-      try {
-        // Clear notifications store
-        const notificationsStore = useNotificationsStore?.()
-        if (notificationsStore && typeof notificationsStore.clearNotifications === 'function') {
-          notificationsStore.clearNotifications()
-          console.log('[useAuth] ✅ Notifications store cleared')
-        }
-      } catch (err) {
-        console.warn('[useAuth] ⚠️ Notifications store not available')
-      }
+      // Step 5: Redirect to login
+      console.log('[useAuth] Step 5: Redirecting to login...')
+      await router.push('/auth/signin')
+      console.log('[useAuth] ✅ Redirected to login')
 
-      try {
-        // Clear messages store
-        const messagesStore = useMessagesStore?.()
-        if (messagesStore && typeof messagesStore.clearMessages === 'function') {
-          messagesStore.clearMessages()
-          console.log('[useAuth] ✅ Messages store cleared')
-        }
-      } catch (err) {
-        console.warn('[useAuth] ⚠️ Messages store not available')
-      }
-
-      try {
-        // Clear chat store
-        const chatStore = useChatStore?.()
-        if (chatStore && typeof chatStore.clearChat === 'function') {
-          chatStore.clearChat()
-          console.log('[useAuth] ✅ Chat store cleared')
-        }
-      } catch (err) {
-        console.warn('[useAuth] ⚠️ Chat store not available')
-      }
-
-      try {
-        // Clear user store
-        const userStore = useUserStore?.()
-        if (userStore && typeof userStore.clearUser === 'function') {
-          userStore.clearUser()
-          console.log('[useAuth] ✅ User store cleared')
-        }
-      } catch (err) {
-        console.warn('[useAuth] ⚠️ User store not available')
-      }
-
-      // ============================================================================
-      // CLEAR ALL LOCALSTORAGE DATA
-      // ============================================================================
-      console.log('[useAuth] Clearing all localStorage data...')
-      
-      if (process.client) {
-        try {
-          // Get all localStorage keys
-          const keysToRemove = []
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i)
-            if (key) {
-              keysToRemove.push(key)
-            }
-          }
-
-          console.log('[useAuth] Found', keysToRemove.length, 'localStorage keys to remove')
-
-          // Remove all keys
-          keysToRemove.forEach(key => {
-            try {
-              localStorage.removeItem(key)
-              console.log('[useAuth] ✅ Removed localStorage key:', key)
-            } catch (err) {
-              console.warn('[useAuth] ⚠️ Failed to remove localStorage key:', key)
-            }
-          })
-
-          console.log('[useAuth] ✅ All localStorage data cleared')
-        } catch (storageError: any) {
-          console.error('[useAuth] ❌ localStorage clearing error:', storageError.message)
-        }
-      }
-
-      // ============================================================================
-      // CLEAR ALL SESSIONSTORAGE DATA
-      // ============================================================================
-      console.log('[useAuth] Clearing all sessionStorage data...')
-      
-      if (process.client) {
-        try {
-          // Get all sessionStorage keys
-          const keysToRemove = []
-          for (let i = 0; i < sessionStorage.length; i++) {
-            const key = sessionStorage.key(i)
-            if (key) {
-              keysToRemove.push(key)
-            }
-          }
-
-          console.log('[useAuth] Found', keysToRemove.length, 'sessionStorage keys to remove')
-
-          // Remove all keys
-          keysToRemove.forEach(key => {
-            try {
-              sessionStorage.removeItem(key)
-              console.log('[useAuth] ✅ Removed sessionStorage key:', key)
-            } catch (err) {
-              console.warn('[useAuth] ⚠️ Failed to remove sessionStorage key:', key)
-            }
-          })
-
-          console.log('[useAuth] ✅ All sessionStorage data cleared')
-        } catch (storageError: any) {
-          console.error('[useAuth] ❌ sessionStorage clearing error:', storageError.message)
-        }
-      }
-
-      // ============================================================================
-      // CLEAR COOKIES (if needed)
-      // ============================================================================
-      console.log('[useAuth] Clearing auth cookies...')
-      
-      try {
-        // Clear auth token cookie
-        useCookie('auth_token').value = null
-        console.log('[useAuth] ✅ Auth token cookie cleared')
-
-        // Clear refresh token cookie
-        useCookie('auth_refresh_token').value = null
-        console.log('[useAuth] ✅ Refresh token cookie cleared')
-
-        // Clear user cookie
-        useCookie('auth_user').value = null
-        console.log('[useAuth] ✅ User cookie cleared')
-      } catch (cookieError: any) {
-        console.warn('[useAuth] ⚠️ Cookie clearing error:', cookieError.message)
-      }
-
-      // ============================================================================
-      // REDIRECT TO LOGIN
-      // ============================================================================
-      console.log('[useAuth] Redirecting to login page...')
-      
-      try {
-        await navigateTo('/login')
-        console.log('[useAuth] ✅ Redirected to login')
-      } catch (navError: any) {
-        console.warn('[useAuth] ⚠️ Navigation error:', navError.message)
-        // Fallback: reload page
-        if (process.client) {
-          window.location.href = '/login'
-        }
-      }
-
-      console.log('[useAuth] ✅ Logout completed successfully')
       console.log('[useAuth] ============ LOGOUT END ============')
 
       return {
         success: true,
         message: 'Logged out successfully'
       }
-
     } catch (err: any) {
-      console.error('[useAuth] ============ LOGOUT ERROR ============')
-      console.error('[useAuth] Error type:', err.constructor.name)
-      console.error('[useAuth] Error message:', err.message)
-      console.error('[useAuth] Error stack:', err.stack)
-      console.error('[useAuth] ============ END ERROR ============')
-
-      // Clear auth anyway even if error occurs
-      console.log('[useAuth] Clearing auth store despite error...')
-      try {
-        authStore.clearAuth()
-        console.log('[useAuth] ✅ Auth store cleared despite error')
-      } catch (clearError) {
-        console.error('[useAuth] ❌ Failed to clear auth store:', clearError)
-      }
-
-      // Try to redirect to login anyway
-      try {
-        await navigateTo('/login')
-      } catch (navError) {
-        if (process.client) {
-          window.location.href = '/login'
-        }
-      }
+      console.error('[useAuth] ❌ Logout error:', err.message)
+      error.value = err.message
 
       return {
-        success: true,
-        message: 'Logged out'
+        success: false,
+        error: err.message
       }
-    } finally {
-      loading.value = false
     }
   }
 
   // ============================================================================
-  // VERIFY EMAIL METHOD
+  // VERIFY EMAIL METHOD - NEW
   // ============================================================================
   const verifyEmail = async (token: string) => {
-    loading.value = true
+    console.log('[useAuth] ============ VERIFY EMAIL START ============')
+    console.log('[useAuth] Verifying email with token...')
+
+    isLoading.value = true
     error.value = null
 
     try {
-      console.log('[useAuth] ============ VERIFY EMAIL START ============')
-      console.log('[useAuth] Verifying email with token...')
+      // Supabase handles email verification via the token in the URL
+      // This is typically done automatically when user clicks the email link
+      // But we can verify the session here
+      
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
 
-      const response = await $fetch('/api/auth/verify-email', {
-        method: 'POST',
-        body: { token }
-      })
+      if (sessionError) {
+        throw new Error(sessionError.message)
+      }
 
-      console.log('[useAuth] ✅ Email verified successfully')
+      if (!sessionData.session) {
+        throw new Error('No active session found')
+      }
+
+      console.log('[useAuth] ✅ Email verified')
       console.log('[useAuth] ============ VERIFY EMAIL END ============')
 
       return {
         success: true,
-        message: 'Email verified successfully!'
+        message: 'Email verified successfully!',
+        user: sessionData.session.user
       }
     } catch (err: any) {
-      console.error('[useAuth] ============ VERIFY EMAIL ERROR ============')
-      console.error('[useAuth] Error:', err.message)
-      
-      let errorMessage = 'Email verification failed'
+      console.error('[useAuth] ❌ Email verification error:', err.message)
+      error.value = err.message
 
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
-      console.error('[useAuth] ============ END ERROR ============')
-      
-      error.value = errorMessage
-      
       return {
         success: false,
-        error: errorMessage
+        error: err.message
       }
     } finally {
-      loading.value = false
+      isLoading.value = false
     }
   }
 
   // ============================================================================
-  // RESET PASSWORD METHOD
+  // RESEND VERIFICATION EMAIL - NEW
   // ============================================================================
-  const resetPassword = async (email: string) => {
-    loading.value = true
+  const resendVerificationEmail = async (email: string) => {
+    console.log('[useAuth] ============ RESEND VERIFICATION EMAIL START ============')
+    console.log('[useAuth] Resending verification email to:', email)
+
+    isLoading.value = true
     error.value = null
 
     try {
-      console.log('[useAuth] ============ RESET PASSWORD START ============')
-      console.log('[useAuth] Requesting password reset for:', email)
-
-      const response = await $fetch('/api/auth/reset-password', {
-        method: 'POST',
-        body: { email }
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
       })
 
-      console.log('[useAuth] ✅ Password reset email sent')
-      console.log('[useAuth] ============ RESET PASSWORD END ============')
+      if (resendError) {
+        throw new Error(resendError.message)
+      }
+
+      console.log('[useAuth] ✅ Verification email resent')
+      console.log('[useAuth] ============ RESEND VERIFICATION EMAIL END ============')
 
       return {
         success: true,
-        message: 'Password reset email sent. Please check your inbox.'
+        message: 'Verification email sent! Check your inbox.'
       }
     } catch (err: any) {
-      console.error('[useAuth] ============ RESET PASSWORD ERROR ============')
-      console.error('[useAuth] Error:', err.message)
-      
-      let errorMessage = 'Password reset failed'
+      console.error('[useAuth] ❌ Resend error:', err.message)
+      error.value = err.message
 
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
-      console.error('[useAuth] ============ END ERROR ============')
-      
-      error.value = errorMessage
-      
       return {
         success: false,
-        error: errorMessage
+        error: err.message
       }
     } finally {
-      loading.value = false
+      isLoading.value = false
     }
   }
 
   // ============================================================================
-  // UPDATE PASSWORD METHOD
+  // REFRESH TOKEN METHOD - NEW
   // ============================================================================
-  const updatePassword = async (newPassword: string) => {
-    loading.value = true
-    error.value = null
+  const refreshToken = async () => {
+    console.log('[useAuth] ============ REFRESH TOKEN START ============')
 
     try {
-      console.log('[useAuth] ============ UPDATE PASSWORD START ============')
-      console.log('[useAuth] Updating password...')
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
 
-      const response = await $fetch('/api/auth/update-password', {
-        method: 'POST',
-        body: { password: newPassword }
-      })
+      if (refreshError) {
+        throw new Error(refreshError.message)
+      }
 
-      console.log('[useAuth] ✅ Password updated successfully')
-      console.log('[useAuth] ============ UPDATE PASSWORD END ============')
+      if (refreshData.session) {
+        authStore.setToken(refreshData.session.access_token)
+        if (refreshData.session.refresh_token) {
+          authStore.setRefreshToken(refreshData.session.refresh_token)
+        }
+        console.log('[useAuth] ✅ Token refreshed')
+      }
+
+      console.log('[useAuth] ============ REFRESH TOKEN END ============')
 
       return {
         success: true,
-        message: 'Password updated successfully!'
+        message: 'Token refreshed'
       }
     } catch (err: any) {
-      console.error('[useAuth] ============ UPDATE PASSWORD ERROR ============')
-      console.error('[useAuth] Error:', err.message)
-      
-      let errorMessage = 'Password update failed'
+      console.error('[useAuth] ❌ Token refresh error:', err.message)
+      error.value = err.message
 
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
-      console.error('[useAuth] ============ END ERROR ============')
-      
-      error.value = errorMessage
-      
       return {
         success: false,
-        error: errorMessage
+        error: err.message
       }
-    } finally {
-      loading.value = false
     }
   }
 
-  // ============================================================================
-  // CLEAR ERROR METHOD
-  // ============================================================================
-  const clearError = () => {
-    console.log('[useAuth] Clearing error')
-    error.value = null
-  }
-
-  // ============================================================================
-  // RETURN COMPOSABLE
-  // ============================================================================
   return {
-    // State
-    loading,
+    isLoading,
     error,
-    
-    // Methods
     signup,
     login,
     logout,
     verifyEmail,
-    resetPassword,
-    updatePassword,
-    clearError,
-    
-    // Store access
-    isAuthenticated: authStore.isAuthenticated,
-    user: authStore.user,
-    token: authStore.token
+    resendVerificationEmail,
+    refreshToken
   }
 }
