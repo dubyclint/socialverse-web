@@ -608,6 +608,11 @@
 </template>
 
 <script setup lang="ts">
+  definePageMeta({
+  middleware: ['auth', 'profile-completion'],
+  layout: 'default'
+})
+  
 import { ref, computed, onMounted, onBeforeMount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
@@ -615,11 +620,6 @@ import { useProfileStore } from '~/stores/profile'
 import { useFetchWithAuth } from '~/composables/use-fetch'
 import { useAuth } from '~/composables/use-auth'
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue'
-
-definePageMeta({
-  layout: 'blank',
-  middleware: 'auth' // ✅ FIX PHASE 2: Add auth middleware protection
-})
 
 // ============================================================================
 // SETUP & INITIALIZATION
