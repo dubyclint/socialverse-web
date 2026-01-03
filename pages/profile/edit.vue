@@ -182,7 +182,7 @@ import { useProfileStore } from '~/stores/profile'
 
 definePageMeta({
   layout: 'blank',
-  middleware: 'auth'
+  middleware:  ['auth','profile-completion', 'language-check'],
 })
 
 // ============================================================================
