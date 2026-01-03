@@ -152,7 +152,7 @@ definePageMeta({
   middleware: 'guest'
 })
 
-const { signup, loading, error: authError } = useAuth()
+const { signup, isLoading: loading, error: authError } = useAuth()
 const { resendVerificationEmail } = useEmailVerification()
 
 const successMessage = ref('')
@@ -206,12 +206,12 @@ const handleSignup = async () => {
   try {
     console.log('[Signup Page] Calling signup function...')
     
-    const result = await signup({
-      email: formData.value.email,
-      password: formData.value.password,
-      username: formData.value.username,
-      fullName: formData.value.fullName || undefined
-    })
+    // ✅ FIX: Pass parameters as separate arguments, not as an object
+    const result = await signup(
+      formData.value.email,
+      formData.value.password,
+      formData.value.username
+    )
 
     console.log('[Signup Page] Signup result:', result)
 
@@ -639,4 +639,3 @@ watch(() => authError.value, (newError) => {
   }
 }
 </style>
-
