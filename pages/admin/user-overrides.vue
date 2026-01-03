@@ -38,11 +38,11 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  middleware: ['route-guard', 'language-check', 'security-middleware'],
+ definePageMeta({
+  middleware: ['auth', 'profile-completion', 'route-guard'],
   layout: 'default'
-})
- 
+})  
+  
 import { ref } from 'vue'
 
 const override = ref({
