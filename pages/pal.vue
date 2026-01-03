@@ -290,7 +290,7 @@
 import { ref, computed } from 'vue'
 
 definePageMeta({
-  middleware: ['auth', 'language-check'],
+  middleware: ['auth','profile-completion', 'language-check'],
   layout: 'default'
 })
 
