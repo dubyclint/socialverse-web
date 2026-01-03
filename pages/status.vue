@@ -246,7 +246,7 @@ import { useStatus } from '~/composables/use-status'
 import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
-  middleware: ['auth'],
+  middleware: ['auth','profile-completion', 'language-check'],
   layout: 'default'
 })
 
