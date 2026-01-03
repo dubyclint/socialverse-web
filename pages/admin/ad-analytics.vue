@@ -127,10 +127,10 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['route-guard', 'profile-completion', 'language-check', 'security-middleware'],
-  layout: 'admin'
+  middleware: ['auth', 'profile-completion', 'route-guard'],
+  layout: 'default'
 })
- 
+  
 import { ref, onMounted } from 'vue'
 
 // Reactive data
