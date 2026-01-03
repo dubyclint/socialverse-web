@@ -25,7 +25,7 @@ definePageMeta({
   middleware: ['route-guard', 'language-check', 'security-middleware'],
   layout: 'default'
 })
-
+  
 import { onMounted } from 'vue'
 import Chart from 'chart.js/auto'
 import adminuserlist from '@/components/admin/user-list.vue'
