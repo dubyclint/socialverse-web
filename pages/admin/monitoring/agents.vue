@@ -109,11 +109,11 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  middleware: ['route-guard', 'language-check', 'security-middleware'],
+ definePageMeta({
+  middleware: ['auth', 'profile-completion', 'route-guard'],
   layout: 'default'
-})
-
+})  
+  
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const agents = ref([])
