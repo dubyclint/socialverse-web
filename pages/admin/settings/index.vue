@@ -425,10 +425,10 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['route-guard', 'language-check', 'security-middleware'],
+  middleware: ['auth', 'profile-completion', 'route-guard'],
   layout: 'default'
-})
-
+}) 
+  
 import { ref, computed, onMounted } from 'vue'
 
 // Tab Management
