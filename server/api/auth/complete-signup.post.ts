@@ -1,11 +1,10 @@
 // ============================================================================
-// FILE: /server/api/auth/complete-signup.post.ts - COMPLETE SIGNUP AFTER EMAIL VERIFICATION
+// CORRECTED FILE 3: /server/api/auth/complete-signup.post.ts
 // ============================================================================
-// This endpoint creates the user profile after email verification
-// Called after user verifies their email
+// FIX: Changed 'verified' to 'is_verified' and fixed import
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient } from '~/server/utils/supabase-server'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -77,7 +76,7 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[API] Creating new profile for user:', userId)
     
-    // ✅ FIX: Changed from "error: createError: createProfileError" to "error: createProfileError"
+    // ✅ FIX: Changed 'verified' to 'is_verified'
     const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
       .insert({
@@ -90,7 +89,7 @@ export default defineEventHandler(async (event) => {
         bio: '',
         location: '',
         website: '',
-        verified: false,
+        is_verified: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
