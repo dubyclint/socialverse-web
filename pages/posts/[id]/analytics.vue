@@ -119,11 +119,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-
 definePageMeta({
-  middleware: 'auth'
+  middleware: ['auth', 'profile-completion'],
+  layout: 'default'
 })
+         
+import { ref, onMounted } from 'vue'
 
 const route = useRoute()
 const postId = route.params.id as string
