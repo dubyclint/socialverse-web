@@ -1,7 +1,7 @@
 // ============================================================================
 // CORRECTED FILE: /server/api/auth/verify-email.post.ts
 // ============================================================================
-// FIX: Properly handle Supabase verification codes
+// FIX: Properly handle Supabase verification codes with correct parameters
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -43,43 +43,9 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase client created')
 
     // ============================================================================
-    // STEP 1: Try code exchange (PRIMARY - for ?code= format)
+    // STEP 1: Try OTP verification with token_hash (PRIMARY - for ?code= format)
     // ============================================================================
-    console.log('[API] STEP 1: Attempting code exchange...')
-    
-    try {
-      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
-
-      if (!codeError && codeData?.user) {
-        console.log('[API] ✅ Code exchange successful')
-        console.log('[API] User ID:', codeData.user.id)
-        console.log('[API] Email confirmed:', codeData.user.email_confirmed_at)
-        
-        return {
-          success: true,
-          message: 'Email verified successfully!',
-          user: {
-            id: codeData.user.id,
-            email: codeData.user.email,
-            email_confirmed_at: codeData.user.email_confirmed_at,
-            username: codeData.user.user_metadata?.username,
-            full_name: codeData.user.user_metadata?.full_name
-          },
-          session: codeData.session
-        }
-      }
-      
-      if (codeError) {
-        console.log('[API] Code exchange error:', codeError.message)
-      }
-    } catch (err: any) {
-      console.log('[API] Code exchange exception:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 2: Try OTP verification (FALLBACK - for token_hash format)
-    // ============================================================================
-    console.log('[API] STEP 2: Attempting OTP verification...')
+    console.log('[API] STEP 1: Attempting OTP verification with token_hash...')
     
     try {
       const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
@@ -88,7 +54,9 @@ export default defineEventHandler(async (event) => {
       })
 
       if (!otpError && otpData?.user) {
-        console.log('[API] ✅ OTP verified')
+        console.log('[API] ✅ OTP verified successfully')
+        console.log('[API] User ID:', otpData.user.id)
+        console.log('[API] Email confirmed:', otpData.user.email_confirmed_at)
         
         return {
           success: true,
@@ -109,6 +77,43 @@ export default defineEventHandler(async (event) => {
       }
     } catch (err: any) {
       console.log('[API] OTP verification exception:', err.message)
+    }
+
+    // ============================================================================
+    // STEP 2: Try code exchange (FALLBACK - for hash format)
+    // ============================================================================
+    console.log('[API] STEP 2: Attempting code exchange...')
+    
+    try {
+      // Get the origin from the request
+      const origin = getHeader(event, 'origin') || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app'
+      console.log('[API] Using origin:', origin)
+      
+      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
+
+      if (!codeError && codeData?.user) {
+        console.log('[API] ✅ Code exchange successful')
+        console.log('[API] User ID:', codeData.user.id)
+        
+        return {
+          success: true,
+          message: 'Email verified successfully!',
+          user: {
+            id: codeData.user.id,
+            email: codeData.user.email,
+            email_confirmed_at: codeData.user.email_confirmed_at,
+            username: codeData.user.user_metadata?.username,
+            full_name: codeData.user.user_metadata?.full_name
+          },
+          session: codeData.session
+        }
+      }
+      
+      if (codeError) {
+        console.log('[API] Code exchange error:', codeError.message)
+      }
+    } catch (err: any) {
+      console.log('[API] Code exchange exception:', err.message)
     }
 
     // ============================================================================
@@ -148,6 +153,10 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.error('[API] ❌ All verification methods failed')
     console.error('[API] Token format not recognized or invalid')
+    console.error('[API] This could mean:')
+    console.error('[API] 1. The verification link has expired')
+    console.error('[API] 2. The token is invalid or malformed')
+    console.error('[API] 3. The email was already verified')
     
     throw createError({
       statusCode: 400,
@@ -158,6 +167,7 @@ export default defineEventHandler(async (event) => {
     console.error('[API] ============ VERIFICATION ERROR ============')
     console.error('[API] Error:', error.message)
     console.error('[API] Status:', error.statusCode)
+    console.error('[API] ============ END ERROR ============')
     throw error
   }
 })
