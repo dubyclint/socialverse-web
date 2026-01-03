@@ -88,6 +88,11 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  layout: 'blank',
+  middleware:  ['auth','profile-completion', 'language-check'],
+})
+
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
