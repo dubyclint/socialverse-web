@@ -1,14 +1,10 @@
 // ============================================================================
-// FILE 4: /middleware/auth.ts - COMPLETE AUTH MIDDLEWARE
+// CORRECTED FILE: /middleware/auth.ts
 // ============================================================================
-// FIXES:
-// ✅ Create auth middleware to protect routes
-// ✅ Redirect unauthenticated users to login
-// ✅ Allow public routes (login, signup, etc.)
-// ✅ Check if user is authenticated before accessing protected routes
+// FIX: Changed defineRouteMiddleware to defineNuxtRouteMiddleware
 // ============================================================================
 
-export default defineRouteMiddleware(async (to, from) => {
+export default defineNuxtRouteMiddleware(async (to, from) => {
   console.log('[Auth Middleware] ============ ROUTE CHECK START ============')
   console.log('[Auth Middleware] Navigating from:', from.path)
   console.log('[Auth Middleware] Navigating to:', to.path)
