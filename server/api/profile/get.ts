@@ -1,10 +1,10 @@
 // ============================================================================
-// COMPLETE FILE: /server/api/profile/get.ts
+// CORRECTED FILE 2: /server/api/profile/get.ts
 // ============================================================================
-// Get user profile by ID (with UUID validation)
-// Called by: /stores/profile.ts fetchProfile()
-// Endpoint: GET /api/profile/get?userId=...
+// FIX: Use serverSupabaseClient instead of useSupabaseServer
 // ============================================================================
+
+import { serverSupabaseClient } from '~/server/utils/supabase-server'
 
 export default defineEventHandler(async (event) => {
   console.log('[Profile API] ============ GET PROFILE START ============')
@@ -33,8 +33,8 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Profile API] Fetching profile for user:', userId)
 
-    // Fetch profile from database
-    const supabase = await useSupabaseServer(event)
+    // ✅ FIX: Use serverSupabaseClient instead of useSupabaseServer
+    const supabase = await serverSupabaseClient(event)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
