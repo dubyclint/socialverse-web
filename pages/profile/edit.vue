@@ -175,15 +175,15 @@
 </template>
 
 <script setup lang="ts">
+ definePageMeta({
+  middleware: ['auth', 'profile-completion'],
+  layout: 'default'
+})
+     
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useProfileStore } from '~/stores/profile'
-
-definePageMeta({
-  layout: 'blank',
-  middleware:  ['auth','profile-completion', 'language-check'],
-})
 
 // ============================================================================
 // SETUP
