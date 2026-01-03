@@ -20,9 +20,9 @@
         <div class="success-icon">✅</div>
         <h2>Email Verified!</h2>
         <p>Your email has been successfully verified.</p>
-        <p class="redirect-message">Redirecting to login in {{ redirectCountdown }} seconds...</p>
-        <NuxtLink to="/auth/signin" class="btn-primary">
-          Go to Login Now
+        <p class="redirect-message">Redirecting to feed in {{ redirectCountdown }} seconds...</p>
+        <NuxtLink to="/feed" class="btn-primary">
+          Go to Feed Now
         </NuxtLink>
       </div>
 
@@ -202,12 +202,12 @@ onMounted(async () => {
     // Clear stored data
     sessionStorage.removeItem('verificationEmail')
 
-    // Redirect to login after countdown
+    // ✅ FIX: Redirect to /feed instead of /auth/signin
     const interval = setInterval(() => {
       redirectCountdown.value--
       if (redirectCountdown.value <= 0) {
         clearInterval(interval)
-        router.push('/auth/signin')
+        router.push('/feed')
       }
     }, 1000)
   } else {
