@@ -118,6 +118,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { verifyEmail } = useEmailVerification()
+const supabaseClient = useSupabase()
 
 const loading = ref(true)
 const success = ref(false)
@@ -227,12 +228,40 @@ onMounted(async () => {
     console.log('[Verify Email Page] User:', result.user)
     
     // ✅ FIX: Get user ID from result.user or result.data.user
-    const userId = result.user?.id || result.data?.user?.id
-    const userEmail = result.user?.email || result.data?.user?.email
-    const username = result.user?.username || result.data?.user?.username || userEmail?.split('@')[0]
-    const fullName = result.user?.full_name || result.data?.user?.full_name || username
+    let userId = result.user?.id || result.data?.user?.id
+    let userEmail = result.user?.email || result.data?.user?.email
+    let username = result.user?.username || result.data?.user?.username
+    let fullName = result.user?.full_name || result.data?.user?.full_name
     
-    console.log('[Verify Email Page] Extracted user data:', {
+    console.log('[Verify Email Page] Initial extracted user data:', {
+      userId,
+      userEmail,
+      username,
+      fullName
+    })
+    
+    // ✅ If user data is null, try to get it from Supabase client
+    if (!userId) {
+      console.log('[Verify Email Page] User data is null, fetching from Supabase...')
+      
+      try {
+        const { data: { user: supabaseUser }, error: supabaseError } = await supabaseClient.auth.getUser()
+        
+        if (!supabaseError && supabaseUser) {
+          console.log('[Verify Email Page] ✅ Got user from Supabase:', supabaseUser.id)
+          userId = supabaseUser.id
+          userEmail = supabaseUser.email
+          username = supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0]
+          fullName = supabaseUser.user_metadata?.full_name || username
+        } else {
+          console.error('[Verify Email Page] ❌ Could not get user from Supabase:', supabaseError?.message)
+        }
+      } catch (err: any) {
+        console.error('[Verify Email Page] Exception getting user from Supabase:', err.message)
+      }
+    }
+    
+    console.log('[Verify Email Page] Final extracted user data:', {
       userId,
       userEmail,
       username,
@@ -240,8 +269,8 @@ onMounted(async () => {
     })
     
     if (!userId) {
-      console.error('[Verify Email Page] ❌ No user ID found in verification response')
-      error.value = 'Verification successful but user data is missing'
+      console.error('[Verify Email Page] ❌ No user ID found in verification response or Supabase')
+      error.value = 'Verification successful but user data is missing. Please try signing in.'
       loading.value = false
       return
     }
