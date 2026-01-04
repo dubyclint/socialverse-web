@@ -85,7 +85,13 @@
             <!-- Error Message -->
             <div v-if="error" class="error-message">
               <span class="error-icon">⚠️</span>
-              {{ error }}
+              <div>
+                <div>{{ error }}</div>
+                <!-- ✅ NEW: Show detailed error info in console -->
+                <div v-if="detailedError" class="error-details">
+                  Details: {{ detailedError }}
+                </div>
+              </div>
             </div>
 
             <!-- Success Message -->
@@ -157,6 +163,7 @@ const { resendVerificationEmail } = useEmailVerification()
 
 const successMessage = ref('')
 const error = ref('')
+const detailedError = ref('')  // ✅ NEW: Store detailed error
 const emailSent = ref(false)
 const resendLoading = ref(false)
 
@@ -169,10 +176,17 @@ const formData = ref({
 
 const handleSignup = async () => {
   error.value = ''
+  detailedError.value = ''  // ✅ NEW: Clear detailed error
   successMessage.value = ''
 
   console.log('[Signup Page] ============ SIGNUP START ============')
   console.log('[Signup Page] Submitting signup form...')
+  console.log('[Signup Page] Form data:', {
+    email: formData.value.email,
+    username: formData.value.username,
+    password: '***',
+    fullName: formData.value.fullName
+  })
   
   // Client-side validation
   if (!formData.value.email || !formData.value.password || !formData.value.username) {
@@ -185,21 +199,21 @@ const handleSignup = async () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(formData.value.email)) {
     error.value = 'Please enter a valid email address'
-    console.error('[Signup Page] Invalid email format')
+    console.error('[Signup Page] Invalid email format:', formData.value.email)
     return
   }
 
   // Password validation
   if (formData.value.password.length < 6) {
     error.value = 'Password must be at least 6 characters long'
-    console.error('[Signup Page] Password too short')
+    console.error('[Signup Page] Password too short:', formData.value.password.length)
     return
   }
 
   // Username validation
   if (formData.value.username.length < 3) {
     error.value = 'Username must be at least 3 characters long'
-    console.error('[Signup Page] Username too short')
+    console.error('[Signup Page] Username too short:', formData.value.username.length)
     return
   }
 
@@ -214,6 +228,7 @@ const handleSignup = async () => {
     )
 
     console.log('[Signup Page] Signup result:', result)
+    console.log('[Signup Page] Full result object:', JSON.stringify(result, null, 2))
 
     if (result.success) {
       console.log('[Signup Page] ✅ Signup successful')
@@ -236,11 +251,19 @@ const handleSignup = async () => {
       }
     } else {
       console.error('[Signup Page] Signup failed:', result.error)
+      // ✅ NEW: Show detailed error
       error.value = result.error || 'Signup failed. Please try again.'
+      detailedError.value = JSON.stringify(result, null, 2)
+      console.error('[Signup Page] Full error details:', result)
     }
   } catch (err: any) {
     console.error('[Signup Page] Unexpected error:', err)
+    console.error('[Signup Page] Error type:', err.constructor.name)
+    console.error('[Signup Page] Error message:', err.message)
+    console.error('[Signup Page] Error stack:', err.stack)
+    // ✅ NEW: Show detailed error
     error.value = 'An unexpected error occurred. Please try again.'
+    detailedError.value = `${err.constructor.name}: ${err.message}`
   }
 }
 
@@ -258,6 +281,7 @@ const handleResendEmail = async () => {
 
   resendLoading.value = true
   error.value = ''
+  detailedError.value = ''  // ✅ NEW: Clear detailed error
 
   try {
     console.log('[Signup Page] Resending verification email to:', email)
@@ -268,11 +292,13 @@ const handleResendEmail = async () => {
       console.log('[Signup Page] ✅ Verification email resent')
     } else {
       error.value = result.error || 'Failed to resend email'
+      detailedError.value = JSON.stringify(result, null, 2)  // ✅ NEW: Show detailed error
       console.error('[Signup Page] ❌ Resend failed:', result.error)
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Signup Page] Resend error:', err)
     error.value = 'Failed to resend verification email'
+    detailedError.value = `${err.constructor.name}: ${err.message}`  // ✅ NEW: Show detailed error
   } finally {
     resendLoading.value = false
   }
@@ -282,6 +308,7 @@ const handleResendEmail = async () => {
 watch(() => authError.value, (newError) => {
   if (newError) {
     error.value = newError
+    console.error('[Signup Page] Auth store error:', newError)
   }
 })
 </script>
@@ -454,7 +481,7 @@ watch(() => authError.value, (newError) => {
 
 .error-message {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   color: #dc2626;
   padding: 0.75rem;
@@ -466,6 +493,21 @@ watch(() => authError.value, (newError) => {
 
 .error-icon {
   font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+/* ✅ NEW: Error details styling */
+.error-details {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  font-family: monospace;
+  max-height: 100px;
+  overflow-y: auto;
+  text-align: left;
 }
 
 .success-message {
