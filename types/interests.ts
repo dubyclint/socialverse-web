@@ -1,7 +1,12 @@
-// FILE: /types/interests.ts - CREATE
-// Interests related types
+// ============================================================================
+// FILE: /types/interests.ts - COMPLETE UPDATED VERSION
+// ============================================================================
+// Interest types for user interests management
 // ============================================================================
 
+// ============================================================================
+// INTEREST INTERFACE
+// ============================================================================
 export interface Interest {
   id: string
   name: string
@@ -12,6 +17,21 @@ export interface Interest {
   created_at?: string
   updated_at?: string
 }
+
+// ============================================================================
+// USER INTEREST INTERFACE
+// ============================================================================
+export interface UserInterest {
+  id: string
+  user_id: string
+  interest_id: string
+  interest: Interest
+  created_at: string
+}
+
+// ============================================================================
+// REQUEST/RESPONSE TYPES
+// ============================================================================
 
 export interface ListInterestsResponse {
   success: boolean
@@ -38,4 +58,23 @@ export interface RemoveInterestRequest {
 export interface InterestResponse {
   success: boolean
   message?: string
+  error?: string
 }
+
+// ============================================================================
+// INTEREST CATEGORY TYPE
+// ============================================================================
+export type InterestCategory = 
+  | 'Technology'
+  | 'Sports'
+  | 'Entertainment'
+  | 'Music'
+  | 'Art'
+  | 'Travel'
+  | 'Food'
+  | 'Fashion'
+  | 'Gaming'
+  | 'Education'
+  | 'Business'
+  | 'Health'
+  | 'Other'
