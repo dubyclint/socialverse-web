@@ -1,6 +1,8 @@
-// types/database.types.ts
-// Auto-generated Supabase database types
-// Generated from your Supabase schema
+// ============================================================================
+// FILE: /types/database.types.ts - UPDATED
+// ============================================================================
+// Auto-generated Supabase database types (UPDATED)
+// ============================================================================
 
 export type Json =
   | string
@@ -13,6 +15,216 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      user: {
+        Row: {
+          id: string
+          email: string
+          username: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          username: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          username?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      profiles: {
+        Row: {
+          user_id: string
+          full_name: string | null
+          bio: string | null
+          avatar_url: string | null
+          location: string | null
+          website: string | null
+          interests: Json
+          colors: Json
+          items: string[] | null
+          profile_completed: boolean
+          rank: string
+          rank_points: number
+          rank_level: number
+          is_verified: boolean
+          verified_badge_type: string | null
+          verified_at: string | null
+          verification_status: string
+          badge_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          full_name?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          location?: string | null
+          website?: string | null
+          interests?: Json
+          colors?: Json
+          items?: string[] | null
+          profile_completed?: boolean
+          rank?: string
+          rank_points?: number
+          rank_level?: number
+          is_verified?: boolean
+          verified_badge_type?: string | null
+          verified_at?: string | null
+          verification_status?: string
+          badge_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          full_name?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          location?: string | null
+          website?: string | null
+          interests?: Json
+          colors?: Json
+          items?: string[] | null
+          profile_completed?: boolean
+          rank?: string
+          rank_points?: number
+          rank_level?: number
+          is_verified?: boolean
+          verified_badge_type?: string | null
+          verified_at?: string | null
+          verification_status?: string
+          badge_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      interests: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          category: string | null
+          icon_url: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          category?: string | null
+          icon_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          category?: string | null
+          icon_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      user_interests: {
+        Row: {
+          id: string
+          user_id: string
+          interest_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          interest_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          interest_id?: string
+          created_at?: string
+        }
+      }
+      badge_requests: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          social_link: string | null
+          doc_url: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          social_link?: string | null
+          doc_url?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          social_link?: string | null
+          doc_url?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      verified_badges: {
+        Row: {
+          id: string
+          user_id: string
+          badge_type: string
+          is_active: boolean
+          reason: string | null
+          awarded_at: string
+          expires_at: string | null
+          awarded_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          badge_type: string
+          is_active?: boolean
+          reason?: string | null
+          awarded_at?: string
+          expires_at?: string | null
+          awarded_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          badge_type?: string
+          is_active?: boolean
+          reason?: string | null
+          awarded_at?: string
+          expires_at?: string | null
+          awarded_by?: string | null
+          created_at?: string
+        }
+      }
       posts: {
         Row: {
           id: string
@@ -38,53 +250,6 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "posts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      profiles: {
-        Row: {
-          id: string
-          user_id: string | null
-          username: string | null
-          avatar_url: string | null
-          bio: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id?: string | null
-          username?: string | null
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string | null
-          username?: string | null
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       }
       messages: {
         Row: {
@@ -111,22 +276,6 @@ export interface Database {
           created_at?: string
           read_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_receiver_id_fkey"
-            columns: ["receiver_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       }
     }
     Views: {
@@ -143,70 +292,3 @@ export interface Database {
     }
   }
 }
-
-export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (Database["public"]["Tables"] & Database["public"]["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] &
-        Database["public"]["Views"])
-    ? (Database["public"]["Tables"] &
-        Database["public"]["Views"])[PublicTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
