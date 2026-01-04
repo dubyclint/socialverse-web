@@ -1,5 +1,5 @@
-// FIXED: /server/api/auth/verify-email.post.ts
-//This version properly returns user data even when verification succeeds
+ //server/api/auth/verify-email.post.ts
+//COMPLETE FILE - Email Verification Endpoint
 
 import { createClient } from '@supabase/supabase-js'
 
