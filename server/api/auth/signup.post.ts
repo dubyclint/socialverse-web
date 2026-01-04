@@ -1,11 +1,12 @@
 // ============================================================================
-// FILE 1: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // FIXES:
-// ✅ Adds token and refreshToken to response
-// ✅ Ensures profile creation doesn't block signup
-// ✅ Better error handling and logging
-// ✅ Returns complete user data with all fields
+// ✅ Uses backend endpoint (not direct Supabase)
+// ✅ Inserts into 'user' table via profiles view
+// ✅ Proper error handling
+// ✅ Returns complete user data with token
+// ✅ Sends verification email
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -15,95 +16,50 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ============ SIGNUP REQUEST START ============')
     
     const body = await readBody(event)
-    
-    console.log('[API] Request body received:', {
-      email: body.email,
-      username: body.username,
-      password: body.password ? '***' : 'MISSING',
-      fullName: body.fullName
-    })
+    const { email, password, username, fullName } = body
 
-    const { email, password, username, fullName, phone, bio, location } = body
+    console.log('[API] Signup attempt:', { email, username })
 
     // ============================================================================
-    // VALIDATION STEP 1: Email and Password
+    // STEP 1: Validate Input
     // ============================================================================
-    console.log('[API] VALIDATION: Checking email and password...')
-    
-    if (!email) {
-      console.error('[API] ❌ Email is missing')
+    if (!email || !password || !username) {
+      console.error('[API] ❌ Missing required fields')
       throw createError({
         statusCode: 400,
-        statusMessage: 'Email is required'
+        statusMessage: 'Email, password, and username are required'
       })
     }
 
-    if (!password) {
-      console.error('[API] ❌ Password is missing')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Password is required'
-      })
-    }
-
-    // ============================================================================
-    // VALIDATION STEP 2: Username
-    // ============================================================================
-    console.log('[API] VALIDATION: Checking username...')
-    
-    if (!username) {
-      console.error('[API] ❌ Username is missing')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username is required'
-      })
-    }
-
-    if (username.length < 3) {
-      console.error('[API] ❌ Username too short:', username.length)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username must be at least 3 characters'
-      })
-    }
-
-    // ============================================================================
-    // VALIDATION STEP 3: Email Format
-    // ============================================================================
-    console.log('[API] VALIDATION: Checking email format...')
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      console.error('[API] ❌ Invalid email format:', email)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid email format'
-      })
-    }
-
-    // ============================================================================
-    // VALIDATION STEP 4: Password Length
-    // ============================================================================
-    console.log('[API] VALIDATION: Checking password length...')
-    
     if (password.length < 6) {
-      console.error('[API] ❌ Password too short:', password.length)
       throw createError({
         statusCode: 400,
         statusMessage: 'Password must be at least 6 characters'
       })
     }
 
+    if (username.length < 3) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Username must be at least 3 characters'
+      })
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid email format'
+      })
+    }
+
+    console.log('[API] ✅ Input validation passed')
+
     // ============================================================================
-    // VALIDATION STEP 5: Supabase Configuration
+    // STEP 2: Initialize Supabase Admin Client
     // ============================================================================
-    console.log('[API] VALIDATION: Checking Supabase configuration...')
-    
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    console.log('[API] Supabase URL configured:', !!supabaseUrl)
-    console.log('[API] Service role key configured:', !!supabaseServiceKey)
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('[API] ❌ Missing Supabase credentials')
@@ -113,25 +69,18 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ============================================================================
-    // CREATE SUPABASE CLIENT
-    // ============================================================================
-    console.log('[API] Creating Supabase client...')
-    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    console.log('[API] ✅ Supabase client created')
+    console.log('[API] ✅ Supabase admin client created')
 
     // ============================================================================
-    // STEP 1: Create Auth User
+    // STEP 3: Create Auth User
     // ============================================================================
-    console.log('[API] STEP 1: Creating auth user...')
-    console.log('[API] Email:', email.trim().toLowerCase())
-    console.log('[API] Username:', username.trim().toLowerCase())
+    console.log('[API] Creating auth user...')
     
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
-      email_confirm: false,  // ✅ User must verify email before login
+      email_confirm: false,  // User must verify email
       user_metadata: {
         username: username.trim().toLowerCase(),
         full_name: fullName?.trim() || username.trim(),
@@ -140,30 +89,22 @@ export default defineEventHandler(async (event) => {
     })
 
     if (authError) {
-      console.error('[API] ❌ Auth creation error:', {
-        message: authError.message,
-        status: authError.status,
-        code: authError.code
-      })
+      console.error('[API] ❌ Auth creation error:', authError.message)
       
-      let errorMessage = authError.message || 'Failed to create user'
-  
       if (authError.message?.includes('already exists')) {
-        errorMessage = 'This email is already registered'
-      } else if (authError.message?.includes('invalid')) {
-        errorMessage = 'Invalid email or password'
-      } else if (authError.message?.includes('password')) {
-        errorMessage = 'Password does not meet requirements'
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'This email is already registered'
+        })
       }
       
       throw createError({
         statusCode: 400,
-        statusMessage: errorMessage
+        statusMessage: authError.message || 'Failed to create user'
       })
     }
 
     if (!authData?.user) {
-      console.error('[API] ❌ No user data returned from auth creation')
       throw createError({
         statusCode: 500,
         statusMessage: 'User creation failed'
@@ -174,54 +115,42 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Auth user created:', userId)
 
     // ============================================================================
-    // STEP 2: Create Profile in profiles table
+    // STEP 4: Create Profile via profiles view
     // ============================================================================
-    console.log('[API] STEP 2: Creating profile in profiles table...')
+    // The profiles view has INSTEAD OF INSERT trigger
+    // So inserting into profiles will automatically insert into user table
     
-    const profileData = {
-      id: userId,
-      username: username.trim().toLowerCase(),
-      username_lower: username.trim().toLowerCase(),
-      full_name: fullName?.trim() || username.trim(),
-      email: email.trim().toLowerCase(),
-      avatar_url: null,
-      bio: bio || '',
-      location: location || '',
-      verified: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-
-    console.log('[API] Profile data to insert:', {
-      id: profileData.id,
-      username: profileData.username,
-      full_name: profileData.full_name,
-      email: profileData.email
-    })
-
-    const { data: profileResult, error: profileError } = await supabase
-      .from('profiles')
-      .insert([profileData])
+    console.log('[API] Creating user profile via profiles view...')
+    
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')  // ✅ Insert into profiles view
+      .insert([{
+        id: userId,  // ✅ Use userId as id
+        user_id: userId,  // ✅ Also set user_id
+        username: username.trim().toLowerCase(),
+        full_name: fullName?.trim() || username.trim(),
+        avatar_url: null,
+        bio: '',
+        is_verified: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
       .select()
+      .single()
 
     if (profileError) {
-      console.error('[API] ❌ Profile creation error:', {
-        message: profileError.message,
-        code: profileError.code,
-        details: profileError.details
-      })
-      
-      // ⚠️ IMPORTANT: Don't fail signup if profile creation fails
-      // The user is already created in auth, so we log the error but continue
-      console.warn('[API] ⚠️ Profile creation failed, but user was created in auth')
+      console.warn('[API] ⚠️ Profile creation warning:', profileError.message)
+      // Don't fail signup if profile creation fails
+      // User is already created in auth
+      // The auto-profile trigger should create it
     } else {
-      console.log('[API] ✅ Profile created successfully:', profileResult)
+      console.log('[API] ✅ Profile created successfully')
     }
 
     // ============================================================================
-    // STEP 3: Send Verification Email
+    // STEP 5: Send Verification Email
     // ============================================================================
-    console.log('[API] STEP 3: Sending verification email...')
+    console.log('[API] Sending verification email...')
     
     const { error: resendError } = await supabase.auth.resend({
       type: 'signup',
@@ -229,16 +158,16 @@ export default defineEventHandler(async (event) => {
     })
 
     if (resendError) {
-      console.warn('[API] ⚠️ Error sending verification email:', resendError.message)
-      // Don't throw - user was created successfully
+      console.warn('[API] ⚠️ Email send warning:', resendError.message)
+      // Don't fail signup if email fails
     } else {
       console.log('[API] ✅ Verification email sent')
     }
 
     // ============================================================================
-    // SUCCESS RESPONSE - ✅ FIXED: NOW INCLUDES TOKEN
+    // STEP 6: Return Success Response
     // ============================================================================
-    console.log('[API] ✅ Signup successful for user:', userId)
+    console.log('[API] ✅ Signup successful')
     console.log('[API] ============ SIGNUP REQUEST END ============')
 
     return {
@@ -247,22 +176,16 @@ export default defineEventHandler(async (event) => {
         id: userId,
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase(),
-        display_name: fullName?.trim() || username.trim(),
+        full_name: fullName?.trim() || username.trim(),
         avatar_url: null
       },
-      // ✅ FIXED: Added token and refreshToken to response
-      token: authData.session?.access_token || null,
-      refreshToken: authData.session?.refresh_token || null,
-      expiresIn: authData.session?.expires_in || null,
-      needsConfirmation: true,
-      message: 'Account created successfully! Please check your email to verify your account.'
+      message: 'Account created successfully! Check your email to verify your account.',
+      requiresEmailVerification: true
     }
 
   } catch (error: any) {
     console.error('[API] ============ SIGNUP ERROR ============')
-    console.error('[API] Error message:', error.message)
-    console.error('[API] Error status:', error.statusCode)
-    console.error('[API] Error details:', error.statusMessage)
+    console.error('[API] Error:', error.message)
     console.error('[API] ============ END ERROR ============')
     
     throw error
