@@ -1,12 +1,7 @@
 // ============================================================================
-// FILE: /stores/auth.ts - COMPLETE ENHANCED VERSION WITH PHASE 6 IMPROVEMENTS
+// FILE: /stores/auth.ts - COMPLETE UPDATED VERSION
 // ============================================================================
-// PHASE 6 ENHANCEMENTS:
-// ✅ Enhanced clearAuth method with comprehensive clearing
-// ✅ Added forceCompleteLogout method for emergency scenarios
-// ✅ Cookie clearing in clearAuth
-// ✅ Verification of complete clearing
-// ✅ All existing methods preserved and improved
+// Auth store with complete user data and profile integration
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -24,15 +19,15 @@ export const useAuthStore = defineStore('auth', () => {
   const lastTokenValidation = ref<number>(0)
 
   // ============================================================================
-  // COMPUTED PROPERTIES - MUST BE BEFORE RETURN STATEMENT
+  // COMPUTED PROPERTIES
   // ============================================================================
+  
   const isAuthenticated = computed(() => !!token.value && !!user.value && !!userId.value)
   
   const isEmailVerified = computed(() => user.value?.email_confirmed_at || false)
   
   const isProfileComplete = computed(() => user.value?.user_metadata?.profile_completed || false)
 
-  // ✅ FIXED: Username accessible from multiple sources
   const username = computed(() => {
     return user.value?.user_metadata?.username || 
            user.value?.username ||
@@ -47,14 +42,12 @@ export const useAuthStore = defineStore('auth', () => {
     return 'User'
   })
 
-  // ✅ FIXED: Avatar accessible from multiple sources
   const userAvatar = computed(() => {
     return user.value?.user_metadata?.avatar_url || 
            user.value?.avatar_url ||
            '/default-avatar.png'
   })
 
-  // ✅ FIXED: User stats from metadata
   const userFollowers = computed(() => {
     return user.value?.user_metadata?.followers_count || 0
   })
@@ -67,12 +60,10 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value?.user_metadata?.posts_count || 0
   })
 
-  // ✅ NEW: Email accessible
   const userEmail = computed(() => {
     return user.value?.email || ''
   })
 
-  // ✅ NEW: Full name accessible
   const userFullName = computed(() => {
     return user.value?.user_metadata?.full_name || 
            user.value?.full_name ||
@@ -80,8 +71,9 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   // ============================================================================
-  // SET TOKEN METHOD - ✅ IMPROVED
+  // ACTIONS - SET STATE
   // ============================================================================
+  
   const setToken = (newToken: string | null) => {
     console.log('[Auth Store] Setting token...')
     token.value = newToken
@@ -95,13 +87,8 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] ✅ Token removed from localStorage')
       }
     }
-    
-    console.log('[Auth Store] Token updated:', !!newToken)
   }
 
-  // ============================================================================
-  // SET USER ID METHOD - ✅ IMPROVED
-  // ============================================================================
   const setUserId = (id: string) => {
     console.log('[Auth Store] Setting user ID:', id)
     userId.value = id
@@ -110,13 +97,8 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('auth_user_id', id)
       console.log('[Auth Store] ✅ User ID stored in localStorage')
     }
-    
-    console.log('[Auth Store] User ID set:', id)
   }
 
-  // ============================================================================
-  // SET USER METHOD - ✅ COMPLETELY FIXED
-  // ============================================================================
   const setUser = (newUser: any) => {
     console.log('[Auth Store] ============ SET USER START ============')
     
@@ -140,9 +122,6 @@ export const useAuthStore = defineStore('auth', () => {
       hasMetadata: !!newUser.user_metadata
     })
 
-    // ============================================================================
-    // EXTRACT USER ID
-    // ============================================================================
     const extractedId = newUser.id || newUser.user_id
     
     if (!extractedId) {
@@ -153,9 +132,6 @@ export const useAuthStore = defineStore('auth', () => {
 
     console.log('[Auth Store] ✅ User ID extracted:', extractedId)
 
-    // ============================================================================
-    // EXTRACT USER METADATA
-    // ============================================================================
     const metadata = newUser.user_metadata || {}
     
     console.log('[Auth Store] User metadata:', {
@@ -164,9 +140,6 @@ export const useAuthStore = defineStore('auth', () => {
       avatar_url: metadata.avatar_url
     })
 
-    // ============================================================================
-    // BUILD COMPLETE USER OBJECT - ✅ FIXED
-    // ============================================================================
     const userObj: User = {
       id: extractedId,
       email: newUser.email || '',
@@ -182,7 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
         following_count: metadata.following_count || 0,
         posts_count: metadata.posts_count || 0,
         profile_completed: metadata.profile_completed || false,
-        ...metadata // Include all other metadata
+        ...metadata
       },
       role: metadata.role || 'user'
     }
@@ -197,9 +170,6 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = userObj
     userId.value = extractedId
 
-    // ============================================================================
-    // PERSIST TO LOCALSTORAGE
-    // ============================================================================
     if (process.client) {
       try {
         localStorage.setItem('auth_user', JSON.stringify(userObj))
@@ -213,9 +183,6 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] ============ SET USER END ============')
   }
 
-  // ============================================================================
-  // SET REMEMBER ME METHOD
-  // ============================================================================
   const setRememberMe = (value: boolean) => {
     console.log('[Auth Store] Setting remember me:', value)
     rememberMe.value = value
@@ -231,9 +198,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ============================================================================
-  // GET REMEMBER ME METHOD
-  // ============================================================================
   const getRememberMe = (): boolean => {
     if (!process.client) return false
     
@@ -245,32 +209,22 @@ export const useAuthStore = defineStore('auth', () => {
     return value
   }
 
-  // ============================================================================
-  // CLEAR AUTH METHOD - ✅ PHASE 6 ENHANCED VERSION
-  // ============================================================================
   const clearAuth = () => {
     console.log('[Auth Store] ============ CLEAR AUTH START ============')
     console.log('[Auth Store] Clearing all auth data')
     
-    // ============================================================================
-    // CLEAR ALL STATE VARIABLES
-    // ============================================================================
     token.value = null
     user.value = null
     userId.value = null
     rememberMe.value = false
     error.value = null
     lastTokenValidation.value = 0
-    isHydrated.value = false  // ✅ NEW: Reset hydration flag
+    isHydrated.value = false
 
     console.log('[Auth Store] ✅ All state variables cleared')
 
-    // ============================================================================
-    // CLEAR LOCALSTORAGE
-    // ============================================================================
     if (process.client) {
       try {
-        // List of auth-related keys to remove
         const authKeys = [
           'auth_token',
           'auth_user_id',
@@ -297,123 +251,9 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
 
-    // ============================================================================
-    // CLEAR COOKIES
-    // ============================================================================
-    if (process.client) {
-      try {
-        console.log('[Auth Store] Clearing auth cookies...')
-
-        // Clear auth token cookie
-        try {
-          const authTokenCookie = useCookie('auth_token')
-          authTokenCookie.value = null
-          console.log('[Auth Store] ✅ Auth token cookie cleared')
-        } catch (err) {
-          console.warn('[Auth Store] ⚠️ Failed to clear auth_token cookie:', err)
-        }
-
-        // Clear refresh token cookie
-        try {
-          const refreshTokenCookie = useCookie('auth_refresh_token')
-          refreshTokenCookie.value = null
-          console.log('[Auth Store] ✅ Refresh token cookie cleared')
-        } catch (err) {
-          console.warn('[Auth Store] ⚠️ Failed to clear auth_refresh_token cookie:', err)
-        }
-
-        // Clear user cookie
-        try {
-          const userCookie = useCookie('auth_user')
-          userCookie.value = null
-          console.log('[Auth Store] ✅ User cookie cleared')
-        } catch (err) {
-          console.warn('[Auth Store] ⚠️ Failed to clear auth_user cookie:', err)
-        }
-
-        console.log('[Auth Store] ✅ All auth cookies cleared')
-      } catch (err) {
-        console.error('[Auth Store] ❌ Failed to clear cookies:', err)
-      }
-    }
-
-    // ============================================================================
-    // VERIFY COMPLETE CLEARING
-    // ============================================================================
-    console.log('[Auth Store] Verifying complete clearing...')
-    
-    const verifyState = {
-      token: token.value,
-      user: user.value,
-      userId: userId.value,
-      rememberMe: rememberMe.value,
-      error: error.value,
-      isAuthenticated: isAuthenticated.value
-    }
-
-    console.log('[Auth Store] ✅ Final state after clearing:', verifyState)
-
-    if (token.value || user.value || userId.value) {
-      console.warn('[Auth Store] ⚠️ WARNING: Some auth data still exists after clearing!')
-    } else {
-      console.log('[Auth Store] ✅ All auth data successfully cleared')
-    }
-
     console.log('[Auth Store] ============ CLEAR AUTH END ============')
   }
 
-  // ============================================================================
-  // ✅ NEW: FORCE COMPLETE LOGOUT METHOD
-  // ============================================================================
-  // Add this new method for emergency logout scenarios
-  const forceCompleteLogout = () => {
-    console.log('[Auth Store] ============ FORCE COMPLETE LOGOUT START ============')
-    console.log('[Auth Store] Performing emergency logout...')
-
-    try {
-      // Clear all state
-      clearAuth()
-
-      // Additional emergency clearing
-      if (process.client) {
-        try {
-          // Clear all localStorage
-          console.log('[Auth Store] Clearing ALL localStorage (emergency)...')
-          localStorage.clear()
-          console.log('[Auth Store] ✅ All localStorage cleared')
-        } catch (err) {
-          console.error('[Auth Store] ❌ Failed to clear all localStorage:', err)
-        }
-
-        try {
-          // Clear all sessionStorage
-          console.log('[Auth Store] Clearing ALL sessionStorage (emergency)...')
-          sessionStorage.clear()
-          console.log('[Auth Store] ✅ All sessionStorage cleared')
-        } catch (err) {
-          console.error('[Auth Store] ❌ Failed to clear all sessionStorage:', err)
-        }
-
-        try {
-          // Reload page to ensure clean state
-          console.log('[Auth Store] Reloading page for clean state...')
-          window.location.href = '/login'
-        } catch (err) {
-          console.error('[Auth Store] ❌ Failed to reload page:', err)
-        }
-      }
-
-      console.log('[Auth Store] ✅ Emergency logout completed')
-      console.log('[Auth Store] ============ FORCE COMPLETE LOGOUT END ============')
-    } catch (err) {
-      console.error('[Auth Store] ❌ Emergency logout error:', err)
-      console.log('[Auth Store] ============ FORCE COMPLETE LOGOUT END ============')
-    }
-  }
-
-  // ============================================================================
-  // VALIDATE TOKEN METHOD - ✅ IMPROVED
-  // ============================================================================
   const validateToken = async () => {
     console.log('[Auth Store] ============ VALIDATE TOKEN START ============')
     
@@ -466,9 +306,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ============================================================================
-  // HYDRATE FROM STORAGE METHOD - ✅ IMPROVED
-  // ============================================================================
   const hydrateFromStorage = async () => {
     console.log('[Auth Store] ============ HYDRATE FROM STORAGE START ============')
     
@@ -481,9 +318,6 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] Hydrating from localStorage...')
 
     try {
-      // ============================================================================
-      // RESTORE TOKEN
-      // ============================================================================
       const storedToken = localStorage.getItem('auth_token')
       if (storedToken) {
         token.value = storedToken
@@ -492,9 +326,6 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] No token in localStorage')
       }
 
-      // ============================================================================
-      // RESTORE USER ID
-      // ============================================================================
       const storedUserId = localStorage.getItem('auth_user_id')
       if (storedUserId) {
         userId.value = storedUserId
@@ -503,9 +334,6 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] No user ID in localStorage')
       }
 
-      // ============================================================================
-      // RESTORE USER DATA
-      // ============================================================================
       const storedUser = localStorage.getItem('auth_user')
       if (storedUser) {
         try {
@@ -524,18 +352,12 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] No user data in localStorage')
       }
 
-      // ============================================================================
-      // RESTORE REMEMBER ME
-      // ============================================================================
       const storedRememberMe = localStorage.getItem('auth_remember_me')
       if (storedRememberMe === 'true') {
         rememberMe.value = true
         console.log('[Auth Store] ✅ Remember me preference restored')
       }
 
-      // ============================================================================
-      // VALIDATE RESTORED TOKEN
-      // ============================================================================
       if (token.value && user.value) {
         console.log('[Auth Store] Validating restored token...')
         const isValid = await validateToken()
@@ -561,25 +383,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ============================================================================
-  // INITIALIZE SESSION METHOD
-  // ============================================================================
   const initializeSession = () => {
     console.log('[Auth Store] Initializing session...')
     return hydrateFromStorage()
   }
 
-  // ============================================================================
-  // SET LOADING METHOD
-  // ============================================================================
   const setLoading = (value: boolean) => {
     console.log('[Auth Store] Setting loading:', value)
     isLoading.value = value
   }
 
-  // ============================================================================
-  // SET ERROR METHOD
-  // ============================================================================
   const setError = (err: string | null) => {
     error.value = err
     if (err) {
@@ -589,9 +402,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ============================================================================
-  // RETURN STATEMENT - INCLUDES ALL COMPUTED PROPERTIES & METHODS
-  // ============================================================================
   return {
     // State
     token,
@@ -622,7 +432,6 @@ export const useAuthStore = defineStore('auth', () => {
     setRememberMe,
     getRememberMe,
     clearAuth,
-    forceCompleteLogout,  // ✅ NEW: Add this
     validateToken,
     hydrateFromStorage,
     initializeSession,
