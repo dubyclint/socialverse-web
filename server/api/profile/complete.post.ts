@@ -1,17 +1,17 @@
-// FILE: /server/api/profile/complete.post.ts - FIXED
 // ============================================================================
-// Complete user profile - FIXED: Proper validation and completion flag
-// ✅ FIXED: Validates required fields
-// ✅ FIXED: Sets profile_completed flag
-// ✅ FIXED: Comprehensive error handling
+// FILE: /server/api/profile/complete.post.ts - COMPLETE UPDATED VERSION
+// ============================================================================
+// Complete profile details - Phase 2 of progressive signup
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 interface CompleteProfileRequest {
-  username?: string
-  full_name?: string
-  bio?: string
+  full_name: string
+  bio: string
+  avatar_url?: string
+  location?: string
+  website?: string
   interests?: string[]
 }
 
@@ -23,18 +23,20 @@ interface CompleteProfileResponse {
 }
 
 export default defineEventHandler(async (event): Promise<CompleteProfileResponse> => {
-  try {
-    console.log('[Profile Complete API] Processing profile completion...')
+  console.log('[Profile/Complete API] ============ COMPLETE PROFILE START ============')
 
+  try {
     // ============================================================================
     // STEP 1: Authentication
     // ============================================================================
+    console.log('[Profile/Complete API] STEP 1: Authenticating user...')
+    
     const supabase = await serverSupabaseClient(event)
     
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
     if (sessionError || !session?.user) {
-      console.error('[Profile Complete API] ❌ Unauthorized')
+      console.error('[Profile/Complete API] ❌ Unauthorized')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized'
@@ -42,97 +44,115 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     }
 
     const userId = session.user.id
-    console.log('[Profile Complete API] User ID:', userId)
+    console.log('[Profile/Complete API] ✅ User authenticated:', userId)
 
     // ============================================================================
     // STEP 2: Read request body
     // ============================================================================
+    console.log('[Profile/Complete API] STEP 2: Reading request body...')
+    
     const body = await readBody<CompleteProfileRequest>(event)
-    console.log('[Profile Complete API] Completion data:', {
-      username: body.username,
+    console.log('[Profile/Complete API] Completion data:', {
       full_name: body.full_name,
       bio: body.bio,
+      location: body.location,
+      website: body.website,
       interests: body.interests?.length || 0
     })
 
     // ============================================================================
     // STEP 3: Validate required fields
     // ============================================================================
-    const requiredFields = ['username', 'full_name', 'bio']
-    const missingFields = requiredFields.filter(field => !body[field as keyof CompleteProfileRequest])
+    console.log('[Profile/Complete API] STEP 3: Validating required fields...')
+    
+    const validationErrors: string[] = []
 
-    if (missingFields.length > 0) {
+    if (!body.full_name || body.full_name.trim().length === 0) {
+      validationErrors.push('Full name is required')
+    }
+
+    if (!body.bio || body.bio.trim().length === 0) {
+      validationErrors.push('Bio is required')
+    }
+
+    if (body.full_name && body.full_name.length > 100) {
+      validationErrors.push('Full name must be less than 100 characters')
+    }
+
+    if (body.bio && body.bio.length > 500) {
+      validationErrors.push('Bio must be less than 500 characters')
+    }
+
+    if (body.location && body.location.length > 100) {
+      validationErrors.push('Location must be less than 100 characters')
+    }
+
+    if (body.website && body.website.length > 255) {
+      validationErrors.push('Website must be less than 255 characters')
+    }
+
+    if (validationErrors.length > 0) {
+      console.error('[Profile/Complete API] ❌ Validation failed:', validationErrors)
       throw createError({
         statusCode: 400,
-        statusMessage: `Missing required fields: ${missingFields.join(', ')}`
+        statusMessage: validationErrors[0]
       })
     }
 
-    // Validate username
-    const username = (body.username as string).toLowerCase().trim()
-    if (!/^[a-z0-9_-]+$/i.test(username)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username can only contain letters, numbers, underscores, and hyphens'
-      })
-    }
-
-    if (username.length < 3 || username.length > 30) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username must be between 3 and 30 characters'
-      })
-    }
-
-    // Check if username already taken
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', username)
-      .neq('id', userId)
-      .single()
-
-    if (existingUser) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Username already taken'
-      })
-    }
-
-    console.log('[Profile Complete API] ✅ Validation passed')
+    console.log('[Profile/Complete API] ✅ Validation passed')
 
     // ============================================================================
     // STEP 4: Update profile with completion flag
     // ============================================================================
-    console.log('[Profile Complete API] Completing profile...')
+    console.log('[Profile/Complete API] STEP 4: Updating profile...')
 
     const { data: profile, error: updateError } = await supabase
       .from('profiles')
       .update({
-        username,
-        full_name: (body.full_name as string).trim(),
-        bio: (body.bio as string).trim(),
+        full_name: body.full_name.trim(),
+        bio: body.bio.trim(),
+        avatar_url: body.avatar_url || null,
+        location: body.location?.trim() || null,
+        website: body.website?.trim() || null,
         interests: body.interests || [],
         profile_completed: true,
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single()
 
     if (updateError) {
-      console.error('[Profile Complete API] ❌ Update error:', updateError.message)
+      console.error('[Profile/Complete API] ❌ Update error:', {
+        message: updateError.message,
+        code: updateError.code
+      })
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to complete profile: ' + updateError.message
       })
     }
 
-    console.log('[Profile Complete API] ✅ Profile completed successfully')
+    if (!profile) {
+      console.error('[Profile/Complete API] ❌ Profile not found after update')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Profile update failed - no data returned'
+      })
+    }
+
+    console.log('[Profile/Complete API] ✅ Profile updated successfully')
+    console.log('[Profile/Complete API] Updated profile:', {
+      user_id: profile.user_id,
+      full_name: profile.full_name,
+      profile_completed: profile.profile_completed
+    })
 
     // ============================================================================
-    // STEP 5: Log completion
+    // STEP 5: Log completion for audit trail
     // ============================================================================
+    console.log('[Profile/Complete API] STEP 5: Logging completion...')
+    
     try {
       await supabase
         .from('profile_changes')
@@ -141,14 +161,18 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
           changes: { profile_completed: true },
           changed_at: new Date().toISOString()
         })
-        .catch(err => console.warn('[Profile Complete API] ⚠️ Failed to log completion:', err.message))
+        .catch(err => console.warn('[Profile/Complete API] ⚠️ Failed to log completion:', err.message))
     } catch (err: any) {
-      console.warn('[Profile Complete API] ⚠️ Audit logging error:', err.message)
+      console.warn('[Profile/Complete API] ⚠️ Audit logging error:', err.message)
     }
 
     // ============================================================================
     // STEP 6: Return success response
     // ============================================================================
+    console.log('[Profile/Complete API] STEP 6: Building response...')
+    console.log('[Profile/Complete API] ✅ Profile completed successfully')
+    console.log('[Profile/Complete API] ============ COMPLETE PROFILE END ============')
+
     return {
       success: true,
       data: profile,
@@ -156,7 +180,9 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     }
 
   } catch (err: any) {
-    console.error('[Profile Complete API] ❌ Error:', err.message)
+    console.error('[Profile/Complete API] ============ COMPLETE PROFILE ERROR ============')
+    console.error('[Profile/Complete API] Error:', err.message)
+    console.error('[Profile/Complete API] ============ END ERROR ============')
     
     if (err.statusCode) {
       throw err
