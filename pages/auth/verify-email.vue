@@ -118,7 +118,6 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { verifyEmail } = useEmailVerification()
-const supabaseClient = useSupabase()
 
 const loading = ref(true)
 const success = ref(false)
@@ -240,24 +239,25 @@ onMounted(async () => {
       fullName
     })
     
-    // ✅ If user data is null, try to get it from Supabase client
+    // ✅ If user data is null, try to get it from the auth store
     if (!userId) {
-      console.log('[Verify Email Page] User data is null, fetching from Supabase...')
+      console.log('[Verify Email Page] User data is null, fetching from auth store...')
       
       try {
-        const { data: { user: supabaseUser }, error: supabaseError } = await supabaseClient.auth.getUser()
+        // Get the auth store to access user data
+        const { $auth } = useNuxtApp()
         
-        if (!supabaseError && supabaseUser) {
-          console.log('[Verify Email Page] ✅ Got user from Supabase:', supabaseUser.id)
-          userId = supabaseUser.id
-          userEmail = supabaseUser.email
-          username = supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0]
-          fullName = supabaseUser.user_metadata?.full_name || username
+        if ($auth && $auth.user) {
+          console.log('[Verify Email Page] ✅ Got user from auth store:', $auth.user.id)
+          userId = $auth.user.id
+          userEmail = $auth.user.email
+          username = $auth.user.username || $auth.user.email?.split('@')[0]
+          fullName = $auth.user.full_name || username
         } else {
-          console.error('[Verify Email Page] ❌ Could not get user from Supabase:', supabaseError?.message)
+          console.error('[Verify Email Page] ❌ Auth store user not available')
         }
       } catch (err: any) {
-        console.error('[Verify Email Page] Exception getting user from Supabase:', err.message)
+        console.error('[Verify Email Page] Exception getting user from auth store:', err.message)
       }
     }
     
@@ -269,7 +269,7 @@ onMounted(async () => {
     })
     
     if (!userId) {
-      console.error('[Verify Email Page] ❌ No user ID found in verification response or Supabase')
+      console.error('[Verify Email Page] ❌ No user ID found in verification response or auth store')
       error.value = 'Verification successful but user data is missing. Please try signing in.'
       loading.value = false
       return
