@@ -1,9 +1,8 @@
 // FIXED: /server/api/auth/signup.post.ts
 // ============================================================================
-// ATOMIC SIGNUP ENDPOINT - USING NUXT RUNTIME CONFIG
+// ATOMIC SIGNUP ENDPOINT - WITH BETTER SUPABASE ERROR HANDLING
 // ============================================================================
-// KEY FIX: Use useRuntimeConfig() instead of process.env
-// This ensures environment variables are properly loaded from Zeabur
+// FIX: Better error logging for Supabase Auth issues
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -27,13 +26,12 @@ export default defineEventHandler(async (event) => {
     console.log('[API] Signup attempt:', { email, username })
 
     // ============================================================================
-    // PHASE 1: VALIDATION - Check ALL constraints BEFORE any DB operations
+    // PHASE 1: VALIDATION
     // ============================================================================
     console.log('[API] PHASE 1: Validating all constraints...')
     
     const validationErrors: SignupError[] = []
 
-    // Validate required fields
     if (!email || typeof email !== 'string') {
       validationErrors.push({
         step: 'INPUT_VALIDATION',
@@ -58,7 +56,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (email && !emailRegex.test(email.trim())) {
       validationErrors.push({
@@ -68,7 +65,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate password
     if (password && password.length < 6) {
       validationErrors.push({
         step: 'INPUT_VALIDATION',
@@ -85,7 +81,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validate username
     if (username && username.length < 3) {
       validationErrors.push({
         step: 'INPUT_VALIDATION',
@@ -111,7 +106,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // If validation errors exist, fail immediately
     if (validationErrors.length > 0) {
       console.error('[API] ❌ Validation failed:', validationErrors)
       throw createError({
@@ -126,7 +120,7 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ All input validations passed')
 
     // ============================================================================
-    // PHASE 2: GET RUNTIME CONFIG - ✅ FIXED: Use useRuntimeConfig()
+    // PHASE 2: GET RUNTIME CONFIG
     // ============================================================================
     console.log('[API] PHASE 2: Getting Supabase configuration...')
     
@@ -139,8 +133,6 @@ export default defineEventHandler(async (event) => {
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('[API] ❌ Missing Supabase configuration')
-      console.error('[API] supabaseUrl:', supabaseUrl)
-      console.error('[API] supabaseServiceKey:', supabaseServiceKey ? 'SET' : 'NOT SET')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error - Supabase credentials not configured',
@@ -148,7 +140,7 @@ export default defineEventHandler(async (event) => {
           errors: [{
             step: 'SUPABASE_CONFIG',
             code: 'MISSING_CREDENTIALS',
-            message: 'Supabase URL or Service Role Key is not configured in Zeabur environment variables'
+            message: 'Supabase URL or Service Role Key is not configured'
           }]
         }
       })
@@ -158,13 +150,12 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase admin client created')
 
     // ============================================================================
-    // PHASE 3: CHECK CONSTRAINTS - Email and Username uniqueness
+    // PHASE 3: CHECK CONSTRAINTS
     // ============================================================================
     console.log('[API] PHASE 3: Checking database constraints...')
     
     const constraintErrors: SignupError[] = []
 
-    // Check if email already exists in auth.users
     console.log('[API] Checking email uniqueness in auth.users...')
     const { data: authUsers, error: authCheckError } = await supabase.auth.admin.listUsers()
     
@@ -193,7 +184,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Check if username already exists in user table
     console.log('[API] Checking username uniqueness in user table...')
     const { data: existingUser, error: usernameCheckError } = await supabase
       .from('user')
@@ -210,7 +200,6 @@ export default defineEventHandler(async (event) => {
     }
 
     if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
-      // PGRST116 = no rows found (expected)
       console.error('[API] ⚠️ Error checking username:', usernameCheckError)
       constraintErrors.push({
         step: 'CONSTRAINT_CHECK',
@@ -220,7 +209,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // If constraint errors exist, fail before creating anything
     if (constraintErrors.length > 0) {
       console.error('[API] ❌ Constraint check failed:', constraintErrors)
       throw createError({
@@ -256,8 +244,19 @@ export default defineEventHandler(async (event) => {
       console.error('[API] ❌ Auth user creation failed:', {
         message: authError.message,
         status: authError.status,
-        code: authError.code
+        code: authError.code,
+        fullError: JSON.stringify(authError)
       })
+      
+      // ⭐ Better error message for common Supabase errors
+      let userMessage = authError.message || 'Failed to create authentication user'
+      
+      if (authError.message?.includes('already exists')) {
+        userMessage = 'This email is already registered'
+      } else if (authError.message?.includes('Database error')) {
+        userMessage = 'Database error. Please try again or contact support.'
+      }
+      
       throw createError({
         statusCode: 400,
         statusMessage: 'Failed to create user account',
@@ -265,10 +264,11 @@ export default defineEventHandler(async (event) => {
           errors: [{
             step: 'AUTH_USER_CREATION',
             code: authError.code || 'AUTH_ERROR',
-            message: authError.message || 'Failed to create authentication user',
+            message: userMessage,
             details: {
               status: authError.status,
-              code: authError.code
+              code: authError.code,
+              originalMessage: authError.message
             }
           }]
         }
@@ -320,7 +320,6 @@ export default defineEventHandler(async (event) => {
         details: profileError.details
       })
 
-      // ⭐ ATOMIC ROLLBACK: Delete the auth user since profile creation failed
       console.log('[API] 🔄 Rolling back: Deleting auth user due to profile creation failure...')
       
       const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
@@ -354,7 +353,6 @@ export default defineEventHandler(async (event) => {
     if (!profileData?.id) {
       console.error('[API] ❌ Profile created but no data returned')
       
-      // ⭐ ATOMIC ROLLBACK
       console.log('[API] 🔄 Rolling back: Deleting auth user due to missing profile data...')
       const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
       
@@ -403,7 +401,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 7: SUCCESS - Return complete response
+    // PHASE 7: SUCCESS
     // ============================================================================
     console.log('[API] ✅ Signup completed successfully')
     console.log('[API] ============ SIGNUP REQUEST END ============')
@@ -428,7 +426,6 @@ export default defineEventHandler(async (event) => {
     console.error('[API] Error status:', error.statusCode)
     console.error('[API] Error data:', error.data)
 
-    // ⭐ FINAL SAFETY CHECK: If auth user was created but we're throwing error, try to rollback
     if (authUserId) {
       console.log('[API] 🔄 Final safety rollback: Attempting to delete orphaned auth user...')
       try {
