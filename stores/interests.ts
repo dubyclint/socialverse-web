@@ -1,5 +1,7 @@
-// FILE: /stores/interests.ts - CREATE
-// Interests store
+// ============================================================================
+// FILE: /stores/interests.ts - NEW FILE
+// ============================================================================
+// Interests store for managing user interests
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -7,56 +9,138 @@ import { ref, computed } from 'vue'
 import type { Interest } from '~/types/interests'
 
 export const useInterestsStore = defineStore('interests', () => {
-  const availableInterests = ref<Interest[]>([])
+  const allInterests = ref<Interest[]>([])
   const userInterests = ref<Interest[]>([])
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
 
-  const availableGrouped = computed(() => {
-    return availableInterests.value.reduce((acc: any, interest: Interest) => {
-      const cat = interest.category || 'Other'
-      if (!acc[cat]) {
-        acc[cat] = []
+  // ============================================================================
+  // COMPUTED PROPERTIES
+  // ============================================================================
+  
+  const groupedInterests = computed(() => {
+    const grouped: Record<string, Interest[]> = {}
+    allInterests.value.forEach(interest => {
+      const category = interest.category || 'Other'
+      if (!grouped[category]) {
+        grouped[category] = []
       }
-      acc[cat].push(interest)
-      return acc
-    }, {})
+      grouped[category].push(interest)
+    })
+    return grouped
   })
 
   const userInterestIds = computed(() => {
     return userInterests.value.map(i => i.id)
   })
 
-  const setAvailableInterests = (interests: Interest[]) => {
-    availableInterests.value = interests
-  }
+  const interestCount = computed(() => {
+    return userInterests.value.length
+  })
 
-  const setUserInterests = (interests: Interest[]) => {
-    userInterests.value = interests
-  }
+  // ============================================================================
+  // ACTIONS - FETCH INTERESTS
+  // ============================================================================
+  
+  const fetchAllInterests = async () => {
+    console.log('[Interests Store] Fetching all interests...')
+    isLoading.value = true
+    error.value = null
 
-  const addUserInterest = (interest: Interest) => {
-    if (!userInterestIds.value.includes(interest.id)) {
-      userInterests.value.push(interest)
+    try {
+      const response = await $fetch('/api/interests/list')
+      
+      if (response?.interests) {
+        allInterests.value = response.interests
+        console.log('[Interests Store] ✅ Interests fetched:', allInterests.value.length)
+      }
+    } catch (err: any) {
+      console.error('[Interests Store] ❌ Failed to fetch interests:', err.message)
+      error.value = err.message
+    } finally {
+      isLoading.value = false
     }
   }
 
-  const removeUserInterest = (interestId: string) => {
-    userInterests.value = userInterests.value.filter(i => i.id !== interestId)
+  const fetchUserInterests = async () => {
+    console.log('[Interests Store] Fetching user interests...')
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await $fetch('/api/interests/user')
+      
+      if (response?.interests) {
+        userInterests.value = response.interests
+        console.log('[Interests Store] ✅ User interests fetched:', userInterests.value.length)
+      }
+    } catch (err: any) {
+      console.error('[Interests Store] ❌ Failed to fetch user interests:', err.message)
+      error.value = err.message
+    } finally {
+      isLoading.value = false
+    }
   }
 
-  const clearInterests = () => {
-    availableInterests.value = []
-    userInterests.value = []
+  // ============================================================================
+  // ACTIONS - MANAGE INTERESTS
+  // ============================================================================
+  
+  const addInterest = async (interestId: string) => {
+    console.log('[Interests Store] Adding interest:', interestId)
+
+    try {
+      await $fetch('/api/interests/add', {
+        method: 'POST',
+        body: { interestId }
+      })
+      
+      console.log('[Interests Store] ✅ Interest added')
+      await fetchUserInterests()
+    } catch (err: any) {
+      console.error('[Interests Store] ❌ Failed to add interest:', err.message)
+      error.value = err.message
+    }
+  }
+
+  const removeInterest = async (interestId: string) => {
+    console.log('[Interests Store] Removing interest:', interestId)
+
+    try {
+      await $fetch('/api/interests/remove', {
+        method: 'POST',
+        body: { interestId }
+      })
+      
+      console.log('[Interests Store] ✅ Interest removed')
+      await fetchUserInterests()
+    } catch (err: any) {
+      console.error('[Interests Store] ❌ Failed to remove interest:', err.message)
+      error.value = err.message
+    }
+  }
+
+  const isInterestSelected = (interestId: string): boolean => {
+    return userInterestIds.value.includes(interestId)
   }
 
   return {
-    availableInterests,
+    // State
+    allInterests,
     userInterests,
-    availableGrouped,
+    isLoading,
+    error,
+
+    // Computed
+    groupedInterests,
     userInterestIds,
-    setAvailableInterests,
-    setUserInterests,
-    addUserInterest,
-    removeUserInterest,
-    clearInterests
+    interestCount,
+
+    // Methods
+    fetchAllInterests,
+    fetchUserInterests,
+    addInterest,
+    removeInterest,
+    isInterestSelected
   }
 })
