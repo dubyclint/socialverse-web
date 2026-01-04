@@ -1,15 +1,13 @@
 // ============================================================================
-// FILE 1: /types/auth.ts - COMPLETE TYPE DEFINITIONS
+// FILE: /types/auth.ts - COMPLETE UPDATED VERSION
 // ============================================================================
-// FIXES:
-// ✅ Add Profile type definition
-// ✅ Add ProfileStore type
-// ✅ Ensure all types are properly defined
-// ✅ Add type safety for profile data
+// Auth types with complete user data and profile integration
 // ============================================================================
 
+import type { Profile, VerifiedBadgeType, VerificationStatus } from './profile'
+
 // ============================================================================
-// USER TYPE - Extended with profile data
+// USER INTERFACE - EXTENDED WITH PROFILE DATA
 // ============================================================================
 export interface User {
   id: string
@@ -23,7 +21,7 @@ export interface User {
 }
 
 // ============================================================================
-// USER METADATA TYPE
+// USER METADATA INTERFACE
 // ============================================================================
 export interface UserMetadata {
   username?: string | null
@@ -37,38 +35,37 @@ export interface UserMetadata {
 }
 
 // ============================================================================
-// PROFILE TYPE - Complete profile data from profiles table
+// COMPLETE USER PROFILE INTERFACE
 // ============================================================================
-export interface Profile {
+export interface UserProfile {
+  // Auth User Data
   id: string
-  username: string
-  username_lower: string
-  full_name: string
   email: string
-  avatar_url: string | null
-  bio: string
-  location: string
-  website?: string
-  verified: boolean
-  followers_count?: number
-  following_count?: number
-  posts_count?: number
-  created_at: string
-  updated_at: string
-}
+  username: string
 
-// ============================================================================
-// PROFILE STATS TYPE
-// ============================================================================
-export interface ProfileStats {
+  // Profile Data
+  profile: Profile
+
+  // Rank Data
+  rank: string
+  rank_points: number
+  rank_level: number
+
+  // Verification Data
+  is_verified: boolean
+  verified_badge_type: VerifiedBadgeType | null
+  verification_status: VerificationStatus
+
+  // Stats
   followers_count: number
   following_count: number
   posts_count: number
 }
 
 // ============================================================================
-// AUTH RESPONSE TYPE
+// AUTH RESPONSE TYPES
 // ============================================================================
+
 export interface AuthResponse {
   success: boolean
   message?: string
@@ -80,9 +77,6 @@ export interface AuthResponse {
   error?: string
 }
 
-// ============================================================================
-// LOGIN RESPONSE TYPE
-// ============================================================================
 export interface LoginResponse {
   success: boolean
   token: string
@@ -92,21 +86,22 @@ export interface LoginResponse {
     id: string
     email: string
     username: string
-    full_name: string
+    full_name: string | null
     avatar_url: string | null
+    rank: string
+    rank_points: number
+    rank_level: number
+    is_verified: boolean
   }
 }
 
-// ============================================================================
-// SIGNUP RESPONSE TYPE
-// ============================================================================
 export interface SignupResponse {
   success: boolean
   user: {
     id: string
     email: string
     username: string
-    display_name: string
+    full_name: string | null
     avatar_url: string | null
   }
   token: string | null
@@ -130,111 +125,20 @@ export interface AuthStoreState {
 }
 
 // ============================================================================
-// PROFILE STORE STATE TYPE
+// CREDENTIALS TYPES
 // ============================================================================
-export interface ProfileStoreState {
-  profile: Profile | null
-  isLoading: boolean
-  error: string | null
-  isHydrated: boolean
-}
 
-// ============================================================================
-// PROFILE STORE TYPE - For Pinia store
-// ============================================================================
-export interface IProfileStore {
-  // State
-  profile: Profile | null
-  isLoading: boolean
-  error: string | null
-  isHydrated: boolean
-
-  // Computed
-  username: string
-  displayName: string
-  avatar: string
-  followers: number
-  following: number
-  posts: number
-  isProfileComplete: boolean
-
-  // Methods
-  setProfile: (profile: Profile | null) => void
-  setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
-  clearProfile: () => void
-  fetchProfile: (userId: string) => Promise<void>
-  updateProfile: (updates: Partial<Profile>) => Promise<void>
-  hydrateFromStorage: () => Promise<void>
-}
-
-// ============================================================================
-// AUTH COMPOSABLE RETURN TYPE
-// ============================================================================
-export interface UseAuthReturn {
-  loading: Ref<boolean>
-  error: Ref<string | null>
-  signup: (credentials: SignupCredentials) => Promise<AuthResponse>
-  login: (credentials: LoginCredentials) => Promise<AuthResponse>
-  logout: () => Promise<AuthResponse>
-  verifyEmail: (token: string) => Promise<AuthResponse>
-  resetPassword: (email: string) => Promise<AuthResponse>
-  updatePassword: (newPassword: string) => Promise<AuthResponse>
-  clearError: () => void
-  isAuthenticated: ComputedRef<boolean>
-  user: ComputedRef<User | null>
-  token: ComputedRef<string | null>
-}
-
-// ============================================================================
-// PROFILE COMPOSABLE RETURN TYPE
-// ============================================================================
-export interface UseProfileReturn {
-  profile: ComputedRef<Profile | null>
-  loading: ComputedRef<boolean>
-  error: ComputedRef<string | null>
-  username: ComputedRef<string>
-  displayName: ComputedRef<string>
-  avatar: ComputedRef<string>
-  followers: ComputedRef<number>
-  following: ComputedRef<number>
-  posts: ComputedRef<number>
-  fetchProfile: (userId: string) => Promise<void>
-  updateProfile: (updates: Partial<Profile>) => Promise<void>
-  clearError: () => void
-}
-
-// ============================================================================
-// SIGNUP CREDENTIALS TYPE
-// ============================================================================
 export interface SignupCredentials {
   email: string
   password: string
   username: string
   fullName?: string
-  phone?: string
-  bio?: string
-  location?: string
 }
 
-// ============================================================================
-// LOGIN CREDENTIALS TYPE
-// ============================================================================
 export interface LoginCredentials {
   email: string
   password: string
   rememberMe?: boolean
-}
-
-// ============================================================================
-// PROFILE UPDATE TYPE
-// ============================================================================
-export interface ProfileUpdate {
-  full_name?: string
-  bio?: string
-  location?: string
-  website?: string
-  avatar_url?: string | null
 }
 
 // ============================================================================
@@ -245,22 +149,21 @@ export interface ApiError {
   statusMessage: string
   data?: {
     statusMessage: string
+    details?: any
   }
   message?: string
 }
 
 // ============================================================================
-// PAGINATION TYPE
+// PAGINATION TYPES
 // ============================================================================
+
 export interface PaginationParams {
   page: number
   limit: number
   offset: number
 }
 
-// ============================================================================
-// PAGINATION RESPONSE TYPE
-// ============================================================================
 export interface PaginationResponse<T> {
   data: T[]
   total: number
