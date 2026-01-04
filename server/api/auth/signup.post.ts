@@ -1,13 +1,9 @@
-// CORRECTED: /server/api/auth/signup.post.ts
+// FIXED: /server/api/auth/signup.post.ts
 // ============================================================================
-// ATOMIC SIGNUP ENDPOINT - ALL OR NOTHING
+// ATOMIC SIGNUP ENDPOINT - USING NUXT RUNTIME CONFIG
 // ============================================================================
-// KEY PRINCIPLES:
-// ✅ Validate ALL constraints BEFORE any database operations
-// ✅ If ANY step fails, rollback and return clear error
-// ✅ Auth user and profile must BOTH succeed or BOTH fail
-// ✅ Detailed error messages for debugging
-// ✅ No orphaned auth users or profiles
+// KEY FIX: Use useRuntimeConfig() instead of process.env
+// This ensures environment variables are properly loaded from Zeabur
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -130,23 +126,29 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ All input validations passed')
 
     // ============================================================================
-    // PHASE 2: INITIALIZE SUPABASE
+    // PHASE 2: GET RUNTIME CONFIG - ✅ FIXED: Use useRuntimeConfig()
     // ============================================================================
-    console.log('[API] PHASE 2: Initializing Supabase...')
+    console.log('[API] PHASE 2: Getting Supabase configuration...')
     
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const config = useRuntimeConfig()
+    const supabaseUrl = config.supabaseUrl
+    const supabaseServiceKey = config.supabaseServiceKey
+
+    console.log('[API] Supabase URL:', supabaseUrl)
+    console.log('[API] Service key available:', !!supabaseServiceKey)
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[API] ❌ Missing Supabase credentials')
+      console.error('[API] ❌ Missing Supabase configuration')
+      console.error('[API] supabaseUrl:', supabaseUrl)
+      console.error('[API] supabaseServiceKey:', supabaseServiceKey ? 'SET' : 'NOT SET')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Server configuration error',
+        statusMessage: 'Server configuration error - Supabase credentials not configured',
         data: {
           errors: [{
-            step: 'SUPABASE_INIT',
+            step: 'SUPABASE_CONFIG',
             code: 'MISSING_CREDENTIALS',
-            message: 'Supabase credentials not configured'
+            message: 'Supabase URL or Service Role Key is not configured in Zeabur environment variables'
           }]
         }
       })
@@ -294,7 +296,6 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // PHASE 5: CREATE USER PROFILE
     // ============================================================================
-    // This is where the INSTEAD OF INSERT trigger converts to user table insert
     console.log('[API] PHASE 5: Creating user profile...')
     
     const { data: profileData, error: profileError } = await supabase
@@ -326,12 +327,11 @@ export default defineEventHandler(async (event) => {
       
       if (deleteError) {
         console.error('[API] ❌ CRITICAL: Failed to rollback auth user:', deleteError)
-        // Log this critical error but still return the profile error to user
       } else {
         console.log('[API] ✅ Auth user rolled back successfully')
       }
 
-      authUserId = null // Mark as rolled back
+      authUserId = null
 
       throw createError({
         statusCode: 400,
@@ -398,7 +398,6 @@ export default defineEventHandler(async (event) => {
 
     if (resendError) {
       console.warn('[API] ⚠️ Email send failed (non-critical):', resendError.message)
-      // Don't fail signup if email fails - user can resend later
     } else {
       console.log('[API] ✅ Verification email sent')
     }
@@ -433,8 +432,9 @@ export default defineEventHandler(async (event) => {
     if (authUserId) {
       console.log('[API] 🔄 Final safety rollback: Attempting to delete orphaned auth user...')
       try {
-        const supabaseUrl = process.env.SUPABASE_URL
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        const config = useRuntimeConfig()
+        const supabaseUrl = config.supabaseUrl
+        const supabaseServiceKey = config.supabaseServiceKey
         
         if (supabaseUrl && supabaseServiceKey) {
           const supabase = createClient(supabaseUrl, supabaseServiceKey)
