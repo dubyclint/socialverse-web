@@ -1,37 +1,33 @@
-// ============================================================================
-// CORRECTED FILE: /server/api/auth/verify-email.post.ts
-// ============================================================================
-// FIX: Properly handle Supabase verification codes with correct parameters
-// ============================================================================
+// FILE 1: server/api/auth/verify-email.post.ts
+// ISSUE: Frontend sends code via query param, backend expects token in body
+ // FIX: Accept code from query params and handle it properly
 
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event)
+    const body = await readBody(event).catch(() => ({}))
+    const query = getQuery(event)
     
     console.log('[API] ============ EMAIL VERIFICATION START ============')
-    console.log('[API] Email verification request received')
-
-    const { token, type } = body
-
-    // ✅ VALIDATE: Token is required
+    
+    // Accept token from either body or query
+    let token = body.token || query.code
+    
     if (!token) {
-      console.error('[API] ❌ Token is missing')
+      console.error('[API] ❌ Token/code is missing')
       throw createError({
         statusCode: 400,
         statusMessage: 'Verification token is required'
       })
     }
 
-    console.log('[API] Token received (first 20 chars):', token.substring(0, 20) + '...')
-    console.log('[API] Type:', type || 'not specified')
+    console.log('[API] Token received (first 20 chars):', String(token).substring(0, 20) + '...')
 
-    // ✅ Create Supabase client
     const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseAnonKey = process.env.NUXT_PUBLIC_SUPABASE_KEY
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.error('[API] ❌ Missing Supabase credentials')
       throw createError({
         statusCode: 500,
@@ -39,135 +35,39 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
     console.log('[API] ✅ Supabase client created')
 
-    // ============================================================================
-    // STEP 1: Try OTP verification with token_hash (PRIMARY - for ?code= format)
-    // ============================================================================
-    console.log('[API] STEP 1: Attempting OTP verification with token_hash...')
-    
-    try {
-      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'email'
-      })
+    // Try to verify the OTP
+    console.log('[API] Attempting OTP verification...')
+    const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
+      token_hash: String(token),
+      type: 'email'
+    })
 
-      if (!otpError && otpData?.user) {
-        console.log('[API] ✅ OTP verified successfully')
-        console.log('[API] User ID:', otpData.user.id)
-        console.log('[API] Email confirmed:', otpData.user.email_confirmed_at)
-        
-        return {
-          success: true,
-          message: 'Email verified successfully!',
-          user: {
-            id: otpData.user.id,
-            email: otpData.user.email,
-            email_confirmed_at: otpData.user.email_confirmed_at,
-            username: otpData.user.user_metadata?.username,
-            full_name: otpData.user.user_metadata?.full_name
-          },
-          session: otpData.session
+    if (!otpError && otpData?.user) {
+      console.log('[API] ✅ Email verified successfully')
+      console.log('[API] User ID:', otpData.user.id)
+      
+      return {
+        success: true,
+        message: 'Email verified successfully!',
+        user: {
+          id: otpData.user.id,
+          email: otpData.user.email,
+          email_confirmed_at: otpData.user.email_confirmed_at
         }
       }
-      
-      if (otpError) {
-        console.log('[API] OTP verification error:', otpError.message)
-      }
-    } catch (err: any) {
-      console.log('[API] OTP verification exception:', err.message)
     }
 
-    // ============================================================================
-    // STEP 2: Try code exchange (FALLBACK - for hash format)
-    // ============================================================================
-    console.log('[API] STEP 2: Attempting code exchange...')
-    
-    try {
-      // Get the origin from the request
-      const origin = getHeader(event, 'origin') || process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app'
-      console.log('[API] Using origin:', origin)
-      
-      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(token)
-
-      if (!codeError && codeData?.user) {
-        console.log('[API] ✅ Code exchange successful')
-        console.log('[API] User ID:', codeData.user.id)
-        
-        return {
-          success: true,
-          message: 'Email verified successfully!',
-          user: {
-            id: codeData.user.id,
-            email: codeData.user.email,
-            email_confirmed_at: codeData.user.email_confirmed_at,
-            username: codeData.user.user_metadata?.username,
-            full_name: codeData.user.user_metadata?.full_name
-          },
-          session: codeData.session
-        }
-      }
-      
-      if (codeError) {
-        console.log('[API] Code exchange error:', codeError.message)
-      }
-    } catch (err: any) {
-      console.log('[API] Code exchange exception:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 3: Try session token verification (ALTERNATIVE)
-    // ============================================================================
-    console.log('[API] STEP 3: Attempting session token verification...')
-    
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getUser(token)
-
-      if (!sessionError && sessionData?.user) {
-        console.log('[API] ✅ Session token verified')
-        console.log('[API] User ID:', sessionData.user.id)
-        
-        return {
-          success: true,
-          message: 'Email verified successfully!',
-          user: {
-            id: sessionData.user.id,
-            email: sessionData.user.email,
-            email_confirmed_at: sessionData.user.email_confirmed_at,
-            username: sessionData.user.user_metadata?.username,
-            full_name: sessionData.user.user_metadata?.full_name
-          }
-        }
-      }
-      
-      if (sessionError) {
-        console.log('[API] Session verification error:', sessionError.message)
-      }
-    } catch (err: any) {
-      console.log('[API] Session verification exception:', err.message)
-    }
-
-    // ============================================================================
-    // All methods failed
-    // ============================================================================
-    console.error('[API] ❌ All verification methods failed')
-    console.error('[API] Token format not recognized or invalid')
-    console.error('[API] This could mean:')
-    console.error('[API] 1. The verification link has expired')
-    console.error('[API] 2. The token is invalid or malformed')
-    console.error('[API] 3. The email was already verified')
-    
+    console.error('[API] ❌ Verification failed:', otpError?.message)
     throw createError({
       statusCode: 400,
-      statusMessage: 'Email verification failed. The verification link may have expired. Please request a new verification email.'
+      statusMessage: 'Email verification failed. The verification link may have expired.'
     })
 
   } catch (error: any) {
-    console.error('[API] ============ VERIFICATION ERROR ============')
-    console.error('[API] Error:', error.message)
-    console.error('[API] Status:', error.statusCode)
-    console.error('[API] ============ END ERROR ============')
+    console.error('[API] Verification error:', error.message)
     throw error
   }
 })
