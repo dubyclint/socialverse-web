@@ -1,5 +1,5 @@
- // server/api/auth/complete-signup.post.ts
-// Use admin client instead of serverSupabaseClient
+//FILE 2: /server/api/auth/complete-signup.post.ts
+//COMPLETE FILE - Complete Signup Profile Creation
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -135,4 +135,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-
