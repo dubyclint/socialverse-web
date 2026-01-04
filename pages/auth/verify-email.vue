@@ -1,8 +1,111 @@
-// ============================================================================
-// CORRECTED FILE 2: /pages/auth/verify-email.vue (Script section only)
-// ============================================================================
-// FIX: Handle both hash and query parameter formats from Supabase
-// ============================================================================
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+      <!-- Logo/Header -->
+      <div class="text-center mb-8">
+        <NuxtLink to="/" class="inline-block">
+          <h1 class="text-4xl font-bold text-white mb-2">🌐 SocialVerse</h1>
+        </NuxtLink>
+        <p class="text-slate-300">Verify your email address</p>
+      </div>
+
+      <!-- Verification Card -->
+      <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
+        <!-- Loading State -->
+        <div v-if="loading" class="text-center space-y-4">
+          <div class="flex justify-center">
+            <svg class="animate-spin h-12 w-12 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-white">Verifying Email</h2>
+          <p class="text-slate-300">Please wait while we verify your email address...</p>
+        </div>
+
+        <!-- Success State -->
+        <div v-else-if="success" class="text-center space-y-4">
+          <div class="flex justify-center">
+            <div class="text-6xl">✅</div>
+          </div>
+          <h2 class="text-2xl font-bold text-white">Email Verified!</h2>
+          <p class="text-slate-300">Your email has been successfully verified.</p>
+          <p class="text-slate-400 text-sm">Redirecting to your feed in {{ redirectCountdown }} seconds...</p>
+          <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-full transition-all" :style="{ width: ((5 - redirectCountdown) / 5) * 100 + '%' }"></div>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else class="text-center space-y-4">
+          <div class="flex justify-center">
+            <div class="text-6xl">❌</div>
+          </div>
+          <h2 class="text-2xl font-bold text-white">Verification Failed</h2>
+          <div class="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+            <p class="text-red-200 text-sm">{{ error }}</p>
+          </div>
+          
+          <!-- Resend Email Section -->
+          <div class="space-y-3 mt-6">
+            <p class="text-slate-300 text-sm">Didn't receive the email or link expired?</p>
+            
+            <button
+              @click="resendEmail"
+              :disabled="resendLoading"
+              class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              <span v-if="resendLoading" class="flex items-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Sending...
+              </span>
+              <span v-else>Resend Verification Email</span>
+            </button>
+
+            <!-- Resend Success Message -->
+            <div v-if="resendSuccess" class="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
+              <p class="text-green-200 text-sm flex items-center">
+                <span class="mr-2">✅</span>
+                {{ resendSuccess }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Back to Signin Link -->
+          <div class="relative my-6">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-white/20"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-4 bg-transparent text-slate-300">or</span>
+            </div>
+          </div>
+
+          <NuxtLink
+            to="/auth/signin"
+            class="block w-full text-center bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 border border-white/20"
+          >
+            Back to Sign In
+          </NuxtLink>
+        </div>
+      </div>
+
+      <!-- Footer Links -->
+      <div class="text-center mt-6 space-x-4">
+        <NuxtLink to="/terms-and-policy" class="text-slate-300 hover:text-white text-sm transition-colors">
+          Terms
+        </NuxtLink>
+        <span class="text-slate-500">•</span>
+        <NuxtLink to="/terms-and-policy" class="text-slate-300 hover:text-white text-sm transition-colors">
+          Privacy
+        </NuxtLink>
+      </div>
+    </div>
+  </div>
+</template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
@@ -120,29 +223,39 @@ onMounted(async () => {
 
   if (result.success) {
     console.log('[Verify Email Page] ✅ Email verified successfully')
-    console.log('[Verify Email Page] User ID:', result.user?.id)
+    console.log('[Verify Email Page] Result:', result)
+    console.log('[Verify Email Page] User:', result.user)
     
+    // ✅ FIX: Get user ID from result.user or result.data.user
+    const userId = result.user?.id || result.data?.user?.id
+    const userEmail = result.user?.email || result.data?.user?.email
+    const username = result.user?.username || result.data?.user?.username || userEmail?.split('@')[0]
+    const fullName = result.user?.full_name || result.data?.user?.full_name || username
+    
+    console.log('[Verify Email Page] Extracted user data:', {
+      userId,
+      userEmail,
+      username,
+      fullName
+    })
+    
+    if (!userId) {
+      console.error('[Verify Email Page] ❌ No user ID found in verification response')
+      error.value = 'Verification successful but user data is missing'
+      loading.value = false
+      return
+    }
+
     console.log('[Verify Email Page] Creating user profile...')
     
     try {
-      const username = result.user?.username || result.user?.email?.split('@')[0] || 'user'
-      const fullName = result.user?.full_name || username
-      const email = result.user?.email || ''
-      
-      console.log('[Verify Email Page] Profile creation params:', {
-        userId: result.user?.id,
-        username: username,
-        fullName: fullName,
-        email: email
-      })
-      
       const completeResult = await $fetch('/api/auth/complete-signup', {
         method: 'POST',
         body: {
-          userId: result.user?.id,
+          userId: userId,
           username: username,
           fullName: fullName,
-          email: email
+          email: userEmail
         }
       })
 
@@ -208,3 +321,23 @@ const resendEmail = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Custom scrollbar for the page */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+</style>
