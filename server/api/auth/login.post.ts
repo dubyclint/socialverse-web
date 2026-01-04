@@ -1,12 +1,7 @@
 // ============================================================================
-// FILE 6: /server/api/auth/login.post.ts - COMPLETE FIXED VERSION (FINAL)
+// FILE: /server/api/auth/login.post.ts - COMPLETE UPDATED VERSION
 // ============================================================================
-// FIXES:
-// ✅ Verify it returns complete user data
-// ✅ Ensure token is returned
-// ✅ Better error handling
-// ✅ Profile fetch on login
-// ✅ Auto-create profile if missing
+// Login with complete profile data including rank and verification
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -73,7 +68,6 @@ export default defineEventHandler(async (event) => {
         code: error.code
       })
       
-      // Check for specific error messages
       if (error.message.includes('Email not confirmed')) {
         console.warn('[Auth/Login] Email not confirmed for:', email)
         throw createError({
@@ -98,7 +92,6 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      // Generic error
       throw createError({
         statusCode: 401,
         statusMessage: error.message || 'Authentication failed'
@@ -123,17 +116,36 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] ✅ Session created')
 
     // ============================================================================
-    // STEP 6: Fetch profile from profiles table
+    // STEP 6: Fetch complete profile with rank and verification
     // ============================================================================
-    console.log('[Auth/Login] STEP 6: Fetching profile from profiles table...')
+    console.log('[Auth/Login] STEP 6: Fetching complete profile...')
+    
     const { data: profile, error: profileError } = await supabase
-  .from('profiles')
-  .select('id, user_id, username, full_name, avatar_url, bio, is_verified, created_at, updated_at')
-  // ✅ Removed: email, location
-  // ✅ Added: user_id, created_at, updated_at
-  // ✅ Changed: verified → is_verified
-  .eq('id', data.user.id)
-  .single()
+      .from('profiles')
+      .select(`
+        user_id,
+        full_name,
+        bio,
+        avatar_url,
+        location,
+        website,
+        interests,
+        colors,
+        items,
+        profile_completed,
+        rank,
+        rank_points,
+        rank_level,
+        is_verified,
+        verified_badge_type,
+        verified_at,
+        verification_status,
+        badge_count,
+        created_at,
+        updated_at
+      `)
+      .eq('user_id', data.user.id)
+      .single()
     
     if (profileError) {
       console.warn('[Auth/Login] ⚠️ Profile fetch error:', {
@@ -161,15 +173,24 @@ export default defineEventHandler(async (event) => {
         const { data: newProfile, error: createProfileError } = await supabase
           .from('profiles')
           .insert({
-            id: data.user.id,
-            username: username.toLowerCase(),
-            username_lower: username.toLowerCase(),
+            user_id: data.user.id,
             full_name: fullName,
-            email: data.user.email,
+            bio: null,
             avatar_url: null,
-            bio: '',
-            location: '',
-            verified: false,
+            location: null,
+            website: null,
+            interests: [],
+            colors: {},
+            items: [],
+            profile_completed: false,
+            rank: 'Bronze I',
+            rank_points: 0,
+            rank_level: 1,
+            is_verified: false,
+            verified_badge_type: null,
+            verified_at: null,
+            verification_status: 'none',
+            badge_count: 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
@@ -198,16 +219,22 @@ export default defineEventHandler(async (event) => {
               email: data.user.email,
               username: data.user.user_metadata?.username || username,
               full_name: data.user.user_metadata?.full_name || fullName,
-              avatar_url: data.user.user_metadata?.avatar_url || null
+              avatar_url: data.user.user_metadata?.avatar_url || null,
+              rank: 'Bronze I',
+              rank_points: 0,
+              rank_level: 1,
+              is_verified: false,
+              verified_badge_type: null,
+              verification_status: 'none'
             }
           }
         }
         
         console.log('[Auth/Login] ✅ Profile created successfully')
         console.log('[Auth/Login] New profile:', {
-          id: newProfile.id,
-          username: newProfile.username,
-          full_name: newProfile.full_name
+          user_id: newProfile.user_id,
+          full_name: newProfile.full_name,
+          rank: newProfile.rank
         })
         
         // ============================================================================
@@ -222,11 +249,17 @@ export default defineEventHandler(async (event) => {
           refreshToken: data.session.refresh_token,
           expiresIn: data.session.expires_in,
           user: {
-            id: newProfile.id,
-            email: newProfile.email,
-            username: newProfile.username,
+            id: newProfile.user_id,
+            email: data.user.email,
+            username: newProfile.full_name?.split(' ')[0] || 'user',
             full_name: newProfile.full_name,
-            avatar_url: newProfile.avatar_url
+            avatar_url: newProfile.avatar_url,
+            rank: newProfile.rank,
+            rank_points: newProfile.rank_points,
+            rank_level: newProfile.rank_level,
+            is_verified: newProfile.is_verified,
+            verified_badge_type: newProfile.verified_badge_type,
+            verification_status: newProfile.verification_status
           }
         }
       }
@@ -248,7 +281,13 @@ export default defineEventHandler(async (event) => {
           email: data.user.email,
           username: data.user.user_metadata?.username || 'user',
           full_name: data.user.user_metadata?.full_name || 'User',
-          avatar_url: data.user.user_metadata?.avatar_url || null
+          avatar_url: data.user.user_metadata?.avatar_url || null,
+          rank: 'Bronze I',
+          rank_points: 0,
+          rank_level: 1,
+          is_verified: false,
+          verified_badge_type: null,
+          verification_status: 'none'
         }
       }
     }
@@ -263,11 +302,10 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Auth/Login] ✅ Profile fetched successfully')
     console.log('[Auth/Login] Profile data:', {
-      id: profile.id,
-      username: profile.username,
+      user_id: profile.user_id,
       full_name: profile.full_name,
-      email: profile.email,
-      avatar_url: profile.avatar_url
+      rank: profile.rank,
+      is_verified: profile.is_verified
     })
 
     // ============================================================================
@@ -278,8 +316,9 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] Response includes:', {
       token: !!data.session.access_token,
       refreshToken: !!data.session.refresh_token,
-      userId: profile.id,
-      username: profile.username
+      userId: profile.user_id,
+      rank: profile.rank,
+      isVerified: profile.is_verified
     })
     
     console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
@@ -290,11 +329,18 @@ export default defineEventHandler(async (event) => {
       refreshToken: data.session.refresh_token,
       expiresIn: data.session.expires_in,
       user: {
-        id: profile.id,
-        email: profile.email,
-        username: profile.username,
+        id: profile.user_id,
+        email: data.user.email,
+        username: profile.full_name?.split(' ')[0] || 'user',
         full_name: profile.full_name,
-        avatar_url: profile.avatar_url
+        avatar_url: profile.avatar_url,
+        rank: profile.rank,
+        rank_points: profile.rank_points,
+        rank_level: profile.rank_level,
+        is_verified: profile.is_verified,
+        verified_badge_type: profile.verified_badge_type,
+        verification_status: profile.verification_status,
+        profile_completed: profile.profile_completed
       }
     }
 
@@ -306,12 +352,10 @@ export default defineEventHandler(async (event) => {
     console.error('[Auth/Login] Error details:', error.statusMessage)
     console.error('[Auth/Login] ============ END ERROR ============')
     
-    // If it's already a formatted error, throw it
     if (error.statusCode) {
       throw error
     }
     
-    // Otherwise, return generic error
     throw createError({
       statusCode: 500,
       statusMessage: 'Login failed - please try again'
