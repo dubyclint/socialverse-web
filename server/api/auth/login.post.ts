@@ -126,13 +126,15 @@ export default defineEventHandler(async (event) => {
     // STEP 6: Fetch profile from profiles table
     // ============================================================================
     console.log('[Auth/Login] STEP 6: Fetching profile from profiles table...')
-
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, email, avatar_url, bio, location, verified')
-      .eq('id', data.user.id)
-      .single()
-
+  .from('profiles')
+  .select('id, user_id, username, full_name, avatar_url, bio, is_verified, created_at, updated_at')
+  // ✅ Removed: email, location
+  // ✅ Added: user_id, created_at, updated_at
+  // ✅ Changed: verified → is_verified
+  .eq('id', data.user.id)
+  .single()
+    
     if (profileError) {
       console.warn('[Auth/Login] ⚠️ Profile fetch error:', {
         message: profileError.message,
