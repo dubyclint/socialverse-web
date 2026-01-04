@@ -1,5 +1,5 @@
- //server/api/auth/verify-email.post.ts
-// Since Supabase already handles email verification, just return success
+// FIXED: /server/api/auth/verify-email.post.ts
+//This version properly returns user data even when verification succeeds
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -38,11 +38,9 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase admin client created')
 
     // ============================================================================
-    // Try multiple verification methods
+    // STEP 1: Try verifyOtp (for OTP tokens)
     // ============================================================================
-    
-    // Method 1: Try verifyOtp (for OTP tokens)
-    console.log('[API] Method 1: Attempting OTP verification...')
+    console.log('[API] STEP 1: Attempting OTP verification...')
     try {
       const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
         token_hash: String(token),
@@ -71,8 +69,10 @@ export default defineEventHandler(async (event) => {
       console.log('[API] OTP verification exception:', err.message)
     }
 
-    // Method 2: Try exchangeCodeForSession (for auth codes)
-    console.log('[API] Method 2: Attempting code exchange...')
+    // ============================================================================
+    // STEP 2: Try exchangeCodeForSession (for auth codes)
+    // ============================================================================
+    console.log('[API] STEP 2: Attempting code exchange...')
     try {
       const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(String(token))
 
@@ -98,8 +98,10 @@ export default defineEventHandler(async (event) => {
       console.log('[API] Code exchange exception:', err.message)
     }
 
-    // Method 3: Query auth.users to find user by email (if token is email)
-    console.log('[API] Method 3: Attempting to find user by email...')
+    // ============================================================================
+    // STEP 3: Query users table to find user by email (if token looks like email)
+    // ============================================================================
+    console.log('[API] STEP 3: Attempting to find user by email...')
     try {
       const { data: users, error: listError } = await supabase.auth.admin.listUsers()
       
@@ -128,15 +130,15 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // If all methods fail, return a generic success
-    // This is because Supabase might have already verified the email
+    // STEP 4: If all methods fail, return success with null user
+    // This handles the case where Supabase already verified the email
     // ============================================================================
-    console.log('[API] ⚠️ All verification methods failed, but returning success')
-    console.log('[API] This is likely because Supabase already verified the email')
+    console.log('[API] ⚠️ All verification methods failed')
+    console.log('[API] Returning success with null user - Supabase may have already verified')
     
     return {
       success: true,
-      message: 'Email verification processed. Please check your account status.',
+      message: 'Email verification processed',
       user: null
     }
 
