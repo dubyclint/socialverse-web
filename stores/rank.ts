@@ -1,150 +1,109 @@
 // ============================================================================
-// FIXED: /stores/rank.ts
+// FILE: /stores/rank.ts - SIMPLIFIED VERSION
 // ============================================================================
-// RANK STORE - FIXED: Better error handling and logging
-// ✅ FIXED: Improved error handling
-// ✅ FIXED: Better logging for debugging
-// ✅ FIXED: Proper TypeScript types
+// Rank store (simplified - gets data from profile store)
 // ============================================================================
 
 import { defineStore } from 'pinia'
+import { computed } from 'vue'
+import { useProfileStore } from './profile'
 
-interface RankData {
-  rank: string
-  points: number
-  level: number
-  next?: string
-  nextLevelPoints?: number
-  hidden?: boolean
-}
+export const useRankStore = defineStore('rank', () => {
+  const profileStore = useProfileStore()
 
-interface RankState {
-  cache: Record<string, RankData>
-  loading: boolean
-  error: string | null
-}
+  // ============================================================================
+  // COMPUTED PROPERTIES - GET FROM PROFILE STORE
+  // ============================================================================
+  
+  const rank = computed(() => {
+    return profileStore.rank
+  })
 
-export const useRankStore = defineStore('rank', {
-  state: (): RankState => ({
-    cache: {},
-    loading: false,
-    error: null
-  }),
+  const rankPoints = computed(() => {
+    return profileStore.rankPoints
+  })
 
-  getters: {
-    getRankData: (state) => (userId: string): RankData | null => {
-      console.log('[Rank Store] Getting cached rank for user:', userId)
-      return state.cache[userId] || null
-    },
+  const rankLevel = computed(() => {
+    return profileStore.rankLevel
+  })
 
-    isLoading: (state) => state.loading,
+  // ============================================================================
+  // RANK TIER INFORMATION
+  // ============================================================================
+  
+  const rankTiers = [
+    { name: 'Bronze I', minPoints: 0, maxPoints: 99 },
+    { name: 'Bronze II', minPoints: 100, maxPoints: 199 },
+    { name: 'Bronze III', minPoints: 200, maxPoints: 299 },
+    { name: 'Silver I', minPoints: 300, maxPoints: 399 },
+    { name: 'Silver II', minPoints: 400, maxPoints: 499 },
+    { name: 'Silver III', minPoints: 500, maxPoints: 599 },
+    { name: 'Gold I', minPoints: 600, maxPoints: 699 },
+    { name: 'Gold II', minPoints: 700, maxPoints: 799 },
+    { name: 'Gold III', minPoints: 800, maxPoints: 899 },
+    { name: 'Platinum I', minPoints: 900, maxPoints: 999 },
+    { name: 'Platinum II', minPoints: 1000, maxPoints: 1099 },
+    { name: 'Platinum III', minPoints: 1100, maxPoints: 1199 },
+    { name: 'Diamond', minPoints: 1200, maxPoints: Infinity }
+  ]
 
-    getError: (state) => state.error
-  },
+  const currentRankTier = computed(() => {
+    return rankTiers.find(tier => 
+      rankPoints.value >= tier.minPoints && rankPoints.value <= tier.maxPoints
+    )
+  })
 
-  actions: {
-    async fetchRank(userId: string): Promise<RankData> {
-      console.log('[Rank Store] Fetching rank for user:', userId)
+  const nextRankTier = computed(() => {
+    const currentIndex = rankTiers.findIndex(tier => tier.name === rank.value)
+    return currentIndex < rankTiers.length - 1 ? rankTiers[currentIndex + 1] : null
+  })
 
-      // ============================================================================
-      // STEP 1: Check cache first
-      // ============================================================================
-      if (this.cache[userId]) {
-        console.log('[Rank Store] ✅ Rank found in cache for user:', userId)
-        return this.cache[userId]
-      }
+  const pointsToNextRank = computed(() => {
+    if (!nextRankTier.value) return 0
+    return nextRankTier.value.minPoints - rankPoints.value
+  })
 
-      try {
-        this.loading = true
-        this.error = null
+  const rankProgress = computed(() => {
+    if (!currentRankTier.value) return 0
+    const tierRange = currentRankTier.value.maxPoints - currentRankTier.value.minPoints
+    const pointsInTier = rankPoints.value - currentRankTier.value.minPoints
+    return Math.min(100, (pointsInTier / tierRange) * 100)
+  })
 
-        console.log('[Rank Store] Calling API: /api/rank/get?userId=' + userId)
+  // ============================================================================
+  // METHODS
+  // ============================================================================
+  
+  const getRankColor = (rankName: string): string => {
+    if (rankName.includes('Bronze')) return '#CD7F32'
+    if (rankName.includes('Silver')) return '#C0C0C0'
+    if (rankName.includes('Gold')) return '#FFD700'
+    if (rankName.includes('Platinum')) return '#E5E4E2'
+    if (rankName.includes('Diamond')) return '#B9F2FF'
+    return '#808080'
+  }
 
-        // ============================================================================
-        // STEP 2: Fetch from API
-        // ============================================================================
-        const response = await fetch(`/api/rank/get?userId=${encodeURIComponent(userId)}`)
+  const getRankIcon = (rankName: string): string => {
+    if (rankName.includes('Bronze')) return '🥉'
+    if (rankName.includes('Silver')) return '🥈'
+    if (rankName.includes('Gold')) return '🥇'
+    if (rankName.includes('Platinum')) return '💎'
+    if (rankName.includes('Diamond')) return '✨'
+    return '⭐'
+  }
 
-        console.log('[Rank Store] API Response status:', response.status)
+  return {
+    // Computed Properties
+    rank,
+    rankPoints,
+    rankLevel,
+    currentRankTier,
+    nextRankTier,
+    pointsToNextRank,
+    rankProgress,
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('[Rank Store] ❌ API error:', response.status, errorText)
-          throw new Error(`Failed to fetch rank: ${response.status} ${response.statusText}`)
-        }
-
-        const responseData = await response.json()
-        console.log('[Rank Store] API Response data:', responseData)
-
-        // ============================================================================
-        // STEP 3: Extract rank data
-        // ============================================================================
-        const data: RankData = responseData.data || {
-          rank: 'Bronze I',
-          points: 0,
-          level: 1
-        }
-
-        console.log('[Rank Store] ✅ Rank fetched successfully:', data.rank)
-
-        // ============================================================================
-        // STEP 4: Cache the data
-        // ============================================================================
-        this.cache[userId] = data
-        console.log('[Rank Store] ✅ Rank cached for user:', userId)
-
-        return data
-      } catch (error: any) {
-        const errorMsg = error.message || 'Failed to fetch rank'
-        console.error('[Rank Store] ❌ Error:', errorMsg)
-        this.error = errorMsg
-
-        // ============================================================================
-        // STEP 5: Return default rank on error
-        // ============================================================================
-        const defaultRank: RankData = {
-          rank: 'Bronze I',
-          points: 0,
-          level: 1
-        }
-
-        console.log('[Rank Store] Returning default rank due to error')
-        return defaultRank
-      } finally {
-        this.loading = false
-      }
-    },
-
-    /**
-     * Clear all cached rank data
-     */
-    clearCache() {
-      console.log('[Rank Store] Clearing all cached rank data')
-      this.cache = {}
-    },
-
-    /**
-     * Clear cached rank for specific user
-     */
-    clearUserCache(userId: string) {
-      console.log('[Rank Store] Clearing cached rank for user:', userId)
-      delete this.cache[userId]
-    },
-
-    /**
-     * Set error message
-     */
-    setError(error: string | null) {
-      console.log('[Rank Store] Setting error:', error)
-      this.error = error
-    },
-
-    /**
-     * Manually set rank data (for updates)
-     */
-    setRankData(userId: string, rankData: RankData) {
-      console.log('[Rank Store] Manually setting rank data for user:', userId, rankData)
-      this.cache[userId] = rankData
-    }
+    // Methods
+    getRankColor,
+    getRankIcon
   }
 })
