@@ -1,5 +1,5 @@
-//FILE 2: /server/api/auth/complete-signup.post.ts
-//COMPLETE FILE - Complete Signup Profile Creation
+// FILE: /server/api/auth/complete-signup.post.ts
+// FIXED VERSION - Insert into 'user' table instead of 'profiles'
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -17,10 +17,6 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     if (!userId || !username || !email) {
       console.error('[API] ❌ Missing required fields')
-      console.error('[API] userId:', userId)
-      console.error('[API] username:', username)
-      console.error('[API] email:', email)
-      
       throw createError({
         statusCode: 400,
         statusMessage: 'User ID, username, and email are required'
@@ -45,66 +41,68 @@ export default defineEventHandler(async (event) => {
     console.log('[API] ✅ Supabase admin client created')
 
     // ============================================================================
-    // STEP 3: Check if profile already exists
+    // STEP 3: Check if user profile already exists
     // ============================================================================
-    console.log('[API] Checking if profile exists for user:', userId)
+    console.log('[API] Checking if user profile exists for user:', userId)
     
-    const { data: existingProfile, error: checkError } = await supabase
-      .from('profiles')
+    const { data: existingUser, error: checkError } = await supabase
+      .from('user')
       .select('id')
       .eq('id', userId)
       .single()
 
-    if (existingProfile) {
-      console.log('[API] ✅ Profile already exists for user:', userId)
+    if (existingUser) {
+      console.log('[API] ✅ User profile already exists for user:', userId)
       return {
         success: true,
         message: 'Profile already exists',
-        profile: existingProfile
+        profile: existingUser
       }
     }
 
     if (checkError && checkError.code !== 'PGRST116') {
-      console.error('[API] ❌ Error checking profile:', checkError.message)
+      console.error('[API] ❌ Error checking user:', checkError.message)
     }
 
     // ============================================================================
-    // STEP 4: Create new profile
+    // STEP 4: Update user profile (INSERT or UPDATE)
     // ============================================================================
-    console.log('[API] Creating new profile for user:', userId)
+    console.log('[API] Updating user profile for user:', userId)
     
-    const profileData = {
+    const userData = {
       id: userId,
       username: username.toLowerCase().trim(),
       username_lower: username.toLowerCase().trim(),
-      full_name: fullName || username,
+      display_name: fullName || username,
       email: email.toLowerCase().trim(),
-      avatar_url: null,
+      email_lower: email.toLowerCase().trim(),
       bio: '',
-      location: '',
-      website: '',
+      avatar_url: null,
       is_verified: false,
-      created_at: new Date().toISOString(),
+      profile_completed: false,
+      verification_status: 'pending',
+      status: 'active',
       updated_at: new Date().toISOString()
     }
 
-    console.log('[API] Profile data to insert:', profileData)
+    console.log('[API] User data to upsert:', userData)
 
-    const { data: newProfile, error: createProfileError } = await supabase
-      .from('profiles')
-      .insert([profileData])
+    // Use upsert to handle both insert and update
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('user')
+      .upsert([userData], { onConflict: 'id' })
       .select()
       .single()
 
-    if (createProfileError) {
-      console.error('[API] ❌ Error creating profile:', {
-        message: createProfileError.message,
-        code: createProfileError.code,
-        details: createProfileError.details
+    if (updateError) {
+      console.error('[API] ❌ Error updating user:', {
+        message: updateError.message,
+        code: updateError.code,
+        details: updateError.details
       })
       
       // Check if username already exists
-      if (createProfileError.message?.includes('username') || createProfileError.code === '23505') {
+      if (updateError.message?.includes('username') || updateError.code === '23505') {
         throw createError({
           statusCode: 400,
           statusMessage: 'Username already taken'
@@ -113,17 +111,17 @@ export default defineEventHandler(async (event) => {
       
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to create profile: ' + createProfileError.message
+        statusMessage: 'Failed to update profile: ' + updateError.message
       })
     }
 
-    console.log('[API] ✅ Profile created successfully')
+    console.log('[API] ✅ User profile updated successfully')
     console.log('[API] ============ COMPLETE SIGNUP END ============')
 
     return {
       success: true,
-      message: 'Profile created successfully',
-      profile: newProfile
+      message: 'Profile updated successfully',
+      profile: updatedUser
     }
 
   } catch (error: any) {
@@ -135,3 +133,4 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
+
