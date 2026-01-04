@@ -1,12 +1,14 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts
+// SIGNUP ENDPOINT - COMPLETE CORRECTED VERSION
 // ============================================================================
 // FIXES:
 // ✅ Uses backend endpoint (not direct Supabase)
 // ✅ Inserts into 'user' table via profiles view
-// ✅ Proper error handling
-// ✅ Returns complete user data with token
+// ✅ Proper error handling and validation
+// ✅ Returns complete user data
 // ✅ Sends verification email
+// ✅ Comprehensive logging
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -23,6 +25,8 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 1: Validate Input
     // ============================================================================
+    console.log('[API] STEP 1: Validating input...')
+    
     if (!email || !password || !username) {
       console.error('[API] ❌ Missing required fields')
       throw createError({
@@ -32,6 +36,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (password.length < 6) {
+      console.error('[API] ❌ Password too short')
       throw createError({
         statusCode: 400,
         statusMessage: 'Password must be at least 6 characters'
@@ -39,6 +44,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (username.length < 3) {
+      console.error('[API] ❌ Username too short')
       throw createError({
         statusCode: 400,
         statusMessage: 'Username must be at least 3 characters'
@@ -47,6 +53,7 @@ export default defineEventHandler(async (event) => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
+      console.error('[API] ❌ Invalid email format')
       throw createError({
         statusCode: 400,
         statusMessage: 'Invalid email format'
@@ -58,6 +65,8 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 2: Initialize Supabase Admin Client
     // ============================================================================
+    console.log('[API] STEP 2: Initializing Supabase...')
+    
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -75,7 +84,9 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 3: Create Auth User
     // ============================================================================
-    console.log('[API] Creating auth user...')
+    console.log('[API] STEP 3: Creating auth user...')
+    console.log('[API] Email:', email.trim().toLowerCase())
+    console.log('[API] Username:', username.trim().toLowerCase())
     
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim().toLowerCase(),
@@ -89,7 +100,11 @@ export default defineEventHandler(async (event) => {
     })
 
     if (authError) {
-      console.error('[API] ❌ Auth creation error:', authError.message)
+      console.error('[API] ❌ Auth creation error:', {
+        message: authError.message,
+        status: authError.status,
+        code: authError.code
+      })
       
       if (authError.message?.includes('already exists')) {
         throw createError({
@@ -105,6 +120,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!authData?.user) {
+      console.error('[API] ❌ No user data returned from auth creation')
       throw createError({
         statusCode: 500,
         statusMessage: 'User creation failed'
@@ -120,7 +136,7 @@ export default defineEventHandler(async (event) => {
     // The profiles view has INSTEAD OF INSERT trigger
     // So inserting into profiles will automatically insert into user table
     
-    console.log('[API] Creating user profile via profiles view...')
+    console.log('[API] STEP 4: Creating user profile via profiles view...')
     
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')  // ✅ Insert into profiles view
@@ -139,18 +155,26 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (profileError) {
-      console.warn('[API] ⚠️ Profile creation warning:', profileError.message)
+      console.warn('[API] ⚠️ Profile creation warning:', {
+        message: profileError.message,
+        code: profileError.code
+      })
       // Don't fail signup if profile creation fails
       // User is already created in auth
       // The auto-profile trigger should create it
     } else {
       console.log('[API] ✅ Profile created successfully')
+      console.log('[API] Profile data:', {
+        id: profileData?.id,
+        username: profileData?.username,
+        full_name: profileData?.full_name
+      })
     }
 
     // ============================================================================
     // STEP 5: Send Verification Email
     // ============================================================================
-    console.log('[API] Sending verification email...')
+    console.log('[API] STEP 5: Sending verification email...')
     
     const { error: resendError } = await supabase.auth.resend({
       type: 'signup',
@@ -185,7 +209,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('[API] ============ SIGNUP ERROR ============')
-    console.error('[API] Error:', error.message)
+    console.error('[API] Error type:', error.constructor.name)
+    console.error('[API] Error message:', error.message)
+    console.error('[API] Error status:', error.statusCode)
     console.error('[API] ============ END ERROR ============')
     
     throw error
