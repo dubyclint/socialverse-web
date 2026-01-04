@@ -1,10 +1,7 @@
-// ============================================================================
-// CORRECTED FILE 3: /server/api/auth/complete-signup.post.ts
-// ============================================================================
-// FIX: Changed 'verified' to 'is_verified' and fixed import
-// ============================================================================
+ // server/api/auth/complete-signup.post.ts
+// Use admin client instead of serverSupabaseClient
 
-import { serverSupabaseClient } from '~/server/utils/supabase-server'
+import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -13,15 +10,17 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { userId, username, fullName, email } = body
 
-    console.log('[API] Completing signup for user:', userId)
-    console.log('[API] Username:', username)
-    console.log('[API] Email:', email)
+    console.log('[API] Request body:', { userId, username, fullName, email })
 
     // ============================================================================
     // STEP 1: Validate input
     // ============================================================================
     if (!userId || !username || !email) {
       console.error('[API] ❌ Missing required fields')
+      console.error('[API] userId:', userId)
+      console.error('[API] username:', username)
+      console.error('[API] email:', email)
+      
       throw createError({
         statusCode: 400,
         statusMessage: 'User ID, username, and email are required'
@@ -29,19 +28,21 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // STEP 2: Get Supabase client
+    // STEP 2: Create admin Supabase client
     // ============================================================================
-    const supabase = await serverSupabaseClient(event)
-    
-    if (!supabase) {
-      console.error('[API] ❌ Supabase not available')
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[API] ❌ Missing Supabase credentials')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database unavailable'
+        statusMessage: 'Server configuration error'
       })
     }
 
-    console.log('[API] ✅ Supabase client initialized')
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('[API] ✅ Supabase admin client created')
 
     // ============================================================================
     // STEP 3: Check if profile already exists
@@ -64,11 +65,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (checkError && checkError.code !== 'PGRST116') {
-      console.error('[API] ❌ Error checking profile:', checkError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to check profile'
-      })
+      console.error('[API] ❌ Error checking profile:', checkError.message)
     }
 
     // ============================================================================
@@ -76,31 +73,38 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[API] Creating new profile for user:', userId)
     
-    // ✅ FIX: Changed 'verified' to 'is_verified'
+    const profileData = {
+      id: userId,
+      username: username.toLowerCase().trim(),
+      username_lower: username.toLowerCase().trim(),
+      full_name: fullName || username,
+      email: email.toLowerCase().trim(),
+      avatar_url: null,
+      bio: '',
+      location: '',
+      website: '',
+      is_verified: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('[API] Profile data to insert:', profileData)
+
     const { data: newProfile, error: createProfileError } = await supabase
       .from('profiles')
-      .insert({
-        id: userId,
-        username: username.toLowerCase(),
-        username_lower: username.toLowerCase(),
-        full_name: fullName || username,
-        email: email.toLowerCase(),
-        avatar_url: null,
-        bio: '',
-        location: '',
-        website: '',
-        is_verified: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert([profileData])
       .select()
       .single()
 
     if (createProfileError) {
-      console.error('[API] ❌ Error creating profile:', createProfileError)
+      console.error('[API] ❌ Error creating profile:', {
+        message: createProfileError.message,
+        code: createProfileError.code,
+        details: createProfileError.details
+      })
       
       // Check if username already exists
-      if (createProfileError.message?.includes('username')) {
+      if (createProfileError.message?.includes('username') || createProfileError.code === '23505') {
         throw createError({
           statusCode: 400,
           statusMessage: 'Username already taken'
@@ -109,11 +113,11 @@ export default defineEventHandler(async (event) => {
       
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to create profile'
+        statusMessage: 'Failed to create profile: ' + createProfileError.message
       })
     }
 
-    console.log('[API] ✅ Profile created successfully for user:', userId)
+    console.log('[API] ✅ Profile created successfully')
     console.log('[API] ============ COMPLETE SIGNUP END ============')
 
     return {
@@ -131,3 +135,4 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
+
