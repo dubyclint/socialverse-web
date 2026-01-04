@@ -1,49 +1,36 @@
 // ============================================================================
-// FILE 2: /stores/profile.ts - ENHANCED VERSION WITH AVATAR UPLOAD
-// PHASE 3: Add upload avatar action
+// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION
 // ============================================================================
-// ENHANCEMENTS:
-// ✅ Add uploadAvatar action
-// ✅ Add uploadAvatarProgress state
-// ✅ Handle avatar upload with progress tracking
-// ✅ Update profile with new avatar URL
-// ✅ Error handling for upload failures
-// ✅ Comprehensive logging
+// Profile store with rank & verification integration
 // ============================================================================
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Profile, ProfileUpdate } from '~/types/auth'
+import type { Profile } from '~/types/profile'
 
 export const useProfileStore = defineStore('profile', () => {
   const profile = ref<Profile | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isHydrated = ref(false)
-  
-  // ✅ NEW: Avatar upload state
   const isUploadingAvatar = ref(false)
   const uploadAvatarProgress = ref(0)
   const uploadAvatarError = ref<string | null>(null)
 
   // ============================================================================
-  // COMPUTED PROPERTIES - Profile field accessors
+  // COMPUTED PROPERTIES - PROFILE FIELD ACCESSORS
   // ============================================================================
   
   const username = computed(() => {
-    return profile.value?.username || 'Unknown'
+    return profile.value?.full_name || 'Unknown'
   })
 
   const displayName = computed(() => {
-    return profile.value?.full_name || profile.value?.username || 'User'
+    return profile.value?.full_name || 'User'
   })
 
   const avatar = computed(() => {
     return profile.value?.avatar_url || '/default-avatar.png'
-  })
-
-  const email = computed(() => {
-    return profile.value?.email || ''
   })
 
   const bio = computed(() => {
@@ -58,29 +45,65 @@ export const useProfileStore = defineStore('profile', () => {
     return profile.value?.website || ''
   })
 
-  const followers = computed(() => {
-    return profile.value?.followers_count || 0
+  const interests = computed(() => {
+    return profile.value?.interests || []
   })
 
-  const following = computed(() => {
-    return profile.value?.following_count || 0
+  const colors = computed(() => {
+    return profile.value?.colors || {}
   })
 
-  const posts = computed(() => {
-    return profile.value?.posts_count || 0
+  const items = computed(() => {
+    return profile.value?.items || []
   })
 
-  const verified = computed(() => {
-    return profile.value?.verified || false
+  // ============================================================================
+  // RANK SYSTEM COMPUTED PROPERTIES
+  // ============================================================================
+  
+  const rank = computed(() => {
+    return profile.value?.rank || 'Bronze I'
   })
 
+  const rankPoints = computed(() => {
+    return profile.value?.rank_points || 0
+  })
+
+  const rankLevel = computed(() => {
+    return profile.value?.rank_level || 1
+  })
+
+  // ============================================================================
+  // VERIFICATION COMPUTED PROPERTIES
+  // ============================================================================
+  
+  const isVerified = computed(() => {
+    return profile.value?.is_verified || false
+  })
+
+  const verifiedBadgeType = computed(() => {
+    return profile.value?.verified_badge_type || null
+  })
+
+  const verificationStatus = computed(() => {
+    return profile.value?.verification_status || 'none'
+  })
+
+  const badgeCount = computed(() => {
+    return profile.value?.badge_count || 0
+  })
+
+  const verifiedAt = computed(() => {
+    return profile.value?.verified_at || null
+  })
+
+  // ============================================================================
+  // PROFILE COMPLETION COMPUTED PROPERTIES
+  // ============================================================================
+  
   const isProfileComplete = computed(() => {
     if (!profile.value) return false
-    return !!(
-      profile.value.username &&
-      profile.value.full_name &&
-      profile.value.email
-    )
+    return profile.value.profile_completed && !!profile.value.full_name && !!profile.value.bio
   })
 
   const hasAvatar = computed(() => {
@@ -88,8 +111,9 @@ export const useProfileStore = defineStore('profile', () => {
   })
 
   // ============================================================================
-  // SET PROFILE METHOD
+  // ACTIONS - SET STATE
   // ============================================================================
+  
   const setProfile = (newProfile: Profile | null) => {
     console.log('[Profile Store] Setting profile...')
     
@@ -105,17 +129,14 @@ export const useProfileStore = defineStore('profile', () => {
     }
 
     console.log('[Profile Store] Profile data received:', {
-      id: newProfile.id,
-      username: newProfile.username,
+      user_id: newProfile.user_id,
       full_name: newProfile.full_name,
-      email: newProfile.email
+      rank: newProfile.rank,
+      is_verified: newProfile.is_verified
     })
 
     profile.value = newProfile
 
-    // ============================================================================
-    // PERSIST TO LOCALSTORAGE
-    // ============================================================================
     if (process.client) {
       try {
         localStorage.setItem('profile_data', JSON.stringify(newProfile))
@@ -128,17 +149,11 @@ export const useProfileStore = defineStore('profile', () => {
     console.log('[Profile Store] ✅ Profile set successfully')
   }
 
-  // ============================================================================
-  // SET LOADING METHOD
-  // ============================================================================
   const setLoading = (loading: boolean) => {
     console.log('[Profile Store] Setting loading:', loading)
     isLoading.value = loading
   }
 
-  // ============================================================================
-  // SET ERROR METHOD
-  // ============================================================================
   const setError = (err: string | null) => {
     error.value = err
     if (err) {
@@ -148,9 +163,6 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // CLEAR PROFILE METHOD
-  // ============================================================================
   const clearProfile = () => {
     console.log('[Profile Store] ============ CLEAR PROFILE START ============')
     console.log('[Profile Store] Clearing all profile data')
@@ -175,8 +187,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // FETCH PROFILE METHOD
+  // ACTIONS - FETCH PROFILE
   // ============================================================================
+  
   const fetchProfile = async (userId: string) => {
     console.log('[Profile Store] ============ FETCH PROFILE START ============')
     console.log('[Profile Store] Fetching profile for user:', userId)
@@ -193,15 +206,12 @@ export const useProfileStore = defineStore('profile', () => {
     try {
       console.log('[Profile Store] Calling API to fetch profile...')
 
-      const response = await $fetch('/api/profile/get', {
-        method: 'GET',
-        query: { userId }
-      })
+      const response = await $fetch('/api/profile/me')
 
       console.log('[Profile Store] ✅ Profile API response received:', {
-        id: response?.id,
-        username: response?.username,
-        full_name: response?.full_name
+        user_id: response?.user_id,
+        full_name: response?.full_name,
+        rank: response?.rank
       })
 
       if (!response) {
@@ -235,8 +245,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // UPDATE PROFILE METHOD
+  // ACTIONS - UPDATE PROFILE
   // ============================================================================
+  
   const updateProfile = async (updates: Partial<Profile>) => {
     console.log('[Profile Store] ============ UPDATE PROFILE START ============')
     console.log('[Profile Store] Updating profile with:', {
@@ -270,9 +281,6 @@ export const useProfileStore = defineStore('profile', () => {
         return
       }
 
-      // ============================================================================
-      // MERGE UPDATED DATA WITH EXISTING PROFILE
-      // ============================================================================
       const updatedProfile = {
         ...profile.value,
         ...response,
@@ -304,8 +312,63 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ✅ NEW: UPLOAD AVATAR METHOD
+  // ACTIONS - COMPLETE PROFILE
   // ============================================================================
+  
+  const completeProfile = async (data: any) => {
+    console.log('[Profile Store] ============ COMPLETE PROFILE START ============')
+    console.log('[Profile Store] Completing profile with:', {
+      full_name: data.full_name,
+      bio: data.bio
+    })
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      console.log('[Profile Store] Calling API to complete profile...')
+
+      const response = await $fetch('/api/profile/complete', {
+        method: 'POST',
+        body: data
+      })
+
+      console.log('[Profile Store] ✅ Profile completion API response received')
+
+      if (!response) {
+        console.error('[Profile Store] ❌ No profile data in response')
+        setError('Profile completion failed')
+        return
+      }
+
+      setProfile(response)
+      console.log('[Profile Store] ✅ Profile completed successfully')
+      console.log('[Profile Store] ============ COMPLETE PROFILE END ============')
+
+    } catch (err: any) {
+      console.error('[Profile Store] ============ COMPLETE PROFILE ERROR ============')
+      console.error('[Profile Store] Error:', err.message)
+
+      let errorMessage = 'Failed to complete profile'
+
+      if (err.data?.statusMessage) {
+        errorMessage = err.data.statusMessage
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+
+      console.error('[Profile Store] ============ END ERROR ============')
+      setError(errorMessage)
+
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ============================================================================
+  // ACTIONS - UPLOAD AVATAR
+  // ============================================================================
+  
   const uploadAvatar = async (file: File): Promise<string | null> => {
     console.log('[Profile Store] ============ UPLOAD AVATAR START ============')
     console.log('[Profile Store] Uploading avatar:', {
@@ -320,17 +383,15 @@ export const useProfileStore = defineStore('profile', () => {
       return null
     }
 
-    // ============================================================================
-    // VALIDATE FILE
-    // ============================================================================
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
+    const maxSize = 5 * 1024 * 1024
+
+    if (!allowedTypes.includes(file.type || '')) {
       console.error('[Profile Store] ❌ Invalid file type:', file.type)
       uploadAvatarError.value = 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'
       return null
     }
 
-    const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
       console.error('[Profile Store] ❌ File size exceeds limit:', file.size)
       uploadAvatarError.value = 'File size exceeds 5MB limit.'
@@ -342,26 +403,17 @@ export const useProfileStore = defineStore('profile', () => {
     uploadAvatarError.value = null
 
     try {
-      // ============================================================================
-      // CREATE FORMDATA
-      // ============================================================================
       const formData = new FormData()
       formData.append('file', file)
 
       console.log('[Profile Store] FormData created, starting upload...')
 
-      // ============================================================================
-      // SIMULATE PROGRESS (since fetch doesn't support real progress)
-      // ============================================================================
       const progressInterval = setInterval(() => {
         if (uploadAvatarProgress.value < 90) {
           uploadAvatarProgress.value += Math.random() * 30
         }
       }, 200)
 
-      // ============================================================================
-      // UPLOAD FILE
-      // ============================================================================
       console.log('[Profile Store] Sending upload request to /api/profile/avatar-upload')
 
       const response = await fetch('/api/profile/avatar-upload', {
@@ -386,9 +438,6 @@ export const useProfileStore = defineStore('profile', () => {
         throw new Error('Invalid upload response')
       }
 
-      // ============================================================================
-      // UPDATE PROFILE WITH NEW AVATAR URL
-      // ============================================================================
       const updatedProfile = {
         ...profile.value,
         avatar_url: data.url,
@@ -416,17 +465,53 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // ✅ NEW: CLEAR AVATAR UPLOAD ERROR
-  // ============================================================================
   const clearAvatarUploadError = () => {
     console.log('[Profile Store] Clearing avatar upload error')
     uploadAvatarError.value = null
   }
 
   // ============================================================================
-  // HYDRATE FROM STORAGE METHOD
+  // ACTIONS - INTERESTS
   // ============================================================================
+  
+  const addInterest = async (interestId: string) => {
+    console.log('[Profile Store] Adding interest:', interestId)
+
+    try {
+      await $fetch('/api/interests/add', {
+        method: 'POST',
+        body: { interestId }
+      })
+      
+      console.log('[Profile Store] ✅ Interest added, refetching profile...')
+      await fetchProfile(profile.value?.user_id || '')
+    } catch (error: any) {
+      console.error('[Profile Store] ❌ Failed to add interest:', error.message)
+      setError(error.message)
+    }
+  }
+
+  const removeInterest = async (interestId: string) => {
+    console.log('[Profile Store] Removing interest:', interestId)
+
+    try {
+      await $fetch('/api/interests/remove', {
+        method: 'POST',
+        body: { interestId }
+      })
+      
+      console.log('[Profile Store] ✅ Interest removed, refetching profile...')
+      await fetchProfile(profile.value?.user_id || '')
+    } catch (error: any) {
+      console.error('[Profile Store] ❌ Failed to remove interest:', error.message)
+      setError(error.message)
+    }
+  }
+
+  // ============================================================================
+  // ACTIONS - HYDRATION
+  // ============================================================================
+  
   const hydrateFromStorage = async () => {
     console.log('[Profile Store] ============ HYDRATE FROM STORAGE START ============')
 
@@ -446,8 +531,8 @@ export const useProfileStore = defineStore('profile', () => {
           const parsedProfile = JSON.parse(storedProfile)
           profile.value = parsedProfile
           console.log('[Profile Store] ✅ Profile restored from localStorage:', {
-            id: parsedProfile.id,
-            username: parsedProfile.username
+            user_id: parsedProfile.user_id,
+            full_name: parsedProfile.full_name
           })
         } catch (parseError) {
           console.error('[Profile Store] ❌ Failed to parse stored profile:', parseError)
@@ -468,71 +553,16 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // SYNC WITH AUTH STORE METHOD
-  // ============================================================================
-  const syncWithAuthStore = () => {
-    console.log('[Profile Store] Syncing with auth store...')
-
-    try {
-      const authStore = useAuthStore()
-
-      if (!authStore.user) {
-        console.log('[Profile Store] No auth user, clearing profile')
-        clearProfile()
-        return
-      }
-
-      console.log('[Profile Store] Auth user found:', authStore.user.id)
-
-      // ============================================================================
-      // BUILD PROFILE FROM AUTH USER METADATA
-      // ============================================================================
-      const profileFromAuth: Profile = {
-        id: authStore.user.id,
-        username: authStore.user.user_metadata?.username || authStore.user.username || 'user',
-        username_lower: (authStore.user.user_metadata?.username || authStore.user.username || 'user').toLowerCase(),
-        full_name: authStore.user.user_metadata?.full_name || authStore.user.full_name || 'User',
-        email: authStore.user.email,
-        avatar_url: authStore.user.user_metadata?.avatar_url || authStore.user.avatar_url || null,
-        bio: authStore.user.user_metadata?.bio || '',
-        location: authStore.user.user_metadata?.location || '',
-        website: authStore.user.user_metadata?.website || '',
-        verified: authStore.user.user_metadata?.verified || false,
-        followers_count: authStore.user.user_metadata?.followers_count || 0,
-        following_count: authStore.user.user_metadata?.following_count || 0,
-        posts_count: authStore.user.user_metadata?.posts_count || 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      console.log('[Profile Store] ✅ Profile synced from auth store:', {
-        id: profileFromAuth.id,
-        username: profileFromAuth.username
-      })
-
-      setProfile(profileFromAuth)
-
-    } catch (err) {
-      console.error('[Profile Store] ❌ Sync error:', err)
-    }
-  }
-
-  // ============================================================================
-  // INITIALIZE PROFILE METHOD
-  // ============================================================================
   const initializeProfile = async (userId: string) => {
     console.log('[Profile Store] ============ INITIALIZE PROFILE START ============')
     console.log('[Profile Store] Initializing profile for user:', userId)
 
     try {
-      // First, try to fetch from API
       await fetchProfile(userId)
 
-      // If fetch failed but we have auth data, sync from auth store
       if (!profile.value) {
-        console.log('[Profile Store] Profile fetch failed, syncing from auth store...')
-        syncWithAuthStore()
+        console.log('[Profile Store] Profile fetch failed, trying hydration from storage...')
+        await hydrateFromStorage()
       }
 
       console.log('[Profile Store] ✅ Profile initialization complete')
@@ -544,33 +574,40 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // RETURN STORE
-  // ============================================================================
   return {
     // State
     profile,
     isLoading,
     error,
     isHydrated,
-    
-    // ✅ NEW: Avatar upload state
     isUploadingAvatar,
     uploadAvatarProgress,
     uploadAvatarError,
 
-    // Computed Properties
+    // Computed Properties - Basic
     username,
     displayName,
     avatar,
-    email,
     bio,
     location,
     website,
-    followers,
-    following,
-    posts,
-    verified,
+    interests,
+    colors,
+    items,
+
+    // Computed Properties - Rank
+    rank,
+    rankPoints,
+    rankLevel,
+
+    // Computed Properties - Verification
+    isVerified,
+    verifiedBadgeType,
+    verificationStatus,
+    badgeCount,
+    verifiedAt,
+
+    // Computed Properties - Completion
     isProfileComplete,
     hasAvatar,
 
@@ -581,13 +618,12 @@ export const useProfileStore = defineStore('profile', () => {
     clearProfile,
     fetchProfile,
     updateProfile,
-    
-    // ✅ NEW: Avatar upload methods
+    completeProfile,
     uploadAvatar,
     clearAvatarUploadError,
-    
+    addInterest,
+    removeInterest,
     hydrateFromStorage,
-    syncWithAuthStore,
     initializeProfile
   }
 })
