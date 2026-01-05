@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED VERSION
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// This version only inserts essential fields that exist in the user table
+// Key fix: email_confirm: true (auto-confirm email)
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -140,7 +140,7 @@ export default defineEventHandler(async (event) => {
       const { data, error: authCreateError } = await supabase.auth.admin.createUser({
         email: email.trim().toLowerCase(),
         password: password,
-        email_confirm: false,
+        email_confirm: true,  // ✅ KEY FIX: Auto-confirm email
         user_metadata: {
           username: username.trim().toLowerCase(),
           display_name: fullName?.trim() || username.trim()
@@ -258,7 +258,7 @@ export default defineEventHandler(async (event) => {
         display_name: fullName?.trim() || username.trim()
       },
       message: 'Account created successfully!',
-      requiresEmailVerification: true
+      requiresEmailVerification: false
     }
 
   } catch (error: any) {
