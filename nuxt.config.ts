@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /nuxt.config.ts - UPDATED WITH YOUR SUPABASE CREDENTIALS
+// FILE: /nuxt.config.ts - FIXED VERSION
 // ============================================================================
-// ✅ UPDATED: Runtime config now uses your actual Supabase credentials
+// ✅ FIXED: Removed hardcoded keys, added missing comma after runtimeConfig
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -26,35 +26,35 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // RUNTIME CONFIG - ✅ UPDATED WITH YOUR CREDENTIALS
+  // RUNTIME CONFIG - ✅ FIXED: No hardcoded keys, reads from env vars
   // ============================================================================
   runtimeConfig: {
-  // Server-only config (private)
-  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  supabaseUrl: process.env.SUPABASE_URL,
-  supabaseKey: process.env.SUPABASE_KEY,
-  jwtSecret: process.env.JWT_SECRET,
-  brevoApiKey: process.env.BREVO_API_KEY,
-  
-  // Public config (exposed to client)
-  public: {
-    supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
-    supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
-    apiUrl: process.env.NUXT_PUBLIC_API_URL,
-    socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
-    siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
-    cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
-    cdnEnabled: true,
-    gunEnabled: true,
-    gunPeers: [],
-    nodeEnv: process.env.NODE_ENV || 'production',
-    port: process.env.PORT || '3000',
-    logLevel: process.env.LOG_LEVEL || 'info',
-    appName: 'SocialVerse',
-    enablePremium: true,
-    enableAnalytics: true,
-  },
-}
+    // Server-only config (private)
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseKey: process.env.SUPABASE_KEY,
+    jwtSecret: process.env.JWT_SECRET,
+    brevoApiKey: process.env.BREVO_API_KEY,
+    
+    // Public config (exposed to client)
+    public: {
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
+      apiUrl: process.env.NUXT_PUBLIC_API_URL,
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+      cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
+      cdnEnabled: true,
+      gunEnabled: true,
+      gunPeers: [],
+      nodeEnv: process.env.NODE_ENV || 'production',
+      port: process.env.PORT || '3000',
+      logLevel: process.env.LOG_LEVEL || 'info',
+      appName: 'SocialVerse',
+      enablePremium: true,
+      enableAnalytics: true,
+    },
+  }, // ✅ FIXED: Added missing comma here
 
   // ============================================================================
   // BUILD CONFIGURATION
@@ -131,20 +131,10 @@ export default defineNuxtConfig({
   ],
 
   // ============================================================================
-  // PLUGIN CONFIGURATION - ✅ CRITICAL FIX: PROPER PLUGIN ORDER
+  // PLUGIN CONFIGURATION
   // ============================================================================
   plugins: [
-    // ✅ STEP 1: Auth initialization MUST run first (enforce: 'pre')
-    // This is auto-loaded from ~/plugins/auth-init.client.ts
-    
-    // ✅ STEP 2: Supabase client plugin (depends on auth-init)
-    // This is auto-loaded from ~/plugins/supabase-client.ts
-    
-    // ✅ STEP 3: Auth plugin (depends on supabase-client)
-    // This is auto-loaded from ~/plugins/auth.client.ts
-    
-    // ✅ STEP 4: Other plugins (socket, toast, etc.)
-    // These are auto-loaded from ~/plugins/*.ts
+    // Auto-loaded from ~/plugins/*.ts
   ],
 
   // ============================================================================
@@ -241,8 +231,7 @@ export default defineNuxtConfig({
   // ============================================================================
   hooks: {
     'build:before': () => {
-      console.log('🚀 Building SocialVerse with Global Responsive System...')
-      console.log('✅ Plugin order: auth-init → supabase-client → auth → others')
+      console.log('🚀 Building SocialVerse...')
     },
   },
 })
