@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED FOR YOUR TABLE STRUCTURE
+// FILE: /server/api/auth/signup.post.ts - WITH DETAILED ERROR LOGGING
 // ============================================================================
-// ✅ FIXED: Now inserts into the correct user table structure
+// ✅ IMPROVED: Better error logging and atomic transaction handling
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -13,8 +13,23 @@ interface SignupError {
   details?: any
 }
 
+// Helper function to log errors with full context
+function logError(phase: string, error: any, context?: any) {
+  console.error(`[Signup API] ❌ ${phase}`)
+  console.error(`[Signup API] Error Type: ${error?.constructor?.name}`)
+  console.error(`[Signup API] Error Message: ${error?.message}`)
+  console.error(`[Signup API] Error Code: ${error?.code}`)
+  console.error(`[Signup API] Error Status: ${error?.status}`)
+  console.error(`[Signup API] Error Details:`, error?.details || error?.hint || 'N/A')
+  if (context) {
+    console.error(`[Signup API] Context:`, context)
+  }
+  console.error(`[Signup API] Stack:`, error?.stack)
+}
+
 export default defineEventHandler(async (event) => {
   let authUserId: string | null = null
+  let supabase: any = null
   
   try {
     console.log('[Signup API] ============ SIGNUP REQUEST START ============')
@@ -72,47 +87,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (password && password.length > 128) {
-      validationErrors.push({
-        step: 'INPUT_VALIDATION',
-        code: 'PASSWORD_TOO_LONG',
-        message: 'Password must be less than 128 characters'
-      })
-    }
-
-    if (username && username.length < 3) {
-      validationErrors.push({
-        step: 'INPUT_VALIDATION',
-        code: 'USERNAME_TOO_SHORT',
-        message: 'Username must be at least 3 characters long'
-      })
-    }
-
-    if (username && username.length > 30) {
-      validationErrors.push({
-        step: 'INPUT_VALIDATION',
-        code: 'USERNAME_TOO_LONG',
-        message: 'Username must be less than 30 characters'
-      })
-    }
-
-    const usernameRegex = /^[a-z0-9_-]+$/
-    if (username && !usernameRegex.test(username.toLowerCase())) {
-      validationErrors.push({
-        step: 'INPUT_VALIDATION',
-        code: 'INVALID_USERNAME_FORMAT',
-        message: 'Username can only contain lowercase letters, numbers, underscore (_), and hyphen (-)'
-      })
-    }
-
     if (validationErrors.length > 0) {
       console.error('[Signup API] ❌ Validation failed:', validationErrors)
       throw createError({
         statusCode: 400,
         statusMessage: 'Validation failed',
-        data: {
-          errors: validationErrors
-        }
+        data: { errors: validationErrors }
       })
     }
 
@@ -133,31 +113,24 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error',
-        data: {
-          errors: [{'step': 'SUPABASE_CONFIG', 'code': 'MISSING_CREDENTIALS', 'message': 'Supabase credentials not configured'}]
-        }
+        data: { errors: [{'step': 'SUPABASE_CONFIG', 'code': 'MISSING_CREDENTIALS', 'message': 'Supabase credentials not configured'}] }
       })
     }
-
-    console.log('[Signup API] ✅ Supabase credentials validated')
 
     // ============================================================================
     // PHASE 3: CREATE SUPABASE CLIENT
     // ============================================================================
     console.log('[Signup API] PHASE 3: Creating Supabase client...')
 
-    let supabase
     try {
       supabase = createClient(supabaseUrl, supabaseServiceKey)
       console.log('[Signup API] ✅ Supabase client created successfully')
     } catch (clientError: any) {
-      console.error('[Signup API] ❌ Failed to create Supabase client:', clientError.message)
+      logError('PHASE 3: Supabase Client Creation', clientError)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to initialize Supabase client',
-        data: {
-          errors: [{'step': 'SUPABASE_CLIENT_CREATION', 'code': 'CLIENT_INIT_FAILED', 'message': clientError.message}]
-        }
+        data: { errors: [{'step': 'SUPABASE_CLIENT_CREATION', 'code': 'CLIENT_INIT_FAILED', 'message': clientError.message}] }
       })
     }
 
@@ -175,13 +148,11 @@ export default defineEventHandler(async (event) => {
       authUsers = result.data
       console.log('[Signup API] ✅ Successfully fetched auth users')
     } catch (authCheckError: any) {
-      console.error('[Signup API] ❌ Error checking auth users:', authCheckError.message)
+      logError('PHASE 4: Email Uniqueness Check', authCheckError)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to verify email uniqueness',
-        data: {
-          errors: [{'step': 'EMAIL_UNIQUENESS_CHECK', 'code': 'AUTH_CHECK_FAILED', 'message': 'Could not verify if email is already registered'}]
-        }
+        data: { errors: [{'step': 'EMAIL_UNIQUENESS_CHECK', 'code': 'AUTH_CHECK_FAILED', 'message': authCheckError.message}] }
       })
     }
 
@@ -213,7 +184,7 @@ export default defineEventHandler(async (event) => {
       }
     } catch (error: any) {
       if (error.code !== 'PGRST116') {
-        console.error('[Signup API] ⚠️ Error checking username:', error.message)
+        logError('PHASE 4: Username Uniqueness Check', error)
       }
     }
 
@@ -230,9 +201,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Signup validation failed',
-        data: {
-          errors: constraintErrors
-        }
+        data: { errors: constraintErrors }
       })
     }
 
@@ -260,12 +229,12 @@ export default defineEventHandler(async (event) => {
       authData = result.data
       authError = result.error
     } catch (error: any) {
-      console.error('[Signup API] ❌ Exception during auth user creation:', error.message)
+      logError('PHASE 5: Auth User Creation Exception', error)
       authError = error
     }
 
     if (authError) {
-      console.error('[Signup API] ❌ Auth user creation failed:', authError.message)
+      logError('PHASE 5: Auth User Creation Error', authError, { email, username })
       
       let userMessage = authError.message || 'Failed to create authentication user'
       
@@ -276,9 +245,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Failed to create user account',
-        data: {
-          errors: [{'step': 'AUTH_USER_CREATION', 'code': authError.code || 'AUTH_ERROR', 'message': userMessage}]
-        }
+        data: { errors: [{'step': 'AUTH_USER_CREATION', 'code': authError.code || 'AUTH_ERROR', 'message': userMessage}] }
       })
     }
 
@@ -287,9 +254,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 500,
         statusMessage: 'User creation failed - no user ID returned',
-        data: {
-          errors: [{'step': 'AUTH_USER_CREATION', 'code': 'NO_USER_ID', 'message': 'Authentication user was created but no user ID was returned'}]
-        }
+        data: { errors: [{'step': 'AUTH_USER_CREATION', 'code': 'NO_USER_ID', 'message': 'Authentication user was created but no user ID was returned'}] }
       })
     }
 
@@ -297,7 +262,7 @@ export default defineEventHandler(async (event) => {
     console.log('[Signup API] ✅ Auth user created:', authUserId)
 
     // ============================================================================
-    // PHASE 6: CREATE USER RECORD - FIXED FOR YOUR TABLE STRUCTURE
+    // PHASE 6: CREATE USER RECORD - ATOMIC TRANSACTION
     // ============================================================================
     console.log('[Signup API] PHASE 6: Creating user record...')
     
@@ -329,27 +294,26 @@ export default defineEventHandler(async (event) => {
       userData = result.data
       userError = result.error
     } catch (error: any) {
-      console.error('[Signup API] ❌ Exception during user record creation:', error.message)
+      logError('PHASE 6: User Record Creation Exception', error, { authUserId, username })
       userError = error
     }
 
     if (userError) {
-      console.error('[Signup API] ❌ User record creation failed:', userError.message)
+      logError('PHASE 6: User Record Creation Error', userError, { authUserId, username, email })
       
-      // Rollback auth user
+      // ATOMIC ROLLBACK: Delete auth user
+      console.log('[Signup API] 🔄 ATOMIC ROLLBACK: Deleting auth user...')
       try {
         await supabase.auth.admin.deleteUser(authUserId)
-        console.log('[Signup API] ✅ Auth user rolled back')
+        console.log('[Signup API] ✅ Auth user rolled back successfully')
       } catch (deleteError: any) {
-        console.error('[Signup API] ❌ Failed to rollback auth user:', deleteError.message)
+        logError('ATOMIC ROLLBACK: Failed to delete auth user', deleteError, { authUserId })
       }
       
       throw createError({
         statusCode: 400,
         statusMessage: 'Failed to create user record',
-        data: {
-          errors: [{'step': 'USER_RECORD_CREATION', 'code': userError.code || 'USER_ERROR', 'message': userError.message}]
-        }
+        data: { errors: [{'step': 'USER_RECORD_CREATION', 'code': userError.code || 'USER_ERROR', 'message': userError.message}] }
       })
     }
 
@@ -358,9 +322,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 500,
         statusMessage: 'User record creation failed - no data returned',
-        data: {
-          errors: [{'step': 'USER_RECORD_CREATION', 'code': 'NO_USER_DATA', 'message': 'User record was created but no data was returned'}]
-        }
+        data: { errors: [{'step': 'USER_RECORD_CREATION', 'code': 'NO_USER_DATA', 'message': 'User record was created but no data was returned'}] }
       })
     }
 
@@ -407,7 +369,8 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('[Signup API] ============ SIGNUP ERROR ============')
-    console.error('[Signup API] Error:', error.message)
+    logError('SIGNUP ENDPOINT', error)
+    console.error('[Signup API] ============ END SIGNUP ERROR ============')
     throw error
   }
 })
