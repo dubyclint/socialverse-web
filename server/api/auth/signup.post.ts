@@ -1,23 +1,27 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - ALTERNATIVE APPROACH
+// FILE 2: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// Use client-side signUp instead of admin.createUser
-// This bypasses the admin endpoint which seems to be having issues
+// FIXES:
+// ✅ Uses client-side signUp (not admin.createUser)
+// ✅ Clean logging with [SIGNUP] prefix
+// ✅ Requires SUPABASE_ANON_KEY environment variable
+// ✅ Proper error handling and rollback
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   try {
-    console.log('[Signup API] ============ SIGNUP REQUEST START ============')
-    
     const body = await readBody(event)
     const { email, password, username, fullName } = body
 
-    console.log('[Signup API] Signup attempt:', { email, username })
+    console.log('[SIGNUP] Starting signup for:', email)
 
-    // Validation
+    // ============================================================================
+    // VALIDATION
+    // ============================================================================
     if (!email || !password || !username) {
+      console.log('[SIGNUP] ❌ Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
@@ -29,13 +33,16 @@ export default defineEventHandler(async (event) => {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      console.log('[SIGNUP] ❌ Missing Supabase config')
+      console.log('[SIGNUP] URL:', supabaseUrl ? '✓' : '✗')
+      console.log('[SIGNUP] ANON_KEY:', supabaseAnonKey ? '✓' : '✗')
+      console.log('[SIGNUP] SERVICE_KEY:', supabaseServiceKey ? '✓' : '✗')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
       })
     }
 
-    // Create TWO clients: one anon for signup, one admin for database
     const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: false }
     })
@@ -44,74 +51,72 @@ export default defineEventHandler(async (event) => {
       auth: { persistSession: false }
     })
 
-    console.log('[Signup API] PHASE 1: Checking username uniqueness...')
-    
-    const { data: existingUser } = await supabaseAdmin
+    // ============================================================================
+    // CHECK USERNAME UNIQUENESS
+    // ============================================================================
+    console.log('[SIGNUP] Checking username:', username)
+    const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('user')
       .select('id')
       .ilike('username', username.trim().toLowerCase())
       .single()
 
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.log('[SIGNUP] ❌ Username check error:', checkError.message)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Username check failed'
+      })
+    }
+
     if (existingUser) {
+      console.log('[SIGNUP] ❌ Username already taken')
       throw createError({
         statusCode: 400,
         statusMessage: 'Username already taken'
       })
     }
 
-    console.log('[Signup API] ✅ Username is available')
+    console.log('[SIGNUP] ✓ Username available')
 
     // ============================================================================
-    // PHASE 2: Use CLIENT-SIDE signUp (not admin.createUser)
+    // SIGN UP WITH SUPABASE AUTH (CLIENT METHOD)
     // ============================================================================
-    console.log('[Signup API] PHASE 2: Creating auth user (client method)...')
-    
-    let authUserId: string | null = null
-
-    try {
-      const { data, error } = await supabaseAnon.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password: password,
-        options: {
-          data: {
-            username: username.trim().toLowerCase(),
-            display_name: fullName?.trim() || username.trim()
-          }
+    console.log('[SIGNUP] Creating auth user...')
+    const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password: password,
+      options: {
+        data: {
+          username: username.trim().toLowerCase(),
+          display_name: fullName?.trim() || username.trim()
         }
-      })
-
-      if (error) {
-        console.error('[Signup API] ❌ SignUp failed:', error.message)
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Failed to create user account',
-          data: { error: error.message }
-        })
       }
+    })
 
-      authUserId = data?.user?.id
-      console.log('[Signup API] ✅ Auth user created:', authUserId)
-    } catch (e: any) {
-      console.error('[Signup API] ❌ SignUp exception:', e.message)
+    if (authError) {
+      console.log('[SIGNUP] ❌ Auth signup error:', authError.message)
       throw createError({
         statusCode: 400,
-        statusMessage: 'Failed to create user account',
-        data: { error: e.message }
+        statusMessage: 'Failed to create user: ' + authError.message
       })
     }
 
+    const authUserId = authData?.user?.id
     if (!authUserId) {
+      console.log('[SIGNUP] ❌ No user ID returned from auth')
       throw createError({
         statusCode: 500,
-        statusMessage: 'User creation failed - no ID returned'
+        statusMessage: 'User creation failed'
       })
     }
 
+    console.log('[SIGNUP] ✓ Auth user created:', authUserId)
+
     // ============================================================================
-    // PHASE 3: Create user record in database
+    // CREATE USER RECORD IN DATABASE
     // ============================================================================
-    console.log('[Signup API] PHASE 3: Creating user record...')
-    
+    console.log('[SIGNUP] Creating user record in database...')
     const { data: userData, error: insertError } = await supabaseAdmin
       .from('user')
       .insert([{
@@ -127,41 +132,37 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (insertError) {
-      console.error('[Signup API] ❌ Insert Error:', insertError.message)
+      console.log('[SIGNUP] ❌ Database insert error:', insertError.message)
       
-      // Rollback auth user
+      // ROLLBACK: Delete auth user
       try {
         await supabaseAdmin.auth.admin.deleteUser(authUserId)
+        console.log('[SIGNUP] ✓ Rolled back auth user')
       } catch (e) {
-        console.error('[Signup API] ⚠️ Rollback failed')
+        console.log('[SIGNUP] ⚠️ Rollback failed')
       }
 
       throw createError({
         statusCode: 400,
-        statusMessage: 'Failed to create user record',
-        data: { error: insertError.message }
+        statusMessage: 'Failed to create user record: ' + insertError.message
       })
     }
 
-    console.log('[Signup API] ✅ User record created')
-    console.log('[Signup API] ============ SIGNUP REQUEST END ============')
+    console.log('[SIGNUP] ✓✓✓ SIGNUP SUCCESS ✓✓✓')
 
     return {
       success: true,
       user: {
         id: authUserId,
         email: email.trim().toLowerCase(),
-        username: username.trim().toLowerCase(),
-        display_name: fullName?.trim() || username.trim()
+        username: username.trim().toLowerCase()
       },
-      message: 'Account created successfully! Please check your email to verify.',
-      requiresEmailVerification: true
+      message: 'Account created! Check your email to verify.'
     }
 
   } catch (error: any) {
-    console.error('[Signup API] ============ SIGNUP ERROR ============')
-    console.error('[Signup API] Error:', error?.message || error)
-    console.error('[Signup API] ============ END SIGNUP ERROR ============')
+    console.log('[SIGNUP] ❌❌❌ SIGNUP FAILED ❌❌❌')
+    console.log('[SIGNUP] Error:', error?.message || error)
     throw error
   }
 })
