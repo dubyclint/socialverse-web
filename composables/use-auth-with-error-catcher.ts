@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /composables/use-auth-with-error-catcher.ts
+// FILE: /composables/use-auth-with-error-catcher.ts - FIXED VERSION
 // ============================================================================
-// Enhanced auth composable with comprehensive error catching
+// CLEAR ERRORS AT START OF EACH SIGNUP ATTEMPT
 // ============================================================================
 
 import { ref } from 'vue'
@@ -12,7 +12,7 @@ import { useSignupErrorCatcher } from '~/utils/error-catcher'
 export const useAuthWithErrorCatcher = () => {
   const authStore = useAuthStore()
   const profileStore = useProfileStore()
-  const { captureError, printReport } = useSignupErrorCatcher()
+  const { captureError, printReport, clearErrors } = useSignupErrorCatcher()
   const supabase = useSupabaseClient()
   const router = useRouter()
 
@@ -25,6 +25,10 @@ export const useAuthWithErrorCatcher = () => {
   const signup = async (email: string, password: string, username: string) => {
     console.log('[useAuthWithErrorCatcher] ============ SIGNUP START ============')
     console.log('[useAuthWithErrorCatcher] Signup attempt:', { email, username })
+
+    // ✅ CLEAR PREVIOUS ERRORS AT START OF NEW SIGNUP ATTEMPT
+    clearErrors()
+    console.log('[useAuthWithErrorCatcher] ✓ Cleared previous errors')
 
     isLoading.value = true
     error.value = null
@@ -167,8 +171,8 @@ export const useAuthWithErrorCatcher = () => {
 
       error.value = err.message || 'Signup failed'
 
-      // Print full error report
-      console.log('[useAuthWithErrorCatcher] Printing error report...')
+      // ✅ ONLY PRINT CURRENT ERROR (not accumulated)
+      console.log('[useAuthWithErrorCatcher] Current error report:')
       printReport()
 
       return {
@@ -188,6 +192,9 @@ export const useAuthWithErrorCatcher = () => {
   const login = async (email: string, password: string) => {
     console.log('[useAuthWithErrorCatcher] ============ LOGIN START ============')
     console.log('[useAuthWithErrorCatcher] Login attempt:', { email })
+
+    // ✅ CLEAR PREVIOUS ERRORS AT START OF NEW LOGIN ATTEMPT
+    clearErrors()
 
     isLoading.value = true
     error.value = null
@@ -286,6 +293,7 @@ export const useAuthWithErrorCatcher = () => {
     signup,
     login,
     logout,
-    printReport
+    printReport,
+    clearErrors
   }
 }
