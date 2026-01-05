@@ -1,65 +1,87 @@
-// FILE: /server/plugins/error-handler.ts - IMPROVED VERSION
+// FILE: /server/plugins/error-handler.ts - REAL-TIME ERROR CATCHING
 // ============================================================================
-// Global error handler for Nitro server - CATCHES ALL ERRORS PROPERLY
+// Global error handler - CATCHES AND LOGS ALL ERRORS IN REAL-TIME
 // ============================================================================
 
 export default defineNitroPlugin((nitroApp) => {
   console.log('[Error Handler Plugin] Initializing...')
 
   // ============================================================================
-  // HOOK 1: Catch errors during request processing
+  // HOOK 1: Catch errors BEFORE they're processed
   // ============================================================================
   nitroApp.hooks.hook('error', (error, context) => {
     const event = context?.event
     const req = event?.node?.req
     
-    console.error('[Nitro Error Hook] ============ ERROR CAUGHT ============')
-    console.error('[Nitro Error Hook] Error Type:', error?.constructor?.name)
-    console.error('[Nitro Error Hook] Message:', error?.message)
-    console.error('[Nitro Error Hook] Status Code:', error?.statusCode)
-    console.error('[Nitro Error Hook] Status Message:', error?.statusMessage)
-    console.error('[Nitro Error Hook] URL:', req?.url)
-    console.error('[Nitro Error Hook] Method:', req?.method)
-    console.error('[Nitro Error Hook] Stack:', error?.stack)
-    console.error('[Nitro Error Hook] Data:', error?.data)
-    console.error('[Nitro Error Hook] ============ END ERROR ============')
+    // Log IMMEDIATELY when error occurs
+    console.error('\n')
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('[ERROR CAUGHT IN REAL-TIME]')
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('Timestamp:', new Date().toISOString())
+    console.error('URL:', req?.url)
+    console.error('Method:', req?.method)
+    console.error('Error Type:', error?.constructor?.name)
+    console.error('Status Code:', error?.statusCode || 'N/A')
+    console.error('Status Message:', error?.statusMessage || 'N/A')
+    console.error('Message:', error?.message)
+    console.error('Code:', error?.code || 'N/A')
+    console.error('Data:', error?.data ? JSON.stringify(error.data, null, 2) : 'N/A')
+    console.error('Stack:', error?.stack)
+    console.error('═══════════════════════════════════════════════════════════')
+    console.error('\n')
   })
 
   // ============================================================================
-  // HOOK 2: Catch unhandled errors
+  // HOOK 2: Catch errors during request handling
   // ============================================================================
   nitroApp.hooks.hook('request', (event) => {
-    // Wrap the handler to catch any errors
-    const originalHandler = event.node.res.end
+    const originalJson = event.node.res.json
     
-    event.node.res.end = function(...args: any[]) {
-      try {
-        return originalHandler.apply(this, args)
-      } catch (error: any) {
-        console.error('[Nitro Unhandled Error] ============ UNHANDLED ERROR ============')
-        console.error('[Nitro Unhandled Error] Error Type:', error?.constructor?.name)
-        console.error('[Nitro Unhandled Error] Message:', error?.message)
-        console.error('[Nitro Unhandled Error] Stack:', error?.stack)
-        console.error('[Nitro Unhandled Error] ============ END ERROR ============')
-        throw error
+    // Intercept JSON responses to catch error responses
+    event.node.res.json = function(data: any) {
+      if (data?.statusCode >= 400 || data?.error) {
+        console.error('\n')
+        console.error('═══════════════════════════════════════════════════════════')
+        console.error('[ERROR RESPONSE BEING SENT]')
+        console.error('═══════════════════════════════════════════════════════════')
+        console.error('URL:', event.node.req.url)
+        console.error('Method:', event.node.req.method)
+        console.error('Response Data:', JSON.stringify(data, null, 2))
+        console.error('═══════════════════════════════════════════════════════════')
+        console.error('\n')
       }
+      return originalJson.call(this, data)
     }
   })
 
   // ============================================================================
-  // HOOK 3: Catch errors after response
+  // HOOK 3: Catch unhandled promise rejections
   // ============================================================================
-  nitroApp.hooks.hook('afterResponse', (event, { body }) => {
-    // Check if response contains error
-    if (event.node.res.statusCode >= 400) {
-      console.warn('[Nitro Response] Status:', event.node.res.statusCode)
-      console.warn('[Nitro Response] URL:', event.node.req.url)
-      console.warn('[Nitro Response] Method:', event.node.req.method)
-      if (body) {
-        console.warn('[Nitro Response] Body:', typeof body === 'string' ? body : JSON.stringify(body))
-      }
-    }
-  })
+  if (typeof process !== 'undefined') {
+    process.on('unhandledRejection', (reason: any, promise: any) => {
+      console.error('\n')
+      console.error('═══════════════════════════════════════════════════════════')
+      console.error('[UNHANDLED PROMISE REJECTION]')
+      console.error('═══════════════════════════════════════════════════════════')
+      console.error('Reason:', reason)
+      console.error('Promise:', promise)
+      console.error('Stack:', reason?.stack)
+      console.error('═══════════════════════════════════════════════════════════')
+      console.error('\n')
+    })
 
-  console.log('[Error Handler Plugin] ✅ Ready')
+    process.on('uncaughtException', (error: any) => {
+      console.error('\n')
+      console.error('═══════════════════════════════════════════════════════════')
+      console.error('[UNCAUGHT EXCEPTION]')
+      console.error('═══════════════════════════════════════════════════════════')
+      console.error('Error:', error)
+      console.error('Stack:', error?.stack)
+      console.error('═══════════════════════════════════════════════════════════')
+      console.error('\n')
+    })
+  }
+
+  console.log('[Error Handler Plugin] ✅ Ready - All error hooks installed')
 })
