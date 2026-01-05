@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED FETCH ERROR HANDLING
+// FILE: /server/api/auth/signup.post.ts - FIXED SYNTAX ERROR
 // ============================================================================
-// ✅ FIXED: Properly handles all Supabase fetch errors
+// ✅ FIXED: Proper destructuring syntax
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -188,7 +188,7 @@ export default defineEventHandler(async (event) => {
     
     let authData
     try {
-      const { data, error: createError: createAuthError } = await supabase.auth.admin.createUser({
+      const { data, error: authCreateError } = await supabase.auth.admin.createUser({
         email: email.trim().toLowerCase(),
         password: password,
         email_confirm: false,
@@ -198,12 +198,12 @@ export default defineEventHandler(async (event) => {
         }
       })
 
-      if (createAuthError) {
-        logError('PHASE 5: Create Auth Error', createAuthError, { email, username })
+      if (authCreateError) {
+        logError('PHASE 5: Create Auth Error', authCreateError, { email, username })
         throw createError({
           statusCode: 400,
           statusMessage: 'Failed to create user',
-          data: { errors: [{ step: 'AUTH_CREATE', code: createAuthError.code || 'CREATE_FAILED', message: createAuthError.message }] }
+          data: { errors: [{ step: 'AUTH_CREATE', code: authCreateError.code || 'CREATE_FAILED', message: authCreateError.message }] }
         })
       }
 
