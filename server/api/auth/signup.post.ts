@@ -1,8 +1,7 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - REAL FIX: SKIP REDUNDANT CHECKS
+// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED VERSION
 // ============================================================================
-// ✅ REAL FIX: Remove supabase.auth.admin.listUsers() - it causes 20 errors
-// Supabase Auth already prevents duplicate emails automatically
+// This version only inserts essential fields that exist in the user table
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -65,8 +64,8 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[Signup API] PHASE 2: Creating Supabase client...')
     
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co'
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_1PsVmylhwbqXnTm3zch6LmS4sFFGeGMg'
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw createError({
@@ -92,7 +91,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 3: CHECK USERNAME UNIQUENESS (ONLY CHECK IN DB, NOT AUTH)
+    // PHASE 3: CHECK USERNAME UNIQUENESS
     // ============================================================================
     console.log('[Signup API] PHASE 3: Checking username uniqueness...')
     
@@ -137,7 +136,6 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[Signup API] PHASE 4: Creating auth user...')
     
-    let authData
     try {
       const { data, error: authCreateError } = await supabase.auth.admin.createUser({
         email: email.trim().toLowerCase(),
@@ -158,7 +156,6 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      authData = data
       authUserId = data?.user?.id
 
       if (!authUserId) {
@@ -181,7 +178,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 5: CREATE USER RECORD
+    // PHASE 5: CREATE USER RECORD (ONLY ESSENTIAL FIELDS)
     // ============================================================================
     console.log('[Signup API] PHASE 5: Creating user record...')
     
@@ -193,15 +190,7 @@ export default defineEventHandler(async (event) => {
           username: username.trim().toLowerCase(),
           display_name: fullName?.trim() || username.trim(),
           email: email.trim().toLowerCase(),
-          email_lower: email.trim().toLowerCase(),
-          username_lower: username.trim().toLowerCase(),
           status: 'active',
-          is_verified: false,
-          verification_status: 'unverified',
-          profile_completed: false,
-          posts_count: 0,
-          followers_count: 0,
-          following_count: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
