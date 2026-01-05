@@ -123,8 +123,8 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthWithErrorCatcher } from '~/composables/use-auth-with-error-catcher'
-const { signup, isLoading: loading, error: authError, printReport } = useAuthWithErrorCatcher()
+import { useAuthWithErrorCatcher } from '~/composables/use-auth-
+const
 
 // No auth required - public page
 definePageMeta({
