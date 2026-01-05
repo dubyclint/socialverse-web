@@ -123,8 +123,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useAuth } from '~/composables/use-auth'
+import { useAuthWithErrorCatcher } from '~/composables/use-auth-with-error-catcher'
+const { signup, isLoading: loading, error: authError, printReport } = useAuthWithErrorCatcher()
 
 // No auth required - public page
 definePageMeta({
