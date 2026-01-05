@@ -1,7 +1,8 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED SYNTAX ERROR
+// FILE: /server/api/auth/signup.post.ts - REAL FIX: SKIP REDUNDANT CHECKS
 // ============================================================================
-// ✅ FIXED: Proper destructuring syntax
+// ✅ REAL FIX: Remove supabase.auth.admin.listUsers() - it causes 20 errors
+// Supabase Auth already prevents duplicate emails automatically
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -10,18 +11,6 @@ interface SignupError {
   step: string
   code: string
   message: string
-  details?: any
-}
-
-function logError(phase: string, error: any, context?: any) {
-  console.error(`[Signup API] ❌ ${phase}`)
-  console.error(`[Signup API] Error Type: ${error?.constructor?.name}`)
-  console.error(`[Signup API] Error Message: ${error?.message}`)
-  console.error(`[Signup API] Error Code: ${error?.code}`)
-  console.error(`[Signup API] Error Status: ${error?.status}`)
-  if (context) {
-    console.error(`[Signup API] Context:`, context)
-  }
 }
 
 export default defineEventHandler(async (event) => {
@@ -94,7 +83,7 @@ export default defineEventHandler(async (event) => {
       })
       console.log('[Signup API] ✅ Supabase client created')
     } catch (error: any) {
-      logError('PHASE 2: Client Creation', error)
+      console.error('[Signup API] ❌ Client Creation Error:', error.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to create Supabase client',
@@ -103,47 +92,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 3: CHECK EMAIL UNIQUENESS
+    // PHASE 3: CHECK USERNAME UNIQUENESS (ONLY CHECK IN DB, NOT AUTH)
     // ============================================================================
-    console.log('[Signup API] PHASE 3: Checking email uniqueness...')
-    
-    try {
-      const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers()
-      
-      if (listError) {
-        logError('PHASE 3: List Users Error', listError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Failed to verify email',
-          data: { errors: [{ step: 'EMAIL_CHECK', code: 'FETCH_FAILED', message: listError.message }] }
-        })
-      }
-
-      const emailExists = authUsers?.some(u => u.email?.toLowerCase() === email.trim().toLowerCase())
-      if (emailExists) {
-        console.warn('[Signup API] ⚠️ Email already exists')
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Email already registered',
-          data: { errors: [{ step: 'EMAIL_CHECK', code: 'EMAIL_EXISTS', message: 'This email is already registered' }] }
-        })
-      }
-
-      console.log('[Signup API] ✅ Email is available')
-    } catch (error: any) {
-      if (error.statusCode) throw error
-      logError('PHASE 3: Email Check Exception', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Email verification failed',
-        data: { errors: [{ step: 'EMAIL_CHECK', code: 'EXCEPTION', message: error.message }] }
-      })
-    }
-
-    // ============================================================================
-    // PHASE 4: CHECK USERNAME UNIQUENESS
-    // ============================================================================
-    console.log('[Signup API] PHASE 4: Checking username uniqueness...')
+    console.log('[Signup API] PHASE 3: Checking username uniqueness...')
     
     try {
       const { data: existingUser, error: queryError } = await supabase
@@ -153,7 +104,7 @@ export default defineEventHandler(async (event) => {
         .single()
 
       if (queryError && queryError.code !== 'PGRST116') {
-        logError('PHASE 4: Username Query Error', queryError)
+        console.error('[Signup API] ❌ Username Query Error:', queryError.message)
         throw createError({
           statusCode: 500,
           statusMessage: 'Username verification failed',
@@ -173,7 +124,7 @@ export default defineEventHandler(async (event) => {
       console.log('[Signup API] ✅ Username is available')
     } catch (error: any) {
       if (error.statusCode) throw error
-      logError('PHASE 4: Username Check Exception', error)
+      console.error('[Signup API] ❌ Username Check Exception:', error.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Username verification failed',
@@ -182,9 +133,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 5: CREATE AUTH USER
+    // PHASE 4: CREATE AUTH USER
     // ============================================================================
-    console.log('[Signup API] PHASE 5: Creating auth user...')
+    console.log('[Signup API] PHASE 4: Creating auth user...')
     
     let authData
     try {
@@ -199,7 +150,7 @@ export default defineEventHandler(async (event) => {
       })
 
       if (authCreateError) {
-        logError('PHASE 5: Create Auth Error', authCreateError, { email, username })
+        console.error('[Signup API] ❌ Auth Create Error:', authCreateError.message, { email, username })
         throw createError({
           statusCode: 400,
           statusMessage: 'Failed to create user',
@@ -221,7 +172,7 @@ export default defineEventHandler(async (event) => {
       console.log('[Signup API] ✅ Auth user created:', authUserId)
     } catch (error: any) {
       if (error.statusCode) throw error
-      logError('PHASE 5: Auth Create Exception', error)
+      console.error('[Signup API] ❌ Auth Create Exception:', error.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to create user',
@@ -230,9 +181,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 6: CREATE USER RECORD
+    // PHASE 5: CREATE USER RECORD
     // ============================================================================
-    console.log('[Signup API] PHASE 6: Creating user record...')
+    console.log('[Signup API] PHASE 5: Creating user record...')
     
     try {
       const { data: userData, error: insertError } = await supabase
@@ -258,7 +209,7 @@ export default defineEventHandler(async (event) => {
         .single()
 
       if (insertError) {
-        logError('PHASE 6: Insert Error', insertError, { authUserId })
+        console.error('[Signup API] ❌ Insert Error:', insertError.message, { authUserId })
         
         // ROLLBACK: Delete auth user
         console.log('[Signup API] 🔄 Rolling back auth user...')
@@ -287,7 +238,7 @@ export default defineEventHandler(async (event) => {
       console.log('[Signup API] ✅ User record created')
     } catch (error: any) {
       if (error.statusCode) throw error
-      logError('PHASE 6: Insert Exception', error)
+      console.error('[Signup API] ❌ Insert Exception:', error.message)
       
       // ROLLBACK
       try {
@@ -304,7 +255,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // PHASE 7: SUCCESS
+    // PHASE 6: SUCCESS
     // ============================================================================
     console.log('[Signup API] ✅ Signup completed successfully')
     console.log('[Signup API] ============ SIGNUP REQUEST END ============')
