@@ -1,9 +1,7 @@
 // ============================================================================
-// UPDATED NUXT CONFIG FILE - WITH PROPER PLUGIN ORDER
+// FILE: /nuxt.config.ts - UPDATED WITH YOUR SUPABASE CREDENTIALS
 // ============================================================================
-// ✅ FIXED: Added plugin order configuration
-// ✅ FIXED: Ensured auth-init runs BEFORE other plugins
-// ✅ FIXED: Proper plugin dependency chain
+// ✅ UPDATED: Runtime config now uses your actual Supabase credentials
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -28,29 +26,29 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // RUNTIME CONFIG
+  // RUNTIME CONFIG - ✅ UPDATED WITH YOUR CREDENTIALS
   // ============================================================================
   runtimeConfig: {
     // Server-only config (private)
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_1PsVmylhwbqXnTm3zch6LmS4sFFGeGMg',
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-    supabaseKey: process.env.SUPABASE_KEY || '',
-    jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+    supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+    jwtSecret: process.env.JWT_SECRET || 'o3S7f0UmT9eSf5tWnPt5z2oAz2DWdx73w5TWox+F3YRGzuUKUsExsyFYqJ1TQD31AbW9zCdKOzgI+MAUQkobCQ==',
     brevoApiKey: process.env.BREVO_API_KEY || '',
     
     // Public config (exposed to client)
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
-      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || '',
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
-      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3000',
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'http://localhost:3000',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
       cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
       cdnEnabled: true,
       gunEnabled: true,
       gunPeers: [],
       nodeEnv: process.env.NODE_ENV || 'production',
-      port: process.env.PORT || '8080',
+      port: process.env.PORT || '3000',
       logLevel: process.env.LOG_LEVEL || 'info',
       appName: 'SocialVerse',
       enablePremium: true,
@@ -97,7 +95,7 @@ export default defineNuxtConfig({
       failOnError: false,
     },
     
-    port: 8080,
+    port: 3000,
     host: '0.0.0.0',
     sourceMap: false,
     
