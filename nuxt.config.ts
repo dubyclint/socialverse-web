@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /nuxt.config.ts - COMPLETE CORRECT VERSION
+// FILE: /nuxt.config.ts - WITH HARDCODED KEYS AS FALLBACK
 // ============================================================================
-// ✅ FIXED: Using process.env directly for all credentials
+// ✅ FIXED: Using process.env with hardcoded fallback keys
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -26,23 +26,23 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // RUNTIME CONFIG - Using process.env directly
+  // RUNTIME CONFIG - With hardcoded fallback keys
   // ============================================================================
   runtimeConfig: {
     // Server-only config (private)
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_KEY,
-    jwtSecret: process.env.JWT_SECRET,
-    brevoApiKey: process.env.BREVO_API_KEY,
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM3ODMyNiwiZXhwIjoyMDc0OTU0MzI2fQ.4gjaVgOV9j_1PsVmylhwbqXnTm3zch6LmS4sFFGeGMg',
+    supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
+    supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+    jwtSecret: process.env.JWT_SECRET || 'o3S7f0UmT9eSf5tWnPt5z2oAz2DWdx73w5TWox+F3YRGzuUKUsExsyFYqJ1TQD31AbW9zCdKOzgI+MAUQkobCQ==',
+    brevoApiKey: process.env.BREVO_API_KEY || '',
     
     // Public config (exposed to client)
     public: {
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
-      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY,
-      apiUrl: process.env.NUXT_PUBLIC_API_URL,
-      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       cdnUrl: process.env.NUXT_PUBLIC_CDN_URL || '',
       cdnEnabled: true,
       gunEnabled: true,
