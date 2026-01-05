@@ -1,8 +1,8 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - COMPLETE UPDATED VERSION
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
 // Progressive signup - Phase 1: Basic info only (email, password, username)
-// Profile creation happens automatically
+// ✅ FIXED: Better error logging, validation, and error handling
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -128,39 +128,125 @@ export default defineEventHandler(async (event) => {
     const supabaseUrl = config.supabaseUrl
     const supabaseServiceKey = config.supabaseServiceKey
 
-    console.log('[Signup API] Supabase URL:', supabaseUrl)
-    console.log('[Signup API] Service key available:', !!supabaseServiceKey)
+    console.log('[Signup API] Supabase URL:', supabaseUrl ? '✅ Set' : '❌ Missing')
+    console.log('[Signup API] Service key available:', supabaseServiceKey ? '✅ Set' : '❌ Missing')
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[Signup API] ❌ Missing Supabase configuration')
+    // ✅ FIXED: Better validation of config
+    if (!supabaseUrl) {
+      console.error('[Signup API] ❌ SUPABASE_URL is not configured')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Server configuration error - Supabase credentials not configured',
+        statusMessage: 'Server configuration error - SUPABASE_URL not configured',
         data: {
           errors: [{
             step: 'SUPABASE_CONFIG',
-            code: 'MISSING_CREDENTIALS',
-            message: 'Supabase URL or Service Role Key is not configured'
+            code: 'MISSING_URL',
+            message: 'SUPABASE_URL environment variable is not configured'
           }]
         }
       })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    console.log('[Signup API] ✅ Supabase admin client created')
+    if (!supabaseServiceKey) {
+      console.error('[Signup API] ❌ SUPABASE_SERVICE_ROLE_KEY is not configured')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Server configuration error - SUPABASE_SERVICE_ROLE_KEY not configured',
+        data: {
+          errors: [{
+            step: 'SUPABASE_CONFIG',
+            code: 'MISSING_SERVICE_KEY',
+            message: 'SUPABASE_SERVICE_ROLE_KEY environment variable is not configured'
+          }]
+        }
+      })
+    }
+
+    // ✅ FIXED: Validate URL format
+    if (!supabaseUrl.includes('supabase.co')) {
+      console.error('[Signup API] ❌ SUPABASE_URL format is invalid:', supabaseUrl)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Server configuration error - Invalid SUPABASE_URL format',
+        data: {
+          errors: [{
+            step: 'SUPABASE_CONFIG',
+            code: 'INVALID_URL_FORMAT',
+            message: 'SUPABASE_URL must be a valid Supabase URL (should contain supabase.co)'
+          }]
+        }
+      })
+    }
+
+    // ✅ FIXED: Validate key format
+    if (supabaseServiceKey.length < 100) {
+      console.error('[Signup API] ❌ SUPABASE_SERVICE_ROLE_KEY format is invalid (too short)')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Server configuration error - Invalid SUPABASE_SERVICE_ROLE_KEY format',
+        data: {
+          errors: [{
+            step: 'SUPABASE_CONFIG',
+            code: 'INVALID_KEY_FORMAT',
+            message: 'SUPABASE_SERVICE_ROLE_KEY appears to be invalid (JWT tokens should be longer)'
+          }]
+        }
+      })
+    }
+
+    console.log('[Signup API] ✅ Supabase configuration validated')
 
     // ============================================================================
-    // PHASE 3: CHECK CONSTRAINTS
+    // PHASE 3: CREATE SUPABASE CLIENT
     // ============================================================================
-    console.log('[Signup API] PHASE 3: Checking database constraints...')
+    console.log('[Signup API] PHASE 3: Creating Supabase client...')
+
+    let supabase
+    try {
+      supabase = createClient(supabaseUrl, supabaseServiceKey)
+      console.log('[Signup API] ✅ Supabase client created successfully')
+    } catch (clientError: any) {
+      console.error('[Signup API] ❌ Failed to create Supabase client:', {
+        message: clientError.message,
+        code: clientError.code,
+        stack: clientError.stack
+      })
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to initialize Supabase client',
+        data: {
+          errors: [{
+            step: 'SUPABASE_CLIENT_CREATION',
+            code: 'CLIENT_INIT_FAILED',
+            message: clientError.message || 'Failed to create Supabase client',
+            details: {
+              errorType: clientError.constructor.name,
+              originalMessage: clientError.message
+            }
+          }]
+        }
+      })
+    }
+
+    // ============================================================================
+    // PHASE 4: CHECK CONSTRAINTS
+    // ============================================================================
+    console.log('[Signup API] PHASE 4: Checking database constraints...')
     
     const constraintErrors: SignupError[] = []
 
     console.log('[Signup API] Checking email uniqueness in auth.users...')
-    const { data: authUsers, error: authCheckError } = await supabase.auth.admin.listUsers()
-    
-    if (authCheckError) {
-      console.error('[Signup API] ❌ Error checking auth users:', authCheckError)
+    let authUsers
+    try {
+      const result = await supabase.auth.admin.listUsers()
+      authUsers = result.data
+      console.log('[Signup API] ✅ Successfully fetched auth users')
+    } catch (authCheckError: any) {
+      console.error('[Signup API] ❌ Error checking auth users:', {
+        message: authCheckError.message,
+        code: authCheckError.code,
+        status: authCheckError.status
+      })
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to verify email uniqueness',
@@ -169,7 +255,10 @@ export default defineEventHandler(async (event) => {
             step: 'EMAIL_UNIQUENESS_CHECK',
             code: 'AUTH_CHECK_FAILED',
             message: 'Could not verify if email is already registered',
-            details: authCheckError.message
+            details: {
+              errorMessage: authCheckError.message,
+              errorCode: authCheckError.code
+            }
           }]
         }
       })
@@ -177,6 +266,7 @@ export default defineEventHandler(async (event) => {
 
     const emailExists = authUsers?.users?.some(u => u.email?.toLowerCase() === email.trim().toLowerCase())
     if (emailExists) {
+      console.warn('[Signup API] ⚠️ Email already exists:', email)
       constraintErrors.push({
         step: 'CONSTRAINT_CHECK',
         code: 'EMAIL_ALREADY_EXISTS',
@@ -185,11 +275,30 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('[Signup API] Checking username uniqueness in user table...')
-    const { data: existingUser, error: usernameCheckError } = await supabase
-      .from('user')
-      .select('id, username')
-      .ilike('username', username.trim().toLowerCase())
-      .single()
+    let existingUser
+    let usernameCheckError
+    try {
+      const result = await supabase
+        .from('user')
+        .select('id, username')
+        .ilike('username', username.trim().toLowerCase())
+        .single()
+      
+      existingUser = result.data
+      usernameCheckError = result.error
+      
+      if (existingUser) {
+        console.warn('[Signup API] ⚠️ Username already exists:', username)
+      } else {
+        console.log('[Signup API] ✅ Username is available')
+      }
+    } catch (error: any) {
+      console.error('[Signup API] ❌ Error checking username:', {
+        message: error.message,
+        code: error.code
+      })
+      usernameCheckError = error
+    }
 
     if (existingUser) {
       constraintErrors.push({
@@ -205,7 +314,10 @@ export default defineEventHandler(async (event) => {
         step: 'CONSTRAINT_CHECK',
         code: 'USERNAME_CHECK_FAILED',
         message: 'Could not verify if username is available',
-        details: usernameCheckError.message
+        details: {
+          errorMessage: usernameCheckError.message,
+          errorCode: usernameCheckError.code
+        }
       })
     }
 
@@ -223,22 +335,36 @@ export default defineEventHandler(async (event) => {
     console.log('[Signup API] ✅ All constraints passed')
 
     // ============================================================================
-    // PHASE 4: CREATE AUTH USER
+    // PHASE 5: CREATE AUTH USER
     // ============================================================================
-    console.log('[Signup API] PHASE 4: Creating auth user...')
+    console.log('[Signup API] PHASE 5: Creating auth user...')
     console.log('[Signup API] Email:', email.trim().toLowerCase())
     console.log('[Signup API] Username:', username.trim().toLowerCase())
     
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: email.trim().toLowerCase(),
-      password: password,
-      email_confirm: false,
-      user_metadata: {
-        username: username.trim().toLowerCase(),
-        full_name: fullName?.trim() || username.trim(),
-        avatar_url: null
-      }
-    })
+    let authData
+    let authError
+    try {
+      const result = await supabase.auth.admin.createUser({
+        email: email.trim().toLowerCase(),
+        password: password,
+        email_confirm: false,
+        user_metadata: {
+          username: username.trim().toLowerCase(),
+          full_name: fullName?.trim() || username.trim(),
+          avatar_url: null
+        }
+      })
+      
+      authData = result.data
+      authError = result.error
+    } catch (error: any) {
+      console.error('[Signup API] ❌ Exception during auth user creation:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      })
+      authError = error
+    }
 
     if (authError) {
       console.error('[Signup API] ❌ Auth user creation failed:', {
@@ -292,36 +418,54 @@ export default defineEventHandler(async (event) => {
     console.log('[Signup API] ✅ Auth user created:', authUserId)
 
     // ============================================================================
-    // PHASE 5: CREATE USER RECORD
+    // PHASE 6: CREATE USER RECORD
     // ============================================================================
-    console.log('[Signup API] PHASE 5: Creating user record...')
+    console.log('[Signup API] PHASE 6: Creating user record...')
     
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .insert([{
-        id: authUserId,
-        email: email.trim().toLowerCase(),
-        username: username.trim().toLowerCase(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single()
+    let userData
+    let userError
+    try {
+      const result = await supabase
+        .from('user')
+        .insert([{
+          id: authUserId,
+          email: email.trim().toLowerCase(),
+          username: username.trim().toLowerCase(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+      
+      userData = result.data
+      userError = result.error
+    } catch (error: any) {
+      console.error('[Signup API] ❌ Exception during user record creation:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      })
+      userError = error
+    }
 
     if (userError) {
       console.error('[Signup API] ❌ User record creation failed:', {
         message: userError.message,
-        code: userError.code
+        code: userError.code,
+        hint: userError.hint
       })
 
       console.log('[Signup API] 🔄 Rolling back: Deleting auth user due to user record creation failure...')
       
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
-      
-      if (deleteError) {
-        console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteError)
-      } else {
-        console.log('[Signup API] ✅ Auth user rolled back successfully')
+      try {
+        const deleteResult = await supabase.auth.admin.deleteUser(authUserId)
+        if (deleteResult.error) {
+          console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteResult.error)
+        } else {
+          console.log('[Signup API] ✅ Auth user rolled back successfully')
+        }
+      } catch (deleteError: any) {
+        console.error('[Signup API] ❌ CRITICAL: Exception during rollback:', deleteError)
       }
 
       authUserId = null
@@ -348,12 +492,15 @@ export default defineEventHandler(async (event) => {
       console.error('[Signup API] ❌ User record created but no data returned')
       
       console.log('[Signup API] 🔄 Rolling back: Deleting auth user due to missing user data...')
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
-      
-      if (deleteError) {
-        console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteError)
-      } else {
-        console.log('[Signup API] ✅ Auth user rolled back successfully')
+      try {
+        const deleteResult = await supabase.auth.admin.deleteUser(authUserId)
+        if (deleteResult.error) {
+          console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteResult.error)
+        } else {
+          console.log('[Signup API] ✅ Auth user rolled back successfully')
+        }
+      } catch (deleteError: any) {
+        console.error('[Signup API] ❌ CRITICAL: Exception during rollback:', deleteError)
       }
 
       authUserId = null
@@ -374,58 +521,80 @@ export default defineEventHandler(async (event) => {
     console.log('[Signup API] ✅ User record created successfully')
 
     // ============================================================================
-    // PHASE 6: CREATE PROFILE RECORD
+    // PHASE 7: CREATE PROFILE RECORD
     // ============================================================================
-    console.log('[Signup API] PHASE 6: Creating profile record...')
+    console.log('[Signup API] PHASE 7: Creating profile record...')
     
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .insert([{
-        user_id: authUserId,
-        full_name: fullName?.trim() || username.trim(),
-        bio: null,
-        avatar_url: null,
-        location: null,
-        website: null,
-        interests: [],
-        colors: {},
-        items: [],
-        profile_completed: false,
-        rank: 'Bronze I',
-        rank_points: 0,
-        rank_level: 1,
-        is_verified: false,
-        verified_badge_type: null,
-        verified_at: null,
-        verification_status: 'none',
-        badge_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single()
+    let profileData
+    let profileError
+    try {
+      const result = await supabase
+        .from('profiles')
+        .insert([{
+          user_id: authUserId,
+          full_name: fullName?.trim() || username.trim(),
+          bio: null,
+          avatar_url: null,
+          location: null,
+          website: null,
+          interests: [],
+          colors: {},
+          items: [],
+          profile_completed: false,
+          rank: 'Bronze I',
+          rank_points: 0,
+          rank_level: 1,
+          is_verified: false,
+          verified_badge_type: null,
+          verified_at: null,
+          verification_status: 'none',
+          badge_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+      
+      profileData = result.data
+      profileError = result.error
+    } catch (error: any) {
+      console.error('[Signup API] ❌ Exception during profile creation:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      })
+      profileError = error
+    }
 
     if (profileError) {
       console.error('[Signup API] ❌ Profile creation failed:', {
         message: profileError.message,
-        code: profileError.code
+        code: profileError.code,
+        hint: profileError.hint
       })
 
       console.log('[Signup API] 🔄 Rolling back: Deleting auth user and user record due to profile creation failure...')
       
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
-      const { error: userDeleteError } = await supabase.from('user').delete().eq('id', authUserId)
-      
-      if (deleteError) {
-        console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteError)
-      } else {
-        console.log('[Signup API] ✅ Auth user rolled back successfully')
+      try {
+        const deleteAuthResult = await supabase.auth.admin.deleteUser(authUserId)
+        if (deleteAuthResult.error) {
+          console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteAuthResult.error)
+        } else {
+          console.log('[Signup API] ✅ Auth user rolled back successfully')
+        }
+      } catch (deleteError: any) {
+        console.error('[Signup API] ❌ CRITICAL: Exception during auth user rollback:', deleteError)
       }
 
-      if (userDeleteError) {
-        console.error('[Signup API] ❌ CRITICAL: Failed to rollback user record:', userDeleteError)
-      } else {
-        console.log('[Signup API] ✅ User record rolled back successfully')
+      try {
+        const deleteUserResult = await supabase.from('user').delete().eq('id', authUserId)
+        if (deleteUserResult.error) {
+          console.error('[Signup API] ❌ CRITICAL: Failed to rollback user record:', deleteUserResult.error)
+        } else {
+          console.log('[Signup API] ✅ User record rolled back successfully')
+        }
+      } catch (deleteError: any) {
+        console.error('[Signup API] ❌ CRITICAL: Exception during user record rollback:', deleteError)
       }
 
       authUserId = null
@@ -452,19 +621,26 @@ export default defineEventHandler(async (event) => {
       console.error('[Signup API] ❌ Profile created but no data returned')
       
       console.log('[Signup API] 🔄 Rolling back: Deleting auth user and user record due to missing profile data...')
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
-      const { error: userDeleteError } = await supabase.from('user').delete().eq('id', authUserId)
-      
-      if (deleteError) {
-        console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteError)
-      } else {
-        console.log('[Signup API] ✅ Auth user rolled back successfully')
+      try {
+        const deleteAuthResult = await supabase.auth.admin.deleteUser(authUserId)
+        if (deleteAuthResult.error) {
+          console.error('[Signup API] ❌ CRITICAL: Failed to rollback auth user:', deleteAuthResult.error)
+        } else {
+          console.log('[Signup API] ✅ Auth user rolled back successfully')
+        }
+      } catch (deleteError: any) {
+        console.error('[Signup API] ❌ CRITICAL: Exception during auth user rollback:', deleteError)
       }
 
-      if (userDeleteError) {
-        console.error('[Signup API] ❌ CRITICAL: Failed to rollback user record:', userDeleteError)
-      } else {
-        console.log('[Signup API] ✅ User record rolled back successfully')
+      try {
+        const deleteUserResult = await supabase.from('user').delete().eq('id', authUserId)
+        if (deleteUserResult.error) {
+          console.error('[Signup API] ❌ CRITICAL: Failed to rollback user record:', deleteUserResult.error)
+        } else {
+          console.log('[Signup API] ✅ User record rolled back successfully')
+        }
+      } catch (deleteError: any) {
+        console.error('[Signup API] ❌ CRITICAL: Exception during user record rollback:', deleteError)
       }
 
       authUserId = null
@@ -485,23 +661,27 @@ export default defineEventHandler(async (event) => {
     console.log('[Signup API] ✅ Profile created successfully')
 
     // ============================================================================
-    // PHASE 7: SEND VERIFICATION EMAIL
+    // PHASE 8: SEND VERIFICATION EMAIL
     // ============================================================================
-    console.log('[Signup API] PHASE 7: Sending verification email...')
+    console.log('[Signup API] PHASE 8: Sending verification email...')
     
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup',
-      email: email.trim().toLowerCase()
-    })
+    try {
+      const resendResult = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim().toLowerCase()
+      })
 
-    if (resendError) {
-      console.warn('[Signup API] ⚠️ Email send failed (non-critical):', resendError.message)
-    } else {
-      console.log('[Signup API] ✅ Verification email sent')
+      if (resendResult.error) {
+        console.warn('[Signup API] ⚠️ Email send failed (non-critical):', resendResult.error.message)
+      } else {
+        console.log('[Signup API] ✅ Verification email sent')
+      }
+    } catch (emailError: any) {
+      console.warn('[Signup API] ⚠️ Exception during email send (non-critical):', emailError.message)
     }
 
     // ============================================================================
-    // PHASE 8: SUCCESS
+    // PHASE 9: SUCCESS
     // ============================================================================
     console.log('[Signup API] ✅ Signup completed successfully')
     console.log('[Signup API] ============ SIGNUP REQUEST END ============')
@@ -525,6 +705,7 @@ export default defineEventHandler(async (event) => {
     console.error('[Signup API] Error message:', error.message)
     console.error('[Signup API] Error status:', error.statusCode)
     console.error('[Signup API] Error data:', error.data)
+    console.error('[Signup API] Error stack:', error.stack)
 
     if (authUserId) {
       console.log('[Signup API] 🔄 Final safety rollback: Attempting to delete orphaned auth user...')
@@ -535,15 +716,15 @@ export default defineEventHandler(async (event) => {
         
         if (supabaseUrl && supabaseServiceKey) {
           const supabase = createClient(supabaseUrl, supabaseServiceKey)
-          const { error: deleteError } = await supabase.auth.admin.deleteUser(authUserId)
+          const deleteResult = await supabase.auth.admin.deleteUser(authUserId)
           
-          if (deleteError) {
-            console.error('[Signup API] ❌ CRITICAL: Failed to delete orphaned auth user:', deleteError)
+          if (deleteResult.error) {
+            console.error('[Signup API] ❌ CRITICAL: Failed to delete orphaned auth user:', deleteResult.error)
           } else {
             console.log('[Signup API] ✅ Orphaned auth user deleted')
           }
         }
-      } catch (rollbackError) {
+      } catch (rollbackError: any) {
         console.error('[Signup API] ❌ CRITICAL: Rollback exception:', rollbackError)
       }
     }
