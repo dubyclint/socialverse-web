@@ -123,8 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthWithErrorCatcher } from '~/composables/use-auth-
-const
+import { useAuth } from '~/composables/use-auth'
 
 // No auth required - public page
 definePageMeta({
