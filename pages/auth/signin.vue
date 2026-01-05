@@ -177,10 +177,10 @@ const handleSignin = async () => {
     })
 
     // Call login with object parameter (not separate parameters)
-const result = await login(
-  formData.value.email,
-  formData.value.password
-)
+    const result = await login(
+      formData.value.email,
+      formData.value.password
+    )
 
     console.log('[Signin Page] Login result:', result)
 
