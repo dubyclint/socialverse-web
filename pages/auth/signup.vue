@@ -149,16 +149,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useAuth } from '~/composables/use-auth'
-import { useEmailVerification } from '~/composables/use-email-verification'
-
 definePageMeta({
   layout: 'auth',
   middleware: 'guest'
 })
-
-const { signup, isLoading: loading, error: authError } = useAuth()
+  
+import { ref, watch } from 'vue'
+import { useEmailVerification } from '~/composables/use-email-verification'
+import { useAuthWithErrorCatcher } from '~/composables/use-auth-with-error-catcher'
+  
+const { signup, isLoading: loading, error: authError, printReport } = useAuthWithErrorCatcher()
 const { resendVerificationEmail } = useEmailVerification()
 
 const successMessage = ref('')
