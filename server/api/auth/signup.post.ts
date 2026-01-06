@@ -1,7 +1,5 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED FOR ACTUAL TABLE SCHEMA
-// ============================================================================
-// Fixed to match your actual user table structure with id as PRIMARY KEY
+// FILE: /server/api/auth/signup.post.ts - FIXED WITH RPC FUNCTION
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -100,37 +98,24 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] ✓ Auth user created:', authUserId)
 
     // ============================================================================
-    // CREATE USER RECORD IN DATABASE
+    // CREATE USER RECORD USING RPC FUNCTION (BYPASSES RLS)
     // ============================================================================
-    console.log('[SIGNUP] Creating user record in database...')
+    console.log('[SIGNUP] Creating user profile via RPC function...')
     
-    // ✅ FIXED: Only insert columns that exist in the table
-    // Let auto-generated columns handle themselves (id, created_at, updated_at, etc.)
-    const { data: userData, error: insertError } = await supabaseAdmin
-      .from('user')
-      .insert([{
-        user_id: authUserId,
-        username: username.trim().toLowerCase(),
-        username_lower: username.trim().toLowerCase(),
-        display_name: fullName?.trim() || username.trim(),
-        email: email.trim().toLowerCase(),
-        email_lower: email.trim().toLowerCase(),
-        status: 'active',
-        is_verified: false,
-        verification_status: 'unverified',
-        profile_completed: false,
-        posts_count: 0,
-        followers_count: 0,
-        following_count: 0
-        // id, created_at, updated_at are auto-generated - don't include them
-      }])
-      .select()
-      .single()
+    const { data: userData, error: rpcError } = await supabaseAdmin.rpc(
+      'create_user_profile',
+      {
+        p_user_id: authUserId,
+        p_username: username.trim().toLowerCase(),
+        p_email: email.trim().toLowerCase(),
+        p_display_name: fullName?.trim() || username.trim()
+      }
+    )
 
-    if (insertError) {
-      console.log('[SIGNUP] ❌ Database insert error:', insertError.message)
-      console.log('[SIGNUP] ❌ Error code:', insertError.code)
-      console.log('[SIGNUP] ❌ Error details:', insertError.details)
+    if (rpcError) {
+      console.log('[SIGNUP] ❌ RPC function error:', rpcError.message)
+      console.log('[SIGNUP] ❌ Error code:', rpcError.code)
+      console.log('[SIGNUP] ❌ Error details:', rpcError.details)
       
       // ROLLBACK: Delete auth user
       try {
@@ -142,11 +127,11 @@ export default defineEventHandler(async (event) => {
 
       throw createError({
         statusCode: 400,
-        statusMessage: 'Failed to create user record: ' + insertError.message
+        statusMessage: 'Failed to create user profile: ' + rpcError.message
       })
     }
 
-    console.log('[SIGNUP] ✓ User record created successfully')
+    console.log('[SIGNUP] ✓ User profile created successfully')
     console.log('[SIGNUP] ✓✓✓ SIGNUP SUCCESS ✓✓✓')
 
     return {
