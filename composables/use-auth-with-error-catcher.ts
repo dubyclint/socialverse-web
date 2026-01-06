@@ -1,7 +1,10 @@
 // ============================================================================
-// FILE: /composables/use-auth-with-error-catcher.ts - FIXED VERSION
+// FILE 1: /composables/use-auth-with-error-catcher.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// CLEAR ERRORS AT START OF EACH SIGNUP ATTEMPT
+// FIXES:
+// ✅ clearErrors() called at start of signup
+// ✅ clearErrors() called at start of login
+// ✅ Only shows current errors (not accumulated)
 // ============================================================================
 
 import { ref } from 'vue'
@@ -195,6 +198,7 @@ export const useAuthWithErrorCatcher = () => {
 
     // ✅ CLEAR PREVIOUS ERRORS AT START OF NEW LOGIN ATTEMPT
     clearErrors()
+    console.log('[useAuthWithErrorCatcher] ✓ Cleared previous errors')
 
     isLoading.value = true
     error.value = null
