@@ -1,3 +1,9 @@
+<!-- ============================================================================
+FILE: /pages/auth/verify-email.vue - COMPLETE PHASE 3
+============================================================================
+EMAIL VERIFICATION PAGE - Handles email verification after signup
+============================================================================ -->
+
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -11,6 +17,7 @@
 
       <!-- Verification Card -->
       <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
+        
         <!-- Loading State -->
         <div v-if="loading" class="text-center space-y-4">
           <div class="flex justify-center">
@@ -126,23 +133,12 @@ const redirectCountdown = ref(5)
 const resendLoading = ref(false)
 const resendSuccess = ref('')
 
-// Debug info
-const currentUrl = ref('')
-const hashToken = ref('')
-const windowHash = ref('')
-
-/**
- * Extract token from Supabase email link
- * Supabase can send in two formats:
- * 1. Hash format: #access_token=xxx&type=signup&refresh_token=yyy
- * 2. Query format: ?code=xxx (newer format)
- */
+// ============================================================================
+// EXTRACT TOKEN FROM URL
+// ============================================================================
 const getTokenFromUrl = (): { token: string | null; type: string } => {
-  currentUrl.value = window.location.href
-  windowHash.value = window.location.hash
-  
   console.log('[Verify Email] ============ TOKEN EXTRACTION START ============')
-  console.log('[Verify Email] Current URL:', currentUrl.value)
+  console.log('[Verify Email] Current URL:', window.location.href)
   console.log('[Verify Email] Hash:', window.location.hash)
   console.log('[Verify Email] Search:', window.location.search)
 
@@ -155,7 +151,6 @@ const getTokenFromUrl = (): { token: string | null; type: string } => {
     if (accessTokenMatch && accessTokenMatch[1]) {
       const token = accessTokenMatch[1]
       console.log('[Verify Email] ✅ Token found in hash (access_token)')
-      hashToken.value = token.substring(0, 20) + '...'
       
       const typeMatch = hash.match(/type=([^&]+)/)
       const type = typeMatch && typeMatch[1] ? typeMatch[1] : 'signup'
@@ -176,7 +171,6 @@ const getTokenFromUrl = (): { token: string | null; type: string } => {
     if (codeMatch && codeMatch[1]) {
       const token = codeMatch[1]
       console.log('[Verify Email] ✅ Token found in query params (code)')
-      hashToken.value = token.substring(0, 20) + '...'
       
       console.log('[Verify Email] Type: signup (default for query format)')
       console.log('[Verify Email] ============ TOKEN EXTRACTION END ============')
@@ -200,9 +194,9 @@ const getTokenFromUrl = (): { token: string | null; type: string } => {
   return { token: null, type: 'signup' }
 }
 
-/**
- * Verify email on page load
- */
+// ============================================================================
+// VERIFY EMAIL ON PAGE LOAD
+// ============================================================================
 onMounted(async () => {
   console.log('[Verify Email Page] ============ MOUNTED ============')
   console.log('[Verify Email Page] Window location:', window.location.href)
@@ -224,15 +218,14 @@ onMounted(async () => {
   if (result.success) {
     console.log('[Verify Email Page] ✅ Email verified successfully')
     console.log('[Verify Email Page] Result:', result)
-    console.log('[Verify Email Page] User:', result.user)
     
-    // ✅ FIX: Get user ID from result.user or result.data.user
+    // ✅ Get user ID from result
     let userId = result.user?.id || result.data?.user?.id
     let userEmail = result.user?.email || result.data?.user?.email
     let username = result.user?.username || result.data?.user?.username
     let fullName = result.user?.full_name || result.data?.user?.full_name
     
-    console.log('[Verify Email Page] Initial extracted user data:', {
+    console.log('[Verify Email Page] Extracted user data:', {
       userId,
       userEmail,
       username,
@@ -244,7 +237,6 @@ onMounted(async () => {
       console.log('[Verify Email Page] User data is null, fetching from auth store...')
       
       try {
-        // Get the auth store to access user data
         const { $auth } = useNuxtApp()
         
         if ($auth && $auth.user) {
@@ -261,7 +253,7 @@ onMounted(async () => {
       }
     }
     
-    console.log('[Verify Email Page] Final extracted user data:', {
+    console.log('[Verify Email Page] Final user data:', {
       userId,
       userEmail,
       username,
@@ -269,7 +261,7 @@ onMounted(async () => {
     })
     
     if (!userId) {
-      console.error('[Verify Email Page] ❌ No user ID found in verification response or auth store')
+      console.error('[Verify Email Page] ❌ No user ID found')
       error.value = 'Verification successful but user data is missing. Please try signing in.'
       loading.value = false
       return
@@ -317,9 +309,9 @@ onMounted(async () => {
   }
 })
 
-/**
- * Resend verification email
- */
+// ============================================================================
+// RESEND VERIFICATION EMAIL
+// ============================================================================
 const resendEmail = async () => {
   let email = prompt('Please enter your email address:') || ''
   
@@ -352,7 +344,6 @@ const resendEmail = async () => {
 </script>
 
 <style scoped>
-/* Custom scrollbar for the page */
 ::-webkit-scrollbar {
   width: 8px;
 }
