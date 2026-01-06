@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED WITH RPC FUNCTION
+// FILE: /server/api/auth/signup.post.ts - WITH BETTER ERROR LOGGING
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -80,6 +80,10 @@ export default defineEventHandler(async (event) => {
 
     if (authError) {
       console.log('[SIGNUP] ❌ Auth signup error:', authError.message)
+      console.log('[SIGNUP] ❌ Auth error code:', authError.code)
+      console.log('[SIGNUP] ❌ Auth error status:', authError.status)
+      console.log('[SIGNUP] ❌ Full auth error:', JSON.stringify(authError, null, 2))
+      
       throw createError({
         statusCode: 400,
         statusMessage: 'Failed to create user: ' + authError.message
@@ -114,15 +118,15 @@ export default defineEventHandler(async (event) => {
 
     if (rpcError) {
       console.log('[SIGNUP] ❌ RPC function error:', rpcError.message)
-      console.log('[SIGNUP] ❌ Error code:', rpcError.code)
-      console.log('[SIGNUP] ❌ Error details:', rpcError.details)
+      console.log('[SIGNUP] ❌ RPC error code:', rpcError.code)
+      console.log('[SIGNUP] ❌ RPC error details:', JSON.stringify(rpcError, null, 2))
       
       // ROLLBACK: Delete auth user
       try {
         await supabaseAdmin.auth.admin.deleteUser(authUserId)
         console.log('[SIGNUP] ✓ Rolled back auth user')
       } catch (e) {
-        console.log('[SIGNUP] ⚠️ Rollback failed')
+        console.log('[SIGNUP] ⚠️ Rollback failed:', e)
       }
 
       throw createError({
@@ -147,6 +151,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.log('[SIGNUP] ❌❌❌ SIGNUP FAILED ❌❌❌')
     console.log('[SIGNUP] Error:', error?.message || error)
+    console.log('[SIGNUP] Full error:', JSON.stringify(error, null, 2))
     throw error
   }
 })
