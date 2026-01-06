@@ -1,11 +1,7 @@
 // ============================================================================
-// FILE 2: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/auth/signup.post.ts - FIXED FOR ACTUAL TABLE SCHEMA
 // ============================================================================
-// FIXES:
-// ✅ Uses client-side signUp (not admin.createUser)
-// ✅ Clean logging with [SIGNUP] prefix
-// ✅ Requires SUPABASE_ANON_KEY environment variable
-// ✅ Proper error handling and rollback
+// Fixed to match your actual user table structure with id as PRIMARY KEY
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -17,9 +13,6 @@ export default defineEventHandler(async (event) => {
 
     console.log('[SIGNUP] Starting signup for:', email)
 
-    // ============================================================================
-    // VALIDATION
-    // ============================================================================
     if (!email || !password || !username) {
       console.log('[SIGNUP] ❌ Missing required fields')
       throw createError({
@@ -34,9 +27,6 @@ export default defineEventHandler(async (event) => {
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.log('[SIGNUP] ❌ Missing Supabase config')
-      console.log('[SIGNUP] URL:', supabaseUrl ? '✓' : '✗')
-      console.log('[SIGNUP] ANON_KEY:', supabaseAnonKey ? '✓' : '✗')
-      console.log('[SIGNUP] SERVICE_KEY:', supabaseServiceKey ? '✓' : '✗')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
@@ -51,9 +41,7 @@ export default defineEventHandler(async (event) => {
       auth: { persistSession: false }
     })
 
-    // ============================================================================
-    // CHECK USERNAME UNIQUENESS
-    // ============================================================================
+    // Check username
     console.log('[SIGNUP] Checking username:', username)
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('user')
@@ -79,9 +67,7 @@ export default defineEventHandler(async (event) => {
 
     console.log('[SIGNUP] ✓ Username available')
 
-    // ============================================================================
-    // SIGN UP WITH SUPABASE AUTH (CLIENT METHOD)
-    // ============================================================================
+    // Sign up with Supabase Auth
     console.log('[SIGNUP] Creating auth user...')
     const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
       email: email.trim().toLowerCase(),
@@ -117,22 +103,34 @@ export default defineEventHandler(async (event) => {
     // CREATE USER RECORD IN DATABASE
     // ============================================================================
     console.log('[SIGNUP] Creating user record in database...')
+    
+    // ✅ FIXED: Only insert columns that exist in the table
+    // Let auto-generated columns handle themselves (id, created_at, updated_at, etc.)
     const { data: userData, error: insertError } = await supabaseAdmin
       .from('user')
       .insert([{
         user_id: authUserId,
         username: username.trim().toLowerCase(),
+        username_lower: username.trim().toLowerCase(),
         display_name: fullName?.trim() || username.trim(),
         email: email.trim().toLowerCase(),
+        email_lower: email.trim().toLowerCase(),
         status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        is_verified: false,
+        verification_status: 'unverified',
+        profile_completed: false,
+        posts_count: 0,
+        followers_count: 0,
+        following_count: 0
+        // id, created_at, updated_at are auto-generated - don't include them
       }])
       .select()
       .single()
 
     if (insertError) {
       console.log('[SIGNUP] ❌ Database insert error:', insertError.message)
+      console.log('[SIGNUP] ❌ Error code:', insertError.code)
+      console.log('[SIGNUP] ❌ Error details:', insertError.details)
       
       // ROLLBACK: Delete auth user
       try {
@@ -148,6 +146,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    console.log('[SIGNUP] ✓ User record created successfully')
     console.log('[SIGNUP] ✓✓✓ SIGNUP SUCCESS ✓✓✓')
 
     return {
