@@ -1,6 +1,14 @@
+// ============================================================================
+// FILE 9: /server/api/profile/interests.get.ts - CORRECTED
+// ============================================================================
+// ✅ NOTE: This file queries 'interests' table (not 'profiles' or 'user')
+// ✅ No changes needed - this is a separate interests lookup table
+// ============================================================================
+
 // FILE: /server/api/profile/interests.get.ts - CREATE
 // Get available interests for profile completion
-// ============================================================================
+// ✅ This file queries the 'interests' table (separate lookup table)
+// ✅ No changes needed from 'profiles' to 'user'
 
 import { serverSupabaseClient } from '#supabase/server'
 
