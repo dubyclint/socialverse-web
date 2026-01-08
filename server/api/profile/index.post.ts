@@ -1,4 +1,12 @@
+// ============================================================================
+// FILE 6: /server/api/profile/index.post.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ============================================================================
+
 // server/api/profile/index.post.ts - UPDATE PROFILE ENDPOINT
+// ✅ CHANGED: Queries 'user' table instead of 'profiles'
+
 export default defineEventHandler(async (event) => {
   try {
     // Get user from Supabase auth
@@ -19,11 +27,12 @@ export default defineEventHandler(async (event) => {
     // Get Supabase client
     const supabase = useSupabaseClient(event)
 
+    // ✅ CHANGED: from 'profiles' to 'user'
     // Update profile
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user')
       .upsert({
-        id: user.id,
+        user_id: user.id,
         ...body,
         updated_at: new Date().toISOString()
       })
