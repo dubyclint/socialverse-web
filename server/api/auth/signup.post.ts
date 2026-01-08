@@ -1,10 +1,6 @@
+// FILE: /server/api/auth/signup.post.ts
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED VERSION
-// ============================================================================
-// ✅ SIMPLE SIGNUP: Just username, email, password
-// ✅ Creates auth user + basic profile
-// ✅ Sends verification email
-// ✅ Returns success
+// FIXED SIGNUP - Removes redundant insert
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -42,10 +38,6 @@ export default defineEventHandler(async (event) => {
       auth: { persistSession: false }
     })
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false }
-    })
-
     // ============================================================================
     // STEP 2: Create Supabase Auth user
     // ============================================================================
@@ -53,11 +45,16 @@ export default defineEventHandler(async (event) => {
     
     const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
       email: email.trim().toLowerCase(),
-      password: password
+      password: password,
+      options: {
+        data: {
+          username: username.trim().toLowerCase()
+        }
+      }
     })
 
     if (authError) {
-      console.log('[SIGNUP] Auth error:', authError.message)
+      console.error('[SIGNUP] Auth error:', authError.message)
       throw createError({
         statusCode: 400,
         statusMessage: authError.message
@@ -75,49 +72,11 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] Auth user created:', authUserId)
 
     // ============================================================================
-    // STEP 3: Create basic user profile
+    // STEP 3: Wait for trigger to create profile
     // ============================================================================
-    console.log('[SIGNUP] Creating user profile...')
-    
-    const { data: newUser, error: insertError } = await supabaseAdmin
-      .from('user')
-      .insert([
-        {
-          user_id: authUserId,
-          username: username.trim().toLowerCase(),
-          email: email.trim().toLowerCase(),
-          is_verified: false,
-          verification_status: 'unverified',
-          status: 'active'
-        }
-      ])
-      .select()
-      .single()
-
-    if (insertError) {
-      console.log('[SIGNUP] Profile creation error:', insertError.message)
-      
-      if (insertError.message?.includes('username')) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Username already taken'
-        })
-      }
-      
-      if (insertError.message?.includes('email')) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Email already registered'
-        })
-      }
-      
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Failed to create profile: ' + insertError.message
-      })
-    }
-
-    console.log('[SIGNUP] User profile created')
+    // The trigger automatically creates the user profile, so we just wait a bit
+    console.log('[SIGNUP] Waiting for profile creation...')
+    await new Promise(resolve => setTimeout(resolve, 500))
 
     // ============================================================================
     // STEP 4: Send verification email
@@ -139,7 +98,7 @@ export default defineEventHandler(async (event) => {
     )
 
     if (!emailResult.success) {
-      console.log('[SIGNUP] Email sending failed:', emailResult.error)
+      console.warn('[SIGNUP] Email sending failed:', emailResult.error)
     } else {
       console.log('[SIGNUP] Verification email sent')
     }
@@ -158,7 +117,7 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.log('[SIGNUP] Error:', error?.message || error)
+    console.error('[SIGNUP] Error:', error?.message || error)
     throw error
   }
 })
