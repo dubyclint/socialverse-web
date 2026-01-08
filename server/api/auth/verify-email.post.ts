@@ -1,13 +1,8 @@
 // ============================================================================
-// FILE: /server/api/auth/verify-email.post.ts
-// EMAIL VERIFICATION ENDPOINT - COMPLETE CORRECTED VERSION
+// FILE: /server/api/auth/verify-email.post.ts - UPDATED FOR CUSTOM TOKENS
 // ============================================================================
-// FIXES:
-// ✅ Added avatar_url to user response
-// ✅ Proper error handling
-// ✅ Multiple verification methods (OTP, code exchange, email lookup)
-// ✅ Returns complete user data
-// ✅ Comprehensive logging for debugging
+// ✅ Handles custom verification tokens from MailerSend
+// ✅ Also handles Supabase tokens for backward compatibility
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -17,26 +12,26 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event).catch(() => ({}))
     const query = getQuery(event)
     
-    console.log('[API] ============ EMAIL VERIFICATION START ============')
+    console.log('[VERIFY-EMAIL] ============ START ============')
     
     // Accept token from either body or query
-    let token = body.token || query.code
+    let token = body.token || query.code || query.token
     
     if (!token) {
-      console.error('[API] ❌ Token/code is missing')
+      console.error('[VERIFY-EMAIL] ❌ Token is missing')
       throw createError({
         statusCode: 400,
         statusMessage: 'Verification token is required'
       })
     }
 
-    console.log('[API] Token received (first 20 chars):', String(token).substring(0, 20) + '...')
+    console.log('[VERIFY-EMAIL] Token received (first 20 chars):', String(token).substring(0, 20) + '...')
 
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[API] ❌ Missing Supabase credentials')
+      console.error('[VERIFY-EMAIL] ❌ Missing Supabase credentials')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
@@ -44,12 +39,70 @@ export default defineEventHandler(async (event) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    console.log('[API] ✅ Supabase admin client created')
+    console.log('[VERIFY-EMAIL] ✅ Supabase admin client created')
 
     // ============================================================================
-    // STEP 1: Try verifyOtp (for OTP tokens)
+    // STEP 1: Try to decode custom verification token
     // ============================================================================
-    console.log('[API] STEP 1: Attempting OTP verification...')
+    console.log('[VERIFY-EMAIL] STEP 1: Attempting to decode custom token...')
+    try {
+      const decodedToken = JSON.parse(
+        Buffer.from(String(token), 'base64').toString('utf-8')
+      )
+      
+      console.log('[VERIFY-EMAIL] ✅ Custom token decoded')
+      console.log('[VERIFY-EMAIL] User ID:', decodedToken.userId)
+      console.log('[VERIFY-EMAIL] Email:', decodedToken.email)
+      
+      const userId = decodedToken.userId
+      const email = decodedToken.email
+
+      // ============================================================================
+      // Mark user as verified in database
+      // ============================================================================
+      console.log('[VERIFY-EMAIL] Marking user as verified...')
+      
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('user')
+        .update({
+          is_verified: true,
+          verification_status: 'verified',
+          email_verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
+        .single()
+
+      if (updateError) {
+        console.error('[VERIFY-EMAIL] ❌ Error updating verification status:', updateError.message)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Failed to verify email: ' + updateError.message
+        })
+      }
+
+      console.log('[VERIFY-EMAIL] ✅ User marked as verified')
+      console.log('[VERIFY-EMAIL] ============ END ============')
+
+      return {
+        success: true,
+        message: 'Email verified successfully!',
+        user: {
+          id: userId,
+          email: email,
+          is_verified: true
+        }
+      }
+    } catch (err: any) {
+      console.log('[VERIFY-EMAIL] Custom token decode failed:', err.message)
+      // Continue to try other methods
+    }
+
+    // ============================================================================
+    // STEP 2: Try OTP verification (for Supabase tokens)
+    // ============================================================================
+    console.log('[VERIFY-EMAIL] STEP 2: Attempting OTP verification...')
     try {
       const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
         token_hash: String(token),
@@ -57,10 +110,9 @@ export default defineEventHandler(async (event) => {
       })
 
       if (!otpError && otpData?.user) {
-        console.log('[API] ✅ OTP verified successfully')
-        console.log('[API] User ID:', otpData.user.id)
+        console.log('[VERIFY-EMAIL] ✅ OTP verified successfully')
+        console.log('[VERIFY-EMAIL] User ID:', otpData.user.id)
         
-        // ✅ FIXED: Added avatar_url to response
         return {
           success: true,
           message: 'Email verified successfully!',
@@ -70,28 +122,27 @@ export default defineEventHandler(async (event) => {
             email_confirmed_at: otpData.user.email_confirmed_at,
             username: otpData.user.user_metadata?.username,
             full_name: otpData.user.user_metadata?.full_name,
-            avatar_url: otpData.user.user_metadata?.avatar_url  // ✅ ADDED
+            avatar_url: otpData.user.user_metadata?.avatar_url
           }
         }
       }
       
-      console.log('[API] OTP verification failed:', otpError?.message)
+      console.log('[VERIFY-EMAIL] OTP verification failed:', otpError?.message)
     } catch (err: any) {
-      console.log('[API] OTP verification exception:', err.message)
+      console.log('[VERIFY-EMAIL] OTP verification exception:', err.message)
     }
 
     // ============================================================================
-    // STEP 2: Try exchangeCodeForSession (for auth codes)
+    // STEP 3: Try code exchange (for Supabase auth codes)
     // ============================================================================
-    console.log('[API] STEP 2: Attempting code exchange...')
+    console.log('[VERIFY-EMAIL] STEP 3: Attempting code exchange...')
     try {
       const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(String(token))
 
       if (!codeError && codeData?.user) {
-        console.log('[API] ✅ Code exchange successful')
-        console.log('[API] User ID:', codeData.user.id)
+        console.log('[VERIFY-EMAIL] ✅ Code exchange successful')
+        console.log('[VERIFY-EMAIL] User ID:', codeData.user.id)
         
-        // ✅ FIXED: Added avatar_url to response
         return {
           success: true,
           message: 'Email verified successfully!',
@@ -101,68 +152,31 @@ export default defineEventHandler(async (event) => {
             email_confirmed_at: codeData.user.email_confirmed_at,
             username: codeData.user.user_metadata?.username,
             full_name: codeData.user.user_metadata?.full_name,
-            avatar_url: codeData.user.user_metadata?.avatar_url  // ✅ ADDED
+            avatar_url: codeData.user.user_metadata?.avatar_url
           }
         }
       }
       
-      console.log('[API] Code exchange failed:', codeError?.message)
+      console.log('[VERIFY-EMAIL] Code exchange failed:', codeError?.message)
     } catch (err: any) {
-      console.log('[API] Code exchange exception:', err.message)
+      console.log('[VERIFY-EMAIL] Code exchange exception:', err.message)
     }
 
     // ============================================================================
-    // STEP 3: Query users table to find user by email (if token looks like email)
+    // STEP 4: If all methods fail, return error
     // ============================================================================
-    console.log('[API] STEP 3: Attempting to find user by email...')
-    try {
-      const { data: users, error: listError } = await supabase.auth.admin.listUsers()
-      
-      if (!listError && users?.users) {
-        // Try to find user by email if token looks like an email
-        if (String(token).includes('@')) {
-          const user = users.users.find(u => u.email === String(token))
-          if (user) {
-            console.log('[API] ✅ User found by email')
-            
-            // ✅ FIXED: Added avatar_url to response
-            return {
-              success: true,
-              message: 'Email verified successfully!',
-              user: {
-                id: user.id,
-                email: user.email,
-                email_confirmed_at: user.email_confirmed_at,
-                username: user.user_metadata?.username,
-                full_name: user.user_metadata?.full_name,
-                avatar_url: user.user_metadata?.avatar_url  // ✅ ADDED
-              }
-            }
-          }
-        }
-      }
-    } catch (err: any) {
-      console.log('[API] User lookup exception:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 4: If all methods fail, return success with null user
-    // This handles the case where Supabase already verified the email
-    // ============================================================================
-    console.log('[API] ⚠️ All verification methods failed')
-    console.log('[API] Returning success with null user - Supabase may have already verified')
+    console.log('[VERIFY-EMAIL] ❌ All verification methods failed')
+    console.log('[VERIFY-EMAIL] ============ END ============')
     
-    return {
-      success: true,
-      message: 'Email verification processed',
-      user: null
-    }
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Invalid or expired verification token'
+    })
 
   } catch (error: any) {
-    console.error('[API] ============ VERIFICATION ERROR ============')
-    console.error('[API] Error:', error.message)
-    console.error('[API] Status:', error.statusCode)
-    console.error('[API] ============ END ERROR ============')
+    console.error('[VERIFY-EMAIL] ============ ERROR ============')
+    console.error('[VERIFY-EMAIL] Error:', error.message)
+    console.error('[VERIFY-EMAIL] ============ END ERROR ============')
     throw error
   }
 })
