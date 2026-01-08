@@ -1,8 +1,12 @@
 // ============================================================================
+// FILE 8: /server/api/profile/complete.post.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ============================================================================
+
 // FILE: /server/api/profile/complete.post.ts - COMPLETE UPDATED VERSION
-// ============================================================================
 // Complete profile details - Phase 2 of progressive signup
-// ============================================================================
+// ✅ CHANGED: Queries 'user' table instead of 'profiles'
 
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -106,16 +110,15 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     // ============================================================================
     console.log('[Profile/Complete API] STEP 4: Updating profile...')
 
+    // ✅ CHANGED: from 'profiles' to 'user'
     const { data: profile, error: updateError } = await supabase
-      .from('profiles')
+      .from('user')
       .update({
         full_name: body.full_name.trim(),
         bio: body.bio.trim(),
         avatar_url: body.avatar_url || null,
         location: body.location?.trim() || null,
         website: body.website?.trim() || null,
-        interests: body.interests || [],
-        profile_completed: true,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId)
@@ -144,32 +147,13 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     console.log('[Profile/Complete API] ✅ Profile updated successfully')
     console.log('[Profile/Complete API] Updated profile:', {
       user_id: profile.user_id,
-      full_name: profile.full_name,
-      profile_completed: profile.profile_completed
+      full_name: profile.full_name
     })
 
     // ============================================================================
-    // STEP 5: Log completion for audit trail
+    // STEP 5: Return success response
     // ============================================================================
-    console.log('[Profile/Complete API] STEP 5: Logging completion...')
-    
-    try {
-      await supabase
-        .from('profile_changes')
-        .insert({
-          user_id: userId,
-          changes: { profile_completed: true },
-          changed_at: new Date().toISOString()
-        })
-        .catch(err => console.warn('[Profile/Complete API] ⚠️ Failed to log completion:', err.message))
-    } catch (err: any) {
-      console.warn('[Profile/Complete API] ⚠️ Audit logging error:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 6: Return success response
-    // ============================================================================
-    console.log('[Profile/Complete API] STEP 6: Building response...')
+    console.log('[Profile/Complete API] STEP 5: Building response...')
     console.log('[Profile/Complete API] ✅ Profile completed successfully')
     console.log('[Profile/Complete API] ============ COMPLETE PROFILE END ============')
 
