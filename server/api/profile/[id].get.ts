@@ -1,10 +1,14 @@
-// FILE: /server/api/profile/[id].get.ts - FIXED
 // ============================================================================
+// FILE 2: /server/api/profile/[id].get.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ============================================================================
+
+// FILE: /server/api/profile/[id].get.ts - FIXED
 // Get user profile by ID - FIXED: Proper privacy and error handling
-// ✅ FIXED: Queries 'profiles' table
+// ✅ FIXED: Queries 'user' table (changed from 'profiles')
 // ✅ FIXED: Privacy filtering
 // ✅ FIXED: Comprehensive error handling
-// ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -46,8 +50,9 @@ export default defineEventHandler(async (event): Promise<ProfileResponse> => {
     // ============================================================================
     console.log('[Profile Get API] Fetching profile...')
     
+    // ✅ CHANGED: from 'profiles' to 'user'
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user')
       .select(`
         id,
         username,
