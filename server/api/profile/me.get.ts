@@ -1,8 +1,12 @@
 // ============================================================================
+// FILE 4: /server/api/profile/me.get.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ============================================================================
+
 // FILE: /server/api/profile/me.get.ts - COMPLETE UPDATED VERSION
-// ============================================================================
 // Get current user profile with complete data including rank & verification
-// ============================================================================
+// ✅ CHANGED: Queries 'user' table instead of 'profiles'
 
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -35,8 +39,9 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[Profile/Me API] STEP 2: Fetching profile...')
 
+    // ✅ CHANGED: from 'profiles' to 'user'
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user')
       .select(`
         user_id,
         full_name,
@@ -44,18 +49,21 @@ export default defineEventHandler(async (event) => {
         avatar_url,
         location,
         website,
-        interests,
-        colors,
-        items,
-        profile_completed,
+        cover_url,
+        birth_date,
+        gender,
+        phone,
+        is_private,
+        is_blocked,
         rank,
         rank_points,
         rank_level,
         is_verified,
-        verified_badge_type,
-        verified_at,
         verification_status,
-        badge_count,
+        posts_count,
+        followers_count,
+        following_count,
+        last_seen,
         created_at,
         updated_at
       `)
@@ -69,50 +77,11 @@ export default defineEventHandler(async (event) => {
       })
 
       if (profileError.code === 'PGRST116') {
-        console.log('[Profile/Me API] Profile not found, attempting to create...')
-        
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: userId,
-            full_name: session.user.user_metadata?.full_name || 'User',
-            bio: null,
-            avatar_url: null,
-            location: null,
-            website: null,
-            interests: [],
-            colors: {},
-            items: [],
-            profile_completed: false,
-            rank: 'Bronze I',
-            rank_points: 0,
-            rank_level: 1,
-            is_verified: false,
-            verified_badge_type: null,
-            verified_at: null,
-            verification_status: 'none',
-            badge_count: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single()
-
-        if (createError) {
-          console.error('[Profile/Me API] ❌ Failed to create profile:', createError.message)
-          throw createError({
-            statusCode: 500,
-            statusMessage: 'Failed to create profile'
-          })
-        }
-
-        console.log('[Profile/Me API] ✅ Profile created successfully')
-        console.log('[Profile/Me API] ============ GET PROFILE END ============')
-
-        return {
-          success: true,
-          data: newProfile
-        }
+        console.log('[Profile/Me API] Profile not found')
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Profile not found'
+        })
       }
 
       throw createError({
@@ -134,8 +103,7 @@ export default defineEventHandler(async (event) => {
       user_id: profile.user_id,
       full_name: profile.full_name,
       rank: profile.rank,
-      is_verified: profile.is_verified,
-      profile_completed: profile.profile_completed
+      is_verified: profile.is_verified
     })
 
     // ============================================================================
