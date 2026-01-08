@@ -1,6 +1,13 @@
-//FILE 2: server/api/profile/get.ts
+// ============================================================================
+// FILE 5: /server/api/profile/get.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ============================================================================
+
+// FILE 2: server/api/profile/get.ts
 // ISSUE: Using user client which has RLS restrictions
 // FIX: Use admin client to bypass RLS and fetch profile
+// ✅ CHANGED: Queries 'user' table instead of 'profiles'
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -35,10 +42,11 @@ export default defineEventHandler(async (event) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     console.log('[Profile API] ✅ Admin client created')
 
+    // ✅ CHANGED: from 'profiles' to 'user'
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single()
 
     if (profileError) {
