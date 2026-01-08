@@ -1,3 +1,9 @@
+// ============================================================================
+// FILE 1: /server/models/profile.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed all 'profiles' table references to 'user' table
+// ============================================================================
+
 // FILE: /server/models/profile.ts
 // User Profile Model
 // REFACTORED: Lazy-loaded Supabase with Exported Wrapper Functions
@@ -69,10 +75,11 @@ export class ProfileModel {
   static async getProfile(userId: string): Promise<UserProfile | null> {
     try {
       const supabase = await getSupabase()
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user')
         .select('*')
-        .eq('id', userId)
+        .eq('user_id', userId)
         .single()
 
       if (error) {
@@ -90,8 +97,9 @@ export class ProfileModel {
   static async createProfile(userId: string, data?: Partial<UserProfile>): Promise<UserProfile> {
     try {
       const supabase = await getSupabase()
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { data: profile, error } = await supabase
-        .from('profiles')
+        .from('user')
         .insert({
           user_id: userId,
           username: data?.username || `user_${userId.substring(0, 8)}`,
@@ -124,8 +132,9 @@ export class ProfileModel {
   static async updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile> {
     try {
       const supabase = await getSupabase()
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user')
         .update({
           full_name: input.fullName,
           bio: input.bio,
@@ -139,7 +148,7 @@ export class ProfileModel {
           is_private: input.isPrivate,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId)
+        .eq('user_id', userId)
         .select()
         .single()
 
@@ -154,8 +163,9 @@ export class ProfileModel {
   static async searchProfiles(query: string, limit = 20): Promise<UserProfile[]> {
     try {
       const supabase = await getSupabase()
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user')
         .select('*')
         .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
         .eq('is_blocked', false)
@@ -172,8 +182,9 @@ export class ProfileModel {
   static async getTopProfiles(limit = 10): Promise<UserProfile[]> {
     try {
       const supabase = await getSupabase()
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user')
         .select('*')
         .eq('is_verified', true)
         .eq('is_blocked', false)
@@ -191,10 +202,11 @@ export class ProfileModel {
   static async updateLastSeen(userId: string): Promise<void> {
     try {
       const supabase = await getSupabase()
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { error } = await supabase
-        .from('profiles')
+        .from('user')
         .update({ last_seen: new Date().toISOString() })
-        .eq('id', userId)
+        .eq('user_id', userId)
 
       if (error) throw error
     } catch (error) {
