@@ -1,123 +1,72 @@
 // ============================================================================
-// FILE: /server/api/auth/resend-verification.post.ts - RESEND VERIFICATION EMAIL
+// FILE: /server/api/auth/resend-verification.post.ts - NEW ENDPOINT
 // ============================================================================
-// This endpoint resends the verification email to the user
+// RESEND VERIFICATION EMAIL ENDPOINT
 // ============================================================================
 
+import { sendVerificationEmail } from '~/server/utils/email'
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event)
+    console.log('[RESEND-VERIFICATION] ============ START ============')
     
-    console.log('[API] Resend verification email request received')
-
+    const body = await readBody(event)
     const { email } = body
 
-    // ✅ VALIDATE: Email is required
     if (!email) {
+      console.error('[RESEND-VERIFICATION] ❌ Email is required')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email is required'
       })
     }
 
-    // ✅ Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid email format'
-      })
-    }
+    console.log('[RESEND-VERIFICATION] Email:', email)
 
-    // ✅ Create Supabase client with service role
     const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[API] Missing Supabase credentials')
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[RESEND-VERIFICATION] ❌ Missing Supabase config')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
       })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // ✅ STEP 1: Check if user exists
-    console.log('[API] Checking if user exists:', email)
-    
-    const { data: users, error: getUserError } = await supabase.auth.admin.listUsers()
-
-    if (getUserError) {
-      console.error('[API] Error listing users:', getUserError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to check user'
-      })
-    }
-
-    const user = users?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
-
-    if (!user) {
-      console.error('[API] User not found:', email)
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'User not found'
-      })
-    }
-
-    // ✅ STEP 2: Check if email is already confirmed
-    if (user.email_confirmed_at) {
-      console.log('[API] Email already confirmed for user:', email)
-      return {
-        success: true,
-        message: 'Email is already verified',
-        alreadyVerified: true
-      }
-    }
-
-    // ✅ STEP 3: Resend verification email
-    console.log('[API] Resending verification email to:', email)
-    
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup',
-      email: email.toLowerCase()
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false }
     })
 
-    if (resendError) {
-      console.error('[API] Resend verification error:', {
-        message: resendError.message,
-        status: resendError.status
-      })
-      
-      let errorMessage = resendError.message || 'Failed to resend verification email'
-      
-      if (resendError.message?.includes('rate')) {
-        errorMessage = 'Too many requests. Please try again later.'
-      }
-      
+    // ============================================================================
+    // REQUEST NEW VERIFICATION EMAIL FROM SUPABASE
+    // ============================================================================
+    console.log('[RESEND-VERIFICATION] Requesting verification email from Supabase...')
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.toLowerCase().trim()
+    })
+
+    if (error) {
+      console.error('[RESEND-VERIFICATION] ❌ Supabase resend error:', error.message)
       throw createError({
         statusCode: 400,
-        statusMessage: errorMessage
+        statusMessage: 'Failed to resend verification email: ' + error.message
       })
     }
 
-    console.log('[API] ✅ Verification email resent to:', email)
+    console.log('[RESEND-VERIFICATION] ✅ Verification email resent successfully')
+    console.log('[RESEND-VERIFICATION] ============ END ============')
 
     return {
       success: true,
-      message: 'Verification email sent! Check your inbox and spam folder.',
-      email: email
+      message: 'Verification email sent! Check your inbox.'
     }
 
   } catch (error: any) {
-    console.error('[API] Resend verification error:', {
-      message: error.message,
-      statusCode: error.statusCode,
-      statusMessage: error.statusMessage
-    })
+    console.error('[RESEND-VERIFICATION] ❌ Error:', error.message)
     throw error
   }
 })
