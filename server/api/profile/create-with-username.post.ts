@@ -1,50 +1,17 @@
+// ============================================================================
+// FILE 7: /server/api/profile/create-with-username.post.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ============================================================================
+
 // FILE: /server/api/profile/create-with-username.post.ts - NEW
 // Create/update username during profile completion with auto-generation
-// ============================================================================
+// ✅ CHANGED: Queries 'user' table instead of 'profiles'
 
 import { serverSupabaseClient } from '#supabase/server'
 
 interface CreateUsernameRequest {
   username: string
-}
-
-// Helper function to generate unique username
-async (supabase: any, baseUsername: string): Promise<string> => {
-  const generateSuffix = (): string => {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-    let suffix = ''
-    for (let i = 0; i < 3; i++) {
-      suffix += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return suffix
-  }
-
-  let finalUsername = baseUsername.toLowerCase()
-  let attempts = 0
-  const maxAttempts = 10
-
-  while (attempts < maxAttempts) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('username', finalUsername)
-      .single()
-
-    if (error && error.code === 'PGRST116') {
-      // No rows found - username is available
-      return finalUsername
-    }
-
-    if (!data) {
-      return finalUsername
-    }
-
-    // Username taken, append random suffix
-    finalUsername = `${baseUsername.toLowerCase()}${generateSuffix()}`
-    attempts++
-  }
-
-  throw new Error('Could not generate unique username')
 }
 
 export default defineEventHandler(async (event) => {
@@ -102,8 +69,9 @@ export default defineEventHandler(async (event) => {
     const maxAttempts = 10
 
     while (attempts < maxAttempts) {
+      // ✅ CHANGED: from 'profiles' to 'user'
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user')
         .select('id')
         .ilike('username', finalUsername)
         .single()
@@ -130,13 +98,13 @@ export default defineEventHandler(async (event) => {
     }
 
     // STEP 4: UPDATE PROFILE WITH FINAL USERNAME
+    // ✅ CHANGED: from 'profiles' to 'user'
     const { data: updatedProfile, error: updateError } = await supabase
-      .from('profiles')
+      .from('user')
       .update({
-        username: finalUsername,
-        username_lower: finalUsername.toLowerCase()
+        username: finalUsername
       })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single()
 
