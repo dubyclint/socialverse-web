@@ -1,7 +1,8 @@
 // ============================================================================
-// FILE: /server/api/auth/login.post.ts - COMPLETE UPDATED VERSION
+// FILE: /server/api/auth/login.post.ts - CORRECTED VERSION
 // ============================================================================
-// Login with complete profile data including rank and verification
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ✅ UPDATED: Removed non-existent fields
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -116,12 +117,13 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] ✅ Session created')
 
     // ============================================================================
-    // STEP 6: Fetch complete profile with rank and verification
+    // STEP 6: Fetch complete profile from user table
     // ============================================================================
     console.log('[Auth/Login] STEP 6: Fetching complete profile...')
     
+    // ✅ CHANGED: from 'profiles' to 'user'
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user')
       .select(`
         user_id,
         full_name,
@@ -129,20 +131,24 @@ export default defineEventHandler(async (event) => {
         avatar_url,
         location,
         website,
-        interests,
-        colors,
-        items,
-        profile_completed,
+        cover_url,
+        birth_date,
+        gender,
+        phone,
+        is_private,
+        is_blocked,
         rank,
         rank_points,
         rank_level,
         is_verified,
-        verified_badge_type,
-        verified_at,
         verification_status,
-        badge_count,
+        posts_count,
+        followers_count,
+        following_count,
+        last_seen,
         created_at,
-        updated_at
+        updated_at,
+        status
       `)
       .eq('user_id', data.user.id)
       .single()
@@ -170,29 +176,36 @@ export default defineEventHandler(async (event) => {
           email: data.user.email
         })
         
+        // ✅ CHANGED: from 'profiles' to 'user'
         const { data: newProfile, error: createProfileError } = await supabase
-          .from('profiles')
+          .from('user')
           .insert({
             user_id: data.user.id,
+            username: username,
+            email: data.user.email,
             full_name: fullName,
             bio: null,
             avatar_url: null,
             location: null,
             website: null,
-            interests: [],
-            colors: {},
-            items: [],
-            profile_completed: false,
-            rank: 'Bronze I',
+            cover_url: null,
+            birth_date: null,
+            gender: null,
+            phone: null,
+            is_private: false,
+            is_blocked: false,
+            rank: 'BRONZE',
             rank_points: 0,
             rank_level: 1,
             is_verified: false,
-            verified_badge_type: null,
-            verified_at: null,
-            verification_status: 'none',
-            badge_count: 0,
+            verification_status: 'unverified',
+            posts_count: 0,
+            followers_count: 0,
+            following_count: 0,
+            last_seen: new Date().toISOString(),
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            status: 'active'
           })
           .select()
           .single()
@@ -217,15 +230,14 @@ export default defineEventHandler(async (event) => {
             user: {
               id: data.user.id,
               email: data.user.email,
-              username: data.user.user_metadata?.username || username,
-              full_name: data.user.user_metadata?.full_name || fullName,
-              avatar_url: data.user.user_metadata?.avatar_url || null,
-              rank: 'Bronze I',
+              username: username,
+              full_name: fullName,
+              avatar_url: null,
+              rank: 'BRONZE',
               rank_points: 0,
               rank_level: 1,
               is_verified: false,
-              verified_badge_type: null,
-              verification_status: 'none'
+              verification_status: 'unverified'
             }
           }
         }
@@ -251,14 +263,13 @@ export default defineEventHandler(async (event) => {
           user: {
             id: newProfile.user_id,
             email: data.user.email,
-            username: newProfile.full_name?.split(' ')[0] || 'user',
+            username: newProfile.username,
             full_name: newProfile.full_name,
             avatar_url: newProfile.avatar_url,
             rank: newProfile.rank,
             rank_points: newProfile.rank_points,
             rank_level: newProfile.rank_level,
             is_verified: newProfile.is_verified,
-            verified_badge_type: newProfile.verified_badge_type,
             verification_status: newProfile.verification_status
           }
         }
@@ -282,12 +293,11 @@ export default defineEventHandler(async (event) => {
           username: data.user.user_metadata?.username || 'user',
           full_name: data.user.user_metadata?.full_name || 'User',
           avatar_url: data.user.user_metadata?.avatar_url || null,
-          rank: 'Bronze I',
+          rank: 'BRONZE',
           rank_points: 0,
           rank_level: 1,
           is_verified: false,
-          verified_badge_type: null,
-          verification_status: 'none'
+          verification_status: 'unverified'
         }
       }
     }
@@ -338,9 +348,7 @@ export default defineEventHandler(async (event) => {
         rank_points: profile.rank_points,
         rank_level: profile.rank_level,
         is_verified: profile.is_verified,
-        verified_badge_type: profile.verified_badge_type,
-        verification_status: profile.verification_status,
-        profile_completed: profile.profile_completed
+        verification_status: profile.verification_status
       }
     }
 
