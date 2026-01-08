@@ -1,6 +1,18 @@
 # ============================================================================
 # .gitignore - GIT IGNORE CONFIGURATION FOR SOCIALVERSE
 # ============================================================================
+# ⚠️ SECURITY: Protect all environment files with secrets
+
+# ============================================================================
+# ENVIRONMENT VARIABLES - CRITICAL SECURITY
+# ============================================================================
+# ✅ NEVER commit these files - they contain secrets!
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
 
 # ============================================================================
 # DEPENDENCIES
@@ -22,18 +34,6 @@ dist/
 build/
 .vite/
 .turbo/
-
-# ============================================================================
-# ENVIRONMENT VARIABLES
-# ============================================================================
-.env
-.env.local
-.env.*.local
-.env.production.local
-# ✅ FIXED: Explicitly protect lock files (DO NOT IGNORE)
-# pnpm-lock.yaml - MUST be committed
-# package-lock.json - MUST be committed
-# yarn.lock - MUST be committed
 
 # ============================================================================
 # IDE & EDITOR
@@ -93,9 +93,10 @@ Thumbs.db
 # IMPORTANT: DO NOT IGNORE THESE FILES
 # ============================================================================
 # These files MUST be committed to git:
-# - pnpm-lock.yaml (or package-lock.json / yarn.lock)
-# - .env.production (production environment variables)
-# - nuxt.config.ts (Nuxt configuration)
-# - nitro.config.ts (Nitro configuration)
-# - Dockerfile (Docker configuration)
-
+# ✅ pnpm-lock.yaml (or package-lock.json / yarn.lock)
+# ✅ .env.production (production environment variables - NO SECRETS)
+# ✅ .env.example (template for developers)
+# ✅ nuxt.config.ts (Nuxt configuration)
+# ✅ nitro.config.ts (Nitro configuration)
+# ✅ Dockerfile (Docker configuration)
+# ✅ All source code files
