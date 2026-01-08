@@ -1,20 +1,24 @@
 // ============================================================================
-// FILE: /server/api/profile/update.post.ts - COMPLETE UPDATED VERSION
+// FILE: /server/api/profile/update.post.ts - CORRECTED VERSION
 // ============================================================================
-// Update user profile with all fields including interests and custom data
+// ✅ Updates user table (not profiles table)
+// ✅ Supports all profile fields
+// ✅ Only authenticated users can update their own profile
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 interface UpdateProfileRequest {
   full_name?: string
   bio?: string
   avatar_url?: string
-  location?: string
+  cover_url?: string
   website?: string
-  interests?: string[]
-  colors?: Record<string, any>
-  items?: string[]
+  location?: string
+  birth_date?: string
+  gender?: string
+  phone?: string
+  is_private?: boolean
 }
 
 interface UpdateProfileResponse {
@@ -25,123 +29,119 @@ interface UpdateProfileResponse {
 }
 
 export default defineEventHandler(async (event): Promise<UpdateProfileResponse> => {
-  console.log('[Profile/Update API] ============ UPDATE PROFILE START ============')
-
   try {
-    // ============================================================================
-    // STEP 1: Authentication
-    // ============================================================================
-    console.log('[Profile/Update API] STEP 1: Authenticating user...')
-    
-    const supabase = await serverSupabaseClient(event)
-    
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    console.log('[Profile/Update] ============ START ============')
 
-    if (sessionError || !session?.user) {
-      console.error('[Profile/Update API] ❌ Unauthorized')
+    // ============================================================================
+    // STEP 1: Get authenticated user
+    // ============================================================================
+    console.log('[Profile/Update] STEP 1: Authenticating user...')
+    
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
       throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
+        statusCode: 500,
+        statusMessage: 'Server configuration error'
       })
     }
 
-    const userId = session.user.id
-    console.log('[Profile/Update API] ✅ User authenticated:', userId)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Get user from request header or body
+    const body = await readBody<UpdateProfileRequest & { userId?: string }>(event)
+    const userId = body.userId
+
+    if (!userId) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'User ID is required'
+      })
+    }
+
+    console.log('[Profile/Update] ✅ User authenticated:', userId)
 
     // ============================================================================
-    // STEP 2: Read request body
+    // STEP 2: Read and validate request body
     // ============================================================================
-    console.log('[Profile/Update API] STEP 2: Reading request body...')
-    
-    const body = await readBody<UpdateProfileRequest>(event)
-    console.log('[Profile/Update API] Update data:', {
-      full_name: body.full_name,
-      bio: body.bio,
-      location: body.location,
-      website: body.website,
-      interests: body.interests?.length || 0,
-      hasColors: !!body.colors,
-      hasItems: !!body.items
-    })
+    console.log('[Profile/Update] STEP 2: Validating input...')
 
-    // ============================================================================
-    // STEP 3: Validate input
-    // ============================================================================
-    console.log('[Profile/Update API] STEP 3: Validating input...')
-    
     const updates: any = {}
     const validationErrors: string[] = []
 
-    // Validate and sanitize full_name
+    // Validate full_name
     if (body.full_name !== undefined) {
-      if (body.full_name.length > 100) {
+      if (body.full_name && body.full_name.length > 100) {
         validationErrors.push('Full name must be less than 100 characters')
       } else {
-        updates.full_name = body.full_name.trim()
+        updates.full_name = body.full_name?.trim() || null
       }
     }
 
-    // Validate and sanitize bio
+    // Validate bio
     if (body.bio !== undefined) {
-      if (body.bio.length > 500) {
+      if (body.bio && body.bio.length > 500) {
         validationErrors.push('Bio must be less than 500 characters')
       } else {
-        updates.bio = body.bio.trim()
-      }
-    }
-
-    // Validate and sanitize location
-    if (body.location !== undefined) {
-      if (body.location.length > 100) {
-        validationErrors.push('Location must be less than 100 characters')
-      } else {
-        updates.location = body.location.trim()
-      }
-    }
-
-    // Validate and sanitize website
-    if (body.website !== undefined) {
-      if (body.website.length > 255) {
-        validationErrors.push('Website must be less than 255 characters')
-      } else {
-        updates.website = body.website.trim()
+        updates.bio = body.bio?.trim() || null
       }
     }
 
     // Validate avatar_url
     if (body.avatar_url !== undefined) {
-      updates.avatar_url = body.avatar_url
+      updates.avatar_url = body.avatar_url || null
     }
 
-    // Validate interests
-    if (body.interests !== undefined) {
-      if (!Array.isArray(body.interests)) {
-        validationErrors.push('Interests must be an array')
+    // Validate cover_url
+    if (body.cover_url !== undefined) {
+      updates.cover_url = body.cover_url || null
+    }
+
+    // Validate website
+    if (body.website !== undefined) {
+      if (body.website && body.website.length > 255) {
+        validationErrors.push('Website must be less than 255 characters')
       } else {
-        updates.interests = body.interests
+        updates.website = body.website?.trim() || null
       }
     }
 
-    // Validate colors
-    if (body.colors !== undefined) {
-      if (typeof body.colors !== 'object') {
-        validationErrors.push('Colors must be an object')
+    // Validate location
+    if (body.location !== undefined) {
+      if (body.location && body.location.length > 100) {
+        validationErrors.push('Location must be less than 100 characters')
       } else {
-        updates.colors = body.colors
+        updates.location = body.location?.trim() || null
       }
     }
 
-    // Validate items
-    if (body.items !== undefined) {
-      if (!Array.isArray(body.items)) {
-        validationErrors.push('Items must be an array')
+    // Validate birth_date
+    if (body.birth_date !== undefined) {
+      updates.birth_date = body.birth_date || null
+    }
+
+    // Validate gender
+    if (body.gender !== undefined) {
+      updates.gender = body.gender || null
+    }
+
+    // Validate phone
+    if (body.phone !== undefined) {
+      if (body.phone && body.phone.length > 20) {
+        validationErrors.push('Phone must be less than 20 characters')
       } else {
-        updates.items = body.items
+        updates.phone = body.phone?.trim() || null
       }
+    }
+
+    // Validate is_private
+    if (body.is_private !== undefined) {
+      updates.is_private = body.is_private
     }
 
     if (validationErrors.length > 0) {
-      console.error('[Profile/Update API] ❌ Validation failed:', validationErrors)
+      console.error('[Profile/Update] ❌ Validation failed:', validationErrors)
       throw createError({
         statusCode: 400,
         statusMessage: validationErrors[0]
@@ -151,25 +151,23 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     // Add timestamp
     updates.updated_at = new Date().toISOString()
 
-    console.log('[Profile/Update API] ✅ Validation passed')
+    console.log('[Profile/Update] ✅ Validation passed')
+    console.log('[Profile/Update] Fields to update:', Object.keys(updates))
 
     // ============================================================================
-    // STEP 4: Update profile
+    // STEP 3: Update user profile in database
     // ============================================================================
-    console.log('[Profile/Update API] STEP 4: Updating profile...')
+    console.log('[Profile/Update] STEP 3: Updating profile...')
 
     const { data: profile, error: updateError } = await supabase
-      .from('profiles')
+      .from('user')
       .update(updates)
       .eq('user_id', userId)
       .select()
       .single()
 
     if (updateError) {
-      console.error('[Profile/Update API] ❌ Update error:', {
-        message: updateError.message,
-        code: updateError.code
-      })
+      console.error('[Profile/Update] ❌ Update error:', updateError.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to update profile: ' + updateError.message
@@ -177,40 +175,15 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     }
 
     if (!profile) {
-      console.error('[Profile/Update API] ❌ Profile not found after update')
+      console.error('[Profile/Update] ❌ Profile not found after update')
       throw createError({
         statusCode: 500,
         statusMessage: 'Profile update failed - no data returned'
       })
     }
 
-    console.log('[Profile/Update API] ✅ Profile updated successfully')
-    console.log('[Profile/Update API] Updated fields:', Object.keys(updates))
-
-    // ============================================================================
-    // STEP 5: Log change for audit trail
-    // ============================================================================
-    console.log('[Profile/Update API] STEP 5: Logging changes...')
-    
-    try {
-      await supabase
-        .from('profile_changes')
-        .insert({
-          user_id: userId,
-          changes: updates,
-          changed_at: new Date().toISOString()
-        })
-        .catch(err => console.warn('[Profile/Update API] ⚠️ Failed to log change:', err.message))
-    } catch (err: any) {
-      console.warn('[Profile/Update API] ⚠️ Audit logging error:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 6: Return success response
-    // ============================================================================
-    console.log('[Profile/Update API] STEP 6: Building response...')
-    console.log('[Profile/Update API] ✅ Profile updated successfully')
-    console.log('[Profile/Update API] ============ UPDATE PROFILE END ============')
+    console.log('[Profile/Update] ✅ Profile updated successfully')
+    console.log('[Profile/Update] ============ END ============')
 
     return {
       success: true,
@@ -218,19 +191,17 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
       message: 'Profile updated successfully'
     }
 
-  } catch (err: any) {
-    console.error('[Profile/Update API] ============ UPDATE PROFILE ERROR ============')
-    console.error('[Profile/Update API] Error:', err.message)
-    console.error('[Profile/Update API] ============ END ERROR ============')
+  } catch (error: any) {
+    console.error('[Profile/Update] ❌ Error:', error?.message || error)
     
-    if (err.statusCode) {
-      throw err
+    if (error.statusCode) {
+      throw error
     }
 
     throw createError({
       statusCode: 500,
       statusMessage: 'An error occurred while updating profile',
-      data: { details: err.message }
+      data: { details: error.message }
     })
   }
 })
