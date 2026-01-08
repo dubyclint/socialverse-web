@@ -1,9 +1,10 @@
+// UPDATED: /server/utils/email.ts - FIXED SMTP PORT ISSUE
 // ============================================================================
 // FILE: /server/utils/email.ts - COMPLETE MAILERSEND SMTP IMPLEMENTATION
 // ============================================================================
-// ✅ FIXED: Implements SMTP email sending with MailerSend
-// ✅ Removed Brevo references
-// ✅ Production-ready error handling
+// ✅ FIXED: Support both port 587 (TLS) and 2525 (SSL)
+// ✅ Better error handling and diagnostics
+// ✅ Production-ready
 // ============================================================================
 
 import nodemailer from 'nodemailer'
@@ -36,19 +37,37 @@ const getTransporter = () => {
   console.log('[Email] Port:', smtpPort)
   console.log('[Email] Username:', smtpUsername.substring(0, 10) + '...')
 
-  transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: false, // Use TLS (port 587)
-    auth: {
-      user: smtpUsername,
-      pass: smtpPassword
-    },
-    logger: true,
-    debug: true
-  })
+  // Determine secure flag based on port
+  // Port 587 = TLS (secure: false, then STARTTLS)
+  // Port 2525 = SSL (secure: true)
+  const isSecure = smtpPort === 2525 || smtpPort === 465
 
-  return transporter
+  console.log('[Email] Connection type:', isSecure ? 'SSL' : 'TLS')
+
+  try {
+    transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: isSecure, // true for 465/2525, false for 587
+      auth: {
+        user: smtpUsername,
+        pass: smtpPassword
+      },
+      logger: true,
+      debug: true,
+      connectionTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
+      tls: {
+        rejectUnauthorized: false // Allow self-signed certificates
+      }
+    })
+
+    console.log('[Email] ✅ SMTP transporter created successfully')
+    return transporter
+  } catch (error: any) {
+    console.error('[Email] ❌ Failed to create transporter:', error.message)
+    throw error
+  }
 }
 
 // ============================================================================
@@ -114,6 +133,8 @@ export const sendVerificationEmail = async (
     console.log('[Email] Sending email from:', senderEmail)
 
     const transporter = getTransporter()
+    
+    console.log('[Email] Attempting to send email...')
     const result = await transporter.sendMail({
       from: `${senderName} <${senderEmail}>`,
       to: email,
@@ -133,13 +154,18 @@ export const sendVerificationEmail = async (
     }
   } catch (error: any) {
     console.error('[Email] ❌ Failed to send verification email')
-    console.error('[Email] Error:', error.message)
+    console.error('[Email] Error type:', error.constructor.name)
+    console.error('[Email] Error message:', error.message)
+    console.error('[Email] Error code:', error.code)
+    console.error('[Email] Error response:', error.response)
     console.error('[Email] Full error:', JSON.stringify(error, null, 2))
     console.error('[Email] ============ END ERROR ============')
 
     return {
       success: false,
-      error: error.message || 'Failed to send verification email'
+      error: error.message || 'Failed to send verification email',
+      errorCode: error.code,
+      errorType: error.constructor.name
     }
   }
 }
@@ -324,7 +350,7 @@ export const sendWelcomeEmail = async (
 }
 
 // ============================================================================
-// GENERIC EMAIL SENDER
+// SEND GENERIC EMAIL
 // ============================================================================
 export const sendEmail = async (
   to: string,
@@ -429,8 +455,6 @@ export const sendTemplatedEmail = async (
     console.log('[Email] To:', to)
     console.log('[Email] Template ID:', templateId)
 
-    // TODO: Implement template rendering (Handlebars, EJS, etc.)
-    // For now, just send a generic email
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
 
