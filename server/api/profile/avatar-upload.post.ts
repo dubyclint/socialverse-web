@@ -1,9 +1,7 @@
-// FILE: /server/api/profile/avatar-upload.post.ts - FIXED
 // ============================================================================
-// Upload avatar and update profile - FIXED: Links avatar to profile
-// ✅ FIXED: Uploads file to storage
-// ✅ FIXED: Updates profile.avatar_url
-// ✅ FIXED: Comprehensive error handling
+// FILE: /server/api/profile/avatar-upload.post.ts - CORRECTED
+// ============================================================================
+// ✅ UPDATED: Changed 'profiles' table to 'user' table
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -126,13 +124,15 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     console.log('[Avatar Upload API] Updating profile...')
 
+    // ✅ CHANGED: from 'profiles' to 'user'
+    // ✅ CHANGED: from .eq('id', userId) to .eq('user_id', userId)
     const { data: profile, error: updateError } = await supabase
-      .from('profiles')
+      .from('user')
       .update({ 
         avatar_url: publicUrl,
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single()
 
