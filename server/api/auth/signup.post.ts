@@ -1,10 +1,10 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED (NO SUPABASE AUTH EMAIL)
+// FILE: /server/api/auth/signup.post.ts - FIXED (NO verification_token COLUMN)
 // ============================================================================
-// ✅ Creates user directly in database
+// ✅ Creates users directly in database
 // ✅ Bypasses Supabase Auth email verification completely
 // ✅ Uses MailerSend for verification emails
-// ✅ Generates custom verification tokens
+// ✅ Generates custom verification tokens (NOT stored in DB)
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -131,7 +131,6 @@ export default defineEventHandler(async (event) => {
           display_name: fullName?.trim() || username.trim(),
           is_verified: false,
           verification_status: 'pending',
-          verification_token: verificationToken,
           status: 'active',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
