@@ -1,6 +1,6 @@
-// FILE: /server/api/auth/signup.post.ts
+// CORRECTED: /server/api/auth/signup.post.ts
 // ============================================================================
-// FIXED SIGNUP - Email failure doesn't block signup
+// FIXED SIGNUP - Email failure doesn't block signup (CORRECTED)
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -78,11 +78,13 @@ export default defineEventHandler(async (event) => {
     await new Promise(resolve => setTimeout(resolve, 500))
 
     // ============================================================================
-    // STEP 4: Send verification email (NON-BLOCKING)
+    // STEP 4: Send verification email (NON-BLOCKING) - FIXED
     // ============================================================================
     console.log('[SIGNUP] Sending verification email...')
     
     let emailSent = false
+    let emailError = null
+
     try {
       const verificationToken = Buffer.from(
         JSON.stringify({
@@ -92,25 +94,30 @@ export default defineEventHandler(async (event) => {
         })
       ).toString('base64')
 
+      console.log('[SIGNUP] Calling sendVerificationEmail...')
       const emailResult = await sendVerificationEmail(
         email.trim().toLowerCase(),
         username.trim(),
         verificationToken
       )
 
-      if (emailResult.success) {
-        console.log('[SIGNUP] Verification email sent successfully')
+      console.log('[SIGNUP] Email result:', emailResult)
+
+      if (emailResult && emailResult.success) {
+        console.log('[SIGNUP] ✅ Verification email sent successfully')
         emailSent = true
       } else {
-        console.warn('[SIGNUP] Email sending failed:', emailResult.error)
+        console.warn('[SIGNUP] ⚠️ Email sending failed:', emailResult?.error || 'Unknown error')
+        emailError = emailResult?.error || 'Unknown email error'
         // Don't throw - email failure shouldn't block signup
       }
-    } catch (emailError: any) {
-      console.error('[SIGNUP] Email exception:', emailError.message)
+    } catch (emailException: any) {
+      console.error('[SIGNUP] ❌ Email exception caught:', emailException?.message || emailException)
+      emailError = emailException?.message || 'Email service error'
       // Don't throw - email failure shouldn't block signup
     }
 
-    console.log('[SIGNUP] ✓ SIGNUP SUCCESS')
+    console.log('[SIGNUP] ✅ SIGNUP SUCCESS')
 
     return {
       success: true,
@@ -123,11 +130,13 @@ export default defineEventHandler(async (event) => {
         ? 'Account created! Check your email to verify.' 
         : 'Account created! Please check your email for verification (or contact support if you don\'t receive it).',
       requiresEmailVerification: true,
-      emailSent: emailSent
+      emailSent: emailSent,
+      emailError: emailError || null
     }
 
   } catch (error: any) {
-    console.error('[SIGNUP] Error:', error?.message || error)
+    console.error('[SIGNUP] ❌ Fatal error:', error?.message || error)
+    console.error('[SIGNUP] Error stack:', error?.stack)
     throw error
   }
 })
