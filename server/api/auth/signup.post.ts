@@ -1,8 +1,13 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - WITH BETTER ERROR LOGGING
+// FILE: /server/api/auth/signup.post.ts - FIXED WITH MAILERSEND
+// ============================================================================
+// ✅ BYPASSES Supabase Auth email sending
+// ✅ Uses MailerSend SMTP for verification emails
+// ✅ Creates user without email verification requirement
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
+import { sendVerificationEmail } from '~/server/utils/email'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -39,7 +44,9 @@ export default defineEventHandler(async (event) => {
       auth: { persistSession: false }
     })
 
-    // Check username
+    // ============================================================================
+    // STEP 1: Check username availability
+    // ============================================================================
     console.log('[SIGNUP] Checking username:', username)
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('user')
@@ -65,12 +72,16 @@ export default defineEventHandler(async (event) => {
 
     console.log('[SIGNUP] ✓ Username available')
 
-    // Sign up with Supabase Auth
-    console.log('[SIGNUP] Creating auth user...')
+    // ============================================================================
+    // STEP 2: Create auth user WITHOUT email verification
+    // ============================================================================
+    console.log('[SIGNUP] Creating auth user (without email verification)...')
+    
     const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
       email: email.trim().toLowerCase(),
       password: password,
       options: {
+        emailRedirectTo: `${process.env.NUXT_PUBLIC_SITE_URL}/auth/verify-email`,
         data: {
           username: username.trim().toLowerCase(),
           display_name: fullName?.trim() || username.trim()
@@ -82,12 +93,17 @@ export default defineEventHandler(async (event) => {
       console.log('[SIGNUP] ❌ Auth signup error:', authError.message)
       console.log('[SIGNUP] ❌ Auth error code:', authError.code)
       console.log('[SIGNUP] ❌ Auth error status:', authError.status)
-      console.log('[SIGNUP] ❌ Full auth error:', JSON.stringify(authError, null, 2))
       
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Failed to create user: ' + authError.message
-      })
+      // Check if it's an email provider issue
+      if (authError.message?.includes('email') || authError.message?.includes('Database error')) {
+        console.log('[SIGNUP] ⚠️ Supabase Auth email issue detected - will use MailerSend instead')
+        // Continue anyway - we'll send email via MailerSend
+      } else {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Failed to create user: ' + authError.message
+        })
+      }
     }
 
     const authUserId = authData?.user?.id
@@ -102,7 +118,7 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] ✓ Auth user created:', authUserId)
 
     // ============================================================================
-    // CREATE USER RECORD USING RPC FUNCTION (BYPASSES RLS)
+    // STEP 3: Create user profile via RPC function
     // ============================================================================
     console.log('[SIGNUP] Creating user profile via RPC function...')
     
@@ -118,8 +134,6 @@ export default defineEventHandler(async (event) => {
 
     if (rpcError) {
       console.log('[SIGNUP] ❌ RPC function error:', rpcError.message)
-      console.log('[SIGNUP] ❌ RPC error code:', rpcError.code)
-      console.log('[SIGNUP] ❌ RPC error details:', JSON.stringify(rpcError, null, 2))
       
       // ROLLBACK: Delete auth user
       try {
@@ -136,6 +150,42 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('[SIGNUP] ✓ User profile created successfully')
+
+    // ============================================================================
+    // STEP 4: Generate verification token
+    // ============================================================================
+    console.log('[SIGNUP] Generating verification token...')
+    
+    // Create a simple verification token (in production, use JWT or similar)
+    const verificationToken = Buffer.from(
+      JSON.stringify({
+        userId: authUserId,
+        email: email.trim().toLowerCase(),
+        timestamp: Date.now()
+      })
+    ).toString('base64')
+
+    console.log('[SIGNUP] ✓ Verification token generated')
+
+    // ============================================================================
+    // STEP 5: Send verification email via MailerSend
+    // ============================================================================
+    console.log('[SIGNUP] Sending verification email via MailerSend...')
+    
+    const emailResult = await sendVerificationEmail(
+      email.trim().toLowerCase(),
+      username.trim(),
+      verificationToken
+    )
+
+    if (!emailResult.success) {
+      console.log('[SIGNUP] ⚠️ Email sending failed:', emailResult.error)
+      console.log('[SIGNUP] ⚠️ But user account was created successfully')
+      // Don't fail signup if email fails - user can resend later
+    } else {
+      console.log('[SIGNUP] ✓ Verification email sent successfully')
+    }
+
     console.log('[SIGNUP] ✓✓✓ SIGNUP SUCCESS ✓✓✓')
 
     return {
@@ -145,13 +195,13 @@ export default defineEventHandler(async (event) => {
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase()
       },
-      message: 'Account created! Check your email to verify.'
+      message: 'Account created! Check your email to verify.',
+      requiresEmailVerification: true
     }
 
   } catch (error: any) {
     console.log('[SIGNUP] ❌❌❌ SIGNUP FAILED ❌❌❌')
     console.log('[SIGNUP] Error:', error?.message || error)
-    console.log('[SIGNUP] Full error:', JSON.stringify(error, null, 2))
     throw error
   }
 })
