@@ -1,8 +1,8 @@
 // ============================================================================
 // FILE: /server/api/auth/verify-email.post.ts - UPDATED FOR CUSTOM TOKENS
 // ============================================================================
-// ✅ Handles custom verification tokens from MailerSend
-// ✅ Also handles Supabase tokens for backward compatibility
+// ✅ Handles custom verification tokens
+// ✅ Marks user as verified in database
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -68,6 +68,7 @@ export default defineEventHandler(async (event) => {
           is_verified: true,
           verification_status: 'verified',
           email_verified_at: new Date().toISOString(),
+          verification_token: null,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)
@@ -100,72 +101,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // STEP 2: Try OTP verification (for Supabase tokens)
+    // STEP 2: If custom token fails, return error
     // ============================================================================
-    console.log('[VERIFY-EMAIL] STEP 2: Attempting OTP verification...')
-    try {
-      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
-        token_hash: String(token),
-        type: 'email'
-      })
-
-      if (!otpError && otpData?.user) {
-        console.log('[VERIFY-EMAIL] ✅ OTP verified successfully')
-        console.log('[VERIFY-EMAIL] User ID:', otpData.user.id)
-        
-        return {
-          success: true,
-          message: 'Email verified successfully!',
-          user: {
-            id: otpData.user.id,
-            email: otpData.user.email,
-            email_confirmed_at: otpData.user.email_confirmed_at,
-            username: otpData.user.user_metadata?.username,
-            full_name: otpData.user.user_metadata?.full_name,
-            avatar_url: otpData.user.user_metadata?.avatar_url
-          }
-        }
-      }
-      
-      console.log('[VERIFY-EMAIL] OTP verification failed:', otpError?.message)
-    } catch (err: any) {
-      console.log('[VERIFY-EMAIL] OTP verification exception:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 3: Try code exchange (for Supabase auth codes)
-    // ============================================================================
-    console.log('[VERIFY-EMAIL] STEP 3: Attempting code exchange...')
-    try {
-      const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(String(token))
-
-      if (!codeError && codeData?.user) {
-        console.log('[VERIFY-EMAIL] ✅ Code exchange successful')
-        console.log('[VERIFY-EMAIL] User ID:', codeData.user.id)
-        
-        return {
-          success: true,
-          message: 'Email verified successfully!',
-          user: {
-            id: codeData.user.id,
-            email: codeData.user.email,
-            email_confirmed_at: codeData.user.email_confirmed_at,
-            username: codeData.user.user_metadata?.username,
-            full_name: codeData.user.user_metadata?.full_name,
-            avatar_url: codeData.user.user_metadata?.avatar_url
-          }
-        }
-      }
-      
-      console.log('[VERIFY-EMAIL] Code exchange failed:', codeError?.message)
-    } catch (err: any) {
-      console.log('[VERIFY-EMAIL] Code exchange exception:', err.message)
-    }
-
-    // ============================================================================
-    // STEP 4: If all methods fail, return error
-    // ============================================================================
-    console.log('[VERIFY-EMAIL] ❌ All verification methods failed')
+    console.log('[VERIFY-EMAIL] ❌ Token verification failed')
     console.log('[VERIFY-EMAIL] ============ END ============')
     
     throw createError({
