@@ -1,13 +1,15 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FIXED WITH MAILERSEND
+// FILE: /server/api/auth/signup.post.ts - SIMPLIFIED (NO SUPABASE AUTH EMAIL)
 // ============================================================================
-// ✅ BYPASSES Supabase Auth email sending
-// ✅ Uses MailerSend SMTP for verification emails
-// ✅ Creates user without email verification requirement
+// ✅ Creates user directly in database
+// ✅ Bypasses Supabase Auth email verification completely
+// ✅ Uses MailerSend for verification emails
+// ✅ Generates custom verification tokens
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
 import { sendVerificationEmail } from '~/server/utils/email'
+import crypto from 'crypto'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,20 +27,15 @@ export default defineEventHandler(async (event) => {
     }
 
     const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       console.log('[SIGNUP] ❌ Missing Supabase config')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
       })
     }
-
-    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false }
-    })
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false }
@@ -73,99 +70,85 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] ✓ Username available')
 
     // ============================================================================
-    // STEP 2: Create auth user WITHOUT email verification
+    // STEP 2: Check email availability
     // ============================================================================
-    console.log('[SIGNUP] Creating auth user (without email verification)...')
-    
-    const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password: password,
-      options: {
-        emailRedirectTo: `${process.env.NUXT_PUBLIC_SITE_URL}/auth/verify-email`,
-        data: {
-          username: username.trim().toLowerCase(),
-          display_name: fullName?.trim() || username.trim()
-        }
-      }
-    })
+    console.log('[SIGNUP] Checking email:', email)
+    const { data: existingEmail, error: emailCheckError } = await supabaseAdmin
+      .from('user')
+      .select('id')
+      .ilike('email', email.trim().toLowerCase())
+      .single()
 
-    if (authError) {
-      console.log('[SIGNUP] ❌ Auth signup error:', authError.message)
-      console.log('[SIGNUP] ❌ Auth error code:', authError.code)
-      console.log('[SIGNUP] ❌ Auth error status:', authError.status)
-      
-      // Check if it's an email provider issue
-      if (authError.message?.includes('email') || authError.message?.includes('Database error')) {
-        console.log('[SIGNUP] ⚠️ Supabase Auth email issue detected - will use MailerSend instead')
-        // Continue anyway - we'll send email via MailerSend
-      } else {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Failed to create user: ' + authError.message
-        })
-      }
-    }
-
-    const authUserId = authData?.user?.id
-    if (!authUserId) {
-      console.log('[SIGNUP] ❌ No user ID returned from auth')
+    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
+      console.log('[SIGNUP] ❌ Email check error:', emailCheckError.message)
       throw createError({
         statusCode: 500,
-        statusMessage: 'User creation failed'
+        statusMessage: 'Email check failed'
       })
     }
 
-    console.log('[SIGNUP] ✓ Auth user created:', authUserId)
-
-    // ============================================================================
-    // STEP 3: Create user profile via RPC function
-    // ============================================================================
-    console.log('[SIGNUP] Creating user profile via RPC function...')
-    
-    const { data: userData, error: rpcError } = await supabaseAdmin.rpc(
-      'create_user_profile',
-      {
-        p_user_id: authUserId,
-        p_username: username.trim().toLowerCase(),
-        p_email: email.trim().toLowerCase(),
-        p_display_name: fullName?.trim() || username.trim()
-      }
-    )
-
-    if (rpcError) {
-      console.log('[SIGNUP] ❌ RPC function error:', rpcError.message)
-      
-      // ROLLBACK: Delete auth user
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(authUserId)
-        console.log('[SIGNUP] ✓ Rolled back auth user')
-      } catch (e) {
-        console.log('[SIGNUP] ⚠️ Rollback failed:', e)
-      }
-
+    if (existingEmail) {
+      console.log('[SIGNUP] ❌ Email already registered')
       throw createError({
         statusCode: 400,
-        statusMessage: 'Failed to create user profile: ' + rpcError.message
+        statusMessage: 'Email already registered'
       })
     }
 
-    console.log('[SIGNUP] ✓ User profile created successfully')
+    console.log('[SIGNUP] ✓ Email available')
 
     // ============================================================================
-    // STEP 4: Generate verification token
+    // STEP 3: Generate user ID and verification token
     // ============================================================================
-    console.log('[SIGNUP] Generating verification token...')
+    console.log('[SIGNUP] Generating user ID and verification token...')
     
-    // Create a simple verification token (in production, use JWT or similar)
+    const userId = crypto.randomUUID()
     const verificationToken = Buffer.from(
       JSON.stringify({
-        userId: authUserId,
+        userId: userId,
         email: email.trim().toLowerCase(),
         timestamp: Date.now()
       })
     ).toString('base64')
 
+    console.log('[SIGNUP] ✓ User ID:', userId)
     console.log('[SIGNUP] ✓ Verification token generated')
+
+    // ============================================================================
+    // STEP 4: Create user profile in database
+    // ============================================================================
+    console.log('[SIGNUP] Creating user profile in database...')
+    
+    const { data: newUser, error: insertError } = await supabaseAdmin
+      .from('user')
+      .insert([
+        {
+          user_id: userId,
+          username: username.trim().toLowerCase(),
+          username_lower: username.trim().toLowerCase(),
+          email: email.trim().toLowerCase(),
+          email_lower: email.trim().toLowerCase(),
+          display_name: fullName?.trim() || username.trim(),
+          is_verified: false,
+          verification_status: 'pending',
+          verification_token: verificationToken,
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single()
+
+    if (insertError) {
+      console.log('[SIGNUP] ❌ Error creating user profile:', insertError.message)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Failed to create user profile: ' + insertError.message
+      })
+    }
+
+    console.log('[SIGNUP] ✓ User profile created successfully')
 
     // ============================================================================
     // STEP 5: Send verification email via MailerSend
@@ -191,7 +174,7 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       user: {
-        id: authUserId,
+        id: userId,
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase()
       },
@@ -202,6 +185,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.log('[SIGNUP] ❌❌❌ SIGNUP FAILED ❌❌❌')
     console.log('[SIGNUP] Error:', error?.message || error)
+    console.log('[SIGNUP] Full error:', JSON.stringify(error, null, 2))
     throw error
   }
 })
