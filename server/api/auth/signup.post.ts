@@ -1,6 +1,6 @@
 // FILE: /server/api/auth/signup.post.ts
 // ============================================================================
-// FIXED SIGNUP - Removes redundant insert
+// FIXED SIGNUP - Email failure doesn't block signup
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -74,33 +74,40 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 3: Wait for trigger to create profile
     // ============================================================================
-    // The trigger automatically creates the user profile, so we just wait a bit
     console.log('[SIGNUP] Waiting for profile creation...')
     await new Promise(resolve => setTimeout(resolve, 500))
 
     // ============================================================================
-    // STEP 4: Send verification email
+    // STEP 4: Send verification email (NON-BLOCKING)
     // ============================================================================
     console.log('[SIGNUP] Sending verification email...')
     
-    const verificationToken = Buffer.from(
-      JSON.stringify({
-        userId: authUserId,
-        email: email.trim().toLowerCase(),
-        timestamp: Date.now()
-      })
-    ).toString('base64')
+    let emailSent = false
+    try {
+      const verificationToken = Buffer.from(
+        JSON.stringify({
+          userId: authUserId,
+          email: email.trim().toLowerCase(),
+          timestamp: Date.now()
+        })
+      ).toString('base64')
 
-    const emailResult = await sendVerificationEmail(
-      email.trim().toLowerCase(),
-      username.trim(),
-      verificationToken
-    )
+      const emailResult = await sendVerificationEmail(
+        email.trim().toLowerCase(),
+        username.trim(),
+        verificationToken
+      )
 
-    if (!emailResult.success) {
-      console.warn('[SIGNUP] Email sending failed:', emailResult.error)
-    } else {
-      console.log('[SIGNUP] Verification email sent')
+      if (emailResult.success) {
+        console.log('[SIGNUP] Verification email sent successfully')
+        emailSent = true
+      } else {
+        console.warn('[SIGNUP] Email sending failed:', emailResult.error)
+        // Don't throw - email failure shouldn't block signup
+      }
+    } catch (emailError: any) {
+      console.error('[SIGNUP] Email exception:', emailError.message)
+      // Don't throw - email failure shouldn't block signup
     }
 
     console.log('[SIGNUP] ✓ SIGNUP SUCCESS')
@@ -112,8 +119,11 @@ export default defineEventHandler(async (event) => {
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase()
       },
-      message: 'Account created! Check your email to verify.',
-      requiresEmailVerification: true
+      message: emailSent 
+        ? 'Account created! Check your email to verify.' 
+        : 'Account created! Please check your email for verification (or contact support if you don\'t receive it).',
+      requiresEmailVerification: true,
+      emailSent: emailSent
     }
 
   } catch (error: any) {
