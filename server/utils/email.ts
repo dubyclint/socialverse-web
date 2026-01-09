@@ -1,11 +1,8 @@
-// UPDATED: /server/utils/email.ts - MAILERSEND API IMPLEMENTATION
 // ============================================================================
-// FILE: /server/utils/email.ts - COMPLETE MAILERSEND REST API IMPLEMENTATION
+// FILE: /server/utils/email.ts - FIXED MAILERSEND AUTHENTICATION
 // ============================================================================
-// ✅ Uses MailerSend REST API instead of SMTP
-// ✅ More reliable and easier to debug
-// ✅ Better error handling
-// ✅ Production-ready
+// ✅ FIXED: Proper Bearer token authentication
+// ✅ FIXED: Correct header format
 // ============================================================================
 
 const MAILERSEND_API_URL = 'https://api.mailersend.com/v1'
@@ -71,18 +68,22 @@ export const sendVerificationEmail = async (
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
     const apiToken = process.env.MAILERSEND_API_TOKEN
 
+    console.log('[Email] API Token available:', !!apiToken)
+    console.log('[Email] API Token length:', apiToken?.length || 0)
+
     if (!apiToken) {
       console.error('[Email] ❌ Missing MAILERSEND_API_TOKEN')
       throw new Error('MailerSend API token is not configured')
     }
 
     console.log('[Email] Sending via MailerSend API...')
+    console.log('[Email] API URL:', MAILERSEND_API_URL + '/email')
+    console.log('[Email] Authorization header:', 'Bearer ' + apiToken.substring(0, 20) + '...')
 
     const response = await fetch(`${MAILERSEND_API_URL}/email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
         'Authorization': `Bearer ${apiToken}`
       },
       body: JSON.stringify({
@@ -103,6 +104,7 @@ export const sendVerificationEmail = async (
     })
 
     console.log('[Email] API Response Status:', response.status)
+    console.log('[Email] API Response OK:', response.ok)
 
     if (!response.ok) {
       const errorData = await response.json()
@@ -205,7 +207,6 @@ export const sendPasswordResetEmail = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
         'Authorization': `Bearer ${apiToken}`
       },
       body: JSON.stringify({
@@ -323,7 +324,6 @@ export const sendWelcomeEmail = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
         'Authorization': `Bearer ${apiToken}`
       },
       body: JSON.stringify({
@@ -392,7 +392,6 @@ export const sendEmail = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
         'Authorization': `Bearer ${apiToken}`
       },
       body: JSON.stringify({
@@ -459,7 +458,6 @@ export const sendBulkEmails = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
         'Authorization': `Bearer ${apiToken}`
       },
       body: JSON.stringify({
