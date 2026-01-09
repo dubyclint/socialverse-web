@@ -1,13 +1,13 @@
 // ============================================================================
-// FILE: /server/api/auth/verify-email.post.ts - SIMPLIFIED VERSION
+// FILE: /server/api/auth/verify-email.post.ts - FINAL PRODUCTION VERSION
 // ============================================================================
-// ✅ SIMPLE EMAIL VERIFICATION
-// ✅ User clicks link in email
 // ✅ Verifies email
+// ✅ Updates user_profiles table
 // ✅ Redirects to feed page
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
+import { getAdminClient } from '../../utils/supabase-server'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -23,11 +23,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Decode token
+    // ============================================================================
+    // STEP 1: Decode and validate token
+    // ============================================================================
+    console.log('[VERIFY-EMAIL] STEP 1: Decoding token...')
+
     let tokenData
     try {
       tokenData = JSON.parse(Buffer.from(token, 'base64').toString())
     } catch (e) {
+      console.error('[VERIFY-EMAIL] ❌ Invalid token format')
       throw createError({
         statusCode: 400,
         statusMessage: 'Invalid verification token'
@@ -37,58 +42,78 @@ export default defineEventHandler(async (event) => {
     const { userId, email } = tokenData
 
     if (!userId || !email) {
+      console.error('[VERIFY-EMAIL] ❌ Invalid token data')
       throw createError({
         statusCode: 400,
         statusMessage: 'Invalid token data'
       })
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Server configuration error'
-      })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('[VERIFY-EMAIL] ✅ Token decoded successfully')
+    console.log('[VERIFY-EMAIL] User ID:', userId)
+    console.log('[VERIFY-EMAIL] Email:', email)
 
     // ============================================================================
-    // STEP 1: Update user verification status
+    // STEP 2: Update user_profiles table
     // ============================================================================
-    console.log('[VERIFY-EMAIL] Updating verification status for user:', userId)
+    console.log('[VERIFY-EMAIL] STEP 2: Updating verification status...')
 
-    const { data: updatedUser, error: updateError } = await supabase
-      .from('user')
+    const supabase = await getAdminClient()
+
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from('user_profiles')
       .update({
         is_verified: true,
-        verification_status: 'verified'
+        verification_status: 'verified',
+        updated_at: new Date().toISOString()
       })
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
       .single()
 
     if (updateError) {
-      console.log('[VERIFY-EMAIL] Update error:', updateError.message)
+      console.error('[VERIFY-EMAIL] ❌ Update error:', updateError.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to verify email: ' + updateError.message
       })
     }
 
-    console.log('[VERIFY-EMAIL] ✓ Email verified successfully')
+    if (!updatedProfile) {
+      console.error('[VERIFY-EMAIL] ❌ Profile not found')
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'User profile not found'
+      })
+    }
+
+    console.log('[VERIFY-EMAIL] ✅ Email verified successfully')
+    console.log('[VERIFY-EMAIL] Profile updated:', {
+      id: updatedProfile.id,
+      is_verified: updatedProfile.is_verified,
+      verification_status: updatedProfile.verification_status
+    })
+
+    // ============================================================================
+    // STEP 3: Return success response with redirect
+    // ============================================================================
+    console.log('[VERIFY-EMAIL] ✅ EMAIL VERIFICATION COMPLETE')
 
     return {
       success: true,
-      message: 'Email verified! You can now login.',
-      user: updatedUser,
-      redirectTo: '/feed'  // Redirect to feed page
+      message: 'Email verified successfully! Redirecting to feed...',
+      user: {
+        id: updatedProfile.id,
+        email: updatedProfile.email,
+        username: updatedProfile.username,
+        is_verified: updatedProfile.is_verified,
+        verification_status: updatedProfile.verification_status
+      },
+      redirectTo: '/feed'
     }
 
   } catch (error: any) {
-    console.log('[VERIFY-EMAIL] Error:', error?.message || error)
+    console.error('[VERIFY-EMAIL] ❌ Error:', error?.message || error)
     throw error
   }
 })
