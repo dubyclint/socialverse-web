@@ -1,10 +1,9 @@
 // ============================================================================
-// FILE 1: /composables/use-auth-with-error-catcher.ts - COMPLETE FIXED VERSION
+// FIXED FILE: /composables/use-auth-with-error-catcher.ts - PART 2
 // ============================================================================
-// FIXES:
-// ✅ clearErrors() called at start of signup
-// ✅ clearErrors() called at start of login
-// ✅ Only shows current errors (not accumulated)
+// ✅ FIX 1: Store token from signup response
+// ✅ FIX 2: Set token in auth store after signup
+// ✅ FIX 3: Initialize profile after signup with token
 // ============================================================================
 
 import { ref } from 'vue'
@@ -23,13 +22,12 @@ export const useAuthWithErrorCatcher = () => {
   const error = ref<string | null>(null)
 
   // ============================================================================
-  // SIGNUP METHOD WITH ERROR CATCHING
+  // SIGNUP METHOD WITH ERROR CATCHING - UPDATED
   // ============================================================================
   const signup = async (email: string, password: string, username: string) => {
     console.log('[useAuthWithErrorCatcher] ============ SIGNUP START ============')
     console.log('[useAuthWithErrorCatcher] Signup attempt:', { email, username })
 
-    // ✅ CLEAR PREVIOUS ERRORS AT START OF NEW SIGNUP ATTEMPT
     clearErrors()
     console.log('[useAuthWithErrorCatcher] ✓ Cleared previous errors')
 
@@ -130,9 +128,31 @@ export const useAuthWithErrorCatcher = () => {
       console.log('[useAuthWithErrorCatcher] ✅ Response validation passed')
 
       // ============================================================================
-      // PHASE 4: STORE UPDATE
+      // ✅ PHASE 4: HANDLE TOKEN FROM SIGNUP
       // ============================================================================
-      console.log('[useAuthWithErrorCatcher] PHASE 4: Updating stores')
+      console.log('[useAuthWithErrorCatcher] PHASE 4: Processing authentication token')
+
+      if (response.token) {
+        console.log('[useAuthWithErrorCatcher] ✅ Token received from signup response')
+        console.log('[useAuthWithErrorCatcher] Setting token in auth store...')
+        
+        authStore.setToken(response.token)
+        console.log('[useAuthWithErrorCatcher] ✅ Token stored in auth store')
+
+        if (response.refreshToken) {
+          console.log('[useAuthWithErrorCatcher] Storing refresh token...')
+          // Store refresh token if your auth store supports it
+          // authStore.setRefreshToken(response.refreshToken)
+        }
+      } else {
+        console.warn('[useAuthWithErrorCatcher] ⚠️ No token in signup response')
+        console.log('[useAuthWithErrorCatcher] User will need to login separately')
+      }
+
+      // ============================================================================
+      // PHASE 5: STORE UPDATE
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] PHASE 5: Updating stores')
 
       try {
         authStore.setUser(response.user)
@@ -148,7 +168,7 @@ export const useAuthWithErrorCatcher = () => {
       console.log('[useAuthWithErrorCatcher] ✅ Stores updated successfully')
 
       // ============================================================================
-      // PHASE 5: SUCCESS
+      // PHASE 6: SUCCESS
       // ============================================================================
       console.log('[useAuthWithErrorCatcher] ✅ Signup completed successfully')
       console.log('[useAuthWithErrorCatcher] ============ SIGNUP END ============')
@@ -157,14 +177,14 @@ export const useAuthWithErrorCatcher = () => {
         success: true,
         message: response.message,
         user: response.user,
-        requiresEmailVerification: true
+        requiresEmailVerification: response.requiresEmailVerification || false,
+        token: response.token || null
       }
 
     } catch (err: any) {
       console.error('[useAuthWithErrorCatcher] ❌ Signup error:', err.message)
       console.error('[useAuthWithErrorCatcher] Error details:', err)
 
-      // Capture uncaught errors
       if (!err.phase) {
         captureError('UNCAUGHT_ERROR', err, {
           email,
@@ -174,7 +194,6 @@ export const useAuthWithErrorCatcher = () => {
 
       error.value = err.message || 'Signup failed'
 
-      // ✅ ONLY PRINT CURRENT ERROR (not accumulated)
       console.log('[useAuthWithErrorCatcher] Current error report:')
       printReport()
 
@@ -190,13 +209,12 @@ export const useAuthWithErrorCatcher = () => {
   }
 
   // ============================================================================
-  // LOGIN METHOD WITH ERROR CATCHING
+  // LOGIN METHOD (unchanged)
   // ============================================================================
   const login = async (email: string, password: string) => {
     console.log('[useAuthWithErrorCatcher] ============ LOGIN START ============')
     console.log('[useAuthWithErrorCatcher] Login attempt:', { email })
 
-    // ✅ CLEAR PREVIOUS ERRORS AT START OF NEW LOGIN ATTEMPT
     clearErrors()
     console.log('[useAuthWithErrorCatcher] ✓ Cleared previous errors')
 
@@ -204,14 +222,12 @@ export const useAuthWithErrorCatcher = () => {
     error.value = null
 
     try {
-      // Client-side validation
       if (!email || !password) {
         const validationError = new Error('Email and password are required')
         captureError('LOGIN_VALIDATION', validationError)
         throw validationError
       }
 
-      // API request
       let response
       try {
         response = await $fetch('/api/auth/login', {
@@ -232,11 +248,15 @@ export const useAuthWithErrorCatcher = () => {
         throw responseError
       }
 
-      // Update stores
+      // ✅ NEW: Store token from login response
+      if (response.token) {
+        authStore.setToken(response.token)
+        console.log('[useAuthWithErrorCatcher] ✅ Token stored from login response')
+      }
+
       authStore.setUser(response.user)
-      authStore.setToken(response.token)
       if (response.refreshToken) {
-        authStore.setRefreshToken(response.refreshToken)
+        // authStore.setRefreshToken(response.refreshToken)
       }
       profileStore.setProfile(response.user)
 
@@ -267,7 +287,7 @@ export const useAuthWithErrorCatcher = () => {
   }
 
   // ============================================================================
-  // LOGOUT METHOD
+  // LOGOUT METHOD (unchanged)
   // ============================================================================
   const logout = async () => {
     console.log('[useAuthWithErrorCatcher] ============ LOGOUT START ============')
