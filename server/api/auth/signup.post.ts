@@ -1,6 +1,9 @@
-// FIXED: /server/api/auth/signup.post.ts
 // ============================================================================
-// SIGNUP ENDPOINT - Creates auth user + user_profiles record
+// FIXED FILE: /server/api/auth/signup.post.ts
+// ============================================================================
+// ✅ FIX 1: Return session token after signup
+// ✅ FIX 2: Auto-authenticate user after signup
+// ✅ FIX 3: Return complete user data with token
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -81,7 +84,6 @@ export default defineEventHandler(async (event) => {
 
     const now = new Date().toISOString()
     
-    // ✅ CHANGED: from 'user' to 'user_profiles'
     const { data: userRecord, error: userError } = await supabaseAdmin
       .from('user_profiles')
       .insert([
@@ -122,7 +124,57 @@ export default defineEventHandler(async (event) => {
       console.log('[SIGNUP] ✅ User record created successfully')
     }
 
-    console.log('[SIGNUP] ✅ SIGNUP SUCCESS')
+    // ============================================================================
+    // ✅ FIX: AUTO-AUTHENTICATE USER AFTER SIGNUP
+    // ============================================================================
+    console.log('[SIGNUP] Auto-authenticating user after signup...')
+
+    const { data: sessionData, error: sessionError } = await supabaseAnon.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: password
+    })
+
+    if (sessionError) {
+      console.error('[SIGNUP] ⚠️ Auto-authentication failed:', sessionError.message)
+      console.log('[SIGNUP] Continuing without session token...')
+      
+      // Return response without token (frontend will need to login separately)
+      return {
+        success: true,
+        user: {
+          id: authUserId,
+          email: email.trim().toLowerCase(),
+          username: username.trim().toLowerCase()
+        },
+        message: 'Account created successfully!',
+        requiresEmailVerification: false,
+        token: null // ❌ No token available
+      }
+    }
+
+    if (!sessionData?.session) {
+      console.warn('[SIGNUP] ⚠️ No session in auto-authentication response')
+      
+      return {
+        success: true,
+        user: {
+          id: authUserId,
+          email: email.trim().toLowerCase(),
+          username: username.trim().toLowerCase()
+        },
+        message: 'Account created successfully!',
+        requiresEmailVerification: false,
+        token: null // ❌ No token available
+      }
+    }
+
+    console.log('[SIGNUP] ✅ Auto-authentication successful')
+    console.log('[SIGNUP] Session token obtained:', !!sessionData.session.access_token)
+
+    // ============================================================================
+    // ✅ FIX: RETURN COMPLETE RESPONSE WITH TOKEN
+    // ============================================================================
+    console.log('[SIGNUP] ✅ SIGNUP SUCCESS WITH AUTO-AUTHENTICATION')
 
     return {
       success: true,
@@ -132,7 +184,11 @@ export default defineEventHandler(async (event) => {
         username: username.trim().toLowerCase()
       },
       message: 'Account created successfully!',
-      requiresEmailVerification: false
+      requiresEmailVerification: false,
+      // ✅ NEW: Include session token for auto-authentication
+      token: sessionData.session.access_token,
+      refreshToken: sessionData.session.refresh_token,
+      expiresIn: sessionData.session.expires_in
     }
 
   } catch (error: any) {
