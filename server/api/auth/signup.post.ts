@@ -1,4 +1,8 @@
 // FIXED: /server/api/auth/signup.post.ts
+// ============================================================================
+// SIGNUP ENDPOINT - Creates auth user + user record
+// ============================================================================
+
 import { createClient } from '@supabase/supabase-js'
 import { sendVerificationEmail } from '~/server/utils/email'
 
@@ -71,10 +75,12 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] ✅ Auth user created:', authUserId)
 
     // ============================================================================
-    // NEW: Create user record in 'user' table
+    // CREATE USER RECORD IN DATABASE
     // ============================================================================
     console.log('[SIGNUP] Creating user record in database...')
 
+    const now = new Date().toISOString()
+    
     const { data: userRecord, error: userError } = await supabaseAdmin
       .from('user')
       .insert([
@@ -82,7 +88,7 @@ export default defineEventHandler(async (event) => {
           user_id: authUserId,
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase(),
-          full_name: username.trim().toLowerCase(), // Default to username
+          full_name: username.trim().toLowerCase(),
           bio: '',
           avatar_url: null,
           location: '',
@@ -100,9 +106,9 @@ export default defineEventHandler(async (event) => {
           posts_count: 0,
           followers_count: 0,
           following_count: 0,
-          last_seen: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          last_seen: now,
+          created_at: now,
+          updated_at: now
         }
       ])
       .select()
@@ -110,7 +116,9 @@ export default defineEventHandler(async (event) => {
 
     if (userError) {
       console.error('[SIGNUP] ⚠️ User record creation failed:', userError.message)
+      console.error('[SIGNUP] Error code:', userError.code)
       // Don't throw - user auth was created, just user record failed
+      // This allows signup to succeed even if user record creation fails
     } else {
       console.log('[SIGNUP] ✅ User record created successfully')
     }
