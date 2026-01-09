@@ -1,6 +1,6 @@
 // FIXED: /server/api/auth/signup.post.ts
 // ============================================================================
-// SIGNUP ENDPOINT - Creates auth user + user record
+// SIGNUP ENDPOINT - Creates auth user + user_profiles record
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -81,11 +81,12 @@ export default defineEventHandler(async (event) => {
 
     const now = new Date().toISOString()
     
+    // ✅ CHANGED: from 'user' to 'user_profiles'
     const { data: userRecord, error: userError } = await supabaseAdmin
-      .from('user')
+      .from('user_profiles')
       .insert([
         {
-          user_id: authUserId,
+          id: authUserId,
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase(),
           full_name: username.trim().toLowerCase(),
@@ -117,8 +118,6 @@ export default defineEventHandler(async (event) => {
     if (userError) {
       console.error('[SIGNUP] ⚠️ User record creation failed:', userError.message)
       console.error('[SIGNUP] Error code:', userError.code)
-      // Don't throw - user auth was created, just user record failed
-      // This allows signup to succeed even if user record creation fails
     } else {
       console.log('[SIGNUP] ✅ User record created successfully')
     }
