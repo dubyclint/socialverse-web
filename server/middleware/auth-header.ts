@@ -1,9 +1,7 @@
 // ============================================================================
-// FILE: /server/middleware/auth-header.ts - COMPLETE FIXED VERSION
+// FILE: /server/middleware/auth-header.ts - SIMPLIFIED JWT-ONLY VERSION
 // ============================================================================
-// ✅ FIXED: Validates JWT tokens directly without needing service role key
-// ✅ FIXED: Decodes and validates JWT signature using Supabase's public key
-// ✅ FIXED: Extracts user info from JWT payload
+// ✅ FIXED: NO Supabase API calls - just JWT decoding and validation
 // ============================================================================
 
 import { jwtDecode } from 'jwt-decode'
@@ -33,8 +31,6 @@ export default defineEventHandler(async (event) => {
     // Get Authorization header
     const authHeader = event.node.req.headers.authorization
     
-    console.log('[Auth Header Middleware] Authorization header present:', !!authHeader)
-    
     if (!authHeader) {
       console.log('[Auth Header Middleware] ℹ️ No Authorization header found')
       return
@@ -47,20 +43,14 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('[Auth Header Middleware] Token extracted, length:', token.length)
-    console.log('[Auth Header Middleware] Token starts with:', token.substring(0, 20) + '...')
 
-    // ✅ CRITICAL: Decode JWT token to extract user info
+    // ✅ ONLY: Decode JWT token
     let decoded: any
     try {
       decoded = jwtDecode(token)
       console.log('[Auth Header Middleware] ✅ Token decoded successfully')
-      console.log('[Auth Header Middleware] Token payload:', {
-        sub: decoded.sub,
-        email: decoded.email,
-        aud: decoded.aud,
-        iss: decoded.iss,
-        exp: new Date(decoded.exp * 1000).toISOString()
-      })
+      console.log('[Auth Header Middleware] User ID:', decoded.sub)
+      console.log('[Auth Header Middleware] Email:', decoded.email)
     } catch (decodeErr: any) {
       console.error('[Auth Header Middleware] ❌ Failed to decode token:', decodeErr.message)
       throw createError({
@@ -69,17 +59,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ✅ CRITICAL: Validate token expiration
+    // ✅ Validate token expiration
     if (decoded.exp && decoded.exp * 1000 < Date.now()) {
       console.error('[Auth Header Middleware] ❌ Token is expired')
-      console.error('[Auth Header Middleware] Expiration time:', new Date(decoded.exp * 1000).toISOString())
       throw createError({
         statusCode: 401,
         statusMessage: 'Token expired'
       })
     }
 
-    // ✅ CRITICAL: Validate token audience (should be 'authenticated')
+    // ✅ Validate token audience
     if (decoded.aud !== 'authenticated') {
       console.error('[Auth Header Middleware] ❌ Invalid token audience:', decoded.aud)
       throw createError({
@@ -88,17 +77,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ✅ CRITICAL: Validate token issuer (should be Supabase)
-    const supabaseUrl = process.env.SUPABASE_URL
-    if (!decoded.iss || !decoded.iss.includes('supabase')) {
-      console.error('[Auth Header Middleware] ❌ Invalid token issuer:', decoded.iss)
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Invalid token issuer'
-      })
-    }
-
-    // ✅ CRITICAL: Extract user ID from token
+    // ✅ Extract user ID
     const userId = decoded.sub
     if (!userId) {
       console.error('[Auth Header Middleware] ❌ No user ID in token')
@@ -109,51 +88,31 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('[Auth Header Middleware] ✅ Token validation passed')
-    console.log('[Auth Header Middleware] User ID:', userId)
-    console.log('[Auth Header Middleware] User email:', decoded.email)
     
-    // ✅ CRITICAL: Create user object from JWT payload
+    // ✅ Create user object from JWT payload
     const user = {
       id: userId,
       email: decoded.email || '',
-      user_metadata: {
-        username: decoded.user_metadata?.username || '',
-        full_name: decoded.user_metadata?.full_name || '',
-        avatar_url: decoded.user_metadata?.avatar_url || null,
-        ...decoded.user_metadata
-      },
+      user_metadata: decoded.user_metadata || {},
       app_metadata: decoded.app_metadata || {},
       aud: decoded.aud,
-      role: decoded.role || 'authenticated',
-      email_confirmed_at: decoded.email_confirmed_at || null,
-      phone_confirmed_at: decoded.phone_confirmed_at || null,
-      confirmed_at: decoded.confirmed_at || null,
-      last_sign_in_at: decoded.last_sign_in_at || null,
-      created_at: decoded.created_at || new Date().toISOString(),
-      updated_at: decoded.updated_at || new Date().toISOString()
+      role: decoded.role || 'authenticated'
     }
 
-    console.log('[Auth Header Middleware] ✅ User object created from JWT')
-    
-    // Store user in event context for use in endpoints
+    // Store user in event context
     event.context.user = user
     event.context.authToken = token
     event.context.jwtPayload = decoded
     
-    console.log('[Auth Header Middleware] ✅ User context set successfully')
+    console.log('[Auth Header Middleware] ✅ User context set')
 
   } catch (error: any) {
-    console.error('[Auth Header Middleware] ============ MIDDLEWARE ERROR ============')
     console.error('[Auth Header Middleware] Error:', error.message)
-    console.error('[Auth Header Middleware] Status:', error.statusCode)
-    console.error('[Auth Header Middleware] ============ END ERROR ============')
     
-    // Re-throw if it's already a proper error
     if (error.statusCode) {
       throw error
     }
     
-    // Otherwise throw generic unauthorized
     throw createError({
       statusCode: 401,
       statusMessage: 'Unauthorized'
