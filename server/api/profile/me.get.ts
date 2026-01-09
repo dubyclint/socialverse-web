@@ -1,12 +1,9 @@
 // ============================================================================
-// FILE 4: /server/api/profile/me.get.ts - CORRECTED
+// FILE: /server/api/profile/me.get.ts - CORRECTED
 // ============================================================================
-// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ✅ FIXED: Changed 'user' table to 'user_profiles' table
+// ✅ FIXED: Changed 'user_id' field to 'id' field
 // ============================================================================
-
-// FILE: /server/api/profile/me.get.ts - COMPLETE UPDATED VERSION
-// Get current user profile with complete data including rank & verification
-// ✅ CHANGED: Queries 'user' table instead of 'profiles'
 
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -39,11 +36,13 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[Profile/Me API] STEP 2: Fetching profile...')
 
-    // ✅ CHANGED: from 'profiles' to 'user'
+    // ✅ CHANGED: from 'user' to 'user_profiles'
     const { data: profile, error: profileError } = await supabase
-      .from('user')
+      .from('user_profiles')
       .select(`
-        user_id,
+        id,
+        email,
+        username,
         full_name,
         bio,
         avatar_url,
@@ -67,7 +66,7 @@ export default defineEventHandler(async (event) => {
         created_at,
         updated_at
       `)
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single()
 
     if (profileError) {
@@ -100,7 +99,7 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Profile/Me API] ✅ Profile fetched successfully')
     console.log('[Profile/Me API] Profile data:', {
-      user_id: profile.user_id,
+      id: profile.id,
       full_name: profile.full_name,
       rank: profile.rank,
       is_verified: profile.is_verified
@@ -133,4 +132,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
