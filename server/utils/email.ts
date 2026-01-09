@@ -1,74 +1,14 @@
-// UPDATED: /server/utils/email.ts - FIXED SMTP PORT ISSUE
+// UPDATED: /server/utils/email.ts - MAILERSEND API IMPLEMENTATION
 // ============================================================================
-// FILE: /server/utils/email.ts - COMPLETE MAILERSEND SMTP IMPLEMENTATION
+// FILE: /server/utils/email.ts - COMPLETE MAILERSEND REST API IMPLEMENTATION
 // ============================================================================
-// ✅ FIXED: Support both port 587 (TLS) and 2525 (SSL)
-// ✅ Better error handling and diagnostics
+// ✅ Uses MailerSend REST API instead of SMTP
+// ✅ More reliable and easier to debug
+// ✅ Better error handling
 // ✅ Production-ready
 // ============================================================================
 
-import nodemailer from 'nodemailer'
-
-// ============================================================================
-// INITIALIZE SMTP TRANSPORTER
-// ============================================================================
-let transporter: any = null
-
-const getTransporter = () => {
-  if (transporter) {
-    return transporter
-  }
-
-  const smtpHost = process.env.MAILERSEND_SMTP_HOST
-  const smtpPort = parseInt(process.env.MAILERSEND_SMTP_PORT || '587')
-  const smtpUsername = process.env.MAILERSEND_SMTP_USERNAME
-  const smtpPassword = process.env.MAILERSEND_SMTP_PASSWORD
-
-  if (!smtpHost || !smtpUsername || !smtpPassword) {
-    console.error('[Email] ❌ Missing SMTP configuration')
-    console.error('[Email] SMTP_HOST:', smtpHost ? '✓' : '✗')
-    console.error('[Email] SMTP_USERNAME:', smtpUsername ? '✓' : '✗')
-    console.error('[Email] SMTP_PASSWORD:', smtpPassword ? '✓' : '✗')
-    throw new Error('SMTP configuration is missing')
-  }
-
-  console.log('[Email] ✅ Initializing SMTP transporter')
-  console.log('[Email] Host:', smtpHost)
-  console.log('[Email] Port:', smtpPort)
-  console.log('[Email] Username:', smtpUsername.substring(0, 10) + '...')
-
-  // Determine secure flag based on port
-  // Port 587 = TLS (secure: false, then STARTTLS)
-  // Port 2525 = SSL (secure: true)
-  const isSecure = smtpPort === 2525 || smtpPort === 465
-
-  console.log('[Email] Connection type:', isSecure ? 'SSL' : 'TLS')
-
-  try {
-    transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: isSecure, // true for 465/2525, false for 587
-      auth: {
-        user: smtpUsername,
-        pass: smtpPassword
-      },
-      logger: true,
-      debug: true,
-      connectionTimeout: 10000, // 10 seconds
-      socketTimeout: 10000, // 10 seconds
-      tls: {
-        rejectUnauthorized: false // Allow self-signed certificates
-      }
-    })
-
-    console.log('[Email] ✅ SMTP transporter created successfully')
-    return transporter
-  } catch (error: any) {
-    console.error('[Email] ❌ Failed to create transporter:', error.message)
-    throw error
-  }
-}
+const MAILERSEND_API_URL = 'https://api.mailersend.com/v1'
 
 // ============================================================================
 // SEND VERIFICATION EMAIL
@@ -129,42 +69,67 @@ export const sendVerificationEmail = async (
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const apiToken = process.env.MAILERSEND_API_TOKEN
 
-    console.log('[Email] Sending email from:', senderEmail)
+    if (!apiToken) {
+      console.error('[Email] ❌ Missing MAILERSEND_API_TOKEN')
+      throw new Error('MailerSend API token is not configured')
+    }
 
-    const transporter = getTransporter()
-    
-    console.log('[Email] Attempting to send email...')
-    const result = await transporter.sendMail({
-      from: `${senderName} <${senderEmail}>`,
-      to: email,
-      subject: 'Verify Your SocialVerse Email Address',
-      html: htmlContent,
-      text: `Hi ${username},\n\nPlease verify your email by clicking this link:\n${verificationLink}\n\nThis link will expire in 24 hours.\n\nBest regards,\nThe SocialVerse Team`
+    console.log('[Email] Sending via MailerSend API...')
+
+    const response = await fetch(`${MAILERSEND_API_URL}/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Authorization': `Bearer ${apiToken}`
+      },
+      body: JSON.stringify({
+        from: {
+          email: senderEmail,
+          name: senderName
+        },
+        to: [
+          {
+            email: email,
+            name: username
+          }
+        ],
+        subject: 'Verify Your SocialVerse Email Address',
+        html: htmlContent,
+        text: `Hi ${username},\n\nPlease verify your email by clicking this link:\n${verificationLink}\n\nThis link will expire in 24 hours.\n\nBest regards,\nThe SocialVerse Team`
+      })
     })
 
+    console.log('[Email] API Response Status:', response.status)
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[Email] ❌ API Error:', errorData)
+      throw new Error(`MailerSend API error: ${response.status} - ${JSON.stringify(errorData)}`)
+    }
+
+    const result = await response.json()
     console.log('[Email] ✅ Verification email sent successfully')
-    console.log('[Email] Message ID:', result.messageId)
+    console.log('[Email] Message ID:', result.message_id)
     console.log('[Email] ============ END ============')
 
     return {
       success: true,
       message: 'Verification email sent successfully',
-      messageId: result.messageId
+      messageId: result.message_id
     }
   } catch (error: any) {
     console.error('[Email] ❌ Failed to send verification email')
     console.error('[Email] Error type:', error.constructor.name)
     console.error('[Email] Error message:', error.message)
-    console.error('[Email] Error code:', error.code)
-    console.error('[Email] Error response:', error.response)
     console.error('[Email] Full error:', JSON.stringify(error, null, 2))
     console.error('[Email] ============ END ERROR ============')
 
     return {
       success: false,
       error: error.message || 'Failed to send verification email',
-      errorCode: error.code,
       errorType: error.constructor.name
     }
   }
@@ -230,23 +195,49 @@ export const sendPasswordResetEmail = async (
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const apiToken = process.env.MAILERSEND_API_TOKEN
 
-    const transporter = getTransporter()
-    const result = await transporter.sendMail({
-      from: `${senderName} <${senderEmail}>`,
-      to: email,
-      subject: 'Reset Your SocialVerse Password',
-      html: htmlContent,
-      text: `Hi ${username},\n\nReset your password by clicking this link:\n${resetLink}\n\nThis link will expire in 1 hour.\n\nBest regards,\nThe SocialVerse Team`
+    if (!apiToken) {
+      throw new Error('MailerSend API token is not configured')
+    }
+
+    const response = await fetch(`${MAILERSEND_API_URL}/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Authorization': `Bearer ${apiToken}`
+      },
+      body: JSON.stringify({
+        from: {
+          email: senderEmail,
+          name: senderName
+        },
+        to: [
+          {
+            email: email,
+            name: username
+          }
+        ],
+        subject: 'Reset Your SocialVerse Password',
+        html: htmlContent,
+        text: `Hi ${username},\n\nReset your password by clicking this link:\n${resetLink}\n\nThis link will expire in 1 hour.\n\nBest regards,\nThe SocialVerse Team`
+      })
     })
 
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`MailerSend API error: ${response.status}`)
+    }
+
+    const result = await response.json()
     console.log('[Email] ✅ Password reset email sent successfully')
     console.log('[Email] ============ END ============')
 
     return {
       success: true,
       message: 'Password reset email sent successfully',
-      messageId: result.messageId
+      messageId: result.message_id
     }
   } catch (error: any) {
     console.error('[Email] ❌ Failed to send password reset email:', error.message)
@@ -322,23 +313,49 @@ export const sendWelcomeEmail = async (
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const apiToken = process.env.MAILERSEND_API_TOKEN
 
-    const transporter = getTransporter()
-    const result = await transporter.sendMail({
-      from: `${senderName} <${senderEmail}>`,
-      to: email,
-      subject: 'Welcome to SocialVerse!',
-      html: htmlContent,
-      text: `Hi ${username},\n\nWelcome to SocialVerse! Your account is now active.\n\nStart exploring, connecting, and sharing with people around the world.\n\nBest regards,\nThe SocialVerse Team`
+    if (!apiToken) {
+      throw new Error('MailerSend API token is not configured')
+    }
+
+    const response = await fetch(`${MAILERSEND_API_URL}/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Authorization': `Bearer ${apiToken}`
+      },
+      body: JSON.stringify({
+        from: {
+          email: senderEmail,
+          name: senderName
+        },
+        to: [
+          {
+            email: email,
+            name: username
+          }
+        ],
+        subject: 'Welcome to SocialVerse!',
+        html: htmlContent,
+        text: `Hi ${username},\n\nWelcome to SocialVerse! Your account is now active.\n\nStart exploring, connecting, and sharing with people around the world.\n\nBest regards,\nThe SocialVerse Team`
+      })
     })
 
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`MailerSend API error: ${response.status}`)
+    }
+
+    const result = await response.json()
     console.log('[Email] ✅ Welcome email sent successfully')
     console.log('[Email] ============ END ============')
 
     return {
       success: true,
       message: 'Welcome email sent successfully',
-      messageId: result.messageId
+      messageId: result.message_id
     }
   } catch (error: any) {
     console.error('[Email] ❌ Failed to send welcome email:', error.message)
@@ -365,23 +382,48 @@ export const sendEmail = async (
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const apiToken = process.env.MAILERSEND_API_TOKEN
 
-    const transporter = getTransporter()
-    const result = await transporter.sendMail({
-      from: `${senderName} <${senderEmail}>`,
-      to: to,
-      subject: subject,
-      html: htmlContent,
-      text: textContent || htmlContent.replace(/<[^>]*>/g, '')
+    if (!apiToken) {
+      throw new Error('MailerSend API token is not configured')
+    }
+
+    const response = await fetch(`${MAILERSEND_API_URL}/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Authorization': `Bearer ${apiToken}`
+      },
+      body: JSON.stringify({
+        from: {
+          email: senderEmail,
+          name: senderName
+        },
+        to: [
+          {
+            email: to
+          }
+        ],
+        subject: subject,
+        html: htmlContent,
+        text: textContent || htmlContent.replace(/<[^>]*>/g, '')
+      })
     })
 
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`MailerSend API error: ${response.status}`)
+    }
+
+    const result = await response.json()
     console.log('[Email] ✅ Email sent successfully')
     console.log('[Email] ============ END ============')
 
     return {
       success: true,
       message: 'Email sent successfully',
-      messageId: result.messageId
+      messageId: result.message_id
     }
   } catch (error: any) {
     console.error('[Email] ❌ Failed to send email:', error.message)
@@ -407,75 +449,49 @@ export const sendBulkEmails = async (
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
     const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const apiToken = process.env.MAILERSEND_API_TOKEN
 
-    const transporter = getTransporter()
-    const results = []
-
-    for (const recipient of recipients) {
-      try {
-        const result = await transporter.sendMail({
-          from: `${senderName} <${senderEmail}>`,
-          to: recipient.email,
-          subject: subject,
-          html: htmlContent
-        })
-        results.push({ email: recipient.email, status: 'sent', messageId: result.messageId })
-      } catch (err: any) {
-        results.push({ email: recipient.email, status: 'failed', error: err.message })
-      }
+    if (!apiToken) {
+      throw new Error('MailerSend API token is not configured')
     }
 
+    const response = await fetch(`${MAILERSEND_API_URL}/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Authorization': `Bearer ${apiToken}`
+      },
+      body: JSON.stringify({
+        from: {
+          email: senderEmail,
+          name: senderName
+        },
+        to: recipients.map(r => ({
+          email: r.email,
+          name: r.name
+        })),
+        subject: subject,
+        html: htmlContent
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`MailerSend API error: ${response.status}`)
+    }
+
+    const result = await response.json()
     console.log('[Email] ✅ Bulk emails sent')
     console.log('[Email] ============ END ============')
 
     return {
       success: true,
       message: `Bulk emails sent to ${recipients.length} recipients`,
-      results
+      messageId: result.message_id
     }
   } catch (error: any) {
     console.error('[Email] ❌ Failed to send bulk emails:', error.message)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
-}
-
-// ============================================================================
-// SEND TEMPLATED EMAIL
-// ============================================================================
-export const sendTemplatedEmail = async (
-  to: string,
-  templateId: string,
-  templateData: Record<string, any>
-) => {
-  try {
-    console.log('[Email] ============ SEND TEMPLATED EMAIL ============')
-    console.log('[Email] To:', to)
-    console.log('[Email] Template ID:', templateId)
-
-    const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
-    const senderName = process.env.SENDER_NAME || 'SocialVerse'
-
-    const transporter = getTransporter()
-    const result = await transporter.sendMail({
-      from: `${senderName} <${senderEmail}>`,
-      to: to,
-      subject: templateData.subject || 'Notification from SocialVerse',
-      html: templateData.html || '<p>Notification from SocialVerse</p>'
-    })
-
-    console.log('[Email] ✅ Templated email sent successfully')
-    console.log('[Email] ============ END ============')
-
-    return {
-      success: true,
-      message: 'Templated email sent successfully',
-      messageId: result.messageId
-    }
-  } catch (error: any) {
-    console.error('[Email] ❌ Failed to send templated email:', error.message)
     return {
       success: false,
       error: error.message
