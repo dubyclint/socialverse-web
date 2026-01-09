@@ -1,6 +1,6 @@
-// FILE 2: /composables/use-api.ts
+// FILE: /composables/use-api.ts
 // ============================================================================
-// API COMPOSABLE - FIXED: Proper error handling and $fetch usage
+// API COMPOSABLE - FIXED: Proper Authorization header injection
 // ============================================================================
 
 import type { FetchOptions } from 'ofetch'
@@ -10,8 +10,27 @@ export const useApi = () => {
   const authStore = useAuthStore()
 
   /**
+   * ✅ CRITICAL: Get Authorization headers with token
+   */
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+
+    const token = authStore.token
+    
+    if (token) {
+      console.log('[API] ✅ Adding Authorization header with token')
+      headers['Authorization'] = `Bearer ${token}`
+    } else {
+      console.warn('[API] ⚠️ No token available for Authorization header')
+    }
+
+    return headers
+  }
+
+  /**
    * ✅ CRITICAL: Get user ID from auth store
-   * Returns null if user is not authenticated (instead of throwing)
    */
   const getUserId = (): string | null => {
     const userId = authStore.user?.id || authStore.userId
@@ -32,11 +51,20 @@ export const useApi = () => {
     async getMe() {
       try {
         console.log('[API] Fetching current user profile...')
-        const response = await $fetch('/api/profile/me')
+        console.log('[API] Token available:', !!authStore.token)
+        
+        const response = await $fetch('/api/profile/me', {
+          headers: getAuthHeaders()
+        })
+        
         console.log('[API] ✅ Profile fetched successfully')
         return response
-      } catch (error) {
-        console.error('[API] ❌ Error fetching profile:', error)
+      } catch (error: any) {
+        console.error('[API] ❌ Error fetching profile:', {
+          message: error.message,
+          status: error.status,
+          statusCode: error.statusCode
+        })
         return null
       }
     },
@@ -51,7 +79,10 @@ export const useApi = () => {
         }
         
         console.log('[API] Fetching profile for user:', id)
-        const response = await $fetch(`/api/profile/${id}`)
+        const response = await $fetch(`/api/profile/${id}`, {
+          headers: getAuthHeaders()
+        })
+        
         console.log('[API] ✅ Profile fetched successfully')
         return response
       } catch (error) {
@@ -72,11 +103,13 @@ export const useApi = () => {
         console.log('[API] Updating profile for user:', userId)
         const response = await $fetch('/api/profile/update', {
           method: 'POST',
+          headers: getAuthHeaders(),
           body: {
             user_id: userId,
             ...updates
           }
         })
+        
         console.log('[API] ✅ Profile updated successfully')
         return response
       } catch (error) {
@@ -97,11 +130,13 @@ export const useApi = () => {
         console.log('[API] Completing profile for user:', userId)
         const response = await $fetch('/api/profile/complete', {
           method: 'POST',
+          headers: getAuthHeaders(),
           body: {
             user_id: userId,
             ...profileData
           }
         })
+        
         console.log('[API] ✅ Profile completed successfully')
         return response
       } catch (error) {
@@ -126,8 +161,12 @@ export const useApi = () => {
         
         const response = await $fetch('/api/profile/avatar-upload', {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.token}`
+          },
           body: formData
         })
+        
         console.log('[API] ✅ Avatar uploaded successfully')
         return response
       } catch (error) {
@@ -150,10 +189,12 @@ export const useApi = () => {
           return { posts: [], total: 0, page, limit, has_more: false }
         }
         
-        console.log('[API] Fetching posts for user:', id, `page: ${page}, limit: ${limit}`)
+        console.log('[API] Fetching posts for user:', id)
         const response = await $fetch(`/api/posts/user/${id}`, {
+          headers: getAuthHeaders(),
           query: { page, limit }
         })
+        
         console.log('[API] ✅ Posts fetched successfully')
         return response
       } catch (error) {
@@ -166,8 +207,10 @@ export const useApi = () => {
       try {
         console.log('[API] Fetching feed posts...')
         const response = await $fetch('/api/posts/feed', {
+          headers: getAuthHeaders(),
           query: { page, limit }
         })
+        
         console.log('[API] ✅ Feed posts fetched successfully')
         return response
       } catch (error) {
@@ -199,8 +242,12 @@ export const useApi = () => {
         
         const response = await $fetch('/api/posts/create', {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.token}`
+          },
           body: formData
         })
+        
         console.log('[API] ✅ Post created successfully')
         return response
       } catch (error) {
@@ -218,8 +265,10 @@ export const useApi = () => {
       try {
         console.log('[API] Fetching notifications...')
         const response = await $fetch('/api/user/notifications', {
+          headers: getAuthHeaders(),
           query: { page, limit }
         })
+        
         console.log('[API] ✅ Notifications fetched successfully')
         return response
       } catch (error) {
@@ -233,6 +282,7 @@ export const useApi = () => {
     profile,
     posts,
     notifications,
-    getUserId
+    getUserId,
+    getAuthHeaders
   }
 }
