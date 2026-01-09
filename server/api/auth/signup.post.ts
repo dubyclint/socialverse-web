@@ -1,6 +1,6 @@
 // FIXED: /server/api/auth/signup.post.ts
 // ============================================================================
-// SIGNUP ENDPOINT - Email failure does NOT block signup
+// SIGNUP ENDPOINT - With email bypass option
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -80,41 +80,45 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 4: Send verification email (NON-BLOCKING)
     // ============================================================================
-    console.log('[SIGNUP] Attempting to send verification email...')
-    
     let emailSent = false
     let emailError = null
+    const skipEmail = process.env.SKIP_EMAIL_VERIFICATION === 'true'
 
-    try {
-      const verificationToken = Buffer.from(
-        JSON.stringify({
-          userId: authUserId,
-          email: email.trim().toLowerCase(),
-          timestamp: Date.now()
-        })
-      ).toString('base64')
-
-      console.log('[SIGNUP] Verification token created')
+    if (skipEmail) {
+      console.log('[SIGNUP] ⏭️ Email verification skipped (SKIP_EMAIL_VERIFICATION=true)')
+    } else {
+      console.log('[SIGNUP] Attempting to send verification email...')
       
-      const emailResult = await sendVerificationEmail(
-        email.trim().toLowerCase(),
-        username.trim(),
-        verificationToken
-      )
+      try {
+        const verificationToken = Buffer.from(
+          JSON.stringify({
+            userId: authUserId,
+            email: email.trim().toLowerCase(),
+            timestamp: Date.now()
+          })
+        ).toString('base64')
 
-      console.log('[SIGNUP] Email result:', JSON.stringify(emailResult))
+        console.log('[SIGNUP] Verification token created')
+        
+        const emailResult = await sendVerificationEmail(
+          email.trim().toLowerCase(),
+          username.trim(),
+          verificationToken
+        )
 
-      if (emailResult && emailResult.success === true) {
-        console.log('[SIGNUP] ✅ Verification email sent successfully')
-        emailSent = true
-      } else {
-        console.warn('[SIGNUP] ⚠️ Email sending failed:', emailResult?.error || 'Unknown error')
-        emailError = emailResult?.error || 'Unknown email error'
+        console.log('[SIGNUP] Email result:', JSON.stringify(emailResult))
+
+        if (emailResult && emailResult.success === true) {
+          console.log('[SIGNUP] ✅ Verification email sent successfully')
+          emailSent = true
+        } else {
+          console.warn('[SIGNUP] ⚠️ Email sending failed:', emailResult?.error || 'Unknown error')
+          emailError = emailResult?.error || 'Unknown email error'
+        }
+      } catch (emailException: any) {
+        console.error('[SIGNUP] ⚠️ Email exception (non-blocking):', emailException?.message || String(emailException))
+        emailError = emailException?.message || 'Email service error'
       }
-    } catch (emailException: any) {
-      console.error('[SIGNUP] ⚠️ Email exception (non-blocking):', emailException?.message || String(emailException))
-      emailError = emailException?.message || 'Email service error'
-      // Continue - don't throw
     }
 
     console.log('[SIGNUP] ✅ SIGNUP SUCCESS - User created')
@@ -126,10 +130,12 @@ export default defineEventHandler(async (event) => {
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase()
       },
-      message: emailSent 
-        ? 'Account created! Check your email to verify.' 
-        : 'Account created! Please check your email for verification.',
-      requiresEmailVerification: true,
+      message: skipEmail
+        ? 'Account created successfully!'
+        : emailSent 
+          ? 'Account created! Check your email to verify.' 
+          : 'Account created! Please check your email for verification.',
+      requiresEmailVerification: !skipEmail,
       emailSent: emailSent,
       emailError: emailError || null
     }
