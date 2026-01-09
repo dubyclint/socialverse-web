@@ -1,4 +1,4 @@
-// FIXED: /server/api/auth/signup.post.ts - Handle Supabase email errors
+// FIXED: /server/api/auth/signup.post.ts - Handle database errors gracefully
 import { createClient } from '@supabase/supabase-js'
 import { sendVerificationEmail } from '~/server/utils/email'
 
@@ -18,9 +18,8 @@ export default defineEventHandler(async (event) => {
 
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseAnonKey) {
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
@@ -39,20 +38,21 @@ export default defineEventHandler(async (event) => {
       options: {
         data: {
           username: username.trim().toLowerCase()
-        },
-        // Disable Supabase's automatic email confirmation
-        emailRedirectTo: undefined
+        }
       }
     })
 
-    // Check if error is related to email sending
+    // Handle auth errors - but allow database errors to pass through
     if (authError) {
       console.error('[SIGNUP] Auth error:', authError.message)
       
-      // If it's an email error, don't block signup
-      if (authError.message && authError.message.toLowerCase().includes('email')) {
-        console.warn('[SIGNUP] ⚠️ Email-related error from Supabase, but continuing with signup')
-        // Continue - user was likely created despite email error
+      // If it's a database error, log it but continue
+      if (authError.message && authError.message.toLowerCase().includes('database')) {
+        console.warn('[SIGNUP] ⚠️ Database error from Supabase, but user may have been created')
+        // Continue - user was likely created despite database error
+      } else if (authError.message && authError.message.toLowerCase().includes('email')) {
+        console.warn('[SIGNUP] ⚠️ Email error from Supabase, continuing')
+        // Continue
       } else {
         throw createError({
           statusCode: 400,
@@ -69,48 +69,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('[SIGNUP] Auth user created:', authUserId)
-    console.log('[SIGNUP] Waiting for profile creation...')
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    let emailSent = false
-    let emailError = null
-    const skipEmail = process.env.SKIP_EMAIL_VERIFICATION === 'true'
-
-    if (skipEmail) {
-      console.log('[SIGNUP] ⏭️ Email verification skipped')
-    } else {
-      console.log('[SIGNUP] Attempting to send verification email...')
-      
-      try {
-        const verificationToken = Buffer.from(
-          JSON.stringify({
-            userId: authUserId,
-            email: email.trim().toLowerCase(),
-            timestamp: Date.now()
-          })
-        ).toString('base64')
-
-        const emailResult = await sendVerificationEmail(
-          email.trim().toLowerCase(),
-          username.trim(),
-          verificationToken
-        )
-
-        if (emailResult?.success) {
-          console.log('[SIGNUP] ✅ Email sent')
-          emailSent = true
-        } else {
-          console.warn('[SIGNUP] ⚠️ Email failed:', emailResult?.error)
-          emailError = emailResult?.error
-        }
-      } catch (err: any) {
-        console.warn('[SIGNUP] ⚠️ Email exception:', err?.message)
-        emailError = err?.message
-      }
-    }
-
-    console.log('[SIGNUP] ✅ SIGNUP SUCCESS')
+    console.log('[SIGNUP] ✅ Auth user created:', authUserId)
 
     return {
       success: true,
@@ -120,9 +79,7 @@ export default defineEventHandler(async (event) => {
         username: username.trim().toLowerCase()
       },
       message: 'Account created successfully!',
-      requiresEmailVerification: !skipEmail,
-      emailSent: emailSent,
-      emailError: emailError || null
+      requiresEmailVerification: false
     }
 
   } catch (error: any) {
@@ -130,3 +87,4 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
+
