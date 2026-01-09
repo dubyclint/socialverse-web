@@ -1,11 +1,14 @@
 // ============================================================================
-// FILE: /server/api/auth/login.post.ts - CORRECTED VERSION
+// FILE: /server/api/auth/login.post.ts - FINAL PRODUCTION VERSION
 // ============================================================================
-// ✅ UPDATED: Changed 'profiles' table to 'user' table
-// ✅ UPDATED: Removed non-existent fields
+// ✅ Authenticates user
+// ✅ Queries user_profiles table
+// ✅ Returns complete user data
+// ✅ Redirects to feed on success
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { getAdminClient } from '../../utils/supabase-server'
 
 export default defineEventHandler(async (event) => {
   console.log('[Auth/Login] ============ LOGIN REQUEST START ============')
@@ -33,37 +36,42 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] ✅ Request body validated')
 
     // ============================================================================
-    // STEP 2: Initialize Supabase client
+    // STEP 2: Initialize Supabase clients
     // ============================================================================
-    console.log('[Auth/Login] STEP 2: Initializing Supabase client...')
+    console.log('[Auth/Login] STEP 2: Initializing Supabase clients...')
     
-    const supabase = await serverSupabaseClient(event)
-    
-    if (!supabase) {
-      console.error('[Auth/Login] ❌ Supabase not available')
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[Auth/Login] ❌ Supabase configuration missing')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Database unavailable'
+        statusMessage: 'Server configuration error'
       })
     }
 
-    console.log('[Auth/Login] ✅ Supabase client initialized')
+    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false }
+    })
+
+    console.log('[Auth/Login] ✅ Supabase clients initialized')
 
     // ============================================================================
     // STEP 3: Authenticate with Supabase
     // ============================================================================
     console.log('[Auth/Login] STEP 3: Authenticating user:', email)
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const { data, error } = await supabaseAnon.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: password
     })
 
     // ============================================================================
     // STEP 4: Handle authentication errors
     // ============================================================================
     if (error) {
-      console.error('[Auth/Login] ✗ Authentication failed:', {
+      console.error('[Auth/Login] ❌ Authentication failed:', {
         message: error.message,
         status: error.status,
         code: error.code
@@ -81,15 +89,7 @@ export default defineEventHandler(async (event) => {
         console.warn('[Auth/Login] Invalid credentials for:', email)
         throw createError({
           statusCode: 401,
-          statusMessage: 'Invalid login credentials'
-        })
-      }
-
-      if (error.message.includes('User not found')) {
-        console.warn('[Auth/Login] User not found:', email)
-        throw createError({
-          statusCode: 401,
-          statusMessage: 'Invalid login credentials'
+          statusMessage: 'Invalid email or password'
         })
       }
 
@@ -117,40 +117,16 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth/Login] ✅ Session created')
 
     // ============================================================================
-    // STEP 6: Fetch complete profile from user table
+    // STEP 6: Fetch complete profile from user_profiles table
     // ============================================================================
     console.log('[Auth/Login] STEP 6: Fetching complete profile...')
     
-    // ✅ CHANGED: from 'profiles' to 'user'
-    const { data: profile, error: profileError } = await supabase
-      .from('user')
-      .select(`
-        user_id,
-        full_name,
-        bio,
-        avatar_url,
-        location,
-        website,
-        cover_url,
-        birth_date,
-        gender,
-        phone,
-        is_private,
-        is_blocked,
-        rank,
-        rank_points,
-        rank_level,
-        is_verified,
-        verification_status,
-        posts_count,
-        followers_count,
-        following_count,
-        last_seen,
-        created_at,
-        updated_at,
-        status
-      `)
-      .eq('user_id', data.user.id)
+    const supabaseAdmin = await getAdminClient()
+
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('*')
+      .eq('id', data.user.id)
       .single()
     
     if (profileError) {
@@ -159,128 +135,8 @@ export default defineEventHandler(async (event) => {
         code: profileError.code
       })
       
-      // ============================================================================
-      // FALLBACK 1: Profile doesn't exist - try to create it
-      // ============================================================================
-      if (profileError.code === 'PGRST116') {
-        console.log('[Auth/Login] Profile not found (PGRST116), attempting to create...')
-        
-        const username = data.user.user_metadata?.username || 
-                        data.user.email?.split('@')[0] || 
-                        'user'
-        const fullName = data.user.user_metadata?.full_name || username
-        
-        console.log('[Auth/Login] Creating profile with:', {
-          username,
-          fullName,
-          email: data.user.email
-        })
-        
-        // ✅ CHANGED: from 'profiles' to 'user'
-        const { data: newProfile, error: createProfileError } = await supabase
-          .from('user')
-          .insert({
-            user_id: data.user.id,
-            username: username,
-            email: data.user.email,
-            full_name: fullName,
-            bio: null,
-            avatar_url: null,
-            location: null,
-            website: null,
-            cover_url: null,
-            birth_date: null,
-            gender: null,
-            phone: null,
-            is_private: false,
-            is_blocked: false,
-            rank: 'BRONZE',
-            rank_points: 0,
-            rank_level: 1,
-            is_verified: false,
-            verification_status: 'unverified',
-            posts_count: 0,
-            followers_count: 0,
-            following_count: 0,
-            last_seen: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            status: 'active'
-          })
-          .select()
-          .single()
-        
-        if (createProfileError) {
-          console.warn('[Auth/Login] ⚠️ Failed to create profile:', {
-            message: createProfileError.message,
-            code: createProfileError.code
-          })
-          console.log('[Auth/Login] Using auth user metadata as fallback')
-          
-          // ============================================================================
-          // FALLBACK 2: Profile creation failed - use auth metadata
-          // ============================================================================
-          console.log('[Auth/Login] ✅ Returning login response with fallback data')
-          
-          return {
-            success: true,
-            token: data.session.access_token,
-            refreshToken: data.session.refresh_token,
-            expiresIn: data.session.expires_in,
-            user: {
-              id: data.user.id,
-              email: data.user.email,
-              username: username,
-              full_name: fullName,
-              avatar_url: null,
-              rank: 'BRONZE',
-              rank_points: 0,
-              rank_level: 1,
-              is_verified: false,
-              verification_status: 'unverified'
-            }
-          }
-        }
-        
-        console.log('[Auth/Login] ✅ Profile created successfully')
-        console.log('[Auth/Login] New profile:', {
-          user_id: newProfile.user_id,
-          full_name: newProfile.full_name,
-          rank: newProfile.rank
-        })
-        
-        // ============================================================================
-        // STEP 7: Return success response with newly created profile
-        // ============================================================================
-        console.log('[Auth/Login] ✅ Returning login response with newly created profile')
-        console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
-        
-        return {
-          success: true,
-          token: data.session.access_token,
-          refreshToken: data.session.refresh_token,
-          expiresIn: data.session.expires_in,
-          user: {
-            id: newProfile.user_id,
-            email: data.user.email,
-            username: newProfile.username,
-            full_name: newProfile.full_name,
-            avatar_url: newProfile.avatar_url,
-            rank: newProfile.rank,
-            rank_points: newProfile.rank_points,
-            rank_level: newProfile.rank_level,
-            is_verified: newProfile.is_verified,
-            verification_status: newProfile.verification_status
-          }
-        }
-      }
-      
-      // ============================================================================
-      // FALLBACK 3: Other profile fetch errors - use auth metadata
-      // ============================================================================
-      console.warn('[Auth/Login] Using auth user metadata as fallback')
-      console.log('[Auth/Login] ✅ Returning login response with fallback data')
-      console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
+      // Fallback to JWT data if profile not found
+      console.log('[Auth/Login] Using JWT data as fallback')
       
       return {
         success: true,
@@ -293,17 +149,18 @@ export default defineEventHandler(async (event) => {
           username: data.user.user_metadata?.username || 'user',
           full_name: data.user.user_metadata?.full_name || 'User',
           avatar_url: data.user.user_metadata?.avatar_url || null,
-          rank: 'BRONZE',
-          rank_points: 0,
-          rank_level: 1,
-          is_verified: false,
-          verification_status: 'unverified'
-        }
+          rank: data.user.user_metadata?.rank || 'Bronze I',
+          rank_points: data.user.user_metadata?.rank_points || 0,
+          rank_level: data.user.user_metadata?.rank_level || 1,
+          is_verified: data.user.user_metadata?.is_verified || false,
+          verification_status: data.user.user_metadata?.verification_status || 'unverified'
+        },
+        redirectTo: '/feed'
       }
     }
 
     if (!profile) {
-      console.error('[Auth/Login] ❌ Profile not found and could not be created')
+      console.error('[Auth/Login] ❌ Profile not found')
       throw createError({
         statusCode: 500,
         statusMessage: 'Profile not found'
@@ -312,8 +169,8 @@ export default defineEventHandler(async (event) => {
 
     console.log('[Auth/Login] ✅ Profile fetched successfully')
     console.log('[Auth/Login] Profile data:', {
-      user_id: profile.user_id,
-      full_name: profile.full_name,
+      id: profile.id,
+      username: profile.username,
       rank: profile.rank,
       is_verified: profile.is_verified
     })
@@ -323,14 +180,6 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[Auth/Login] STEP 7: Building success response...')
     console.log('[Auth/Login] ✅ Login complete, returning response')
-    console.log('[Auth/Login] Response includes:', {
-      token: !!data.session.access_token,
-      refreshToken: !!data.session.refresh_token,
-      userId: profile.user_id,
-      rank: profile.rank,
-      isVerified: profile.is_verified
-    })
-    
     console.log('[Auth/Login] ============ LOGIN REQUEST END ============')
     
     return {
@@ -339,9 +188,9 @@ export default defineEventHandler(async (event) => {
       refreshToken: data.session.refresh_token,
       expiresIn: data.session.expires_in,
       user: {
-        id: profile.user_id,
-        email: data.user.email,
-        username: profile.full_name?.split(' ')[0] || 'user',
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
         rank: profile.rank,
@@ -349,15 +198,13 @@ export default defineEventHandler(async (event) => {
         rank_level: profile.rank_level,
         is_verified: profile.is_verified,
         verification_status: profile.verification_status
-      }
+      },
+      redirectTo: '/feed'
     }
 
   } catch (error: any) {
     console.error('[Auth/Login] ============ LOGIN ERROR ============')
-    console.error('[Auth/Login] Error type:', error.constructor.name)
     console.error('[Auth/Login] Error message:', error.message || error)
-    console.error('[Auth/Login] Error status:', error.statusCode)
-    console.error('[Auth/Login] Error details:', error.statusMessage)
     console.error('[Auth/Login] ============ END ERROR ============')
     
     if (error.statusCode) {
