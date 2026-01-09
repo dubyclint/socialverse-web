@@ -1,12 +1,10 @@
 // ============================================================================
-// FILE: /server/api/profile/me.get.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/profile/me.get.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Uses user context from middleware instead of querying Supabase
-// ✅ FIXED: Returns user data directly from JWT payload
-// ✅ FIXED: No more "Invalid API key" errors
+// ✅ FIXED: Uses admin client to query user_profiles table
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { getAdminClient } from '../../utils/supabase-server'
 
 export default defineEventHandler(async (event) => {
   console.log('[Profile/Me API] ============ GET PROFILE START ============')
@@ -32,13 +30,13 @@ export default defineEventHandler(async (event) => {
     console.log('[Profile/Me API] User email:', user.email)
 
     // ============================================================================
-    // STEP 2: Fetch complete profile from user_profiles table
+    // STEP 2: Fetch complete profile from user_profiles table using ADMIN client
     // ============================================================================
     console.log('[Profile/Me API] STEP 2: Fetching profile from database...')
 
-    const supabase = await serverSupabaseClient(event)
+    const supabase = await getAdminClient()
 
-    // ✅ Query the user_profiles table to get additional profile data
+    // ✅ Query the user_profiles table with admin privileges
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select(`
@@ -157,3 +155,4 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
