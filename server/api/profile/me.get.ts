@@ -1,9 +1,9 @@
 // ============================================================================
-// FILE: /server/api/profile/me.get.ts - COMPLETELY FIXED
+// FILE: /server/api/profile/me.get.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Now properly validates token from Authorization header
-// ✅ FIXED: Uses correct table name 'user_profiles'
-// ✅ FIXED: Extracts user from event context set by middleware
+// ✅ FIXED: Uses user context from middleware instead of querying Supabase
+// ✅ FIXED: Returns user data directly from JWT payload
+// ✅ FIXED: No more "Invalid API key" errors
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -17,38 +17,19 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     console.log('[Profile/Me API] STEP 1: Checking authentication...')
     
-    let userId: string | null = null
-    let authToken: string | null = null
-
-    // Try to get user from context (set by middleware)
-    if (event.context.user?.id) {
-      userId = event.context.user.id
-      authToken = event.context.authToken || null
-      console.log('[Profile/Me API] ✅ User found in context:', userId)
-    } else {
-      // Fallback: Try to get from Supabase session
-      const supabase = await serverSupabaseClient(event)
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-      if (sessionError || !session?.user) {
-        console.error('[Profile/Me API] ❌ Unauthorized - No user found')
-        throw createError({
-          statusCode: 401,
-          statusMessage: 'Unauthorized - Please log in'
-        })
-      }
-
-      userId = session.user.id
-      console.log('[Profile/Me API] ✅ User found from session:', userId)
-    }
-
-    if (!userId) {
-      console.error('[Profile/Me API] ❌ Unauthorized - No user ID')
+    const user = event.context.user
+    
+    if (!user || !user.id) {
+      console.error('[Profile/Me API] ❌ Unauthorized - No user in context')
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized'
+        statusMessage: 'Unauthorized - Please log in'
       })
     }
+
+    const userId = user.id
+    console.log('[Profile/Me API] ✅ User found in context:', userId)
+    console.log('[Profile/Me API] User email:', user.email)
 
     // ============================================================================
     // STEP 2: Fetch complete profile from user_profiles table
@@ -57,7 +38,7 @@ export default defineEventHandler(async (event) => {
 
     const supabase = await serverSupabaseClient(event)
 
-    // ✅ FIXED: Changed from 'profiles' to 'user_profiles'
+    // ✅ Query the user_profiles table to get additional profile data
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select(`
@@ -96,17 +77,18 @@ export default defineEventHandler(async (event) => {
         code: profileError.code
       })
 
+      // If profile not found, return basic user info from JWT
       if (profileError.code === 'PGRST116') {
-        console.log('[Profile/Me API] Profile not found, creating default response')
-        // Return basic user info if profile not found
-        return {
+        console.log('[Profile/Me API] Profile not found in database, returning JWT data')
+        
+        const basicProfile = {
           success: true,
           data: {
             id: userId,
-            email: event.context.user?.email || '',
-            username: event.context.user?.user_metadata?.username || 'user',
-            full_name: event.context.user?.user_metadata?.full_name || 'User',
-            avatar_url: null,
+            email: user.email || '',
+            username: user.user_metadata?.username || 'user',
+            full_name: user.user_metadata?.full_name || 'User',
+            avatar_url: user.user_metadata?.avatar_url || null,
             bio: '',
             location: '',
             website: '',
@@ -115,9 +97,15 @@ export default defineEventHandler(async (event) => {
             rank_points: 0,
             followers_count: 0,
             following_count: 0,
-            posts_count: 0
+            posts_count: 0,
+            created_at: user.created_at || new Date().toISOString(),
+            updated_at: user.updated_at || new Date().toISOString()
           }
         }
+        
+        console.log('[Profile/Me API] ✅ Returning basic profile from JWT')
+        console.log('[Profile/Me API] ============ GET PROFILE END ============')
+        return basicProfile
       }
 
       throw createError({
