@@ -34,7 +34,7 @@ export default defineNuxtConfig({
     supabaseUrl: process.env.SUPABASE_URL || 'https://cvzrhucbvezqwbesthek.supabase.co',
     supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2enJodWNidmV6cXdiZXN0aGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzNzgzMjYsImV4cCI6MjA3NDk1NDMyNn0.3k5QE5wTb0E52CqNxwt_HaU9jUGDlYsHWuP7rQVjY4I',
     jwtSecret: process.env.JWT_SECRET || 'o3S7f0UmT9eSf5tWnPt5z2oAz2DWdx73w5TWox+F3YRGzuUKUsExsyFYqJ1TQD31AbW9zCdKOzgI+MAUQkobCQ==',
-    brevoApiKey: process.env.BREVO_API_KEY || '',
+    MailersendApitoken: process.env.MAILERSEND_API_TOKEN|| 'mlsn.8661ed5b883a9a6b12307032bfb3f9e32c4d0d0da7ee604c8545441fbfcc9623',
     
     // Public config (exposed to client)
     public: {
