@@ -4,11 +4,13 @@
 // ✅ Creates auth user
 // ✅ Creates user_profiles record
 // ✅ Updates user metadata
+// ✅ Sends verification email
 // ✅ Auto-authenticates user
 // ✅ Returns session token
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
+import { sendVerificationEmail } from '~/server/utils/email'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -100,7 +102,7 @@ export default defineEventHandler(async (event) => {
           is_private: false,
           is_blocked: false,
           is_verified: false,
-          verification_status: 'none',
+          verification_status: 'pending',
           rank: 'Bronze I',
           rank_points: 0,
           rank_level: 1,
@@ -118,7 +120,6 @@ export default defineEventHandler(async (event) => {
     if (userError) {
       console.error('[SIGNUP] ⚠️ User record creation failed:', userError.message)
       console.error('[SIGNUP] Error code:', userError.code)
-      // Continue - user auth is still created, just database record failed
     } else {
       console.log('[SIGNUP] ✅ User record created successfully')
     }
@@ -142,7 +143,7 @@ export default defineEventHandler(async (event) => {
           followers_count: 0,
           following_count: 0,
           is_verified: false,
-          verification_status: 'none'
+          verification_status: 'pending'
         }
       }
     )
@@ -154,9 +155,31 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // STEP 4: Auto-authenticate user after signup
+    // STEP 4: Send verification email
     // ============================================================================
-    console.log('[SIGNUP] STEP 4: Auto-authenticating user...')
+    console.log('[SIGNUP] STEP 4: Sending verification email...')
+
+    const verificationToken = Buffer.from(JSON.stringify({
+      userId: authUserId,
+      email: email.trim().toLowerCase()
+    })).toString('base64')
+
+    const emailResult = await sendVerificationEmail(
+      email.trim().toLowerCase(),
+      username.trim().toLowerCase(),
+      verificationToken
+    )
+
+    if (emailResult.success) {
+      console.log('[SIGNUP] ✅ Verification email sent successfully')
+    } else {
+      console.warn('[SIGNUP] ⚠️ Failed to send verification email:', emailResult.error)
+    }
+
+    // ============================================================================
+    // STEP 5: Auto-authenticate user after signup
+    // ============================================================================
+    console.log('[SIGNUP] STEP 5: Auto-authenticating user...')
 
     const { data: sessionData, error: sessionError } = await supabaseAnon.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
@@ -174,9 +197,10 @@ export default defineEventHandler(async (event) => {
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase()
         },
-        message: 'Account created successfully!',
-        requiresEmailVerification: false,
-        token: null
+        message: 'Account created successfully! Please check your email to verify your account.',
+        requiresEmailVerification: true,
+        token: null,
+        redirectTo: '/auth/verify-email'
       }
     }
 
@@ -190,9 +214,10 @@ export default defineEventHandler(async (event) => {
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase()
         },
-        message: 'Account created successfully!',
-        requiresEmailVerification: false,
-        token: null
+        message: 'Account created successfully! Please check your email to verify your account.',
+        requiresEmailVerification: true,
+        token: null,
+        redirectTo: '/auth/verify-email'
       }
     }
 
@@ -200,7 +225,7 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] Session token obtained:', !!sessionData.session.access_token)
 
     // ============================================================================
-    // STEP 5: Return success response with token
+    // STEP 6: Return success response with token
     // ============================================================================
     console.log('[SIGNUP] ✅ SIGNUP SUCCESS - ALL STEPS COMPLETED')
 
@@ -211,11 +236,12 @@ export default defineEventHandler(async (event) => {
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase()
       },
-      message: 'Account created successfully!',
-      requiresEmailVerification: false,
+      message: 'Account created successfully! Please check your email to verify your account.',
+      requiresEmailVerification: true,
       token: sessionData.session.access_token,
       refreshToken: sessionData.session.refresh_token,
-      expiresIn: sessionData.session.expires_in
+      expiresIn: sessionData.session.expires_in,
+      redirectTo: '/auth/verify-email'
     }
 
   } catch (error: any) {
@@ -223,3 +249,4 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
+
