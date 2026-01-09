@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /server/middleware/auth-header.ts - SIMPLIFIED JWT-ONLY VERSION
+// FILE: /server/middleware/0.auth-header.ts - SIMPLIFIED JWT-ONLY VERSION
 // ============================================================================
 // ✅ FIXED: NO Supabase API calls - just JWT decoding and validation
 // ============================================================================
