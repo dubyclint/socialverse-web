@@ -1,5 +1,5 @@
-<!-- FILE: /pages/auth/complete-profile.vue - UPDATED -->
-<!-- Complete profile after email verification with username creation -->
+<!-- FILE: /pages/auth/complete-profile.vue -->
+<!-- Complete profile after signup with profile form -->
 
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -11,12 +11,18 @@
       </div>
 
       <!-- Profile Completion Form Component -->
-      <CompleteProfileForm @success="handleProfileSuccess" />
+      <EditProfile 
+        :is-new-profile="true"
+        @success="handleProfileSuccess" 
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+import EditProfile from '~/components/profile/edit-profile.vue'
+
 definePageMeta({
   layout: 'blank',
   middleware: 'auth'
@@ -25,6 +31,9 @@ definePageMeta({
 const router = useRouter()
 
 const handleProfileSuccess = () => {
+  console.log('[Complete Profile Page] Profile completed successfully')
+  console.log('[Complete Profile Page] Redirecting to /feed')
+  
   // Redirect to feed/dashboard
   router.push('/feed')
 }
