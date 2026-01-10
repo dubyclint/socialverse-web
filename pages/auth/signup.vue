@@ -155,15 +155,17 @@ definePageMeta({
 })
   
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useEmailVerification } from '~/composables/use-email-verification'
 import { useAuthWithErrorCatcher } from '~/composables/use-auth-with-error-catcher'
   
+const router = useRouter()
 const { signup, isLoading: loading, error: authError, printReport } = useAuthWithErrorCatcher()
 const { resendVerificationEmail } = useEmailVerification()
 
 const successMessage = ref('')
 const error = ref('')
-const detailedError = ref('')  // ✅ NEW: Store detailed error
+const detailedError = ref('')
 const emailSent = ref(false)
 const resendLoading = ref(false)
 
@@ -176,7 +178,7 @@ const formData = ref({
 
 const handleSignup = async () => {
   error.value = ''
-  detailedError.value = ''  // ✅ NEW: Clear detailed error
+  detailedError.value = ''
   successMessage.value = ''
 
   console.log('[Signup Page] ============ SIGNUP START ============')
@@ -220,7 +222,6 @@ const handleSignup = async () => {
   try {
     console.log('[Signup Page] Calling signup function...')
     
-    // ✅ FIX: Pass parameters as separate arguments, not as an object
     const result = await signup(
       formData.value.email,
       formData.value.password,
@@ -232,15 +233,27 @@ const handleSignup = async () => {
 
     if (result.success) {
       console.log('[Signup Page] ✅ Signup successful')
-      successMessage.value = result.message || 'Account created! Please check your email to confirm.'
+      successMessage.value = result.message || 'Account created successfully!'
       
-      // ✅ FIX: Store email in sessionStorage for verification page
       console.log('[Signup Page] Storing email in sessionStorage:', formData.value.email)
       sessionStorage.setItem('verificationEmail', formData.value.email)
       
-      // ✅ NEW: Show email sent state instead of redirecting
-      console.log('[Signup Page] Showing email sent state')
-      emailSent.value = true
+      // ✅ FIX: Check if email verification is required
+      if (result.requiresEmailVerification === false) {
+        // ✅ NEW: Auto-redirect to feed if no email verification needed
+        console.log('[Signup Page] Email verification not required, redirecting to feed...')
+        console.log('[Signup Page] Redirect URL:', result.redirectTo)
+        
+        // Wait 1 second to show success message, then redirect
+        setTimeout(() => {
+          console.log('[Signup Page] Navigating to:', result.redirectTo || '/feed')
+          navigateTo(result.redirectTo || '/feed')
+        }, 1000)
+      } else {
+        // ✅ Show email sent state if verification is required
+        console.log('[Signup Page] Email verification required, showing email sent state')
+        emailSent.value = true
+      }
       
       // Clear form
       formData.value = {
@@ -251,7 +264,6 @@ const handleSignup = async () => {
       }
     } else {
       console.error('[Signup Page] Signup failed:', result.error)
-      // ✅ NEW: Show detailed error
       error.value = result.error || 'Signup failed. Please try again.'
       detailedError.value = JSON.stringify(result, null, 2)
       console.error('[Signup Page] Full error details:', result)
@@ -261,16 +273,11 @@ const handleSignup = async () => {
     console.error('[Signup Page] Error type:', err.constructor.name)
     console.error('[Signup Page] Error message:', err.message)
     console.error('[Signup Page] Error stack:', err.stack)
-    // ✅ NEW: Show detailed error
     error.value = 'An unexpected error occurred. Please try again.'
     detailedError.value = `${err.constructor.name}: ${err.message}`
   }
 }
 
-/**
- * ✅ FIX: Renamed to handleResendEmail to avoid naming conflict
- * Resend verification email
- */
 const handleResendEmail = async () => {
   const email = formData.value.email
   
@@ -281,7 +288,7 @@ const handleResendEmail = async () => {
 
   resendLoading.value = true
   error.value = ''
-  detailedError.value = ''  // ✅ NEW: Clear detailed error
+  detailedError.value = ''
 
   try {
     console.log('[Signup Page] Resending verification email to:', email)
@@ -292,13 +299,13 @@ const handleResendEmail = async () => {
       console.log('[Signup Page] ✅ Verification email resent')
     } else {
       error.value = result.error || 'Failed to resend email'
-      detailedError.value = JSON.stringify(result, null, 2)  // ✅ NEW: Show detailed error
+      detailedError.value = JSON.stringify(result, null, 2)
       console.error('[Signup Page] ❌ Resend failed:', result.error)
     }
   } catch (err: any) {
     console.error('[Signup Page] Resend error:', err)
     error.value = 'Failed to resend verification email'
-    detailedError.value = `${err.constructor.name}: ${err.message}`  // ✅ NEW: Show detailed error
+    detailedError.value = `${err.constructor.name}: ${err.message}`
   } finally {
     resendLoading.value = false
   }
