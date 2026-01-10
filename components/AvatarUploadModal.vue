@@ -304,11 +304,11 @@ const rotateImage = (degrees: number) => {
 }
 
 // ============================================================================
-// METHODS - UPLOAD
+// METHODS - UPLOAD - FIXED VERSION
 // ============================================================================
 
 /**
- * Upload avatar to server
+ * Upload avatar to server - FIXED WITH AUTHORIZATION HEADER
  */
 const uploadAvatar = async () => {
   if (!selectedFile.value) {
@@ -318,14 +318,26 @@ const uploadAvatar = async () => {
   }
 
   try {
+    console.log('[AvatarUpload] ============ UPLOAD START ============')
     console.log('[AvatarUpload] Starting upload...')
+    
     isUploading.value = true
     uploadProgress.value = 0
     currentStep.value = 'uploading'
 
+    // ✅ FIXED: Get auth token from store
+    const token = authStore.token
+    console.log('[AvatarUpload] Token available:', !!token)
+
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in again.')
+    }
+
     // Create FormData
     const formData = new FormData()
     formData.append('file', selectedFile.value)
+
+    console.log('[AvatarUpload] FormData created with file:', selectedFile.value.name)
 
     // Simulate progress (since we can't get real progress from fetch)
     const progressInterval = setInterval(() => {
@@ -334,46 +346,78 @@ const uploadAvatar = async () => {
       }
     }, 200)
 
-    // Upload file
+    // ✅ FIXED: Add Authorization header with Bearer token
     console.log('[AvatarUpload] Sending request to /api/profile/avatar-upload')
     const response = await fetch('/api/profile/avatar-upload', {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`  // ✅ CRITICAL FIX: Add Authorization header
+      },
       body: formData
     })
 
     clearInterval(progressInterval)
     uploadProgress.value = 100
 
-    console.log('[AvatarUpload] Response status:', response.status)
+    console.log('[AvatarUpload] Response received:', {
+      status: response.status,
+      statusText: response.statusText
+    })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
+      let errorData: any = {}
+      try {
+        errorData = await response.json()
+      } catch (e) {
+        console.error('[AvatarUpload] Failed to parse error response')
+      }
+      
+      const errorMsg = errorData.message || errorData.statusMessage || `Upload failed: ${response.statusText}`
+      console.error('[AvatarUpload] ❌ Upload failed:', errorMsg)
+      throw new Error(errorMsg)
     }
 
     const data = await response.json()
-    console.log('[AvatarUpload] ✅ Upload successful:', data)
+    console.log('[AvatarUpload] ✅ Upload response received:', {
+      success: data.success,
+      url: data.url ? 'URL received' : 'No URL',
+      message: data.message
+    })
 
-    if (data.success && data.url) {
-      uploadedAvatarUrl.value = data.url
-      currentStep.value = 'success'
-      
-      // Update profile store
-      profileStore.setProfile({
-        ...profileStore.profile,
-        avatar_url: data.url
-      })
-
-      // Emit success event
-      emit('success', data.url)
-
-      console.log('[AvatarUpload] ✅ Avatar updated in store')
-    } else {
-      throw new Error('Upload response missing success or URL')
+    if (!data.success) {
+      throw new Error(data.message || 'Upload failed - server returned success: false')
     }
 
+    if (!data.url) {
+      throw new Error('Upload failed - no URL returned from server')
+    }
+
+    uploadedAvatarUrl.value = data.url
+    currentStep.value = 'success'
+    
+    console.log('[AvatarUpload] ✅ Avatar URL set:', data.url)
+
+    // ✅ Update profile store with new avatar
+    if (profileStore.profile) {
+      profileStore.setProfile({
+        ...profileStore.profile,
+        avatar_url: data.url,
+        updated_at: new Date().toISOString()
+      })
+      console.log('[AvatarUpload] ✅ Profile store updated with new avatar')
+    }
+
+    // Emit success event
+    emit('success', data.url)
+    console.log('[AvatarUpload] ✅ Success event emitted')
+    console.log('[AvatarUpload] ============ UPLOAD END ============')
+
   } catch (error: any) {
-    console.error('[AvatarUpload] ❌ Upload error:', error)
+    console.error('[AvatarUpload] ============ UPLOAD ERROR ============')
+    console.error('[AvatarUpload] Error message:', error.message)
+    console.error('[AvatarUpload] Error:', error)
+    console.error('[AvatarUpload] ============ END ERROR ============')
+    
     errorMessage.value = error.message || 'Failed to upload avatar'
     currentStep.value = 'error'
   } finally {
@@ -389,6 +433,8 @@ const uploadAvatar = async () => {
  * Go back to previous step
  */
 const goBack = () => {
+  console.log('[AvatarUpload] Going back from step:', currentStep.value)
+  
   if (currentStep.value === 'preview') {
     currentStep.value = 'select'
     selectedFile.value = null
@@ -399,13 +445,17 @@ const goBack = () => {
     selectedFile.value = null
     previewUrl.value = ''
   }
+  
+  console.log('[AvatarUpload] Now at step:', currentStep.value)
 }
 
 /**
- * Close modal
+ * Close modal and reset state
  */
 const closeModal = () => {
-  console.log('[AvatarUpload] Closing modal')
+  console.log('[AvatarUpload] ============ CLOSE MODAL ============')
+  console.log('[AvatarUpload] Closing modal and resetting state')
+  
   currentStep.value = 'select'
   selectedFile.value = null
   previewUrl.value = ''
@@ -414,6 +464,11 @@ const closeModal = () => {
   scale.value = 1
   rotation.value = 0
   uploadProgress.value = 0
+  isDragging.value = false
+  
+  console.log('[AvatarUpload] ✅ State reset complete')
+  console.log('[AvatarUpload] ============ CLOSE MODAL END ============')
+  
   emit('close')
 }
 </script>
