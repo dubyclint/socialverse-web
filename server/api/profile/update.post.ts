@@ -1,10 +1,8 @@
 // ============================================================================
-// FILE 1: /server/api/profile/update.post.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/profile/update.post.ts - FINAL FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Gets user ID from auth session (not from body)
-// ✅ FIXED: Queries user_profiles table with id column
-// ✅ FIXED: Properly authenticates user
-// ✅ Supports all profile fields
+// ✅ FIXED: Properly gets user from auth header
+// ✅ FIXED: Uses correct Supabase client method
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -34,23 +32,25 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     console.log('[Profile/Update] ============ START ============')
 
     // ============================================================================
-    // STEP 1: Get authenticated user from Supabase session
+    // STEP 1: Get authenticated user from Supabase
     // ============================================================================
     console.log('[Profile/Update] STEP 1: Authenticating user...')
     
     const supabase = await serverSupabaseClient(event)
     
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // Get the current user from the auth session
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-    if (sessionError || !session?.user) {
-      console.error('[Profile/Update] ❌ Unauthorized - No session')
+    if (userError || !user) {
+      console.error('[Profile/Update] ❌ Unauthorized - No user found')
+      console.error('[Profile/Update] Error:', userError?.message)
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized - Please log in'
       })
     }
 
-    const userId = session.user.id
+    const userId = user.id
     console.log('[Profile/Update] ✅ User authenticated:', userId)
 
     // ============================================================================
