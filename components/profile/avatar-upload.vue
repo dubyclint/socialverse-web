@@ -1,8 +1,8 @@
 <!-- ============================================================================
-     FILE 3: /components/profile/avatar-upload.vue - COMPLETE FIXED VERSION
+     FILE: /components/profile/avatar-upload.vue - FINAL FIXED VERSION
      ============================================================================
-     ✅ FIXED: Direct API call instead of composable
-     ✅ FIXED: Proper error handling
+     ✅ FIXED: Removed composable dependency
+     ✅ FIXED: Direct API call with proper error handling
      ✅ FIXED: File size calculation
      ============================================================================ -->
 
