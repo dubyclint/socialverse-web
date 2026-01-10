@@ -123,6 +123,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '~/composables/use-auth'
 
 // No auth required - public page
@@ -131,6 +133,7 @@ definePageMeta({
   middleware: 'guest'
 })
 
+const router = useRouter()
 const { login } = useAuth()
 
 // Form data
@@ -151,6 +154,7 @@ const handleSignin = async () => {
   error.value = ''
   success.value = ''
 
+  console.log('[Signin Page] ============ SIGNIN START ============')
   console.log('[Signin Page] Submitting signin form...')
 
   // Validate form
@@ -176,22 +180,25 @@ const handleSignin = async () => {
       password: '***'
     })
 
-    // Call login with object parameter (not separate parameters)
+    // ✅ FIX: Call login with separate parameters
     const result = await login(
       formData.value.email,
       formData.value.password
     )
 
     console.log('[Signin Page] Login result:', result)
+    console.log('[Signin Page] Full result object:', JSON.stringify(result, null, 2))
 
     if (result.success) {
       console.log('[Signin Page] ✅ Signin successful')
       success.value = 'Signed in successfully! Redirecting...'
       
-      // Redirect to feed after 1 second
-      setTimeout(() => {
-        navigateTo('/feed')
-      }, 1000)
+      // ✅ FIX: Use redirectTo from response or default to /feed
+      const redirectUrl = result.redirectTo || '/feed'
+      console.log('[Signin Page] Redirecting to:', redirectUrl)
+      
+      // ✅ FIX: Use navigateTo directly without setTimeout
+      await navigateTo(redirectUrl)
     } else {
       console.error('[Signin Page] ✗ Signin failed:', result.error)
       error.value = result.error || 'Invalid email or password'
@@ -199,6 +206,9 @@ const handleSignin = async () => {
 
   } catch (err: any) {
     console.error('[Signin Page] Unexpected error:', err)
+    console.error('[Signin Page] Error type:', err.constructor.name)
+    console.error('[Signin Page] Error message:', err.message)
+    console.error('[Signin Page] Error stack:', err.stack)
     error.value = err.message || 'An unexpected error occurred'
   } finally {
     loading.value = false
