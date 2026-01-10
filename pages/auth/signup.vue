@@ -1,3 +1,12 @@
+<!-- ============================================================================
+     FILE: /pages/auth/signup.vue - FIXED SIGNUP FLOW
+     ============================================================================
+     ✅ FIXED: Sign-up now only collects BASIC INFO (email, username, password)
+     ✅ FIXED: Redirects directly to /feed after signup
+     ✅ REMOVED: Complete profile from signup flow
+     ✅ REMOVED: Full name field from signup
+     ============================================================================ -->
+
 <template>
   <div class="signup-page">
     <ClientOnly>
@@ -9,27 +18,16 @@
             <p>Join SocialVerse today</p>
           </div>
 
-          <!-- ✅ NEW: Email Sent State -->
-          <div v-if="emailSent" class="email-sent-state">
-            <div class="success-icon">📧</div>
-            <h2>Check Your Email!</h2>
-            <p>We've sent a verification link to:</p>
-            <p class="email-display">{{ formData.email }}</p>
-            <p class="instruction">Click the link in your email to verify your account and complete signup.</p>
-            
-            <div class="resend-section">
-              <p class="resend-text">Didn't receive the email?</p>
-              <button @click="handleResendEmail" :disabled="resendLoading" class="resend-btn">
-                {{ resendLoading ? 'Sending...' : 'Resend Verification Email' }}
-              </button>
-            </div>
-
-            <NuxtLink to="/" class="back-link">
-              Back to Home
-            </NuxtLink>
+          <!-- Success State - Show after successful signup -->
+          <div v-if="signupSuccess" class="success-state">
+            <div class="success-icon">✅</div>
+            <h2>Welcome to SocialVerse!</h2>
+            <p>Your account has been created successfully.</p>
+            <p class="redirect-message">Redirecting to your feed...</p>
+            <div class="spinner"></div>
           </div>
 
-          <!-- Form (hidden when email is sent) -->
+          <!-- Signup Form -->
           <form v-else @submit.prevent="handleSignup" class="signup-form">
             <!-- Email -->
             <div class="form-group">
@@ -70,34 +68,12 @@
               />
             </div>
 
-            <!-- Full Name (optional) -->
-            <div class="form-group">
-              <label for="fullName">Full Name (Optional)</label>
-              <input 
-                id="fullName"
-                v-model="formData.fullName" 
-                type="text" 
-                placeholder="Your Full Name"
-                :disabled="loading"
-              />
-            </div>
-
             <!-- Error Message -->
             <div v-if="error" class="error-message">
               <span class="error-icon">⚠️</span>
               <div>
                 <div>{{ error }}</div>
-                <!-- ✅ NEW: Show detailed error info in console -->
-                <div v-if="detailedError" class="error-details">
-                  Details: {{ detailedError }}
-                </div>
               </div>
-            </div>
-
-            <!-- Success Message -->
-            <div v-if="successMessage" class="success-message">
-              <span class="success-icon">✓</span>
-              {{ successMessage }}
             </div>
 
             <!-- Submit Button -->
@@ -112,12 +88,12 @@
           </form>
 
           <!-- Divider -->
-          <div v-if="!emailSent" class="divider">
+          <div v-if="!signupSuccess" class="divider">
             <span>or</span>
           </div>
 
           <!-- Social Login (Optional) -->
-          <div v-if="!emailSent" class="social-login">
+          <div v-if="!signupSuccess" class="social-login">
             <button type="button" class="social-btn google-btn" :disabled="loading">
               <span>🔵</span>
               Sign up with Google
@@ -129,14 +105,14 @@
           </div>
 
           <!-- Login Link -->
-          <div v-if="!emailSent" class="login-link">
+          <div v-if="!signupSuccess" class="login-link">
             <p>Already have an account? 
               <NuxtLink to="/auth/signin">Login here</NuxtLink>
             </p>
           </div>
 
           <!-- Terms -->
-          <div v-if="!emailSent" class="terms">
+          <div v-if="!signupSuccess" class="terms">
             <p>By signing up, you agree to our 
               <a href="/terms">Terms of Service</a> and 
               <a href="/privacy">Privacy Policy</a>
@@ -154,40 +130,29 @@ definePageMeta({
   middleware: 'guest'
 })
   
-import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { useEmailVerification } from '~/composables/use-email-verification'
+import { ref } from 'vue'
 import { useAuthWithErrorCatcher } from '~/composables/use-auth-with-error-catcher'
   
-const router = useRouter()
-const { signup, isLoading: loading, error: authError, printReport } = useAuthWithErrorCatcher()
-const { resendVerificationEmail } = useEmailVerification()
+const { signup, isLoading: loading, error: authError } = useAuthWithErrorCatcher()
 
-const successMessage = ref('')
 const error = ref('')
-const detailedError = ref('')
-const emailSent = ref(false)
-const resendLoading = ref(false)
+const signupSuccess = ref(false)
 
 const formData = ref({
   email: '',
   password: '',
-  username: '',
-  fullName: ''
+  username: ''
 })
 
 const handleSignup = async () => {
   error.value = ''
-  detailedError.value = ''
-  successMessage.value = ''
 
   console.log('[Signup Page] ============ SIGNUP START ============')
   console.log('[Signup Page] Submitting signup form...')
   console.log('[Signup Page] Form data:', {
     email: formData.value.email,
     username: formData.value.username,
-    password: '***',
-    fullName: formData.value.fullName
+    password: '***'
   })
   
   // Client-side validation
@@ -229,95 +194,31 @@ const handleSignup = async () => {
     )
 
     console.log('[Signup Page] Signup result:', result)
-    console.log('[Signup Page] Full result object:', JSON.stringify(result, null, 2))
 
     if (result.success) {
       console.log('[Signup Page] ✅ Signup successful')
-      successMessage.value = result.message || 'Account created successfully!'
+      console.log('[Signup Page] User ID:', result.user?.id)
+      console.log('[Signup Page] Token received:', !!result.token)
       
-      console.log('[Signup Page] Storing email in sessionStorage:', formData.value.email)
-      sessionStorage.setItem('verificationEmail', formData.value.email)
+      // Show success state
+      signupSuccess.value = true
       
-      // ✅ FIX: Check if email verification is required
-      if (result.requiresEmailVerification === false) {
-        // ✅ NEW: Auto-redirect to feed if no email verification needed
-        console.log('[Signup Page] Email verification not required, redirecting to feed...')
-        console.log('[Signup Page] Redirect URL:', result.redirectTo)
-        
-        // Wait 1 second to show success message, then redirect
-        setTimeout(() => {
-          console.log('[Signup Page] Navigating to:', result.redirectTo || '/feed')
-          navigateTo(result.redirectTo || '/feed')
-        }, 1000)
-      } else {
-        // ✅ Show email sent state if verification is required
-        console.log('[Signup Page] Email verification required, showing email sent state')
-        emailSent.value = true
-      }
+      // Redirect to feed after 2 seconds
+      setTimeout(() => {
+        console.log('[Signup Page] Redirecting to /feed')
+        navigateTo('/feed')
+      }, 2000)
       
-      // Clear form
-      formData.value = {
-        email: '',
-        password: '',
-        username: '',
-        fullName: ''
-      }
     } else {
       console.error('[Signup Page] Signup failed:', result.error)
       error.value = result.error || 'Signup failed. Please try again.'
-      detailedError.value = JSON.stringify(result, null, 2)
-      console.error('[Signup Page] Full error details:', result)
     }
   } catch (err: any) {
     console.error('[Signup Page] Unexpected error:', err)
-    console.error('[Signup Page] Error type:', err.constructor.name)
     console.error('[Signup Page] Error message:', err.message)
-    console.error('[Signup Page] Error stack:', err.stack)
     error.value = 'An unexpected error occurred. Please try again.'
-    detailedError.value = `${err.constructor.name}: ${err.message}`
   }
 }
-
-const handleResendEmail = async () => {
-  const email = formData.value.email
-  
-  if (!email) {
-    error.value = 'Email not found. Please sign up again.'
-    return
-  }
-
-  resendLoading.value = true
-  error.value = ''
-  detailedError.value = ''
-
-  try {
-    console.log('[Signup Page] Resending verification email to:', email)
-    const result = await resendVerificationEmail(email)
-
-    if (result.success) {
-      successMessage.value = 'Verification email sent! Check your inbox.'
-      console.log('[Signup Page] ✅ Verification email resent')
-    } else {
-      error.value = result.error || 'Failed to resend email'
-      detailedError.value = JSON.stringify(result, null, 2)
-      console.error('[Signup Page] ❌ Resend failed:', result.error)
-    }
-  } catch (err: any) {
-    console.error('[Signup Page] Resend error:', err)
-    error.value = 'Failed to resend verification email'
-    detailedError.value = `${err.constructor.name}: ${err.message}`
-  } finally {
-    resendLoading.value = false
-  }
-}
-
-// Watch for auth store errors
-watch(() => authError.value, (newError) => {
-  if (newError) {
-    error.value = newError
-    console.error('[Signup Page] Auth store error:', newError)
-  }
-})
 </script>
 
 <style scoped>
@@ -360,94 +261,53 @@ watch(() => authError.value, (newError) => {
   margin: 0;
 }
 
-/* ✅ NEW: Email Sent State */
-.email-sent-state {
+/* Success State */
+.success-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
   text-align: center;
+  padding: 2rem 0;
 }
 
 .success-icon {
   font-size: 3rem;
 }
 
-.email-sent-state h2 {
+.success-state h2 {
   font-size: 1.75rem;
   font-weight: 700;
   color: #28a745;
   margin: 0;
 }
 
-.email-sent-state p {
+.success-state p {
   color: #6b7280;
   margin: 0;
   font-size: 0.95rem;
 }
 
-.email-display {
-  font-weight: 600;
-  color: #1f2937;
-  background: #f3f4f6;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  word-break: break-all;
-}
-
-.instruction {
+.redirect-message {
   color: #667eea;
   font-weight: 500;
   font-size: 0.95rem;
 }
 
-.resend-section {
-  width: 100%;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.resend-text {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.resend-btn {
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.resend-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-}
-
-.resend-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.back-link {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s;
-  margin-top: 1rem;
-}
-
-.back-link:hover {
-  color: #764ba2;
-  text-decoration: underline;
-}
-
+/* Form */
 .signup-form {
   display: flex;
   flex-direction: column;
@@ -504,31 +364,6 @@ watch(() => authError.value, (newError) => {
   margin-top: 0.125rem;
 }
 
-/* ✅ NEW: Error details styling */
-.error-details {
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-  font-family: monospace;
-  max-height: 100px;
-  overflow-y: auto;
-  text-align: left;
-}
-
-.success-message {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: #059669;
-  padding: 0.75rem;
-  background: #d1fae5;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  border-left: 4px solid #059669;
-}
-
 .submit-btn {
   padding: 0.875rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -564,10 +399,6 @@ watch(() => authError.value, (newError) => {
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .divider {
