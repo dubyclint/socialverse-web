@@ -4,9 +4,9 @@
 // ✅ Creates auth user
 // ✅ Creates user_profiles record
 // ✅ Updates user metadata
-// ✅ Sends verification email
+// ✅ Sends verification email (optional - fails gracefully)
 // ✅ Auto-authenticates user
-// ✅ Returns session token
+// ✅ Redirects to feed page
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -101,8 +101,8 @@ export default defineEventHandler(async (event) => {
           phone: null,
           is_private: false,
           is_blocked: false,
-          is_verified: false,
-          verification_status: 'pending',
+          is_verified: true,
+          verification_status: 'verified',
           rank: 'Bronze I',
           rank_points: 0,
           rank_level: 1,
@@ -142,8 +142,8 @@ export default defineEventHandler(async (event) => {
           posts_count: 0,
           followers_count: 0,
           following_count: 0,
-          is_verified: false,
-          verification_status: 'pending'
+          is_verified: true,
+          verification_status: 'verified'
         }
       }
     )
@@ -155,9 +155,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // STEP 4: Send verification email
+    // STEP 4: Send verification email (optional - fails gracefully)
     // ============================================================================
-    console.log('[SIGNUP] STEP 4: Sending verification email...')
+    console.log('[SIGNUP] STEP 4: Attempting to send verification email...')
 
     const verificationToken = Buffer.from(JSON.stringify({
       userId: authUserId,
@@ -174,6 +174,7 @@ export default defineEventHandler(async (event) => {
       console.log('[SIGNUP] ✅ Verification email sent successfully')
     } else {
       console.warn('[SIGNUP] ⚠️ Failed to send verification email:', emailResult.error)
+      console.log('[SIGNUP] Continuing without email - user will be auto-authenticated')
     }
 
     // ============================================================================
@@ -197,10 +198,10 @@ export default defineEventHandler(async (event) => {
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase()
         },
-        message: 'Account created successfully! Please check your email to verify your account.',
-        requiresEmailVerification: true,
+        message: 'Account created successfully!',
+        requiresEmailVerification: false,
         token: null,
-        redirectTo: '/auth/verify-email'
+        redirectTo: '/feed'
       }
     }
 
@@ -214,10 +215,10 @@ export default defineEventHandler(async (event) => {
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase()
         },
-        message: 'Account created successfully! Please check your email to verify your account.',
-        requiresEmailVerification: true,
+        message: 'Account created successfully!',
+        requiresEmailVerification: false,
         token: null,
-        redirectTo: '/auth/verify-email'
+        redirectTo: '/feed'
       }
     }
 
@@ -225,7 +226,7 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] Session token obtained:', !!sessionData.session.access_token)
 
     // ============================================================================
-    // STEP 6: Return success response with token
+    // STEP 6: Return success response with token and redirect to feed
     // ============================================================================
     console.log('[SIGNUP] ✅ SIGNUP SUCCESS - ALL STEPS COMPLETED')
 
@@ -236,12 +237,12 @@ export default defineEventHandler(async (event) => {
         email: email.trim().toLowerCase(),
         username: username.trim().toLowerCase()
       },
-      message: 'Account created successfully! Please check your email to verify your account.',
-      requiresEmailVerification: true,
+      message: 'Account created successfully! Welcome to SocialVerse!',
+      requiresEmailVerification: false,
       token: sessionData.session.access_token,
       refreshToken: sessionData.session.refresh_token,
       expiresIn: sessionData.session.expires_in,
-      redirectTo: '/auth/verify-email'
+      redirectTo: '/feed'
     }
 
   } catch (error: any) {
@@ -249,4 +250,5 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
+
 
