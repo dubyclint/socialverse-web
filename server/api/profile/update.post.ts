@@ -1,10 +1,11 @@
 // ============================================================================
-// FILE: /server/api/profile/update.post.ts - CORRECTED VERSION
+// FILE: /server/api/profile/update.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Uses getAdminClient for proper authentication
+// ✅ FIXED: Uses event.context.user from auth-header middleware
+// ✅ FIXED: Correct table 'user' and column 'user_id'
 // ============================================================================
 
-import { getAdminClient } from '~/server/utils/supabase-server'
+import { serverSupabaseClient } from '#supabase/server'
 
 interface UpdateProfileRequest {
   full_name?: string
@@ -31,52 +32,27 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     console.log('[Profile/Update] ============ START ============')
 
     // ============================================================================
-    // STEP 1: Get authenticated user from Authorization header
+    // STEP 1: Get authenticated user from middleware context
     // ============================================================================
     console.log('[Profile/Update] STEP 1: Authenticating user...')
     
-    // Get the Authorization header
-    const authHeader = getHeader(event, 'authorization')
-    console.log('[Profile/Update] Auth header present:', !!authHeader)
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('[Profile/Update] ❌ No valid Authorization header')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized - Please log in'
-      })
-    }
-
-    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
-    console.log('[Profile/Update] Token extracted from header')
-
-    // Use admin client to verify token and get user
-    const supabase = await getAdminClient()
+    const user = event.context.user
     
-    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(
-      // We need to decode the JWT to get the user ID
-      // For now, use the client method with the token
-    )
-
-    // Alternative: Use serverSupabaseClient with the event context
-    const supabaseClient = await serverSupabaseClient(event)
-    const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser()
-
-    if (authError || !authUser) {
-      console.error('[Profile/Update] ❌ Failed to get user:', authError?.message)
+    if (!user || !user.id) {
+      console.error('[Profile/Update] ❌ Unauthorized - No user in context')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized - Please log in'
       })
     }
 
-    const userId = authUser.id
+    const userId = user.id
     console.log('[Profile/Update] ✅ User authenticated:', userId)
 
     // ============================================================================
     // STEP 2: Read and validate request body
     // ============================================================================
-    console.log('[Profile/Update] STEP 2: Validating input...')
+    console.log('[Profile/Update] STEP 2: Reading request body...')
 
     const body = await readBody<UpdateProfileRequest>(event)
     const updates: any = {}
@@ -171,10 +147,13 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     // ============================================================================
     console.log('[Profile/Update] STEP 3: Updating profile...')
 
-    const { data: profile, error: updateError } = await supabaseClient
-      .from('user_profiles')
+    const supabase = await serverSupabaseClient(event)
+
+    // ✅ CORRECT: Table 'user', column 'user_id'
+    const { data: profile, error: updateError } = await supabase
+      .from('user')
       .update(updates)
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -204,7 +183,9 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     }
 
   } catch (error: any) {
-    console.error('[Profile/Update] ❌ Error:', error?.message || error)
+    console.error('[Profile/Update] ============ ERROR ============')
+    console.error('[Profile/Update] Error:', error?.message || error)
+    console.error('[Profile/Update] ============ END ERROR ============')
     
     if (error.statusCode) {
       throw error
