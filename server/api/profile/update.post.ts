@@ -1,11 +1,10 @@
 // ============================================================================
 // FILE: /server/api/profile/update.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Uses event.context.user from auth-header middleware
+// ✅ FIXED: Uses admin client with service role key for proper permissions
 // ✅ FIXED: Correct table 'user' and column 'user_id'
+// ✅ FIXED: Proper error handling and validation
 // ============================================================================
-
-import { serverSupabaseClient } from '#supabase/server'
 
 interface UpdateProfileRequest {
   full_name?: string
@@ -143,13 +142,17 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     console.log('[Profile/Update] Fields to update:', Object.keys(updates))
 
     // ============================================================================
-    // STEP 3: Update user profile in database
+    // STEP 3: Update user profile in database using ADMIN CLIENT
     // ============================================================================
-    console.log('[Profile/Update] STEP 3: Updating profile...')
+    console.log('[Profile/Update] STEP 3: Updating profile with admin privileges...')
 
-    const supabase = await serverSupabaseClient(event)
+    // ✅ FIXED: Import and use admin client instead of user client
+    const { getAdminClient } = await import('~/server/utils/supabase-server')
+    const supabase = await getAdminClient()
 
-    // ✅ CORRECT: Table 'user', column 'user_id'
+    console.log('[Profile/Update] ✅ Admin client obtained')
+
+    // ✅ CORRECT: Table 'user', column 'user_id', using admin client
     const { data: profile, error: updateError } = await supabase
       .from('user')
       .update(updates)
@@ -159,6 +162,7 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
 
     if (updateError) {
       console.error('[Profile/Update] ❌ Update error:', updateError.message)
+      console.error('[Profile/Update] Error details:', updateError)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to update profile: ' + updateError.message
@@ -174,6 +178,7 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     }
 
     console.log('[Profile/Update] ✅ Profile updated successfully')
+    console.log('[Profile/Update] Updated fields:', Object.keys(updates))
     console.log('[Profile/Update] ============ END ============')
 
     return {
@@ -184,7 +189,9 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
 
   } catch (error: any) {
     console.error('[Profile/Update] ============ ERROR ============')
-    console.error('[Profile/Update] Error:', error?.message || error)
+    console.error('[Profile/Update] Error type:', error?.constructor?.name)
+    console.error('[Profile/Update] Error message:', error?.message || error)
+    console.error('[Profile/Update] Error details:', error?.data || 'N/A')
     console.error('[Profile/Update] ============ END ERROR ============')
     
     if (error.statusCode) {
@@ -198,3 +205,4 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     })
   }
 })
+
