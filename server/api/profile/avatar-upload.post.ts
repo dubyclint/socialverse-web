@@ -1,7 +1,8 @@
 // ============================================================================
-// FILE: /server/api/profile/avatar-upload.post.ts - CORRECTED
+// FILE: /server/api/profile/avatar-upload.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ UPDATED: Changed 'profiles' table to 'user' table
+// ✅ FIXED: Uses event.context.user from auth-header middleware
+// ✅ FIXED: Correct table 'user' and column 'user_id'
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -16,30 +17,30 @@ interface AvatarUploadResponse {
 
 export default defineEventHandler(async (event): Promise<AvatarUploadResponse> => {
   try {
-    console.log('[Avatar Upload API] Processing avatar upload...')
+    console.log('[Avatar Upload API] ============ START ============')
 
     // ============================================================================
-    // STEP 1: Authentication
+    // STEP 1: Authentication - Get user from middleware context
     // ============================================================================
-    const supabase = await serverSupabaseClient(event)
+    console.log('[Avatar Upload API] STEP 1: Authenticating user...')
     
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      console.error('[Avatar Upload API] ❌ Unauthorized')
+    const user = event.context.user
+    
+    if (!user || !user.id) {
+      console.error('[Avatar Upload API] ❌ Unauthorized - No user in context')
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized'
+        statusMessage: 'Unauthorized - Please log in'
       })
     }
 
-    const userId = session.user.id
-    console.log('[Avatar Upload API] User ID:', userId)
+    const userId = user.id
+    console.log('[Avatar Upload API] ✅ User authenticated:', userId)
 
     // ============================================================================
     // STEP 2: Read multipart form data
     // ============================================================================
-    console.log('[Avatar Upload API] Reading form data...')
+    console.log('[Avatar Upload API] STEP 2: Reading form data...')
 
     const formData = await readMultipartFormData(event)
     
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
       })
     }
 
-    console.log('[Avatar Upload API] File received:', {
+    console.log('[Avatar Upload API] ✅ File received:', {
       filename: file.filename,
       size: file.data.length,
       type: file.type
@@ -68,10 +69,13 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     // STEP 3: Validate file
     // ============================================================================
+    console.log('[Avatar Upload API] STEP 3: Validating file...')
+
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     const maxSize = 5 * 1024 * 1024 // 5MB
 
     if (!allowedTypes.includes(file.type || '')) {
+      console.error('[Avatar Upload API] ❌ Invalid file type:', file.type)
       throw createError({
         statusCode: 400,
         statusMessage: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed'
@@ -79,6 +83,7 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     }
 
     if (file.data.length > maxSize) {
+      console.error('[Avatar Upload API] ❌ File size exceeds limit:', file.data.length)
       throw createError({
         statusCode: 400,
         statusMessage: 'File size exceeds 5MB limit'
@@ -90,8 +95,9 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     // STEP 4: Upload to Supabase storage
     // ============================================================================
-    console.log('[Avatar Upload API] Uploading to storage...')
+    console.log('[Avatar Upload API] STEP 4: Uploading to storage...')
 
+    const supabase = await serverSupabaseClient(event)
     const filename = `${userId}/${Date.now()}-${file.filename}`
 
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -111,7 +117,7 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     // STEP 5: Get public URL
     // ============================================================================
-    console.log('[Avatar Upload API] Getting public URL...')
+    console.log('[Avatar Upload API] STEP 5: Getting public URL...')
 
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
@@ -120,12 +126,11 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     console.log('[Avatar Upload API] ✅ Public URL generated:', publicUrl)
 
     // ============================================================================
-    // STEP 6: Update profile with avatar URL
+    // STEP 6: Update user profile with avatar URL
     // ============================================================================
-    console.log('[Avatar Upload API] Updating profile...')
+    console.log('[Avatar Upload API] STEP 6: Updating user profile...')
 
-    // ✅ CHANGED: from 'profiles' to 'user'
-    // ✅ CHANGED: from .eq('id', userId) to .eq('user_id', userId)
+    // ✅ CORRECT: Table 'user', column 'user_id'
     const { data: profile, error: updateError } = await supabase
       .from('user')
       .update({ 
@@ -144,11 +149,22 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
       })
     }
 
+    if (!profile) {
+      console.error('[Avatar Upload API] ❌ Profile not found after update')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Profile update failed - no data returned'
+      })
+    }
+
     console.log('[Avatar Upload API] ✅ Profile updated with avatar URL')
 
     // ============================================================================
     // STEP 7: Return success response
     // ============================================================================
+    console.log('[Avatar Upload API] ✅ Avatar upload completed successfully')
+    console.log('[Avatar Upload API] ============ END ============')
+
     return {
       success: true,
       data: profile,
@@ -157,7 +173,9 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     }
 
   } catch (err: any) {
-    console.error('[Avatar Upload API] ❌ Error:', err.message)
+    console.error('[Avatar Upload API] ============ ERROR ============')
+    console.error('[Avatar Upload API] Error:', err.message)
+    console.error('[Avatar Upload API] ============ END ERROR ============')
     
     if (err.statusCode) {
       throw err
