@@ -1,3 +1,11 @@
+<!-- ============================================================================
+     FILE 3: /components/profile/avatar-upload.vue - COMPLETE FIXED VERSION
+     ============================================================================
+     ✅ FIXED: Direct API call instead of composable
+     ✅ FIXED: Proper error handling
+     ✅ FIXED: File size calculation
+     ============================================================================ -->
+
 <template>
   <div>
     <label class="block text-sm font-medium text-slate-300 mb-2">
@@ -63,6 +71,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useAuthStore } from '~/stores/auth'
 
 const props = defineProps<{
   modelValue?: string
@@ -72,7 +81,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const { uploadAvatar } = useProfile()
+const authStore = useAuthStore()
 
 const fileInput = ref<HTMLInputElement>()
 const previewUrl = ref(props.modelValue || '')
@@ -85,15 +94,24 @@ const handleFileSelect = async (event: Event) => {
 
   if (!file) return
 
+  console.log('[AvatarUpload] Processing file:', {
+    name: file.name,
+    size: file.size,
+    type: file.type
+  })
+
   // Validate file type
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
     uploadError.value = 'Please select a JPG, PNG, or WebP image'
+    console.error('[AvatarUpload] Invalid file type:', file.type)
     return
   }
 
   // Validate file size (5MB)
-  if (file.size > 5 * 1024 * 1024) {
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) {
     uploadError.value = 'File size must be less than 5MB'
+    console.error('[AvatarUpload] File too large:', file.size)
     return
   }
 
@@ -105,19 +123,44 @@ const handleFileSelect = async (event: Event) => {
     const reader = new FileReader()
     reader.onload = (e) => {
       previewUrl.value = e.target?.result as string
+      console.log('[AvatarUpload] ✅ Preview created')
     }
     reader.readAsDataURL(file)
 
-    // Upload file
-    const result = await uploadAvatar(file)
+    // Upload file using direct API call
+    console.log('[AvatarUpload] Starting upload...')
+    
+    const formData = new FormData()
+    formData.append('file', file)
 
-    if (result.success) {
-      emit('update:modelValue', result.url)
-    } else {
-      uploadError.value = result.error || 'Upload failed'
-      previewUrl.value = props.modelValue || ''
+    const response = await fetch('/api/profile/avatar-upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: formData
+    })
+
+    console.log('[AvatarUpload] Upload response status:', response.status)
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
     }
+
+    const data = await response.json()
+    console.log('[AvatarUpload] ✅ Upload successful:', data)
+
+    if (!data.success || !data.url) {
+      throw new Error('Invalid upload response')
+    }
+
+    // Emit the URL back to parent
+    emit('update:modelValue', data.url)
+    console.log('[AvatarUpload] ✅ Avatar URL emitted to parent')
+
   } catch (err: any) {
+    console.error('[AvatarUpload] ❌ Upload error:', err.message)
     uploadError.value = err.message || 'An error occurred during upload'
     previewUrl.value = props.modelValue || ''
   } finally {
