@@ -1,12 +1,13 @@
 // ============================================================================
-// FILE: /server/api/profile/update.post.ts - CORRECTED VERSION
+// FILE 1: /server/api/profile/update.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ Updates user table (not profiles table)
+// ✅ FIXED: Gets user ID from auth session (not from body)
+// ✅ FIXED: Queries user_profiles table with id column
+// ✅ FIXED: Properly authenticates user
 // ✅ Supports all profile fields
-// ✅ Only authenticated users can update their own profile
 // ============================================================================
 
-import { createClient } from '@supabase/supabase-js'
+import { serverSupabaseClient } from '#supabase/server'
 
 interface UpdateProfileRequest {
   full_name?: string
@@ -33,33 +34,23 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     console.log('[Profile/Update] ============ START ============')
 
     // ============================================================================
-    // STEP 1: Get authenticated user
+    // STEP 1: Get authenticated user from Supabase session
     // ============================================================================
     console.log('[Profile/Update] STEP 1: Authenticating user...')
     
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabase = await serverSupabaseClient(event)
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Server configuration error'
-      })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Get user from request header or body
-    const body = await readBody<UpdateProfileRequest & { userId?: string }>(event)
-    const userId = body.userId
-
-    if (!userId) {
+    if (sessionError || !session?.user) {
+      console.error('[Profile/Update] ❌ Unauthorized - No session')
       throw createError({
         statusCode: 401,
-        statusMessage: 'User ID is required'
+        statusMessage: 'Unauthorized - Please log in'
       })
     }
 
+    const userId = session.user.id
     console.log('[Profile/Update] ✅ User authenticated:', userId)
 
     // ============================================================================
@@ -67,6 +58,7 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     // ============================================================================
     console.log('[Profile/Update] STEP 2: Validating input...')
 
+    const body = await readBody<UpdateProfileRequest>(event)
     const updates: any = {}
     const validationErrors: string[] = []
 
@@ -160,9 +152,9 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     console.log('[Profile/Update] STEP 3: Updating profile...')
 
     const { data: profile, error: updateError } = await supabase
-      .from('user')
+      .from('user_profiles')
       .update(updates)
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
       .single()
 
