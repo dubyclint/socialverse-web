@@ -1,9 +1,9 @@
 // ============================================================================
 // FILE: /server/api/profile/avatar-upload.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Proper error handling for profile update
-// ✅ FIXED: Handles case where profile might not exist yet
+// ✅ FIXED: Uses user_profiles table (consistent with other endpoints)
 // ✅ FIXED: Uses admin client with service role key
+// ✅ FIXED: Proper error handling
 // ============================================================================
 
 interface AvatarUploadResponse {
@@ -133,32 +133,14 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     console.log('[Avatar Upload API] STEP 6: Updating user profile with admin privileges...')
 
-    // ✅ FIXED: First check if profile exists
-    console.log('[Avatar Upload API] Checking if profile exists for user:', userId)
-    const { data: existingProfile, error: checkError } = await supabase
-      .from('user')
-      .select('user_id')
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (checkError) {
-      console.error('[Avatar Upload API] ❌ Error checking profile:', checkError.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to check profile: ' + checkError.message
-      })
-    }
-
-    console.log('[Avatar Upload API] Profile exists:', existingProfile && existingProfile.length > 0)
-
-    // ✅ FIXED: Update without .single() to avoid coercion error
+    // ✅ FIXED: Use user_profiles table (consistent with other endpoints)
     const { data: updatedProfiles, error: updateError } = await supabase
-      .from('user')
+      .from('user_profiles')
       .update({ 
         avatar_url: publicUrl,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
 
     if (updateError) {
@@ -181,7 +163,7 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     const profile = updatedProfiles[0]
     console.log('[Avatar Upload API] ✅ Profile updated with avatar URL')
     console.log('[Avatar Upload API] Updated profile:', {
-      user_id: profile.user_id,
+      id: profile.id,
       avatar_url: profile.avatar_url
     })
 
