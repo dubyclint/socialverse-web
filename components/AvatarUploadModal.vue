@@ -1,5 +1,5 @@
 <!-- ============================================================================
-     FILE: /components/AvatarUploadModal.vue
+     FILE: /components/AvatarUploadModal.vue - FIXED VERSION
      PHASE 3: Avatar Upload Modal Component
      ============================================================================
      Features:
@@ -83,7 +83,7 @@
           <!-- Preview Info -->
           <div class="preview-info">
             <p>File: {{ selectedFile?.name }}</p>
-            <p>Size: {{ (selectedFile?.size || 0) / 1024 / 1024 | toFixed(2) }} MB</p>
+            <p>Size: {{ ((selectedFile?.size || 0) / 1024 / 1024).toFixed(2) }} MB</p>
           </div>
         </div>
 
