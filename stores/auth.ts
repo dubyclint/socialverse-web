@@ -1,7 +1,8 @@
 // ============================================================================
-// FILE: /stores/auth.ts - COMPLETE UPDATED VERSION
+// FIXED FILE 1: /stores/auth.ts - COMPLETE UPDATED VERSION
 // ============================================================================
-// Auth store with complete user data and profile integration
+// ✅ ADDED: setRefreshToken() method and refreshToken state
+// ✅ ADDED: getRefreshToken() method
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -10,6 +11,7 @@ import type { User } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null)
+  const refreshToken = ref<string | null>(null)
   const userId = ref<string | null>(null)
   const user = ref<User | null>(null)
   const isLoading = ref(false)
@@ -87,6 +89,38 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] ✅ Token removed from localStorage')
       }
     }
+  }
+
+  // ============================================================================
+  // ✅ NEW METHOD: setRefreshToken
+  // ============================================================================
+  const setRefreshToken = (newRefreshToken: string | null) => {
+    console.log('[Auth Store] Setting refresh token...')
+    refreshToken.value = newRefreshToken
+    
+    if (process.client) {
+      if (newRefreshToken) {
+        localStorage.setItem('auth_refresh_token', newRefreshToken)
+        console.log('[Auth Store] ✅ Refresh token stored in localStorage')
+      } else {
+        localStorage.removeItem('auth_refresh_token')
+        console.log('[Auth Store] ✅ Refresh token removed from localStorage')
+      }
+    }
+  }
+
+  // ============================================================================
+  // ✅ NEW METHOD: getRefreshToken
+  // ============================================================================
+  const getRefreshToken = (): string | null => {
+    if (!process.client) return null
+    
+    const stored = localStorage.getItem('auth_refresh_token')
+    if (stored) {
+      refreshToken.value = stored
+      console.log('[Auth Store] ✅ Refresh token retrieved from localStorage')
+    }
+    return stored
   }
 
   const setUserId = (id: string) => {
@@ -214,6 +248,7 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth Store] Clearing all auth data')
     
     token.value = null
+    refreshToken.value = null
     user.value = null
     userId.value = null
     rememberMe.value = false
@@ -326,6 +361,15 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[Auth Store] No token in localStorage')
       }
 
+      // ✅ NEW: Restore refresh token
+      const storedRefreshToken = localStorage.getItem('auth_refresh_token')
+      if (storedRefreshToken) {
+        refreshToken.value = storedRefreshToken
+        console.log('[Auth Store] ✅ Refresh token restored from localStorage')
+      } else {
+        console.log('[Auth Store] No refresh token in localStorage')
+      }
+
       const storedUserId = localStorage.getItem('auth_user_id')
       if (storedUserId) {
         userId.value = storedUserId
@@ -405,6 +449,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     // State
     token,
+    refreshToken,
     userId,
     user,
     isLoading,
@@ -427,6 +472,8 @@ export const useAuthStore = defineStore('auth', () => {
     
     // Methods
     setToken,
+    setRefreshToken,
+    getRefreshToken,
     setUserId,
     setUser,
     setRememberMe,
