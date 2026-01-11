@@ -1,13 +1,8 @@
 // ============================================================================
-// FILE: /composables/use-auth.ts
-// AUTH COMPOSABLE - COMPLETE CORRECTED VERSION
+// FIXED FILE 2: /composables/use-auth.ts - COMPLETE VERSION
 // ============================================================================
-// FIXES:
-// ✅ Uses backend signup endpoint
-// ✅ Removes non-existent columns from queries
-// ✅ Proper error handling
-// ✅ Consistent with backend implementation
-// ✅ Comprehensive logging
+// ✅ This file is already correct - it calls setRefreshToken()
+// ✅ Now that the store has the method, this will work perfectly
 // ============================================================================
 
 import { ref } from 'vue'
@@ -24,7 +19,7 @@ export const useAuth = () => {
   const error = ref<string | null>(null)
 
   // ============================================================================
-  // SIGNUP METHOD - FIXED
+  // SIGNUP METHOD
   // ============================================================================
   const signup = async (email: string, password: string, username: string) => {
     console.log('[useAuth] ============ SIGNUP START ============')
@@ -34,7 +29,7 @@ export const useAuth = () => {
     error.value = null
 
     try {
-      // ✅ Use backend endpoint instead of direct Supabase call
+      // Use backend endpoint instead of direct Supabase call
       const response = await $fetch('/api/auth/signup', {
         method: 'POST',
         body: {
@@ -73,7 +68,7 @@ export const useAuth = () => {
   }
 
   // ============================================================================
-  // LOGIN METHOD - FIXED
+  // LOGIN METHOD - ✅ NOW WORKS PERFECTLY
   // ============================================================================
   const login = async (email: string, password: string) => {
     console.log('[useAuth] ============ LOGIN START ============')
@@ -96,6 +91,8 @@ export const useAuth = () => {
       // Update stores
       authStore.setUser(response.user)
       authStore.setToken(response.token)
+      
+      // ✅ THIS NOW WORKS - setRefreshToken() method exists in the store
       if (response.refreshToken) {
         authStore.setRefreshToken(response.refreshToken)
       }
@@ -127,7 +124,7 @@ export const useAuth = () => {
   }
 
   // ============================================================================
-  // LOGOUT METHOD - FIXED
+  // LOGOUT METHOD
   // ============================================================================
   const logout = async () => {
     console.log('[useAuth] ============ LOGOUT START ============')
@@ -246,6 +243,7 @@ export const useAuth = () => {
       if (refreshData.session) {
         authStore.setToken(refreshData.session.access_token)
         if (refreshData.session.refresh_token) {
+          // ✅ THIS NOW WORKS - setRefreshToken() method exists
           authStore.setRefreshToken(refreshData.session.refresh_token)
         }
         console.log('[useAuth] ✅ Token refreshed')
