@@ -1,11 +1,10 @@
 // ============================================================================
 // FILE: /server/api/profile/avatar-upload.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Uses event.context.user from auth-header middleware
+// ✅ FIXED: Uses admin client with service role key for proper permissions
 // ✅ FIXED: Correct table 'user' and column 'user_id'
+// ✅ FIXED: Proper error handling and validation
 // ============================================================================
-
-import { serverSupabaseClient } from '#supabase/server'
 
 interface AvatarUploadResponse {
   success: boolean
@@ -93,11 +92,16 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     console.log('[Avatar Upload API] ✅ File validation passed')
 
     // ============================================================================
-    // STEP 4: Upload to Supabase storage
+    // STEP 4: Upload to Supabase storage using ADMIN CLIENT
     // ============================================================================
-    console.log('[Avatar Upload API] STEP 4: Uploading to storage...')
+    console.log('[Avatar Upload API] STEP 4: Uploading to storage with admin privileges...')
 
-    const supabase = await serverSupabaseClient(event)
+    // ✅ FIXED: Import and use admin client instead of user client
+    const { getAdminClient } = await import('~/server/utils/supabase-server')
+    const supabase = await getAdminClient()
+
+    console.log('[Avatar Upload API] ✅ Admin client obtained')
+
     const filename = `${userId}/${Date.now()}-${file.filename}`
 
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -126,11 +130,11 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     console.log('[Avatar Upload API] ✅ Public URL generated:', publicUrl)
 
     // ============================================================================
-    // STEP 6: Update user profile with avatar URL
+    // STEP 6: Update user profile with avatar URL using ADMIN CLIENT
     // ============================================================================
-    console.log('[Avatar Upload API] STEP 6: Updating user profile...')
+    console.log('[Avatar Upload API] STEP 6: Updating user profile with admin privileges...')
 
-    // ✅ CORRECT: Table 'user', column 'user_id'
+    // ✅ CORRECT: Table 'user', column 'user_id', using admin client
     const { data: profile, error: updateError } = await supabase
       .from('user')
       .update({ 
@@ -143,6 +147,7 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
 
     if (updateError) {
       console.error('[Avatar Upload API] ❌ Profile update error:', updateError.message)
+      console.error('[Avatar Upload API] Error details:', updateError)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to update profile: ' + updateError.message
@@ -174,7 +179,9 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
 
   } catch (err: any) {
     console.error('[Avatar Upload API] ============ ERROR ============')
-    console.error('[Avatar Upload API] Error:', err.message)
+    console.error('[Avatar Upload API] Error type:', err?.constructor?.name)
+    console.error('[Avatar Upload API] Error message:', err?.message)
+    console.error('[Avatar Upload API] Error details:', err?.data || 'N/A')
     console.error('[Avatar Upload API] ============ END ERROR ============')
     
     if (err.statusCode) {
