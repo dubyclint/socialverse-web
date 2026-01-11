@@ -1,9 +1,9 @@
 // ============================================================================
 // FILE: /server/api/profile/avatar-upload.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Uses admin client with service role key for proper permissions
-// ✅ FIXED: Correct table 'user' and column 'user_id'
-// ✅ FIXED: Proper error handling and validation
+// ✅ FIXED: Proper error handling for profile update
+// ✅ FIXED: Handles case where profile might not exist yet
+// ✅ FIXED: Uses admin client with service role key
 // ============================================================================
 
 interface AvatarUploadResponse {
@@ -96,7 +96,6 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     console.log('[Avatar Upload API] STEP 4: Uploading to storage with admin privileges...')
 
-    // ✅ FIXED: Import and use admin client instead of user client
     const { getAdminClient } = await import('~/server/utils/supabase-server')
     const supabase = await getAdminClient()
 
@@ -134,8 +133,26 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
     // ============================================================================
     console.log('[Avatar Upload API] STEP 6: Updating user profile with admin privileges...')
 
-    // ✅ CORRECT: Table 'user', column 'user_id', using admin client
-    const { data: profile, error: updateError } = await supabase
+    // ✅ FIXED: First check if profile exists
+    console.log('[Avatar Upload API] Checking if profile exists for user:', userId)
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('user')
+      .select('user_id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (checkError) {
+      console.error('[Avatar Upload API] ❌ Error checking profile:', checkError.message)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to check profile: ' + checkError.message
+      })
+    }
+
+    console.log('[Avatar Upload API] Profile exists:', existingProfile && existingProfile.length > 0)
+
+    // ✅ FIXED: Update without .single() to avoid coercion error
+    const { data: updatedProfiles, error: updateError } = await supabase
       .from('user')
       .update({ 
         avatar_url: publicUrl,
@@ -143,7 +160,6 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
       })
       .eq('user_id', userId)
       .select()
-      .single()
 
     if (updateError) {
       console.error('[Avatar Upload API] ❌ Profile update error:', updateError.message)
@@ -154,15 +170,20 @@ export default defineEventHandler(async (event): Promise<AvatarUploadResponse> =
       })
     }
 
-    if (!profile) {
+    if (!updatedProfiles || updatedProfiles.length === 0) {
       console.error('[Avatar Upload API] ❌ Profile not found after update')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Profile update failed - no data returned'
+        statusMessage: 'Profile not found - user may not have a profile record'
       })
     }
 
+    const profile = updatedProfiles[0]
     console.log('[Avatar Upload API] ✅ Profile updated with avatar URL')
+    console.log('[Avatar Upload API] Updated profile:', {
+      user_id: profile.user_id,
+      avatar_url: profile.avatar_url
+    })
 
     // ============================================================================
     // STEP 7: Return success response
