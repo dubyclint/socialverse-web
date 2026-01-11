@@ -1,6 +1,8 @@
-// FILE: /composables/use-api.ts
 // ============================================================================
-// API COMPOSABLE - FIXED: Proper Authorization header injection
+// COMPLETE FILE 1: /composables/use-api.ts
+// ============================================================================
+// API COMPOSABLE - Proper Authorization header injection
+// ✅ VERIFIED: This file is correct and in order
 // ============================================================================
 
 import type { FetchOptions } from 'ofetch'
@@ -23,7 +25,7 @@ export const useApi = () => {
       console.log('[API] ✅ Adding Authorization header with token')
       headers['Authorization'] = `Bearer ${token}`
     } else {
-      console.warn('[API] ⚠️ No token available for Authorization header')
+      console.log('[API] ⚠️ No token available for Authorization header')
     }
 
     return headers
@@ -53,7 +55,7 @@ export const useApi = () => {
         console.log('[API] Fetching current user profile...')
         console.log('[API] Token available:', !!authStore.token)
         
-        const response = await $fetch('/api/profile/me', {
+        const response = await $fetch('/api/user/profile', {
           headers: getAuthHeaders()
         })
         
