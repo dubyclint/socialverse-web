@@ -1,6 +1,8 @@
- FILE: /pages/profile/complete.vue - PROFILE COMPLETION PAGE -->
 <!-- ============================================================================
+     COMPLETE FILE 3: /pages/profile/complete.vue
+     ============================================================================
      PROFILE COMPLETION PAGE - Guides users through profile setup
+     ✅ FIXED: Button to return to feed (NOT auto-redirect)
      ============================================================================ -->
 
 <template>
@@ -17,8 +19,18 @@
         <div class="progress" :style="{ width: progress + '%' }"></div>
       </div>
 
-      <!-- Form -->
-      <form @submit.prevent="submitProfile" class="profile-form">
+      <!-- Success Message -->
+      <div v-if="profileCompleted" class="success-message">
+        <div class="success-icon">✓</div>
+        <h2>Profile Completed!</h2>
+        <p>Your profile has been successfully set up. You're ready to explore SocialVerse!</p>
+        <button @click="goToFeed" class="btn-primary">
+          Go to Feed
+        </button>
+      </div>
+
+      <!-- Form (Hidden when completed) -->
+      <form v-else @submit.prevent="submitProfile" class="profile-form">
         <!-- Username -->
         <div class="form-group">
           <label for="username">Username</label>
@@ -90,7 +102,7 @@
 <script setup lang="ts">
 definePageMeta({
   layout: 'blank',
-  middleware:  ['auth','profile-completion', 'language-check'],
+  middleware: ['auth', 'profile-completion', 'language-check'],
 })
 
 import { ref, computed, onMounted } from 'vue'
@@ -105,6 +117,7 @@ const error = ref('')
 const usernameError = ref('')
 const usernameAvailable = ref(false)
 const avatarPreview = ref('')
+const profileCompleted = ref(false)
 
 const formData = ref({
   username: '',
@@ -124,6 +137,8 @@ const progress = computed(() => {
 
 // Check username availability
 const checkUsernameAvailability = async () => {
+  console.log('[Profile Complete] Checking username availability...')
+  
   if (!formData.value.username) {
     usernameAvailable.value = false
     usernameError.value = ''
@@ -139,24 +154,30 @@ const checkUsernameAvailability = async () => {
     if (result?.available) {
       usernameAvailable.value = true
       usernameError.value = ''
+      console.log('[Profile Complete] ✅ Username available')
     } else {
       usernameAvailable.value = false
       usernameError.value = 'Username already taken'
+      console.log('[Profile Complete] ❌ Username taken')
     }
   } catch (err: any) {
     usernameError.value = 'Error checking username'
     usernameAvailable.value = false
+    console.error('[Profile Complete] Error checking username:', err)
   }
 }
 
 // Handle avatar upload
 const handleAvatarUpload = (event: Event) => {
+  console.log('[Profile Complete] Avatar upload initiated')
+  
   const file = (event.target as HTMLInputElement).files?.[0]
   if (file) {
     formData.value.avatar = file
     const reader = new FileReader()
     reader.onload = (e) => {
       avatarPreview.value = e.target?.result as string
+      console.log('[Profile Complete] ✅ Avatar preview loaded')
     }
     reader.readAsDataURL(file)
   }
@@ -164,6 +185,7 @@ const handleAvatarUpload = (event: Event) => {
 
 // Submit profile
 const submitProfile = async () => {
+  console.log('[Profile Complete] ============ SUBMIT START ============')
   loading.value = true
   error.value = ''
 
@@ -171,6 +193,7 @@ const submitProfile = async () => {
     // Upload avatar if provided
     let avatarUrl = null
     if (formData.value.avatar) {
+      console.log('[Profile Complete] Uploading avatar...')
       const formDataObj = new FormData()
       formDataObj.append('file', formData.value.avatar)
 
@@ -181,38 +204,55 @@ const submitProfile = async () => {
 
       if (uploadResult?.success) {
         avatarUrl = uploadResult.url
+        console.log('[Profile Complete] ✅ Avatar uploaded:', avatarUrl)
       }
     }
 
     // Complete profile
+    console.log('[Profile Complete] Completing profile...')
     const result = await $fetch('/api/profile/complete', {
       method: 'POST',
       body: {
         username: formData.value.username,
         full_name: formData.value.fullName,
-        bio: formData.value.bio
+        bio: formData.value.bio,
+        avatar_url: avatarUrl
       }
     })
 
     if (result?.success) {
+      console.log('[Profile Complete] ✅ Profile completed successfully')
+      
       // Update store
       profileStore.setProfile(result.data)
-
-      // Redirect to dashboard
-      await router.push('/feed')
+      
+      console.log('[Profile Complete] ✅ Profile store updated')
+      
+      // Show success message
+      profileCompleted.value = true
+      console.log('[Profile Complete] ============ SUBMIT END ============')
+    } else {
+      throw new Error(result?.message || 'Failed to complete profile')
     }
   } catch (err: any) {
-    error.value = err.data?.statusMessage || 'Failed to complete profile'
-    console.error('[Profile Complete] Error:', err)
+    console.error('[Profile Complete] ❌ Error:', err)
+    error.value = err.data?.statusMessage || err.message || 'Failed to complete profile'
   } finally {
     loading.value = false
   }
 }
 
+// Navigate to feed
+const goToFeed = async () => {
+  console.log('[Profile Complete] Navigating to /feed...')
+  await router.push('/feed')
+}
+
 // Fetch current profile on mount
 onMounted(async () => {
+  console.log('[Profile Complete] Component mounted')
   try {
-    const result = await $fetch('/api/profile/me')
+    const result = await $fetch('/api/user/profile')
     if (result?.success && result.data) {
       formData.value.username = result.data.username || ''
       formData.value.fullName = result.data.full_name || ''
@@ -220,6 +260,7 @@ onMounted(async () => {
       if (result.data.avatar_url) {
         avatarPreview.value = result.data.avatar_url
       }
+      console.log('[Profile Complete] ✅ Profile data loaded')
     }
   } catch (err) {
     console.error('[Profile Complete] Failed to fetch profile:', err)
@@ -274,6 +315,41 @@ onMounted(async () => {
   height: 100%;
   background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
   transition: width 0.3s ease;
+}
+
+.success-message {
+  text-align: center;
+  padding: 20px;
+}
+
+.success-icon {
+  font-size: 60px;
+  color: #27ae60;
+  margin-bottom: 20px;
+  animation: scaleIn 0.5s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-message h2 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.success-message p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 30px;
 }
 
 .profile-form {
@@ -362,6 +438,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   margin-top: 10px;
+  font-size: 14px;
 }
 
 .btn-primary:hover:not(:disabled) {
