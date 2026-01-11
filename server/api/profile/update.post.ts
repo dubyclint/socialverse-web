@@ -1,8 +1,8 @@
 // ============================================================================
 // FILE: /server/api/profile/update.post.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Uses admin client with service role key for proper permissions
-// ✅ FIXED: Correct table 'user' and column 'user_id'
+// ✅ FIXED: Uses user_profiles table (consistent with other endpoints)
+// ✅ FIXED: Uses admin client with service role key
 // ✅ FIXED: Proper error handling and validation
 // ============================================================================
 
@@ -146,19 +146,17 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
     // ============================================================================
     console.log('[Profile/Update] STEP 3: Updating profile with admin privileges...')
 
-    // ✅ FIXED: Import and use admin client instead of user client
     const { getAdminClient } = await import('~/server/utils/supabase-server')
     const supabase = await getAdminClient()
 
     console.log('[Profile/Update] ✅ Admin client obtained')
 
-    // ✅ CORRECT: Table 'user', column 'user_id', using admin client
-    const { data: profile, error: updateError } = await supabase
-      .from('user')
+    // ✅ FIXED: Use user_profiles table (consistent with other endpoints)
+    const { data: profiles, error: updateError } = await supabase
+      .from('user_profiles')
       .update(updates)
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
-      .single()
 
     if (updateError) {
       console.error('[Profile/Update] ❌ Update error:', updateError.message)
@@ -169,13 +167,15 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
       })
     }
 
-    if (!profile) {
+    if (!profiles || profiles.length === 0) {
       console.error('[Profile/Update] ❌ Profile not found after update')
       throw createError({
         statusCode: 500,
-        statusMessage: 'Profile update failed - no data returned'
+        statusMessage: 'Profile not found - user may not have a profile record'
       })
     }
+
+    const profile = profiles[0]
 
     console.log('[Profile/Update] ✅ Profile updated successfully')
     console.log('[Profile/Update] Updated fields:', Object.keys(updates))
@@ -190,7 +190,7 @@ export default defineEventHandler(async (event): Promise<UpdateProfileResponse> 
   } catch (error: any) {
     console.error('[Profile/Update] ============ ERROR ============')
     console.error('[Profile/Update] Error type:', error?.constructor?.name)
-    console.error('[Profile/Update] Error message:', error?.message || error)
+    console.error('[Profile/Update] Error message:', error?.message)
     console.error('[Profile/Update] Error details:', error?.data || 'N/A')
     console.error('[Profile/Update] ============ END ERROR ============')
     
