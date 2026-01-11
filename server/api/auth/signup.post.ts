@@ -1,9 +1,9 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - FINAL PRODUCTION VERSION
+// FILE: /server/api/auth/signup.post.ts - FIXED VERSION
 // ============================================================================
 // ✅ Creates auth user
 // ✅ Creates user_profiles record
-// ✅ Updates user metadata
+// ✅ Updates user metadata with profile_completed flag
 // ✅ Sends verification email (optional - fails gracefully)
 // ✅ Auto-authenticates user
 // ✅ Redirects to feed page
@@ -143,7 +143,8 @@ export default defineEventHandler(async (event) => {
           followers_count: 0,
           following_count: 0,
           is_verified: true,
-          verification_status: 'verified'
+          verification_status: 'verified',
+          profile_completed: true  // ✅ FIXED: Mark profile as completed
         }
       }
     )
@@ -250,5 +251,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-
-
