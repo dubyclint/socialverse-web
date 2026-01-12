@@ -1,8 +1,8 @@
 // ============================================================================
-// COMPLETE FILE 2: /server/api/user/profile.get.ts
+// FILE: /server/api/user/profile.get.ts
 // ============================================================================
-// Get current user's profile (CORRECT ENDPOINT)
-// ✅ VERIFIED: This file is correct and in order
+// Get current user's profile
+// ❌ BUG: Line 18 uses undefined function useSupabaseServer()
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
     console.log('[User Profile API] Auth user ID:', authUser.id)
     console.log('[User Profile API] Auth user email:', authUser.email)
 
-    // Fetch profile from database
+    // ❌ WRONG - useSupabaseServer is not defined
     const supabase = await useSupabaseServer(event)
     
     console.log('[User Profile API] Querying profiles table for user:', authUser.id)
