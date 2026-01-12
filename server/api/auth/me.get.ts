@@ -1,4 +1,8 @@
-// MISSING ENDPOINT: /server/api/auth/me.get.ts
+// ============================================================================
+// CORRECTED FIX #2: /server/api/auth/me.get.ts
+// ============================================================================
+// Get current authenticated user
+// ✅ FIXED: Changed 'profiles' table to 'user_profiles' (ACTUAL TABLE)
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -37,9 +41,10 @@ export default defineEventHandler(async (event): Promise<MeResponse> => {
     const userId = session.user.id
     console.log('[Auth Me API] User ID:', userId)
 
+    // ✅ FIXED: Changed from 'profiles' to 'user_profiles'
     // Fetch user profile
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, username, full_name, avatar_url, email')
       .eq('id', userId)
       .single()
