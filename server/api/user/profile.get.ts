@@ -1,9 +1,10 @@
 // ============================================================================
-// FIXED FILE 1: /server/api/user/profile.get.ts
+// CORRECTED FIX #1: /server/api/user/profile.get.ts
 // ============================================================================
-// Get current user's profile (CORRECTED)
+// Get current user's profile
 // ✅ FIXED: Added missing import for serverSupabaseClient
 // ✅ FIXED: Changed useSupabaseServer to serverSupabaseClient
+// ✅ FIXED: Changed 'profiles' table to 'user_profiles' (ACTUAL TABLE)
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -20,10 +21,10 @@ export default defineEventHandler(async (event) => {
     // ✅ FIXED: Use correct serverSupabaseClient function
     const supabase = await serverSupabaseClient(event)
     
-    console.log('[User Profile API] Querying profiles table for user:', authUser.id)
+    console.log('[User Profile API] Querying user_profiles table for user:', authUser.id)
     
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('*')
       .eq('id', authUser.id)
       .single()
@@ -64,12 +65,11 @@ export default defineEventHandler(async (event) => {
       })
 
       const { data: newProfile, error: createError } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .insert([
           {
             id: authUser.id,
             username: username.toLowerCase(),
-            username_lower: username.toLowerCase(),
             full_name: fullName,
             email: authUser.email,
             avatar_url: authUser.user_metadata?.avatar_url || null,
@@ -77,7 +77,6 @@ export default defineEventHandler(async (event) => {
             location: '',
             website: '',
             is_verified: false,
-            profile_completed: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }
