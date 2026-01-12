@@ -1,12 +1,11 @@
 // ============================================================================
-// FILE 7: /server/api/profile/create-with-username.post.ts - CORRECTED
+// CORRECTED FIX #6: /server/api/profile/create-with-username.post.ts
 // ============================================================================
-// ✅ UPDATED: Changed 'profiles' table to 'user' table
-// ============================================================================
-
-// FILE: /server/api/profile/create-with-username.post.ts - NEW
 // Create/update username during profile completion with auto-generation
-// ✅ CHANGED: Queries 'user' table instead of 'profiles'
+// ✅ FIXED: Changed 'user' table to 'user_profiles' (ACTUAL TABLE)
+// ✅ FIXED: Changed 'user_id' to 'id' (correct column name)
+// ✅ FIXED: Proper error handling and validation
+// ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -14,23 +13,44 @@ interface CreateUsernameRequest {
   username: string
 }
 
-export default defineEventHandler(async (event) => {
+interface CreateUsernameResponse {
+  success: boolean
+  message: string
+  username: string
+  wasModified: boolean
+}
+
+export default defineEventHandler(async (event): Promise<CreateUsernameResponse> => {
+  console.log('[CreateUsername API] ============ CREATE USERNAME START ============')
+
   try {
+    // ============================================================================
+    // STEP 1: Verify authentication
+    // ============================================================================
+    console.log('[CreateUsername API] STEP 1: Verifying authentication...')
+
     const supabase = await serverSupabaseClient(event)
     const userId = event.context.user?.id
 
-    // STEP 1: VERIFY AUTHENTICATION
     if (!userId) {
+      console.error('[CreateUsername API] ❌ Unauthorized - No user ID')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized'
       })
     }
 
+    console.log('[CreateUsername API] ✅ User authenticated:', userId)
+
+    // ============================================================================
+    // STEP 2: Read and validate request body
+    // ============================================================================
+    console.log('[CreateUsername API] STEP 2: Reading request body...')
+
     const body = await readBody<CreateUsernameRequest>(event)
 
-    // STEP 2: VALIDATE USERNAME FORMAT
     if (!body.username || typeof body.username !== 'string') {
+      console.error('[CreateUsername API] ❌ Username is required')
       throw createError({
         statusCode: 400,
         statusMessage: 'Username is required'
@@ -38,8 +58,15 @@ export default defineEventHandler(async (event) => {
     }
 
     const trimmedUsername = body.username.trim()
+    console.log('[CreateUsername API] ✅ Username provided:', trimmedUsername)
+
+    // ============================================================================
+    // STEP 3: Validate username format
+    // ============================================================================
+    console.log('[CreateUsername API] STEP 3: Validating username format...')
 
     if (trimmedUsername.length < 3 || trimmedUsername.length > 30) {
+      console.error('[CreateUsername API] ❌ Username length invalid')
       throw createError({
         statusCode: 400,
         statusMessage: 'Username must be 3-30 characters'
@@ -48,13 +75,20 @@ export default defineEventHandler(async (event) => {
 
     const usernameRegex = /^[a-zA-Z0-9_-]+$/
     if (!usernameRegex.test(trimmedUsername)) {
+      console.error('[CreateUsername API] ❌ Username format invalid')
       throw createError({
         statusCode: 400,
         statusMessage: 'Username can only contain letters, numbers, underscores, and hyphens'
       })
     }
 
-    // STEP 3: GENERATE UNIQUE USERNAME (auto-add suffix if taken)
+    console.log('[CreateUsername API] ✅ Username format valid')
+
+    // ============================================================================
+    // STEP 4: Generate unique username (auto-add suffix if taken)
+    // ============================================================================
+    console.log('[CreateUsername API] STEP 4: Generating unique username...')
+
     const generateSuffix = (): string => {
       const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
       let suffix = ''
@@ -69,52 +103,76 @@ export default defineEventHandler(async (event) => {
     const maxAttempts = 10
 
     while (attempts < maxAttempts) {
-      // ✅ CHANGED: from 'profiles' to 'user'
+      console.log('[CreateUsername API] Checking username availability:', finalUsername)
+
+      // ✅ FIXED: Changed from 'user' to 'user_profiles' table
       const { data, error } = await supabase
-        .from('user')
+        .from('user_profiles')
         .select('id')
         .ilike('username', finalUsername)
         .single()
 
       if (error && error.code === 'PGRST116') {
         // No rows found - username is available
+        console.log('[CreateUsername API] ✅ Username is available:', finalUsername)
         break
       }
 
       if (!data) {
+        console.log('[CreateUsername API] ✅ Username is available:', finalUsername)
         break
       }
 
       // Username taken, append random suffix
+      console.log('[CreateUsername API] ⚠️ Username taken, generating new one...')
       finalUsername = `${trimmedUsername.toLowerCase()}${generateSuffix()}`
       attempts++
     }
 
     if (attempts >= maxAttempts) {
+      console.error('[CreateUsername API] ❌ Could not generate unique username after', maxAttempts, 'attempts')
       throw createError({
         statusCode: 400,
         statusMessage: 'Could not generate unique username'
       })
     }
 
-    // STEP 4: UPDATE PROFILE WITH FINAL USERNAME
-    // ✅ CHANGED: from 'profiles' to 'user'
+    console.log('[CreateUsername API] ✅ Final username:', finalUsername)
+
+    // ============================================================================
+    // STEP 5: Update profile with final username
+    // ============================================================================
+    console.log('[CreateUsername API] STEP 5: Updating profile with username...')
+
+    // ✅ FIXED: Changed from 'user' to 'user_profiles' table
+    // ✅ FIXED: Changed from 'user_id' to 'id' column
     const { data: updatedProfile, error: updateError } = await supabase
-      .from('user')
+      .from('user_profiles')
       .update({
         username: finalUsername
       })
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
       .single()
 
     if (updateError) {
-      console.error('[CreateUsername] Update error:', updateError)
+      console.error('[CreateUsername API] ❌ Update error:', updateError.message)
       throw createError({
-        statusCode: 400,
-        statusMessage: 'Failed to update username'
+        statusCode: 500,
+        statusMessage: 'Failed to update username: ' + updateError.message
       })
     }
+
+    if (!updatedProfile) {
+      console.error('[CreateUsername API] ❌ Profile not found after update')
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Profile update failed - no data returned'
+      })
+    }
+
+    console.log('[CreateUsername API] ✅ Profile updated successfully')
+    console.log('[CreateUsername API] ============ CREATE USERNAME END ============')
 
     return {
       success: true,
@@ -123,8 +181,18 @@ export default defineEventHandler(async (event) => {
       wasModified: finalUsername !== trimmedUsername.toLowerCase()
     }
 
-  } catch (error) {
-    console.error('[CreateUsername] Error:', error)
-    throw error
+  } catch (error: any) {
+    console.error('[CreateUsername API] ============ CREATE USERNAME ERROR ============')
+    console.error('[CreateUsername API] Error:', error.message)
+    console.error('[CreateUsername API] ============ END ERROR ============')
+    
+    if (error.statusCode) {
+      throw error
+    }
+
+    throw createError({
+      statusCode: 500,
+      statusMessage: error.message || 'An error occurred while creating username'
+    })
   }
 })
