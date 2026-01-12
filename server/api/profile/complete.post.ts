@@ -1,12 +1,12 @@
 // ============================================================================
-// FILE 8: /server/api/profile/complete.post.ts - CORRECTED
+// CORRECTED FIX #5: /server/api/profile/complete.post.ts
 // ============================================================================
-// ✅ UPDATED: Changed 'profiles' table to 'user' table
-// ============================================================================
-
-// FILE: /server/api/profile/complete.post.ts - COMPLETE UPDATED VERSION
 // Complete profile details - Phase 2 of progressive signup
-// ✅ CHANGED: Queries 'user' table instead of 'profiles'
+// ✅ FIXED: Changed 'user' table to 'user_profiles' (ACTUAL TABLE)
+// ✅ FIXED: Changed 'user_id' to 'id' (correct column name)
+// ✅ FIXED: Uses serverSupabaseClient (correct)
+// ✅ FIXED: Proper error handling and validation
+// ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -106,13 +106,14 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     console.log('[Profile/Complete API] ✅ Validation passed')
 
     // ============================================================================
-    // STEP 4: Update profile with completion flag
+    // STEP 4: Update profile with completion data
     // ============================================================================
     console.log('[Profile/Complete API] STEP 4: Updating profile...')
 
-    // ✅ CHANGED: from 'profiles' to 'user'
+    // ✅ FIXED: Changed from 'user' to 'user_profiles' table
+    // ✅ FIXED: Changed from 'user_id' to 'id' column
     const { data: profile, error: updateError } = await supabase
-      .from('user')
+      .from('user_profiles')
       .update({
         full_name: body.full_name.trim(),
         bio: body.bio.trim(),
@@ -121,7 +122,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
         website: body.website?.trim() || null,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
       .single()
 
@@ -146,7 +147,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
     console.log('[Profile/Complete API] ✅ Profile updated successfully')
     console.log('[Profile/Complete API] Updated profile:', {
-      user_id: profile.user_id,
+      id: profile.id,
       full_name: profile.full_name
     })
 
