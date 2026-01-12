@@ -1,10 +1,9 @@
 // ============================================================================
-// CORRECTED FIX #1: /server/api/user/profile.get.ts
+// FIXED: /server/api/user/profile.get.ts
 // ============================================================================
 // Get current user's profile
-// ✅ FIXED: Added missing import for serverSupabaseClient
-// ✅ FIXED: Changed useSupabaseServer to serverSupabaseClient
-// ✅ FIXED: Changed 'profiles' table to 'user_profiles' (ACTUAL TABLE)
+// ✅ FIXED: Renamed error variable from 'createError' to 'profileCreateError'
+//           to avoid shadowing the h3 createError function
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -18,7 +17,7 @@ export default defineEventHandler(async (event) => {
     console.log('[User Profile API] Auth user ID:', authUser.id)
     console.log('[User Profile API] Auth user email:', authUser.email)
 
-    // ✅ FIXED: Use correct serverSupabaseClient function
+    // Use correct serverSupabaseClient function
     const supabase = await serverSupabaseClient(event)
     
     console.log('[User Profile API] Querying user_profiles table for user:', authUser.id)
@@ -64,7 +63,8 @@ export default defineEventHandler(async (event) => {
         full_name: fullName
       })
 
-      const { data: newProfile, error: createError } = await supabase
+      // ✅ FIXED: Changed 'error: createError' to 'error: profileCreateError'
+      const { data: newProfile, error: profileCreateError } = await supabase
         .from('user_profiles')
         .insert([
           {
@@ -84,16 +84,17 @@ export default defineEventHandler(async (event) => {
         .select()
         .single()
 
-      if (createError) {
+      // ✅ FIXED: Updated error variable name
+      if (profileCreateError) {
         console.error('[User Profile API] ❌ Profile creation failed:', {
-          code: createError.code,
-          message: createError.message,
-          details: createError.details
+          code: profileCreateError.code,
+          message: profileCreateError.message,
+          details: profileCreateError.details
         })
         
         throw createError({
           statusCode: 500,
-          statusMessage: `Failed to create profile: ${createError.message}`
+          statusMessage: `Failed to create profile: ${profileCreateError.message}`
         })
       }
 
@@ -111,7 +112,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Other error
+    // Unexpected error
     console.error('[User Profile API] ❌ Unexpected profile error:', {
       code: profileError?.code,
       message: profileError?.message
@@ -123,7 +124,7 @@ export default defineEventHandler(async (event) => {
     })
 
   } catch (error: any) {
-    console.error('[User Profile API] ❌ Error:', {
+    console.error('[User Profile API] ❌ Error caught in catch block:', {
       message: error.message,
       statusCode: error.statusCode,
       stack: error.stack
