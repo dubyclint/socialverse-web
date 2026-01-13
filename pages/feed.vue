@@ -1222,7 +1222,14 @@ const formatTime = (date: string | Date) => {
 // ============================================================================
 // DATA FETCHING METHODS - POSTS
 // ============================================================================
-const fetchPosts = async () => {
+// In feed page, update all $fetch calls:
+const response = await $fetch('/api/posts/feed?page=1&limit=10', {
+  headers: {
+    'Authorization': `Bearer ${authStore.token}`
+  }
+})
+
+  const fetchPosts = async () => {
   try {
     console.log('[Feed] Fetching posts, page:', currentPage.value, 'tab:', activeTab.value)
     
