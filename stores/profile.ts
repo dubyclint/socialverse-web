@@ -1,7 +1,8 @@
 // ============================================================================
-// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION WITH AUTH HEADERS
+// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION WITH ID/USER_ID NORMALIZATION
 // ============================================================================
 // Profile store with rank & verification integration + AUTHORIZATION HEADERS
+// ✅ FIXED: Normalizes id/user_id mapping for user_profiles table
 // ✅ FIXED: All API calls now include Authorization header
 // ✅ NEW: Added profile sync methods for app-wide updates
 // ============================================================================
@@ -113,10 +114,38 @@ export const useProfileStore = defineStore('profile', () => {
   })
 
   // ============================================================================
+  // HELPER FUNCTION: Normalize profile data
+  // ============================================================================
+  // ✅ CRITICAL: Ensures both id and user_id are always set
+  // The user_profiles table uses 'id' as primary key, but frontend expects 'user_id'
+  // This function maps id → user_id for compatibility
+  const normalizeProfile = (rawProfile: any): Profile => {
+    console.log('[Profile Store] Normalizing profile data...')
+    
+    const normalized = {
+      ...rawProfile,
+      // ✅ FIX: Ensure user_id is always set (map from id if needed)
+      user_id: rawProfile.user_id || rawProfile.id,
+      // ✅ FIX: Ensure id is always set
+      id: rawProfile.id || rawProfile.user_id
+    } as Profile
+
+    console.log('[Profile Store] ✅ Profile normalized:', {
+      id: normalized.id,
+      user_id: normalized.user_id,
+      username: normalized.username,
+      full_name: normalized.full_name
+    })
+
+    return normalized
+  }
+
+  // ============================================================================
   // ACTIONS - SET STATE
   // ============================================================================
   
   const setProfile = (newProfile: Profile | null) => {
+    console.log('[Profile Store] ============ SET PROFILE START ============')
     console.log('[Profile Store] Setting profile...')
     
     if (!newProfile) {
@@ -127,21 +156,26 @@ export const useProfileStore = defineStore('profile', () => {
         localStorage.removeItem('profile_data')
         console.log('[Profile Store] ✅ Profile cleared from localStorage')
       }
+      console.log('[Profile Store] ============ SET PROFILE END ============')
       return
     }
 
+    // ✅ CRITICAL: Normalize profile to ensure user_id is always set
+    const normalizedProfile = normalizeProfile(newProfile)
+
     console.log('[Profile Store] Profile data received:', {
-      user_id: newProfile.user_id || newProfile.id,
-      full_name: newProfile.full_name,
-      rank: newProfile.rank,
-      is_verified: newProfile.is_verified
+      user_id: normalizedProfile.user_id,
+      id: normalizedProfile.id,
+      full_name: normalizedProfile.full_name,
+      rank: normalizedProfile.rank,
+      is_verified: normalizedProfile.is_verified
     })
 
-    profile.value = newProfile
+    profile.value = normalizedProfile
 
     if (process.client) {
       try {
-        localStorage.setItem('profile_data', JSON.stringify(newProfile))
+        localStorage.setItem('profile_data', JSON.stringify(normalizedProfile))
         console.log('[Profile Store] ✅ Profile stored in localStorage')
       } catch (err) {
         console.error('[Profile Store] ❌ Failed to store profile in localStorage:', err)
@@ -151,7 +185,8 @@ export const useProfileStore = defineStore('profile', () => {
     console.log('[Profile Store] ✅ Profile set successfully')
     
     // ✅ NEW: Broadcast profile update event
-    broadcastProfileUpdate(newProfile)
+    broadcastProfileUpdate(normalizedProfile)
+    console.log('[Profile Store] ============ SET PROFILE END ============')
   }
 
   const setLoading = (loading: boolean) => {
@@ -232,6 +267,7 @@ export const useProfileStore = defineStore('profile', () => {
 
       console.log('[Profile Store] ✅ Profile API response received:', {
         user_id: response?.user_id || response?.id,
+        id: response?.id,
         full_name: response?.full_name,
         rank: response?.rank
       })
@@ -242,7 +278,10 @@ export const useProfileStore = defineStore('profile', () => {
         return
       }
 
-      setProfile(response)
+      // ✅ CRITICAL: Normalize response before setting
+      const normalizedResponse = normalizeProfile(response)
+      setProfile(normalizedResponse)
+      
       console.log('[Profile Store] ✅ Profile fetched and stored successfully')
       console.log('[Profile Store] ============ FETCH PROFILE END ============')
 
@@ -298,7 +337,8 @@ export const useProfileStore = defineStore('profile', () => {
       console.log('[Profile Store] ✅ Profile update response:', response)
 
       if (response) {
-        setProfile(response)
+        const normalizedResponse = normalizeProfile(response)
+        setProfile(normalizedResponse)
         console.log('[Profile Store] ✅ Profile updated successfully')
       }
 
@@ -346,7 +386,8 @@ export const useProfileStore = defineStore('profile', () => {
       console.log('[Profile Store] ✅ Profile completion response:', response)
 
       if (response) {
-        setProfile(response)
+        const normalizedResponse = normalizeProfile(response)
+        setProfile(normalizedResponse)
         console.log('[Profile Store] ✅ Profile completed successfully')
       }
 
@@ -417,7 +458,8 @@ export const useProfileStore = defineStore('profile', () => {
           avatar_url: response.url,
           updated_at: new Date().toISOString()
         }
-        setProfile(updatedProfile)
+        const normalizedProfile = normalizeProfile(updatedProfile)
+        setProfile(normalizedProfile)
         console.log('[Profile Store] ✅ Avatar updated successfully')
       }
 
@@ -475,7 +517,8 @@ export const useProfileStore = defineStore('profile', () => {
       console.log('[Profile Store] ✅ Interest added:', response)
 
       if (response) {
-        setProfile(response)
+        const normalizedResponse = normalizeProfile(response)
+        setProfile(normalizedResponse)
         console.log('[Profile Store] ✅ Interest added successfully')
       }
 
@@ -525,7 +568,8 @@ export const useProfileStore = defineStore('profile', () => {
       console.log('[Profile Store] ✅ Interest removed:', response)
 
       if (response) {
-        setProfile(response)
+        const normalizedResponse = normalizeProfile(response)
+        setProfile(normalizedResponse)
         console.log('[Profile Store] ✅ Interest removed successfully')
       }
 
@@ -545,7 +589,7 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-     // ============================================================================
+  // ============================================================================
   // ACTIONS - PROFILE SYNC (NEW) - ✅ BROADCAST UPDATES
   // ============================================================================
   
@@ -589,10 +633,11 @@ export const useProfileStore = defineStore('profile', () => {
         [field]: value,
         updated_at: new Date().toISOString()
       }
-      profile.value = updatedProfile
+      const normalizedProfile = normalizeProfile(updatedProfile)
+      profile.value = normalizedProfile
 
       // Broadcast update immediately
-      broadcastProfileUpdate(updatedProfile)
+      broadcastProfileUpdate(normalizedProfile)
 
       // Sync to API
       const authStore = useAuthStore()
@@ -611,7 +656,8 @@ export const useProfileStore = defineStore('profile', () => {
       console.log('[Profile Store] ✅ Field updated:', response)
 
       if (response) {
-        setProfile(response)
+        const normalizedResponse = normalizeProfile(response)
+        setProfile(normalizedResponse)
         console.log('[Profile Store] ✅ Field update synced successfully')
       }
 
@@ -669,7 +715,8 @@ export const useProfileStore = defineStore('profile', () => {
       console.log('[Profile Store] ✅ Profile refreshed:', response)
 
       if (response) {
-        setProfile(response)
+        const normalizedResponse = normalizeProfile(response)
+        setProfile(normalizedResponse)
         console.log('[Profile Store] ✅ Profile refresh successful')
       }
 
@@ -705,7 +752,9 @@ export const useProfileStore = defineStore('profile', () => {
       const stored = localStorage.getItem('profile_data')
       if (stored) {
         const profileData = JSON.parse(stored)
-        profile.value = profileData
+        // ✅ CRITICAL: Normalize stored profile
+        const normalizedProfile = normalizeProfile(profileData)
+        profile.value = normalizedProfile
         isHydrated.value = true
         console.log('[Profile Store] ✅ Profile hydrated from localStorage')
       } else {
@@ -804,4 +853,4 @@ export const useProfileStore = defineStore('profile', () => {
     hydrateFromStorage,
     initializeProfile
   }
-})                                       
+})
