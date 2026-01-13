@@ -1,10 +1,9 @@
 <!-- ============================================================================
-     FILE: /pages/profile/edit.vue - COMPLETE FIXED VERSION
+     FILE: /pages/profile/edit.vue - PART 1 (TEMPLATE)
      ============================================================================
-     ✅ FIXED: Removed username from updateData in saveProfile()
+     ✅ UPDATED: Added profile sync on save
      ✅ FIXED: Proper Authorization header
-     ✅ FIXED: Correct field mapping
-     ✅ COMPLETE: Full template + script + styles
+     ✅ COMPLETE: Full template with all form fields
      ============================================================================ -->
 
 <template>
@@ -52,242 +51,212 @@
         <section class="avatar-section">
           <div class="avatar-wrapper">
             <img 
-              :src="formData.avatar_url || '/default-avatar.svg'" 
-              :alt="formData.full_name || 'Avatar'"
+              v-if="formData.avatar_url" 
+              :src="formData.avatar_url" 
+              :alt="formData.full_name"
               class="avatar-image"
+              @error="handleAvatarError"
             />
+            <div v-else class="avatar-placeholder">
+              <span class="placeholder-icon">📷</span>
+            </div>
             <button 
-              @click="openAvatarModal" 
-              class="avatar-edit-btn"
-              title="Change avatar"
+              type="button"
+              @click="triggerAvatarUpload"
+              class="avatar-upload-btn"
+              :disabled="isUploadingAvatar"
             >
-              📷
+              {{ isUploadingAvatar ? 'Uploading...' : 'Change Avatar' }}
             </button>
+            <input 
+              ref="avatarInput"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="handleAvatarChange"
+            />
           </div>
-          <p class="avatar-hint">Click the camera icon to change your avatar</p>
+          <div v-if="uploadAvatarProgress > 0 && uploadAvatarProgress < 100" class="upload-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: uploadAvatarProgress + '%' }"></div>
+            </div>
+            <p class="progress-text">{{ uploadAvatarProgress }}%</p>
+          </div>
+          <p v-if="uploadAvatarError" class="error-text">{{ uploadAvatarError }}</p>
         </section>
 
         <!-- Form Fields -->
         <form @submit.prevent="saveProfile" class="edit-form">
-          <!-- Basic Information Section -->
-          <fieldset class="form-section">
-            <legend class="section-title">Basic Information</legend>
-
-            <!-- Full Name -->
-            <div class="form-group">
-              <label for="full_name" class="form-label">
-                Full Name
-                <span class="required">*</span>
-              </label>
-              <input 
-                id="full_name"
-                v-model="formData.full_name" 
-                type="text" 
-                class="form-input"
-                placeholder="Enter your full name"
-                maxlength="100"
-                required
-              />
-              <p class="form-hint">{{ formData.full_name?.length || 0 }}/100</p>
-            </div>
-
-            <!-- Username (Read-only after creation) -->
-            <div class="form-group">
-              <label for="username" class="form-label">
-                Username
-                <span class="required">*</span>
-              </label>
-              <div class="username-input-wrapper">
-                <span class="username-prefix">@</span>
-                <input 
-                  id="username"
-                  v-model="formData.username" 
-                  type="text" 
-                  class="form-input username-input"
-                  placeholder="username"
-                  maxlength="30"
-                  :disabled="!isNewProfile"
-                  @blur="validateUsername"
-                  required
-                />
-              </div>
-              <p v-if="usernameError" class="form-error">{{ usernameError }}</p>
-              <p v-else class="form-hint">3-30 characters, lowercase letters, numbers, and underscores only</p>
-            </div>
-
-            <!-- Email (Read-only) -->
-            <div class="form-group">
-              <label for="email" class="form-label">Email</label>
-              <input 
-                id="email"
-                :value="formData.email" 
-                type="email" 
-                class="form-input"
-                disabled
-              />
-              <p class="form-hint">Email cannot be changed here</p>
-            </div>
-          </fieldset>
-
-          <!-- About Section -->
-          <fieldset class="form-section">
-            <legend class="section-title">About You</legend>
-
-            <!-- Bio -->
-            <div class="form-group">
-              <label for="bio" class="form-label">
-                Bio
-                <span class="required">*</span>
-              </label>
-              <textarea 
-                id="bio"
-                v-model="formData.bio" 
-                class="form-textarea"
-                placeholder="Tell us about yourself"
-                maxlength="500"
-                rows="4"
-                required
-              ></textarea>
-              <p class="form-hint">{{ formData.bio?.length || 0 }}/500</p>
-            </div>
-
-            <!-- Location -->
-            <div class="form-group">
-              <label for="location" class="form-label">Location</label>
-              <input 
-                id="location"
-                v-model="formData.location" 
-                type="text" 
-                class="form-input"
-                placeholder="City, Country"
-                maxlength="100"
-              />
-              <p class="form-hint">{{ formData.location?.length || 0 }}/100</p>
-            </div>
-
-            <!-- Website -->
-            <div class="form-group">
-              <label for="website" class="form-label">Website</label>
-              <input 
-                id="website"
-                v-model="formData.website" 
-                type="url" 
-                class="form-input"
-                placeholder="https://example.com"
-                maxlength="255"
-              />
-              <p class="form-hint">{{ formData.website?.length || 0 }}/255</p>
-            </div>
-          </fieldset>
-
-          <!-- Additional Information Section -->
-          <fieldset class="form-section">
-            <legend class="section-title">Additional Information</legend>
-
-            <!-- Birth Date -->
-            <div class="form-group">
-              <label for="birth_date" class="form-label">Birth Date</label>
-              <input 
-                id="birth_date"
-                v-model="formData.birth_date" 
-                type="date" 
-                class="form-input"
-              />
-            </div>
-
-            <!-- Gender -->
-            <div class="form-group">
-              <label for="gender" class="form-label">Gender</label>
-              <select 
-                id="gender"
-                v-model="formData.gender" 
-                class="form-input"
-              >
-                <option value="">Not specified</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="prefer_not_to_say">Prefer not to say</option>
-              </select>
-            </div>
-
-            <!-- Privacy -->
-            <div class="form-group checkbox-group">
-              <label for="is_private" class="checkbox-label">
-                <input 
-                  id="is_private"
-                  v-model="formData.is_private" 
-                  type="checkbox"
-                  class="checkbox-input"
-                />
-                <span>Make my profile private</span>
-              </label>
-              <p class="form-hint">Only approved followers can see your profile</p>
-            </div>
-          </fieldset>
-
-          <!-- Verification Status -->
+          <!-- Full Name -->
           <div class="form-group">
-            <label class="form-label">Verification Status</label>
-            <div class="verification-status">
-              <span v-if="formData.is_verified" class="status-badge verified">
-                ✓ Verified
-              </span>
-              <span v-else class="status-badge pending">
-                ⏱ Pending Verification
-              </span>
-            </div>
+            <label for="full_name" class="form-label">Full Name *</label>
+            <input
+              id="full_name"
+              v-model="formData.full_name"
+              type="text"
+              class="form-input"
+              placeholder="Enter your full name"
+              required
+            />
           </div>
 
-          <!-- Error Message -->
-          <div v-if="saveError" class="error-message">
-            <span class="error-icon">⚠️</span>
-            <div>{{ saveError }}</div>
+          <!-- Username -->
+          <div class="form-group">
+            <label for="username" class="form-label">Username *</label>
+            <div class="username-input-wrapper">
+              <input
+                id="username"
+                v-model="formData.username"
+                type="text"
+                class="form-input"
+                placeholder="Enter your username"
+                @blur="validateUsername"
+                required
+                disabled
+              />
+              <span class="username-hint">Cannot be changed</span>
+            </div>
+            <p v-if="usernameError" class="error-text">{{ usernameError }}</p>
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="email" class="form-label">Email</label>
+            <input
+              id="email"
+              v-model="formData.email"
+              type="email"
+              class="form-input"
+              placeholder="Enter your email"
+              disabled
+            />
+            <span class="username-hint">Cannot be changed</span>
+          </div>
+
+          <!-- Bio -->
+          <div class="form-group">
+            <label for="bio" class="form-label">Bio</label>
+            <textarea
+              id="bio"
+              v-model="formData.bio"
+              class="form-textarea"
+              placeholder="Tell us about yourself"
+              rows="4"
+              maxlength="500"
+            ></textarea>
+            <p class="char-count">{{ formData.bio.length }}/500</p>
+          </div>
+
+          <!-- Location -->
+          <div class="form-group">
+            <label for="location" class="form-label">Location</label>
+            <input
+              id="location"
+              v-model="formData.location"
+              type="text"
+              class="form-input"
+              placeholder="Enter your location"
+            />
+          </div>
+
+          <!-- Website -->
+          <div class="form-group">
+            <label for="website" class="form-label">Website</label>
+            <input
+              id="website"
+              v-model="formData.website"
+              type="url"
+              class="form-input"
+              placeholder="https://example.com"
+            />
+          </div>
+
+          <!-- Birth Date -->
+          <div class="form-group">
+            <label for="birth_date" class="form-label">Birth Date</label>
+            <input
+              id="birth_date"
+              v-model="formData.birth_date"
+              type="date"
+              class="form-input"
+            />
+          </div>
+
+          <!-- Gender -->
+          <div class="form-group">
+            <label for="gender" class="form-label">Gender</label>
+            <select
+              id="gender"
+              v-model="formData.gender"
+              class="form-input"
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+              <option value="prefer_not_to_say">Prefer not to say</option>
+            </select>
+          </div>
+
+          <!-- Privacy Settings -->
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input
+                v-model="formData.is_private"
+                type="checkbox"
+                class="form-checkbox"
+              />
+              <span>Make profile private</span>
+            </label>
           </div>
 
           <!-- Success Message -->
           <div v-if="successMessage" class="success-message">
-            <span class="success-icon">✓</span>
+            <span class="success-icon">✅</span>
             {{ successMessage }}
+          </div>
+
+          <!-- Save Error -->
+          <div v-if="saveError" class="error-message">
+            <span class="error-icon">❌</span>
+            {{ saveError }}
           </div>
 
           <!-- Form Actions -->
           <div class="form-actions">
-            <NuxtLink to="/feed" class="btn btn-secondary">
-              Cancel
-            </NuxtLink>
-            <button 
-              type="submit" 
-              :disabled="isSaving || !isFormValid"
-              class="btn btn-primary"
+            <button
+              type="button"
+              @click="cancelEdit"
+              class="btn btn-secondary"
+              :disabled="isSaving"
             >
-              <span v-if="!isSaving">{{ isNewProfile ? 'Complete Profile' : 'Save Changes' }}</span>
-              <span v-else>Saving...</span>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isSaving || !isFormValid"
+            >
+              {{ isSaving ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
         </form>
       </div>
     </main>
-
-    <!-- Avatar Upload Modal -->
-    <AvatarUploadModal 
-      :is-open="showAvatarModal"
-      @close="closeAvatarModal"
-      @success="handleAvatarSuccess"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  middleware: 'auth',
-  layout: 'default'
-})
-     
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { useProfileStore } from '~/stores/profile'
+import { useProfileSync } from '~/composables/useProfileSync'
+
+definePageMeta({
+  middleware: 'auth',
+  layout: 'default'
+})
 
 // ============================================================================
 // SETUP
@@ -295,6 +264,7 @@ import { useProfileStore } from '~/stores/profile'
 const router = useRouter()
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
+const { broadcastProfileUpdate } = useProfileSync()
 
 // ============================================================================
 // STATE
@@ -307,6 +277,10 @@ const successMessage = ref<string | null>(null)
 const showAvatarModal = ref(false)
 const usernameError = ref<string | null>(null)
 const isNewProfile = ref(false)
+const isUploadingAvatar = ref(false)
+const uploadAvatarProgress = ref(0)
+const uploadAvatarError = ref<string | null>(null)
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 const formData = ref({
   full_name: '',
@@ -349,10 +323,7 @@ const completionPercentage = computed(() => {
 const isFormValid = computed(() => {
   return (
     formData.value.full_name?.trim() !== '' &&
-    formData.value.username?.trim() !== '' &&
-    formData.value.bio?.trim() !== '' &&
-    !usernameError.value &&
-    hasChanges.value
+    formData.value.bio?.trim() !== ''
   )
 })
 
@@ -360,98 +331,50 @@ const isFormValid = computed(() => {
  * Check if form has changes
  */
 const hasChanges = computed(() => {
-  return (
-    formData.value.full_name !== originalFormData.value.full_name ||
-    formData.value.username !== originalFormData.value.username ||
-    formData.value.bio !== originalFormData.value.bio ||
-    formData.value.avatar_url !== originalFormData.value.avatar_url ||
-    formData.value.location !== originalFormData.value.location ||
-    formData.value.website !== originalFormData.value.website ||
-    formData.value.birth_date !== originalFormData.value.birth_date ||
-    formData.value.gender !== originalFormData.value.gender ||
-    formData.value.is_private !== originalFormData.value.is_private
-  )
+  return JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value)
 })
 
 // ============================================================================
-// METHODS - FORM VALIDATION
-// ============================================================================
-
-/**
- * Validate username format
- */
-const validateUsername = () => {
-  const username = formData.value.username?.trim() || ''
-  
-  if (!username) {
-    usernameError.value = 'Username is required'
-    return false
-  }
-
-  if (username.length < 3) {
-    usernameError.value = 'Username must be at least 3 characters'
-    return false
-  }
-
-  if (username.length > 30) {
-    usernameError.value = 'Username must be at most 30 characters'
-    return false
-  }
-
-  if (!/^[a-z0-9_]+$/.test(username)) {
-    usernameError.value = 'Username can only contain lowercase letters, numbers, and underscores'
-    return false
-  }
-
-  usernameError.value = null
-  return true
-}
-
-// ============================================================================
-// METHODS - PROFILE LOADING
+// METHODS
 // ============================================================================
 
 /**
  * Load profile data
  */
 const loadProfile = async () => {
-  try {
-    console.log('[ProfileEdit] Loading profile...')
-    loading.value = true
-    error.value = null
+  console.log('[ProfileEdit] ============ LOAD PROFILE START ============')
+  loading.value = true
+  error.value = null
 
-    // Get profile from store or fetch
+  try {
+    const currentUser = authStore.user
+    if (!currentUser?.id) {
+      throw new Error('User not authenticated')
+    }
+
+    console.log('[ProfileEdit] Loading profile for user:', currentUser.id)
+
+    // Get profile from store or fetch from API
     let profile = profileStore.profile
 
     if (!profile) {
-      console.log('[ProfileEdit] Profile not in store, fetching...')
-      const response = await fetch('/api/profile/me', {
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to load profile')
-      }
-
-      const data = await response.json()
-      profile = data
+      console.log('[ProfileEdit] Profile not in store, fetching from API...')
+      await profileStore.fetchProfile(currentUser.id)
+      profile = profileStore.profile
     }
 
     if (!profile) {
-      throw new Error('No profile data available')
+      throw new Error('Profile not found')
     }
 
-    // Check if this is a new profile (no bio or full_name)
-    isNewProfile.value = !profile.bio || !profile.full_name
+    console.log('[ProfileEdit] ✅ Profile loaded:', profile)
 
-    // Populate form
+    // Populate form data
     formData.value = {
       full_name: profile.full_name || '',
-      username: profile.username || authStore.username || '',
+      username: profile.username || '',
       bio: profile.bio || '',
-      email: profile.email || authStore.userEmail || '',
+      email: profile.email || '',
       avatar_url: profile.avatar_url || '',
       location: profile.location || '',
       website: profile.website || '',
@@ -463,123 +386,238 @@ const loadProfile = async () => {
 
     originalFormData.value = { ...formData.value }
 
-    console.log('[ProfileEdit] ✅ Profile loaded')
-    console.log('[ProfileEdit] Is new profile:', isNewProfile.value)
+    // Check if profile is new (incomplete)
+    isNewProfile.value = !profile.profile_completed
+
+    console.log('[ProfileEdit] ✅ Form populated successfully')
+    console.log('[ProfileEdit] ============ LOAD PROFILE END ============')
+
   } catch (err: any) {
-    console.error('[ProfileEdit] Error loading profile:', err)
-    error.value = err.message || 'Failed to load profile'
+    console.error('[ProfileEdit] ============ LOAD PROFILE ERROR ============')
+    console.error('[ProfileEdit] ❌ Error loading profile:', err)
+    
+    const errorMessage = err?.data?.message || err?.message || 'Failed to load profile'
+    error.value = errorMessage
+    
+    console.error('[ProfileEdit] ============ LOAD PROFILE ERROR END ============')
   } finally {
     loading.value = false
   }
 }
 
-// ============================================================================
-// METHODS - FORM SUBMISSION
-// ============================================================================
+/**
+ * Validate username
+ */
+const validateUsername = async () => {
+  console.log('[ProfileEdit] Validating username:', formData.value.username)
+  usernameError.value = null
+
+  if (!formData.value.username || formData.value.username.trim().length === 0) {
+    usernameError.value = 'Username is required'
+    return
+  }
+
+  if (formData.value.username.length < 3) {
+    usernameError.value = 'Username must be at least 3 characters'
+    return
+  }
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(formData.value.username)) {
+    usernameError.value = 'Username can only contain letters, numbers, underscores, and hyphens'
+    return
+  }
+
+  console.log('[ProfileEdit] ✅ Username is valid')
+}
 
 /**
- * Save profile changes - FIXED VERSION
+ * Handle avatar upload
  */
-const saveProfile = async () => {
+const triggerAvatarUpload = () => {
+  console.log('[ProfileEdit] Triggering avatar upload')
+  avatarInput.value?.click()
+}
+
+/**
+ * Handle avatar file change
+ */
+const handleAvatarChange = async (event: Event) => {
+  console.log('[ProfileEdit] ============ AVATAR UPLOAD START ============')
+  
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  if (!file) {
+    console.log('[ProfileEdit] No file selected')
+    return
+  }
+
+  console.log('[ProfileEdit] File selected:', file.name, file.size)
+
+  // Validate file
+  if (!file.type.startsWith('image/')) {
+    uploadAvatarError.value = 'Please select an image file'
+    console.error('[ProfileEdit] Invalid file type:', file.type)
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    uploadAvatarError.value = 'File size must be less than 5MB'
+    console.error('[ProfileEdit] File too large:', file.size)
+    return
+  }
+
+  isUploadingAvatar.value = true
+  uploadAvatarProgress.value = 0
+  uploadAvatarError.value = null
+
   try {
-    console.log('[ProfileEdit] Saving profile...')
-    
-    // Validate form
-    if (!validateUsername()) {
-      return
+    const formDataToSend = new FormData()
+    formDataToSend.append('file', file)
+
+    console.log('[ProfileEdit] Uploading avatar...')
+
+    const response = await $fetch('/api/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: formDataToSend,
+      onUploadProgress: (event: any) => {
+        if (event.total) {
+          uploadAvatarProgress.value = Math.round((event.loaded / event.total) * 100)
+          console.log('[ProfileEdit] Upload progress:', uploadAvatarProgress.value + '%')
+        }
+      }
+    })
+
+    console.log('[ProfileEdit] ✅ Avatar uploaded:', response)
+
+    if (response?.url) {
+      formData.value.avatar_url = response.url
+      console.log('[ProfileEdit] Avatar URL updated')
     }
 
-    isSaving.value = true
-    saveError.value = null
-    successMessage.value = null
+    console.log('[ProfileEdit] ============ AVATAR UPLOAD END ============')
 
-    // Prepare data - REMOVED username from here
+  } catch (err: any) {
+    console.error('[ProfileEdit] ============ AVATAR UPLOAD ERROR ============')
+    console.error('[ProfileEdit] ❌ Error uploading avatar:', err)
+    
+    const errorMessage = err?.data?.message || err?.message || 'Failed to upload avatar'
+    uploadAvatarError.value = errorMessage
+    
+    console.error('[ProfileEdit] ============ AVATAR UPLOAD ERROR END ============')
+  } finally {
+    isUploadingAvatar.value = false
+    uploadAvatarProgress.value = 0
+    input.value = ''
+  }
+}
+
+/**
+ * Handle avatar error
+ */
+const handleAvatarError = (event: Event) => {
+  console.error('[ProfileEdit] Avatar load error')
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+}
+
+/**
+ * Save profile changes
+ */
+const saveProfile = async () => {
+  console.log('[ProfileEdit] ============ SAVE PROFILE START ============')
+  console.log('[ProfileEdit] Saving profile with data:', formData.value)
+
+  // Validate form
+  if (!isFormValid.value) {
+    saveError.value = 'Please fill in all required fields'
+    console.error('[ProfileEdit] Form validation failed')
+    return
+  }
+
+  isSaving.value = true
+  saveError.value = null
+  successMessage.value = null
+
+  try {
+    // Prepare update data (exclude username and email as they cannot be changed)
     const updateData = {
       full_name: formData.value.full_name,
       bio: formData.value.bio,
       avatar_url: formData.value.avatar_url,
       location: formData.value.location,
       website: formData.value.website,
-      birth_date: formData.value.birth_date || null,
-      gender: formData.value.gender || null,
-      is_private: formData.value.is_private
+      birth_date: formData.value.birth_date,
+      gender: formData.value.gender,
+      is_private: formData.value.is_private,
+      profile_completed: true
     }
 
-    console.log('[ProfileEdit] Sending update request:', updateData)
+    console.log('[ProfileEdit] Sending update request with data:', updateData)
 
-    // Send update request with proper Authorization header
-    const response = await fetch('/api/profile/update', {
+    const response = await $fetch('/api/profile/update', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${authStore.token}`
       },
-      body: JSON.stringify(updateData)
+      body: updateData
     })
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || 'Failed to save profile')
+    console.log('[ProfileEdit] ✅ Profile update response:', response)
+
+    if (response) {
+      // ✅ NEW: Update profile store
+      profileStore.setProfile(response)
+      
+      // ✅ NEW: Broadcast update to all listeners
+      broadcastProfileUpdate(response)
+      
+      // Update original data to reflect saved state
+      originalFormData.value = { ...formData.value }
+
+      // Show success message
+      successMessage.value = 'Profile updated successfully!'
+      console.log('[ProfileEdit] ✅ Profile saved successfully')
+
+      // Redirect after a short delay
+      setTimeout(() => {
+        console.log('[ProfileEdit] Redirecting to profile page')
+        router.push(`/profile/${response.id || response.username}`)
+      }, 1500)
     }
 
-    const data = await response.json()
-    console.log('[ProfileEdit] ✅ Profile saved:', data)
-
-    // Update store
-    profileStore.setProfile({
-      ...profileStore.profile,
-      ...data.data
-    })
-
-    // Update original data
-    originalFormData.value = { ...formData.value }
-
-    // Show success message
-    const message = isNewProfile.value 
-      ? 'Profile completed successfully!' 
-      : 'Profile updated successfully!'
-    successMessage.value = message
-
-    // Redirect after delay
-    setTimeout(() => {
-      router.push(`/profile/${formData.value.username}`)
-    }, 1500)
+    console.log('[ProfileEdit] ============ SAVE PROFILE END ============')
 
   } catch (err: any) {
-    console.error('[ProfileEdit] Error saving profile:', err)
-    saveError.value = err.message || 'Failed to save profile'
+    console.error('[ProfileEdit] ============ SAVE PROFILE ERROR ============')
+    console.error('[ProfileEdit] ❌ Error saving profile:', err)
+    
+    const errorMessage = err?.data?.message || err?.message || 'Failed to save profile'
+    saveError.value = errorMessage
+    
+    console.error('[ProfileEdit] ============ SAVE PROFILE ERROR END ============')
   } finally {
     isSaving.value = false
   }
 }
 
-// ============================================================================
-// METHODS - AVATAR MODAL
-// ============================================================================
-
 /**
- * Open avatar upload modal
+ * Cancel editing
  */
-const openAvatarModal = () => {
-  console.log('[ProfileEdit] Opening avatar modal')
-  showAvatarModal.value = true
-}
+const cancelEdit = () => {
+  console.log('[ProfileEdit] Canceling edit')
+  
+  if (hasChanges.value) {
+    const confirmed = confirm('You have unsaved changes. Are you sure you want to leave?')
+    if (!confirmed) {
+      return
+    }
+  }
 
-/**
- * Close avatar upload modal
- */
-const closeAvatarModal = () => {
-  console.log('[ProfileEdit] Closing avatar modal')
-  showAvatarModal.value = false
-}
-
-/**
- * Handle avatar upload success
- */
-const handleAvatarSuccess = (avatarUrl: string) => {
-  console.log('[ProfileEdit] Avatar uploaded:', avatarUrl)
-  formData.value.avatar_url = avatarUrl
-  closeAvatarModal()
+  router.back()
 }
 
 // ============================================================================
@@ -676,8 +714,8 @@ onMounted(async () => {
 }
 
 .spinner {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border: 4px solid #334155;
   border-top-color: #3b82f6;
   border-radius: 50%;
@@ -685,7 +723,9 @@ onMounted(async () => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error State */
@@ -697,37 +737,36 @@ onMounted(async () => {
   min-height: 400px;
   gap: 1rem;
   text-align: center;
-  color: #ef4444;
+}
+
+.error-icon {
+  font-size: 3rem;
 }
 
 .error-state h2 {
   margin: 0;
-  color: #f1f5f9;
+  font-size: 1.5rem;
+  color: #f87171;
 }
 
 .error-state p {
   margin: 0;
-  color: #94a3b8;
-}
-
-.error-icon {
-  font-size: 2rem;
+  color: #cbd5e1;
 }
 
 /* ============================================================================
    FORM CONTAINER
    ============================================================================ */
 .edit-form-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 2rem;
+  border: 1px solid #334155;
 }
 
-/* Profile Progress */
+/* Progress Indicator */
 .profile-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  margin-bottom: 2rem;
 }
 
 .progress-bar {
@@ -745,87 +784,77 @@ onMounted(async () => {
 }
 
 .progress-text {
+  margin: 0.5rem 0 0 0;
   font-size: 0.875rem;
   color: #94a3b8;
-  margin: 0;
+  text-align: center;
 }
 
-/* Avatar Section */
+/* ============================================================================
+   AVATAR SECTION
+   ============================================================================ */
 .avatar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
 .avatar-wrapper {
   position: relative;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.avatar-image,
+.avatar-placeholder {
   width: 120px;
   height: 120px;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
   border-radius: 50%;
+  border: 4px solid #3b82f6;
   object-fit: cover;
-  border: 3px solid #3b82f6;
+  display: block;
 }
 
-.avatar-edit-btn {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #3b82f6;
-  color: white;
-  border: 3px solid #1e293b;
-  cursor: pointer;
+.avatar-placeholder {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  font-size: 1.25rem;
+  font-size: 3rem;
 }
 
-.avatar-edit-btn:hover {
+.avatar-upload-btn {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.avatar-upload-btn:hover:not(:disabled) {
   background: #2563eb;
-  transform: scale(1.1);
 }
 
-.avatar-hint {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #94a3b8;
+.avatar-upload-btn:disabled {
+  background: #64748b;
+  cursor: not-allowed;
+}
+
+.upload-progress {
+  margin-top: 1rem;
 }
 
 /* ============================================================================
-   FORM
+   FORM FIELDS
    ============================================================================ */
 .edit-form {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-}
-
-.form-section {
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
   gap: 1.5rem;
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  margin: 0 0 0.5rem 0;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #334155;
 }
 
 .form-group {
@@ -835,47 +864,34 @@ onMounted(async () => {
 }
 
 .form-label {
-  font-size: 0.95rem;
   font-weight: 600;
   color: #f1f5f9;
-}
-
-.required {
-  color: #ef4444;
+  font-size: 0.95rem;
 }
 
 .form-input,
 .form-textarea {
+  padding: 0.75rem;
   background: #0f172a;
   border: 1px solid #334155;
+  border-radius: 6px;
   color: #e2e8f0;
-  border-radius: 8px;
-  padding: 0.75rem;
-  font-size: 1rem;
   font-family: inherit;
-  transition: all 0.2s;
-}
-
-.form-input:hover,
-.form-textarea:hover {
-  border-color: #475569;
+  font-size: 1rem;
+  transition: border-color 0.2s;
 }
 
 .form-input:focus,
 .form-textarea:focus {
+  outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  outline: none;
 }
 
 .form-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.form-input::placeholder,
-.form-textarea::placeholder {
+  background: #1e293b;
   color: #64748b;
+  cursor: not-allowed;
 }
 
 .form-textarea {
@@ -885,144 +901,94 @@ onMounted(async () => {
 
 .username-input-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
-.username-prefix {
-  position: absolute;
-  left: 0.75rem;
+.username-hint {
+  font-size: 0.8rem;
   color: #94a3b8;
-  font-weight: 600;
+  margin-top: 0.25rem;
 }
 
-.username-input {
-  padding-left: 2rem;
-}
-
-.form-hint {
+.char-count {
+  font-size: 0.8rem;
+  color: #94a3b8;
   margin: 0;
-  font-size: 0.75rem;
-  color: #64748b;
 }
 
-.form-error {
-  margin: 0;
-  font-size: 0.75rem;
-  color: #ef4444;
-}
-
-/* Checkbox Group */
+/* Checkbox */
 .checkbox-group {
-  gap: 0.75rem;
+  flex-direction: row;
+  align-items: center;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   cursor: pointer;
   font-weight: 500;
-  color: #f1f5f9;
 }
 
-.checkbox-input {
+.form-checkbox {
   width: 18px;
   height: 18px;
   cursor: pointer;
   accent-color: #3b82f6;
 }
 
-/* Verification Status */
-.verification-status {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.status-badge.verified {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.status-badge.pending {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-/* Messages */
+/* ============================================================================
+   MESSAGES
+   ============================================================================ */
+.success-message,
 .error-message {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  color: #dc2626;
   padding: 1rem;
-  background: #fee2e2;
-  border-radius: 8px;
-  border-left: 4px solid #dc2626;
-}
-
-.error-icon {
-  font-size: 1.25rem;
-  flex-shrink: 0;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
 }
 
 .success-message {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #d1fae5;
-  color: #065f46;
-  border-radius: 8px;
-  font-weight: 600;
-  animation: slideIn 0.3s ease-out;
+  background: #064e3b;
+  color: #86efac;
+  border: 1px solid #10b981;
 }
 
 .success-icon {
   font-size: 1.25rem;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.error-message {
+  background: #7f1d1d;
+  color: #fca5a5;
+  border: 1px solid #ef4444;
 }
 
-/* Form Actions */
+.error-text {
+  color: #f87171;
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0 0;
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
+  justify-content: flex-end;
 }
 
 .btn {
-  flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.95rem;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 1rem;
 }
 
 .btn-primary {
@@ -1032,12 +998,12 @@ onMounted(async () => {
 
 .btn-primary:hover:not(:disabled) {
   background: #2563eb;
-  transform: translateY(-2px);
 }
 
 .btn-primary:disabled {
-  opacity: 0.5;
+  background: #64748b;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .btn-secondary {
@@ -1045,8 +1011,14 @@ onMounted(async () => {
   color: #e2e8f0;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: #475569;
+}
+
+.btn-secondary:disabled {
+  background: #1e293b;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ============================================================================
@@ -1054,22 +1026,11 @@ onMounted(async () => {
    ============================================================================ */
 @media (max-width: 640px) {
   .edit-main {
-    padding: 1rem 0.5rem;
+    padding: 1rem;
   }
 
-  .page-title {
-    font-size: 1.1rem;
-  }
-
-  .avatar-image {
-    width: 100px;
-    height: 100px;
-  }
-
-  .avatar-edit-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
+  .edit-form-container {
+    padding: 1.5rem;
   }
 
   .form-actions {
@@ -1078,6 +1039,16 @@ onMounted(async () => {
 
   .btn {
     width: 100%;
+  }
+
+  .page-title {
+    font-size: 1.1rem;
+  }
+
+  .avatar-image,
+  .avatar-placeholder {
+    width: 100px;
+    height: 100px;
   }
 }
 </style>
