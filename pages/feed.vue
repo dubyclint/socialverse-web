@@ -1225,21 +1225,28 @@ const formatTime = (date: string | Date) => {
   // ============================================================================
 // DATA FETCHING METHODS - POSTS
 // ============================================================================
-// ✅ FIXED: Better error handling and token validation
+// ✅ FIXED: Better error handling and detailed logging
 const fetchPosts = async () => {
   try {
+    console.log('[Feed] ============ FETCH POSTS START ============')
     console.log('[Feed] Fetching posts, page:', currentPage.value, 'tab:', activeTab.value)
-    console.log('[Feed] Auth token available:', !!authStore.token)
+    console.log('[Feed] Auth store state:', {
+      isAuthenticated: authStore.isAuthenticated,
+      hasToken: !!authStore.token,
+      tokenLength: authStore.token?.length,
+      userId: authStore.userId,
+      hasUser: !!authStore.user
+    })
     
     // ✅ FIXED: Validate token before making request
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
-      console.error('[Feed] Auth store state:', {
+      console.error('[Feed] Auth store details:', {
         isAuthenticated: authStore.isAuthenticated,
-        hasToken: !!authStore.token,
-        user: authStore.user?.id
+        user: authStore.user?.id,
+        token: authStore.token
       })
-      throw new Error('Authentication token not available')
+      throw new Error('Authentication token not available. Please log in again.')
     }
     
     const endpoint = activeTab.value === 'for-you' 
@@ -1248,11 +1255,17 @@ const fetchPosts = async () => {
       ? '/api/posts/following'
       : '/api/posts/trending'
 
+    console.log('[Feed] Calling endpoint:', endpoint)
+    console.log('[Feed] Token being sent:', `${authStore.token.substring(0, 20)}...`)
+
     // ✅ FIXED: Don't pass headers explicitly - let useFetchWithAuth handle it
     const result = await fetchWithAuth(endpoint, {
       method: 'GET',
       query: { page: currentPage.value, limit: 10 }
     })
+
+    console.log('[Feed] ✅ Response received')
+    console.log('[Feed] Response keys:', Object.keys(result || {}))
 
     if (currentPage.value === 1) {
       posts.value = result.posts || []
@@ -1262,11 +1275,30 @@ const fetchPosts = async () => {
 
     hasMorePosts.value = result.has_more || false
     console.log('[Feed] ✅ Posts loaded:', posts.value.length)
-  } catch (error) {
-    console.error('[Feed] ❌ Error loading posts:', error)
+    console.log('[Feed] ============ FETCH POSTS END (SUCCESS) ============')
+  } catch (error: any) {
+    console.error('[Feed] ❌ Error loading posts')
+    console.error('[Feed] Error details:', {
+      message: error.message,
+      status: error.status,
+      statusCode: error.statusCode,
+      data: error.data
+    })
+    
+    // ✅ NEW: Handle 401 specifically
+    if (error.status === 401 || error.statusCode === 401) {
+      console.error('[Feed] ❌ 401 UNAUTHORIZED on /api/posts/feed')
+      console.error('[Feed] This endpoint requires valid authentication')
+      console.error('[Feed] Current token:', {
+        exists: !!authStore.token,
+        length: authStore.token?.length
+      })
+    }
+    
     if (currentPage.value === 1) {
       posts.value = []
     }
+    console.log('[Feed] ============ FETCH POSTS END (ERROR) ============')
   } finally {
     postsLoading.value = false
   }
