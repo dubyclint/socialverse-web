@@ -3,6 +3,40 @@
     <!-- Header -->
     <Header />
 
+    <!-- ✅ NEW: Navigation Bar with Back to Feed Button -->
+    <div class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <button
+            @click="goToFeed"
+            class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 font-medium"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Back to Feed</span>
+          </button>
+          
+          <!-- Profile Title -->
+          <h1 class="text-xl font-bold text-white">
+            {{ profile?.full_name || 'Profile' }}
+          </h1>
+        </div>
+
+        <!-- Edit Profile Button (only for own profile) -->
+        <button
+          v-if="isOwnProfile"
+          @click="goToEditProfile"
+          class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 font-medium"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span>Edit Profile</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Profile Container -->
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Loading State -->
@@ -42,22 +76,14 @@
           <div class="flex-1">
             <div class="flex items-start justify-between mb-4">
               <div>
-                <h1 class="text-3xl font-bold text-white">{{ profile.full_name || profile.username }}</h1>
+                <h1 class="text-3xl font-bold text-white">{{ profile.full_name }}</h1>
                 <p class="text-lg text-slate-400">@{{ profile.username }}</p>
               </div>
-              <div v-if="isOwnProfile" class="flex gap-2">
-                <NuxtLink
-                  to="/profile/edit"
-                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-                >
-                  Edit Profile
-                </NuxtLink>
-              </div>
-              <div v-else class="flex gap-2">
+              <div v-if="!isOwnProfile" class="flex gap-2">
                 <button
-                  @click="handleFollowUser"
+                  @click="toggleFollow"
                   :class="[
-                    'px-4 py-2 font-semibold rounded-lg transition-colors',
+                    'px-6 py-2 rounded-lg font-medium transition-colors',
                     isFollowing
                       ? 'bg-slate-700 hover:bg-slate-600 text-white'
                       : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -65,129 +91,119 @@
                 >
                   {{ isFollowing ? 'Following' : 'Follow' }}
                 </button>
-                <button
-                  @click="handleMessageUser"
-                  class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
-                >
-                  Message
-                </button>
               </div>
             </div>
 
             <!-- Bio -->
             <p v-if="profile.bio" class="text-slate-300 mb-4">{{ profile.bio }}</p>
 
+            <!-- Location & Website -->
+            <div class="flex gap-4 mb-4 text-slate-400">
+              <span v-if="profile.location" class="flex items-center gap-1">
+                📍 {{ profile.location }}
+              </span>
+              <a v-if="profile.website" :href="profile.website" target="_blank" class="flex items-center gap-1 text-blue-400 hover:text-blue-300">
+                🔗 Website
+              </a>
+            </div>
+
             <!-- Stats -->
-            <div class="grid grid-cols-4 gap-4">
-              <div>
-                <p class="text-2xl font-bold text-blue-500">{{ profileStats.posts }}</p>
-                <p class="text-sm text-slate-400">Posts</p>
+            <div class="grid grid-cols-4 gap-4 mb-4">
+              <div class="bg-slate-700/50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-white">{{ profileStats.posts }}</div>
+                <div class="text-sm text-slate-400">Posts</div>
               </div>
-              <div>
-                <p class="text-2xl font-bold text-blue-500">{{ profileStats.followers }}</p>
-                <p class="text-sm text-slate-400">Followers</p>
+              <div class="bg-slate-700/50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-white">{{ profileStats.followers }}</div>
+                <div class="text-sm text-slate-400">Followers</div>
               </div>
-              <div>
-                <p class="text-2xl font-bold text-blue-500">{{ profileStats.following }}</p>
-                <p class="text-sm text-slate-400">Following</p>
+              <div class="bg-slate-700/50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-white">{{ profileStats.following }}</div>
+                <div class="text-sm text-slate-400">Following</div>
               </div>
-              <div>
-                <p class="text-2xl font-bold text-yellow-500">{{ profileStats.rank }}</p>
-                <p class="text-sm text-slate-400">Rank</p>
+              <div class="bg-slate-700/50 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-yellow-500">{{ profileStats.rank }}</div>
+                <div class="text-sm text-slate-400">Rank</div>
               </div>
             </div>
 
-            <!-- Interests -->
-            <div v-if="profile.interests && profile.interests.length > 0" class="mt-4">
-              <p class="text-sm text-slate-400 mb-2">Interests:</p>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="interest in profile.interests"
-                  :key="interest.id"
-                  class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm"
-                >
-                  {{ interest.name }}
-                </span>
-              </div>
+            <!-- Verification Badge -->
+            <div v-if="profile.is_verified" class="flex items-center gap-2 text-blue-400">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+              <span>Verified</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Tabs -->
-      <div v-if="profile" class="flex gap-4 mb-8 border-b border-slate-700">
-        <button
-          v-for="tab in profileTabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          :class="[
-            'px-4 py-3 font-semibold border-b-2 transition-colors',
-            activeTab === tab.id
-              ? 'text-blue-500 border-blue-500'
-              : 'text-slate-400 border-transparent hover:text-slate-300'
-          ]"
-        >
-          {{ tab.label }}
-        </button>
+      <div v-if="profile" class="border-b border-slate-700 mb-8">
+        <div class="flex gap-8">
+          <button
+            v-for="tab in profileTabs"
+            :key="tab.id"
+            @click="activeTab = tab.id"
+            :class="[
+              'pb-4 font-medium transition-colors',
+              activeTab === tab.id
+                ? 'border-b-2 border-blue-500 text-blue-400'
+                : 'border-b-2 border-transparent text-slate-400 hover:text-slate-300'
+            ]"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
       </div>
 
       <!-- Tab Content -->
-      <div v-if="profile" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div v-if="profile" class="grid grid-cols-3 gap-8">
         <!-- Main Content -->
-        <div class="lg:col-span-2">
+        <div class="col-span-2">
           <!-- Posts Tab -->
           <div v-if="activeTab === 'posts'" class="space-y-6">
             <div v-if="profilePosts.length === 0" class="text-center py-12 text-slate-400">
               <p>No posts yet</p>
             </div>
-            <div v-else class="space-y-6">
-              <article v-for="post in profilePosts" :key="post.id" class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                <div class="flex justify-between items-start mb-4">
-                  <div class="flex items-center gap-3">
-                    <img 
-                      :src="profile.avatar_url || '/default-avatar.svg'" 
-                      :alt="profile.username"
-                      class="w-10 h-10 rounded-full object-cover"
-                    />
-                    <div>
-                      <h4 class="font-semibold text-white">{{ profile.full_name }}</h4>
-                      <p class="text-sm text-slate-400">@{{ profile.username }}</p>
-                    </div>
-                  </div>
-                  <span class="text-sm text-slate-400">{{ formatTime(post.created_at) }}</span>
+            <div v-for="post in profilePosts" :key="post.id" class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+              <div class="flex gap-4 mb-4">
+                <img :src="profile.avatar_url || '/default-avatar.png'" :alt="profile.full_name" class="w-10 h-10 rounded-full" />
+                <div class="flex-1">
+                  <p class="font-semibold text-white">{{ profile.full_name }}</p>
+                  <p class="text-sm text-slate-400">@{{ profile.username }}</p>
                 </div>
-                <p class="text-slate-300 mb-4">{{ post.content }}</p>
-              </article>
+              </div>
+              <p class="text-slate-300 mb-4">{{ post.content }}</p>
+              <div class="flex gap-4 text-slate-400 text-sm">
+                <span>❤️ {{ post.likes || 0 }}</span>
+                <span>💬 {{ post.comments || 0 }}</span>
+                <span>🔄 {{ post.shares || 0 }}</span>
+              </div>
             </div>
           </div>
 
           <!-- About Tab -->
-          <div v-if="activeTab === 'about'" class="bg-slate-800 rounded-lg border border-slate-700 p-6 space-y-6">
-            <div>
-              <h3 class="text-lg font-bold text-white mb-2">About</h3>
-              <p class="text-slate-300">{{ profile.bio || 'No bio provided' }}</p>
-            </div>
-
-            <div v-if="profile.location" class="border-t border-slate-700 pt-6">
-              <h3 class="text-lg font-bold text-white mb-2">📍 Location</h3>
-              <p class="text-slate-300">{{ profile.location }}</p>
-            </div>
-
-            <div class="border-t border-slate-700 pt-6">
-              <h3 class="text-lg font-bold text-white mb-2">📅 Joined</h3>
-              <p class="text-slate-300">{{ formatDate(profile.created_at) }}</p>
-            </div>
-
-            <div v-if="profile.interests && profile.interests.length > 0" class="border-t border-slate-700 pt-6">
-              <h3 class="text-lg font-bold text-white mb-2">🎯 Interests</h3>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="interest in profile.interests"
-                  :key="interest.id"
-                  class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm"
-                >
-                  {{ interest.name }}
-                </span>
+          <div v-if="activeTab === 'about'" class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <div class="space-y-6">
+              <div>
+                <h3 class="text-lg font-semibold text-white mb-2">Bio</h3>
+                <p class="text-slate-300">{{ profile.bio || 'No bio provided' }}</p>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white mb-2">Location</h3>
+                <p class="text-slate-300">{{ profile.location || 'Not specified' }}</p>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white mb-2">Website</h3>
+                <a v-if="profile.website" :href="profile.website" target="_blank" class="text-blue-400 hover:text-blue-300">
+                  {{ profile.website }}
+                </a>
+                <p v-else class="text-slate-300">Not specified</p>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white mb-2">Joined</h3>
+                <p class="text-slate-300">{{ formatDate(profile.created_at) }}</p>
               </div>
             </div>
           </div>
@@ -195,71 +211,52 @@
           <!-- Gallery Tab -->
           <div v-if="activeTab === 'gallery'" class="grid grid-cols-2 gap-4">
             <div v-if="profileGallery.length === 0" class="col-span-2 text-center py-12 text-slate-400">
-              <p>No images yet</p>
+              <p>No gallery items yet</p>
             </div>
-            <img
-              v-for="image in profileGallery"
-              :key="image.id"
-              :src="image.url"
-              :alt="image.title"
-              class="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-            />
+            <div v-for="item in profileGallery" :key="item.id" class="bg-slate-800 rounded-lg overflow-hidden border border-slate-700 h-48">
+              <img :src="item.url" :alt="item.title" class="w-full h-full object-cover hover:opacity-80 transition-opacity cursor-pointer" />
+            </div>
           </div>
         </div>
 
         <!-- Sidebar -->
-        <aside class="hidden lg:block">
-          <!-- Verified Badge -->
-          <div v-if="profile.is_verified" class="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 mb-6">
-            <p class="text-blue-400 font-semibold">✓ Verified User</p>
-          </div>
-
-          <!-- Rank Badge -->
+        <div class="col-span-1">
+          <!-- Recent Followers -->
           <div class="bg-slate-800 rounded-lg border border-slate-700 p-4 mb-6">
-            <p class="text-sm text-slate-400 mb-2">Current Rank</p>
-            <p class="text-2xl font-bold text-yellow-500">{{ profileStats.rank || 'Bronze I' }}</p>
-          </div>
-
-          <!-- Followers -->
-          <div class="bg-slate-800 rounded-lg border border-slate-700 p-4">
-            <h3 class="text-lg font-bold text-white mb-4">Recent Followers</h3>
-            <div class="space-y-3">
-              <div v-if="recentFollowers.length === 0" class="text-center text-slate-400 py-4">
-                <p>No followers yet</p>
-              </div>
-              <div
-                v-for="follower in recentFollowers"
-                :key="follower.id"
-                class="flex items-center justify-between p-2 bg-slate-700/50 rounded-lg"
-              >
-                <div class="flex items-center gap-2">
-                  <img
-                    v-if="follower.avatar_url"
-                    :src="follower.avatar_url"
-                    :alt="follower.full_name"
-                    class="w-8 h-8 rounded-full object-cover"
-                  />
-                  <div v-else class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                    {{ follower.full_name?.charAt(0) || 'U' }}
-                  </div>
-                  <div>
-                    <p class="text-sm font-semibold text-white">{{ follower.full_name }}</p>
-                    <p class="text-xs text-slate-400">@{{ follower.username }}</p>
-                  </div>
-                </div>
+            <h3 class="text-lg font-semibold text-white mb-4">Recent Followers</h3>
+            <div v-if="recentFollowers.length === 0" class="text-slate-400 text-sm">
+              No followers yet
+            </div>
+            <div v-for="follower in recentFollowers" :key="follower.id" class="flex items-center gap-3 mb-3 pb-3 border-b border-slate-700 last:border-b-0">
+              <img :src="follower.avatar_url" :alt="follower.full_name" class="w-8 h-8 rounded-full" />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-white truncate">{{ follower.full_name }}</p>
+                <p class="text-xs text-slate-400">@{{ follower.username }}</p>
               </div>
             </div>
           </div>
-        </aside>
+
+          <!-- Interests -->
+          <div v-if="profile.interests && profile.interests.length > 0" class="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h3 class="text-lg font-semibold text-white mb-4">Interests</h3>
+            <div class="flex flex-wrap gap-2">
+              <span v-for="interest in profile.interests" :key="interest" class="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
+                {{ interest }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
+import { useProfileStore } from '~/stores/profile'
+import { useProfileSync } from '~/composables/useProfileSync'
 
 definePageMeta({
   middleware: ['auth', 'language-check', 'profile-completion', 'security-middleware'],
@@ -269,6 +266,8 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const profileStore = useProfileStore()
+const { subscribeToProfileUpdates, unsubscribeFromProfileUpdates } = useProfileSync()
 
 // Get identifier from route (could be user ID or username)
 const identifier = computed(() => {
@@ -335,110 +334,167 @@ const formatTime = (date: string) => {
     if (minutes < 60) return `${minutes}m ago`
     if (hours < 24) return `${hours}h ago`
     if (days < 7) return `${days}d ago`
-    
-    return d.toLocaleDateString()
-  } catch (error) {
-    return 'unknown'
-  }
-}
-
-const handleAvatarError = (e: Event) => {
-  const img = e.target as HTMLImageElement
-  img.src = '/default-avatar.svg'
-}
-
-const handleFollowUser = async () => {
-  try {
-    isFollowing.value = !isFollowing.value
-    console.log('[Profile] Follow/unfollow user:', identifier.value)
+    return formatDate(date)
   } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err))
-    console.error('[Profile] Follow error:', error.message)
-    isFollowing.value = !isFollowing.value
+    console.error('[Profile] Time formatting error:', err)
+    return 'Unknown time'
   }
 }
 
-const handleMessageUser = () => {
-  try {
-    router.push(`/inbox?user=${identifier.value}`)
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err))
-    console.error('[Profile] Message navigation error:', error.message)
-  }
+const handleAvatarError = (event: Event) => {
+  console.error('[Profile] Avatar load error')
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+}
+
+// ✅ NEW: Navigation methods
+const goToFeed = () => {
+  console.log('[Profile] Navigating to feed')
+  router.push('/feed')
+}
+
+const goToEditProfile = () => {
+  console.log('[Profile] Navigating to edit profile')
+  router.push('/profile/edit')
 }
 
 const goBack = () => {
+  console.log('[Profile] Going back')
   router.back()
 }
 
-// Check if identifier is username or user ID
-const isUsernameParam = (): boolean => {
-  if (!identifier.value) return false
-  // If it looks like a UUID (contains hyphens and is 36 chars), it's a user ID
-  return !(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier.value))
+const toggleFollow = async () => {
+  try {
+    console.log('[Profile] Toggling follow status')
+    isFollowing.value = !isFollowing.value
+    // TODO: Implement follow/unfollow API call
+  } catch (err) {
+    console.error('[Profile] Error toggling follow:', err)
+    isFollowing.value = !isFollowing.value
+  }
 }
 
-// Load profile
-const loadProfile = async () => {
+const fetchProfileData = async () => {
+  console.log('[Profile] ============ FETCH PROFILE DATA START ============')
+  console.log('[Profile] Fetching profile for identifier:', identifier.value)
+
+  loading.value = true
+  error.value = null
+
   try {
-    loading.value = true
-    error.value = null
-
     if (!identifier.value) {
-      error.value = 'User identifier not found'
-      return
+      throw new Error('No profile identifier provided')
     }
 
-    console.log('[Profile] Loading profile for identifier:', identifier.value)
-
-    // Fetch profile from API
-    const response = await fetch(`/api/profile/${encodeURIComponent(identifier.value)}`)
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        error.value = 'User not found'
-      } else {
-        error.value = `Failed to load profile (${response.status})`
+    // Fetch profile data
+    const profileResponse = await $fetch(`/api/profile/${identifier.value}`, {
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
       }
-      return
+    })
+
+    console.log('[Profile] ✅ Profile data received:', profileResponse)
+
+    if (!profileResponse) {
+      throw new Error('Profile not found')
     }
 
-    const data = await response.json()
+    profile.value = profileResponse
 
-    if (!data.success || !data.data) {
-      error.value = 'Invalid profile data'
-      return
+    // Update profile store if it's the current user
+    if (isOwnProfile.value) {
+      profileStore.setProfile(profileResponse)
     }
 
-    profile.value = data.data
+    // Fetch profile posts
+    try {
+      const postsResponse = await $fetch(`/api/posts/user/${profileResponse.id}`, {
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`
+        }
+      })
+      profilePosts.value = postsResponse || []
+      profileStats.value.posts = profilePosts.value.length
+    } catch (err) {
+      console.warn('[Profile] Error fetching posts:', err)
+      profilePosts.value = []
+    }
 
-    // Update stats
-    profileStats.value.posts = profile.value.posts_count || 0
-    profileStats.value.followers = profile.value.followers_count || 0
-    profileStats.value.following = profile.value.following_count || 0
-    profileStats.value.rank = profile.value.rank || 'Bronze I'
+    // Fetch followers
+    try {
+      const followersResponse = await $fetch(`/api/follows/${profileResponse.id}`, {
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`
+        }
+      })
+      recentFollowers.value = followersResponse?.slice(0, 5) || []
+      profileStats.value.followers = followersResponse?.length || 0
+    } catch (err) {
+      console.warn('[Profile] Error fetching followers:', err)
+      recentFollowers.value = []
+    }
 
-    console.log('[Profile] ✅ Profile loaded successfully')
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Failed to load profile'
-    console.error('[Profile] Load error:', errorMsg)
-    error.value = errorMsg
+    console.log('[Profile] ✅ Profile data loaded successfully')
+    console.log('[Profile] ============ FETCH PROFILE DATA END ============')
+
+  } catch (err: any) {
+    console.error('[Profile] ============ FETCH PROFILE DATA ERROR ============')
+    console.error('[Profile] ❌ Error fetching profile:', err)
+    
+    const errorMessage = err?.data?.message || err?.message || 'Failed to load profile'
+    error.value = errorMessage
+    
+    console.error('[Profile] ============ FETCH PROFILE DATA ERROR END ============')
   } finally {
     loading.value = false
   }
 }
 
-// Lifecycle
-onMounted(() => {
-  console.log('[Profile] Component mounted, loading profile for identifier:', identifier.value)
-  loadProfile()
+// ✅ NEW: Subscribe to profile updates when component mounts
+onMounted(async () => {
+  console.log('[Profile] Component mounted')
+  
+  // Fetch initial profile data
+  await fetchProfileData()
+
+  // Subscribe to real-time profile updates
+  if (currentUser.value?.id && isOwnProfile.value) {
+    console.log('[Profile] Subscribing to profile updates')
+    subscribeToProfileUpdates(currentUser.value.id, (updatedProfile) => {
+      console.log('[Profile] Profile updated via sync:', updatedProfile)
+      profile.value = updatedProfile
+      profileStore.setProfile(updatedProfile)
+    })
+  }
+})
+
+// ✅ NEW: Cleanup subscriptions when component unmounts
+onBeforeUnmount(() => {
+  console.log('[Profile] Component unmounting, cleaning up subscriptions')
+  unsubscribeFromProfileUpdates()
+})
+
+// ✅ NEW: Watch for profile changes and sync across app
+watch(() => profile.value, (newProfile) => {
+  if (newProfile && isOwnProfile.value) {
+    console.log('[Profile] Profile changed, updating store')
+    profileStore.setProfile(newProfile)
+    window.dispatchEvent(new CustomEvent('profileUpdated', { detail: newProfile }))
+  }
+}, { deep: true })
+
+// Watch for route changes to reload profile
+watch(() => route.params.id, async () => {
+  console.log('[Profile] Route changed, reloading profile')
+  await fetchProfileData()
 })
 </script>
 
 <style scoped>
 /* ============================================================================
-   PAGE LAYOUT
+   PROFILE PAGE STYLES
    ============================================================================ */
+
 .min-h-screen {
   min-height: 100vh;
 }
@@ -447,11 +503,8 @@ onMounted(() => {
   background-color: #0f172a;
 }
 
-/* ============================================================================
-   CONTAINER & SPACING
-   ============================================================================ */
 .max-w-6xl {
-  max-width: 64rem;
+  max-width: 72rem;
 }
 
 .mx-auto {
@@ -464,22 +517,7 @@ onMounted(() => {
   padding-right: 1rem;
 }
 
-.py-8 {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-
-.py-12 {
-  padding-top: 3rem;
-  padding-bottom: 3rem;
-}
-
-.py-6 {
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
-}
-
-.px-6 {
+.sm\:px-6 {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
 }
@@ -489,16 +527,18 @@ onMounted(() => {
   padding-right: 2rem;
 }
 
-.sm\:px-6 {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
 
-/* ============================================================================
-   LOADING STATE
-   ============================================================================ */
 .text-center {
   text-align: center;
+}
+
+.py-12 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
 }
 
 .animate-spin {
@@ -506,6 +546,9 @@ onMounted(() => {
 }
 
 @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
   to {
     transform: rotate(360deg);
   }
@@ -523,9 +566,6 @@ onMounted(() => {
   color: #3b82f6;
 }
 
-/* ============================================================================
-   ERROR STATE
-   ============================================================================ */
 .bg-red-500\/20 {
   background-color: rgba(239, 68, 68, 0.2);
 }
@@ -580,19 +620,6 @@ onMounted(() => {
   color: #ffffff;
 }
 
-.cursor-pointer {
-  cursor: pointer;
-}
-
-.transition-colors {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* ============================================================================
-   PROFILE HEADER
-   ============================================================================ */
 .bg-slate-800 {
   background-color: #1e293b;
 }
@@ -716,10 +743,6 @@ onMounted(() => {
   background-color: #1d4ed8;
 }
 
-.rounded {
-  border-radius: 0.25rem;
-}
-
 .text-slate-300 {
   color: #cbd5e1;
 }
@@ -750,14 +773,6 @@ onMounted(() => {
   line-height: 1.25rem;
 }
 
-.mt-4 {
-  margin-top: 1rem;
-}
-
-.mb-2 {
-  margin-bottom: 0.5rem;
-}
-
 .flex-wrap {
   flex-wrap: wrap;
 }
@@ -780,19 +795,8 @@ onMounted(() => {
   padding-bottom: 0.25rem;
 }
 
-/* ============================================================================
-   TABS
-   ============================================================================ */
 .border-b {
   border-bottom-width: 1px;
-}
-
-.border-slate-700 {
-  border-color: #334155;
-}
-
-.mb-8 {
-  margin-bottom: 2rem;
 }
 
 .border-b-2 {
@@ -807,11 +811,10 @@ onMounted(() => {
   color: #cbd5e1;
 }
 
-/* ============================================================================
-   TAB CONTENT
-   ============================================================================ */
-.lg\:col-span-2 {
-  grid-column: span 2 / span 2;
+.transition-colors {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
 
 .space-y-6 > * + * {
@@ -824,51 +827,32 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
-.text-slate-400 {
-  color: #94a3b8;
-}
-
-.w-10 {
-  width: 2.5rem;
-}
-
-.h-10 {
-  height: 2.5rem;
-}
-
-.gap-3 {
-  gap: 0.75rem;
-}
-
-.text-xs {
-  font-size: 0.75rem;
-  line-height: 1rem;
-}
-
-.border-t {
-  border-top-width: 1px;
-}
-
-.pt-6 {
-  padding-top: 1.5rem;
-}
-
-.space-y-6 {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.grid-cols-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .col-span-2 {
   grid-column: span 2 / span 2;
 }
 
+.col-span-1 {
+  grid-column: span 1 / span 1;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .h-48 {
   height: 12rem;
+}
+
+.overflow-hidden {
+  overflow: hidden;
 }
 
 .hover\:opacity-80:hover {
@@ -881,54 +865,84 @@ onMounted(() => {
   transition-duration: 150ms;
 }
 
-/* ============================================================================
-   SIDEBAR
-   ============================================================================ */
-.hidden {
-  display: none;
+.cursor-pointer {
+  cursor: pointer;
 }
 
-.lg\:block {
-  display: block;
+.pb-3 {
+  padding-bottom: 0.75rem;
 }
 
-.mb-6 {
-  margin-bottom: 1.5rem;
+.last\:border-b-0:last-child {
+  border-bottom-width: 0;
 }
 
-.border-blue-500\/50 {
-  border-color: rgba(59, 130, 246, 0.5);
+.min-w-0 {
+  min-width: 0;
 }
 
-.p-4 {
-  padding: 1rem;
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.text-blue-400 {
-  color: #60a5fa;
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
-.space-y-3 > * + * {
-  margin-top: 0.75rem;
+.w-5 {
+  width: 1.25rem;
 }
 
-.space-y-3 {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.h-5 {
+  height: 1.25rem;
 }
 
-.py-4 {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
+.fill-current {
+  fill: currentColor;
 }
 
-.p-2 {
-  padding: 0.5rem;
+.font-medium {
+  font-weight: 500;
+}
+
+.bg-purple-600 {
+  background-color: #9333ea;
+}
+
+.hover\:bg-purple-700:hover {
+  background-color: #7e22ce;
 }
 
 .bg-slate-700\/50 {
   background-color: rgba(51, 65, 85, 0.5);
+}
+
+.sticky {
+  position: sticky;
+}
+
+.top-0 {
+  top: 0;
+}
+
+.z-40 {
+  z-index: 40;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.w-10 {
+  width: 2.5rem;
+}
+
+.h-10 {
+  height: 2.5rem;
 }
 
 .w-8 {
@@ -939,24 +953,20 @@ onMounted(() => {
   height: 2rem;
 }
 
-.text-xs {
-  font-size: 0.75rem;
-  line-height: 1rem;
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 
-/* ============================================================================
-   RESPONSIVE DESIGN
-   ============================================================================ */
-@media (max-width: 1024px) {
-  .lg\:col-span-2 {
-    grid-column: auto;
-  }
-
-  .lg\:block {
-    display: none;
-  }
+.p-4 {
+  padding: 1rem;
 }
 
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
   .md\:flex-row {
     flex-direction: column;
@@ -966,78 +976,29 @@ onMounted(() => {
     gap: 1rem;
   }
 
+  .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .col-span-2 {
+    grid-column: auto;
+  }
+
+  .col-span-1 {
+    grid-column: auto;
+  }
+
   .grid-cols-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .grid-cols-2 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .px-4 {
     padding-left: 1rem;
     padding-right: 1rem;
   }
-
-  .sm\:px-6 {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .text-3xl {
-    font-size: 1.5rem;
-    line-height: 2rem;
-  }
-
-  .w-32 {
-    width: 6rem;
-  }
-
-  .h-32 {
-    height: 6rem;
-  }
-
-  .p-8 {
-    padding: 1rem;
-  }
-
-  .gap-8 {
-    gap: 1rem;
-  }
-
-  .grid-cols-4 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-
-  .px-4 {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-  }
-}
-
-/* ============================================================================
-   UTILITY CLASSES
-   ============================================================================ */
-.opacity-25 {
-  opacity: 0.25;
-}
-
-.opacity-75 {
-  opacity: 0.75;
-}
-
-.stroke-current {
-  stroke: currentColor;
-}
-
-.fill-current {
-  fill: currentColor;
-}
-
-.stroke-4 {
-  stroke-width: 4;
 }
 </style>
-
