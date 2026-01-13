@@ -1,17 +1,21 @@
 // ============================================================================
-// FILE: /types/profile.ts - COMPLETE UPDATED VERSION
+// FILE: /types/profile.ts - FIXED WITH ID AND USER_ID SUPPORT
 // ============================================================================
 // Profile types with rank system & verification badges integrated
+// ✅ FIXED: Now accepts both 'id' and 'user_id' fields
 // ============================================================================
 
 // ============================================================================
 // PROFILE INTERFACE - COMPLETE WITH ALL FIELDS
 // ============================================================================
 export interface Profile {
-  // Primary Key
-  user_id: string
+  // Primary Keys (both supported for compatibility)
+  id?: string  // ✅ NEW: Support 'id' from backend
+  user_id?: string  // ✅ EXISTING: Support 'user_id' for frontend
 
   // Basic Info
+  username?: string  // ✅ NEW: Add username field
+  email?: string  // ✅ NEW: Add email field
   full_name: string | null
   bio: string | null
   avatar_url: string | null
@@ -19,30 +23,30 @@ export interface Profile {
   website: string | null
 
   // Interests (JSONB Array)
-  interests: Interest[]
+  interests?: Interest[]
 
   // Custom Fields
-  colors: Record<string, any>
-  items: string[]
+  colors?: Record<string, any>
+  items?: string[]
 
   // Profile Completion
-  profile_completed: boolean
+  profile_completed?: boolean
 
   // Rank System (INTEGRATED)
-  rank: string // e.g., "Bronze I", "Silver II"
-  rank_points: number
-  rank_level: number
+  rank?: string // e.g., "Bronze I", "Silver II"
+  rank_points?: number
+  rank_level?: number
 
   // Verification Badge System (INTEGRATED)
-  is_verified: boolean
-  verified_badge_type: VerifiedBadgeType | null
-  verified_at: string | null
-  verification_status: VerificationStatus
-  badge_count: number
+  is_verified?: boolean
+  verified_badge_type?: VerifiedBadgeType | null
+  verified_at?: string | null
+  verification_status?: VerificationStatus
+  badge_count?: number
 
   // Timestamps
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
 }
 
 // ============================================================================
