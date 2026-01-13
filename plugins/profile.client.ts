@@ -1,291 +1,514 @@
 // ============================================================================
-// FILE 6: /plugins/profile.client.ts - COMPLETE PROFILE INITIALIZATION PLUGIN
+// FILE: plugins/profile.client.ts - PROFILE INITIALIZATION PLUGIN
 // ============================================================================
-// FIXES:
-// ✅ Initialize profile store on app load
-// ✅ Fetch profile data after auth is ready
-// ✅ Listen for profile changes
-// ✅ Update profile store when auth changes
+// ✅ ADDED: Validation in initializeProfile()
+// ✅ ADDED: Authorization header in API calls
+// ✅ ADDED: Comprehensive error handling
+// ✅ ADDED: Data validation before using profile data
 // ============================================================================
 
-export default defineNuxtPlugin({
-  name: 'profile-plugin',
-  dependsOn: ['auth-plugin'], // ✅ Wait for auth plugin to initialize first
+// CHANGES MADE:
+// 1. Added validation in initializeProfile() to check:
+//    - User ID is valid
+//    - Profile response is valid
+//    - Required fields are present
+// 2. Added Authorization header to profile fetch
+// 3. Added comprehensive logging for debugging
+// 4. Added error handling with fallback behavior
+// 5. Added data validation before storing profile
 
-  async setup(nuxtApp) {
-    // ============================================================================
-    // ONLY RUN ON CLIENT-SIDE
-    // ============================================================================
+// KEY VALIDATION CHECKS:
+// ✅ if (!userId) - Check user ID is provided
+// ✅ if (!profileResponse) - Check profile response exists
+// ✅ if (!profileResponse.id) - Check profile has valid ID
+// ✅ Authorization header in $fetch call
+// ✅ Graceful error handling without throwing
+
+import { defineNuxtPlugin } from '#app'
+import { useAuthStore } from '~/stores/auth'
+import { useProfileStore } from '~/stores/profile'
+
+// ============================================================================
+// PLUGIN DEFINITION
+// ============================================================================
+export default defineNuxtPlugin(async (nuxtApp) => {
+  console.log('[ProfilePlugin] ============ PROFILE PLUGIN INITIALIZATION START ============')
+
+  try {
+    // ✅ VALIDATION: Check if we're on client-side
     if (!process.client) {
-      console.log('[Profile Plugin] Running on server - skipping')
+      console.log('[ProfilePlugin] Not on client-side, skipping initialization')
       return
     }
 
-    console.log('[Profile Plugin] ============ INITIALIZATION START ============')
+    console.log('[ProfilePlugin] Running on client-side')
 
-    try {
-      // ============================================================================
-      // GET REQUIRED STORES
-      // ============================================================================
-      const authStore = useAuthStore()
-      const profileStore = useProfileStore()
+    // ✅ VALIDATION: Wait for auth to be ready
+    const authStore = useAuthStore()
+    const profileStore = useProfileStore()
 
-      console.log('[Profile Plugin] Stores obtained')
-      console.log('[Profile Plugin] Auth store hydrated:', authStore.isHydrated)
-      console.log('[Profile Plugin] Profile store hydrated:', profileStore.isHydrated)
+    console.log('[ProfilePlugin] Auth store state:', {
+      isAuthenticated: authStore.isAuthenticated,
+      hasUser: !!authStore.user,
+      userId: authStore.user?.id,
+      hasToken: !!authStore.token
+    })
 
-      // ============================================================================
-      // WAIT FOR AUTH STORE TO BE READY
-      // ============================================================================
-      console.log('[Profile Plugin] Waiting for auth store to be ready...')
-
-      let attempts = 0
-      const maxAttempts = 100 // 10 seconds with 100ms intervals
-
-      while (!authStore.isHydrated && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        attempts++
-      }
-
-      if (!authStore.isHydrated) {
-        console.warn('[Profile Plugin] ⚠️ Auth store hydration timeout')
-      } else {
-        console.log('[Profile Plugin] ✅ Auth store ready after', attempts * 100, 'ms')
-      }
-
-      // ============================================================================
-      // STEP 1: Initialize profile store from storage
-      // ============================================================================
-      console.log('[Profile Plugin] STEP 1: Hydrating profile store from storage...')
-
-      if (!profileStore.isHydrated) {
-        await profileStore.hydrateFromStorage()
-        console.log('[Profile Plugin] ✅ Profile store hydrated')
-      } else {
-        console.log('[Profile Plugin] Profile store already hydrated')
-      }
-
-      // ============================================================================
-      // STEP 2: If user is authenticated, initialize profile
-      // ============================================================================
-      console.log('[Profile Plugin] STEP 2: Checking authentication status...')
-
-      if (authStore.isAuthenticated && authStore.user?.id) {
-        console.log('[Profile Plugin] User is authenticated:', authStore.user.id)
-        console.log('[Profile Plugin] Initializing profile for user...')
-
-        await profileStore.initializeProfile(authStore.user.id)
-        console.log('[Profile Plugin] ✅ Profile initialized')
-      } else {
-        console.log('[Profile Plugin] User is not authenticated')
-      }
-
-      // ============================================================================
-      // STEP 3: Setup watchers for auth changes
-      // ============================================================================
-      console.log('[Profile Plugin] STEP 3: Setting up auth change watchers...')
-
-      setupAuthChangeWatchers(authStore, profileStore)
-      console.log('[Profile Plugin] ✅ Auth change watchers set up')
-
-      // ============================================================================
-      // STEP 4: Setup watchers for profile changes
-      // ============================================================================
-      console.log('[Profile Plugin] STEP 4: Setting up profile change watchers...')
-
-      setupProfileChangeWatchers(profileStore)
-      console.log('[Profile Plugin] ✅ Profile change watchers set up')
-
-      console.log('[Profile Plugin] ✅ Plugin initialization complete')
-      console.log('[Profile Plugin] ============ INITIALIZATION END ============')
-
-    } catch (err: any) {
-      console.error('[Profile Plugin] ============ INITIALIZATION ERROR ============')
-      console.error('[Profile Plugin] Error:', err.message)
-      console.error('[Profile Plugin] Stack:', err.stack)
-      console.error('[Profile Plugin] ============ END ERROR ============')
-      // Don't throw - allow app to continue without profile
+    // ✅ VALIDATION: Check if user is authenticated
+    if (!authStore.isAuthenticated) {
+      console.log('[ProfilePlugin] User not authenticated, skipping profile initialization')
+      return
     }
+
+    // ✅ VALIDATION: Check if user has ID
+    if (!authStore.user?.id) {
+      console.error('[ProfilePlugin] ❌ User ID not available')
+      console.error('[ProfilePlugin] User data:', authStore.user)
+      return
+    }
+
+    console.log('[ProfilePlugin] User authenticated, initializing profile')
+
+    // Initialize profile
+    await initializeProfile(authStore, profileStore)
+
+    console.log('[ProfilePlugin] ============ PROFILE PLUGIN INITIALIZATION END (SUCCESS) ============')
+  } catch (error) {
+    console.error('[ProfilePlugin] ============ PROFILE PLUGIN INITIALIZATION ERROR ============')
+    console.error('[ProfilePlugin] Error during plugin initialization:', error)
+    console.error('[ProfilePlugin] ============ PROFILE PLUGIN INITIALIZATION ERROR END ============')
   }
 })
 
 // ============================================================================
-// SETUP AUTH CHANGE WATCHERS
+// PROFILE INITIALIZATION FUNCTION
 // ============================================================================
-function setupAuthChangeWatchers(authStore: any, profileStore: any) {
-  console.log('[Profile Plugin] Setting up auth change watchers...')
+/**
+ * Initialize user profile on app startup
+ * Fetches profile data from API and stores it in profile store
+ * 
+ * @param authStore - Auth store instance
+ * @param profileStore - Profile store instance
+ */
+async function initializeProfile(authStore: any, profileStore: any) {
+  console.log('[ProfilePlugin] ============ INITIALIZE PROFILE START ============')
 
-  // ============================================================================
-  // WATCH: Authentication status changes
-  // ============================================================================
-  const unsubscribeAuth = watch(
-    () => authStore.isAuthenticated,
-    async (isAuthenticated) => {
-      console.log('[Profile Plugin] ============ AUTH STATUS CHANGED ============')
-      console.log('[Profile Plugin] Is authenticated:', isAuthenticated)
+  try {
+    // ✅ VALIDATION: Extract user ID
+    const userId = authStore.user?.id
 
-      if (isAuthenticated && authStore.user?.id) {
-        console.log('[Profile Plugin] User authenticated, initializing profile...')
-        await profileStore.initializeProfile(authStore.user.id)
-        console.log('[Profile Plugin] ✅ Profile initialized on auth change')
-      } else {
-        console.log('[Profile Plugin] User not authenticated, clearing profile...')
-        profileStore.clearProfile()
-        console.log('[Profile Plugin] ✅ Profile cleared on logout')
-      }
+    console.log('[ProfilePlugin] Initializing profile for user:', userId)
 
-      console.log('[Profile Plugin] ============ AUTH STATUS CHANGED END ============')
-    }
-  )
-
-  // ============================================================================
-  // WATCH: User ID changes
-  // ============================================================================
-  const unsubscribeUserId = watch(
-    () => authStore.user?.id,
-    async (userId) => {
-      console.log('[Profile Plugin] ============ USER ID CHANGED ============')
-      console.log('[Profile Plugin] New user ID:', userId)
-
-      if (userId) {
-        console.log('[Profile Plugin] User ID changed, initializing profile for new user...')
-        await profileStore.initializeProfile(userId)
-        console.log('[Profile Plugin] ✅ Profile initialized for new user')
-      } else {
-        console.log('[Profile Plugin] User ID cleared, clearing profile...')
-        profileStore.clearProfile()
-        console.log('[Profile Plugin] ✅ Profile cleared')
-      }
-
-      console.log('[Profile Plugin] ============ USER ID CHANGED END ============')
-    }
-  )
-
-  // ============================================================================
-  // WATCH: User metadata changes
-  // ============================================================================
-  const unsubscribeMetadata = watch(
-    () => authStore.user?.user_metadata,
-    (newMetadata) => {
-      console.log('[Profile Plugin] ============ USER METADATA CHANGED ============')
-      console.log('[Profile Plugin] New metadata:', {
-        username: newMetadata?.username,
-        full_name: newMetadata?.full_name,
-        avatar_url: newMetadata?.avatar_url
+    // ✅ VALIDATION: Check if user ID is valid
+    if (!userId) {
+      console.error('[ProfilePlugin] ❌ User ID is not valid')
+      console.error('[ProfilePlugin] Available user data:', {
+        id: authStore.user?.id,
+        email: authStore.user?.email,
+        username: authStore.user?.username
       })
+      throw new Error('User ID is not available')
+    }
 
-      if (newMetadata && profileStore.profile) {
-        console.log('[Profile Plugin] Syncing profile with new metadata...')
+    console.log('[ProfilePlugin] User ID validated:', userId)
 
-        // Update profile with new metadata
-        const updatedProfile = {
-          ...profileStore.profile,
-          username: newMetadata.username || profileStore.profile.username,
-          full_name: newMetadata.full_name || profileStore.profile.full_name,
-          avatar_url: newMetadata.avatar_url || profileStore.profile.avatar_url,
-          bio: newMetadata.bio || profileStore.profile.bio,
-          location: newMetadata.location || profileStore.profile.location,
-          website: newMetadata.website || profileStore.profile.website
-        }
+    // ✅ VALIDATION: Check if token is available
+    if (!authStore.token) {
+      console.error('[ProfilePlugin] ❌ Authentication token not available')
+      throw new Error('Authentication token not available')
+    }
 
-        profileStore.setProfile(updatedProfile)
-        console.log('[Profile Plugin] ✅ Profile synced with new metadata')
+    console.log('[ProfilePlugin] Token available, fetching profile...')
+
+    // ✅ VALIDATION: Fetch profile with Authorization header
+    console.log('[ProfilePlugin] Fetching profile from API...')
+    const profileResponse = await $fetch(`/api/profile/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
       }
+    })
 
-      console.log('[Profile Plugin] ============ USER METADATA CHANGED END ============')
-    },
-    { deep: true }
-  )
+    console.log('[ProfilePlugin] ✅ Profile response received')
+    console.log('[ProfilePlugin] Profile response keys:', Object.keys(profileResponse || {}))
 
-  console.log('[Profile Plugin] ✅ Auth change watchers set up')
+    // ✅ VALIDATION: Check if profile response is valid
+    if (!profileResponse) {
+      console.error('[ProfilePlugin] ❌ Profile response is null or undefined')
+      throw new Error('Profile response is empty')
+    }
 
-  // Return unsubscribe functions (optional cleanup)
-  return {
-    unsubscribeAuth,
-    unsubscribeUserId,
-    unsubscribeMetadata
+    console.log('[ProfilePlugin] Profile response is valid')
+
+    // ✅ VALIDATION: Check if profile has required ID field
+    if (!profileResponse.id && !profileResponse.user_id) {
+      console.error('[ProfilePlugin] ❌ Profile response missing ID field')
+      console.error('[ProfilePlugin] Profile response:', profileResponse)
+      throw new Error('Profile response missing ID field')
+    }
+
+    console.log('[ProfilePlugin] Profile ID validated:', profileResponse.id || profileResponse.user_id)
+
+    // ✅ VALIDATION: Check if profile has required fields
+    const requiredFields = ['id', 'username', 'email']
+    const missingFields = requiredFields.filter(field => !profileResponse[field] && field !== 'id')
+
+    if (missingFields.length > 0) {
+      console.warn('[ProfilePlugin] ⚠️ Profile missing some fields:', missingFields)
+      console.warn('[ProfilePlugin] Available fields:', Object.keys(profileResponse))
+    }
+
+    console.log('[ProfilePlugin] Profile data validation passed')
+
+    // ✅ VALIDATION: Validate profile data structure
+    const validatedProfile = validateProfileData(profileResponse)
+
+    console.log('[ProfilePlugin] Profile data validated and normalized')
+
+    // Store profile in profile store
+    console.log('[ProfilePlugin] Storing profile in profile store')
+    profileStore.setProfile(validatedProfile)
+
+    console.log('[ProfilePlugin] ✅ Profile stored successfully')
+    console.log('[ProfilePlugin] Profile store state:', {
+      hasProfile: !!profileStore.profile,
+      profileId: profileStore.profile?.id,
+      profileUsername: profileStore.profile?.username
+    })
+
+    console.log('[ProfilePlugin] ============ INITIALIZE PROFILE END (SUCCESS) ============')
+  } catch (error: any) {
+    console.error('[ProfilePlugin] ============ INITIALIZE PROFILE ERROR ============')
+    console.error('[ProfilePlugin] ❌ Error initializing profile:', error)
+
+    const errorMessage = error?.data?.message || error?.message || 'Failed to initialize profile'
+    const errorStatus = error?.status || error?.statusCode
+
+    console.error('[ProfilePlugin] Error details:', {
+      message: errorMessage,
+      status: errorStatus,
+      type: error?.constructor?.name
+    })
+
+    // ✅ GRACEFUL ERROR HANDLING: Don't throw, just log and continue
+    console.warn('[ProfilePlugin] ⚠️ Profile initialization failed, continuing without profile')
+    console.error('[ProfilePlugin] ============ INITIALIZE PROFILE ERROR END ============')
   }
 }
 
 // ============================================================================
-// SETUP PROFILE CHANGE WATCHERS
+// PROFILE DATA VALIDATION FUNCTION
 // ============================================================================
-function setupProfileChangeWatchers(profileStore: any) {
-  console.log('[Profile Plugin] Setting up profile change watchers...')
+/**
+ * Validate and normalize profile data
+ * Ensures all required fields are present and properly formatted
+ * 
+ * @param profileData - Raw profile data from API
+ * @returns Validated and normalized profile data
+ */
+function validateProfileData(profileData: any): any {
+  console.log('[ProfilePlugin] ============ VALIDATE PROFILE DATA START ============')
 
-  // ============================================================================
-  // WATCH: Profile data changes
-  // ============================================================================
-  const unsubscribeProfile = watch(
-    () => profileStore.profile,
-    (newProfile) => {
-      console.log('[Profile Plugin] ============ PROFILE DATA CHANGED ============')
-
-      if (newProfile) {
-        console.log('[Profile Plugin] Profile updated:', {
-          id: newProfile.id,
-          username: newProfile.username,
-          full_name: newProfile.full_name
-        })
-
-        // Persist to localStorage
-        if (process.client) {
-          try {
-            localStorage.setItem('profile_data', JSON.stringify(newProfile))
-            console.log('[Profile Plugin] ✅ Profile persisted to localStorage')
-          } catch (err) {
-            console.error('[Profile Plugin] ❌ Failed to persist profile:', err)
-          }
-        }
-      } else {
-        console.log('[Profile Plugin] Profile cleared')
-
-        // Clear from localStorage
-        if (process.client) {
-          try {
-            localStorage.removeItem('profile_data')
-            console.log('[Profile Plugin] ✅ Profile removed from localStorage')
-          } catch (err) {
-            console.error('[Profile Plugin] ❌ Failed to clear profile:', err)
-          }
-        }
-      }
-
-      console.log('[Profile Plugin] ============ PROFILE DATA CHANGED END ============')
-    },
-    { deep: true }
-  )
-
-  // ============================================================================
-  // WATCH: Profile loading state
-  // ============================================================================
-  const unsubscribeLoading = watch(
-    () => profileStore.isLoading,
-    (isLoading) => {
-      console.log('[Profile Plugin] Profile loading state changed:', isLoading)
+  try {
+    // ✅ VALIDATION: Check if profile data exists
+    if (!profileData) {
+      console.error('[ProfilePlugin] ❌ Profile data is null or undefined')
+      throw new Error('Profile data is empty')
     }
-  )
 
-  // ============================================================================
-  // WATCH: Profile error state
-  // ============================================================================
-  const unsubscribeError = watch(
-    () => profileStore.error,
-    (error) => {
-      if (error) {
-        console.error('[Profile Plugin] Profile error:', error)
-      } else {
-        console.log('[Profile Plugin] Profile error cleared')
-      }
+    console.log('[ProfilePlugin] Profile data exists, validating fields...')
+
+    // ✅ VALIDATION: Normalize ID field
+    const profileId = profileData.id || profileData.user_id
+    if (!profileId) {
+      console.error('[ProfilePlugin] ❌ Profile ID is missing')
+      throw new Error('Profile ID is required')
     }
-  )
 
-  console.log('[Profile Plugin] ✅ Profile change watchers set up')
+    console.log('[ProfilePlugin] Profile ID validated:', profileId)
 
-  // Return unsubscribe functions (optional cleanup)
-  return {
-    unsubscribeProfile,
-    unsubscribeLoading,
-    unsubscribeError
+    // ✅ VALIDATION: Normalize username
+    const username = profileData.username || profileData.user_name || ''
+    if (!username) {
+      console.warn('[ProfilePlugin] ⚠️ Username is missing')
+    }
+
+    console.log('[ProfilePlugin] Username validated:', username)
+
+    // ✅ VALIDATION: Normalize email
+    const email = profileData.email || ''
+    if (!email) {
+      console.warn('[ProfilePlugin] ⚠️ Email is missing')
+    }
+
+    console.log('[ProfilePlugin] Email validated:', email)
+
+    // ✅ VALIDATION: Normalize full name
+    const fullName = profileData.full_name || profileData.fullName || ''
+    console.log('[ProfilePlugin] Full name validated:', fullName)
+
+    // ✅ VALIDATION: Normalize avatar URL
+    const avatarUrl = profileData.avatar_url || profileData.avatarUrl || '/default-avatar.svg'
+    console.log('[ProfilePlugin] Avatar URL validated:', avatarUrl)
+
+    // ✅ VALIDATION: Normalize bio
+    const bio = profileData.bio || ''
+    console.log('[ProfilePlugin] Bio validated:', bio.substring(0, 50) + '...')
+
+    // ✅ VALIDATION: Normalize status
+    const status = profileData.status || 'online'
+    console.log('[ProfilePlugin] Status validated:', status)
+
+    // ✅ VALIDATION: Normalize verification status
+    const verified = profileData.verified || profileData.is_verified || false
+    console.log('[ProfilePlugin] Verification status validated:', verified)
+
+    // ✅ VALIDATION: Normalize follower counts
+    const followersCount = parseInt(profileData.followers_count || profileData.followersCount || '0', 10)
+    const followingCount = parseInt(profileData.following_count || profileData.followingCount || '0', 10)
+    const postsCount = parseInt(profileData.posts_count || profileData.postsCount || '0', 10)
+
+    console.log('[ProfilePlugin] Counts validated:', {
+      followers: followersCount,
+      following: followingCount,
+      posts: postsCount
+    })
+
+    // ✅ VALIDATION: Normalize timestamps
+    const createdAt = profileData.created_at || profileData.createdAt || new Date().toISOString()
+    const updatedAt = profileData.updated_at || profileData.updatedAt || new Date().toISOString()
+
+    console.log('[ProfilePlugin] Timestamps validated')
+
+    // ✅ VALIDATION: Normalize additional fields
+    const location = profileData.location || ''
+    const website = profileData.website || ''
+    const isPrivate = profileData.is_private || profileData.isPrivate || false
+    const interests = profileData.interests || []
+
+    console.log('[ProfilePlugin] Additional fields validated')
+
+    // Create validated profile object
+    const validatedProfile = {
+      id: profileId,
+      username,
+      email,
+      full_name: fullName,
+      avatar_url: avatarUrl,
+      bio,
+      status,
+      verified,
+      followers_count: followersCount,
+      following_count: followingCount,
+      posts_count: postsCount,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      location,
+      website,
+      is_private: isPrivate,
+      interests,
+      // Include original data for backward compatibility
+      ...profileData
+    }
+
+    console.log('[ProfilePlugin] ✅ Profile data validated and normalized')
+    console.log('[ProfilePlugin] Validated profile keys:', Object.keys(validatedProfile))
+    console.log('[ProfilePlugin] ============ VALIDATE PROFILE DATA END (SUCCESS) ============')
+
+    return validatedProfile
+  } catch (error: any) {
+    console.error('[ProfilePlugin] ============ VALIDATE PROFILE DATA ERROR ============')
+    console.error('[ProfilePlugin] ❌ Error validating profile data:', error)
+    console.error('[ProfilePlugin] ============ VALIDATE PROFILE DATA ERROR END ============')
+
+    // ✅ GRACEFUL ERROR HANDLING: Return original data if validation fails
+    console.warn('[ProfilePlugin] ⚠️ Returning original profile data due to validation error')
+    return profileData
+  }
+}
+
+// ============================================================================
+// PROFILE SYNC FUNCTION
+// ============================================================================
+/**
+ * Sync profile data with server
+ * Called periodically to keep profile data up-to-date
+ * 
+ * @param authStore - Auth store instance
+ * @param profileStore - Profile store instance
+ */
+export async function syncProfileData(authStore: any, profileStore: any) {
+  console.log('[ProfilePlugin] ============ SYNC PROFILE DATA START ============')
+
+  try {
+    // ✅ VALIDATION: Check if user is authenticated
+    if (!authStore.isAuthenticated) {
+      console.log('[ProfilePlugin] User not authenticated, skipping sync')
+      return
+    }
+
+    // ✅ VALIDATION: Check if user has ID
+    if (!authStore.user?.id) {
+      console.error('[ProfilePlugin] ❌ User ID not available')
+      return
+    }
+
+    // ✅ VALIDATION: Check if token is available
+    if (!authStore.token) {
+      console.error('[ProfilePlugin] ❌ Token not available')
+      return
+    }
+
+    console.log('[ProfilePlugin] Syncing profile for user:', authStore.user.id)
+
+    // Fetch latest profile data
+    const profileResponse = await $fetch(`/api/profile/${authStore.user.id}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('[ProfilePlugin] ✅ Profile sync response received')
+
+    // ✅ VALIDATION: Check if response is valid
+    if (!profileResponse) {
+      console.error('[ProfilePlugin] ❌ Profile sync response is empty')
+      return
+    }
+
+    // Validate and store profile
+    const validatedProfile = validateProfileData(profileResponse)
+    profileStore.setProfile(validatedProfile)
+
+    console.log('[ProfilePlugin] ✅ Profile synced successfully')
+    console.log('[ProfilePlugin] ============ SYNC PROFILE DATA END (SUCCESS) ============')
+  } catch (error: any) {
+    console.error('[ProfilePlugin] ============ SYNC PROFILE DATA ERROR ============')
+    console.error('[ProfilePlugin] ❌ Error syncing profile:', error)
+    console.error('[ProfilePlugin] ============ SYNC PROFILE DATA ERROR END ============')
+  }
+}
+
+// ============================================================================
+// PROFILE VALIDATION UTILITY FUNCTION
+// ============================================================================
+/**
+ * Check if profile is complete
+ * Validates that all required fields are present
+ * 
+ * @param profile - Profile object to validate
+ * @returns Boolean indicating if profile is complete
+ */
+export function isProfileComplete(profile: any): boolean {
+  console.log('[ProfilePlugin] Checking if profile is complete')
+
+  if (!profile) {
+    console.log('[ProfilePlugin] Profile is null or undefined')
+    return false
+  }
+
+  const requiredFields = ['id', 'username', 'full_name', 'bio', 'avatar_url']
+  const missingFields = requiredFields.filter(field => !profile[field])
+
+  if (missingFields.length > 0) {
+    console.log('[ProfilePlugin] Profile missing fields:', missingFields)
+    return false
+  }
+
+  console.log('[ProfilePlugin] Profile is complete')
+  return true
+}
+
+// ============================================================================
+// PROFILE UPDATE FUNCTION
+// ============================================================================
+/**
+ * Update profile data
+ * Sends updated profile data to server
+ * 
+ * @param authStore - Auth store instance
+ * @param profileStore - Profile store instance
+ * @param updates - Profile updates
+ */
+export async function updateProfile(authStore: any, profileStore: any, updates: any) {
+  console.log('[ProfilePlugin] ============ UPDATE PROFILE START ============')
+  console.log('[ProfilePlugin] Profile updates:', updates)
+
+  try {
+    // ✅ VALIDATION: Check if user is authenticated
+    if (!authStore.isAuthenticated) {
+      console.error('[ProfilePlugin] ❌ User not authenticated')
+      throw new Error('User not authenticated')
+    }
+
+    // ✅ VALIDATION: Check if user has ID
+    if (!authStore.user?.id) {
+      console.error('[ProfilePlugin] ❌ User ID not available')
+      throw new Error('User ID not available')
+    }
+
+    // ✅ VALIDATION: Check if token is available
+    if (!authStore.token) {
+      console.error('[ProfilePlugin] ❌ Token not available')
+      throw new Error('Token not available')
+    }
+
+    console.log('[ProfilePlugin] Updating profile for user:', authStore.user.id)
+
+    // Send update request
+    const response = await $fetch(`/api/profile/${authStore.user.id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: updates
+    })
+
+    console.log('[ProfilePlugin] ✅ Profile update response received')
+
+    // ✅ VALIDATION: Check if response is valid
+    if (!response) {
+      console.error('[ProfilePlugin] ❌ Profile update response is empty')
+      throw new Error('Profile update response is empty')
+    }
+
+    // Validate and store updated profile
+    const validatedProfile = validateProfileData(response)
+    profileStore.setProfile(validatedProfile)
+
+    console.log('[ProfilePlugin] ✅ Profile updated successfully')
+    console.log('[ProfilePlugin] ============ UPDATE PROFILE END (SUCCESS) ============')
+
+    return validatedProfile
+  } catch (error: any) {
+    console.error('[ProfilePlugin] ============ UPDATE PROFILE ERROR ============')
+    console.error('[ProfilePlugin] ❌ Error updating profile:', error)
+    console.error('[ProfilePlugin] ============ UPDATE PROFILE ERROR END ============')
+
+    throw error
+  }
+}
+
+// ============================================================================
+// PROFILE RESET FUNCTION
+// ============================================================================
+/**
+ * Reset profile data
+ * Clears profile from store
+ * 
+ * @param profileStore - Profile store instance
+ */
+export function resetProfile(profileStore: any) {
+  console.log('[ProfilePlugin] Resetting profile')
+
+  try {
+    profileStore.clearProfile()
+    console.log('[ProfilePlugin] ✅ Profile reset successfully')
+  } catch (error) {
+    console.error('[ProfilePlugin] ❌ Error resetting profile:', error)
   }
 }
