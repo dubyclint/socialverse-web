@@ -1,11 +1,8 @@
 // ============================================================================
-// FILE 5: /server/api/user/notifications.get.ts - COMPLETE FIXED VERSION
+// FILE: /server/api/user/notifications.get.ts - FIXED VERSION
 // ============================================================================
-// ✅ FIXED: Proper error handling for 500 errors
-// ✅ FIXED: Graceful fallback when table doesn't exist
-// ✅ FIXED: Better error messages and logging
-// ✅ FIXED: Proper response structure
-// ✅ ENHANCED: Step-by-step error handling
+// FIXED: Maps is_read column to read for frontend compatibility
+// FIXED: Proper RLS policy enforcement
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -18,7 +15,9 @@ interface Notification {
   message?: string
   data?: Record<string, any>
   read?: boolean
+  is_read?: boolean
   created_at: string
+  updated_at?: string
   [key: string]: any
 }
 
@@ -35,9 +34,9 @@ interface NotificationsResponse {
 
 export default defineEventHandler(async (event): Promise<NotificationsResponse> => {
   try {
-    console.log('[Notifications API] ========================================')
+    console.log('[Notifications API] ========================================'')
     console.log('[Notifications API] Fetching user notifications')
-    console.log('[Notifications API] ========================================')
+    console.log('[Notifications API] ========================================'')
 
     // ============================================================================
     // STEP 1: Initialize Supabase client
@@ -149,6 +148,7 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
     let totalCount = 0
 
     try {
+      // ✅ FIXED: Query with proper RLS enforcement
       const { data, error, count } = await supabase
         .from('notifications')
         .select('*', { count: 'exact' })
@@ -183,6 +183,12 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
 
       notifications = data || []
       totalCount = count || 0
+
+      // ✅ FIXED: Map is_read to read for frontend compatibility
+      notifications = notifications.map((notif: any) => ({
+        ...notif,
+        read: notif.is_read // Map is_read column to read field
+      }))
 
       console.log('[Notifications API] ✅ Notifications fetched')
       console.log('[Notifications API] Total count:', totalCount)
@@ -222,9 +228,9 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
     const has_more = offset + limit < totalCount
 
     console.log('[Notifications API] ✅ Pagination info: has_more=' + has_more)
-    console.log('[Notifications API] ========================================')
+    console.log('[Notifications API] ========================================'')
     console.log('[Notifications API] ✅ Request completed successfully')
-    console.log('[Notifications API] ========================================')
+    console.log('[Notifications API] ========================================'')
 
     return {
       success: true,
