@@ -1,9 +1,9 @@
 // ============================================================================
-// FIXED: /server/api/user/profile.get.ts
+// FIXED: /server/api/user/profile.get.ts - RETURNS USER_ID
 // ============================================================================
 // Get current user's profile
-// ✅ FIXED: Renamed error variable from 'createError' to 'profileCreateError'
-//           to avoid shadowing the h3 createError function
+// ✅ FIXED: Returns profile with user_id field
+// ✅ FIXED: Uses JWT from middleware instead of Supabase session
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -12,14 +12,31 @@ export default defineEventHandler(async (event) => {
   console.log('[User Profile API] ============ GET USER PROFILE START ============')
 
   try {
-    // Get authenticated user
-    const authUser = await requireAuth(event)
-    console.log('[User Profile API] Auth user ID:', authUser.id)
+    // ============================================================================
+    // STEP 1: Get authenticated user from JWT middleware
+    // ============================================================================
+    const authUser = event.context.user
+    
+    if (!authUser || !authUser.id) {
+      console.error('[User Profile API] ❌ Unauthorized - No user in context')
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized - Please log in'
+      })
+    }
+
+    console.log('[User Profile API] ✅ Auth user ID:', authUser.id)
     console.log('[User Profile API] Auth user email:', authUser.email)
 
-    // Use correct serverSupabaseClient function
+    // ============================================================================
+    // STEP 2: Get Supabase client for database queries
+    // ============================================================================
     const supabase = await serverSupabaseClient(event)
+    console.log('[User Profile API] Supabase client initialized')
     
+    // ============================================================================
+    // STEP 3: Query user_profiles table
+    // ============================================================================
     console.log('[User Profile API] Querying user_profiles table for user:', authUser.id)
     
     const { data: profile, error: profileError } = await supabase
@@ -28,7 +45,9 @@ export default defineEventHandler(async (event) => {
       .eq('id', authUser.id)
       .single()
 
-    // If profile exists, return it
+    // ============================================================================
+    // STEP 4: If profile exists, return it with user_id
+    // ============================================================================
     if (!profileError && profile) {
       console.log('[User Profile API] ✅ Profile found')
       console.log('[User Profile API] Profile data:', {
@@ -36,15 +55,24 @@ export default defineEventHandler(async (event) => {
         username: profile.username,
         email: profile.email
       })
-      console.log('[User Profile API] ============ GET USER PROFILE END ============')
+
+      // ✅ FIXED: Ensure user_id is included in response
+      const profileWithUserId = {
+        ...profile,
+        user_id: profile.id  // ← Add user_id field
+      }
+
+      console.log('[User Profile API] ============ GET USER PROFILE END (SUCCESS) ============')
 
       return {
         success: true,
-        data: profile
+        data: profileWithUserId
       }
     }
 
-    // Profile doesn't exist, create it
+    // ============================================================================
+    // STEP 5: If profile doesn't exist, create it
+    // ============================================================================
     if (profileError?.code === 'PGRST116') {
       console.log('[User Profile API] ⚠️ Profile not found (PGRST116), creating new profile...')
       
@@ -63,7 +91,6 @@ export default defineEventHandler(async (event) => {
         full_name: fullName
       })
 
-      // ✅ FIXED: Changed 'error: createError' to 'error: profileCreateError'
       const { data: newProfile, error: profileCreateError } = await supabase
         .from('user_profiles')
         .insert([
@@ -84,7 +111,6 @@ export default defineEventHandler(async (event) => {
         .select()
         .single()
 
-      // ✅ FIXED: Updated error variable name
       if (profileCreateError) {
         console.error('[User Profile API] ❌ Profile creation failed:', {
           code: profileCreateError.code,
@@ -104,15 +130,24 @@ export default defineEventHandler(async (event) => {
         username: newProfile.username,
         email: newProfile.email
       })
-      console.log('[User Profile API] ============ GET USER PROFILE END ============')
+
+      // ✅ FIXED: Ensure user_id is included in response
+      const newProfileWithUserId = {
+        ...newProfile,
+        user_id: newProfile.id  // ← Add user_id field
+      }
+
+      console.log('[User Profile API] ============ GET USER PROFILE END (SUCCESS) ============')
 
       return {
         success: true,
-        data: newProfile
+        data: newProfileWithUserId
       }
     }
 
-    // Unexpected error
+    // ============================================================================
+    // STEP 6: Unexpected error
+    // ============================================================================
     console.error('[User Profile API] ❌ Unexpected profile error:', {
       code: profileError?.code,
       message: profileError?.message
