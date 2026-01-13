@@ -1,8 +1,9 @@
 // ============================================================================
-// FILE: /stores/profile.ts - COMPLETE FIXED VERSION
+// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION WITH SYNC
 // ============================================================================
-// Profile store with rank & verification integration
+// Profile store with rank & verification integration + PROFILE SYNC
 // ✅ FIXED: All API calls now include Authorization header
+// ✅ NEW: Added profile sync methods for app-wide updates
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -148,6 +149,9 @@ export const useProfileStore = defineStore('profile', () => {
     }
 
     console.log('[Profile Store] ✅ Profile set successfully')
+    
+    // ✅ NEW: Broadcast profile update event
+    broadcastProfileUpdate(newProfile)
   }
 
   const setLoading = (loading: boolean) => {
@@ -164,13 +168,17 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  // ============================================================================
+  // ACTIONS - CLEAR PROFILE
+  // ============================================================================
+  
   const clearProfile = () => {
     console.log('[Profile Store] ============ CLEAR PROFILE START ============')
-    console.log('[Profile Store] Clearing all profile data')
     
     profile.value = null
-    error.value = null
     isLoading.value = false
+    error.value = null
+    isHydrated.value = false
     isUploadingAvatar.value = false
     uploadAvatarProgress.value = 0
     uploadAvatarError.value = null
@@ -237,38 +245,32 @@ export const useProfileStore = defineStore('profile', () => {
 
     } catch (err: any) {
       console.error('[Profile Store] ============ FETCH PROFILE ERROR ============')
-      console.error('[Profile Store] Error:', err.message)
-
-      let errorMessage = 'Failed to fetch profile'
-
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-
-      console.error('[Profile Store] ============ END ERROR ============')
+      console.error('[Profile Store] ❌ Error fetching profile:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to fetch profile'
       setError(errorMessage)
-
+      
+      console.error('[Profile Store] Error details:', {
+        message: errorMessage,
+        status: err?.status,
+        statusCode: err?.statusCode
+      })
+      console.error('[Profile Store] ============ FETCH PROFILE ERROR END ============')
     } finally {
       setLoading(false)
     }
   }
 
   // ============================================================================
-  // ACTIONS - UPDATE PROFILE - FIXED WITH AUTH HEADER
+  // ACTIONS - UPDATE PROFILE
   // ============================================================================
   
   const updateProfile = async (updates: Partial<Profile>) => {
     console.log('[Profile Store] ============ UPDATE PROFILE START ============')
-    console.log('[Profile Store] Updating profile with:', {
-      full_name: updates.full_name,
-      bio: updates.bio,
-      location: updates.location
-    })
+    console.log('[Profile Store] Updating profile with:', updates)
 
     if (!profile.value) {
-      console.error('[Profile Store] ❌ No profile to update')
+      console.error('[Profile Store] ❌ No profile loaded')
       setError('No profile loaded')
       return
     }
@@ -277,13 +279,8 @@ export const useProfileStore = defineStore('profile', () => {
     setError(null)
 
     try {
-      console.log('[Profile Store] Calling API to update profile...')
-
-      // ✅ FIX: Add Authorization header
       const authStore = useAuthStore()
       const token = authStore.token
-
-      console.log('[Profile Store] Token available:', !!token)
 
       const response = await $fetch('/api/profile/update', {
         method: 'POST',
@@ -293,337 +290,440 @@ export const useProfileStore = defineStore('profile', () => {
         body: updates
       })
 
-      console.log('[Profile Store] ✅ Profile update API response received')
+      console.log('[Profile Store] ✅ Profile update response:', response)
 
-      if (!response) {
-        console.error('[Profile Store] ❌ No profile data in response')
-        setError('Profile update failed')
-        return
+      if (response) {
+        setProfile(response)
+        console.log('[Profile Store] ✅ Profile updated successfully')
       }
 
-      const updatedProfile = {
-        ...profile.value,
-        ...response,
-        updated_at: new Date().toISOString()
-      }
-
-      setProfile(updatedProfile)
-      console.log('[Profile Store] ✅ Profile updated successfully')
       console.log('[Profile Store] ============ UPDATE PROFILE END ============')
+      return response
 
     } catch (err: any) {
       console.error('[Profile Store] ============ UPDATE PROFILE ERROR ============')
-      console.error('[Profile Store] Error:', err.message)
-
-      let errorMessage = 'Failed to update profile'
-
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-
-      console.error('[Profile Store] ============ END ERROR ============')
+      console.error('[Profile Store] ❌ Error updating profile:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to update profile'
       setError(errorMessage)
-
+      
+      console.error('[Profile Store] ============ UPDATE PROFILE ERROR END ============')
     } finally {
       setLoading(false)
     }
   }
 
-  // ============================================================================
-  // ACTIONS - COMPLETE PROFILE - FIXED WITH AUTH HEADER
+       // ============================================================================
+  // ACTIONS - COMPLETE PROFILE
   // ============================================================================
   
-  const completeProfile = async (data: any) => {
+  const completeProfile = async (profileData: Partial<Profile>) => {
     console.log('[Profile Store] ============ COMPLETE PROFILE START ============')
-    console.log('[Profile Store] Completing profile with:', {
-      full_name: data.full_name,
-      bio: data.bio
-    })
+    console.log('[Profile Store] Completing profile with:', profileData)
 
     setLoading(true)
     setError(null)
 
     try {
-      console.log('[Profile Store] Calling API to complete profile...')
-
-      // ✅ FIX: Add Authorization header
       const authStore = useAuthStore()
       const token = authStore.token
-
-      console.log('[Profile Store] Token available:', !!token)
 
       const response = await $fetch('/api/profile/complete', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        body: data
+        body: profileData
       })
 
-      console.log('[Profile Store] ✅ Profile completion API response received')
+      console.log('[Profile Store] ✅ Profile completion response:', response)
 
-      if (!response) {
-        console.error('[Profile Store] ❌ No profile data in response')
-        setError('Profile completion failed')
-        return
+      if (response) {
+        setProfile(response)
+        console.log('[Profile Store] ✅ Profile completed successfully')
       }
 
-      setProfile(response)
-      console.log('[Profile Store] ✅ Profile completed successfully')
       console.log('[Profile Store] ============ COMPLETE PROFILE END ============')
+      return response
 
     } catch (err: any) {
       console.error('[Profile Store] ============ COMPLETE PROFILE ERROR ============')
-      console.error('[Profile Store] Error:', err.message)
-
-      let errorMessage = 'Failed to complete profile'
-
-      if (err.data?.statusMessage) {
-        errorMessage = err.data.statusMessage
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-
-      console.error('[Profile Store] ============ END ERROR ============')
+      console.error('[Profile Store] ❌ Error completing profile:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to complete profile'
       setError(errorMessage)
-
+      
+      console.error('[Profile Store] ============ COMPLETE PROFILE ERROR END ============')
     } finally {
       setLoading(false)
     }
   }
 
   // ============================================================================
-  // ACTIONS - UPLOAD AVATAR - FIXED WITH AUTH HEADER
+  // ACTIONS - UPLOAD AVATAR
   // ============================================================================
   
-  const uploadAvatar = async (file: File): Promise<string | null> => {
+  const uploadAvatar = async (file: File) => {
     console.log('[Profile Store] ============ UPLOAD AVATAR START ============')
-    console.log('[Profile Store] Uploading avatar:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    })
+    console.log('[Profile Store] Uploading avatar file:', file.name)
 
     if (!profile.value) {
-      console.error('[Profile Store] ❌ No profile to update avatar')
-      uploadAvatarError.value = 'No profile loaded'
-      return null
-    }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    const maxSize = 5 * 1024 * 1024
-
-    if (!allowedTypes.includes(file.type || '')) {
-      console.error('[Profile Store] ❌ Invalid file type:', file.type)
-      uploadAvatarError.value = 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'
-      return null
-    }
-
-    if (file.size > maxSize) {
-      console.error('[Profile Store] ❌ File size exceeds limit:', file.size)
-      uploadAvatarError.value = 'File size exceeds 5MB limit.'
-      return null
+      console.error('[Profile Store] ❌ No profile loaded')
+      setError('No profile loaded')
+      return
     }
 
     isUploadingAvatar.value = true
-    uploadAvatarProgress.value = 0
     uploadAvatarError.value = null
+    uploadAvatarProgress.value = 0
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      console.log('[Profile Store] FormData created, starting upload...')
-
-      const progressInterval = setInterval(() => {
-        if (uploadAvatarProgress.value < 90) {
-          uploadAvatarProgress.value += Math.random() * 30
-        }
-      }, 200)
-
-      console.log('[Profile Store] Sending upload request to /api/profile/avatar-upload')
-
-      // ✅ FIX: Add Authorization header
       const authStore = useAuthStore()
       const token = authStore.token
 
-      const response = await fetch('/api/profile/avatar-upload', {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await $fetch('/api/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        body: formData
+        body: formData,
+        onUploadProgress: (event: any) => {
+          if (event.total) {
+            uploadAvatarProgress.value = Math.round((event.loaded / event.total) * 100)
+            console.log('[Profile Store] Upload progress:', uploadAvatarProgress.value + '%')
+          }
+        }
       })
 
-      clearInterval(progressInterval)
-      uploadAvatarProgress.value = 100
+      console.log('[Profile Store] ✅ Avatar uploaded:', response)
 
-      console.log('[Profile Store] Upload response status:', response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
+      if (response?.url) {
+        // Update profile with new avatar URL
+        const updatedProfile = {
+          ...profile.value,
+          avatar_url: response.url,
+          updated_at: new Date().toISOString()
+        }
+        setProfile(updatedProfile)
+        console.log('[Profile Store] ✅ Avatar updated successfully')
       }
 
-      const data = await response.json()
-      console.log('[Profile Store] ✅ Upload successful:', data)
-
-      if (!data.success || !data.url) {
-        throw new Error('Invalid upload response')
-      }
-
-      const updatedProfile = {
-        ...profile.value,
-        avatar_url: data.url,
-        updated_at: new Date().toISOString()
-      }
-
-      setProfile(updatedProfile)
-
-      console.log('[Profile Store] ✅ Avatar updated in profile store')
       console.log('[Profile Store] ============ UPLOAD AVATAR END ============')
+      return response
 
-      return data.url
-
-    } catch (error: any) {
+    } catch (err: any) {
       console.error('[Profile Store] ============ UPLOAD AVATAR ERROR ============')
-      console.error('[Profile Store] Error:', error.message)
-
-      uploadAvatarError.value = error.message || 'Failed to upload avatar'
-      console.error('[Profile Store] ============ END ERROR ============')
-
-      return null
-
+      console.error('[Profile Store] ❌ Error uploading avatar:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to upload avatar'
+      uploadAvatarError.value = errorMessage
+      
+      console.error('[Profile Store] ============ UPLOAD AVATAR ERROR END ============')
     } finally {
       isUploadingAvatar.value = false
     }
   }
 
   const clearAvatarUploadError = () => {
-    console.log('[Profile Store] Clearing avatar upload error')
     uploadAvatarError.value = null
   }
 
   // ============================================================================
-  // ACTIONS - INTERESTS - FIXED WITH AUTH HEADER
+  // ACTIONS - INTERESTS MANAGEMENT
   // ============================================================================
   
-  const addInterest = async (interestId: string) => {
-    console.log('[Profile Store] Adding interest:', interestId)
+  const addInterest = async (interest: string) => {
+    console.log('[Profile Store] ============ ADD INTEREST START ============')
+    console.log('[Profile Store] Adding interest:', interest)
 
-    try {
-      // ✅ FIX: Add Authorization header
-      const authStore = useAuthStore()
-      const token = authStore.token
-
-      await $fetch('/api/interests/add', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: { interestId }
-      })
-      
-      console.log('[Profile Store] ✅ Interest added, refetching profile...')
-      await fetchProfile(profile.value?.user_id || '')
-    } catch (error: any) {
-      console.error('[Profile Store] ❌ Failed to add interest:', error.message)
-      setError(error.message)
-    }
-  }
-
-  const removeInterest = async (interestId: string) => {
-    console.log('[Profile Store] Removing interest:', interestId)
-
-    try {
-      // ✅ FIX: Add Authorization header
-      const authStore = useAuthStore()
-      const token = authStore.token
-
-      await $fetch('/api/interests/remove', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: { interestId }
-      })
-      
-      console.log('[Profile Store] ✅ Interest removed, refetching profile...')
-      await fetchProfile(profile.value?.user_id || '')
-    } catch (error: any) {
-      console.error('[Profile Store] ❌ Failed to remove interest:', error.message)
-      setError(error.message)
-    }
-  }
-
-  // ============================================================================
-  // ACTIONS - HYDRATION
-  // ============================================================================
-  
-  const hydrateFromStorage = async () => {
-    console.log('[Profile Store] ============ HYDRATE FROM STORAGE START ============')
-
-    if (!process.client || isHydrated.value) {
-      console.log('[Profile Store] Hydration skipped (not client or already hydrated)')
-      console.log('[Profile Store] ============ HYDRATE FROM STORAGE END ============')
+    if (!profile.value) {
+      console.error('[Profile Store] ❌ No profile loaded')
+      setError('No profile loaded')
       return
     }
 
-    console.log('[Profile Store] Hydrating from localStorage...')
+    setLoading(true)
+    setError(null)
 
     try {
-      const storedProfile = localStorage.getItem('profile_data')
+      const authStore = useAuthStore()
+      const token = authStore.token
 
-      if (storedProfile) {
-        try {
-          const parsedProfile = JSON.parse(storedProfile)
-          profile.value = parsedProfile
-          console.log('[Profile Store] ✅ Profile restored from localStorage:', {
-            user_id: parsedProfile.user_id,
-            full_name: parsedProfile.full_name
-          })
-        } catch (parseError) {
-          console.error('[Profile Store] ❌ Failed to parse stored profile:', parseError)
-          localStorage.removeItem('profile_data')
-        }
-      } else {
-        console.log('[Profile Store] No profile data in localStorage')
+      const response = await $fetch('/api/interests/add', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: { interest }
+      })
+
+      console.log('[Profile Store] ✅ Interest added:', response)
+
+      if (response) {
+        setProfile(response)
+        console.log('[Profile Store] ✅ Interest added successfully')
       }
 
-      isHydrated.value = true
-      console.log('[Profile Store] ✅ Hydration complete')
-      console.log('[Profile Store] ============ HYDRATE FROM STORAGE END ============')
+      console.log('[Profile Store] ============ ADD INTEREST END ============')
+      return response
 
-    } catch (err) {
-      console.error('[Profile Store] ❌ Hydration error:', err)
-      isHydrated.value = true
-      console.log('[Profile Store] ============ HYDRATE FROM STORAGE END ============')
+    } catch (err: any) {
+      console.error('[Profile Store] ============ ADD INTEREST ERROR ============')
+      console.error('[Profile Store] ❌ Error adding interest:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to add interest'
+      setError(errorMessage)
+      
+      console.error('[Profile Store] ============ ADD INTEREST ERROR END ============')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const initializeProfile = async (userId: string) => {
-    console.log('[Profile Store] ============ INITIALIZE PROFILE START ============')
-    console.log('[Profile Store] Initializing profile for user:', userId)
+  const removeInterest = async (interest: string) => {
+    console.log('[Profile Store] ============ REMOVE INTEREST START ============')
+    console.log('[Profile Store] Removing interest:', interest)
+
+    if (!profile.value) {
+      console.error('[Profile Store] ❌ No profile loaded')
+      setError('No profile loaded')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
 
     try {
-      await fetchProfile(userId)
+      const authStore = useAuthStore()
+      const token = authStore.token
 
-      if (!profile.value) {
-        console.log('[Profile Store] Profile fetch failed, trying hydration from storage...')
-        await hydrateFromStorage()
+      const response = await $fetch('/api/interests/remove', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: { interest }
+      })
+
+      console.log('[Profile Store] ✅ Interest removed:', response)
+
+      if (response) {
+        setProfile(response)
+        console.log('[Profile Store] ✅ Interest removed successfully')
+      }
+
+      console.log('[Profile Store] ============ REMOVE INTEREST END ============')
+      return response
+
+    } catch (err: any) {
+      console.error('[Profile Store] ============ REMOVE INTEREST ERROR ============')
+      console.error('[Profile Store] ❌ Error removing interest:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to remove interest'
+      setError(errorMessage)
+      
+      console.error('[Profile Store] ============ REMOVE INTEREST ERROR END ============')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ============================================================================
+  // ACTIONS - PROFILE SYNC (NEW)
+  // ============================================================================
+  
+  /**
+   * ✅ NEW: Broadcast profile update to all listeners
+   */
+  const broadcastProfileUpdate = (updatedProfile: Profile) => {
+    console.log('[Profile Store] Broadcasting profile update:', updatedProfile)
+    
+    if (process.client) {
+      window.dispatchEvent(
+        new CustomEvent('profileUpdated', {
+          detail: updatedProfile,
+          bubbles: true,
+          composed: true
+        })
+      )
+    }
+  }
+
+  /**
+   * ✅ NEW: Update specific profile field and sync
+   */
+  const updateProfileField = async (field: string, value: any) => {
+    console.log('[Profile Store] ============ UPDATE FIELD START ============')
+    console.log('[Profile Store] Updating field:', field, 'with value:', value)
+
+    if (!profile.value) {
+      console.error('[Profile Store] ❌ No profile loaded')
+      setError('No profile loaded')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Update local state optimistically
+      const updatedProfile = {
+        ...profile.value,
+        [field]: value,
+        updated_at: new Date().toISOString()
+      }
+      profile.value = updatedProfile
+
+      // Broadcast update immediately
+      broadcastProfileUpdate(updatedProfile)
+
+      // Sync to API
+      const authStore = useAuthStore()
+      const token = authStore.token
+
+      const response = await $fetch('/api/profile/update', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: { [field]: value }
+      })
+
+      console.log('[Profile Store] ✅ Field updated:', response)
+
+      if (response) {
+        setProfile(response)
+        console.log('[Profile Store] ✅ Field update synced successfully')
+      }
+
+      console.log('[Profile Store] ============ UPDATE FIELD END ============')
+      return response
+
+    } catch (err: any) {
+      console.error('[Profile Store] ============ UPDATE FIELD ERROR ============')
+      console.error('[Profile Store] ❌ Error updating field:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to update field'
+      setError(errorMessage)
+      
+      // Revert optimistic update
+      if (profile.value) {
+        profile.value = { ...profile.value }
+      }
+      
+      console.error('[Profile Store] ============ UPDATE FIELD ERROR END ============')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /**
+   * ✅ NEW: Refresh profile from API
+   */
+  const refreshProfile = async (userId?: string) => {
+    console.log('[Profile Store] ============ REFRESH PROFILE START ============')
+    console.log('[Profile Store] Refreshing profile...')
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      const authStore = useAuthStore()
+      const token = authStore.token
+      const id = userId || profile.value?.id
+
+      if (!id) {
+        console.error('[Profile Store] ❌ No user ID provided')
+        setError('No user ID provided')
+        return
+      }
+
+      const response = await $fetch(`/api/profile/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      console.log('[Profile Store] ✅ Profile refreshed:', response)
+
+      if (response) {
+        setProfile(response)
+        console.log('[Profile Store] ✅ Profile refresh successful')
+      }
+
+      console.log('[Profile Store] ============ REFRESH PROFILE END ============')
+      return response
+
+    } catch (err: any) {
+      console.error('[Profile Store] ============ REFRESH PROFILE ERROR ============')
+      console.error('[Profile Store] ❌ Error refreshing profile:', err)
+      
+      const errorMessage = err?.data?.message || err?.message || 'Failed to refresh profile'
+      setError(errorMessage)
+      
+      console.error('[Profile Store] ============ REFRESH PROFILE ERROR END ============')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ============================================================================
+  // ACTIONS - STORAGE MANAGEMENT
+  // ============================================================================
+  
+  const hydrateFromStorage = () => {
+    console.log('[Profile Store] ============ HYDRATE FROM STORAGE START ============')
+
+    if (!process.client) {
+      console.log('[Profile Store] Server-side, skipping hydration')
+      return
+    }
+
+    try {
+      const stored = localStorage.getItem('profile_data')
+      if (stored) {
+        const profileData = JSON.parse(stored)
+        profile.value = profileData
+        isHydrated.value = true
+        console.log('[Profile Store] ✅ Profile hydrated from localStorage')
+      } else {
+        console.log('[Profile Store] ℹ️ No profile data in localStorage')
+      }
+    } catch (err) {
+      console.error('[Profile Store] ❌ Error hydrating from storage:', err)
+    }
+
+    console.log('[Profile Store] ============ HYDRATE FROM STORAGE END ============')
+  }
+
+  const initializeProfile = async () => {
+    console.log('[Profile Store] ============ INITIALIZE PROFILE START ============')
+
+    try {
+      // First try to hydrate from storage
+      hydrateFromStorage()
+
+      // Then fetch fresh data from API
+      const authStore = useAuthStore()
+      if (authStore.user?.id) {
+        await fetchProfile(authStore.user.id)
       }
 
       console.log('[Profile Store] ✅ Profile initialization complete')
-      console.log('[Profile Store] ============ INITIALIZE PROFILE END ============')
-
     } catch (err) {
-      console.error('[Profile Store] ❌ Initialization error:', err)
-      console.log('[Profile Store] ============ INITIALIZE PROFILE END ============')
+      console.error('[Profile Store] ❌ Error initializing profile:', err)
     }
+
+    console.log('[Profile Store] ============ INITIALIZE PROFILE END ============')
   }
 
+  // ============================================================================
+  // RETURN STORE INTERFACE
+  // ============================================================================
+  
   return {
     // State
     profile,
@@ -661,11 +761,13 @@ export const useProfileStore = defineStore('profile', () => {
     isProfileComplete,
     hasAvatar,
 
-    // Methods
+    // Methods - State Management
     setProfile,
     setLoading,
     setError,
     clearProfile,
+
+    // Methods - Profile Operations
     fetchProfile,
     updateProfile,
     completeProfile,
@@ -673,7 +775,14 @@ export const useProfileStore = defineStore('profile', () => {
     clearAvatarUploadError,
     addInterest,
     removeInterest,
+
+    // Methods - Profile Sync (NEW)
+    broadcastProfileUpdate,
+    updateProfileField,
+    refreshProfile,
+
+    // Methods - Storage
     hydrateFromStorage,
     initializeProfile
   }
-})
+})                                    
