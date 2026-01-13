@@ -1,11 +1,9 @@
 // ============================================================================
-// COMPLETE FIX: /server/api/posts/feed.get.ts - CORRECTED
+// FIXED: /server/api/posts/feed.get.ts - USES JWT FROM MIDDLEWARE
 // ============================================================================
-// GET FEED POSTS - FIXED: Proper authentication and error handling
-// ✅ FIXED: Correct Supabase client initialization
-// ✅ FIXED: Proper authentication check
-// ✅ FIXED: Handle missing friendships table gracefully
-// ✅ FIXED: Comprehensive error handling
+// GET FEED POSTS - FIXED: Uses JWT from auth middleware instead of Supabase session
+// ✅ FIXED: Uses event.context.user from JWT middleware
+// ✅ FIXED: Proper authentication and error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -25,25 +23,25 @@ interface FeedResponse {
 
 export default defineEventHandler(async (event): Promise<FeedResponse> => {
   try {
+    console.log('[Posts Feed API] ============ FETCH FEED START ============')
     console.log('[Posts Feed API] Fetching feed posts...')
 
     // ============================================================================
-    // STEP 1: Get Supabase client and authenticate
+    // STEP 1: Get user from JWT middleware (NOT from Supabase session)
     // ============================================================================
-    const supabase = await serverSupabaseClient(event)
+    const user = event.context.user
     
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      console.error('[Posts Feed API] ❌ Unauthorized - No session')
+    if (!user || !user.id) {
+      console.error('[Posts Feed API] ❌ Unauthorized - No user in context')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized - Please log in'
       })
     }
 
-    const userId = session.user.id
-    console.log('[Posts Feed API] User ID:', userId)
+    const userId = user.id
+    console.log('[Posts Feed API] ✅ User authenticated:', userId)
+    console.log('[Posts Feed API] User email:', user.email)
 
     // ============================================================================
     // STEP 2: Parse pagination parameters
@@ -56,7 +54,13 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
     console.log('[Posts Feed API] Pagination:', { page, limit, offset })
 
     // ============================================================================
-    // STEP 3: Get user's friends (if friendships table exists)
+    // STEP 3: Get Supabase client for database queries
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
+    console.log('[Posts Feed API] Supabase client initialized')
+
+    // ============================================================================
+    // STEP 4: Get user's friends (if friendships table exists)
     // ============================================================================
     console.log('[Posts Feed API] Getting user friends...')
 
@@ -71,7 +75,7 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
 
       if (!friendshipsError && friendships) {
         friendIds = friendships.map(f => f.user_id === userId ? f.friend_id : f.user_id)
-        console.log('[Posts Feed API] Friends count:', friendIds.length)
+        console.log('[Posts Feed API] ✅ Friends count:', friendIds.length)
       } else if (friendshipsError) {
         console.warn('[Posts Feed API] ⚠️ Friendships table error (may not exist):', friendshipsError.message)
       }
@@ -80,11 +84,12 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
     }
 
     const allUserIds = [userId, ...friendIds]
+    console.log('[Posts Feed API] Total user IDs to query:', allUserIds.length)
 
     // ============================================================================
-    // STEP 4: Fetch feed posts
+    // STEP 5: Fetch feed posts
     // ============================================================================
-    console.log('[Posts Feed API] Fetching posts...')
+    console.log('[Posts Feed API] Fetching posts from database...')
 
     const { data: posts, error: postsError, count } = await supabase
       .from('posts')
@@ -107,10 +112,12 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
     console.log('[Posts Feed API] ✅ Posts fetched successfully, count:', posts?.length || 0)
 
     // ============================================================================
-    // STEP 5: Return response
+    // STEP 6: Return response
     // ============================================================================
     const total = count || 0
     const hasMore = (page * limit) < total
+
+    console.log('[Posts Feed API] ============ FETCH FEED END (SUCCESS) ============')
 
     return {
       success: true,
@@ -126,6 +133,7 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
 
   } catch (err: any) {
     console.error('[Posts Feed API] ❌ Error:', err.message)
+    console.log('[Posts Feed API] ============ FETCH FEED END (ERROR) ============')
     
     if (err.statusCode) {
       throw err
