@@ -1,8 +1,9 @@
 // ============================================================================
-// FILE: /server/api/user/notifications.get.ts - FIXED VERSION
+// FILE: /server/api/user/notifications.get.ts - FIXED VERSION (CORRECTED)
 // ============================================================================
 // FIXED: Maps is_read column to read for frontend compatibility
 // FIXED: Proper RLS policy enforcement
+// FIXED: Syntax error corrected
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -34,9 +35,9 @@ interface NotificationsResponse {
 
 export default defineEventHandler(async (event): Promise<NotificationsResponse> => {
   try {
-    console.log('[Notifications API] ========================================'')
+    console.log('[Notifications API] ========================================')
     console.log('[Notifications API] Fetching user notifications')
-    console.log('[Notifications API] ========================================'')
+    console.log('[Notifications API] ========================================')
 
     // ============================================================================
     // STEP 1: Initialize Supabase client
@@ -228,9 +229,9 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
     const has_more = offset + limit < totalCount
 
     console.log('[Notifications API] ✅ Pagination info: has_more=' + has_more)
-    console.log('[Notifications API] ========================================'')
+    console.log('[Notifications API] ========================================')
     console.log('[Notifications API] ✅ Request completed successfully')
-    console.log('[Notifications API] ========================================'')
+    console.log('[Notifications API] ========================================')
 
     return {
       success: true,
