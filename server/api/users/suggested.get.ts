@@ -1,47 +1,62 @@
-// COMPLETE FIX: /server/api/users/suggested.get.ts - CORRECTED
 // ============================================================================
-// GET SUGGESTED USERS - FIXED: Proper authentication and error handling
-// ✅ FIXED: Correct Supabase client initialization
-// ✅ FIXED: Proper authentication check
-// ✅ FIXED: Handle missing users table gracefully
+// FIXED: /server/api/users/suggested.get.ts - USES JWT FROM MIDDLEWARE
+// ============================================================================
+// GET SUGGESTED USERS - FIXED: Uses JWT from auth middleware
+// ✅ FIXED: Uses event.context.user from JWT middleware
+// ✅ FIXED: Proper authentication and error handling
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
+    console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS START ============')
     console.log('[Suggested Users API] Fetching suggested users...')
 
-    // Get Supabase client
-    const supabase = await serverSupabaseClient(event)
+    // ============================================================================
+    // STEP 1: Get user from JWT middleware (NOT from Supabase session)
+    // ============================================================================
+    const user = event.context.user
     
-    // Get current user
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      console.error('[Suggested Users API] ❌ Unauthorized')
+    if (!user || !user.id) {
+      console.error('[Suggested Users API] ❌ Unauthorized - No user in context')
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized - Please log in'
       })
     }
 
-    const userId = session.user.id
-    console.log('[Suggested Users API] User ID:', userId)
+    const userId = user.id
+    console.log('[Suggested Users API] ✅ User authenticated:', userId)
 
+    // ============================================================================
+    // STEP 2: Get Supabase client for database queries
+    // ============================================================================
+    const supabase = await serverSupabaseClient(event)
+    console.log('[Suggested Users API] Supabase client initialized')
+
+    // ============================================================================
+    // STEP 3: Parse query parameters
+    // ============================================================================
     const query = getQuery(event)
     const limit = Math.min(parseInt(query.limit as string) || 5, 20)
+    console.log('[Suggested Users API] Limit:', limit)
 
-    // Try to fetch from profiles view (which is more reliable than users table)
+    // ============================================================================
+    // STEP 4: Fetch suggested users from user_profiles table
+    // ============================================================================
+    console.log('[Suggested Users API] Fetching from user_profiles table...')
+
     const { data: suggestedUsers, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, username, full_name, avatar_url, bio')
       .neq('id', userId)
       .limit(limit)
 
     if (error) {
-      console.warn('[Suggested Users API] ⚠️ Profiles table error:', error.message)
+      console.warn('[Suggested Users API] ⚠️ user_profiles table error:', error.message)
       // Return empty array instead of throwing error
+      console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (EMPTY) ============')
       return {
         success: true,
         data: [],
@@ -50,17 +65,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    console.log('[Suggested Users API] ✅ Suggested users fetched:', suggestedUsers?.length || 0)
+
+    // ============================================================================
+    // STEP 5: Format response
+    // ============================================================================
     const formatted = (suggestedUsers || []).map((u: any) => ({
       id: u.id,
-      name: u.full_name || 'Unknown',
+      full_name: u.full_name || 'Unknown',
       username: u.username || 'unknown',
-      avatar: u.avatar_url || '/default-avatar.svg',
+      avatar_url: u.avatar_url || '/default-avatar.svg',
       bio: u.bio || '',
-      followers: 0,
-      isFollowing: false
+      followers_count: 0,
+      following: false
     }))
 
-    console.log('[Suggested Users API] ✅ Suggested users fetched:', formatted.length)
+    console.log('[Suggested Users API] ✅ Response formatted:', formatted.length)
+    console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (SUCCESS) ============')
 
     return {
       success: true,
@@ -70,6 +91,7 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('[Suggested Users API] ❌ Error:', error.message)
+    console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (ERROR) ============')
     
     if (error.statusCode) {
       throw error
@@ -82,3 +104,4 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
