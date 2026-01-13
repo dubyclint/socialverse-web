@@ -797,7 +797,7 @@ const retryProfileLoad = async () => {
   await fetchProfileData()
 }
 
-  // ============================================================================
+// ============================================================================
 // NAVIGATION METHODS - WITH COMPREHENSIVE VALIDATION
 // ============================================================================
 
@@ -950,16 +950,18 @@ const togglePostMenu = (postId: string) => {
   activePostMenu.value = activePostMenu.value === postId ? null : postId
 }
 
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const likePost = async (postId: string) => {
   try {
     console.log('[Feed] Liking post:', postId)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     await fetchWithAuth(`/api/posts/${postId}/like`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'POST'
     })
     
     const post = posts.value.find(p => p.id === postId)
@@ -969,9 +971,9 @@ const likePost = async (postId: string) => {
         ? (post.likes_count || 0) + 1 
         : Math.max(0, (post.likes_count || 1) - 1)
     }
-    console.log('[Feed] Post liked successfully')
+    console.log('[Feed] ✅ Post liked successfully')
   } catch (error) {
-    console.error('[Feed] Error liking post:', error)
+    console.error('[Feed] ❌ Error liking post:', error)
   }
 }
 
@@ -981,10 +983,15 @@ const commentPost = (postId: string) => {
   router.push(`/posts/${postId}`)
 }
 
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const sharePost = async (postId: string) => {
   try {
     console.log('[Feed] Sharing post:', postId)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
     
     const post = posts.value.find(p => p.id === postId)
     if (!post) return
@@ -1003,82 +1010,84 @@ const sharePost = async (postId: string) => {
     }
 
     await fetchWithAuth(`/api/posts/${postId}/share`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'POST'
     })
 
     if (post) {
       post.shares_count = (post.shares_count || 0) + 1
     }
-    console.log('[Feed] Post shared successfully')
+    console.log('[Feed] ✅ Post shared successfully')
   } catch (error) {
-    console.error('[Feed] Error sharing post:', error)
+    console.error('[Feed] ❌ Error sharing post:', error)
   }
 }
 
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const savePost = async (postId: string) => {
   try {
     console.log('[Feed] Saving post:', postId)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     await fetchWithAuth(`/api/posts/${postId}/save`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'POST'
     })
     
     const post = posts.value.find(p => p.id === postId)
     if (post) {
       post.saved_by_me = !post.saved_by_me
     }
-    console.log('[Feed] Post saved successfully')
+    console.log('[Feed] ✅ Post saved successfully')
   } catch (error) {
-    console.error('[Feed] Error saving post:', error)
+    console.error('[Feed] ❌ Error saving post:', error)
   }
 }
 
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const reportPost = async (postId: string) => {
   try {
     console.log('[Feed] Reporting post:', postId)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     await fetchWithAuth(`/api/posts/${postId}/report`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
       body: { reason: 'inappropriate' }
     })
     activePostMenu.value = null
-    console.log('[Feed] Post reported successfully')
+    console.log('[Feed] ✅ Post reported successfully')
   } catch (error) {
-    console.error('[Feed] Error reporting post:', error)
+    console.error('[Feed] ❌ Error reporting post:', error)
   }
 }
 
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const deletePost = async (postId: string) => {
   try {
     if (!confirm('Are you sure you want to delete this post?')) return
     
     console.log('[Feed] Deleting post:', postId)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     await fetchWithAuth(`/api/posts/${postId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'DELETE'
     })
     
     posts.value = posts.value.filter(p => p.id !== postId)
     activePostMenu.value = null
-    console.log('[Feed] Post deleted successfully')
+    console.log('[Feed] ✅ Post deleted successfully')
   } catch (error) {
-    console.error('[Feed] Error deleting post:', error)
+    console.error('[Feed] ❌ Error deleting post:', error)
   }
 }
 
@@ -1120,25 +1129,27 @@ const openMediaViewer = (mediaUrl: string) => {
 // ============================================================================
 // USER INTERACTION METHODS
 // ============================================================================
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const followUser = async (userId: string) => {
   try {
     console.log('[Feed] Following user:', userId)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     await fetchWithAuth(`/api/users/${userId}/follow`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'POST'
     })
     
     const user = suggestedUsers.value.find(u => u.id === userId)
     if (user) {
       user.following = !user.following
     }
-    console.log('[Feed] User followed successfully')
+    console.log('[Feed] ✅ User followed successfully')
   } catch (error) {
-    console.error('[Feed] Error following user:', error)
+    console.error('[Feed] ❌ Error following user:', error)
   }
 }
 
@@ -1214,10 +1225,22 @@ const formatTime = (date: string | Date) => {
   // ============================================================================
 // DATA FETCHING METHODS - POSTS
 // ============================================================================
-// ✅ FIXED: Removed template code and added explicit Authorization headers
+// ✅ FIXED: Better error handling and token validation
 const fetchPosts = async () => {
   try {
     console.log('[Feed] Fetching posts, page:', currentPage.value, 'tab:', activeTab.value)
+    console.log('[Feed] Auth token available:', !!authStore.token)
+    
+    // ✅ FIXED: Validate token before making request
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      console.error('[Feed] Auth store state:', {
+        isAuthenticated: authStore.isAuthenticated,
+        hasToken: !!authStore.token,
+        user: authStore.user?.id
+      })
+      throw new Error('Authentication token not available')
+    }
     
     const endpoint = activeTab.value === 'for-you' 
       ? '/api/posts/feed'
@@ -1225,13 +1248,9 @@ const fetchPosts = async () => {
       ? '/api/posts/following'
       : '/api/posts/trending'
 
-    // ✅ FIXED: Added explicit Authorization header
+    // ✅ FIXED: Don't pass headers explicitly - let useFetchWithAuth handle it
     const result = await fetchWithAuth(endpoint, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
       query: { page: currentPage.value, limit: 10 }
     })
 
@@ -1242,9 +1261,9 @@ const fetchPosts = async () => {
     }
 
     hasMorePosts.value = result.has_more || false
-    console.log('[Feed] Posts loaded:', posts.value.length)
+    console.log('[Feed] ✅ Posts loaded:', posts.value.length)
   } catch (error) {
-    console.error('[Feed] Error loading posts:', error)
+    console.error('[Feed] ❌ Error loading posts:', error)
     if (currentPage.value === 1) {
       posts.value = []
     }
@@ -1256,25 +1275,28 @@ const fetchPosts = async () => {
 // ============================================================================
 // DATA FETCHING METHODS - SUGGESTED USERS
 // ============================================================================
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const fetchSuggestedUsers = async () => {
   try {
     console.log('[Feed] Fetching suggested users')
+    console.log('[Feed] Auth token available:', !!authStore.token)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     suggestedUsersLoading.value = true
     
     const result = await fetchWithAuth('/api/users/suggested', {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
       query: { limit: 5 }
     })
 
     suggestedUsers.value = result.data || []
-    console.log('[Feed] Suggested users loaded:', suggestedUsers.value.length)
+    console.log('[Feed] ✅ Suggested users loaded:', suggestedUsers.value.length)
   } catch (error) {
-    console.error('[Feed] Error loading suggested users:', error)
+    console.error('[Feed] ❌ Error loading suggested users:', error)
     suggestedUsers.value = []
   } finally {
     suggestedUsersLoading.value = false
@@ -1284,25 +1306,28 @@ const fetchSuggestedUsers = async () => {
 // ============================================================================
 // DATA FETCHING METHODS - TRENDING TOPICS
 // ============================================================================
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const fetchTrendingTopics = async () => {
   try {
     console.log('[Feed] Fetching trending topics')
+    console.log('[Feed] Auth token available:', !!authStore.token)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     trendingLoading.value = true
     
     const result = await fetchWithAuth('/api/trending', {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
       query: { limit: 5 }
     })
 
     trendingTopics.value = result.data || []
-    console.log('[Feed] Trending topics loaded:', trendingTopics.value.length)
+    console.log('[Feed] ✅ Trending topics loaded:', trendingTopics.value.length)
   } catch (error) {
-    console.error('[Feed] Error loading trending topics:', error)
+    console.error('[Feed] ❌ Error loading trending topics:', error)
     trendingTopics.value = []
   } finally {
     trendingLoading.value = false
@@ -1312,46 +1337,50 @@ const fetchTrendingTopics = async () => {
 // ============================================================================
 // DATA FETCHING METHODS - NOTIFICATIONS & MESSAGES
 // ============================================================================
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const fetchNotifications = async () => {
   try {
     console.log('[Feed] Fetching notifications')
+    console.log('[Feed] Auth token available:', !!authStore.token)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
     
     const result = await fetchWithAuth('/api/user/notifications', {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
       query: { limit: 10, unread_only: true }
     })
 
     unreadNotifications.value = result.total || 0
-    console.log('[Feed] Unread notifications:', unreadNotifications.value)
+    console.log('[Feed] ✅ Unread notifications:', unreadNotifications.value)
   } catch (error) {
-    console.error('[Feed] Error loading notifications:', error)
+    console.error('[Feed] ❌ Error loading notifications:', error)
     unreadNotifications.value = 0
   }
 }
 
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const fetchMessages = async () => {
   try {
     console.log('[Feed] Fetching messages')
+    console.log('[Feed] Auth token available:', !!authStore.token)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
     
     const result = await fetchWithAuth('/api/messages', {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
       query: { unread_only: true }
     })
 
     unreadMessages.value = result.total || 0
-    console.log('[Feed] Unread messages:', unreadMessages.value)
+    console.log('[Feed] ✅ Unread messages:', unreadMessages.value)
   } catch (error) {
-    console.error('[Feed] Error loading messages:', error)
+    console.error('[Feed] ❌ Error loading messages:', error)
     unreadMessages.value = 0
   }
 }
@@ -1359,20 +1388,23 @@ const fetchMessages = async () => {
 // ============================================================================
 // FETCH PROFILE DATA
 // ============================================================================
-// ✅ FIXED: Added explicit Authorization header
+// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
 const fetchProfileData = async () => {
   try {
     console.log('[Feed] Fetching profile data')
+    console.log('[Feed] Auth token available:', !!authStore.token)
+    
+    if (!authStore.token) {
+      console.error('[Feed] ❌ No authentication token available')
+      throw new Error('Authentication token not available')
+    }
+    
     profileLoading.value = true
     profileError.value = null
     profileSyncing.value = true
     
     const result = await fetchWithAuth('/api/user/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'GET'
     })
     
     if (result && result.data) {
@@ -1390,7 +1422,7 @@ const fetchProfileData = async () => {
       throw new Error('No profile data returned')
     }
   } catch (error) {
-    console.error('[Feed] Error loading profile data:', error)
+    console.error('[Feed] ❌ Error loading profile data:', error)
     profileError.value = error instanceof Error ? error.message : 'Failed to load profile'
   } finally {
     profileLoading.value = false
@@ -1473,7 +1505,7 @@ onMounted(async () => {
   }
 })
 
-// ============================================================================
+  // ============================================================================
 // WATCHERS - REACTIVE UPDATES
 // ============================================================================
 
@@ -1745,12 +1777,12 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
 })
 
 watch(
-  () => (({
+  () => ({
     profileLoading: profileLoading.value,
     profileError: profileError.value,
     username: userUsername.value,
     profileStoreReady: !!profileStore.profile
-  })),
+  }),
   (state) => {
     console.log('[Feed] Profile data readiness state:', state)
     
