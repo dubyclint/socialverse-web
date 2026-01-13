@@ -386,10 +386,13 @@ const fetchProfileData = async () => {
       throw new Error('No profile identifier provided')
     }
 
-    // Fetch profile data
+    // ✅ FIX: Add Authorization header to profile fetch
+    console.log('[Profile] Fetching profile with Authorization header')
     const profileResponse = await $fetch(`/api/profile/${identifier.value}`, {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${authStore.token}`
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
       }
     })
 
@@ -406,15 +409,30 @@ const fetchProfileData = async () => {
       profileStore.setProfile(profileResponse)
     }
 
+    // ✅ FIX: Use correct ID field from response
+    // Try multiple possible ID fields
+    const userId = profileResponse.id || profileResponse.user_id || profileResponse.username
+    
+    console.log('[Profile] Using userId for API calls:', userId)
+
+    if (!userId) {
+      console.warn('[Profile] ⚠️ No user ID found in profile response')
+      throw new Error('Invalid profile data: missing user ID')
+    }
+
     // Fetch profile posts
     try {
-      const postsResponse = await $fetch(`/api/posts/user/${profileResponse.id}`, {
+      console.log('[Profile] Fetching posts for user:', userId)
+      const postsResponse = await $fetch(`/api/posts/user/${userId}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authStore.token}`
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json'
         }
       })
       profilePosts.value = postsResponse || []
       profileStats.value.posts = profilePosts.value.length
+      console.log('[Profile] ✅ Posts fetched:', profilePosts.value.length)
     } catch (err) {
       console.warn('[Profile] Error fetching posts:', err)
       profilePosts.value = []
@@ -422,13 +440,17 @@ const fetchProfileData = async () => {
 
     // Fetch followers
     try {
-      const followersResponse = await $fetch(`/api/follows/${profileResponse.id}`, {
+      console.log('[Profile] Fetching followers for user:', userId)
+      const followersResponse = await $fetch(`/api/follows/${userId}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${authStore.token}`
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json'
         }
       })
       recentFollowers.value = followersResponse?.slice(0, 5) || []
       profileStats.value.followers = followersResponse?.length || 0
+      console.log('[Profile] ✅ Followers fetched:', profileStats.value.followers)
     } catch (err) {
       console.warn('[Profile] Error fetching followers:', err)
       recentFollowers.value = []
@@ -444,6 +466,11 @@ const fetchProfileData = async () => {
     const errorMessage = err?.data?.message || err?.message || 'Failed to load profile'
     error.value = errorMessage
     
+    console.error('[Profile] Error details:', {
+      message: errorMessage,
+      status: err?.status,
+      statusCode: err?.statusCode
+    })
     console.error('[Profile] ============ FETCH PROFILE DATA ERROR END ============')
   } finally {
     loading.value = false
