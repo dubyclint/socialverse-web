@@ -771,9 +771,9 @@ const blockUser = async () => {
 // ============================================================================
 // METHODS - NAVIGATION
 // ============================================================================
-const goToEditProfile = () => {
-  router.push('/settings/profile')
-}
+const goToEditProfile = () => {  
+  router.push('/profile/edit')  
+}  
 
 const goToFollowers = () => {
   activeTab.value = 'followers'
