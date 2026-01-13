@@ -1,7 +1,7 @@
 // ============================================================================
-// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION WITH SYNC
+// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION WITH AUTH HEADERS
 // ============================================================================
-// Profile store with rank & verification integration + PROFILE SYNC
+// Profile store with rank & verification integration + AUTHORIZATION HEADERS
 // ✅ FIXED: All API calls now include Authorization header
 // ✅ NEW: Added profile sync methods for app-wide updates
 // ============================================================================
@@ -131,7 +131,7 @@ export const useProfileStore = defineStore('profile', () => {
     }
 
     console.log('[Profile Store] Profile data received:', {
-      user_id: newProfile.user_id,
+      user_id: newProfile.user_id || newProfile.id,
       full_name: newProfile.full_name,
       rank: newProfile.rank,
       is_verified: newProfile.is_verified
@@ -196,7 +196,7 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - FETCH PROFILE - FIXED WITH AUTH HEADER
+  // ACTIONS - FETCH PROFILE - ✅ FIXED WITH AUTH HEADER
   // ============================================================================
   
   const fetchProfile = async (userId: string) => {
@@ -221,9 +221,12 @@ export const useProfileStore = defineStore('profile', () => {
       
       console.log('[Profile Store] Token available:', !!token)
 
+      // ✅ FIX: Add Authorization header to all API calls
       const response = await $fetch('/api/profile/me', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
 
@@ -262,7 +265,7 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - UPDATE PROFILE
+  // ACTIONS - UPDATE PROFILE - ✅ FIXED WITH AUTH HEADER
   // ============================================================================
   
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -282,10 +285,12 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
+      // ✅ FIX: Add Authorization header
       const response = await $fetch('/api/profile/update', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: updates
       })
@@ -313,8 +318,8 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-       // ============================================================================
-  // ACTIONS - COMPLETE PROFILE
+  // ============================================================================
+  // ACTIONS - COMPLETE PROFILE - ✅ FIXED WITH AUTH HEADER
   // ============================================================================
   
   const completeProfile = async (profileData: Partial<Profile>) => {
@@ -328,10 +333,12 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
+      // ✅ FIX: Add Authorization header
       const response = await $fetch('/api/profile/complete', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: profileData
       })
@@ -360,7 +367,7 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - UPLOAD AVATAR
+  // ACTIONS - UPLOAD AVATAR - ✅ FIXED WITH AUTH HEADER
   // ============================================================================
   
   const uploadAvatar = async (file: File) => {
@@ -384,6 +391,9 @@ export const useProfileStore = defineStore('profile', () => {
       const formData = new FormData()
       formData.append('file', file)
 
+      console.log('[Profile Store] Uploading avatar...')
+
+      // ✅ FIX: Add Authorization header
       const response = await $fetch('/api/upload', {
         method: 'POST',
         headers: {
@@ -432,7 +442,7 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - INTERESTS MANAGEMENT
+  // ACTIONS - INTERESTS MANAGEMENT - ✅ FIXED WITH AUTH HEADER
   // ============================================================================
   
   const addInterest = async (interest: string) => {
@@ -452,10 +462,12 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
+      // ✅ FIX: Add Authorization header
       const response = await $fetch('/api/interests/add', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: { interest }
       })
@@ -500,10 +512,12 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
+      // ✅ FIX: Add Authorization header
       const response = await $fetch('/api/interests/remove', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: { interest }
       })
@@ -531,8 +545,8 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  // ============================================================================
-  // ACTIONS - PROFILE SYNC (NEW)
+     // ============================================================================
+  // ACTIONS - PROFILE SYNC (NEW) - ✅ BROADCAST UPDATES
   // ============================================================================
   
   /**
@@ -584,10 +598,12 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
+      // ✅ FIX: Add Authorization header
       const response = await $fetch('/api/profile/update', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: { [field]: value }
       })
@@ -633,7 +649,7 @@ export const useProfileStore = defineStore('profile', () => {
 
       const authStore = useAuthStore()
       const token = authStore.token
-      const id = userId || profile.value?.id
+      const id = userId || profile.value?.id || profile.value?.user_id
 
       if (!id) {
         console.error('[Profile Store] ❌ No user ID provided')
@@ -641,9 +657,12 @@ export const useProfileStore = defineStore('profile', () => {
         return
       }
 
+      // ✅ FIX: Add Authorization header
       const response = await $fetch(`/api/profile/${id}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
 
@@ -785,4 +804,4 @@ export const useProfileStore = defineStore('profile', () => {
     hydrateFromStorage,
     initializeProfile
   }
-})                                    
+})                                       
