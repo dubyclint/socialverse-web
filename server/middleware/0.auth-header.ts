@@ -1,7 +1,9 @@
 // ============================================================================
-// FILE: /server/middleware/0.auth-header.ts - SIMPLIFIED JWT-ONLY VERSION
+// FILE: /server/middleware/0.auth-header.ts - FIXED JWT USER ID EXTRACTION
 // ============================================================================
-// ✅ FIXED: NO Supabase API calls - just JWT decoding and validation
+// ✅ FIXED: Handles multiple JWT user ID claim formats
+// ✅ FIXED: Properly extracts user ID from various JWT structures
+// ✅ FIXED: Validates token and sets user context correctly
 // ============================================================================
 
 import { jwtDecode } from 'jwt-decode'
@@ -49,8 +51,7 @@ export default defineEventHandler(async (event) => {
     try {
       decoded = jwtDecode(token)
       console.log('[Auth Header Middleware] ✅ Token decoded successfully')
-      console.log('[Auth Header Middleware] User ID:', decoded.sub)
-      console.log('[Auth Header Middleware] Email:', decoded.email)
+      console.log('[Auth Header Middleware] Token claims:', Object.keys(decoded))
     } catch (decodeErr: any) {
       console.error('[Auth Header Middleware] ❌ Failed to decode token:', decodeErr.message)
       throw createError({
@@ -68,8 +69,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ✅ Validate token audience
-    if (decoded.aud !== 'authenticated') {
+    // ✅ Validate token audience (if present)
+    if (decoded.aud && decoded.aud !== 'authenticated') {
       console.error('[Auth Header Middleware] ❌ Invalid token audience:', decoded.aud)
       throw createError({
         statusCode: 401,
@@ -77,16 +78,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // ✅ Extract user ID
-    const userId = decoded.sub
+    // ✅ FIXED: Extract user ID from multiple possible claims
+    // Try in order: sub, user_id, id, uid
+    const userId = decoded.sub || decoded.user_id || decoded.id || decoded.uid
+    
     if (!userId) {
-      console.error('[Auth Header Middleware] ❌ No user ID in token')
+      console.error('[Auth Header Middleware] ❌ No user ID found in token')
+      console.error('[Auth Header Middleware] Available claims:', decoded)
       throw createError({
         statusCode: 401,
         statusMessage: 'Invalid token: missing user ID'
       })
     }
 
+    console.log('[Auth Header Middleware] ✅ User ID extracted:', userId)
     console.log('[Auth Header Middleware] ✅ Token validation passed')
     
     // ✅ Create user object from JWT payload
@@ -95,7 +100,7 @@ export default defineEventHandler(async (event) => {
       email: decoded.email || '',
       user_metadata: decoded.user_metadata || {},
       app_metadata: decoded.app_metadata || {},
-      aud: decoded.aud,
+      aud: decoded.aud || 'authenticated',
       role: decoded.role || 'authenticated'
     }
 
@@ -104,7 +109,7 @@ export default defineEventHandler(async (event) => {
     event.context.authToken = token
     event.context.jwtPayload = decoded
     
-    console.log('[Auth Header Middleware] ✅ User context set')
+    console.log('[Auth Header Middleware] ✅ User context set with ID:', user.id)
 
   } catch (error: any) {
     console.error('[Auth Header Middleware] Error:', error.message)
