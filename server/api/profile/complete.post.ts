@@ -1,14 +1,11 @@
 // ============================================================================
-// CORRECTED FIX #5: /server/api/profile/complete.post.ts
+// FILE: /server/api/profile/complete.post.ts - FIXED VERSION
 // ============================================================================
 // Complete profile details - Phase 2 of progressive signup
-// ✅ FIXED: Changed 'user' table to 'user_profiles' (ACTUAL TABLE)
-// ✅ FIXED: Changed 'user_id' to 'id' (correct column name)
-// ✅ FIXED: Uses serverSupabaseClient (correct)
+// ✅ FIXED: Uses event.context.user from auth middleware (consistent)
+// ✅ FIXED: Uses admin client for profile updates
 // ✅ FIXED: Proper error handling and validation
 // ============================================================================
-
-import { serverSupabaseClient } from '#supabase/server'
 
 interface CompleteProfileRequest {
   full_name: string
@@ -16,12 +13,16 @@ interface CompleteProfileRequest {
   avatar_url?: string
   location?: string
   website?: string
+  date_of_birth?: string
+  gender?: string
   interests?: string[]
+  is_private?: boolean
+  email_notifications?: boolean
 }
 
 interface CompleteProfileResponse {
   success: boolean
-  data?: any
+  profile?: any
   message?: string
   error?: string
 }
@@ -31,23 +32,21 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
   try {
     // ============================================================================
-    // STEP 1: Authentication
+    // STEP 1: Authentication - Get user from middleware context
     // ============================================================================
     console.log('[Profile/Complete API] STEP 1: Authenticating user...')
     
-    const supabase = await serverSupabaseClient(event)
+    const user = event.context.user
     
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session?.user) {
-      console.error('[Profile/Complete API] ❌ Unauthorized')
+    if (!user || !user.id) {
+      console.error('[Profile/Complete API] ❌ Unauthorized - No user in context')
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized'
+        statusMessage: 'Unauthorized - Please log in'
       })
     }
 
-    const userId = session.user.id
+    const userId = user.id
     console.log('[Profile/Complete API] ✅ User authenticated:', userId)
 
     // ============================================================================
@@ -106,13 +105,17 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     console.log('[Profile/Complete API] ✅ Validation passed')
 
     // ============================================================================
-    // STEP 4: Update profile with completion data
+    // STEP 4: Update profile with completion data using ADMIN CLIENT
     // ============================================================================
-    console.log('[Profile/Complete API] STEP 4: Updating profile...')
+    console.log('[Profile/Complete API] STEP 4: Updating profile with admin privileges...')
 
-    // ✅ FIXED: Changed from 'user' to 'user_profiles' table
-    // ✅ FIXED: Changed from 'user_id' to 'id' column
-    const { data: profile, error: updateError } = await supabase
+    const { getAdminClient } = await import('~/server/utils/supabase-server')
+    const supabase = await getAdminClient()
+
+    console.log('[Profile/Complete API] ✅ Admin client obtained')
+
+    // ✅ FIXED: Use user_profiles table with admin client
+    const { data: profiles, error: updateError } = await supabase
       .from('user_profiles')
       .update({
         full_name: body.full_name.trim(),
@@ -120,11 +123,15 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
         avatar_url: body.avatar_url || null,
         location: body.location?.trim() || null,
         website: body.website?.trim() || null,
+        birth_date: body.date_of_birth || null,
+        gender: body.gender || null,
+        interests: body.interests || [],
+        is_private: body.is_private || false,
+        profile_completed: true,
         updated_at: new Date().toISOString()
       })
       .eq('id', userId)
       .select()
-      .single()
 
     if (updateError) {
       console.error('[Profile/Complete API] ❌ Update error:', {
@@ -137,7 +144,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
       })
     }
 
-    if (!profile) {
+    if (!profiles || profiles.length === 0) {
       console.error('[Profile/Complete API] ❌ Profile not found after update')
       throw createError({
         statusCode: 500,
@@ -145,10 +152,13 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
       })
     }
 
+    const profile = profiles[0]
+
     console.log('[Profile/Complete API] ✅ Profile updated successfully')
     console.log('[Profile/Complete API] Updated profile:', {
       id: profile.id,
-      full_name: profile.full_name
+      full_name: profile.full_name,
+      profile_completed: profile.profile_completed
     })
 
     // ============================================================================
@@ -160,13 +170,15 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
     return {
       success: true,
-      data: profile,
+      profile: profile,
       message: 'Profile completed successfully'
     }
 
   } catch (err: any) {
     console.error('[Profile/Complete API] ============ COMPLETE PROFILE ERROR ============')
-    console.error('[Profile/Complete API] Error:', err.message)
+    console.error('[Profile/Complete API] Error type:', err?.constructor?.name)
+    console.error('[Profile/Complete API] Error message:', err?.message)
+    console.error('[Profile/Complete API] Error details:', err?.data || 'N/A')
     console.error('[Profile/Complete API] ============ END ERROR ============')
     
     if (err.statusCode) {
