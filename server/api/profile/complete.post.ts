@@ -1,11 +1,5 @@
 // ============================================================================
-// FILE: /server/api/profile/complete.post.ts - FIXED VERSION (NO INTERESTS COLUMN)
-// ============================================================================
-// Complete profile details - Phase 2 of progressive signup
-// ✅ FIXED: Removed 'interests' from user_profiles update (separate table)
-// ✅ FIXED: Uses event.context.user from auth middleware
-// ✅ FIXED: Uses admin client for profile updates
-// ✅ FIXED: Proper error handling and validation
+// FILE: /server/api/profile/complete.post.ts
 // ============================================================================
 
 interface CompleteProfileRequest {
@@ -115,8 +109,8 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
     console.log('[Profile/Complete API] ✅ Admin client obtained')
 
-    // ✅ FIXED: Removed 'interests' from update (it's a separate table)
-    // ✅ Only update fields that exist in user_profiles table
+    // ✅ FINAL FIX: Only use columns that actually exist in user_profiles table
+    // Removed: interests (separate table), profile_completed (doesn't exist)
     const { data: profiles, error: updateError } = await supabase
       .from('user_profiles')
       .update({
@@ -128,7 +122,6 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
         birth_date: body.date_of_birth || null,
         gender: body.gender || null,
         is_private: body.is_private || false,
-        profile_completed: true,
         updated_at: new Date().toISOString()
       })
       .eq('id', userId)
@@ -159,7 +152,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     console.log('[Profile/Complete API] Updated profile:', {
       id: profile.id,
       full_name: profile.full_name,
-      profile_completed: profile.profile_completed
+      bio: profile.bio
     })
 
     // ============================================================================
@@ -171,7 +164,6 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
       try {
         // ✅ NOTE: Interests are stored in a separate table/relationship
         // This is a placeholder for future interest storage implementation
-        // For now, we just log that interests were provided
         console.log('[Profile/Complete API] ℹ️ Interests provided:', body.interests)
         console.log('[Profile/Complete API] ℹ️ Interest storage implementation needed')
         
