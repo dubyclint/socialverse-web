@@ -1,8 +1,13 @@
+<!-- ============================================================================
+     FILE: /pages/profile/complete.vue - PART 1 (TEMPLATE) - USERNAME FIX ONLY
+     ============================================================================
+     ✅ FIXED: Username field changed to read-only display
+     ✅ PRESERVED: All other functionality intact
+     ============================================================================ -->
+
 <template>
   <div class="profile-complete-page">
-    <!-- ========================================================================
-         HEADER - PAGE TITLE & PROGRESS
-         ======================================================================== -->
+    <!-- HEADER - unchanged -->
     <header class="complete-header">
       <div class="header-content">
         <button class="btn-back" @click="goBack" title="Go back">
@@ -23,20 +28,17 @@
       </div>
     </header>
 
-    <!-- ========================================================================
-         MAIN CONTENT - FORM
-         ======================================================================== -->
+    <!-- MAIN CONTENT -->
     <main class="complete-main">
       <div class="form-container">
         <!-- Form Card -->
         <div class="form-card">
-          <!-- Avatar Section -->
+          <!-- Avatar Section - unchanged -->
           <section class="form-section avatar-section">
             <h2 class="section-title">Profile Photo</h2>
             <p class="section-description">Upload a profile picture to personalize your account</p>
 
             <div class="avatar-upload-wrapper">
-              <!-- Avatar Preview -->
               <div class="avatar-preview">
                 <img 
                   v-if="formData.avatarPreview" 
@@ -48,7 +50,6 @@
                   <Icon name="user" size="48" />
                 </div>
 
-                <!-- Upload Button Overlay -->
                 <button 
                   class="btn-upload-overlay"
                   @click="triggerAvatarUpload"
@@ -58,7 +59,6 @@
                 </button>
               </div>
 
-              <!-- Hidden File Input -->
               <input 
                 ref="avatarInput"
                 type="file" 
@@ -67,7 +67,6 @@
                 @change="handleAvatarUpload"
               />
 
-              <!-- Upload Info -->
               <div class="upload-info">
                 <p class="info-text">JPG, PNG or GIF (Max 5MB)</p>
                 <button 
@@ -79,13 +78,11 @@
                 </button>
               </div>
 
-              <!-- Upload Progress -->
               <div v-if="avatarUploading" class="upload-progress">
                 <div class="spinner-small"></div>
                 <span>Uploading...</span>
               </div>
 
-              <!-- Upload Error -->
               <div v-if="avatarError" class="upload-error">
                 <Icon name="alert-circle" size="16" />
                 <span>{{ avatarError }}</span>
@@ -101,46 +98,16 @@
             <h2 class="section-title">Basic Information</h2>
             <p class="section-description">Tell us about yourself</p>
 
-            <!-- Username Field -->
+            <!-- Username Field - FIXED: Now read-only display -->
             <div class="form-group">
-              <label for="username" class="form-label">
-                Username
-                <span class="required">*</span>
-              </label>
-              <div class="input-wrapper">
-                <span class="input-prefix">@</span>
-                <input 
-                  id="username"
-                  v-model="formData.username"
-                  type="text" 
-                  placeholder="johndoe"
-                  class="form-input"
-                  :class="{ 'has-error': errors.username }"
-                  @blur="validateUsername"
-                  @input="checkUsernameAvailability"
-                />
-                <span v-if="usernameChecking" class="input-suffix">
-                  <Icon name="loader" size="16" />
-                </span>
-                <span v-else-if="usernameAvailable" class="input-suffix success">
-                  <Icon name="check-circle" size="16" />
-                </span>
-                <span v-else-if="formData.username && !usernameAvailable" class="input-suffix error">
-                  <Icon name="x-circle" size="16" />
-                </span>
+              <label class="form-label">Username</label>
+              <div class="username-display">
+                <div class="username-value">@{{ formData.username }}</div>
+                <span class="username-badge">Set at signup</span>
               </div>
-              <p v-if="errors.username" class="error-message">{{ errors.username }}</p>
-              <p v-if="usernameAvailable && formData.username" class="success-message">
-                <Icon name="check" size="14" />
-                Username available
-              </p>
-              <p v-if="!usernameAvailable && formData.username && !usernameChecking" class="error-message">
-                <Icon name="x" size="14" />
-                Username not available
-              </p>
             </div>
 
-            <!-- Full Name Field -->
+            <!-- Full Name Field - unchanged -->
             <div class="form-group">
               <label for="fullName" class="form-label">
                 Full Name
@@ -159,7 +126,7 @@
               <p class="field-hint">{{ formData.fullName.length }}/100 characters</p>
             </div>
 
-            <!-- Email Field (Read-only) -->
+            <!-- Email Field - unchanged -->
             <div class="form-group">
               <label for="email" class="form-label">Email</label>
               <input 
@@ -176,12 +143,11 @@
           <!-- Divider -->
           <div class="form-divider"></div>
 
-          <!-- Bio Section -->
+          <!-- Bio Section - unchanged -->
           <section class="form-section">
             <h2 class="section-title">About You</h2>
             <p class="section-description">Write a short bio to introduce yourself</p>
 
-            <!-- Bio Field -->
             <div class="form-group">
               <label for="bio" class="form-label">
                 Bio
@@ -200,7 +166,6 @@
               <p class="field-hint">{{ formData.bio.length }}/500 characters</p>
             </div>
 
-            <!-- Location Field -->
             <div class="form-group">
               <label for="location" class="form-label">Location</label>
               <div class="input-wrapper">
@@ -216,7 +181,6 @@
               <p class="field-hint">{{ formData.location.length }}/100 characters</p>
             </div>
 
-            <!-- Website Field -->
             <div class="form-group">
               <label for="website" class="form-label">Website</label>
               <div class="input-wrapper">
@@ -238,12 +202,11 @@
           <!-- Divider -->
           <div class="form-divider"></div>
 
-          <!-- Additional Info Section -->
+          <!-- Additional Info Section - unchanged -->
           <section class="form-section">
             <h2 class="section-title">Additional Information</h2>
             <p class="section-description">Help us personalize your experience</p>
 
-            <!-- Date of Birth Field -->
             <div class="form-group">
               <label for="dateOfBirth" class="form-label">Date of Birth</label>
               <input 
@@ -255,7 +218,6 @@
               <p class="field-hint">We'll use this to show you age-appropriate content</p>
             </div>
 
-            <!-- Gender Field -->
             <div class="form-group">
               <label for="gender" class="form-label">Gender</label>
               <select 
@@ -271,7 +233,6 @@
               </select>
             </div>
 
-            <!-- Interests Field -->
             <div class="form-group">
               <label class="form-label">Interests</label>
               <p class="field-hint">Select up to 5 interests</p>
@@ -292,12 +253,11 @@
           <!-- Divider -->
           <div class="form-divider"></div>
 
-          <!-- Privacy Section -->
+          <!-- Privacy Section - unchanged -->
           <section class="form-section">
             <h2 class="section-title">Privacy & Preferences</h2>
             <p class="section-description">Control your account settings</p>
 
-            <!-- Privacy Checkbox -->
             <div class="form-group checkbox-group">
               <label class="checkbox-label">
                 <input 
@@ -310,7 +270,6 @@
               <p class="field-hint">Only approved followers can see your posts</p>
             </div>
 
-            <!-- Notifications Checkbox -->
             <div class="form-group checkbox-group">
               <label class="checkbox-label">
                 <input 
@@ -323,7 +282,6 @@
               <p class="field-hint">Get updates about your account activity</p>
             </div>
 
-            <!-- Terms Checkbox -->
             <div class="form-group checkbox-group">
               <label class="checkbox-label">
                 <input 
@@ -344,7 +302,7 @@
           </section>
         </div>
 
-        <!-- Form Actions -->
+        <!-- Form Actions - unchanged -->
         <div class="form-actions">
           <button 
             class="btn-cancel"
@@ -366,7 +324,7 @@
           </button>
         </div>
 
-        <!-- Error Alert -->
+        <!-- Error Alert - unchanged -->
         <div v-if="submitError" class="alert alert-error">
           <Icon name="alert-circle" size="20" />
           <div class="alert-content">
@@ -378,7 +336,7 @@
           </button>
         </div>
 
-        <!-- Success Alert -->
+        <!-- Success Alert - unchanged -->
         <div v-if="submitSuccess" class="alert alert-success">
           <Icon name="check-circle" size="20" />
           <div class="alert-content">
@@ -388,7 +346,7 @@
         </div>
       </div>
 
-      <!-- Info Sidebar -->
+      <!-- Info Sidebar - unchanged -->
       <aside class="info-sidebar">
         <div class="info-card">
           <Icon name="info" size="24" />
@@ -438,7 +396,7 @@ const fetchWithAuth = useFetchWithAuth()
 // REACTIVE STATE - FORM DATA
 // ============================================================================
 const formData = ref({
-  username: '',
+  username: authStore.user?.username || '',
   fullName: '',
   bio: '',
   location: '',
@@ -663,7 +621,6 @@ const handleAvatarUpload = async (event: Event) => {
     return
   }
 
-  // Validate file
   avatarError.value = null
 
   if (!file.type.startsWith('image/')) {
@@ -678,7 +635,6 @@ const handleAvatarUpload = async (event: Event) => {
     return
   }
 
-  // Create preview
   const reader = new FileReader()
   reader.onload = (e) => {
     formData.value.avatarPreview = e.target?.result as string
@@ -686,7 +642,6 @@ const handleAvatarUpload = async (event: Event) => {
   }
   reader.readAsDataURL(file)
 
-  // Upload file
   try {
     avatarUploading.value = true
     console.log('[ProfileComplete] Uploading avatar...')
@@ -755,7 +710,6 @@ const submitProfile = async () => {
     submitError.value = null
     submitSuccess.value = false
 
-    // Validate all fields
     validateUsername()
     validateFullName()
     validateBio()
@@ -769,7 +723,6 @@ const submitProfile = async () => {
 
     console.log('[ProfileComplete] Form validation passed')
 
-    // ✅ VALIDATION: Check if form data is valid
     if (!formData.value.username) {
       throw new Error('Username is required')
     }
@@ -788,7 +741,6 @@ const submitProfile = async () => {
 
     console.log('[ProfileComplete] Submitting profile to API...')
 
-    // ✅ VALIDATION: Submit profile with Authorization header
     const result = await fetchWithAuth('/api/profile/complete', {
       method: 'POST',
       body: {
@@ -808,7 +760,6 @@ const submitProfile = async () => {
 
     console.log('[ProfileComplete] API response:', result)
 
-    // ✅ VALIDATION: Check if profile completion response is valid
     if (!result) {
       throw new Error('No response from server')
     }
@@ -820,13 +771,11 @@ const submitProfile = async () => {
     console.log('[ProfileComplete] ✅ Profile completed successfully')
     submitSuccess.value = true
 
-    // Update profile store
     if (result.profile) {
       console.log('[ProfileComplete] Updating profile store')
       profileStore.setProfile(result.profile)
     }
 
-    // Redirect to feed after success
     setTimeout(() => {
       console.log('[ProfileComplete] Redirecting to feed')
       router.push('/feed')
@@ -869,6 +818,7 @@ onMounted(() => {
     email: authStore.user?.email,
     username: authStore.user?.username
   })
+  usernameAvailable.value = true
 })
 </script>
 
@@ -1278,6 +1228,46 @@ onMounted(() => {
 }
 
 /* ============================================================================
+   USERNAME DISPLAY (READ-ONLY) - FIXED
+   ============================================================================ */
+.username-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #0f172a;
+  border: 1px dashed #334155;
+  border-radius: 8px;
+  opacity: 0.85;
+}
+
+.username-value {
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.95rem;
+}
+
+.username-badge {
+  margin-left: auto;
+  padding: 0.25rem 0.75rem;
+  background: #334155;
+  color: #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.username-display:hover {
+  border-color: #475569;
+  opacity: 1;
+  transition: all 0.2s ease;
+}
+
+/* ============================================================================
    INTERESTS GRID
    ============================================================================ */
 .interests-grid {
@@ -1579,6 +1569,16 @@ onMounted(() => {
 
   .info-sidebar {
     grid-template-columns: 1fr;
+  }
+
+  .username-display {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .username-badge {
+    margin-left: 0;
+    margin-top: 0.5rem;
   }
 }
 
