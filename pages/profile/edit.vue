@@ -477,8 +477,8 @@ const handleAvatarChange = async (event: Event) => {
 
     console.log('[ProfileEdit] Uploading avatar...')
 
-    const response = await $fetch('/api/upload', {
-      method: 'POST',
+    const response = await $fetch('/api/profile/avatar-upload', {  
+     method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`
       },
