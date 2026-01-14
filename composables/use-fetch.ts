@@ -1,9 +1,5 @@
 // ============================================================================
-// FILE: /composables/use-fetch.ts - FIXED FOR FORMDATA UPLOADS
-// ============================================================================
-// ✅ FIXED: Properly handles FormData without forcing Content-Type
-// ✅ FIXED: Detects FormData and lets browser set multipart/form-data
-// ✅ FIXED: Sets Content-Type: application/json only for JSON requests
+// FILE: /composables/use-fetch.ts
 // ============================================================================
 
 import { useAuthStore } from '~/stores/auth'
@@ -105,4 +101,3 @@ export const useFetchWithAuth = () => {
     }
   }
 }
-    
