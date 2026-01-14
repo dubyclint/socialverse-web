@@ -77,7 +77,21 @@
             </div>
           </div>
 
-          <!-- Action Buttons -->
+          <!-- Interests Section -->
+     <div v-if="profile?.interests && profile.interests.length > 0" class="profile-interests">
+    <h3 class="interests-title">Interests</h3>
+    <div class="interests-tags">
+      <span 
+      v-for="interest in profile.interests" 
+      :key="interest"
+      class="interest-badge"
+    >
+      {{ interest }}
+    </span>
+  </div>
+</div>
+
+            <!-- Action Buttons -->
           <div class="profile-actions">
             <button 
               v-if="isOwnProfile" 
