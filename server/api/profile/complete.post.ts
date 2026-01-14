@@ -1,5 +1,8 @@
 // ============================================================================
-// FILE 5: /server/api/profile/complete.post.ts - UPDATED WITH INTERESTS
+// FILE: /server/api/profile/complete.post.ts - FIXED VERSION
+// ============================================================================
+// ✅ CRITICAL FIX: Now sets profile_completed = true
+// ✅ CRITICAL FIX: Returns profile with profile_completed flag
 // ============================================================================
 
 interface CompleteProfileRequest {
@@ -80,7 +83,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
     console.log('[Profile/Complete API] ✅ Admin client obtained')
 
-    // Update profile
+    // ✅ CRITICAL FIX: Update profile with profile_completed = true
     const { data: profiles, error: updateError } = await supabase
       .from('user_profiles')
       .update({
@@ -92,6 +95,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
         birth_date: body.date_of_birth || null,
         gender: body.gender || null,
         is_private: body.is_private || false,
+        profile_completed: true,  // ✅ CRITICAL: Set to true
         updated_at: new Date().toISOString()
       })
       .eq('id', userId)
@@ -115,10 +119,11 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
     const profile = profiles[0]
     console.log('[Profile/Complete API] ✅ Profile updated successfully')
+    console.log('[Profile/Complete API] ✅ profile_completed set to:', profile.profile_completed)
 
     // ✅ NEW: Save interests if provided
     if (body.interests && body.interests.length > 0) {
-      console.log('[Profile/Complete API] STEP 5: Saving interests...')
+      console.log('[Profile/Complete API] Saving interests...')
       
       try {
         if (body.interests.length > 5) {
