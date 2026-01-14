@@ -1126,6 +1126,64 @@ onMounted(() => {
   text-decoration: underline;
 }
 
+/* ============================================================================
+   INTERESTS SECTION
+   ============================================================================ */
+.profile-interests {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #334155;
+}
+
+.interests-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.interests-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.interest-badge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: #334155;
+  color: #cbd5e1;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.interest-badge:hover {
+  background: #475569;
+  color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profile-interests {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+
+  .interests-title {
+    font-size: 0.9rem;
+  }
+
+  .interest-badge {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
 /* Profile Actions */
 .profile-actions {
   display: flex;
