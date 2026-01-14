@@ -776,10 +776,11 @@ const submitProfile = async () => {
       profileStore.setProfile(result.profile)
     }
 
+    // ✅ CRITICAL FIX: Redirect to success page instead of feed
     setTimeout(() => {
-      console.log('[ProfileComplete] Redirecting to feed')
-      router.push('/feed')
-    }, 2000)
+      console.log('[ProfileComplete] Redirecting to profile completion success page')
+      router.push('/profile/complete-success')  // ✅ Changed from '/feed'
+    }, 1500)  // ✅ Reduced from 2000ms to 1500ms
 
     console.log('[ProfileComplete] ============ SUBMIT PROFILE END (SUCCESS) ============')
   } catch (err: any) {
