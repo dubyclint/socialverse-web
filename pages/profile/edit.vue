@@ -1,9 +1,9 @@
 <!-- ============================================================================
-     FILE: /pages/profile/edit.vue - PART 1 (TEMPLATE)
+     FILE: /pages/profile/edit.vue - PART 1 (TEMPLATE) - FIXED
      ============================================================================
-     ✅ UPDATED: Added profile sync on save
-     ✅ FIXED: Proper Authorization header
-     ✅ COMPLETE: Full template with all form fields
+     ✅ ADDED: Interests field
+     ✅ FIXED: Avatar upload endpoint
+     ✅ COMPLETE: All form fields
      ============================================================================ -->
 
 <template>
@@ -198,6 +198,23 @@
             </select>
           </div>
 
+          <!-- Interests -->
+          <div class="form-group">
+            <label class="form-label">Interests</label>
+            <p class="field-hint">Select up to 5 interests</p>
+            <div class="interests-grid">
+              <button 
+                v-for="interest in availableInterests" 
+                :key="interest"
+                :class="['interest-tag', { selected: formData.interests.includes(interest) }]"
+                @click="toggleInterest(interest)"
+                type="button"
+              >
+                {{ interest }}
+              </button>
+            </div>
+          </div>
+
           <!-- Privacy Settings -->
           <div class="form-group checkbox-group">
             <label class="checkbox-label">
@@ -292,6 +309,7 @@ const formData = ref({
   website: '',
   birth_date: '',
   gender: '',
+  interests: [] as string[],
   is_private: false,
   is_verified: false
 })
@@ -299,12 +317,18 @@ const formData = ref({
 const originalFormData = ref({ ...formData.value })
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+const availableInterests = [
+  'Technology', 'Sports', 'Music', 'Art', 'Travel',
+  'Food', 'Fashion', 'Gaming', 'Books', 'Movies',
+  'Photography', 'Business', 'Health', 'Education', 'Nature'
+]
+
+// ============================================================================
 // COMPUTED
 // ============================================================================
 
-/**
- * Calculate profile completion percentage
- */
 const completionPercentage = computed(() => {
   const fields = [
     formData.value.full_name,
@@ -317,9 +341,6 @@ const completionPercentage = computed(() => {
   return Math.round((filled / fields.length) * 100)
 })
 
-/**
- * Check if form has valid data
- */
 const isFormValid = computed(() => {
   return (
     formData.value.full_name?.trim() !== '' &&
@@ -327,9 +348,6 @@ const isFormValid = computed(() => {
   )
 })
 
-/**
- * Check if form has changes
- */
 const hasChanges = computed(() => {
   return JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value)
 })
@@ -338,9 +356,6 @@ const hasChanges = computed(() => {
 // METHODS
 // ============================================================================
 
-/**
- * Load profile data
- */
 const loadProfile = async () => {
   console.log('[ProfileEdit] ============ LOAD PROFILE START ============')
   loading.value = true
@@ -354,7 +369,6 @@ const loadProfile = async () => {
 
     console.log('[ProfileEdit] Loading profile for user:', currentUser.id)
 
-    // Get profile from store or fetch from API
     let profile = profileStore.profile
 
     if (!profile) {
@@ -369,7 +383,6 @@ const loadProfile = async () => {
 
     console.log('[ProfileEdit] ✅ Profile loaded:', profile)
 
-    // Populate form data
     formData.value = {
       full_name: profile.full_name || '',
       username: profile.username || '',
@@ -380,13 +393,12 @@ const loadProfile = async () => {
       website: profile.website || '',
       birth_date: profile.birth_date || '',
       gender: profile.gender || '',
+      interests: profile.interests || [],
       is_private: profile.is_private || false,
       is_verified: profile.is_verified || false
     }
 
     originalFormData.value = { ...formData.value }
-
-    // Check if profile is new (incomplete)
     isNewProfile.value = !profile.profile_completed
 
     console.log('[ProfileEdit] ✅ Form populated successfully')
@@ -405,9 +417,6 @@ const loadProfile = async () => {
   }
 }
 
-/**
- * Validate username
- */
 const validateUsername = async () => {
   console.log('[ProfileEdit] Validating username:', formData.value.username)
   usernameError.value = null
@@ -430,17 +439,11 @@ const validateUsername = async () => {
   console.log('[ProfileEdit] ✅ Username is valid')
 }
 
-/**
- * Handle avatar upload
- */
 const triggerAvatarUpload = () => {
   console.log('[ProfileEdit] Triggering avatar upload')
   avatarInput.value?.click()
 }
 
-/**
- * Handle avatar file change
- */
 const handleAvatarChange = async (event: Event) => {
   console.log('[ProfileEdit] ============ AVATAR UPLOAD START ============')
   
@@ -454,7 +457,6 @@ const handleAvatarChange = async (event: Event) => {
 
   console.log('[ProfileEdit] File selected:', file.name, file.size)
 
-  // Validate file
   if (!file.type.startsWith('image/')) {
     uploadAvatarError.value = 'Please select an image file'
     console.error('[ProfileEdit] Invalid file type:', file.type)
@@ -477,8 +479,8 @@ const handleAvatarChange = async (event: Event) => {
 
     console.log('[ProfileEdit] Uploading avatar...')
 
-    const response = await $fetch('/api/profile/avatar-upload', {  
-     method: 'POST',
+    const response = await $fetch('/api/profile/avatar-upload', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`
       },
@@ -515,23 +517,28 @@ const handleAvatarChange = async (event: Event) => {
   }
 }
 
-/**
- * Handle avatar error
- */
 const handleAvatarError = (event: Event) => {
   console.error('[ProfileEdit] Avatar load error')
   const img = event.target as HTMLImageElement
   img.style.display = 'none'
 }
 
-/**
- * Save profile changes
- */
+const toggleInterest = (interest: string) => {
+  console.log('[ProfileEdit] Toggling interest:', interest)
+  
+  if (formData.value.interests.includes(interest)) {
+    formData.value.interests = formData.value.interests.filter(i => i !== interest)
+  } else if (formData.value.interests.length < 5) {
+    formData.value.interests.push(interest)
+  }
+
+  console.log('[ProfileEdit] Selected interests:', formData.value.interests)
+}
+
 const saveProfile = async () => {
   console.log('[ProfileEdit] ============ SAVE PROFILE START ============')
   console.log('[ProfileEdit] Saving profile with data:', formData.value)
 
-  // Validate form
   if (!isFormValid.value) {
     saveError.value = 'Please fill in all required fields'
     console.error('[ProfileEdit] Form validation failed')
@@ -543,7 +550,6 @@ const saveProfile = async () => {
   successMessage.value = null
 
   try {
-    // Prepare update data (exclude username and email as they cannot be changed)
     const updateData = {
       full_name: formData.value.full_name,
       bio: formData.value.bio,
@@ -552,6 +558,7 @@ const saveProfile = async () => {
       website: formData.value.website,
       birth_date: formData.value.birth_date,
       gender: formData.value.gender,
+      interests: formData.value.interests,
       is_private: formData.value.is_private,
       profile_completed: true
     }
@@ -569,20 +576,13 @@ const saveProfile = async () => {
     console.log('[ProfileEdit] ✅ Profile update response:', response)
 
     if (response) {
-      // ✅ NEW: Update profile store
       profileStore.setProfile(response)
-      
-      // ✅ NEW: Broadcast update to all listeners
       broadcastProfileUpdate(response)
-      
-      // Update original data to reflect saved state
       originalFormData.value = { ...formData.value }
 
-      // Show success message
       successMessage.value = 'Profile updated successfully!'
       console.log('[ProfileEdit] ✅ Profile saved successfully')
 
-      // Redirect after a short delay
       setTimeout(() => {
         console.log('[ProfileEdit] Redirecting to profile page')
         router.push(`/profile/${response.id || response.username}`)
@@ -604,9 +604,6 @@ const saveProfile = async () => {
   }
 }
 
-/**
- * Cancel editing
- */
 const cancelEdit = () => {
   console.log('[ProfileEdit] Canceling edit')
   
@@ -703,7 +700,6 @@ onMounted(async () => {
   width: 100%;
 }
 
-/* Loading State */
 .loading-state {
   display: flex;
   flex-direction: column;
@@ -728,7 +724,6 @@ onMounted(async () => {
   }
 }
 
-/* Error State */
 .error-state {
   display: flex;
   flex-direction: column;
@@ -764,7 +759,6 @@ onMounted(async () => {
   border: 1px solid #334155;
 }
 
-/* Progress Indicator */
 .profile-progress {
   margin-bottom: 2rem;
 }
@@ -915,7 +909,47 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* Checkbox */
+.field-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* ============================================================================
+   INTERESTS GRID
+   ============================================================================ */
+.interests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.interest-tag {
+  padding: 0.75rem 1rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.interest-tag:hover {
+  border-color: #475569;
+  background: #1e293b;
+}
+
+.interest-tag.selected {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+/* ============================================================================
+   CHECKBOX
+   ============================================================================ */
 .checkbox-group {
   flex-direction: row;
   align-items: center;
@@ -1049,6 +1083,10 @@ onMounted(async () => {
   .avatar-placeholder {
     width: 100px;
     height: 100px;
+  }
+
+  .interests-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 }
 </style>
