@@ -1,53 +1,44 @@
-// /server/api/admin/interests/delete.post.ts - NEW
-import { serverSupabaseClient } from '#supabase/server'
+// ============================================================================
+// FILE 4: /server/api/interests/delete.post.ts
+// Delete specific user interest
+// ============================================================================
 
 interface DeleteInterestRequest {
-  id: string
+  interest_id: string
 }
 
 export default defineEventHandler(async (event) => {
   try {
-    const supabase = await serverSupabaseClient(event)
-    const userId = event.context.user?.id
-
-    if (!userId) {
+    const user = event.context.user
+    
+    if (!user || !user.id) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized'
       })
     }
 
-    // Check if user is admin
-    const { data: user } = await supabase
-      .from('users')
-      .select('role_id')
-      .eq('id', userId)
-      .single()
-
-    if (user?.role_id !== 'admin') {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Only admins can delete interests'
-      })
-    }
-
     const body = await readBody<DeleteInterestRequest>(event)
 
-    if (!body.id) {
+    if (!body.interest_id) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Interest ID is required'
+        statusMessage: 'Interest ID required'
       })
     }
 
+    const { getAdminClient } = await import('~/server/utils/supabase-server')
+    const supabase = await getAdminClient()
+
     const { error } = await supabase
-      .from('interests')
+      .from('user_interests')
       .delete()
-      .eq('id', body.id)
+      .eq('user_id', user.id)
+      .eq('interest_id', body.interest_id)
 
     if (error) {
       throw createError({
-        statusCode: 400,
+        statusCode: 500,
         statusMessage: 'Failed to delete interest'
       })
     }
@@ -56,8 +47,10 @@ export default defineEventHandler(async (event) => {
       success: true,
       message: 'Interest deleted successfully'
     }
-  } catch (error) {
-    console.error('[Delete Interest] Error:', error)
-    throw error
+  } catch (err: any) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: err.message
+    })
   }
 })
