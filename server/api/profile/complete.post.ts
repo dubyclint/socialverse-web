@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /server/api/profile/complete.post.ts
+// FILE 5: /server/api/profile/complete.post.ts - UPDATED WITH INTERESTS
 // ============================================================================
 
 interface CompleteProfileRequest {
@@ -26,11 +26,6 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
   console.log('[Profile/Complete API] ============ COMPLETE PROFILE START ============')
 
   try {
-    // ============================================================================
-    // STEP 1: Authentication - Get user from middleware context
-    // ============================================================================
-    console.log('[Profile/Complete API] STEP 1: Authenticating user...')
-    
     const user = event.context.user
     
     if (!user || !user.id) {
@@ -44,25 +39,14 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     const userId = user.id
     console.log('[Profile/Complete API] ✅ User authenticated:', userId)
 
-    // ============================================================================
-    // STEP 2: Read request body
-    // ============================================================================
-    console.log('[Profile/Complete API] STEP 2: Reading request body...')
-    
     const body = await readBody<CompleteProfileRequest>(event)
     console.log('[Profile/Complete API] Completion data:', {
       full_name: body.full_name,
       bio: body.bio,
-      location: body.location,
-      website: body.website,
       interests: body.interests?.length || 0
     })
 
-    // ============================================================================
-    // STEP 3: Validate required fields
-    // ============================================================================
-    console.log('[Profile/Complete API] STEP 3: Validating required fields...')
-    
+    // Validate required fields
     const validationErrors: string[] = []
 
     if (!body.full_name || body.full_name.trim().length === 0) {
@@ -81,14 +65,6 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
       validationErrors.push('Bio must be less than 500 characters')
     }
 
-    if (body.location && body.location.length > 100) {
-      validationErrors.push('Location must be less than 100 characters')
-    }
-
-    if (body.website && body.website.length > 255) {
-      validationErrors.push('Website must be less than 255 characters')
-    }
-
     if (validationErrors.length > 0) {
       console.error('[Profile/Complete API] ❌ Validation failed:', validationErrors)
       throw createError({
@@ -99,18 +75,12 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
     console.log('[Profile/Complete API] ✅ Validation passed')
 
-    // ============================================================================
-    // STEP 4: Update profile with completion data using ADMIN CLIENT
-    // ============================================================================
-    console.log('[Profile/Complete API] STEP 4: Updating profile with admin privileges...')
-
     const { getAdminClient } = await import('~/server/utils/supabase-server')
     const supabase = await getAdminClient()
 
     console.log('[Profile/Complete API] ✅ Admin client obtained')
 
-    // ✅ FINAL FIX: Only use columns that actually exist in user_profiles table
-    // Removed: interests (separate table), profile_completed (doesn't exist)
+    // Update profile
     const { data: profiles, error: updateError } = await supabase
       .from('user_profiles')
       .update({
@@ -128,10 +98,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
       .select()
 
     if (updateError) {
-      console.error('[Profile/Complete API] ❌ Update error:', {
-        message: updateError.message,
-        code: updateError.code
-      })
+      console.error('[Profile/Complete API] ❌ Update error:', updateError.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to complete profile: ' + updateError.message
@@ -147,47 +114,39 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
     }
 
     const profile = profiles[0]
-
     console.log('[Profile/Complete API] ✅ Profile updated successfully')
-    console.log('[Profile/Complete API] Updated profile:', {
-      id: profile.id,
-      full_name: profile.full_name,
-      bio: profile.bio
-    })
 
-    // ============================================================================
-    // STEP 5: Handle interests separately (if provided)
-    // ============================================================================
+    // ✅ NEW: Save interests if provided
     if (body.interests && body.interests.length > 0) {
-      console.log('[Profile/Complete API] STEP 5: Handling interests...')
+      console.log('[Profile/Complete API] STEP 5: Saving interests...')
       
       try {
-        // ✅ NOTE: Interests are stored in a separate table/relationship
-        // This is a placeholder for future interest storage implementation
-        console.log('[Profile/Complete API] ℹ️ Interests provided:', body.interests)
-        console.log('[Profile/Complete API] ℹ️ Interest storage implementation needed')
-        
-        // TODO: Implement interest storage when the schema is ready
-        // Example:
-        // const { error: interestError } = await supabase
-        //   .from('user_interests')
-        //   .upsert(
-        //     body.interests.map(interest => ({
-        //       user_id: userId,
-        //       interest_id: interest,
-        //       created_at: new Date().toISOString()
-        //     }))
-        //   )
+        if (body.interests.length > 5) {
+          console.warn('[Profile/Complete API] ⚠️ More than 5 interests, truncating to 5')
+          body.interests = body.interests.slice(0, 5)
+        }
+
+        // Remove all existing interests
+        await supabase.rpc('remove_all_user_interests', { p_user_id: userId })
+
+        // Add new interests
+        const { data: interestResult, error: interestError } = await supabase
+          .rpc('add_user_interests', {
+            p_user_id: userId,
+            p_interest_names: body.interests
+          })
+
+        if (interestError) {
+          console.warn('[Profile/Complete API] ⚠️ Failed to save interests:', interestError.message)
+        } else {
+          console.log('[Profile/Complete API] ✅ Interests saved:', interestResult)
+        }
       } catch (interestError: any) {
-        console.warn('[Profile/Complete API] ⚠️ Warning: Could not save interests:', interestError.message)
-        // Don't fail the entire request if interests fail
+        console.warn('[Profile/Complete API] ⚠️ Interest save error:', interestError.message)
+        // Don't fail profile completion if interests fail
       }
     }
 
-    // ============================================================================
-    // STEP 6: Return success response
-    // ============================================================================
-    console.log('[Profile/Complete API] STEP 6: Building response...')
     console.log('[Profile/Complete API] ✅ Profile completed successfully')
     console.log('[Profile/Complete API] ============ COMPLETE PROFILE END ============')
 
@@ -199,9 +158,7 @@ export default defineEventHandler(async (event): Promise<CompleteProfileResponse
 
   } catch (err: any) {
     console.error('[Profile/Complete API] ============ COMPLETE PROFILE ERROR ============')
-    console.error('[Profile/Complete API] Error type:', err?.constructor?.name)
     console.error('[Profile/Complete API] Error message:', err?.message)
-    console.error('[Profile/Complete API] Error details:', err?.data || 'N/A')
     console.error('[Profile/Complete API] ============ END ERROR ============')
     
     if (err.statusCode) {
