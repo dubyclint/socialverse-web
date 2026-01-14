@@ -649,7 +649,7 @@ const handleAvatarUpload = async (event: Event) => {
     const formDataToSend = new FormData()
     formDataToSend.append('file', file)
 
-    const uploadResponse = await fetchWithAuth('/api/upload/avatar', {
+    const uploadResponse = await fetchWithAuth('/api/profile/avatar-upload', {
       method: 'POST',
       body: formDataToSend
     })
