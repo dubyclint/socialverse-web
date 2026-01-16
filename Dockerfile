@@ -3,7 +3,7 @@ LABEL "language"="nodejs"
 LABEL "framework"="nuxt"
 
 # Cache buster - change this to force rebuild
-ARG BUILD_ID=v.1.0-fixed
+ARG BUILD_ID=v.1.1-non-minified
 ENV BUILD_ID=$BUILD_ID
 ENV FORCE_REBUILD=2025-01-09
 
@@ -34,8 +34,9 @@ COPY . .
 RUN npm cache clean --force && \
     rm -rf .nuxt .output .nitro node_modules/.cache dist
 
-# ✅ Build with proper environment
-RUN npm run build
+# ✅ Build with non-minified configuration for better error messages
+# Set BUILD_MODE=dev to disable minification and enable source maps
+RUN BUILD_MODE=dev npm run build:dev
 
 # ✅ Verify build succeeded
 RUN test -f .output/server/index.mjs || (echo "Build failed: .output/server/index.mjs not found" && exit 1)
