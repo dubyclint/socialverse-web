@@ -1,7 +1,9 @@
+/ ============================================================================
+// FILE: /nuxt.config.ts - WITH NON-MINIFIED BUILD CONFIGURATION
 // ============================================================================
-// FILE: /nuxt.config.ts - WITH HARDCODED KEYS AS FALLBACK
-// ============================================================================
-// ✅ FIXED: Using process.env with hardcoded fallback keys
+// ✅ FIXED: Added development-friendly build options
+// ✅ FIXED: Disabled minification for better error messages
+// ✅ FIXED: Enabled source maps for debugging
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -57,7 +59,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // BUILD CONFIGURATION
+  // BUILD CONFIGURATION - WITH NON-MINIFIED OPTIONS
   // ============================================================================
   build: {
     transpile: [
@@ -66,10 +68,12 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // VITE CONFIGURATION
+  // VITE CONFIGURATION - NON-MINIFIED BUILD
   // ============================================================================
   vite: {
     build: {
+      minify: process.env.BUILD_MODE === 'dev' ? false : 'esbuild',
+      sourcemap: process.env.BUILD_MODE === 'dev' ? true : false,
       rollupOptions: {
         external: ['gun', 'gun/gun', 'gun/sea'],
       },
@@ -84,7 +88,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // NITRO CONFIGURATION (Server)
+  // NITRO CONFIGURATION (Server) - WITH SOURCE MAPS
   // ============================================================================
   nitro: {
     preset: 'node-server',
@@ -97,7 +101,7 @@ export default defineNuxtConfig({
     
     port: 3000,
     host: '0.0.0.0',
-    sourceMap: false,
+    sourceMap: process.env.BUILD_MODE === 'dev' ? true : false,
     
     rollupConfig: {
       external: ['gun', 'gun/gun', 'gun/sea'],
@@ -231,7 +235,12 @@ export default defineNuxtConfig({
   // ============================================================================
   hooks: {
     'build:before': () => {
-      console.log('🚀 Building SocialVerse...')
+      const buildMode = process.env.BUILD_MODE || 'production'
+      console.log(`🚀 Building SocialVerse in ${buildMode} mode...`)
+      if (buildMode === 'dev') {
+        console.log('📝 Source maps enabled for debugging')
+        console.log('⚠️  Minification disabled - larger bundle size')
+      }
     },
   },
 })
