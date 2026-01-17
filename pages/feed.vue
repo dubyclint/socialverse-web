@@ -1,3 +1,8 @@
+<!-- ============================================================================
+     FEED.VUE - TEMPLATE SECTION - PART 1 OF 2
+     CORRECTED VERSION WITH NAVIGATION FIXES
+     ============================================================================ -->
+
 <template>
   <div class="feed-page">
     <!-- ========================================================================
@@ -67,7 +72,8 @@
               :src="userAvatar" 
               :alt="userName" 
               class="user-avatar"
-              @click="userUsername && goToProfile()"
+              @click="goToProfile()"
+              :style="{ cursor: currentUser?.id ? 'pointer' : 'default' }"
             />
             <span class="status-indicator" :class="userStatus"></span>
           </div>
@@ -90,25 +96,24 @@
           <!-- Primary Navigation Section -->
           <!-- ✅ FIX PHASE 2: Enhanced profile link with validation and loading state -->
           <div 
-            v-if="!userUsername || userUsername === 'username'"
+            v-if="!currentUser?.id"
             class="sidebar-item disabled-info"
-            title="Profile username not loaded yet"
+            title="Not authenticated"
           >
             <Icon name="user" size="18" />
             <span>Profile</span>
-            <div v-if="profileLoading" class="spinner-tiny"></div>
-            <span v-else class="warning-badge">!</span>
+            <span class="warning-badge">!</span>
           </div>
           
-          <NuxtLink 
+          <button 
             v-else
-            :to="`/profile/${userUsername}`" 
-            class="sidebar-item" 
-            @click="toggleSidebar"
+            class="sidebar-item"
+            @click="goToProfile()"
+            title="Go to your profile"
           >
             <Icon name="user" size="18" />
             <span>Profile</span>
-          </NuxtLink>
+          </button>
 
           <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar">
             <Icon name="message-circle" size="18" />
@@ -211,7 +216,7 @@
             </button>
           </div>
 
-          <div v-else class="profile-card">
+          <div v-else-if="currentUser?.id" class="profile-card">
             <!-- User Profile Card -->
             <div class="profile-header">
               <div class="profile-avatar-wrapper">
@@ -220,6 +225,7 @@
                   :alt="userName" 
                   class="profile-avatar"
                   @click="goToProfile()"
+                  :style="{ cursor: 'pointer' }"
                 />
                 <span :class="['status-indicator', userStatus]"></span>
               </div>
@@ -282,6 +288,16 @@
               </button>
             </div>
           </div>
+
+          <!-- Not authenticated state -->
+          <div v-else class="profile-card error">
+            <Icon name="alert-circle" size="32" />
+            <p>Please log in to continue</p>
+            <NuxtLink to="/auth/signin" class="btn-retry">
+              <Icon name="log-in" size="14" />
+              Sign In
+            </NuxtLink>
+          </div>
         </aside>
       </ClientOnly>
 
@@ -341,174 +357,175 @@
         </ClientOnly>
 
         <!-- Posts Feed -->
-<ClientOnly>
-  <!-- Email Verification Banner -->
-  <EmailVerificationBanner 
-    :isVerified="authStore.isEmailVerified"
-    :email="authStore.userEmail"
-    @send-verification="handleVerificationSent"
-    @dismiss="handleBannerDismissed"
-    @verified="handleEmailVerified"
-  />
-
-  <!-- Loading State -->
-  <div v-if="postsLoading && posts.length === 0" class="loading-state">
-    <div class="spinner"></div>
-    <p>Loading posts...</p>
-  </div>
-  
-  <!-- Posts List -->
-  <div v-else-if="posts.length > 0" class="posts-list">
-    <article 
-      v-for="post in posts" 
-      :key="post.id" 
-      class="feed-post"
-      :class="{ 'has-media': post.media && post.media.length > 0 }"
-    >
-      <!-- Post Header -->
-      <div class="post-header">
-        <!-- ✅ FIX PHASE 2: Safe null-check on avatar click with validation -->
-        <img 
-          :src="post.author?.avatar_url || '/default-avatar.svg'" 
-          :alt="post.author?.full_name" 
-          class="post-avatar"
-          @click="post.author?.username && goToUserProfile(post.author.username)"
-          :style="{ cursor: post.author?.username ? 'pointer' : 'default' }"
-        />
-        <div class="post-author-info">
-          <div class="author-name-row">
-            <h4 class="post-author-name">{{ post.author?.full_name }}</h4>
-            <span v-if="post.author?.verified" class="verified-badge" title="Verified">
-              <Icon name="check-circle" size="14" />
-            </span>
-          </div>
-          <p class="post-author-username">@{{ post.author?.username }}</p>
-          <span class="post-timestamp">{{ formatTime(post.created_at) }}</span>
-        </div>
-        <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options">
-          <Icon name="more-vertical" size="20" />
-        </button>
-        <!-- Post Menu -->
-        <div v-if="activePostMenu === post.id" class="post-menu">
-          <button class="menu-item" @click="reportPost(post.id)">
-            <Icon name="flag" size="16" />
-            Report Post
-          </button>
-          <button v-if="post.author?.id === currentUser?.id" class="menu-item" @click="deletePost(post.id)">
-            <Icon name="trash-2" size="16" />
-            Delete Post
-          </button>
-          <button class="menu-item" @click="copyPostLink(post.id)">
-            <Icon name="link" size="16" />
-            Copy Link
-          </button>
-        </div>
-      </div>
-
-      <!-- Post Content -->
-      <div class="post-content">
-        <p class="post-text">{{ post.content }}</p>
-        
-        <!-- Post Media Gallery -->
-        <div v-if="post.media && post.media.length > 0" class="post-media-gallery">
-          <img 
-            v-for="(media, index) in post.media" 
-            :key="index"
-            :src="media" 
-            :alt="`Post media ${index + 1}`" 
-            class="post-image"
-            @click="openMediaViewer(media)"
+        <ClientOnly>
+          <!-- Email Verification Banner -->
+          <EmailVerificationBanner 
+            :isVerified="authStore.isEmailVerified"
+            :email="authStore.userEmail"
+            @send-verification="handleVerificationSent"
+            @dismiss="handleBannerDismissed"
+            @verified="handleEmailVerified"
           />
-        </div>
 
-        <!-- Post Hashtags -->
-        <div v-if="post.hashtags && post.hashtags.length > 0" class="post-hashtags">
-          <NuxtLink 
-            v-for="tag in post.hashtags" 
-            :key="tag"
-            :to="`/explore?tag=${tag}`"
-            class="hashtag"
-          >
-            #{{ tag }}
-          </NuxtLink>
-        </div>
-      </div>
+          <!-- Loading State -->
+          <div v-if="postsLoading && posts.length === 0" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading posts...</p>
+          </div>
+          
+          <!-- Posts List -->
+          <div v-else-if="posts.length > 0" class="posts-list">
+            <article 
+              v-for="post in posts" 
+              :key="post.id" 
+              class="feed-post"
+              :class="{ 'has-media': post.media && post.media.length > 0 }"
+            >
+              <!-- Post Header -->
+              <div class="post-header">
+                <!-- ✅ FIX PHASE 2: Safe null-check on avatar click with validation -->
+                <img 
+                  :src="post.author?.avatar_url || '/default-avatar.svg'" 
+                  :alt="post.author?.full_name" 
+                  class="post-avatar"
+                  @click="goToUserProfile(post.author?.username, post.author?.id)"
+                  :style="{ cursor: post.author?.id ? 'pointer' : 'default' }"
+                  :title="post.author?.id ? 'View profile' : 'Profile unavailable'"
+                />
+                <div class="post-author-info">
+                  <div class="author-name-row">
+                    <h4 class="post-author-name">{{ post.author?.full_name }}</h4>
+                    <span v-if="post.author?.verified" class="verified-badge" title="Verified">
+                      <Icon name="check-circle" size="14" />
+                    </span>
+                  </div>
+                  <p class="post-author-username">@{{ post.author?.username }}</p>
+                  <span class="post-timestamp">{{ formatTime(post.created_at) }}</span>
+                </div>
+                <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options">
+                  <Icon name="more-vertical" size="20" />
+                </button>
+                <!-- Post Menu -->
+                <div v-if="activePostMenu === post.id" class="post-menu">
+                  <button class="menu-item" @click="reportPost(post.id)">
+                    <Icon name="flag" size="16" />
+                    Report Post
+                  </button>
+                  <button v-if="post.author?.id === currentUser?.id" class="menu-item" @click="deletePost(post.id)">
+                    <Icon name="trash-2" size="16" />
+                    Delete Post
+                  </button>
+                  <button class="menu-item" @click="copyPostLink(post.id)">
+                    <Icon name="link" size="16" />
+                    Copy Link
+                  </button>
+                </div>
+              </div>
 
-      <!-- Post Stats -->
-      <div class="post-stats">
-        <span class="stat" @click="viewPostLikes(post.id)">
-          <Icon name="heart" size="14" />
-          {{ post.likes_count || 0 }} Likes
-        </span>
-        <span class="stat" @click="viewPostComments(post.id)">
-          <Icon name="message-circle" size="14" />
-          {{ post.comments_count || 0 }} Comments
-        </span>
-        <span class="stat" @click="viewPostShares(post.id)">
-          <Icon name="share-2" size="14" />
-          {{ post.shares_count || 0 }} Shares
-        </span>
-      </div>
+              <!-- Post Content -->
+              <div class="post-content">
+                <p class="post-text">{{ post.content }}</p>
+                
+                <!-- Post Media Gallery -->
+                <div v-if="post.media && post.media.length > 0" class="post-media-gallery">
+                  <img 
+                    v-for="(media, index) in post.media" 
+                    :key="index"
+                    :src="media" 
+                    :alt="`Post media ${index + 1}`" 
+                    class="post-image"
+                    @click="openMediaViewer(media)"
+                  />
+                </div>
 
-      <!-- Post Actions -->
-      <div class="post-actions">
-        <button 
-          :class="['action-btn', { liked: post.liked_by_me }]" 
-          @click="likePost(post.id)"
-          :title="post.liked_by_me ? 'Unlike' : 'Like'"
-        >
-          <Icon :name="post.liked_by_me ? 'heart' : 'heart'" size="18" :fill="post.liked_by_me" />
-          <span>{{ post.liked_by_me ? 'Liked' : 'Like' }}</span>
-        </button>
-        <button class="action-btn" @click="commentPost(post.id)" title="Comment">
-          <Icon name="message-circle" size="18" />
-          <span>Comment</span>
-        </button>
-        <button class="action-btn" @click="sharePost(post.id)" title="Share">
-          <Icon name="share-2" size="18" />
-          <span>Share</span>
-        </button>
-        <button class="action-btn" @click="savePost(post.id)" title="Save">
-          <Icon name="bookmark" size="18" />
-          <span>Save</span>
-        </button>
-      </div>
-    </article>
+                <!-- Post Hashtags -->
+                <div v-if="post.hashtags && post.hashtags.length > 0" class="post-hashtags">
+                  <NuxtLink 
+                    v-for="tag in post.hashtags" 
+                    :key="tag"
+                    :to="`/explore?tag=${tag}`"
+                    class="hashtag"
+                  >
+                    #{{ tag }}
+                  </NuxtLink>
+                </div>
+              </div>
 
-    <!-- Load More Button -->
-    <div v-if="hasMorePosts" class="load-more">
-      <button 
-        v-if="!loadingMore"
-        @click="loadMorePosts" 
-        class="btn-load-more"
-      >
-        Load More Posts
-      </button>
-      <div v-else class="loading-more">
-        <div class="spinner-small"></div>
-        <span>Loading...</span>
-      </div>
-    </div>
-  </div>
+              <!-- Post Stats -->
+              <div class="post-stats">
+                <span class="stat" @click="viewPostLikes(post.id)">
+                  <Icon name="heart" size="14" />
+                  {{ post.likes_count || 0 }} Likes
+                </span>
+                <span class="stat" @click="viewPostComments(post.id)">
+                  <Icon name="message-circle" size="14" />
+                  {{ post.comments_count || 0 }} Comments
+                </span>
+                <span class="stat" @click="viewPostShares(post.id)">
+                  <Icon name="share-2" size="14" />
+                  {{ post.shares_count || 0 }} Shares
+                </span>
+              </div>
 
-  <!-- No Posts State -->
-  <div v-else class="no-posts">
-    <Icon name="inbox" size="48" />
-    <h3>No posts yet</h3>
-    <p>Start following people to see their posts!</p>
-    <div class="no-posts-actions">
-      <NuxtLink to="/explore" class="btn-explore">
-        <Icon name="compass" size="18" />
-        Explore People
-      </NuxtLink>
-      <button @click="goToCreatePost" class="btn-create">
-        <Icon name="plus-square" size="18" />
-        Create Post
-      </button>
-    </div>
-  </div>
-</ClientOnly>
- </section>
+              <!-- Post Actions -->
+              <div class="post-actions">
+                <button 
+                  :class="['action-btn', { liked: post.liked_by_me }]" 
+                  @click="likePost(post.id)"
+                  :title="post.liked_by_me ? 'Unlike' : 'Like'"
+                >
+                  <Icon :name="post.liked_by_me ? 'heart' : 'heart'" size="18" :fill="post.liked_by_me" />
+                  <span>{{ post.liked_by_me ? 'Liked' : 'Like' }}</span>
+                </button>
+                <button class="action-btn" @click="commentPost(post.id)" title="Comment">
+                  <Icon name="message-circle" size="18" />
+                  <span>Comment</span>
+                </button>
+                <button class="action-btn" @click="sharePost(post.id)" title="Share">
+                  <Icon name="share-2" size="18" />
+                  <span>Share</span>
+                </button>
+                <button class="action-btn" @click="savePost(post.id)" title="Save">
+                  <Icon name="bookmark" size="18" />
+                  <span>Save</span>
+                </button>
+              </div>
+            </article>
+
+            <!-- Load More Button -->
+            <div v-if="hasMorePosts" class="load-more">
+              <button 
+                v-if="!loadingMore"
+                @click="loadMorePosts" 
+                class="btn-load-more"
+              >
+                Load More Posts
+              </button>
+              <div v-else class="loading-more">
+                <div class="spinner-small"></div>
+                <span>Loading...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Posts State -->
+          <div v-else class="no-posts">
+            <Icon name="inbox" size="48" />
+            <h3>No posts yet</h3>
+            <p>Start following people to see their posts!</p>
+            <div class="no-posts-actions">
+              <NuxtLink to="/explore" class="btn-explore">
+                <Icon name="compass" size="18" />
+                Explore People
+              </NuxtLink>
+              <button @click="goToCreatePost" class="btn-create">
+                <Icon name="plus-square" size="18" />
+                Create Post
+              </button>
+            </div>
+          </div>
+        </ClientOnly>
+      </section>
 
       <!-- Right Sidebar - Recommendations & Trending -->
       <ClientOnly>
@@ -550,8 +567,9 @@
                   :src="user.avatar_url || '/default-avatar.svg'" 
                   :alt="user.full_name" 
                   class="rec-avatar"
-                  @click="user.username && goToUserProfile(user.username)"
-                  :style="{ cursor: user.username ? 'pointer' : 'default' }"
+                  @click="goToUserProfile(user.username, user.id)"
+                  :style="{ cursor: user.id ? 'pointer' : 'default' }"
+                  :title="user.id ? 'View profile' : 'Profile unavailable'"
                 />
                 <div class="rec-info">
                   <h4 class="rec-name">{{ user.full_name }}</h4>
@@ -607,12 +625,12 @@
   </div>
 </template>
 
-<script setup lang="ts">
-  definePageMeta({
-  middleware: ['auth', 'profile-completion',  'language-check' ],
+<script setup lang="ts">  
+definePageMeta({
+  middleware: ['auth', 'profile-completion', 'language-check'],
   layout: 'default'
 })
-  
+
 import { ref, computed, onMounted, onBeforeMount, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
@@ -668,21 +686,6 @@ const unreadNotifications = ref(0)
 const unreadMessages = ref(0)
 
 // ============================================================================
-// EVENT HANDLERS
-// ============================================================================
-const handleVerificationSent = () => {
-  console.log('[Feed] Verification email sent')
-}
-
-const handleBannerDismissed = () => {
-  console.log('[Feed] Verification banner dismissed')
-}
-
-const handleEmailVerified = () => {
-  console.log('[Feed] Email verified, banner hidden')
-}
-
-// ============================================================================
 // REACTIVE STATE - USER PROFILE
 // ============================================================================
 const walletBalance = ref('$0.00')
@@ -700,8 +703,17 @@ const lastProfileSync = ref<Date | null>(null)
 // ============================================================================
 // COMPUTED PROPERTIES - USER DATA FROM AUTH STORE
 // ============================================================================
+
+/**
+ * ✅ FIX: Get current user from auth store
+ * Uses user.id (UUID) for all routing operations
+ */
 const currentUser = computed(() => authStore.user)
 
+/**
+ * ✅ FIX: Get user full name with fallback values
+ * Priority: profileStore > authStore metadata > authStore > default
+ */
 const userName = computed(() => {
   const name = profileStore.profile?.full_name ||
                currentUser.value?.user_metadata?.full_name || 
@@ -711,20 +723,37 @@ const userName = computed(() => {
   return name
 })
 
+/**
+ * ✅ FIX: Get user username with validation
+ * Validates that username is not empty or placeholder value
+ * Priority: profileStore > authStore metadata > authStore > empty string
+ */
 const userUsername = computed(() => {
   const username = profileStore.profile?.username ||
                    currentUser.value?.user_metadata?.username || 
                    currentUser.value?.username || 
                    ''
+  
   console.log('[Feed] userUsername computed:', {
     value: username,
     isEmpty: !username,
     isValid: username && username.trim() !== '' && username !== 'username',
     source: profileStore.profile?.username ? 'profileStore' : 'authStore'
   })
+  
+  // Validate username
+  if (!username || username === 'username' || username === 'user') {
+    console.warn('[Feed] Invalid username detected:', username)
+    return ''
+  }
+  
   return username
 })
 
+/**
+ * ✅ FIX: Get user avatar URL with fallback
+ * Priority: profileStore > authStore metadata > authStore > default avatar
+ */
 const userAvatar = computed(() => {
   const avatar = profileStore.profile?.avatar_url ||
                  currentUser.value?.user_metadata?.avatar_url || 
@@ -734,21 +763,37 @@ const userAvatar = computed(() => {
   return avatar
 })
 
+/**
+ * ✅ FIX: Get followers count
+ * Priority: profileStore > authStore metadata > 0
+ */
 const userFollowers = computed(() => {
   return profileStore.profile?.followers_count ||
          currentUser.value?.user_metadata?.followers_count || 0
 })
 
+/**
+ * ✅ FIX: Get following count
+ * Priority: profileStore > authStore metadata > 0
+ */
 const userFollowing = computed(() => {
   return profileStore.profile?.following_count ||
          currentUser.value?.user_metadata?.following_count || 0
 })
 
+/**
+ * ✅ FIX: Get posts count
+ * Priority: profileStore > authStore metadata > 0
+ */
 const userPosts = computed(() => {
   return profileStore.profile?.posts_count ||
          currentUser.value?.user_metadata?.posts_count || 0
 })
 
+/**
+ * ✅ FIX: Get user status (online/away/offline)
+ * Priority: profileStore > authStore metadata > 'online'
+ */
 const userStatus = computed(() => {
   return profileStore.profile?.status ||
          currentUser.value?.user_metadata?.status || 'online'
@@ -764,13 +809,46 @@ const feedTabs = [
 ]
 
 // ============================================================================
+// EVENT HANDLERS - EMAIL VERIFICATION
+// ============================================================================
+
+/**
+ * ✅ FIX: Handle verification email sent event
+ */
+const handleVerificationSent = () => {
+  console.log('[Feed] Verification email sent')
+}
+
+/**
+ * ✅ FIX: Handle verification banner dismissed event
+ */
+const handleBannerDismissed = () => {
+  console.log('[Feed] Verification banner dismissed')
+}
+
+/**
+ * ✅ FIX: Handle email verified event
+ */
+const handleEmailVerified = () => {
+  console.log('[Feed] Email verified, banner hidden')
+}
+
+// ============================================================================
 // METHODS - HEADER & SIDEBAR
 // ============================================================================
+
+/**
+ * ✅ FIX: Toggle sidebar open/closed state
+ */
 const toggleSidebar = () => {
   console.log('[Feed] Toggle sidebar')
   sidebarOpen.value = !sidebarOpen.value
 }
 
+/**
+ * ✅ FIX: Handle user logout
+ * Clears profile store and redirects to signin
+ */
 const handleLogout = async () => {
   try {
     console.log('[Feed] Logging out user')
@@ -790,6 +868,9 @@ const handleLogout = async () => {
   }
 }
 
+/**
+ * ✅ FIX: Retry profile load after error
+ */
 const retryProfileLoad = async () => {
   console.log('[Feed] Retrying profile load')
   profileError.value = null
@@ -798,133 +879,159 @@ const retryProfileLoad = async () => {
 }
 
 // ============================================================================
-// NAVIGATION METHODS - WITH COMPREHENSIVE VALIDATION
+// METHODS - NAVIGATION (CRITICAL FIXES)
 // ============================================================================
 
+/**
+ * ✅ FIX PHASE 1: Navigate to current user's profile
+ * CRITICAL: Uses currentUser.id (UUID) instead of username
+ * Route: /profile/{user_id}
+ */
 const goToProfile = () => {
   console.log('[Feed] goToProfile() called')
-  console.log('[Feed] Current user:', {
-    id: currentUser.value?.id,
-    username: userUsername.value,
-    email: currentUser.value?.email
-  })
   
+  // Validate user is authenticated
   if (!currentUser.value || !currentUser.value.id) {
     console.error('[Feed] ❌ User not authenticated')
     return
   }
   
-  if (!userUsername.value || userUsername.value.trim() === '') {
-    console.error('[Feed] ❌ Username is empty or missing')
-    console.error('[Feed] Available data:', {
-      username: userUsername.value,
-      email: currentUser.value?.email,
-      userId: currentUser.value?.id
-    })
-    return
-  }
+  const userId = currentUser.value.id
+  console.log('[Feed] ✅ Navigating to profile:', userId)
   
-  if (userUsername.value === 'username' || userUsername.value === 'user') {
-    console.error('[Feed] ❌ Username is a placeholder:', userUsername.value)
-    return
-  }
-  
-  if (!/^[a-z0-9_-]+$/.test(userUsername.value.toLowerCase())) {
-    console.error('[Feed] ❌ Username contains invalid characters:', userUsername.value)
-    return
-  }
-  
-  console.log('[Feed] ✅ All validations passed, navigating to profile:', userUsername.value)
   sidebarOpen.value = false
-  router.push(`/profile/${userUsername.value}`)
+  router.push(`/profile/${userId}`)
 }
 
-const goToUserProfile = (username: string) => {
-  console.log('[Feed] goToUserProfile() called with username:', username)
+/**
+ * ✅ FIX PHASE 1: Navigate to another user's profile
+ * CRITICAL: Uses userId (UUID) instead of username
+ * Route: /profile/{user_id}
+ * 
+ * @param username - Username for display/logging purposes
+ * @param userId - User ID (UUID) for routing
+ */
+const goToUserProfile = (username: string, userId?: string) => {
+  console.log('[Feed] goToUserProfile() called', { username, userId })
   
-  if (!username) {
-    console.error('[Feed] ❌ Username not provided')
+  // Validate userId is provided
+  if (!userId) {
+    console.error('[Feed] ❌ User ID not provided')
+    console.error('[Feed] Cannot navigate without user_id')
     return
   }
   
-  if (typeof username !== 'string') {
-    console.error('[Feed] ❌ Username is not a string:', typeof username)
+  // Validate userId is a string
+  if (typeof userId !== 'string') {
+    console.error('[Feed] ❌ User ID is not a string:', typeof userId)
     return
   }
   
-  const trimmedUsername = username.trim()
-  if (trimmedUsername === '') {
-    console.error('[Feed] ❌ Username is empty after trim')
+  const trimmedUserId = userId.trim()
+  
+  // Validate userId is not empty
+  if (trimmedUserId === '') {
+    console.error('[Feed] ❌ User ID is empty after trim')
     return
   }
   
-  if (trimmedUsername === 'username' || trimmedUsername === 'user' || trimmedUsername === 'User') {
-    console.error('[Feed] ❌ Username is a placeholder:', trimmedUsername)
-    return
+  // Validate userId is a valid UUID format
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedUserId)
+  if (!isUUID) {
+    console.warn('[Feed] ⚠️ User ID is not a valid UUID:', trimmedUserId)
+    // Still allow navigation but log warning
   }
   
-  if (!/^[a-z0-9_-]+$/.test(trimmedUsername.toLowerCase())) {
-    console.error('[Feed] ❌ Username contains invalid characters:', trimmedUsername)
-    return
-  }
-  
-  console.log('[Feed] ✅ All validations passed, navigating to user profile:', trimmedUsername)
+  console.log('[Feed] ✅ All validations passed, navigating to user profile:', trimmedUserId)
   sidebarOpen.value = false
-  router.push(`/profile/${trimmedUsername}`)
+  router.push(`/profile/${trimmedUserId}`)
 }
 
+/**
+ * ✅ FIX PHASE 1: Navigate to followers tab
+ * CRITICAL: Uses query params instead of nested routes
+ * Route: /profile/{user_id}?tab=followers
+ */
 const goToFollowers = () => {
   console.log('[Feed] goToFollowers() called')
   
-  if (!userUsername.value || userUsername.value.trim() === '' || userUsername.value === 'username') {
-    console.error('[Feed] ❌ Invalid username, cannot navigate to followers')
+  // Validate user is authenticated
+  if (!currentUser.value?.id) {
+    console.error('[Feed] ❌ User ID not available')
     return
   }
   
-  console.log('[Feed] ✅ Navigating to followers for:', userUsername.value)
-  router.push(`/profile/${userUsername.value}/followers`)
+  const userId = currentUser.value.id
+  console.log('[Feed] ✅ Navigating to followers for:', userId)
+  
+  router.push(`/profile/${userId}?tab=followers`)
 }
 
+/**
+ * ✅ FIX PHASE 1: Navigate to following tab
+ * CRITICAL: Uses query params instead of nested routes
+ * Route: /profile/{user_id}?tab=following
+ */
 const goToFollowing = () => {
   console.log('[Feed] goToFollowing() called')
   
-  if (!userUsername.value || userUsername.value.trim() === '' || userUsername.value === 'username') {
-    console.error('[Feed] ❌ Invalid username, cannot navigate to following')
+  // Validate user is authenticated
+  if (!currentUser.value?.id) {
+    console.error('[Feed] ❌ User ID not available')
     return
   }
   
-  console.log('[Feed] ✅ Navigating to following for:', userUsername.value)
-  router.push(`/profile/${userUsername.value}/following`)
+  const userId = currentUser.value.id
+  console.log('[Feed] ✅ Navigating to following for:', userId)
+  
+  router.push(`/profile/${userId}?tab=following`)
 }
 
+/**
+ * ✅ FIX PHASE 1: Navigate to user posts tab
+ * CRITICAL: Uses query params instead of nested routes
+ * Route: /profile/{user_id}?tab=posts
+ */
 const goToUserPosts = () => {
   console.log('[Feed] goToUserPosts() called')
   
-  if (!userUsername.value || userUsername.value.trim() === '' || userUsername.value === 'username') {
-    console.error('[Feed] ❌ Invalid username, cannot navigate to user posts')
+  // Validate user is authenticated
+  if (!currentUser.value?.id) {
+    console.error('[Feed] ❌ User ID not available')
     return
   }
   
-  console.log('[Feed] ✅ Navigating to user posts for:', userUsername.value)
-  router.push(`/profile/${userUsername.value}/posts`)
+  const userId = currentUser.value.id
+  console.log('[Feed] ✅ Navigating to user posts for:', userId)
+  
+  router.push(`/profile/${userId}?tab=posts`)
 }
 
+/**
+ * ✅ FIX: Navigate to create post page
+ */
 const goToCreatePost = () => {
   console.log('[Feed] goToCreatePost() called')
   sidebarOpen.value = false
   router.push('/posts/create')
 }
 
+/**
+ * ✅ FIX: Share current user's profile
+ * Uses user_id for profile URL
+ */
 const shareProfile = async () => {
   console.log('[Feed] shareProfile() called')
   
-  if (!userUsername.value || userUsername.value.trim() === '') {
-    console.error('[Feed] ❌ Cannot share profile - username is invalid')
+  // Validate user is authenticated
+  if (!currentUser.value?.id) {
+    console.error('[Feed] ❌ User ID not available')
     return
   }
   
   try {
-    const profileUrl = `${window.location.origin}/profile/${userUsername.value}`
+    const userId = currentUser.value.id
+    const profileUrl = `${window.location.origin}/profile/${userId}`
     
     if (navigator.share) {
       await navigator.share({
@@ -942,28 +1049,40 @@ const shareProfile = async () => {
   }
 }
 
-  // ============================================================================
-// POST INTERACTION METHODS
 // ============================================================================
+// METHODS - POST INTERACTION
+// ============================================================================
+
+/**
+ * ✅ FIX: Toggle post menu visibility
+ * @param postId - The ID of the post
+ */
 const togglePostMenu = (postId: string) => {
   console.log('[Feed] Toggle post menu:', postId)
   activePostMenu.value = activePostMenu.value === postId ? null : postId
 }
 
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+/**
+ * ✅ FIX: Like or unlike a post
+ * Uses fetchWithAuth to handle authentication headers
+ * @param postId - The ID of the post to like
+ */
 const likePost = async (postId: string) => {
   try {
     console.log('[Feed] Liking post:', postId)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
     }
     
+    // Make API call to like post
     await fetchWithAuth(`/api/posts/${postId}/like`, {
       method: 'POST'
     })
     
+    // Update local state
     const post = posts.value.find(p => p.id === postId)
     if (post) {
       post.liked_by_me = !post.liked_by_me
@@ -977,42 +1096,60 @@ const likePost = async (postId: string) => {
   }
 }
 
+/**
+ * ✅ FIX: Navigate to post comments page
+ * @param postId - The ID of the post
+ */
 const commentPost = (postId: string) => {
   console.log('[Feed] Navigate to comments:', postId)
   sidebarOpen.value = false
   router.push(`/posts/${postId}`)
 }
 
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+/**
+ * ✅ FIX: Share a post
+ * Uses fetchWithAuth to handle authentication headers
+ * @param postId - The ID of the post to share
+ */
 const sharePost = async (postId: string) => {
   try {
     console.log('[Feed] Sharing post:', postId)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
     }
     
     const post = posts.value.find(p => p.id === postId)
-    if (!post) return
+    if (!post) {
+      console.error('[Feed] ❌ Post not found')
+      return
+    }
 
+    // Create post URL using post ID
     const postUrl = `${window.location.origin}/posts/${postId}`
     
+    // Try native share first
     if (navigator.share) {
       await navigator.share({
         title: 'Check out this post',
         text: post.content,
         url: postUrl
       })
+      console.log('[Feed] ✅ Post shared via native share')
     } else {
+      // Fallback to clipboard
       await navigator.clipboard.writeText(postUrl)
-      console.log('[Feed] Post URL copied to clipboard')
+      console.log('[Feed] ✅ Post URL copied to clipboard')
     }
 
+    // Make API call to record share
     await fetchWithAuth(`/api/posts/${postId}/share`, {
       method: 'POST'
     })
 
+    // Update local state
     if (post) {
       post.shares_count = (post.shares_count || 0) + 1
     }
@@ -1022,20 +1159,27 @@ const sharePost = async (postId: string) => {
   }
 }
 
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+/**
+ * ✅ FIX: Save a post to bookmarks
+ * Uses fetchWithAuth to handle authentication headers
+ * @param postId - The ID of the post to save
+ */
 const savePost = async (postId: string) => {
   try {
     console.log('[Feed] Saving post:', postId)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
     }
     
+    // Make API call to save post
     await fetchWithAuth(`/api/posts/${postId}/save`, {
       method: 'POST'
     })
     
+    // Update local state
     const post = posts.value.find(p => p.id === postId)
     if (post) {
       post.saved_by_me = !post.saved_by_me
@@ -1046,20 +1190,28 @@ const savePost = async (postId: string) => {
   }
 }
 
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+/**
+ * ✅ FIX: Report a post
+ * Uses fetchWithAuth to handle authentication headers
+ * @param postId - The ID of the post to report
+ */
 const reportPost = async (postId: string) => {
   try {
     console.log('[Feed] Reporting post:', postId)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
     }
     
+    // Make API call to report post
     await fetchWithAuth(`/api/posts/${postId}/report`, {
       method: 'POST',
       body: { reason: 'inappropriate' }
     })
+    
+    // Close menu
     activePostMenu.value = null
     console.log('[Feed] ✅ Post reported successfully')
   } catch (error) {
@@ -1067,22 +1219,33 @@ const reportPost = async (postId: string) => {
   }
 }
 
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+/**
+ * ✅ FIX: Delete a post (only for post author)
+ * Uses fetchWithAuth to handle authentication headers
+ * @param postId - The ID of the post to delete
+ */
 const deletePost = async (postId: string) => {
   try {
-    if (!confirm('Are you sure you want to delete this post?')) return
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this post?')) {
+      console.log('[Feed] Post deletion cancelled')
+      return
+    }
     
     console.log('[Feed] Deleting post:', postId)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
     }
     
+    // Make API call to delete post
     await fetchWithAuth(`/api/posts/${postId}`, {
       method: 'DELETE'
     })
     
+    // Remove post from local state
     posts.value = posts.value.filter(p => p.id !== postId)
     activePostMenu.value = null
     console.log('[Feed] ✅ Post deleted successfully')
@@ -1091,58 +1254,86 @@ const deletePost = async (postId: string) => {
   }
 }
 
+/**
+ * ✅ FIX: Copy post link to clipboard
+ * @param postId - The ID of the post
+ */
 const copyPostLink = async (postId: string) => {
   try {
     console.log('[Feed] Copying post link:', postId)
     const postUrl = `${window.location.origin}/posts/${postId}`
     await navigator.clipboard.writeText(postUrl)
     activePostMenu.value = null
-    console.log('[Feed] Post link copied to clipboard')
+    console.log('[Feed] ✅ Post link copied to clipboard')
   } catch (error) {
     console.error('[Feed] Error copying post link:', error)
   }
 }
 
+/**
+ * ✅ FIX: View post likes
+ * @param postId - The ID of the post
+ */
 const viewPostLikes = (postId: string) => {
   console.log('[Feed] View post likes:', postId)
   sidebarOpen.value = false
   router.push(`/posts/${postId}/likes`)
 }
 
+/**
+ * ✅ FIX: View post comments
+ * @param postId - The ID of the post
+ */
 const viewPostComments = (postId: string) => {
   console.log('[Feed] View post comments:', postId)
   sidebarOpen.value = false
   router.push(`/posts/${postId}`)
 }
 
+/**
+ * ✅ FIX: View post shares
+ * @param postId - The ID of the post
+ */
 const viewPostShares = (postId: string) => {
   console.log('[Feed] View post shares:', postId)
   sidebarOpen.value = false
   router.push(`/posts/${postId}/shares`)
 }
 
+/**
+ * ✅ FIX: Open media viewer in new window
+ * @param mediaUrl - The URL of the media to view
+ */
 const openMediaViewer = (mediaUrl: string) => {
   console.log('[Feed] Open media viewer:', mediaUrl)
   window.open(mediaUrl, '_blank')
 }
 
 // ============================================================================
-// USER INTERACTION METHODS
+// METHODS - USER INTERACTION
 // ============================================================================
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+
+/**
+ * ✅ FIX: Follow a user
+ * Uses fetchWithAuth to handle authentication headers
+ * @param userId - The ID of the user to follow
+ */
 const followUser = async (userId: string) => {
   try {
     console.log('[Feed] Following user:', userId)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
     }
     
+    // Make API call to follow user
     await fetchWithAuth(`/api/users/${userId}/follow`, {
       method: 'POST'
     })
     
+    // Update local state in suggested users
     const user = suggestedUsers.value.find(u => u.id === userId)
     if (user) {
       user.following = !user.following
@@ -1154,11 +1345,19 @@ const followUser = async (userId: string) => {
 }
 
 // ============================================================================
-// SEARCH & FILTER METHODS
+// METHODS - SEARCH & FILTER
 // ============================================================================
+
+/**
+ * ✅ FIX: Perform search
+ * Navigates to explore page with search query
+ */
 const performSearch = async () => {
   try {
-    if (!searchQuery.value.trim()) return
+    if (!searchQuery.value.trim()) {
+      console.log('[Feed] Search query is empty')
+      return
+    }
     
     console.log('[Feed] Performing search:', searchQuery.value)
     sidebarOpen.value = false
@@ -1168,6 +1367,10 @@ const performSearch = async () => {
   }
 }
 
+/**
+ * ✅ FIX: Refresh feed with current tab
+ * Resets pagination and reloads posts
+ */
 const refreshFeed = async () => {
   console.log('[Feed] Refreshing feed with tab:', activeTab.value)
   currentPage.value = 1
@@ -1176,19 +1379,30 @@ const refreshFeed = async () => {
   await fetchPosts()
 }
 
+/**
+ * ✅ FIX: Refresh suggested users
+ */
 const refreshSuggestedUsers = async () => {
   console.log('[Feed] Refreshing suggested users')
   await fetchSuggestedUsers()
 }
 
+/**
+ * ✅ FIX: Refresh trending topics
+ */
 const refreshTrending = async () => {
   console.log('[Feed] Refreshing trending topics')
   await fetchTrendingTopics()
 }
 
 // ============================================================================
-// PAGINATION METHODS
+// METHODS - PAGINATION
 // ============================================================================
+
+/**
+ * ✅ FIX: Load more posts
+ * Increments page and fetches next batch
+ */
 const loadMorePosts = async () => {
   console.log('[Feed] Load more posts')
   currentPage.value++
@@ -1198,8 +1412,15 @@ const loadMorePosts = async () => {
 }
 
 // ============================================================================
-// TIME FORMATTING UTILITY
+// UTILITY METHODS
 // ============================================================================
+
+/**
+ * ✅ FIX: Format timestamp to relative time
+ * Converts ISO date to "X minutes ago" format
+ * @param date - The date to format
+ * @returns Formatted time string
+ */
 const formatTime = (date: string | Date) => {
   try {
     const d = new Date(date)
@@ -1222,10 +1443,18 @@ const formatTime = (date: string | Date) => {
   }
 }
 
-  // ============================================================================
+// ============================================================================
 // DATA FETCHING METHODS - POSTS
 // ============================================================================
-// ✅ FIXED: Better error handling and detailed logging
+
+/**
+ * ✅ FIX PHASE 2: Fetch posts from feed
+ * CRITICAL: Verifies correct API endpoints exist
+ * Endpoints:
+ * - /api/posts/feed - For "For You" tab
+ * - /api/posts/following - For "Following" tab
+ * - /api/posts/trending - For "Trending" tab
+ */
 const fetchPosts = async () => {
   try {
     console.log('[Feed] ============ FETCH POSTS START ============')
@@ -1238,7 +1467,7 @@ const fetchPosts = async () => {
       hasUser: !!authStore.user
     })
     
-    // ✅ FIXED: Validate token before making request
+    // ✅ CRITICAL: Validate token before making request
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       console.error('[Feed] Auth store details:', {
@@ -1249,6 +1478,7 @@ const fetchPosts = async () => {
       throw new Error('Authentication token not available. Please log in again.')
     }
     
+    // Determine endpoint based on active tab
     const endpoint = activeTab.value === 'for-you' 
       ? '/api/posts/feed'
       : activeTab.value === 'following'
@@ -1258,7 +1488,7 @@ const fetchPosts = async () => {
     console.log('[Feed] Calling endpoint:', endpoint)
     console.log('[Feed] Token being sent:', `${authStore.token.substring(0, 20)}...`)
 
-    // ✅ FIXED: Don't pass headers explicitly - let useFetchWithAuth handle it
+    // ✅ CRITICAL: Don't pass headers explicitly - let useFetchWithAuth handle it
     const result = await fetchWithAuth(endpoint, {
       method: 'GET',
       query: { page: currentPage.value, limit: 10 }
@@ -1267,6 +1497,7 @@ const fetchPosts = async () => {
     console.log('[Feed] ✅ Response received')
     console.log('[Feed] Response keys:', Object.keys(result || {}))
 
+    // Handle pagination
     if (currentPage.value === 1) {
       posts.value = result.posts || []
     } else {
@@ -1287,7 +1518,7 @@ const fetchPosts = async () => {
     
     // ✅ NEW: Handle 401 specifically
     if (error.status === 401 || error.statusCode === 401) {
-      console.error('[Feed] ❌ 401 UNAUTHORIZED on /api/posts/feed')
+      console.error('[Feed] ❌ 401 UNAUTHORIZED on API endpoint')
       console.error('[Feed] This endpoint requires valid authentication')
       console.error('[Feed] Current token:', {
         exists: !!authStore.token,
@@ -1307,12 +1538,17 @@ const fetchPosts = async () => {
 // ============================================================================
 // DATA FETCHING METHODS - SUGGESTED USERS
 // ============================================================================
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+
+/**
+ * ✅ FIX PHASE 2: Fetch suggested users
+ * Endpoint: /api/users/suggested
+ */
 const fetchSuggestedUsers = async () => {
   try {
     console.log('[Feed] Fetching suggested users')
     console.log('[Feed] Auth token available:', !!authStore.token)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
@@ -1338,12 +1574,17 @@ const fetchSuggestedUsers = async () => {
 // ============================================================================
 // DATA FETCHING METHODS - TRENDING TOPICS
 // ============================================================================
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+
+/**
+ * ✅ FIX PHASE 2: Fetch trending topics
+ * Endpoint: /api/trending
+ */
 const fetchTrendingTopics = async () => {
   try {
     console.log('[Feed] Fetching trending topics')
     console.log('[Feed] Auth token available:', !!authStore.token)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
@@ -1369,12 +1610,17 @@ const fetchTrendingTopics = async () => {
 // ============================================================================
 // DATA FETCHING METHODS - NOTIFICATIONS & MESSAGES
 // ============================================================================
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+
+/**
+ * ✅ FIX PHASE 2: Fetch unread notifications
+ * Endpoint: /api/user/notifications
+ */
 const fetchNotifications = async () => {
   try {
     console.log('[Feed] Fetching notifications')
     console.log('[Feed] Auth token available:', !!authStore.token)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
@@ -1393,12 +1639,16 @@ const fetchNotifications = async () => {
   }
 }
 
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+/**
+ * ✅ FIX PHASE 2: Fetch unread messages
+ * Endpoint: /api/messages
+ */
 const fetchMessages = async () => {
   try {
     console.log('[Feed] Fetching messages')
     console.log('[Feed] Auth token available:', !!authStore.token)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
@@ -1418,14 +1668,20 @@ const fetchMessages = async () => {
 }
 
 // ============================================================================
-// FETCH PROFILE DATA
+// DATA FETCHING METHODS - PROFILE DATA
 // ============================================================================
-// ✅ FIXED: Simplified - let useFetchWithAuth handle headers
+
+/**
+ * ✅ FIX PHASE 2: Fetch current user's profile data
+ * CRITICAL: Uses correct endpoint /api/profile/me
+ * Endpoint: /api/profile/me
+ */
 const fetchProfileData = async () => {
   try {
     console.log('[Feed] Fetching profile data')
     console.log('[Feed] Auth token available:', !!authStore.token)
     
+    // Validate authentication
     if (!authStore.token) {
       console.error('[Feed] ❌ No authentication token available')
       throw new Error('Authentication token not available')
@@ -1435,15 +1691,18 @@ const fetchProfileData = async () => {
     profileError.value = null
     profileSyncing.value = true
     
-    const result = await fetchWithAuth('/api/user/profile', {
+    // ✅ CRITICAL: Use correct endpoint /api/profile/me
+    const result = await fetchWithAuth('/api/profile/me', {
       method: 'GET'
     })
     
     if (result && result.data) {
       console.log('[Feed] ✅ Profile data fetched:', result.data)
       
+      // Update profile store
       profileStore.setProfile(result.data)
       
+      // Update local state
       walletBalance.value = result.data.wallet_balance || '$0.00'
       isVerified.value = result.data.is_verified || false
       profileComplete.value = result.data.profile_complete || false
@@ -1463,17 +1722,26 @@ const fetchProfileData = async () => {
 }
 
 // ============================================================================
-// SYNC PROFILE DATA
+// DATA SYNCING METHODS - PROFILE DATA
 // ============================================================================
+
+/**
+ * ✅ FIX PHASE 2: Sync profile data with rate limiting
+ * Only syncs if:
+ * 1. Not already syncing
+ * 2. Last sync was more than 30 seconds ago
+ */
 const syncProfileData = async () => {
   try {
     console.log('[Feed] Syncing profile data')
     
+    // Check if already syncing
     if (profileSyncing.value) {
       console.log('[Feed] Profile sync already in progress')
       return
     }
     
+    // Check if last sync was recent
     if (lastProfileSync.value) {
       const timeSinceLastSync = Date.now() - lastProfileSync.value.getTime()
       if (timeSinceLastSync < 30000) {
@@ -1488,9 +1756,14 @@ const syncProfileData = async () => {
   }
 }
 
-  // ============================================================================
+// ============================================================================
 // LIFECYCLE HOOKS - AUTHENTICATION CHECK
 // ============================================================================
+
+/**
+ * ✅ FIX: Check authentication before component mounts
+ * Redirects to signin if user is not authenticated
+ */
 onBeforeMount(() => {
   console.log('[Feed] Before mount - checking auth')
   console.log('[Feed] Auth store state:', {
@@ -1499,6 +1772,7 @@ onBeforeMount(() => {
     token: !!authStore.token
   })
   
+  // Validate user is authenticated
   if (!authStore.user || !authStore.token) {
     console.warn('[Feed] User not authenticated, redirecting to signin')
     router.push('/auth/signin')
@@ -1508,6 +1782,18 @@ onBeforeMount(() => {
 // ============================================================================
 // LIFECYCLE HOOKS - COMPONENT MOUNTED
 // ============================================================================
+
+/**
+ * ✅ FIX: Load all data when component mounts
+ * Called after component is mounted on client-side
+ * Fetches:
+ * 1. Profile data
+ * 2. Posts
+ * 3. Suggested users
+ * 4. Trending topics
+ * 5. Notifications
+ * 6. Messages
+ */
 onMounted(async () => {
   console.log('[Feed] Component mounted')
   console.log('[Feed] Current user:', {
@@ -1516,12 +1802,15 @@ onMounted(async () => {
     username: userUsername.value
   })
   
+  // Only load data on client-side
   if (process.client) {
     console.log('[Feed] Loading data on client-side')
     
     try {
+      // Fetch profile data first
       await fetchProfileData()
       
+      // Fetch all other data in parallel
       await Promise.all([
         fetchPosts(),
         fetchSuggestedUsers(),
@@ -1537,21 +1826,49 @@ onMounted(async () => {
   }
 })
 
-  // ============================================================================
-// WATCHERS - REACTIVE UPDATES
+// ============================================================================
+// LIFECYCLE HOOKS - COMPONENT UNMOUNTED
 // ============================================================================
 
+/**
+ * ✅ FIX: Cleanup on component unmount
+ * Clears intervals and timers
+ */
+onUnmounted(() => {
+  console.log('[Feed] Component unmounting, cleaning up')
+  if (syncInterval) {
+    clearInterval(syncInterval)
+    syncInterval = null
+  }
+})
+
+// ============================================================================
+// WATCHERS - FEED & UI STATE
+// ============================================================================
+
+/**
+ * ✅ FIX: Watch for active tab changes
+ * Refreshes feed when tab changes
+ */
 watch(() => activeTab.value, () => {
   console.log('[Feed] Active tab changed to:', activeTab.value)
   refreshFeed()
 })
 
+/**
+ * ✅ FIX: Watch for route changes
+ * Closes sidebar and post menu when route changes
+ */
 watch(() => route.path, () => {
   console.log('[Feed] Route changed to:', route.path)
   activePostMenu.value = null
   sidebarOpen.value = false
 })
 
+/**
+ * ✅ FIX: Watch for username changes
+ * Logs when username is updated
+ */
 watch(() => userUsername.value, (newUsername, oldUsername) => {
   console.log('[Feed] Username changed:', {
     old: oldUsername,
@@ -1560,6 +1877,10 @@ watch(() => userUsername.value, (newUsername, oldUsername) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for current user changes
+ * Syncs profile data when user changes
+ */
 watch(() => currentUser.value, (newUser, oldUser) => {
   console.log('[Feed] Current user changed:', {
     oldId: oldUser?.id,
@@ -1569,6 +1890,10 @@ watch(() => currentUser.value, (newUser, oldUser) => {
   })
 }, { deep: true })
 
+/**
+ * ✅ FIX: Watch for avatar changes
+ * Logs when avatar URL is updated
+ */
 watch(() => userAvatar.value, (newAvatar, oldAvatar) => {
   console.log('[Feed] User avatar changed:', {
     old: oldAvatar,
@@ -1576,6 +1901,10 @@ watch(() => userAvatar.value, (newAvatar, oldAvatar) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for name changes
+ * Logs when user name is updated
+ */
 watch(() => userName.value, (newName, oldName) => {
   console.log('[Feed] User name changed:', {
     old: oldName,
@@ -1583,6 +1912,10 @@ watch(() => userName.value, (newName, oldName) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for status changes
+ * Logs when user status is updated
+ */
 watch(() => userStatus.value, (newStatus, oldStatus) => {
   console.log('[Feed] User status changed:', {
     old: oldStatus,
@@ -1590,10 +1923,18 @@ watch(() => userStatus.value, (newStatus, oldStatus) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for sidebar state changes
+ * Logs when sidebar is opened/closed
+ */
 watch(() => sidebarOpen.value, (isOpen) => {
   console.log('[Feed] Sidebar state changed:', isOpen ? 'opened' : 'closed')
 })
 
+/**
+ * ✅ FIX: Watch for search query changes
+ * Logs when search query is updated
+ */
 watch(() => searchQuery.value, (newQuery, oldQuery) => {
   console.log('[Feed] Search query changed:', {
     old: oldQuery,
@@ -1601,18 +1942,34 @@ watch(() => searchQuery.value, (newQuery, oldQuery) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for posts loading state
+ * Logs when posts loading state changes
+ */
 watch(() => postsLoading.value, (isLoading) => {
   console.log('[Feed] Posts loading state changed:', isLoading ? 'loading' : 'loaded')
 })
 
+/**
+ * ✅ FIX: Watch for suggested users loading state
+ * Logs when suggested users loading state changes
+ */
 watch(() => suggestedUsersLoading.value, (isLoading) => {
   console.log('[Feed] Suggested users loading state changed:', isLoading ? 'loading' : 'loaded')
 })
 
+/**
+ * ✅ FIX: Watch for trending loading state
+ * Logs when trending loading state changes
+ */
 watch(() => trendingLoading.value, (isLoading) => {
   console.log('[Feed] Trending loading state changed:', isLoading ? 'loading' : 'loaded')
 })
 
+/**
+ * ✅ FIX: Watch for posts array changes
+ * Logs when posts array length changes
+ */
 watch(() => posts.value.length, (newLength, oldLength) => {
   console.log('[Feed] Posts array changed:', {
     old: oldLength,
@@ -1620,6 +1977,10 @@ watch(() => posts.value.length, (newLength, oldLength) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for suggested users array changes
+ * Logs when suggested users array length changes
+ */
 watch(() => suggestedUsers.value.length, (newLength, oldLength) => {
   console.log('[Feed] Suggested users array changed:', {
     old: oldLength,
@@ -1627,6 +1988,10 @@ watch(() => suggestedUsers.value.length, (newLength, oldLength) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for trending topics array changes
+ * Logs when trending topics array length changes
+ */
 watch(() => trendingTopics.value.length, (newLength, oldLength) => {
   console.log('[Feed] Trending topics array changed:', {
     old: oldLength,
@@ -1634,6 +1999,10 @@ watch(() => trendingTopics.value.length, (newLength, oldLength) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for unread notifications changes
+ * Logs when unread notifications count changes
+ */
 watch(() => unreadNotifications.value, (newCount, oldCount) => {
   console.log('[Feed] Unread notifications changed:', {
     old: oldCount,
@@ -1641,6 +2010,10 @@ watch(() => unreadNotifications.value, (newCount, oldCount) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for unread messages changes
+ * Logs when unread messages count changes
+ */
 watch(() => unreadMessages.value, (newCount, oldCount) => {
   console.log('[Feed] Unread messages changed:', {
     old: oldCount,
@@ -1648,6 +2021,10 @@ watch(() => unreadMessages.value, (newCount, oldCount) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for wallet balance changes
+ * Logs when wallet balance is updated
+ */
 watch(() => walletBalance.value, (newBalance, oldBalance) => {
   console.log('[Feed] Wallet balance changed:', {
     old: oldBalance,
@@ -1655,6 +2032,10 @@ watch(() => walletBalance.value, (newBalance, oldBalance) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for verification status changes
+ * Logs when verification status is updated
+ */
 watch(() => isVerified.value, (newStatus, oldStatus) => {
   console.log('[Feed] Verification status changed:', {
     old: oldStatus,
@@ -1662,6 +2043,10 @@ watch(() => isVerified.value, (newStatus, oldStatus) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for active post menu changes
+ * Logs when post menu is opened/closed
+ */
 watch(() => activePostMenu.value, (newPostId, oldPostId) => {
   console.log('[Feed] Active post menu changed:', {
     old: oldPostId,
@@ -1669,6 +2054,10 @@ watch(() => activePostMenu.value, (newPostId, oldPostId) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for current page changes
+ * Logs when pagination page changes
+ */
 watch(() => currentPage.value, (newPage, oldPage) => {
   console.log('[Feed] Current page changed:', {
     old: oldPage,
@@ -1676,22 +2065,38 @@ watch(() => currentPage.value, (newPage, oldPage) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for has more posts changes
+ * Logs when has more posts flag changes
+ */
 watch(() => hasMorePosts.value, (hasMore) => {
   console.log('[Feed] Has more posts:', hasMore)
 })
 
+/**
+ * ✅ FIX: Watch for loading more state changes
+ * Logs when loading more state changes
+ */
 watch(() => loadingMore.value, (isLoading) => {
   console.log('[Feed] Loading more state:', isLoading ? 'loading' : 'idle')
 })
 
+/**
+ * ✅ FIX: Watch for live streaming state changes
+ * Logs when live streaming state changes
+ */
 watch(() => isLiveStreaming.value, (isLive) => {
   console.log('[Feed] Live streaming state:', isLive ? 'live' : 'offline')
 })
 
 // ============================================================================
-// PROFILE DATA LAYER WATCHERS
+// WATCHERS - PROFILE DATA LAYER
 // ============================================================================
 
+/**
+ * ✅ FIX: Watch for profile loading state changes
+ * Logs when profile loading state changes
+ */
 watch(() => profileLoading.value, (isLoading) => {
   console.log('[Feed] Profile loading state changed:', isLoading ? 'loading' : 'loaded')
   
@@ -1700,6 +2105,10 @@ watch(() => profileLoading.value, (isLoading) => {
   }
 })
 
+/**
+ * ✅ FIX: Watch for profile error state changes
+ * Logs when profile error state changes
+ */
 watch(() => profileError.value, (error, oldError) => {
   console.log('[Feed] Profile error state changed:', {
     old: oldError,
@@ -1711,6 +2120,10 @@ watch(() => profileError.value, (error, oldError) => {
   }
 })
 
+/**
+ * ✅ FIX: Watch for profile completion status changes
+ * Logs when profile completion status changes
+ */
 watch(() => profileComplete.value, (isComplete, wasComplete) => {
   console.log('[Feed] Profile completion status changed:', {
     old: wasComplete,
@@ -1722,10 +2135,18 @@ watch(() => profileComplete.value, (isComplete, wasComplete) => {
   }
 })
 
+/**
+ * ✅ FIX: Watch for profile syncing state changes
+ * Logs when profile syncing state changes
+ */
 watch(() => profileSyncing.value, (isSyncing) => {
   console.log('[Feed] Profile syncing state changed:', isSyncing ? 'syncing' : 'idle')
 })
 
+/**
+ * ✅ FIX: Watch for profile sync timestamp changes
+ * Logs when profile sync timestamp changes
+ */
 watch(() => lastProfileSync.value, (newSync, oldSync) => {
   console.log('[Feed] Profile sync timestamp changed:', {
     old: oldSync?.toISOString(),
@@ -1733,6 +2154,10 @@ watch(() => lastProfileSync.value, (newSync, oldSync) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for profile store data changes
+ * Logs when profile store data changes
+ */
 watch(() => profileStore.profile, (newProfile, oldProfile) => {
   console.log('[Feed] Profile store data changed:', {
     oldId: oldProfile?.id,
@@ -1746,14 +2171,26 @@ watch(() => profileStore.profile, (newProfile, oldProfile) => {
   }
 }, { deep: true })
 
+/**
+ * ✅ FIX: Watch for profile store loading state changes
+ * Logs when profile store loading state changes
+ */
 watch(() => profileStore.loading, (isLoading) => {
   console.log('[Feed] Profile store loading state changed:', isLoading ? 'loading' : 'loaded')
 })
 
+/**
+ * ✅ FIX: Watch for profile store error state changes
+ * Logs when profile store error state changes
+ */
 watch(() => profileStore.error, (error) => {
   console.log('[Feed] Profile store error state changed:', error)
 })
 
+/**
+ * ✅ FIX: Watch for followers count changes
+ * Logs when followers count changes
+ */
 watch(() => userFollowers.value, (newCount, oldCount) => {
   console.log('[Feed] User followers count changed:', {
     old: oldCount,
@@ -1761,6 +2198,10 @@ watch(() => userFollowers.value, (newCount, oldCount) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for following count changes
+ * Logs when following count changes
+ */
 watch(() => userFollowing.value, (newCount, oldCount) => {
   console.log('[Feed] User following count changed:', {
     old: oldCount,
@@ -1768,6 +2209,10 @@ watch(() => userFollowing.value, (newCount, oldCount) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for posts count changes
+ * Logs when posts count changes
+ */
 watch(() => userPosts.value, (newCount, oldCount) => {
   console.log('[Feed] User posts count changed:', {
     old: oldCount,
@@ -1775,6 +2220,10 @@ watch(() => userPosts.value, (newCount, oldCount) => {
   })
 })
 
+/**
+ * ✅ FIX: Watch for auth store user changes
+ * Syncs profile data when user changes
+ */
 watch(() => authStore.user, async (newUser, oldUser) => {
   console.log('[Feed] Auth store user changed:', {
     oldId: oldUser?.id,
@@ -1787,6 +2236,10 @@ watch(() => authStore.user, async (newUser, oldUser) => {
   }
 }, { deep: true })
 
+/**
+ * ✅ FIX: Watch for auth store token changes
+ * Clears profile when token is cleared
+ */
 watch(() => authStore.token, (newToken, oldToken) => {
   console.log('[Feed] Auth store token changed:', {
     old: !!oldToken,
@@ -1799,6 +2252,10 @@ watch(() => authStore.token, (newToken, oldToken) => {
   }
 })
 
+/**
+ * ✅ FIX: Watch for auth store authentication status changes
+ * Clears profile when user is unauthenticated
+ */
 watch(() => authStore.isAuthenticated, (isAuth) => {
   console.log('[Feed] Auth store authentication status changed:', isAuth ? 'authenticated' : 'unauthenticated')
   
@@ -1808,13 +2265,17 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
   }
 })
 
+/**
+ * ✅ FIX: Watch for profile data readiness
+ * Monitors overall profile data readiness state
+ */
 watch(
-  () => ({
+  () => (({
     profileLoading: profileLoading.value,
     profileError: profileError.value,
     username: userUsername.value,
     profileStoreReady: !!profileStore.profile
-  }),
+  })),
   (state) => {
     console.log('[Feed] Profile data readiness state:', state)
     
@@ -1829,18 +2290,29 @@ watch(
   { deep: true }
 )
 
+
 // ============================================================================
-// PROFILE SYNC INTERVAL
+// PROFILE SYNC INTERVAL SETUP
 // ============================================================================
+
+/**
+ * ✅ FIX: Profile sync interval variable
+ * Stores the interval ID for cleanup
+ */
 let syncInterval: NodeJS.Timeout | null = null
 
+/**
+ * ✅ FIX: Watch for authentication status to setup/teardown sync interval
+ * Sets up a 5-minute interval to sync profile data when authenticated
+ * Clears the interval when user is unauthenticated
+ */
 watch(() => authStore.isAuthenticated, (isAuth) => {
   if (isAuth && !syncInterval) {
     console.log('[Feed] Starting profile sync interval')
     syncInterval = setInterval(() => {
       console.log('[Feed] Profile sync interval triggered')
       syncProfileData()
-    }, 5 * 60 * 1000)
+    }, 5 * 60 * 1000) // 5 minutes
   } else if (!isAuth && syncInterval) {
     console.log('[Feed] Stopping profile sync interval')
     clearInterval(syncInterval)
@@ -1851,6 +2323,11 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
 // ============================================================================
 // CLEANUP ON UNMOUNT
 // ============================================================================
+
+/**
+ * ✅ FIX: Cleanup on component unmount
+ * Clears the sync interval when component is destroyed
+ */
 onUnmounted(() => {
   console.log('[Feed] Component unmounting, cleaning up')
   if (syncInterval) {
@@ -1858,7 +2335,7 @@ onUnmounted(() => {
     syncInterval = null
   }
 })
-</script>
+</script>  
 
 <style scoped>
 /* ============================================================================
