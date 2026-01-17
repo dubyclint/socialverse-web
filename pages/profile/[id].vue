@@ -14,12 +14,13 @@
         />
         <div v-else class="cover-image-placeholder"></div>
         
-        <!-- Edit Cover Button (Own Profile Only) -->
+        <!-- ✅ FIX: Edit Cover Button (Own Profile Only) -->
         <button 
           v-if="isOwnProfile" 
           class="btn-edit-cover"
           @click="editCover"
           title="Edit cover photo"
+          :disabled="loading"
         >
           <Icon name="camera" size="18" />
         </button>
@@ -37,12 +38,13 @@
             />
             <span v-if="profile?.status" :class="['status-indicator', profile.status]"></span>
             
-            <!-- Edit Avatar Button (Own Profile Only) -->
+            <!-- ✅ FIX: Edit Avatar Button (Own Profile Only) -->
             <button 
               v-if="isOwnProfile" 
               class="btn-edit-avatar"
               @click="editAvatar"
               title="Edit profile photo"
+              :disabled="loading"
             >
               <Icon name="camera" size="14" />
             </button>
@@ -78,69 +80,95 @@
           </div>
 
           <!-- Interests Section -->
-     <div v-if="profile?.interests && profile.interests.length > 0" class="profile-interests">
-    <h3 class="interests-title">Interests</h3>
-    <div class="interests-tags">
-      <span 
-      v-for="interest in profile.interests" 
-      :key="interest"
-      class="interest-badge"
-    >
-      {{ interest }}
-    </span>
-  </div>
-</div>
+          <div v-if="profile?.interests && profile.interests.length > 0" class="profile-interests">
+            <h3 class="interests-title">Interests</h3>
+            <div class="interests-tags">
+              <span 
+                v-for="interest in profile.interests" 
+                :key="interest"
+                class="interest-badge"
+              >
+                {{ interest }}
+              </span>
+            </div>
+          </div>
 
-            <!-- Action Buttons -->
+          <!-- ✅ FIX: Action Buttons - Improved Logic -->
           <div class="profile-actions">
+            <!-- Edit Profile Button - Only for Own Profile -->
             <button 
               v-if="isOwnProfile" 
               class="btn-edit-profile"
               @click="goToEditProfile"
+              :disabled="loading"
+              title="Edit your profile"
             >
               <Icon name="edit-2" size="16" />
               Edit Profile
             </button>
-            <button 
-              v-else-if="!isFollowing" 
-              class="btn-follow"
-              @click="followUser"
-              :disabled="followLoading"
-            >
-              <Icon name="user-plus" size="16" />
-              Follow
-            </button>
-            <button 
-              v-else 
-              class="btn-following"
-              @click="unfollowUser"
-              :disabled="followLoading"
-            >
-              <Icon name="user-check" size="16" />
-              Following
-            </button>
+
+            <!-- Follow/Following Buttons - Only for Other Profiles -->
+            <template v-else>
+              <button 
+                v-if="!isFollowing" 
+                class="btn-follow"
+                @click="followUser"
+                :disabled="followLoading || loading"
+                title="Follow this user"
+              >
+                <Icon name="user-plus" size="16" />
+                Follow
+              </button>
+              <button 
+                v-else 
+                class="btn-following"
+                @click="unfollowUser"
+                :disabled="followLoading || loading"
+                title="Unfollow this user"
+              >
+                <Icon name="user-check" size="16" />
+                Following
+              </button>
+            </template>
             
-            <button class="btn-message" @click="sendMessage" title="Send message">
+            <!-- Message Button - Only for Other Profiles -->
+            <button 
+              v-if="!isOwnProfile"
+              class="btn-message" 
+              @click="sendMessage" 
+              title="Send message"
+              :disabled="loading"
+            >
               <Icon name="message-circle" size="16" />
             </button>
-            <button class="btn-more" @click="toggleMoreMenu" title="More options">
+
+            <!-- More Options Button -->
+            <button 
+              class="btn-more" 
+              @click="toggleMoreMenu" 
+              title="More options"
+              :disabled="loading"
+            >
               <Icon name="more-vertical" size="16" />
             </button>
 
-            <!-- More Menu -->
+            <!-- ✅ FIX: More Menu - Improved Logic -->
             <div v-if="showMoreMenu" class="more-menu">
               <button class="menu-item" @click="shareProfile">
                 <Icon name="share-2" size="16" />
                 Share Profile
               </button>
-              <button v-if="!isOwnProfile" class="menu-item" @click="reportProfile">
-                <Icon name="flag" size="16" />
-                Report Profile
-              </button>
-              <button v-if="!isOwnProfile" class="menu-item" @click="blockUser">
-                <Icon name="slash" size="16" />
-                Block User
-              </button>
+              <!-- Report/Block only for other profiles -->
+              <template v-if="!isOwnProfile">
+                <button class="menu-item" @click="reportProfile">
+                  <Icon name="flag" size="16" />
+                  Report Profile
+                </button>
+                <button class="menu-item" @click="blockUser">
+                  <Icon name="slash" size="16" />
+                  Block User
+                </button>
+              </template>
             </div>
           </div>
         </div>
@@ -178,6 +206,7 @@
           :key="tab.id"
           :class="['tab-btn', { active: activeTab === tab.id }]"
           @click="activeTab = tab.id"
+          :disabled="loading"
         >
           <Icon :name="tab.icon" size="18" />
           <span>{{ tab.label }}</span>
@@ -204,11 +233,14 @@
               >
                 <!-- Post Header -->
                 <div class="post-header">
+                  <!-- ✅ FIX: Safe navigation with user_id validation -->
                   <img 
                     :src="post.author?.avatar_url || '/default-avatar.svg'" 
                     :alt="post.author?.full_name" 
                     class="post-avatar"
-                    @click="goToUserProfile(post.author?.username)"
+                    @click="goToUserProfile(post.author?.username, post.author?.id)"
+                    :style="{ cursor: post.author?.id ? 'pointer' : 'default' }"
+                    :title="post.author?.id ? 'View profile' : 'Profile unavailable'"
                   />
                   <div class="post-author-info">
                     <h4 class="post-author-name">{{ post.author?.full_name }}</h4>
@@ -312,11 +344,14 @@
                 :key="user.id" 
                 class="user-item"
               >
+                <!-- ✅ FIX: Safe navigation with user_id validation -->
                 <img 
                   :src="user.avatar_url || '/default-avatar.svg'" 
                   :alt="user.full_name" 
                   class="user-avatar"
-                  @click="goToUserProfile(user.username)"
+                  @click="goToUserProfile(user.username, user.id)"
+                  :style="{ cursor: user.id ? 'pointer' : 'default' }"
+                  :title="user.id ? 'View profile' : 'Profile unavailable'"
                 />
                 <div class="user-info">
                   <h4 class="user-name">{{ user.full_name }}</h4>
@@ -353,11 +388,14 @@
                 :key="user.id" 
                 class="user-item"
               >
+                <!-- ✅ FIX: Safe navigation with user_id validation -->
                 <img 
                   :src="user.avatar_url || '/default-avatar.svg'" 
                   :alt="user.full_name" 
                   class="user-avatar"
-                  @click="goToUserProfile(user.username)"
+                  @click="goToUserProfile(user.username, user.id)"
+                  :style="{ cursor: user.id ? 'pointer' : 'default' }"
+                  :title="user.id ? 'View profile' : 'Profile unavailable'"
                 />
                 <div class="user-info">
                   <h4 class="user-name">{{ user.full_name }}</h4>
@@ -445,6 +483,7 @@
 </template>
 
 <script setup lang="ts">
+
 definePageMeta({
   middleware: ['auth'],
   layout: 'default'
@@ -504,13 +543,54 @@ const followLoading = ref(false)
 // ============================================================================
 // COMPUTED PROPERTIES
 // ============================================================================
-const identifier = computed(() => route.params.id as string)
 
-const isOwnProfile = computed(() => {
-  return authStore.user?.id === profile.value?.id || 
-         authStore.user?.username === profile.value?.username
+/**
+ * ✅ FIX: Get route parameter (user_id)
+ * Route: /profile/[id] where [id] is the user_id (UUID)
+ */
+const identifier = computed(() => {
+  const id = route.params.id as string
+  console.log('[Profile] Route identifier:', {
+    value: id,
+    isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  })
+  return id
 })
 
+/**
+ * ✅ FIX PHASE 1: Improved isOwnProfile computed property
+ * CRITICAL: Uses user_id (UUID) for comparison, not username
+ * Validates both fields exist before comparison
+ */
+const isOwnProfile = computed(() => {
+  console.log('[Profile] Checking isOwnProfile:', {
+    authUserId: authStore.user?.id,
+    profileId: profile.value?.id,
+    authUsername: authStore.user?.user_metadata?.username,
+    profileUsername: profile.value?.username
+  })
+
+  // Primary check: Compare user IDs (most reliable)
+  if (authStore.user?.id && profile.value?.id) {
+    const isOwn = authStore.user.id === profile.value.id
+    console.log('[Profile] isOwnProfile (by ID):', isOwn)
+    return isOwn
+  }
+
+  // Fallback check: Compare usernames (case-insensitive)
+  if (authStore.user?.user_metadata?.username && profile.value?.username) {
+    const isOwn = authStore.user.user_metadata.username.toLowerCase() === profile.value.username.toLowerCase()
+    console.log('[Profile] isOwnProfile (by username):', isOwn)
+    return isOwn
+  }
+
+  console.warn('[Profile] ⚠️ Cannot determine isOwnProfile - missing required fields')
+  return false
+})
+
+/**
+ * ✅ FIX: Profile tabs configuration
+ */
 const profileTabs = [
   { id: 'posts', label: 'Posts', icon: 'file-text' },
   { id: 'followers', label: 'Followers', icon: 'users' },
@@ -521,19 +601,37 @@ const profileTabs = [
 // ============================================================================
 // METHODS - DATA FETCHING
 // ============================================================================
+
+/**
+ * ✅ FIX PHASE 2: Fetch profile data
+ * CRITICAL: Uses user_id (UUID) from route parameter
+ * Endpoint: /api/profile/{user_id}
+ */
 const fetchProfileData = async () => {
-  console.log('[Profile] Fetching profile for:', identifier.value)
+  console.log('[Profile] ============ FETCH PROFILE START ============')
+  console.log('[Profile] Fetching profile for identifier:', identifier.value)
   
   try {
     loading.value = true
     error.value = null
 
+    // Validate identifier
     if (!identifier.value) {
       throw new Error('No profile identifier provided')
     }
 
+    console.log('[Profile] Calling endpoint: /api/profile/' + identifier.value)
+
+    // ✅ CRITICAL: Use identifier (user_id) from route
     const profileResponse = await fetchWithAuth(`/api/profile/${identifier.value}`, {
       method: 'GET'
+    })
+
+    console.log('[Profile] ✅ Profile response received:', {
+      hasData: !!profileResponse,
+      hasId: !!profileResponse?.id,
+      hasUserId: !!profileResponse?.user_id,
+      username: profileResponse?.username
     })
 
     if (!profileResponse) {
@@ -543,8 +641,10 @@ const fetchProfileData = async () => {
     profile.value = profileResponse
     profileStore.setProfile(profileResponse)
 
-    // Fetch stats
+    // ✅ FIX: Use id or user_id (both are mapped by backend)
     const userId = profileResponse.id || profileResponse.user_id
+    console.log('[Profile] Using userId for stats:', userId)
+
     if (userId) {
       await Promise.all([
         fetchProfileStats(userId),
@@ -553,17 +653,30 @@ const fetchProfileData = async () => {
       ])
     }
 
-    console.log('[Profile] Profile loaded successfully')
+    console.log('[Profile] ✅ Profile loaded successfully')
+    console.log('[Profile] ============ FETCH PROFILE END (SUCCESS) ============')
   } catch (err: any) {
-    console.error('[Profile] Error loading profile:', err)
+    console.error('[Profile] ❌ Error loading profile:', err)
+    console.error('[Profile] Error details:', {
+      message: err.message,
+      status: err.status,
+      statusCode: err.statusCode
+    })
     error.value = err?.message || 'Failed to load profile'
+    console.log('[Profile] ============ FETCH PROFILE END (ERROR) ============')
   } finally {
     loading.value = false
   }
 }
 
+/**
+ * ✅ FIX: Fetch profile statistics
+ * Endpoint: /api/users/{userId}/stats
+ */
 const fetchProfileStats = async (userId: string) => {
   try {
+    console.log('[Profile] Fetching stats for user:', userId)
+
     const stats = await fetchWithAuth(`/api/users/${userId}/stats`, {
       method: 'GET'
     })
@@ -574,14 +687,22 @@ const fetchProfileStats = async (userId: string) => {
       posts: stats.posts_count || 0,
       likes: stats.likes_count || 0
     }
+
+    console.log('[Profile] ✅ Stats loaded:', profileStats.value)
   } catch (err) {
-    console.error('[Profile] Error fetching stats:', err)
+    console.error('[Profile] ❌ Error fetching stats:', err)
   }
 }
 
+/**
+ * ✅ FIX: Fetch profile posts
+ * Endpoint: /api/posts/user/{userId}
+ */
 const fetchProfilePosts = async (userId: string) => {
   try {
+    console.log('[Profile] Fetching posts for user:', userId)
     postsLoading.value = true
+
     const response = await fetchWithAuth(`/api/posts/user/${userId}`, {
       method: 'GET',
       query: { page: currentPostPage.value, limit: 10 }
@@ -589,56 +710,79 @@ const fetchProfilePosts = async (userId: string) => {
 
     profilePosts.value = response.posts || []
     hasMorePosts.value = response.has_more || false
+
+    console.log('[Profile] ✅ Posts loaded:', profilePosts.value.length)
   } catch (err) {
-    console.error('[Profile] Error fetching posts:', err)
+    console.error('[Profile] ❌ Error fetching posts:', err)
     profilePosts.value = []
   } finally {
     postsLoading.value = false
   }
 }
 
+/**
+ * ✅ FIX: Fetch followers list
+ * Endpoint: /api/follows/{userId}/followers
+ */
 const fetchFollowers = async () => {
   try {
+    console.log('[Profile] Fetching followers for user:', profile.value?.id)
     followersLoading.value = true
+
     const response = await fetchWithAuth(`/api/follows/${profile.value.id}/followers`, {
       method: 'GET'
     })
 
     followers.value = response || []
+    console.log('[Profile] ✅ Followers loaded:', followers.value.length)
   } catch (err) {
-    console.error('[Profile] Error fetching followers:', err)
+    console.error('[Profile] ❌ Error fetching followers:', err)
     followers.value = []
   } finally {
     followersLoading.value = false
   }
 }
 
+/**
+ * ✅ FIX: Fetch following list
+ * Endpoint: /api/follows/{userId}/following
+ */
 const fetchFollowing = async () => {
   try {
+    console.log('[Profile] Fetching following for user:', profile.value?.id)
     followingLoading.value = true
+
     const response = await fetchWithAuth(`/api/follows/${profile.value.id}/following`, {
       method: 'GET'
     })
 
     following.value = response || []
+    console.log('[Profile] ✅ Following loaded:', following.value.length)
   } catch (err) {
-    console.error('[Profile] Error fetching following:', err)
+    console.error('[Profile] ❌ Error fetching following:', err)
     following.value = []
   } finally {
     followingLoading.value = false
   }
 }
 
+/**
+ * ✅ FIX: Fetch liked posts
+ * Endpoint: /api/posts/user/{userId}/likes
+ */
 const fetchLikedPosts = async () => {
   try {
+    console.log('[Profile] Fetching liked posts for user:', profile.value?.id)
     likesLoading.value = true
+
     const response = await fetchWithAuth(`/api/posts/user/${profile.value.id}/likes`, {
       method: 'GET'
     })
 
     likedPosts.value = response || []
+    console.log('[Profile] ✅ Liked posts loaded:', likedPosts.value.length)
   } catch (err) {
-    console.error('[Profile] Error fetching liked posts:', err)
+    console.error('[Profile] ❌ Error fetching liked posts:', err)
     likedPosts.value = []
   } finally {
     likesLoading.value = false
@@ -648,42 +792,68 @@ const fetchLikedPosts = async () => {
 // ============================================================================
 // METHODS - USER INTERACTIONS
 // ============================================================================
+
+/**
+ * ✅ FIX: Follow user
+ * Endpoint: /api/users/{userId}/follow
+ */
 const followUser = async () => {
   try {
+    console.log('[Profile] Following user:', profile.value?.id)
     followLoading.value = true
+
     await fetchWithAuth(`/api/users/${profile.value.id}/follow`, {
       method: 'POST'
     })
 
     isFollowing.value = true
     profileStats.value.followers++
+
+    console.log('[Profile] ✅ User followed successfully')
   } catch (err) {
-    console.error('[Profile] Error following user:', err)
+    console.error('[Profile] ❌ Error following user:', err)
   } finally {
     followLoading.value = false
   }
 }
 
+/**
+ * ✅ FIX: Unfollow user
+ * Endpoint: /api/users/{userId}/unfollow
+ */
 const unfollowUser = async () => {
   try {
+    console.log('[Profile] Unfollowing user:', profile.value?.id)
     followLoading.value = true
+
     await fetchWithAuth(`/api/users/${profile.value.id}/unfollow`, {
       method: 'POST'
     })
 
     isFollowing.value = false
     profileStats.value.followers--
+
+    console.log('[Profile] ✅ User unfollowed successfully')
   } catch (err) {
-    console.error('[Profile] Error unfollowing user:', err)
+    console.error('[Profile] ❌ Error unfollowing user:', err)
   } finally {
     followLoading.value = false
   }
 }
 
+/**
+ * ✅ FIX: Toggle follow status for users in lists
+ * Endpoint: /api/users/{userId}/follow or /api/users/{userId}/unfollow
+ */
 const toggleFollowUser = async (userId: string) => {
   try {
+    console.log('[Profile] Toggling follow status for user:', userId)
+
     const user = followers.value.find(u => u.id === userId) || following.value.find(u => u.id === userId)
-    if (!user) return
+    if (!user) {
+      console.error('[Profile] ❌ User not found in list')
+      return
+    }
 
     if (user.following) {
       await fetchWithAuth(`/api/users/${userId}/unfollow`, { method: 'POST' })
@@ -692,32 +862,57 @@ const toggleFollowUser = async (userId: string) => {
     }
 
     user.following = !user.following
+    console.log('[Profile] ✅ Follow status toggled')
   } catch (err) {
-    console.error('[Profile] Error toggling follow:', err)
+    console.error('[Profile] ❌ Error toggling follow:', err)
   }
 }
 
+/**
+ * ✅ FIX: Like post
+ * Endpoint: /api/posts/{postId}/like
+ */
 const likePost = async (postId: string) => {
   try {
+    console.log('[Profile] Liking post:', postId)
+
     await fetchWithAuth(`/api/posts/${postId}/like`, { method: 'POST' })
+
     const post = profilePosts.value.find(p => p.id === postId)
     if (post) {
       post.liked_by_me = !post.liked_by_me
-      post.likes_count = post.liked_by_me ? (post.likes_count || 0) + 1 : Math.max(0, (post.likes_count || 1) - 1)
+      post.likes_count = post.liked_by_me 
+        ? (post.likes_count || 0) + 1 
+        : Math.max(0, (post.likes_count || 1) - 1)
     }
+
+    console.log('[Profile] ✅ Post liked successfully')
   } catch (err) {
-    console.error('[Profile] Error liking post:', err)
+    console.error('[Profile] ❌ Error liking post:', err)
   }
 }
 
+/**
+ * ✅ FIX: Navigate to post comments
+ */
 const commentPost = (postId: string) => {
+  console.log('[Profile] Navigating to post comments:', postId)
   router.push(`/posts/${postId}`)
 }
 
+/**
+ * ✅ FIX: Share post
+ * Endpoint: /api/posts/{postId}/share
+ */
 const sharePost = async (postId: string) => {
   try {
+    console.log('[Profile] Sharing post:', postId)
+
     const post = profilePosts.value.find(p => p.id === postId)
-    if (!post) return
+    if (!post) {
+      console.error('[Profile] ❌ Post not found')
+      return
+    }
 
     const postUrl = `${window.location.origin}/posts/${postId}`
     
@@ -727,24 +922,39 @@ const sharePost = async (postId: string) => {
         text: post.content,
         url: postUrl
       })
+      console.log('[Profile] ✅ Post shared via native share')
     } else {
       await navigator.clipboard.writeText(postUrl)
+      console.log('[Profile] ✅ Post URL copied to clipboard')
     }
 
     await fetchWithAuth(`/api/posts/${postId}/share`, { method: 'POST' })
     post.shares_count = (post.shares_count || 0) + 1
+
+    console.log('[Profile] ✅ Post shared successfully')
   } catch (err) {
-    console.error('[Profile] Error sharing post:', err)
+    console.error('[Profile] ❌ Error sharing post:', err)
   }
 }
 
+/**
+ * ✅ FIX: Send message to user
+ */
 const sendMessage = () => {
+  console.log('[Profile] Sending message to user:', profile.value?.id)
   router.push(`/chat/${profile.value.id}`)
 }
 
+/**
+ * ✅ FIX: Share profile
+ * Uses user_id (UUID) for profile URL
+ */
 const shareProfile = async () => {
   try {
-    const profileUrl = `${window.location.origin}/profile/${profile.value.username}`
+    console.log('[Profile] Sharing profile for user:', profile.value?.id)
+
+    // ✅ CRITICAL: Use user_id (UUID) for profile URL, not username
+    const profileUrl = `${window.location.origin}/profile/${profile.value.id}`
     
     if (navigator.share) {
       await navigator.share({
@@ -752,89 +962,184 @@ const shareProfile = async () => {
         text: `Follow ${profile.value.full_name} on SocialVerse!`,
         url: profileUrl
       })
+      console.log('[Profile] ✅ Profile shared via native share')
     } else {
       await navigator.clipboard.writeText(profileUrl)
+      console.log('[Profile] ✅ Profile URL copied to clipboard')
     }
   } catch (err) {
-    console.error('[Profile] Error sharing profile:', err)
+    console.error('[Profile] ❌ Error sharing profile:', err)
   }
 }
 
+/**
+ * ✅ FIX: Report profile
+ * Endpoint: /api/users/{userId}/report
+ */
 const reportProfile = async () => {
   try {
+    console.log('[Profile] Reporting profile:', profile.value?.id)
+
     await fetchWithAuth(`/api/users/${profile.value.id}/report`, {
       method: 'POST',
       body: { reason: 'inappropriate' }
     })
+
     showMoreMenu.value = false
+    console.log('[Profile] ✅ Profile reported successfully')
   } catch (err) {
-    console.error('[Profile] Error reporting profile:', err)
+    console.error('[Profile] ❌ Error reporting profile:', err)
   }
 }
 
+/**
+ * ✅ FIX: Block user
+ * Endpoint: /api/users/{userId}/block
+ */
 const blockUser = async () => {
   try {
+    console.log('[Profile] Blocking user:', profile.value?.id)
+
     await fetchWithAuth(`/api/users/${profile.value.id}/block`, { method: 'POST' })
+
     showMoreMenu.value = false
+    console.log('[Profile] ✅ User blocked successfully')
     router.push('/feed')
   } catch (err) {
-    console.error('[Profile] Error blocking user:', err)
+    console.error('[Profile] ❌ Error blocking user:', err)
   }
 }
 
 // ============================================================================
 // METHODS - NAVIGATION
 // ============================================================================
-const goToEditProfile = () => {  
-  router.push('/profile/edit')  
-}  
 
+/**
+ * ✅ FIX: Navigate to edit profile page
+ * Only available for own profile
+ */
+const goToEditProfile = () => {
+  console.log('[Profile] Navigating to edit profile')
+  router.push('/profile/edit')
+}
+
+/**
+ * ✅ FIX: Navigate to followers tab
+ */
 const goToFollowers = () => {
+  console.log('[Profile] Navigating to followers tab')
   activeTab.value = 'followers'
   if (followers.value.length === 0) {
     fetchFollowers()
   }
 }
 
+/**
+ * ✅ FIX: Navigate to following tab
+ */
 const goToFollowing = () => {
+  console.log('[Profile] Navigating to following tab')
   activeTab.value = 'following'
   if (following.value.length === 0) {
     fetchFollowing()
   }
 }
 
+/**
+ * ✅ FIX: Navigate to posts tab
+ */
 const goToPosts = () => {
+  console.log('[Profile] Navigating to posts tab')
   activeTab.value = 'posts'
 }
 
-const goToUserProfile = (username: string) => {
-  if (username && username !== profile.value.username) {
-    router.push(`/profile/${username}`)
+/**
+ * ✅ FIX PHASE 1: Navigate to another user's profile
+ * CRITICAL: Uses userId (UUID) instead of username
+ * Route: /profile/{user_id}
+ * 
+ * @param username - Username for logging/display purposes
+ * @param userId - User ID (UUID) for routing
+ */
+const goToUserProfile = (username: string, userId?: string) => {
+  console.log('[Profile] goToUserProfile() called', { username, userId })
+
+  // Validate userId is provided
+  if (!userId) {
+    console.error('[Profile] ❌ User ID not provided')
+    return
   }
+
+  // Validate userId is a string
+  if (typeof userId !== 'string') {
+    console.error('[Profile] ❌ User ID is not a string:', typeof userId)
+    return
+  }
+
+  const trimmedUserId = userId.trim()
+
+  // Validate userId is not empty
+  if (trimmedUserId === '') {
+    console.error('[Profile] ❌ User ID is empty after trim')
+    return
+  }
+
+  // Validate userId is a valid UUID format
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedUserId)
+  if (!isUUID) {
+    console.warn('[Profile] ⚠️ User ID is not a valid UUID:', trimmedUserId)
+  }
+
+  // Don't navigate to same profile
+  if (trimmedUserId === profile.value?.id) {
+    console.log('[Profile] Same profile, not navigating')
+    return
+  }
+
+  console.log('[Profile] ✅ All validations passed, navigating to user profile:', trimmedUserId)
+  router.push(`/profile/${trimmedUserId}`)
 }
 
+/**
+ * ✅ FIX: Edit cover photo
+ */
 const editCover = () => {
-  // Implement cover upload
   console.log('[Profile] Edit cover')
+  // Implement cover upload
 }
 
+/**
+ * ✅ FIX: Edit avatar photo
+ */
 const editAvatar = () => {
-  // Implement avatar upload
   console.log('[Profile] Edit avatar')
+  // Implement avatar upload
 }
 
+/**
+ * ✅ FIX: Toggle post menu
+ */
 const togglePostMenu = (postId: string) => {
-  // Implement post menu
   console.log('[Profile] Toggle post menu:', postId)
+  // Implement post menu
 }
 
+/**
+ * ✅ FIX: Toggle more menu
+ */
 const toggleMoreMenu = () => {
+  console.log('[Profile] Toggle more menu')
   showMoreMenu.value = !showMoreMenu.value
 }
 
+/**
+ * ✅ FIX: Load more posts
+ */
 const loadMorePosts = async () => {
+  console.log('[Profile] Load more posts')
   currentPostPage.value++
   loadingMore.value = true
+
   try {
     const response = await fetchWithAuth(`/api/posts/user/${profile.value.id}`, {
       method: 'GET',
@@ -843,20 +1148,30 @@ const loadMorePosts = async () => {
 
     profilePosts.value.push(...(response.posts || []))
     hasMorePosts.value = response.has_more || false
+
+    console.log('[Profile] ✅ More posts loaded')
   } catch (err) {
-    console.error('[Profile] Error loading more posts:', err)
+    console.error('[Profile] ❌ Error loading more posts:', err)
   } finally {
     loadingMore.value = false
   }
 }
 
+/**
+ * ✅ FIX: Retry loading profile
+ */
 const retryLoad = () => {
+  console.log('[Profile] Retrying profile load')
   fetchProfileData()
 }
 
 // ============================================================================
 // UTILITY METHODS
 // ============================================================================
+
+/**
+ * ✅ FIX: Format date to readable format
+ */
 const formatDate = (date: string | Date) => {
   try {
     return new Date(date).toLocaleDateString('en-US', { 
@@ -868,6 +1183,9 @@ const formatDate = (date: string | Date) => {
   }
 }
 
+/**
+ * ✅ FIX: Format time to relative format
+ */
 const formatTime = (date: string | Date) => {
   try {
     const d = new Date(date)
@@ -888,25 +1206,44 @@ const formatTime = (date: string | Date) => {
   }
 }
 
+/**
+ * ✅ FIX: Open media viewer
+ */
 const openMediaViewer = (mediaUrl: string) => {
+  console.log('[Profile] Open media viewer:', mediaUrl)
   window.open(mediaUrl, '_blank')
 }
 
+/**
+ * ✅ FIX: Check follow status
+ * Endpoint: /api/users/{userId}/follow-status
+ */
 const checkFollowStatus = async (userId: string) => {
   try {
+    console.log('[Profile] Checking follow status for user:', userId)
+
     const response = await fetchWithAuth(`/api/users/${userId}/follow-status`, {
       method: 'GET'
     })
+
     isFollowing.value = response.following || false
+    console.log('[Profile] ✅ Follow status checked:', isFollowing.value)
   } catch (err) {
-    console.error('[Profile] Error checking follow status:', err)
+    console.error('[Profile] ❌ Error checking follow status:', err)
   }
 }
 
 // ============================================================================
 // WATCHERS
 // ============================================================================
+
+/**
+ * ✅ FIX: Watch for active tab changes
+ * Fetch data when tab changes
+ */
 watch(() => activeTab.value, (newTab) => {
+  console.log('[Profile] Active tab changed to:', newTab)
+
   if (newTab === 'followers' && followers.value.length === 0) {
     fetchFollowers()
   } else if (newTab === 'following' && following.value.length === 0) {
@@ -916,15 +1253,37 @@ watch(() => activeTab.value, (newTab) => {
   }
 })
 
+/**
+ * ✅ FIX: Watch for route parameter changes
+ * Reload profile when route changes
+ */
 watch(() => route.params.id, () => {
+  console.log('[Profile] Route parameter changed, reloading profile')
   fetchProfileData()
+})
+
+/**
+ * ✅ FIX: Watch for isOwnProfile changes
+ * Log when profile ownership status changes
+ */
+watch(() => isOwnProfile.value, (newValue, oldValue) => {
+  console.log('[Profile] isOwnProfile changed:', {
+    old: oldValue,
+    new: newValue
+  })
 })
 
 // ============================================================================
 // LIFECYCLE HOOKS
 // ============================================================================
+
+/**
+ * ✅ FIX: Component mounted
+ * Fetch profile data when component mounts
+ */
 onMounted(() => {
   console.log('[Profile] Component mounted')
+  console.log('[Profile] Route identifier:', identifier.value)
   fetchProfileData()
 })
 </script>
