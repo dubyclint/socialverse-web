@@ -1,10 +1,10 @@
 // ============================================================================
-// FILE: /stores/profile.ts - COMPLETE UPDATED VERSION WITH ID/USER_ID NORMALIZATION
+// FILE: /stores/profile.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// Profile store with rank & verification integration + AUTHORIZATION HEADERS
-// ✅ FIXED: Normalizes id/user_id mapping for user_profiles table
-// ✅ FIXED: All API calls now include Authorization header
-// ✅ NEW: Added profile sync methods for app-wide updates
+// ✅ ISSUE #3 FIXED: Conditional broadcasting (only when profile_completed=true)
+// ✅ ISSUE #4 FIXED: Proper id/user_id mapping (both directions)
+// ✅ Authorization headers on all API calls
+// ✅ Comprehensive error handling and logging
 // ============================================================================
 
 import { defineStore } from 'pinia'
@@ -23,9 +23,9 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // COMPUTED PROPERTIES - PROFILE FIELD ACCESSORS
   // ============================================================================
-  
+
   const username = computed(() => {
-    return profile.value?.full_name || 'Unknown'
+    return profile.value?.username || 'Unknown'
   })
 
   const displayName = computed(() => {
@@ -63,7 +63,7 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // RANK SYSTEM COMPUTED PROPERTIES
   // ============================================================================
-  
+
   const rank = computed(() => {
     return profile.value?.rank || 'Bronze I'
   })
@@ -79,7 +79,7 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // VERIFICATION COMPUTED PROPERTIES
   // ============================================================================
-  
+
   const isVerified = computed(() => {
     return profile.value?.is_verified || false
   })
@@ -103,7 +103,7 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // PROFILE COMPLETION COMPUTED PROPERTIES
   // ============================================================================
-  
+
   const isProfileComplete = computed(() => {
     if (!profile.value) return false
     return profile.value.profile_completed && !!profile.value.full_name && !!profile.value.bio
@@ -116,17 +116,23 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // HELPER FUNCTION: Normalize profile data
   // ============================================================================
-  // ✅ CRITICAL: Ensures both id and user_id are always set
+  // ✅ ISSUE #4 FIX: Ensures both id and user_id are always set
   // The user_profiles table uses 'id' as primary key, but frontend expects 'user_id'
-  // This function maps id → user_id for compatibility
+  // This function maps id ↔ user_id for compatibility
   const normalizeProfile = (rawProfile: any): Profile => {
+    console.log('[Profile Store] ============ NORMALIZE PROFILE START ============')
     console.log('[Profile Store] Normalizing profile data...')
-    
+
+    if (!rawProfile) {
+      console.warn('[Profile Store] ⚠️ Raw profile is null/undefined')
+      return null as any
+    }
+
     const normalized = {
       ...rawProfile,
-      // ✅ FIX: Ensure user_id is always set (map from id if needed)
+      // ✅ ISSUE #4 FIX: Ensure user_id is always set (map from id if needed)
       user_id: rawProfile.user_id || rawProfile.id,
-      // ✅ FIX: Ensure id is always set
+      // ✅ ISSUE #4 FIX: Ensure id is always set (map from user_id if needed)
       id: rawProfile.id || rawProfile.user_id
     } as Profile
 
@@ -134,33 +140,39 @@ export const useProfileStore = defineStore('profile', () => {
       id: normalized.id,
       user_id: normalized.user_id,
       username: normalized.username,
-      full_name: normalized.full_name
+      full_name: normalized.full_name,
+      profile_completed: normalized.profile_completed
     })
 
+    console.log('[Profile Store] ============ NORMALIZE PROFILE END ============')
     return normalized
   }
 
   // ============================================================================
   // ACTIONS - SET STATE
   // ============================================================================
-  
+
   const setProfile = (newProfile: Profile | null) => {
     console.log('[Profile Store] ============ SET PROFILE START ============')
     console.log('[Profile Store] Setting profile...')
-    
+
     if (!newProfile) {
       console.log('[Profile Store] Clearing profile data')
       profile.value = null
-      
+
       if (process.client) {
-        localStorage.removeItem('profile_data')
-        console.log('[Profile Store] ✅ Profile cleared from localStorage')
+        try {
+          localStorage.removeItem('profile_data')
+          console.log('[Profile Store] ✅ Profile cleared from localStorage')
+        } catch (err) {
+          console.error('[Profile Store] ❌ Failed to clear localStorage:', err)
+        }
       }
       console.log('[Profile Store] ============ SET PROFILE END ============')
       return
     }
 
-    // ✅ CRITICAL: Normalize profile to ensure user_id is always set
+    // ✅ ISSUE #4 FIX: Normalize profile to ensure user_id is always set
     const normalizedProfile = normalizeProfile(newProfile)
 
     console.log('[Profile Store] Profile data received:', {
@@ -168,7 +180,8 @@ export const useProfileStore = defineStore('profile', () => {
       id: normalizedProfile.id,
       full_name: normalizedProfile.full_name,
       rank: normalizedProfile.rank,
-      is_verified: normalizedProfile.is_verified
+      is_verified: normalizedProfile.is_verified,
+      profile_completed: normalizedProfile.profile_completed
     })
 
     profile.value = normalizedProfile
@@ -183,9 +196,15 @@ export const useProfileStore = defineStore('profile', () => {
     }
 
     console.log('[Profile Store] ✅ Profile set successfully')
-    
-    // ✅ NEW: Broadcast profile update event
-    broadcastProfileUpdate(normalizedProfile)
+
+    // ✅ ISSUE #3 FIX: Only broadcast if profile is truly complete
+    if (normalizedProfile.profile_completed) {
+      console.log('[Profile Store] ✅ Profile is complete, broadcasting update...')
+      broadcastProfileUpdate(normalizedProfile)
+    } else {
+      console.log('[Profile Store] ℹ️ Profile not complete yet, skipping broadcast')
+    }
+
     console.log('[Profile Store] ============ SET PROFILE END ============')
   }
 
@@ -206,10 +225,10 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // ACTIONS - CLEAR PROFILE
   // ============================================================================
-  
+
   const clearProfile = () => {
     console.log('[Profile Store] ============ CLEAR PROFILE START ============')
-    
+
     profile.value = null
     isLoading.value = false
     error.value = null
@@ -231,9 +250,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - FETCH PROFILE - ✅ FIXED WITH AUTH HEADER
+  // ACTIONS - FETCH PROFILE - ✅ WITH AUTH HEADER
   // ============================================================================
-  
+
   const fetchProfile = async (userId: string) => {
     console.log('[Profile Store] ============ FETCH PROFILE START ============')
     console.log('[Profile Store] Fetching profile for user:', userId)
@@ -249,14 +268,14 @@ export const useProfileStore = defineStore('profile', () => {
 
     try {
       console.log('[Profile Store] Calling API to fetch profile...')
-      
-      // ✅ FIX: Get auth store and add Authorization header
+
+      // ✅ Get auth store and add Authorization header
       const authStore = useAuthStore()
       const token = authStore.token
-      
+
       console.log('[Profile Store] Token available:', !!token)
 
-      // ✅ FIX: Add Authorization header to all API calls
+      // ✅ Add Authorization header to API call
       const response = await $fetch('/api/profile/me', {
         method: 'GET',
         headers: {
@@ -269,7 +288,8 @@ export const useProfileStore = defineStore('profile', () => {
         user_id: response?.user_id || response?.id,
         id: response?.id,
         full_name: response?.full_name,
-        rank: response?.rank
+        rank: response?.rank,
+        profile_completed: response?.profile_completed
       })
 
       if (!response) {
@@ -278,20 +298,20 @@ export const useProfileStore = defineStore('profile', () => {
         return
       }
 
-      // ✅ CRITICAL: Normalize response before setting
+      // ✅ ISSUE #4 FIX: Normalize response before setting
       const normalizedResponse = normalizeProfile(response)
       setProfile(normalizedResponse)
-      
+
       console.log('[Profile Store] ✅ Profile fetched and stored successfully')
       console.log('[Profile Store] ============ FETCH PROFILE END ============')
 
     } catch (err: any) {
       console.error('[Profile Store] ============ FETCH PROFILE ERROR ============')
       console.error('[Profile Store] ❌ Error fetching profile:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to fetch profile'
       setError(errorMessage)
-      
+
       console.error('[Profile Store] Error details:', {
         message: errorMessage,
         status: err?.status,
@@ -304,9 +324,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - UPDATE PROFILE - ✅ FIXED WITH AUTH HEADER
+  // ACTIONS - UPDATE PROFILE - ✅ WITH AUTH HEADER
   // ============================================================================
-  
+
   const updateProfile = async (updates: Partial<Profile>) => {
     console.log('[Profile Store] ============ UPDATE PROFILE START ============')
     console.log('[Profile Store] Updating profile with:', updates)
@@ -324,7 +344,7 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch('/api/profile/update', {
         method: 'POST',
         headers: {
@@ -348,10 +368,10 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ UPDATE PROFILE ERROR ============')
       console.error('[Profile Store] ❌ Error updating profile:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to update profile'
       setError(errorMessage)
-      
+
       console.error('[Profile Store] ============ UPDATE PROFILE ERROR END ============')
     } finally {
       setLoading(false)
@@ -359,9 +379,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - COMPLETE PROFILE - ✅ FIXED WITH AUTH HEADER
+  // ACTIONS - COMPLETE PROFILE - ✅ WITH AUTH HEADER
   // ============================================================================
-  
+
   const completeProfile = async (profileData: Partial<Profile>) => {
     console.log('[Profile Store] ============ COMPLETE PROFILE START ============')
     console.log('[Profile Store] Completing profile with:', profileData)
@@ -373,7 +393,7 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch('/api/profile/complete', {
         method: 'POST',
         headers: {
@@ -397,10 +417,10 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ COMPLETE PROFILE ERROR ============')
       console.error('[Profile Store] ❌ Error completing profile:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to complete profile'
       setError(errorMessage)
-      
+
       console.error('[Profile Store] ============ COMPLETE PROFILE ERROR END ============')
     } finally {
       setLoading(false)
@@ -408,9 +428,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - UPLOAD AVATAR - ✅ FIXED WITH AUTH HEADER
+  // ACTIONS - UPLOAD AVATAR - ✅ WITH AUTH HEADER
   // ============================================================================
-  
+
   const uploadAvatar = async (file: File) => {
     console.log('[Profile Store] ============ UPLOAD AVATAR START ============')
     console.log('[Profile Store] Uploading avatar file:', file.name)
@@ -434,7 +454,7 @@ export const useProfileStore = defineStore('profile', () => {
 
       console.log('[Profile Store] Uploading avatar...')
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch('/api/upload', {
         method: 'POST',
         headers: {
@@ -469,10 +489,10 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ UPLOAD AVATAR ERROR ============')
       console.error('[Profile Store] ❌ Error uploading avatar:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to upload avatar'
       uploadAvatarError.value = errorMessage
-      
+
       console.error('[Profile Store] ============ UPLOAD AVATAR ERROR END ============')
     } finally {
       isUploadingAvatar.value = false
@@ -484,9 +504,9 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   // ============================================================================
-  // ACTIONS - INTERESTS MANAGEMENT - ✅ FIXED WITH AUTH HEADER
+  // ACTIONS - INTERESTS MANAGEMENT - ✅ WITH AUTH HEADER
   // ============================================================================
-  
+
   const addInterest = async (interest: string) => {
     console.log('[Profile Store] ============ ADD INTEREST START ============')
     console.log('[Profile Store] Adding interest:', interest)
@@ -504,7 +524,7 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch('/api/interests/add', {
         method: 'POST',
         headers: {
@@ -528,10 +548,10 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ ADD INTEREST ERROR ============')
       console.error('[Profile Store] ❌ Error adding interest:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to add interest'
       setError(errorMessage)
-      
+
       console.error('[Profile Store] ============ ADD INTEREST ERROR END ============')
     } finally {
       setLoading(false)
@@ -555,7 +575,7 @@ export const useProfileStore = defineStore('profile', () => {
       const authStore = useAuthStore()
       const token = authStore.token
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch('/api/interests/remove', {
         method: 'POST',
         headers: {
@@ -579,10 +599,10 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ REMOVE INTEREST ERROR ============')
       console.error('[Profile Store] ❌ Error removing interest:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to remove interest'
       setError(errorMessage)
-      
+
       console.error('[Profile Store] ============ REMOVE INTEREST ERROR END ============')
     } finally {
       setLoading(false)
@@ -592,13 +612,20 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // ACTIONS - PROFILE SYNC (NEW) - ✅ BROADCAST UPDATES
   // ============================================================================
-  
+
   /**
-   * ✅ NEW: Broadcast profile update to all listeners
+   * ✅ ISSUE #3 FIX: Broadcast profile update to all listeners
+   * Only broadcasts when profile_completed = true
    */
   const broadcastProfileUpdate = (updatedProfile: Profile) => {
-    console.log('[Profile Store] Broadcasting profile update:', updatedProfile)
-    
+    console.log('[Profile Store] ============ BROADCAST PROFILE UPDATE START ============')
+    console.log('[Profile Store] Broadcasting profile update:', {
+      id: updatedProfile.id,
+      user_id: updatedProfile.user_id,
+      username: updatedProfile.username,
+      profile_completed: updatedProfile.profile_completed
+    })
+
     if (process.client) {
       window.dispatchEvent(
         new CustomEvent('profileUpdated', {
@@ -607,7 +634,10 @@ export const useProfileStore = defineStore('profile', () => {
           composed: true
         })
       )
+      console.log('[Profile Store] ✅ Profile update event dispatched')
     }
+
+    console.log('[Profile Store] ============ BROADCAST PROFILE UPDATE END ============')
   }
 
   /**
@@ -636,14 +666,16 @@ export const useProfileStore = defineStore('profile', () => {
       const normalizedProfile = normalizeProfile(updatedProfile)
       profile.value = normalizedProfile
 
-      // Broadcast update immediately
-      broadcastProfileUpdate(normalizedProfile)
+      // ✅ ISSUE #3 FIX: Only broadcast if profile is complete
+      if (normalizedProfile.profile_completed) {
+        broadcastProfileUpdate(normalizedProfile)
+      }
 
       // Sync to API
       const authStore = useAuthStore()
       const token = authStore.token
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch('/api/profile/update', {
         method: 'POST',
         headers: {
@@ -667,15 +699,15 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ UPDATE FIELD ERROR ============')
       console.error('[Profile Store] ❌ Error updating field:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to update field'
       setError(errorMessage)
-      
+
       // Revert optimistic update
       if (profile.value) {
         profile.value = { ...profile.value }
       }
-      
+
       console.error('[Profile Store] ============ UPDATE FIELD ERROR END ============')
     } finally {
       setLoading(false)
@@ -703,7 +735,7 @@ export const useProfileStore = defineStore('profile', () => {
         return
       }
 
-      // ✅ FIX: Add Authorization header
+      // ✅ Add Authorization header
       const response = await $fetch(`/api/profile/${id}`, {
         method: 'GET',
         headers: {
@@ -726,10 +758,10 @@ export const useProfileStore = defineStore('profile', () => {
     } catch (err: any) {
       console.error('[Profile Store] ============ REFRESH PROFILE ERROR ============')
       console.error('[Profile Store] ❌ Error refreshing profile:', err)
-      
+
       const errorMessage = err?.data?.message || err?.message || 'Failed to refresh profile'
       setError(errorMessage)
-      
+
       console.error('[Profile Store] ============ REFRESH PROFILE ERROR END ============')
     } finally {
       setLoading(false)
@@ -739,7 +771,7 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // ACTIONS - STORAGE MANAGEMENT
   // ============================================================================
-  
+
   const hydrateFromStorage = () => {
     console.log('[Profile Store] ============ HYDRATE FROM STORAGE START ============')
 
@@ -752,7 +784,7 @@ export const useProfileStore = defineStore('profile', () => {
       const stored = localStorage.getItem('profile_data')
       if (stored) {
         const profileData = JSON.parse(stored)
-        // ✅ CRITICAL: Normalize stored profile
+        // ✅ ISSUE #4 FIX: Normalize stored profile
         const normalizedProfile = normalizeProfile(profileData)
         profile.value = normalizedProfile
         isHydrated.value = true
@@ -791,7 +823,7 @@ export const useProfileStore = defineStore('profile', () => {
   // ============================================================================
   // RETURN STORE INTERFACE
   // ============================================================================
-  
+
   return {
     // State
     profile,
