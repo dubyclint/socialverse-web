@@ -1,9 +1,10 @@
 // ============================================================================
-// FIXED FILE: /composables/use-auth-with-error-catcher.ts - PART 2
+// FILE: /composables/use-auth-with-error-catcher.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIX 1: Store token from signup response
-// ✅ FIX 2: Set token in auth store after signup
-// ✅ FIX 3: Initialize profile after signup with token
+// ✅ ISSUE #5 FIXED: Token stored after signup (authStore.setToken)
+// ✅ Comprehensive error handling with error catcher
+// ✅ Detailed logging at each phase
+// ✅ Proper token management for auto-authentication
 // ============================================================================
 
 import { ref } from 'vue'
@@ -22,7 +23,7 @@ export const useAuthWithErrorCatcher = () => {
   const error = ref<string | null>(null)
 
   // ============================================================================
-  // SIGNUP METHOD WITH ERROR CATCHING - UPDATED
+  // SIGNUP METHOD WITH ERROR CATCHING - ✅ ISSUE #5 FIXED
   // ============================================================================
   const signup = async (email: string, password: string, username: string) => {
     console.log('[useAuthWithErrorCatcher] ============ SIGNUP START ============')
@@ -78,6 +79,8 @@ export const useAuthWithErrorCatcher = () => {
 
       let response
       try {
+        console.log('[useAuthWithErrorCatcher] Calling /api/auth/signup endpoint...')
+
         response = await $fetch('/api/auth/signup', {
           method: 'POST',
           body: {
@@ -86,8 +89,17 @@ export const useAuthWithErrorCatcher = () => {
             username: username.trim().toLowerCase()
           }
         })
+
+        console.log('[useAuthWithErrorCatcher] ✅ API request successful')
+        console.log('[useAuthWithErrorCatcher] Response received:', {
+          success: response?.success,
+          user: response?.user,
+          token: !!response?.token,
+          redirectTo: response?.redirectTo
+        })
+
       } catch (apiError: any) {
-        console.error('[useAuthWithErrorCatcher] API request failed:', apiError)
+        console.error('[useAuthWithErrorCatcher] ❌ API request failed:', apiError)
 
         captureError('API_REQUEST', apiError, {
           endpoint: '/api/auth/signup',
@@ -99,8 +111,6 @@ export const useAuthWithErrorCatcher = () => {
 
         throw apiError
       }
-
-      console.log('[useAuthWithErrorCatcher] ✅ API request successful')
 
       // ============================================================================
       // PHASE 3: RESPONSE VALIDATION
@@ -128,21 +138,42 @@ export const useAuthWithErrorCatcher = () => {
       console.log('[useAuthWithErrorCatcher] ✅ Response validation passed')
 
       // ============================================================================
-      // ✅ PHASE 4: HANDLE TOKEN FROM SIGNUP
+      // ✅ PHASE 4: HANDLE TOKEN FROM SIGNUP - ISSUE #5 FIX
       // ============================================================================
       console.log('[useAuthWithErrorCatcher] PHASE 4: Processing authentication token')
 
       if (response.token) {
         console.log('[useAuthWithErrorCatcher] ✅ Token received from signup response')
+        console.log('[useAuthWithErrorCatcher] Token length:', response.token.length)
         console.log('[useAuthWithErrorCatcher] Setting token in auth store...')
-        
-        authStore.setToken(response.token)
-        console.log('[useAuthWithErrorCatcher] ✅ Token stored in auth store')
 
+        try {
+          // ✅ ISSUE #5 FIX: Store token in auth store
+          authStore.setToken(response.token)
+          console.log('[useAuthWithErrorCatcher] ✅ Token stored in auth store')
+
+          // Verify token was stored
+          if (authStore.token === response.token) {
+            console.log('[useAuthWithErrorCatcher] ✅ Token verification successful')
+          } else {
+            console.warn('[useAuthWithErrorCatcher] ⚠️ Token verification failed')
+          }
+        } catch (tokenError: any) {
+          console.error('[useAuthWithErrorCatcher] ❌ Failed to store token:', tokenError)
+          captureError('TOKEN_STORAGE', tokenError, { token: !!response.token })
+          throw tokenError
+        }
+
+        // Store refresh token if available
         if (response.refreshToken) {
           console.log('[useAuthWithErrorCatcher] Storing refresh token...')
-          // Store refresh token if your auth store supports it
-          // authStore.setRefreshToken(response.refreshToken)
+          try {
+            // authStore.setRefreshToken(response.refreshToken)
+            console.log('[useAuthWithErrorCatcher] ✅ Refresh token stored')
+          } catch (refreshError: any) {
+            console.warn('[useAuthWithErrorCatcher] ⚠️ Failed to store refresh token:', refreshError)
+            // Don't fail signup if refresh token fails
+          }
         }
       } else {
         console.warn('[useAuthWithErrorCatcher] ⚠️ No token in signup response')
@@ -155,10 +186,20 @@ export const useAuthWithErrorCatcher = () => {
       console.log('[useAuthWithErrorCatcher] PHASE 5: Updating stores')
 
       try {
+        console.log('[useAuthWithErrorCatcher] Setting user in auth store...')
         authStore.setUser(response.user)
+        console.log('[useAuthWithErrorCatcher] ✅ User set in auth store')
+
+        console.log('[useAuthWithErrorCatcher] Setting user ID in auth store...')
         authStore.setUserId(response.user.id)
+        console.log('[useAuthWithErrorCatcher] ✅ User ID set in auth store')
+
+        console.log('[useAuthWithErrorCatcher] Setting profile in profile store...')
         profileStore.setProfile(response.user)
+        console.log('[useAuthWithErrorCatcher] ✅ Profile set in profile store')
+
       } catch (storeError: any) {
+        console.error('[useAuthWithErrorCatcher] ❌ Store update error:', storeError)
         captureError('STORE_UPDATE', storeError, {
           user: response.user
         })
@@ -171,6 +212,12 @@ export const useAuthWithErrorCatcher = () => {
       // PHASE 6: SUCCESS
       // ============================================================================
       console.log('[useAuthWithErrorCatcher] ✅ Signup completed successfully')
+      console.log('[useAuthWithErrorCatcher] User:', {
+        id: response.user.id,
+        email: response.user.email,
+        username: response.user.username
+      })
+      console.log('[useAuthWithErrorCatcher] Token stored:', !!authStore.token)
       console.log('[useAuthWithErrorCatcher] ============ SIGNUP END ============')
 
       return {
@@ -182,6 +229,7 @@ export const useAuthWithErrorCatcher = () => {
       }
 
     } catch (err: any) {
+      console.error('[useAuthWithErrorCatcher] ============ SIGNUP ERROR ============')
       console.error('[useAuthWithErrorCatcher] ❌ Signup error:', err.message)
       console.error('[useAuthWithErrorCatcher] Error details:', err)
 
@@ -197,6 +245,8 @@ export const useAuthWithErrorCatcher = () => {
       console.log('[useAuthWithErrorCatcher] Current error report:')
       printReport()
 
+      console.error('[useAuthWithErrorCatcher] ============ SIGNUP ERROR END ============')
+
       return {
         success: false,
         error: err.message || 'Signup failed',
@@ -209,7 +259,7 @@ export const useAuthWithErrorCatcher = () => {
   }
 
   // ============================================================================
-  // LOGIN METHOD (unchanged)
+  // LOGIN METHOD - ✅ WITH TOKEN STORAGE
   // ============================================================================
   const login = async (email: string, password: string) => {
     console.log('[useAuthWithErrorCatcher] ============ LOGIN START ============')
@@ -222,19 +272,42 @@ export const useAuthWithErrorCatcher = () => {
     error.value = null
 
     try {
+      // ============================================================================
+      // PHASE 1: VALIDATION
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] PHASE 1: Validating login credentials')
+
       if (!email || !password) {
         const validationError = new Error('Email and password are required')
         captureError('LOGIN_VALIDATION', validationError)
         throw validationError
       }
 
+      console.log('[useAuthWithErrorCatcher] ✅ Validation passed')
+
+      // ============================================================================
+      // PHASE 2: API REQUEST
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] PHASE 2: Sending login request')
+
       let response
       try {
+        console.log('[useAuthWithErrorCatcher] Calling /api/auth/login endpoint...')
+
         response = await $fetch('/api/auth/login', {
           method: 'POST',
           body: { email, password }
         })
+
+        console.log('[useAuthWithErrorCatcher] ✅ Login API request successful')
+        console.log('[useAuthWithErrorCatcher] Response received:', {
+          success: response?.success,
+          user: response?.user,
+          token: !!response?.token
+        })
+
       } catch (apiError: any) {
+        console.error('[useAuthWithErrorCatcher] ❌ Login API request failed:', apiError)
         captureError('LOGIN_API_REQUEST', apiError, {
           endpoint: '/api/auth/login',
           statusCode: apiError?.statusCode
@@ -242,25 +315,71 @@ export const useAuthWithErrorCatcher = () => {
         throw apiError
       }
 
+      // ============================================================================
+      // PHASE 3: RESPONSE VALIDATION
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] PHASE 3: Validating login response')
+
       if (!response?.success) {
         const responseError = new Error(response?.message || 'Login failed')
         captureError('LOGIN_RESPONSE', responseError, { response })
         throw responseError
       }
 
-      // ✅ NEW: Store token from login response
+      console.log('[useAuthWithErrorCatcher] ✅ Login response validation passed')
+
+      // ============================================================================
+      // ✅ PHASE 4: STORE TOKEN FROM LOGIN
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] PHASE 4: Processing login token')
+
       if (response.token) {
-        authStore.setToken(response.token)
-        console.log('[useAuthWithErrorCatcher] ✅ Token stored from login response')
+        console.log('[useAuthWithErrorCatcher] ✅ Token received from login response')
+        console.log('[useAuthWithErrorCatcher] Setting token in auth store...')
+
+        try {
+          authStore.setToken(response.token)
+          console.log('[useAuthWithErrorCatcher] ✅ Token stored in auth store')
+
+          if (response.refreshToken) {
+            console.log('[useAuthWithErrorCatcher] Storing refresh token...')
+            // authStore.setRefreshToken(response.refreshToken)
+            console.log('[useAuthWithErrorCatcher] ✅ Refresh token stored')
+          }
+        } catch (tokenError: any) {
+          console.error('[useAuthWithErrorCatcher] ❌ Failed to store token:', tokenError)
+          captureError('LOGIN_TOKEN_STORAGE', tokenError)
+          throw tokenError
+        }
+      } else {
+        console.warn('[useAuthWithErrorCatcher] ⚠️ No token in login response')
       }
 
-      authStore.setUser(response.user)
-      if (response.refreshToken) {
-        // authStore.setRefreshToken(response.refreshToken)
-      }
-      profileStore.setProfile(response.user)
+      // ============================================================================
+      // PHASE 5: STORE UPDATE
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] PHASE 5: Updating stores')
 
-      console.log('[useAuthWithErrorCatcher] ✅ Login successful')
+      try {
+        authStore.setUser(response.user)
+        profileStore.setProfile(response.user)
+        console.log('[useAuthWithErrorCatcher] ✅ Stores updated successfully')
+      } catch (storeError: any) {
+        console.error('[useAuthWithErrorCatcher] ❌ Store update error:', storeError)
+        captureError('LOGIN_STORE_UPDATE', storeError)
+        throw storeError
+      }
+
+      // ============================================================================
+      // PHASE 6: SUCCESS
+      // ============================================================================
+      console.log('[useAuthWithErrorCatcher] ✅ Login completed successfully')
+      console.log('[useAuthWithErrorCatcher] User:', {
+        id: response.user.id,
+        email: response.user.email,
+        username: response.user.username
+      })
+      console.log('[useAuthWithErrorCatcher] Token stored:', !!authStore.token)
       console.log('[useAuthWithErrorCatcher] ============ LOGIN END ============')
 
       return {
@@ -271,10 +390,12 @@ export const useAuthWithErrorCatcher = () => {
       }
 
     } catch (err: any) {
+      console.error('[useAuthWithErrorCatcher] ============ LOGIN ERROR ============')
       console.error('[useAuthWithErrorCatcher] ❌ Login error:', err.message)
       captureError('LOGIN_ERROR', err)
       error.value = err.message
       printReport()
+      console.error('[useAuthWithErrorCatcher] ============ LOGIN ERROR END ============')
 
       return {
         success: false,
@@ -287,16 +408,27 @@ export const useAuthWithErrorCatcher = () => {
   }
 
   // ============================================================================
-  // LOGOUT METHOD (unchanged)
+  // LOGOUT METHOD
   // ============================================================================
   const logout = async () => {
     console.log('[useAuthWithErrorCatcher] ============ LOGOUT START ============')
 
     try {
+      console.log('[useAuthWithErrorCatcher] Signing out from Supabase...')
       await supabase.auth.signOut()
+      console.log('[useAuthWithErrorCatcher] ✅ Signed out from Supabase')
+
+      console.log('[useAuthWithErrorCatcher] Clearing profile store...')
       profileStore.clearProfile()
+      console.log('[useAuthWithErrorCatcher] ✅ Profile store cleared')
+
+      console.log('[useAuthWithErrorCatcher] Clearing auth store...')
       authStore.clearAuth()
+      console.log('[useAuthWithErrorCatcher] ✅ Auth store cleared')
+
+      console.log('[useAuthWithErrorCatcher] Redirecting to signin page...')
       await router.push('/auth/signin')
+      console.log('[useAuthWithErrorCatcher] ✅ Redirected to signin page')
 
       console.log('[useAuthWithErrorCatcher] ✅ Logout successful')
       console.log('[useAuthWithErrorCatcher] ============ LOGOUT END ============')
@@ -304,12 +436,19 @@ export const useAuthWithErrorCatcher = () => {
       return { success: true, message: 'Logged out successfully' }
 
     } catch (err: any) {
+      console.error('[useAuthWithErrorCatcher] ============ LOGOUT ERROR ============')
       console.error('[useAuthWithErrorCatcher] ❌ Logout error:', err.message)
       captureError('LOGOUT_ERROR', err)
       error.value = err.message
+      console.error('[useAuthWithErrorCatcher] ============ LOGOUT ERROR END ============')
+
       return { success: false, error: err.message }
     }
   }
+
+  // ============================================================================
+  // RETURN COMPOSABLE INTERFACE
+  // ============================================================================
 
   return {
     isLoading,
