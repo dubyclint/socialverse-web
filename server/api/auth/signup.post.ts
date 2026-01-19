@@ -1,9 +1,11 @@
 // ============================================================================
-// FILE: /server/api/auth/signup.post.ts - CORRECTED VERSION
+// FILE: /server/api/auth/signup.post.ts - COMPLETE FIXED VERSION
 // ============================================================================
-// ✅ FIX #1: full_name set to null (not username)
-// ✅ FIX #2: profile_completed set to false (not true)
-// ✅ FIX #3: Returns token for auto-authentication
+// ✅ ISSUE #1 FIXED: full_name set to null (not username)
+// ✅ ISSUE #2 FIXED: profile_completed set to false (not true)
+// ✅ Comprehensive error handling and logging
+// ✅ Auto-authentication after signup
+// ✅ Proper redirect to profile completion flow
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -14,20 +16,63 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { email, password, username } = body
 
+    console.log('[SIGNUP] ============ SIGNUP REQUEST START ============')
     console.log('[SIGNUP] Starting signup for:', email)
 
+    // ============================================================================
+    // STEP 1: VALIDATE REQUEST BODY
+    // ============================================================================
+    console.log('[SIGNUP] STEP 1: Validating request body...')
+
     if (!email || !password || !username) {
+      console.error('[SIGNUP] ❌ Missing required fields')
       throw createError({
         statusCode: 400,
         statusMessage: 'Email, password, and username are required'
       })
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      console.error('[SIGNUP] ❌ Invalid email format:', email)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Invalid email format'
+      })
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      console.error('[SIGNUP] ❌ Password too short')
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Password must be at least 6 characters'
+      })
+    }
+
+    // Validate username length
+    if (username.trim().length < 3) {
+      console.error('[SIGNUP] ❌ Username too short')
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Username must be at least 3 characters'
+      })
+    }
+
+    console.log('[SIGNUP] ✅ Request body validation passed')
+
+    // ============================================================================
+    // STEP 2: INITIALIZE SUPABASE CLIENTS
+    // ============================================================================
+    console.log('[SIGNUP] STEP 2: Initializing Supabase clients...')
+
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      console.error('[SIGNUP] ❌ Supabase configuration missing')
       throw createError({
         statusCode: 500,
         statusMessage: 'Server configuration error'
@@ -40,11 +85,13 @@ export default defineEventHandler(async (event) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
+    console.log('[SIGNUP] ✅ Supabase clients initialized')
+
     // ============================================================================
-    // STEP 1: Create auth user
+    // STEP 3: CREATE AUTH USER
     // ============================================================================
-    console.log('[SIGNUP] STEP 1: Creating auth user...')
-    
+    console.log('[SIGNUP] STEP 3: Creating auth user...')
+
     const { data: authData, error: authError } = await supabaseAnon.auth.signUp({
       email: email.trim().toLowerCase(),
       password: password,
@@ -65,6 +112,7 @@ export default defineEventHandler(async (event) => {
 
     const authUserId = authData?.user?.id
     if (!authUserId) {
+      console.error('[SIGNUP] ❌ User creation failed - no user ID returned')
       throw createError({
         statusCode: 500,
         statusMessage: 'User creation failed'
@@ -74,12 +122,12 @@ export default defineEventHandler(async (event) => {
     console.log('[SIGNUP] ✅ Auth user created:', authUserId)
 
     // ============================================================================
-    // STEP 2: Create user record in database
+    // STEP 4: CREATE USER PROFILE RECORD IN DATABASE
     // ============================================================================
-    console.log('[SIGNUP] STEP 2: Creating user record in database...')
+    console.log('[SIGNUP] STEP 4: Creating user profile record in database...')
 
     const now = new Date().toISOString()
-    
+
     const { data: userRecord, error: userError } = await supabaseAdmin
       .from('user_profiles')
       .insert([
@@ -87,7 +135,7 @@ export default defineEventHandler(async (event) => {
           id: authUserId,
           email: email.trim().toLowerCase(),
           username: username.trim().toLowerCase(),
-          full_name: null,  // ✅ FIX #1: Set to null, NOT username
+          full_name: null,  // ✅ ISSUE #1 FIX: Set to null, NOT username
           bio: '',
           avatar_url: null,
           cover_url: null,
@@ -106,7 +154,7 @@ export default defineEventHandler(async (event) => {
           posts_count: 0,
           followers_count: 0,
           following_count: 0,
-          profile_completed: false,  // ✅ FIX #2: Set to false
+          profile_completed: false,  // ✅ ISSUE #2 FIX: Set to false, NOT true
           last_seen: now,
           created_at: now,
           updated_at: now
@@ -117,14 +165,23 @@ export default defineEventHandler(async (event) => {
 
     if (userError) {
       console.error('[SIGNUP] ⚠️ User record creation failed:', userError.message)
+      console.error('[SIGNUP] Error code:', userError.code)
+      // Don't throw - continue with metadata update
     } else {
-      console.log('[SIGNUP] ✅ User record created successfully')
+      console.log('[SIGNUP] ✅ User profile record created successfully')
+      console.log('[SIGNUP] Profile data:', {
+        id: userRecord?.id,
+        email: userRecord?.email,
+        username: userRecord?.username,
+        full_name: userRecord?.full_name,  // ✅ Verify it's null
+        profile_completed: userRecord?.profile_completed  // ✅ Verify it's false
+      })
     }
 
     // ============================================================================
-    // STEP 3: Update user metadata in auth
+    // STEP 5: UPDATE USER METADATA IN AUTH
     // ============================================================================
-    console.log('[SIGNUP] STEP 3: Updating user metadata in auth...')
+    console.log('[SIGNUP] STEP 5: Updating user metadata in auth...')
 
     const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(
       authUserId,
@@ -140,21 +197,50 @@ export default defineEventHandler(async (event) => {
           following_count: 0,
           is_verified: false,
           verification_status: 'unverified',
-          profile_completed: false  // ✅ FIX #2: Set to false
+          profile_completed: false  // ✅ ISSUE #2 FIX: Set to false
         }
       }
     )
 
     if (metadataError) {
       console.warn('[SIGNUP] ⚠️ Failed to update user metadata:', metadataError.message)
+      // Don't throw - continue with email and authentication
     } else {
-      console.log('[SIGNUP] ✅ User metadata updated')
+      console.log('[SIGNUP] ✅ User metadata updated successfully')
     }
 
     // ============================================================================
-    // STEP 4: Auto-authenticate user after signup
+    // STEP 6: SEND VERIFICATION EMAIL (OPTIONAL - FAILS GRACEFULLY)
     // ============================================================================
-    console.log('[SIGNUP] STEP 4: Auto-authenticating user...')
+    console.log('[SIGNUP] STEP 6: Attempting to send verification email...')
+
+    const verificationToken = Buffer.from(JSON.stringify({
+      userId: authUserId,
+      email: email.trim().toLowerCase()
+    })).toString('base64')
+
+    try {
+      const emailResult = await sendVerificationEmail(
+        email.trim().toLowerCase(),
+        username.trim().toLowerCase(),
+        verificationToken
+      )
+
+      if (emailResult.success) {
+        console.log('[SIGNUP] ✅ Verification email sent successfully')
+      } else {
+        console.warn('[SIGNUP] ⚠️ Failed to send verification email:', emailResult.error)
+        console.log('[SIGNUP] Continuing without email - user will be auto-authenticated')
+      }
+    } catch (emailError: any) {
+      console.warn('[SIGNUP] ⚠️ Email service error:', emailError.message)
+      console.log('[SIGNUP] Continuing without email - user will be auto-authenticated')
+    }
+
+    // ============================================================================
+    // STEP 7: AUTO-AUTHENTICATE USER AFTER SIGNUP
+    // ============================================================================
+    console.log('[SIGNUP] STEP 7: Auto-authenticating user...')
 
     const { data: sessionData, error: sessionError } = await supabaseAnon.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
@@ -164,7 +250,7 @@ export default defineEventHandler(async (event) => {
     if (sessionError) {
       console.error('[SIGNUP] ⚠️ Auto-authentication failed:', sessionError.message)
       console.log('[SIGNUP] Continuing without session token...')
-      
+
       return {
         success: true,
         user: {
@@ -181,7 +267,7 @@ export default defineEventHandler(async (event) => {
 
     if (!sessionData?.session) {
       console.warn('[SIGNUP] ⚠️ No session in auto-authentication response')
-      
+
       return {
         success: true,
         user: {
@@ -197,11 +283,14 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('[SIGNUP] ✅ Auto-authentication successful')
+    console.log('[SIGNUP] Session token obtained:', !!sessionData.session.access_token)
 
     // ============================================================================
-    // STEP 5: Return success response with token
+    // STEP 8: RETURN SUCCESS RESPONSE WITH TOKEN AND REDIRECT
     // ============================================================================
+    console.log('[SIGNUP] STEP 8: Building success response...')
     console.log('[SIGNUP] ✅ SIGNUP SUCCESS - ALL STEPS COMPLETED')
+    console.log('[SIGNUP] ============ SIGNUP REQUEST END ============')
 
     return {
       success: true,
@@ -215,11 +304,26 @@ export default defineEventHandler(async (event) => {
       token: sessionData.session.access_token,
       refreshToken: sessionData.session.refresh_token,
       expiresIn: sessionData.session.expires_in,
-      redirectTo: '/auth/complete-profile'
+      redirectTo: '/auth/complete-profile'  // ✅ Redirect to profile completion flow
     }
 
   } catch (error: any) {
+    console.error('[SIGNUP] ============ SIGNUP ERROR ============')
     console.error('[SIGNUP] ❌ Fatal error:', error?.message)
-    throw error
+    console.error('[SIGNUP] Error details:', {
+      statusCode: error?.statusCode,
+      statusMessage: error?.statusMessage,
+      message: error?.message
+    })
+    console.error('[SIGNUP] ============ SIGNUP ERROR END ============')
+
+    if (error.statusCode) {
+      throw error
+    }
+
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Signup failed - please try again'
+    })
   }
 })
