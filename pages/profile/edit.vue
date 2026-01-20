@@ -555,7 +555,8 @@ const cancelEdit = () => {
 onMounted(async () => {    
   console.log('[ProfileEdit] Component mounted')    
   await loadProfile()    
-})    
+})
+     
 </script>  
 
 <style scoped>  
