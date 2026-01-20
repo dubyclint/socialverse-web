@@ -558,9 +558,10 @@ const identifier = computed(() => {
 })
 
 /**
- * ✅ FIX PHASE 1: Improved isOwnProfile computed property
+ * ✅ FIX #2: Improved isOwnProfile computed property
  * CRITICAL: Uses user_id (UUID) for comparison, not username
  * Validates both fields exist before comparison
+ * ADDED: Fallback checks and graceful handling for missing data
  */
 const isOwnProfile = computed(() => {
   console.log('[Profile] Checking isOwnProfile:', {
@@ -582,6 +583,19 @@ const isOwnProfile = computed(() => {
     const isOwn = authStore.user.user_metadata.username.toLowerCase() === profile.value.username.toLowerCase()
     console.log('[Profile] isOwnProfile (by username):', isOwn)
     return isOwn
+  }
+
+  // ✅ NEW: Additional fallback - compare against auth store username computed property
+  if (authStore.username && profile.value?.username) {
+    const isOwn = authStore.username.toLowerCase() === profile.value.username.toLowerCase()
+    console.log('[Profile] isOwnProfile (by auth store username):', isOwn)
+    return isOwn
+  }
+
+  // ✅ NEW: If profile is not loaded yet, don't warn - just return false
+  if (!profile.value) {
+    console.log('[Profile] ℹ️ Profile not loaded yet')
+    return false
   }
 
   console.warn('[Profile] ⚠️ Cannot determine isOwnProfile - missing required fields')
@@ -1286,8 +1300,9 @@ onMounted(() => {
   console.log('[Profile] Route identifier:', identifier.value)
   fetchProfileData()
 })
-</script>
 
+</script>
+  
 <style scoped>
 /* ============================================================================
    GLOBAL STYLES
