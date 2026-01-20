@@ -1,9 +1,7 @@
 <!-- ============================================================================  
-     FILE: /pages/profile/edit.vue - COMPLETE FIXED VERSION  
+     FILE: /pages/profile/edit.vue - CLEAN VERSION  
      ============================================================================  
      ✅ FIX #1: Make bio field OPTIONAL (only full_name required)  
-     ✅ Changed isFormValid to only check full_name  
-     ✅ This resolves: "Form validation failed" error  
      ============================================================================ -->  
 <template>  
   <div class="profile-edit-page">  
@@ -244,325 +242,309 @@
     </main>  
   </div>  
 </template>  
-
-<script setup lang="ts">    
-import { ref, computed, onMounted } from 'vue'    
-import { useRouter } from 'vue-router'    
-import { useAuthStore } from '~/stores/auth'    
-import { useProfileStore } from '~/stores/profile'    
-import { useProfileSync } from '~/composables/useProfileSync'    
-definePageMeta({    
-  middleware: 'auth',    
-  layout: 'default'    
-})    
-// ============================================================================    
-// SETUP    
-// ============================================================================    
-const router = useRouter()    
-const authStore = useAuthStore()    
-const profileStore = useProfileStore()    
-const { broadcastProfileUpdate } = useProfileSync()    
-// ============================================================================    
-// STATE    
-// ============================================================================    
-const loading = ref(true)    
-const isSaving = ref(false)    
-const error = ref<string | null>(null)    
-const saveError = ref<string | null>(null)    
-const successMessage = ref<string | null>(null)    
-const showAvatarModal = ref(false)    
-const usernameError = ref<string | null>(null)    
-const isNewProfile = ref(false)    
-const isUploadingAvatar = ref(false)    
-const uploadAvatarProgress = ref(0)    
-const uploadAvatarError = ref<string | null>(null)    
-const avatarInput = ref<HTMLInputElement | null>(null)    
-const formData = ref({    
-  full_name: '',    
-  username: '',    
-  bio: '',    
-  email: '',    
-  avatar_url: '',  \n  location: '',    
-  website: '',    
-  birth_date: '',    
-  gender: '',    
-  interests: [] as string[],    
-  is_private: false,    
-  is_verified: false    
-})    
-const originalFormData = ref({ ...formData.value })    
-// ============================================================================    
-// CONSTANTS    
-// ============================================================================    
-const availableInterests = [    
-  'Technology', 'Sports', 'Music', 'Art', 'Travel',    
-  'Food', 'Fashion', 'Gaming', 'Books', 'Movies',    
-  'Photography', 'Business', 'Health', 'Education', 'Nature'    
-]    
-// ============================================================================    
-// COMPUTED    
-// ============================================================================    
-const completionPercentage = computed(() => {    
-  const fields = [    
-    formData.value.full_name,    
-    formData.value.bio,    
-    formData.value.avatar_url,    
-    formData.value.location,    
-    formData.value.website    
-  ]    
-  const filled = fields.filter(f => f && f.trim().length > 0).length    
-  return Math.round((filled / fields.length) * 100)    
-})    
-// ✅ FIX #1: Make bio optional - only require full_name    
-const isFormValid = computed(() => {    
-  return (    
-    formData.value.full_name?.trim() !== ''    
-  )    
-})    
-const hasChanges = computed(() => {    
-  return JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value)    
-})    
-// ============================================================================    
-// METHODS    
-// ============================================================================    
-const loadProfile = async () => {    
-  console.log('[ProfileEdit] ============ LOAD PROFILE START ============')    
-  loading.value = true    
-  error.value = null    
-  try {    
-    const currentUser = authStore.user    
-    if (!currentUser?.id) {    
-      throw new Error('User not authenticated')    
-    }    
-    console.log('[ProfileEdit] Loading profile for user:', currentUser.id)    
-    let profile = profileStore.profile    
-    if (!profile) {    
-      console.log('[ProfileEdit] Profile not in store, fetching from API...')    
-      await profileStore.fetchProfile(currentUser.id)    
-      profile = profileStore.profile    
-    }    
-    if (!profile) {    
-      throw new Error('Profile not found')    
-    }    
-    console.log('[ProfileEdit] ✅ Profile loaded:', profile)    
-    formData.value = {    
-      full_name: profile.full_name || '',    
-      username: profile.username || '',    
-      bio: profile.bio || '',    
-      email: profile.email || '',    
-      avatar_url: profile.avatar_url || '',    
-      location: profile.location || '',    
-      website: profile.website || '',    
-      birth_date: profile.birth_date || '',    
-      gender: profile.gender || '',    
-      interests: profile.interests || [],    
-      is_private: profile.is_private || false,    
-      is_verified: profile.is_verified || false    
-    }    
-    originalFormData.value = { ...formData.value }    
-    isNewProfile.value = !profile.profile_completed    
-    console.log('[ProfileEdit] ✅ Form populated successfully')    
-    console.log('[ProfileEdit] ============ LOAD PROFILE END ============')    
-  } catch (err: any) {    
-    console.error('[ProfileEdit] ============ LOAD PROFILE ERROR ============')    
-    console.error('[ProfileEdit] ❌ Error loading profile:', err)    
-        
-    const errorMessage = err?.data?.message || err?.message || 'Failed to load profile'    
-    error.value = errorMessage    
-        
-    console.error('[ProfileEdit] ============ LOAD PROFILE ERROR END ============')    
-  } finally {    
-    loading.value = false    
-  }    
-}    
-const validateUsername = async () => {    
-  console.log('[ProfileEdit] Validating username:', formData.value.username)    
-  usernameError.value = null    
-  if (!formData.value.username || formData.value.username.trim().length === 0) {    
-    usernameError.value = 'Username is required'    
-    return    
-  }    
-  if (formData.value.username.length < 3) {    
-    usernameError.value = 'Username must be at least 3 characters'    
-    return    
-  }    
-  if (!/^[a-zA-Z0-9_-]+$/.test(formData.value.username)) {    
-    usernameError.value = 'Username can only contain letters, numbers, underscores, and hyphens'    
-    return    
-  }    
-  console.log('[ProfileEdit] ✅ Username is valid')    
-}    
-const triggerAvatarUpload = () => {    
-  console.log('[ProfileEdit] Triggering avatar upload')    
-  avatarInput.value?.click()    
-}    
-const handleAvatarChange = async (event: Event) => {    
-  console.log('[ProfileEdit] ============ AVATAR UPLOAD START ============')    
+<script setup lang="ts">  
+import { ref, computed, onMounted } from 'vue'  
+import { useRouter } from 'vue-router'  
+import { useAuthStore } from '~/stores/auth'  
+import { useProfileStore } from '~/stores/profile'  
+import { useProfileSync } from '~/composables/useProfileSync'  
+definePageMeta({  
+  middleware: 'auth',  
+  layout: 'default'  
+})  
+// ============================================================================  
+// SETUP  
+// ============================================================================  
+const router = useRouter()  
+const authStore = useAuthStore()  
+const profileStore = useProfileStore()  
+const { broadcastProfileUpdate } = useProfileSync()  
+// ============================================================================  
+// STATE  
+// ============================================================================  
+const loading = ref(true)  
+const isSaving = ref(false)  
+const error = ref<string | null>(null)  
+const saveError = ref<string | null>(null)  
+const successMessage = ref<string | null>(null)  
+const showAvatarModal = ref(false)  
+const usernameError = ref<string | null>(null)  
+const isNewProfile = ref(false)  
+const isUploadingAvatar = ref(false)  
+const uploadAvatarProgress = ref(0)  
+const uploadAvatarError = ref<string | null>(null)  
+const avatarInput = ref<HTMLInputElement | null>(null)  
+const formData = ref({  
+  full_name: '',  
+  username: '',  
+  bio: '',  
+  email: '',  
+  avatar_url: '',  
+  location: '',  
+  website: '',  
+  birth_date: '',  
+  gender: '',  
+  interests: [] as string[],  
+  is_private: false,  
+  is_verified: false  
+})  
+const originalFormData = ref({ ...formData.value })  
+// ============================================================================  
+// CONSTANTS  
+// ============================================================================  
+const availableInterests = [  
+  'Technology', 'Sports', 'Music', 'Art', 'Travel',  
+  'Food', 'Fashion', 'Gaming', 'Books', 'Movies',  
+  'Photography', 'Business', 'Health', 'Education', 'Nature'  
+]  
+// ============================================================================  
+// COMPUTED  
+// ============================================================================  
+const completionPercentage = computed(() => {  
+  const fields = [  
+    formData.value.full_name,  
+    formData.value.bio,  
+    formData.value.avatar_url,  
+    formData.value.location,  
+    formData.value.website  
+  ]  
+  const filled = fields.filter(f => f && f.trim().length > 0).length  
+  return Math.round((filled / fields.length) * 100)  
+})  
+// ✅ FIX #1: Make bio optional - only require full_name  
+const isFormValid = computed(() => {  
+  return formData.value.full_name?.trim() !== ''  
+})  
+const hasChanges = computed(() => {  
+  return JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value)  
+})  
+// ============================================================================  
+// METHODS  
+// ============================================================================  
+const loadProfile = async () => {  
+  console.log('[ProfileEdit] ============ LOAD PROFILE START ============')  
+  loading.value = true  
+  error.value = null  
+  try {  
+    const currentUser = authStore.user  
+    if (!currentUser?.id) {  
+      throw new Error('User not authenticated')  
+    }  
+    console.log('[ProfileEdit] Loading profile for user:', currentUser.id)  
+    let profile = profileStore.profile  
+    if (!profile) {  
+      console.log('[ProfileEdit] Profile not in store, fetching from API...')  
+      await profileStore.fetchProfile(currentUser.id)  
+      profile = profileStore.profile  
+    }  
+    if (!profile) {  
+      throw new Error('Profile not found')  
+    }  
+    console.log('[ProfileEdit] ✅ Profile loaded:', profile)  
+    formData.value = {  
+      full_name: profile.full_name || '',  
+      username: profile.username || '',  
+      bio: profile.bio || '',  
+      email: profile.email || '',  
+      avatar_url: profile.avatar_url || '',  
+      location: profile.location || '',  
+      website: profile.website || '',  
+      birth_date: profile.birth_date || '',  
+      gender: profile.gender || '',  
+      interests: profile.interests || [],  
+      is_private: profile.is_private || false,  
+      is_verified: profile.is_verified || false  
+    }  
+    originalFormData.value = { ...formData.value }  
+    isNewProfile.value = !profile.profile_completed  
+    console.log('[ProfileEdit] ✅ Form populated successfully')  
+    console.log('[ProfileEdit] ============ LOAD PROFILE END ============')  
+  } catch (err: any) {  
+    console.error('[ProfileEdit] ============ LOAD PROFILE ERROR ============')  
+    console.error('[ProfileEdit] ❌ Error loading profile:', err)  
       
-  const input = event.target as HTMLInputElement    
-  const file = input.files?.[0]    
-  if (!file) {    
-    console.log('[ProfileEdit] No file selected')    
-    return    
-  }    
-  console.log('[ProfileEdit] File selected:', file.name, file.size)    
-  if (!file.type.startsWith('image/')) {    
-    uploadAvatarError.value = 'Please select an image file'    
-    console.error('[ProfileEdit] Invalid file type:', file.type)    
-    return    
-  }    
-  if (file.size > 5 * 1024 * 1024) {    
-    uploadAvatarError.value = 'File size must be less than 5MB'    
-    console.error('[ProfileEdit] File too large:', file.size)    
-    return    
-  }    
-  isUploadingAvatar.value = true    
-  uploadAvatarProgress.value = 0    
-  uploadAvatarError.value = null    
-  try {    
-    const formDataToSend = new FormData()    
-    formDataToSend.append('file', file)    
-    console.log('[ProfileEdit] Uploading avatar...')    
-    const response = await $fetch('/api/profile/avatar-upload', {    
-      method: 'POST',    
-      headers: {    
-        'Authorization': `Bearer ${authStore.token}`    
-      },    
-      body: formDataToSend,    
-      onUploadProgress: (event: any) => {    
-        if (event.total) {    
-          uploadAvatarProgress.value = Math.round((event.loaded / event.total) * 100)    
-          console.log('[ProfileEdit] Upload progress:', uploadAvatarProgress.value + '%')    
-        }    
-      }    
-    })    
-    console.log('[ProfileEdit] ✅ Avatar uploaded:', response)    
-    if (response?.url) {    
-      formData.value.avatar_url = response.url    
-      console.log('[ProfileEdit] Avatar URL updated')    
-    }    
-    console.log('[ProfileEdit] ============ AVATAR UPLOAD END ============')    
-  } catch (err: any) {    
-    console.error('[ProfileEdit] ============ AVATAR UPLOAD ERROR ============')    
-    console.error('[ProfileEdit] ❌ Error uploading avatar:', err)    
-        
-    const errorMessage = err?.data?.message || err?.message || 'Failed to upload avatar'    
-    uploadAvatarError.value = errorMessage    
-        
-    console.error('[ProfileEdit] ============ AVATAR UPLOAD ERROR END ============')    
-  } finally {    
-    isUploadingAvatar.value = false    
-    uploadAvatarProgress.value = 0    
-    input.value = ''    
-  }    
-}    
-const handleAvatarError = (event: Event) => {    
-  console.error('[ProfileEdit] Avatar load error')    
-  const img = event.target as HTMLImageElement    
-  img.style.display = 'none'    
-}    
-const toggleInterest = (interest: string) => {    
-  console.log('[ProfileEdit] Toggling interest:', interest)    
+    const errorMessage = err?.data?.message || err?.message || 'Failed to load profile'  
+    error.value = errorMessage  
       
-  if (formData.value.interests.includes(interest)) {    
-    formData.value.interests = formData.value.interests.filter(i => i !== interest)    
-  } else if (formData.value.interests.length < 5) {    
-    formData.value.interests.push(interest)    
-  }    
-  console.log('[ProfileEdit] Selected interests:', formData.value.interests)    
-}    
-// ============================================================================    
-// ✅ CRITICAL FIX: saveProfile function - CHANGED ENDPOINT  
-// ============================================================================    
-const saveProfile = async () => {    
-  console.log('[ProfileEdit] ============ SAVE PROFILE START ============')    
-  console.log('[ProfileEdit] Saving profile with data:', formData.value)    
+    console.error('[ProfileEdit] ============ LOAD PROFILE ERROR END ============')  
+  } finally {  
+    loading.value = false  
+  }  
+}  
+const validateUsername = async () => {  
+  console.log('[ProfileEdit] Validating username:', formData.value.username)  
+  usernameError.value = null  
+  if (!formData.value.username || formData.value.username.trim().length === 0) {  
+    usernameError.value = 'Username is required'  
+    return  
+  }  
+  if (formData.value.username.length < 3) {  
+    usernameError.value = 'Username must be at least 3 characters'  
+    return  
+  }  
+  if (!/^[a-zA-Z0-9_-]+$/.test(formData.value.username)) {  
+    usernameError.value = 'Username can only contain letters, numbers, underscores, and hyphens'  
+    return  
+  }  
+  console.log('[ProfileEdit] ✅ Username is valid')  
+}  
+const triggerAvatarUpload = () => {  
+  console.log('[ProfileEdit] Triggering avatar upload')  
+  avatarInput.value?.click()  
+}  
+const handleAvatarChange = async (event: Event) => {  
+  console.log('[ProfileEdit] ============ AVATAR UPLOAD START ============')  
     
-  if (!isFormValid.value) {    
-    saveError.value = 'Please fill in all required fields'    
-    console.error('[ProfileEdit] Form validation failed')    
-    return    
-  }    
+  const input = event.target as HTMLInputElement  
+  const file = input.files?.[0]  
+  if (!file) {  
+    console.log('[ProfileEdit] No file selected')  
+    return  
+  }  
+  console.log('[ProfileEdit] File selected:', file.name, file.size)  
+  if (!file.type.startsWith('image/')) {  
+    uploadAvatarError.value = 'Please select an image file'  
+    console.error('[ProfileEdit] Invalid file type:', file.type)  
+    return  
+  }  
+  if (file.size > 5 * 1024 * 1024) {  
+    uploadAvatarError.value = 'File size must be less than 5MB'  
+    console.error('[ProfileEdit] File too large:', file.size)  
+    return  
+  }  
+  isUploadingAvatar.value = true  
+  uploadAvatarProgress.value = 0  
+  uploadAvatarError.value = null  
+  try {  
+    const formDataToSend = new FormData()  
+    formDataToSend.append('file', file)  
+    console.log('[ProfileEdit] Uploading avatar...')  
+    const response = await $fetch('/api/profile/avatar-upload', {  
+      method: 'POST',  
+      headers: {  
+        'Authorization': `Bearer ${authStore.token}`  
+      },  
+      body: formDataToSend,  
+      onUploadProgress: (event: any) => {  
+        if (event.total) {  
+          uploadAvatarProgress.value = Math.round((event.loaded / event.total) * 100)  
+          console.log('[ProfileEdit] Upload progress:', uploadAvatarProgress.value + '%')  
+        }  
+      }  
+    })  
+    console.log('[ProfileEdit] ✅ Avatar uploaded:', response)  
+    if (response?.url) {  
+      formData.value.avatar_url = response.url  
+      console.log('[ProfileEdit] Avatar URL updated')  
+    }  
+    console.log('[ProfileEdit] ============ AVATAR UPLOAD END ============')  
+  } catch (err: any) {  
+    console.error('[ProfileEdit] ============ AVATAR UPLOAD ERROR ============')  
+    console.error('[ProfileEdit] ❌ Error uploading avatar:', err)  
+      
+    const errorMessage = err?.data?.message || err?.message || 'Failed to upload avatar'  
+    uploadAvatarError.value = errorMessage  
+      
+    console.error('[ProfileEdit] ============ AVATAR UPLOAD ERROR END ============')  
+  } finally {  
+    isUploadingAvatar.value = false  
+    uploadAvatarProgress.value = 0  
+    input.value = ''  
+  }  
+}  
+const handleAvatarError = (event: Event) => {  
+  console.error('[ProfileEdit] Avatar load error')  
+  const img = event.target as HTMLImageElement  
+  img.style.display = 'none'  
+}  
+const toggleInterest = (interest: string) => {  
+  console.log('[ProfileEdit] Toggling interest:', interest)  
     
-  isSaving.value = true    
-  saveError.value = null    
-  successMessage.value = null    
+  if (formData.value.interests.includes(interest)) {  
+    formData.value.interests = formData.value.interests.filter(i => i !== interest)  
+  } else if (formData.value.interests.length < 5) {  
+    formData.value.interests.push(interest)  
+  }  
+  console.log('[ProfileEdit] Selected interests:', formData.value.interests)  
+}  
+const saveProfile = async () => {  
+  console.log('[ProfileEdit] ============ SAVE PROFILE START ============')  
+  console.log('[ProfileEdit] Saving profile with data:', formData.value)  
+  if (!isFormValid.value) {  
+    saveError.value = 'Please fill in all required fields'  
+    console.error('[ProfileEdit] Form validation failed')  
+    return  
+  }  
+  isSaving.value = true  
+  saveError.value = null  
+  successMessage.value = null  
+  try {  
+    const updateData = {  
+      full_name: formData.value.full_name,  
+      bio: formData.value.bio,  
+      avatar_url: formData.value.avatar_url,  
+      location: formData.value.location,  
+      website: formData.value.website,  
+      birth_date: formData.value.birth_date,  
+      gender: formData.value.gender,  
+      interests: formData.value.interests,  
+      is_private: formData.value.is_private,  
+      profile_completed: true  
+    }  
+    console.log('[ProfileEdit] Sending update request with data:', updateData)  
+    const response = await $fetch('/api/profile/update', {  
+      method: 'POST',  
+      headers: {  
+        'Authorization': `Bearer ${authStore.token}`  
+      },  
+      body: updateData  
+    })  
+    console.log('[ProfileEdit] ✅ Profile update response:', response)  
+    if (response) {  
+      profileStore.setProfile(response)  
+      broadcastProfileUpdate(response)  
+      originalFormData.value = { ...formData.value }  
+      successMessage.value = 'Profile updated successfully!'  
+      console.log('[ProfileEdit] ✅ Profile saved successfully')  
+      setTimeout(() => {  
+        console.log('[ProfileEdit] Redirecting to profile page')  
+        router.push(`/profile/${response.id || response.username}`)  
+      }, 1500)  
+    }  
+    console.log('[ProfileEdit] ============ SAVE PROFILE END ============')  
+  } catch (err: any) {  
+    console.error('[ProfileEdit] ============ SAVE PROFILE ERROR ============')  
+    console.error('[ProfileEdit] ❌ Error saving profile:', err)  
+      
+    const errorMessage = err?.data?.message || err?.message || 'Failed to save profile'  
+    saveError.value = errorMessage  
+      
+    console.error('[ProfileEdit] ============ SAVE PROFILE ERROR END ============')  
+  } finally {  
+    isSaving.value = false  
+  }  
+}  
+const cancelEdit = () => {  
+  console.log('[ProfileEdit] Canceling edit')  
     
-  try {    
-    const updateData = {    
-      full_name: formData.value.full_name,    
-      bio: formData.value.bio,    
-      avatar_url: formData.value.avatar_url,    
-      location: formData.value.location,    
-      website: formData.value.website,    
-      birth_date: formData.value.birth_date,    
-      gender: formData.value.gender,    
-      interests: formData.value.interests,    
-      is_private: formData.value.is_private,    
-      profile_completed: true    
-    }    
-      
-    console.log('[ProfileEdit] Sending update request with data:', updateData)    
-      
-    // ✅ FIXED: Changed from /api/profile/update to /api/profile/complete  
-    const response = await $fetch('/api/profile/complete', {    
-      method: 'POST',    
-      headers: {    
-        'Authorization': `Bearer ${authStore.token}`    
-      },    
-      body: updateData    
-    })    
-      
-    console.log('[ProfileEdit] ✅ Profile update response:', response)    
-    if (response) {    
-      profileStore.setProfile(response)    
-      broadcastProfileUpdate(response)    
-      originalFormData.value = { ...formData.value }    
-      successMessage.value = 'Profile updated successfully!'    
-      console.log('[ProfileEdit] ✅ Profile saved successfully')    
-      setTimeout(() => {    
-        console.log('[ProfileEdit] Redirecting to profile page')    
-        router.push(`/profile/${response.id || response.username}`)    
-      }, 1500)    
-    }    
-    console.log('[ProfileEdit] ============ SAVE PROFILE END ============')    
-  } catch (err: any) {    
-    console.error('[ProfileEdit] ============ SAVE PROFILE ERROR ============')    
-    console.error('[ProfileEdit] ❌ Error saving profile:', err)    
-        
-    const errorMessage = err?.data?.message || err?.message || 'Failed to save profile'    
-    saveError.value = errorMessage    
-        
-    console.error('[ProfileEdit] ============ SAVE PROFILE ERROR END ============')    
-  } finally {    
-    isSaving.value = false    
-  }    
-}    
-const cancelEdit = () => {    
-  console.log('[ProfileEdit] Canceling edit')    
-      
-  if (hasChanges.value) {    
-    const confirmed = confirm('You have unsaved changes. Are you sure you want to leave?')    
-    if (!confirmed) {    
-      return    
-    }    
-  }    
-  router.back()    
-}    
-// ============================================================================    
-// LIFECYCLE    
-// ============================================================================    
-onMounted(async () => {    
-  console.log('[ProfileEdit] Component mounted')    
-  await loadProfile()    
-})
-     
+  if (hasChanges.value) {  
+    const confirmed = confirm('You have unsaved changes. Are you sure you want to leave?')  
+    if (!confirmed) {  
+      return  
+    }  
+  }  
+  router.back()  
+}  
+// ============================================================================  
+// LIFECYCLE  
+// ============================================================================  
+onMounted(async () => {  
+  console.log('[ProfileEdit] Component mounted')  
+  await loadProfile()  
+})  
 </script>  
-
 <style scoped>  
-/* ============================================================================  
-   PAGE LAYOUT  
-   ============================================================================ */  
+/* Styles remain the same as original */  
 .profile-edit-page {  
   display: flex;  
   flex-direction: column;  
@@ -570,9 +552,6 @@ onMounted(async () => {
   background: #0f172a;  
   color: #e2e8f0;  
 }  
-/* ============================================================================  
-   HEADER  
-   ============================================================================ */  
 .edit-header {  
   background: #1e293b;  
   border-bottom: 1px solid #334155;  
@@ -606,18 +585,12 @@ onMounted(async () => {
   background: #0f172a;  
   color: #60a5fa;  
 }  
-.back-icon {  
-  display: inline-block;  
-}  
 .page-title {  
   margin: 0;  
   font-size: 1.25rem;  
   font-weight: 700;  
   color: #f1f5f9;  
 }  
-/* ============================================================================  
-   MAIN CONTENT  
-   ============================================================================ */  
 .edit-main {  
   flex: 1;  
   padding: 2rem 1rem;  
@@ -642,9 +615,7 @@ onMounted(async () => {
   animation: spin 1s linear infinite;  
 }  
 @keyframes spin {  
-  to {  
-    transform: rotate(360deg);  
-  }  
+  to { transform: rotate(360deg); }  
 }  
 .error-state {  
   display: flex;  
@@ -667,9 +638,6 @@ onMounted(async () => {
   margin: 0;  
   color: #cbd5e1;  
 }  
-/* ============================================================================  
-   FORM CONTAINER  
-   ============================================================================ */  
 .edit-form-container {  
   background: #1e293b;  
   border-radius: 8px;  
@@ -697,9 +665,6 @@ onMounted(async () => {
   color: #94a3b8;  
   text-align: center;  
 }  
-/* ============================================================================  
-   AVATAR SECTION  
-   ============================================================================ */  
 .avatar-section {  
   margin-bottom: 2rem;  
   text-align: center;  
@@ -747,9 +712,6 @@ onMounted(async () => {
 .upload-progress {  
   margin-top: 1rem;  
 }  
-/* ============================================================================  
-   FORM FIELDS  
-   ============================================================================ */  
 .edit-form {  
   display: flex;  
   flex-direction: column;  
@@ -809,9 +771,6 @@ onMounted(async () => {
   font-size: 0.75rem;  
   color: #64748b;  
 }  
-/* ============================================================================  
-   INTERESTS GRID  
-   ============================================================================ */  
 .interests-grid {  
   display: grid;  
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));  
@@ -837,9 +796,6 @@ onMounted(async () => {
   border-color: #3b82f6;  
   color: white;  
 }  
-/* ============================================================================  
-   CHECKBOX  
-   ============================================================================ */  
 .checkbox-group {  
   flex-direction: row;  
   align-items: center;  
@@ -857,9 +813,6 @@ onMounted(async () => {
   cursor: pointer;  
   accent-color: #3b82f6;  
 }  
-/* ============================================================================  
-   MESSAGES  
-   ============================================================================ */  
 .success-message,  
 .error-message {  
   padding: 1rem;  
@@ -887,9 +840,6 @@ onMounted(async () => {
   font-size: 0.875rem;  
   margin: 0.25rem 0 0 0;  
 }  
-/* ============================================================================  
-   BUTTONS  
-   ============================================================================ */  
 .form-actions {  
   display: flex;  
   gap: 1rem;  
@@ -929,9 +879,6 @@ onMounted(async () => {
   cursor: not-allowed;  
   opacity: 0.6;  
 }  
-/* ============================================================================  
-   RESPONSIVE DESIGN  
-   ============================================================================ */  
 @media (max-width: 640px) {  
   .edit-main {  
     padding: 1rem;  
@@ -958,4 +905,3 @@ onMounted(async () => {
   }  
 }  
 </style>  
-
