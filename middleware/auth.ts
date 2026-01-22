@@ -1,147 +1,31 @@
-// ============================================================================
-// CORRECTED FILE: /middleware/auth.ts
-// ============================================================================
-// FIX: Changed defineRouteMiddleware to defineNuxtRouteMiddleware
-// ============================================================================
-
-export default defineNuxtRouteMiddleware(async (to, from) => {
-  console.log('[Auth Middleware] ============ ROUTE CHECK START ============')
-  console.log('[Auth Middleware] Navigating from:', from.path)
-  console.log('[Auth Middleware] Navigating to:', to.path)
-
-  // ============================================================================
-  // GET AUTH STORE
-  // ============================================================================
-  const authStore = useAuthStore()
-
-  console.log('[Auth Middleware] Auth store state:', {
-    isAuthenticated: authStore.isAuthenticated,
-    isHydrated: authStore.isHydrated,
-    userId: authStore.user?.id
-  })
-
-  // ============================================================================
-  // DEFINE PUBLIC ROUTES - No authentication required
-  // ============================================================================
-  const publicRoutes = [
-    '/login',
-    '/signup',
-    '/forgot-password',
-    '/reset-password',
-    '/verify-email',
-    '/terms-and-policy',
-    '/privacy-policy',
-    '/'
-  ]
-
-  // ============================================================================
-  // DEFINE PROTECTED ROUTES - Authentication required
-  // ============================================================================
-  const protectedRoutes = [
-    '/feed',
-    '/profile',
-    '/settings',
-    '/notifications',
-    '/messages',
-    '/inbox',
-    '/chat',
-    '/explore',
-    '/match',
-    '/wallet',
-    '/admin'
-  ]
-
-  // ============================================================================
-  // CHECK IF ROUTE IS PUBLIC
-  // ============================================================================
-  const isPublicRoute = publicRoutes.some(route => {
-    if (route === '/') {
-      return to.path === '/'
-    }
-    return to.path.startsWith(route)
-  })
-
-  console.log('[Auth Middleware] Is public route:', isPublicRoute)
-
-  // ============================================================================
-  // CHECK IF ROUTE IS PROTECTED
-  // ============================================================================
-  const isProtectedRoute = protectedRoutes.some(route => {
-    return to.path.startsWith(route)
-  })
-
-  console.log('[Auth Middleware] Is protected route:', isProtectedRoute)
-
-  // ============================================================================
-  // WAIT FOR AUTH STORE TO HYDRATE
-  // ============================================================================
-  if (!authStore.isHydrated) {
-    console.log('[Auth Middleware] Auth store not hydrated, waiting...')
+// ============================================================================  
+// FILE: /middleware/auth.ts  
+// ============================================================================  
+export default defineNuxtRouteMiddleware(async (to, from) => {  
+  console.log('[Auth Middleware] ============ AUTH MIDDLEWARE START ============')  
+  console.log('[Auth Middleware] Route:', to.path)  
     
-    // Wait for hydration with timeout
-    let attempts = 0
-    const maxAttempts = 50 // 5 seconds with 100ms intervals
+  const authStore = useAuthStore()  
     
-    while (!authStore.isHydrated && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-      attempts++
-    }
-
-    if (!authStore.isHydrated) {
-      console.warn('[Auth Middleware] ⚠️ Auth store hydration timeout')
-    } else {
-      console.log('[Auth Middleware] ✅ Auth store hydrated after', attempts * 100, 'ms')
-    }
-  }
-
-  console.log('[Auth Middleware] Auth store hydrated:', authStore.isHydrated)
-  console.log('[Auth Middleware] User authenticated:', authStore.isAuthenticated)
-
-  // ============================================================================
-  // HANDLE PUBLIC ROUTES
-  // ============================================================================
-  if (isPublicRoute) {
-    console.log('[Auth Middleware] Public route - allowing access')
-
-    // If user is already authenticated and trying to access login/signup, redirect to feed
-    if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/signup')) {
-      console.log('[Auth Middleware] User already authenticated, redirecting to feed')
-      console.log('[Auth Middleware] ============ ROUTE CHECK END ============')
-      return navigateTo('/feed')
-    }
-
-    console.log('[Auth Middleware] ✅ Public route access allowed')
-    console.log('[Auth Middleware] ============ ROUTE CHECK END ============')
-    return
-  }
-
-  // ============================================================================
-  // HANDLE PROTECTED ROUTES
-  // ============================================================================
-  if (isProtectedRoute) {
-    console.log('[Auth Middleware] Protected route - checking authentication...')
-
-    if (!authStore.isAuthenticated) {
-      console.warn('[Auth Middleware] ⚠️ User not authenticated, redirecting to login')
-      console.log('[Auth Middleware] ============ ROUTE CHECK END ============')
-      return navigateTo('/login')
-    }
-
-    if (!authStore.user) {
-      console.warn('[Auth Middleware] ⚠️ No user data, redirecting to login')
-      console.log('[Auth Middleware] ============ ROUTE CHECK END ============')
-      return navigateTo('/login')
-    }
-
-    console.log('[Auth Middleware] ✅ User authenticated, allowing access')
-    console.log('[Auth Middleware] User ID:', authStore.user.id)
-    console.log('[Auth Middleware] ============ ROUTE CHECK END ============')
-    return
-  }
-
-  // ============================================================================
-  // HANDLE UNKNOWN ROUTES
-  // ============================================================================
-  console.log('[Auth Middleware] Unknown route type - allowing access')
-  console.log('[Auth Middleware] ============ ROUTE CHECK END ============')
-})
+  // ✅ Ensure auth store is hydrated before any protected route  
+  if (!authStore.isHydrated) {  
+    console.log('[Auth Middleware] Hydrating auth store...')  
+    await authStore.hydrateFromStorage()  
+  }  
+    
+  console.log('[Auth Middleware] Auth status:', {  
+    isAuthenticated: authStore.isAuthenticated,  
+    hasToken: !!authStore.token,  
+    hasUser: !!authStore.user  
+  })  
+    
+  // ✅ Redirect to login if not authenticated  
+  if (!authStore.isAuthenticated) {  
+    console.log('[Auth Middleware] ❌ Not authenticated, redirecting to login')  
+    console.log('[Auth Middleware] ============ AUTH MIDDLEWARE END ============')  
+    return navigateTo('/auth/signin')  
+  }  
+    
+  console.log('[Auth Middleware] ✅ User authenticated')  
+  console.log('[Auth Middleware] ============ AUTH MIDDLEWARE END ============')  
+})  
