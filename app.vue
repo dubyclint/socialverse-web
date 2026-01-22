@@ -1,34 +1,22 @@
-// ============================================================================
-// FILE 3: /app.vue - COMPLETE APP INITIALIZATION
-// ============================================================================
-// FIXES:
-// ✅ Initialize auth store on app load
-// ✅ Ensure session is hydrated before rendering
-// ✅ Add loading state while hydrating
-// ✅ Prevent flash of unauthenticated content
-// ============================================================================
-
-<template>
-  <div id="app" class="app-container">
-    <!-- ====================================================================== -->
-    <!-- LOADING STATE - Show while hydrating -->
-    <!-- ====================================================================== -->
-    <div v-if="isHydrating" class="hydration-loader">
-      <div class="loader-content">
-        <div class="spinner"></div>
-        <p class="loader-text">Loading SocialVerse...</p>
-      </div>
-    </div>
-
-    <!-- ====================================================================== -->
-    <!-- MAIN APP CONTENT - Show after hydration complete -->
-    <!-- ====================================================================== -->
-    <div v-else class="app-content">
-      <NuxtPage />
-    </div>
-  </div>
-</template>
-
+<template>  
+  <div id="app" class="app-container">  
+    <!-- ====================================================================== -->  
+    <!-- LOADING STATE - Show while hydrating -->  
+    <!-- ====================================================================== -->  
+    <div v-if="isHydrating" class="hydration-loader">  
+      <div class="loader-content">  
+        <div class="spinner"></div>  
+        <p class="loader-text">Loading SocialVerse...</p>  
+      </div>  
+    </div>  
+    <!-- ====================================================================== -->  
+    <!-- MAIN APP CONTENT - Show after hydration complete -->  
+    <!-- ====================================================================== -->  
+    <div v-else class="app-content">  
+      <NuxtPage />  
+    </div>  
+  </div>  
+</template>  
 <script setup lang="ts">  
 import { ref, onMounted, watch } from 'vue'  
 // ============================================================================  
@@ -145,75 +133,67 @@ const setupAuthStateListener = () => {
 }  
 </script>  
 
-<style scoped>
-.app-container {
-  width: 100%;
-  min-height: 100vh;
-  background: #f5f5f5;
-}
-
-.app-content {
-  width: 100%;
-  min-height: 100vh;
-}
-
-/* ========================================================================== */
-/* HYDRATION LOADER STYLES */
-/* ========================================================================== */
-.hydration-loader {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  width: 100%;
-}
-
-.loader-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loader-text {
-  color: white;
-  font-size: 1.2rem;
-  font-weight: 500;
-  margin: 0;
-  letter-spacing: 0.5px;
-}
-
-/* ========================================================================== */
-/* RESPONSIVE STYLES */
-/* ========================================================================== */
-@media (max-width: 768px) {
-  .loader-text {
-    font-size: 1rem;
-  }
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border-width: 3px;
-  }
-}
-</style>
+<style scoped>  
+.app-container {  
+  width: 100%;  
+  min-height: 100vh;  
+  background: #f5f5f5;  
+}  
+.app-content {  
+  width: 100%;  
+  min-height: 100vh;  
+}  
+/* ========================================================================== */  
+/* HYDRATION LOADER STYLES */  
+/* ========================================================================== */  
+.hydration-loader {  
+  display: flex;  
+  justify-content: center;  
+  align-items: center;  
+  min-height: 100vh;  
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+  width: 100%;  
+}  
+.loader-content {  
+  display: flex;  
+  flex-direction: column;  
+  align-items: center;  
+  gap: 2rem;  
+}  
+.spinner {  
+  width: 50px;  
+  height: 50px;  
+  border: 4px solid rgba(255, 255, 255, 0.3);  
+  border-top: 4px solid white;  
+  border-radius: 50%;  
+  animation: spin 1s linear infinite;  
+}  
+@keyframes spin {  
+  0% {  
+    transform: rotate(0deg);  
+  }  
+  100% {  
+    transform: rotate(360deg);  
+  }  
+}  
+.loader-text {  
+  color: white;  
+  font-size: 1.2rem;  
+  font-weight: 500;  
+  margin: 0;  
+  letter-spacing: 0.5px;  
+}  
+/* ========================================================================== */  
+/* RESPONSIVE STYLES */  
+/* ========================================================================== */  
+@media (max-width: 768px) {  
+  .loader-text {  
+    font-size: 1rem;  
+  }  
+  .spinner {  
+    width: 40px;  
+    height: 40px;  
+    border-width: 3px;  
+  }  
+}  
+</style>  
