@@ -1,3 +1,8 @@
+// ============================================================================    
+// FILE: /server/api/auth/refresh.ts    
+// ============================================================================    
+// Endpoint to refresh expired access tokens using refresh token    
+// ============================================================================    
 import { getSupabaseAdmin } from '~/server/utils/supabase'  
 export default defineEventHandler(async (event) => {    
   console.log('[Auth Refresh] ============ REFRESH TOKEN START ============')    
@@ -17,7 +22,7 @@ export default defineEventHandler(async (event) => {
     console.log('[Auth Refresh] Refresh token provided (first 20 chars):',     
       refresh_token.substring(0, 20) + '...')    
         
-    // ✅ FIXED: Use server-side Supabase client  
+    // ✅ FIXED: Use server-side Supabase client instead of frontend composable  
     const supabase = await getSupabaseAdmin()    
         
     const { data, error } = await supabase.auth.refreshSession({    
