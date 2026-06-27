@@ -1,0 +1,35 @@
+// server/models/[model-name].ts
+// [Description]
+
+// ============================================================================
+// LAZY-LOADED SUPABASE CLIENT
+// ============================================================================
+let supabaseInstance: any = null
+
+async function getSupabase() {
+  if (!supabaseInstance) {
+    const { createClient } = await import('@supabase/supabase-js')
+    supabaseInstance = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabaseInstance
+}
+
+// ============================================================================
+// INTERFACES & TYPES
+// ============================================================================
+export interface [InterfaceName] {
+  // ... existing interface
+}
+
+// ============================================================================
+// MODEL CLASS
+// ============================================================================
+export class [ModelName] {
+  static async [method](...args: any[]) {
+    const supabase = await getSupabase()
+    // ... rest of implementation using supabase
+  }
+}

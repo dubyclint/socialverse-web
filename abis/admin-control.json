@@ -1,0 +1,74 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "low",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "high",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "gift",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getFees",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "swapLow",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "swapHigh",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "giftFee",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

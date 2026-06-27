@@ -1,0 +1,103 @@
+# ============================================================================
+# .gitignore - GIT IGNORE CONFIGURATION FOR SOCIALVERSE
+# ============================================================================
+# ⚠️ SECURITY: Protect all environment files with secrets
+
+# ============================================================================
+# ENVIRONMENT VARIABLES - CRITICAL SECURITY
+# ============================================================================
+# ✅ NEVER commit these files - they contain secrets!
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+.env.production
+.env.staging
+
+# ============================================================================
+# DEPENDENCIES
+# ============================================================================
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# ============================================================================
+# BUILD OUTPUTS
+# ============================================================================
+.nuxt/
+.output/
+.nitro/
+dist/
+build/
+.vite/
+.turbo/
+
+# ============================================================================
+# IDE & EDITOR
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# LOGS
+# ============================================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+.cache/
+temp/
+tmp/
+*.tmp
+*.temp
+
+# ============================================================================
+# TESTING
+# ============================================================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ============================================================================
+# OS FILES
+# ============================================================================
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# ============================================================================
+# DEPLOY SPECIFIC
+# ============================================================================
+
+
+# ============================================================================
+# IMPORTANT: DO NOT IGNORE THESE FILES
+# ============================================================================
+# These files MUST be committed to git:
+# ✅ pnpm-lock.yaml (or package-lock.json / yarn.lock)
+# ✅ .env.example (template for developers - NO SECRETS)
+# ✅ nuxt.config.ts (Nuxt configuration)
+# ✅ nitro.config.ts (Nitro configuration)
+# ✅ Dockerfile (Docker configuration)
+# ✅ All source code files

@@ -1,0 +1,51 @@
+# .nuxtignore - PREVENT SERVER CODE FROM PRERENDER BUNDLING
+# ============================================================================
+# ✅ FIXED: Only exclude prerender-specific files, NOT server/api
+# ============================================================================
+
+# Build Cache Directories - SAFE TO EXCLUDE
+node_modules/.cache
+.nuxt
+.output
+.nitro
+.vite
+.turbo
+dist
+
+# Development & IDE - SAFE TO EXCLUDE
+.vscode
+.idea
+.git
+.github
+
+# Testing & Coverage - SAFE TO EXCLUDE
+coverage
+.nyc_output
+*.lcov
+tests
+__tests__
+*.test.ts
+*.spec.ts
+
+# Documentation - SAFE TO EXCLUDE
+*.md
+docs
+README.md
+CHANGELOG.md
+
+# Logs - SAFE TO EXCLUDE
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# CI/CD - SAFE TO EXCLUDE
+.gitlab-ci.yml
+.circleci
+.travis.yml
+azure-pipelines.yml
+.github/workflows
+

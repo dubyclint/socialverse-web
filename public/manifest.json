@@ -1,0 +1,94 @@
+{
+  "name": "SocialVerse",
+  "short_name": "SocialVerse",
+  "description": "Connect, Share, and Grow Your Social Network",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#667eea",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": [
+    "social",
+    "productivity"
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Feed",
+      "short_name": "Feed",
+      "description": "View your social feed",
+      "url": "/feed",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "description": "View your messages",
+      "url": "/messages",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "View your profile",
+      "url": "/profile",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
+}

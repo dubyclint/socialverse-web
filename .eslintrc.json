@@ -1,0 +1,69 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:vue/vue3-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
+  "parser": "vue-eslint-parser",
+  "parserOptions": {
+    "parser": "@typescript-eslint/parser",
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": [
+    "vue",
+    "@typescript-eslint",
+    "prettier"
+  ],
+  "rules": {
+    "vue/multi-word-component-names": "off",
+    "vue/no-v-html": "off",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "prettier/prettier": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["composables/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["~/stores/*"],
+                "message": "FORBIDDEN: Top-level store imports in composables cause circular dependencies. Use lazy imports with dynamic import() inside functions."
+              },
+              {
+                "group": ["~/composables/*"],
+                "message": "WARNING: Importing other composables at top level can cause circular dependencies. Consider lazy-importing or restructuring."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["stores/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["~/composables/*"],
+                "message": "FORBIDDEN: Stores must NEVER import composables. This creates circular dependencies. Move shared logic to utils/ instead."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

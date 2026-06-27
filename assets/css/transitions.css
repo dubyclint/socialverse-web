@@ -1,0 +1,26 @@
+/* Page Transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+/* Layout Transitions */
+.layout-enter-active,
+.layout-leave-active {
+  transition: opacity 0.3s;
+}
+
+.layout-enter-from,
+.layout-leave-to {
+  opacity: 0;
+}
