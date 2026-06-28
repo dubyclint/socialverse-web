@@ -33,8 +33,8 @@ export default defineNuxtConfig({
   // SUPABASE CONFIGURATION
   // ============================================================================
   supabase: {
-    url: process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_ANON_KEY,
+    url: process.env.SUPABASE_URL || 'https://idguhsjzhfzamwrptncu.supabase.co',
+    key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkZ3Voc2p6aGZ6YW13cnB0bmN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDE2OTAsImV4cCI6MjA5NTkxNzY5MH0.xBDFcj6ifKJ0H4vqefMYc0v8j8wY9B3F8_bo2rg3V2k',
 
     redirect: true,
     redirectOptions: {
@@ -81,20 +81,22 @@ export default defineNuxtConfig({
   // RUNTIME CONFIG
   // ============================================================================
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    jwtSecret: process.env.JWT_SECRET,
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkZ3Voc2p6aGZ6YW13cnB0bmN1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0MTY5MCwiZXhwIjoyMDk1OTE3NjkwfQ.YTA-YAvcENgN5M0G808VjcaxQ4mjxPhyEOz6Rj2_-Ts',
+    jwtSecret: process.env.JWT_SECRET || 'o3S7f0UmT9eSf5tWnPt5z2oAz2DWdx73w5TWox+F3YRGzuUKUsExsyFYqJ1TQD31AbW9zCdKOzgI+MAUQkobCQ==',
+    password: process.env.PASSWORD || 'OFZr17m8U9eg0c2btlAa6q3pysG54hdD',
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://idguhsjzhfzamwrptncu.supabase.co',
       supabaseKey:
         process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ||
         process.env.NUXT_PUBLIC_SUPABASE_KEY ||
         process.env.SUPABASE_ANON_KEY ||
-        process.env.SUPABASE_KEY,
+        process.env.SUPABASE_KEY ||
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkZ3Voc2p6aGZ6YW13cnB0bmN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDE2OTAsImV4cCI6MjA5NTkxNzY5MH0.xBDFcj6ifKJ0H4vqefMYc0v8j8wY9B3F8_bo2rg3V2k',
       enablePremium: true,
       enableAnalytics: true,
     },
@@ -264,5 +266,3 @@ export default defineNuxtConfig({
     '~/plugins/01-init-app.client.ts',
   ],
 })
-
-
