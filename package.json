@@ -40,6 +40,7 @@
     "@vitalets/google-translate-api": "^9.2.0",
     "aws-sdk": "^2.1600.0",
     "bcrypt": "^5.1.1",
+     "madge": "^6.1.0",
     "chart.js": "^4.5.1",
     "emoji-picker-element": "^1.21.3",
     "compression": "^1.7.4",
