@@ -1,11 +1,14 @@
-// FILE: /stores/roles.ts
-// ✅ FIXED - Uses getSupabaseClient() instead of useSupabaseClient()
 // ============================================================================
-
+// FILE: /stores/roles.ts - RECONCILED CLEAN ESM ARCHITECTURE
+// ============================================================================
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 import { getSupabaseClient } from '~/lib/supabase-factory'
 
-interface Role {
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+export interface Role {
   id: string
   name: string
   permissions: string[]
@@ -14,7 +17,7 @@ interface Role {
   updated_at: string
 }
 
-interface Permission {
+export interface Permission {
   id: string
   name: string
   resource: string
@@ -22,110 +25,126 @@ interface Permission {
   created_at: string
 }
 
-interface RoleState {
-  roles: Role[]
-  permissions: Permission[]
-  loading: boolean
-  error: string | null
-}
+export const useRolesStore = defineStore('roles', () => {
+  // ============================================================================
+  // STATE
+  // ============================================================================
+  const roles = ref<Role[]>([])
+  const permissions = ref<Permission[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-export const useRolesStore = defineStore('roles', {
-  state: (): RoleState => ({
-    roles: [],
-    permissions: [],
-    loading: false,
-    error: null
-  }),
+  // ============================================================================
+  // GETTERS (COMPUTED PROPERTIES)
+  // ============================================================================
+  const getRoleByName = computed(() => (name: string): Role | undefined => {
+    return roles.value.find(role => role.name === name)
+  })
 
-  getters: {
-    getRoleByName: (state) => (name: string): Role | undefined => {
-      return state.roles.find(role => role.name === name)
-    },
+  const getPermissionsByRole = computed(() => (roleName: string): string[] => {
+    const role = roles.value.find(r => r.name === roleName)
+    return role?.permissions || []
+  })
 
-    getPermissionsByRole: (state) => (roleName: string): string[] => {
-      const role = state.roles.find(r => r.name === roleName)
-      return role?.permissions || []
-    },
+  const getRoleLevel = computed(() => (roleName: string): number => {
+    const role = roles.value.find(r => r.name === roleName)
+    return role?.level || 0
+  })
 
-    getRoleLevel: (state) => (roleName: string): number => {
-      const role = state.roles.find(r => r.name === roleName)
-      return role?.level || 0
-    },
+  const availableRoles = computed((): Role[] => {
+    return [...roles.value].sort((a, b) => a.level - b.level)
+  })
 
-    availableRoles: (state): Role[] => {
-      return state.roles.sort((a, b) => a.level - b.level)
-    },
+  const managerPermissions = computed((): Permission[] => {
+    const managerRole = roles.value.find(r => r.name === 'manager')
+    if (!managerRole) return []
+    return permissions.value.filter(p => managerRole.permissions.includes(p.name))
+  })
 
-    managerPermissions: (state): Permission[] => {
-      const managerRole = state.roles.find(r => r.name === 'manager')
-      if (!managerRole) return []
-      return state.permissions.filter(p => managerRole.permissions.includes(p.name))
+  // ============================================================================
+  // ACTIONS (METHODS)
+  // ============================================================================
+  const loadRoles = async () => {
+    const supabase = getSupabaseClient()
+    
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      console.error('[Roles Store] Supabase client not available')
+      return
     }
-  },
 
-  actions: {
-    async loadRoles() {
-      const supabase = getSupabaseClient()
-      
-      if (!supabase) {
-        this.error = 'Supabase client not available'
-        console.error('[Roles Store] Supabase client not available')
-        return
-      }
+    try {
+      loading.value = true
+      error.value = null
 
-      try {
-        this.loading = true
-        this.error = null
+      const { data, error: dbError } = await supabase
+        .from('roles')
+        .select('*')
+        .order('level', { ascending: true })
 
-        const { data, error } = await supabase
-          .from('roles')
-          .select('*')
-          .order('level', { ascending: true })
+      if (dbError) throw dbError
 
-        if (error) throw error
-
-        this.roles = (data || []) as Role[]
-        console.log('[Roles Store] Roles loaded successfully:', this.roles.length)
-      } catch (error) {
-        console.error('[Roles Store] Load error:', error)
-        this.error = (error as any).message || 'Failed to load roles'
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async loadPermissions() {
-      const supabase = getSupabaseClient()
-      
-      if (!supabase) {
-        this.error = 'Supabase client not available'
-        console.error('[Roles Store] Supabase client not available')
-        return
-      }
-
-      try {
-        this.loading = true
-        this.error = null
-
-        const { data, error } = await supabase
-          .from('permissions')
-          .select('*')
-          .order('resource', { ascending: true })
-
-        if (error) throw error
-
-        this.permissions = (data || []) as Permission[]
-        console.log('[Roles Store] Permissions loaded successfully:', this.permissions.length)
-      } catch (error) {
-        console.error('[Roles Store] Permissions load error:', error)
-        this.error = (error as any).message || 'Failed to load permissions'
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async loadAll() {
-      await Promise.all([this.loadRoles(), this.loadPermissions()])
+      roles.value = (data || []) as Role[]
+      console.log('[Roles Store] Roles loaded successfully:', roles.value.length)
+    } catch (err: any) {
+      console.error('[Roles Store] Load error:', err)
+      error.value = err.message || 'Failed to load roles'
+    } finally {
+      loading.value = false
     }
+  }
+
+  const loadPermissions = async () => {
+    const supabase = getSupabaseClient()
+    
+    if (!supabase) {
+      error.value = 'Supabase client not available'
+      console.error('[Roles Store] Supabase client not available')
+      return
+    }
+
+    try {
+      loading.value = true
+      error.value = null
+
+      const { data, error: dbError } = await supabase
+        .from('permissions')
+        .select('*')
+        .order('resource', { ascending: true })
+
+      if (dbError) throw dbError
+
+      permissions.value = (data || []) as Permission[]
+      console.log('[Roles Store] Permissions loaded successfully:', permissions.value.length)
+    } catch (err: any) {
+      console.error('[Roles Store] Permissions load error:', err)
+      error.value = err.message || 'Failed to load permissions'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const loadAll = async () => {
+    await Promise.all([loadRoles(), loadPermissions()])
+  }
+
+  return {
+    // State refs
+    roles,
+    permissions,
+    loading,
+    error,
+
+    // Getters
+    getRoleByName,
+    getPermissionsByRole,
+    getRoleLevel,
+    availableRoles,
+    managerPermissions,
+
+    // Actions
+    loadRoles,
+    loadPermissions,
+    loadAll
   }
 })
