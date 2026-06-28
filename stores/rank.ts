@@ -1,35 +1,11 @@
 // ============================================================================
-// FILE: /stores/rank.ts - CLEAN ESM ARCHITECTURE
-// ============================================================================
-// ✅ FIXED: Removed the invalid 'await' from the synchronous function body
-// ✅ FIXED: Eliminated 'require()' entirely to keep Vite's bundle graph pristine
-// ✅ FIXED: Safely calling useProfileStore() inside runtime functions to prevent initialization locks
+// FILE: /stores/rank.ts - CLEAN ESM ARCHITECTURE (FULLY REACTIVE)
 // ============================================================================
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { useProfileStore } from '~/stores/profile'
 
 export const useRankStore = defineStore('rank', () => {
-  // ============================================================================
-  // DEFERRED PROPERTY RESOLUTION HELPER
-  // Evaluates values at runtime when computeds fire, preventing circular blocks
-  // ============================================================================
-  const getSafeProfileValue = (key: 'rank' | 'rankPoints' | 'rankLevel', fallback: any) => {
-    try {
-      const profileStore = useProfileStore()
-      return profileStore[key] ?? fallback
-    } catch (err) {
-      console.warn(`[Rank Store] Failed to lazily resolve profile key "${key}":`, err)
-      return fallback
-    }
-  }
-
-  // ============================================================================
-  // COMPUTED PROPERTIES
-  // ============================================================================
-  const rankPoints = computed(() => getSafeProfileValue('rankPoints', 0))
-  const rankLevel = computed(() => getSafeProfileValue('rankLevel', 1))
-  const activeRank = computed(() => getSafeProfileValue('rank', 'Bronze I'))
 
   // ============================================================================
   // RANK TIER INFORMATION
@@ -43,13 +19,44 @@ export const useRankStore = defineStore('rank', () => {
     { name: 'Silver III', minPoints: 500, maxPoints: 599 },
     { name: 'Gold I', minPoints: 600, maxPoints: 699 },
     { name: 'Gold II', minPoints: 700, maxPoints: 799 },
-    { name: 'Gold III', minPoints: 800, maxPoints: 899 },
+    { name: 'Gold III', minPoints: 800, maxPoints: 889 },
     { name: 'Platinum I', minPoints: 900, maxPoints: 999 },
     { name: 'Platinum II', minPoints: 1000, maxPoints: 1099 },
     { name: 'Platinum III', minPoints: 1100, maxPoints: 1199 },
     { name: 'Diamond', minPoints: 1200, maxPoints: Infinity }
   ]
 
+  // ============================================================================
+  // LAZY REACTIVE COMPUTED PROPERTIES
+  // ✅ FIXED: Direct functional mapping preserves Vue/Pinia dependency tracking
+  // ============================================================================
+  const rankPoints = computed(() => {
+    try {
+      return useProfileStore().rankPoints ?? 0
+    } catch {
+      return 0
+    }
+  })
+
+  const rankLevel = computed(() => {
+    try {
+      return useProfileStore().rankLevel ?? 1
+    } catch {
+      return 1
+    }
+  })
+
+  const activeRank = computed(() => {
+    try {
+      return useProfileStore().rank ?? 'Bronze I'
+    } catch {
+      return 'Bronze I'
+    }
+  })
+
+  // ============================================================================
+  // DERIVED LAYER RE-EVALUATIONS
+  // ============================================================================
   const currentRankTier = computed(() => {
     return rankTiers.find(tier => 
       rankPoints.value >= tier.minPoints && rankPoints.value <= tier.maxPoints
@@ -96,7 +103,6 @@ export const useRankStore = defineStore('rank', () => {
   }
 
   return {
-    // Computed Properties
     rank: activeRank,
     rankPoints,
     rankLevel,
@@ -104,8 +110,6 @@ export const useRankStore = defineStore('rank', () => {
     nextRankTier,
     pointsToNextRank,
     rankProgress,
-
-    // Methods
     getRankColor,
     getRankIcon
   }
