@@ -1,3 +1,6 @@
+// ============================================================================
+// FILE: /stores/profile.ts - CLEAN ESM ARCHITECTURE
+// ============================================================================
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Profile, ProfileUpdateInput, ProfileCompleteInput } from '~/types/profile'
@@ -54,7 +57,7 @@ export const useProfileStore = defineStore('profile', () => {
   const hasAvatar = computed(() => !!profile.value?.avatar_url)
 
   // ============================================================================
-  // HELPERS
+  // HELPERS & LAZY STORE GRAPH RESOLUTION
   // ============================================================================
   const storageKeyForUser = (uid: string) => `profile_data:${uid}`
 
@@ -70,12 +73,16 @@ export const useProfileStore = defineStore('profile', () => {
     } as Profile
   }
 
-  // ✅ SAFELY EXTRACTED: Pinia lazy dynamic evaluation
+  // Prevents multiple concurrent API/Method fires from spawning duplicate module import cycles
+  let _authStorePromise: any = null
+
   const getAuthStore = async () => {
+    if (_authStorePromise) return _authStorePromise
     try {
-      const { useAuthStore } = await import('~/stores/auth')
-      return useAuthStore()
+      _authStorePromise = import('~/stores/auth').then(m => m.useAuthStore())
+      return await _authStorePromise
     } catch (err) {
+      _authStorePromise = null
       console.error('[Profile Store] Failed to import auth store:', err)
       return null
     }
@@ -141,7 +148,6 @@ export const useProfileStore = defineStore('profile', () => {
         return
       }
 
-      // Perform the mutations inside the tick cleanly
       profile.value = normalized
       profileMissing.value = false
 
