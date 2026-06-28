@@ -1,11 +1,12 @@
 // ============================================================================
-// FILE: /stores/rank.ts - CLEAN ESM ARCHITECTURE (FULLY REACTIVE)
+// FILE: /stores/rank.ts - FIXED: No Circular Dependencies
 // ============================================================================
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
-import { useProfileStore } from '~/stores/profile'
+import { useSharedState } from '~/composables/useSharedState'
 
 export const useRankStore = defineStore('rank', () => {
+  const { rankState } = useSharedState()
 
   // ============================================================================
   // RANK TIER INFORMATION
@@ -27,35 +28,14 @@ export const useRankStore = defineStore('rank', () => {
   ]
 
   // ============================================================================
-  // LAZY REACTIVE COMPUTED PROPERTIES
-  // ✅ FIXED: Direct functional mapping preserves Vue/Pinia dependency tracking
+  // REACTIVE COMPUTED PROPERTIES (from shared state)
   // ============================================================================
-  const rankPoints = computed(() => {
-    try {
-      return useProfileStore().rankPoints ?? 0
-    } catch {
-      return 0
-    }
-  })
-
-  const rankLevel = computed(() => {
-    try {
-      return useProfileStore().rankLevel ?? 1
-    } catch {
-      return 1
-    }
-  })
-
-  const activeRank = computed(() => {
-    try {
-      return useProfileStore().rank ?? 'Bronze I'
-    } catch {
-      return 'Bronze I'
-    }
-  })
+  const rankPoints = computed(() => rankState.rankPoints ?? 0)
+  const rankLevel = computed(() => rankState.rankLevel ?? 1)
+  const activeRank = computed(() => rankState.rankTitle ?? 'Bronze I')
 
   // ============================================================================
-  // DERIVED LAYER RE-EVALUATIONS
+  // DERIVED COMPUTATIONS
   // ============================================================================
   const currentRankTier = computed(() => {
     return rankTiers.find(tier => 
@@ -65,7 +45,9 @@ export const useRankStore = defineStore('rank', () => {
 
   const nextRankTier = computed(() => {
     const currentIndex = rankTiers.findIndex(tier => tier.name === activeRank.value)
-    return currentIndex !== -1 && currentIndex < rankTiers.length - 1 ? rankTiers[currentIndex + 1] : null
+    return currentIndex !== -1 && currentIndex < rankTiers.length - 1 
+      ? rankTiers[currentIndex + 1] 
+      : null
   })
 
   const pointsToNextRank = computed(() => {
@@ -82,7 +64,7 @@ export const useRankStore = defineStore('rank', () => {
   })
 
   // ============================================================================
-  // METHODS
+  // UTILITY METHODS
   // ============================================================================
   const getRankColor = (rankName: string): string => {
     if (rankName.includes('Bronze')) return '#CD7F32'
