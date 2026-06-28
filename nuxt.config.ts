@@ -1,5 +1,5 @@
 // ============================================================================
-// FILE: /nuxt.config.ts - COMPLETE PRODUCTION CONFIGURATION FOR NUXT 4
+// FILE: /nuxt.config.ts - SECURED PRODUCTION CONFIGURATION FOR NUXT 4
 // ============================================================================
 
 export default defineNuxtConfig({
@@ -12,7 +12,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // MODULES
+  // MODULES & PINIA LAYER AUTO-IMPORTS
   // ============================================================================
   modules: [
     '@nuxtjs/supabase',
@@ -20,6 +20,10 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
   ],
+
+  pinia: {
+    storesDirs: ['./stores/**'],
+  },
 
   // ============================================================================
   // ALIAS RESOLUTION
@@ -30,12 +34,11 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // SUPABASE CONFIGURATION
+  // SUPABASE CONFIGURATION (READ FROM ENV FOR MAXIMUM SECURITY)
   // ============================================================================
   supabase: {
-    url: process.env.SUPABASE_URL || 'https://idguhsjzhfzamwrptncu.supabase.co',
-    key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkZ3Voc2p6aGZ6YW13cnB0bmN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDE2OTAsImV4cCI6MjA5NTkxNzY5MH0.xBDFcj6ifKJ0H4vqefMYc0v8j8wY9B3F8_bo2rg3V2k',
-
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY,
     redirect: true,
     redirectOptions: {
       login: '/signin',
@@ -78,25 +81,20 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // RUNTIME CONFIG
+  // RUNTIME CONFIG (100% SECURED VIA PROCESS.ENV AUTORESOLUTIONS)
   // ============================================================================
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkZ3Voc2p6aGZ6YW13cnB0bmN1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM0MTY5MCwiZXhwIjoyMDk1OTE3NjkwfQ.YTA-YAvcENgN5M0G808VjcaxQ4mjxPhyEOz6Rj2_-Ts',
-    jwtSecret: process.env.JWT_SECRET || 'o3S7f0UmT9eSf5tWnPt5z2oAz2DWdx73w5TWox+F3YRGzuUKUsExsyFYqJ1TQD31AbW9zCdKOzgI+MAUQkobCQ==',
-    password: process.env.PASSWORD || 'OFZr17m8U9eg0c2btlAa6q3pysG54hdD',
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    jwtSecret: process.env.JWT_SECRET,
+    password: process.env.PASSWORD,
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://idguhsjzhfzamwrptncu.supabase.co',
-      supabaseKey:
-        process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ||
-        process.env.NUXT_PUBLIC_SUPABASE_KEY ||
-        process.env.SUPABASE_ANON_KEY ||
-        process.env.SUPABASE_KEY ||
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlkZ3Voc2p6aGZ6YW13cnB0bmN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDE2OTAsImV4cCI6MjA5NTkxNzY5MH0.xBDFcj6ifKJ0H4vqefMYc0v8j8wY9B3F8_bo2rg3V2k',
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
       enablePremium: true,
       enableAnalytics: true,
     },
@@ -114,7 +112,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // APP HEAD / PWA / TRANSITIONS
+  // APP HEAD / DEFERRALS / TRANSITIONS
   // ============================================================================
   app: {
     head: {
@@ -155,7 +153,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // VITE - OPTIMIZED WITH CODE SPLITTING
+  // VITE - OPTIMIZED WITH SEGREGATED CODE SPLITTING
   // ============================================================================
   vite: {
     optimizeDeps: {
@@ -171,41 +169,24 @@ export default defineNuxtConfig({
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('@vue') || id.includes('vue-router')) {
-                return 'vue-core'
-              }
-              if (id.includes('@headlessui') || id.includes('@heroicons')) {
-                return 'ui-libs'
-              }
-              if (id.includes('@supabase')) {
-                return 'supabase'
-              }
-              if (id.includes('pinia')) {
-                return 'pinia-store'
-              }
-              if (id.includes('web3')) {
-                return 'web3-lib'
-              }
-              if (id.includes('gun')) {
-                return 'gun-db'
-              }
-              if (id.includes('@tensorflow')) {
-                return 'tensorflow-lib'
-              }
-              if (id.includes('socket.io')) {
-                return 'socket-io'
-              }
+              if (id.includes('@vue') || id.includes('vue-router')) return 'vue-core'
+              if (id.includes('@headlessui') || id.includes('@heroicons')) return 'ui-libs'
+              if (id.includes('@supabase')) return 'supabase'
+              if (id.includes('pinia')) return 'pinia-store'
+              if (id.includes('web3')) return 'web3-lib'
+              if (id.includes('gun')) return 'gun-db'
+              if (id.includes('@tensorflow')) return 'tensorflow-lib'
+              if (id.includes('socket.io')) return 'socket-io'
               return 'vendor'
             }
 
-            // ✅ CRITICAL: Separate stores into individual chunks to prevent circular bundling
+            // Segregate each store to avoid sharing space in a shared bundle chunk
             if (id.includes('/stores/')) {
-              const match = id.match(/stores\/([^/]+)\.ts/)
+              const match = id.match(/stores\/([^/]+)\.(ts|js)/)
               if (match) {
                 return `store-${match[1]}`
               }
             }
-
             return 'app'
           },
         },
@@ -257,10 +238,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // PLUGIN INITIALIZATION ORDER (CRITICAL FIX FOR CIRCULAR DEPENDENCIES)
-  // ============================================================================
-  // ✅ ONLY ONE PLUGIN: 01-init-app.client.ts
-  // ✅ REMOVED: auth.client.ts, profile.client.ts, initialize-profile.client.ts
+  // PLUGIN INITIALIZATION ORDER
   // ============================================================================
   plugins: [
     '~/plugins/01-init-app.client.ts',
