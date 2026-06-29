@@ -34,7 +34,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // SUPABASE CONFIGURATION (FIXED COOKIE REDIRECTS FOR SERVER ENDPOINTS)
+  // SUPABASE CONFIGURATION (OPTIMIZED FOR NUXT 4 HYDRATION)
   // ============================================================================
   supabase: {
     url: process.env.SUPABASE_URL,
@@ -68,7 +68,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ROUTE RULES & CACHING (FIXED: WILD-CARD CACHING BANNED ON AUTH ENTRIES)
+  // ROUTE RULES & CACHING (BYPASSING CACHE FOR ALL DYNAMIC AUTH ENTRIES)
   // ============================================================================
   routeRules: {
     '/_nuxt/**': { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
@@ -78,7 +78,7 @@ export default defineNuxtConfig({
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
     
-    // Explicitly configure user-centric routes to bypass Nitro server caching
+    // Explicitly enforce zero-cache rules across server routes
     '/api/auth/**': { cache: false },
     '/api/profile/**': { cache: false },
     '/api/messages/**': { cache: false },
@@ -116,7 +116,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // APP HEAD / DEFERRALS / TRANSITIONS
+  // APP HEAD & ROUTING (REMOVED TRANSITIONS TO PREVENT HYDRATION DOUBLE-TIMING)
   // ============================================================================
   app: {
     baseURL: process.env.NUXT_APP_BASE_URL || '/',
@@ -154,8 +154,9 @@ export default defineNuxtConfig({
         },
       ],
     },
-    pageTransition: { name: 'page', mode: 'out-in', duration: 300 },
-    layoutTransition: { name: 'layout', mode: 'out-in', duration: 300 },
+    // Deactivated transitions to prevent collision with automated auth redirects
+    pageTransition: false,
+    layoutTransition: false,
   },
 
   // ============================================================================
