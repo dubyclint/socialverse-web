@@ -54,7 +54,6 @@ export default defineNuxtConfig({
         '/terms-and-policy',
         '/offline.html',
       ],
-      // Fixed: Switched to true to resolve Nitro 500 server crashes and undefined path readings
       cookieRedirect: true,
       saveRedirectToCookie: true,
     },
@@ -69,7 +68,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ROUTE RULES & CACHING
+  // ROUTE RULES & CACHING (FIXED: WILD-CARD CACHING BANNED ON AUTH ENTRIES)
   // ============================================================================
   routeRules: {
     '/_nuxt/**': { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
@@ -78,7 +77,11 @@ export default defineNuxtConfig({
     '/offline.html': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
-    '/api/**': { cache: { maxAge: 60 * 10 } },
+    
+    // Explicitly configure user-centric routes to bypass Nitro server caching
+    '/api/auth/**': { cache: false },
+    '/api/profile/**': { cache: false },
+    '/api/messages/**': { cache: false },
   },
 
   // ============================================================================
