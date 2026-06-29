@@ -34,7 +34,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // SUPABASE CONFIGURATION (READ FROM ENV FOR MAXIMUM SECURITY)
+  // SUPABASE CONFIGURATION (FIXED COOKIE REDIRECTS FOR SERVER ENDPOINTS)
   // ============================================================================
   supabase: {
     url: process.env.SUPABASE_URL,
@@ -54,8 +54,9 @@ export default defineNuxtConfig({
         '/terms-and-policy',
         '/offline.html',
       ],
-      cookieRedirect: false,
-      saveRedirectToCookie: false,
+      // Fixed: Switched to true to resolve Nitro 500 server crashes and undefined path readings
+      cookieRedirect: true,
+      saveRedirectToCookie: true,
     },
 
     cookieOptions: {
@@ -115,8 +116,6 @@ export default defineNuxtConfig({
   // APP HEAD / DEFERRALS / TRANSITIONS
   // ============================================================================
   app: {
-    // Base URL for asset resolution in production
-    // Must match NUXT_APP_BASE_URL environment variable on deployment
     baseURL: process.env.NUXT_APP_BASE_URL || '/',
 
     head: {
@@ -172,13 +171,10 @@ export default defineNuxtConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
-            // Reconciled: Aggressive splitting of core modules removed to prevent circular 
-            // initialization loops (fixes "Cannot access 'Y' before initialization").
             if (id.includes('node_modules')) {
               return 'vendor'
             }
 
-            // Safely segregate each store to keep your architectural state layers decoupled
             if (id.includes('/stores/')) {
               const match = id.match(/stores\/([^/]+)\.(ts|js)/)
               if (match) {
