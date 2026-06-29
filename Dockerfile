@@ -11,8 +11,8 @@ WORKDIR /src
 # Copy package config safely
 COPY package.json package-lock.json* ./
 
-# Install ALL dependencies (including devDependencies like rolldown)
-RUN npm ci || npm install
+# Install ALL core dependencies, bypassing heavy uncompiled native bindings
+RUN npm install --no-optional
 
 # Copy source code assets
 COPY . .
@@ -21,11 +21,11 @@ COPY . .
 ENV NITRO_PRESET=node-server
 ENV NODE_ENV=production
 
-# Run production build with allocated memory limits if needed
+# Run production build with memory allocation limits
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # ============================================================================
-# STAGE 2: PRODUCTION RUNTIME BOUNDARY (No npm install required)
+# STAGE 2: PRODUCTION RUNTIME BOUNDARY (No extra dependencies needed)
 # ============================================================================
 FROM node:22-slim AS runner
 
@@ -35,8 +35,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOST=0.0.0.0
 
-# ✅ Nuxt standalone (.output) contains its own bundled node_modules inside 
-# .output/server/node_modules. We do NOT need to run npm install here!
+# Copy the complete, self-contained bundle compiled by Nitro
 COPY --from=builder /src/.output ./.output
 
 EXPOSE 8080
