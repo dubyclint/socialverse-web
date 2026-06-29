@@ -115,6 +115,10 @@ export default defineNuxtConfig({
   // APP HEAD / DEFERRALS / TRANSITIONS
   // ============================================================================
   app: {
+    // Base URL for asset resolution in production
+    // Must match NUXT_APP_BASE_URL environment variable on deployment
+    baseURL: process.env.NUXT_APP_BASE_URL || '/',
+
     head: {
       title: 'SocialVerse - Connect, Share, and Grow',
       meta: [
