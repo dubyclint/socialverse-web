@@ -157,7 +157,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // VITE - OPTIMIZED WITH SEGREGATED CODE SPLITTING
+  // VITE - OPTIMIZED WITH SAFE CHUNK ALLOCATION
   // ============================================================================
   vite: {
     optimizeDeps: {
@@ -172,30 +172,23 @@ export default defineNuxtConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
+            // Reconciled: Aggressive splitting of core modules removed to prevent circular 
+            // initialization loops (fixes "Cannot access 'Y' before initialization").
             if (id.includes('node_modules')) {
-              if (id.includes('@vue') || id.includes('vue-router')) return 'vue-core'
-              if (id.includes('@headlessui') || id.includes('@heroicons')) return 'ui-libs'
-              if (id.includes('@supabase')) return 'supabase'
-              if (id.includes('pinia')) return 'pinia-store'
-              if (id.includes('web3')) return 'web3-lib'
-              if (id.includes('gun')) return 'gun-db'
-              if (id.includes('@tensorflow')) return 'tensorflow-lib'
-              if (id.includes('socket.io')) return 'socket-io'
               return 'vendor'
             }
 
-            // Segregate each store to avoid sharing space in a shared bundle chunk
+            // Safely segregate each store to keep your architectural state layers decoupled
             if (id.includes('/stores/')) {
               const match = id.match(/stores\/([^/]+)\.(ts|js)/)
               if (match) {
                 return `store-${match[1]}`
               }
             }
-            return 'app'
           },
         },
       },
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2000,
     },
   },
 
