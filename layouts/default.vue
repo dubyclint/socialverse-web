@@ -128,8 +128,7 @@
     </main>
 
     <aside v-if="showRightSidebar" class="right-sidebar hidden lg:block">
-      <slot name="right-sidebar">
-        </slot>
+      <slot name="right-sidebar"></slot>
     </aside>
 
     <div v-if="sidebarOpen" class="sidebar-overlay" @click="closeSidebar"></div>
@@ -138,6 +137,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+// useRoute is auto-imported by Nuxt 3, but keeping explicit import is fine if preferred:
 import { useRoute } from 'vue-router'
 
 // ============================================================================
@@ -149,6 +149,7 @@ const showRightSidebar = ref(false)
 const unreadCount = ref(0)
 
 // ✅ SAFE: Centralized defensive fallback for path resolution context
+// This prevents SSR crashes if route.path is temporarily undefined during hydration
 const safelyResolvedPath = computed(() => route?.path || '/')
 
 // ============================================================================
@@ -174,7 +175,7 @@ const toggleUserMenu = () => {
   // Handle user menu toggle
 }
 
-// ✅ SAFE: Uses localized fallback structure to shield layout components from crashing
+// ✅ SAFE: Defensively evaluates the current route path
 const isActive = (path: string) => {
   return safelyResolvedPath.value.startsWith(path)
 }
