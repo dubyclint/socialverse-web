@@ -1,31 +1,18 @@
-<!-- FILE: /layouts/default.vue - COMPLETE MOBILE RESPONSIVE FIX -->
-<!-- ============================================================================
-     DEFAULT LAYOUT - MOBILE RESPONSIVE VERSION
-     ✅ FIXED: All CSS broken values corrected
-     ✅ FIXED: Missing imports added
-     ✅ FIXED: Mobile-first responsive design
-     ✅ FIXED: Proper sidebar behavior on all devices
-     ✅ FIXED: Touch-friendly button sizes
-     ✅ FIXED: Tailwind utility classes integrated
-     ============================================================================ -->
-
 <template>
   <div class="app-layout">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="sidebar-header">
         <NuxtLink to="/feed" class="sidebar-logo">
           <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
           <span class="logo-text">SocialVerse</span>
         </NuxtLink>
-        <button @click="closeSidebar" class="sidebar-close md:hidden">
+        <button @click="closeSidebar" class="sidebar-close md:hidden" aria-label="Close Navigation Menu">
           <Icon name="x" size="24" />
         </button>
       </div>
 
       <div class="sidebar-content">
         <slot name="sidebar">
-          <!-- Default sidebar content -->
           <nav class="sidebar-nav">
             <NuxtLink 
               to="/feed" 
@@ -67,7 +54,6 @@
               <span>Chat</span>
             </NuxtLink>
             
-            <!-- ✅ FIXED: Wrap notification link with badge in ClientOnly -->
             <NuxtLink 
               to="/notifications" 
               class="nav-item" 
@@ -81,7 +67,6 @@
               </ClientOnly>
             </NuxtLink>
             
-            <!-- ✅ FIXED: Wrap profile link in ClientOnly -->
             <ClientOnly>
               <NuxtLink 
                 to="/profile" 
@@ -98,15 +83,18 @@
       </div>
     </aside>
 
-    <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Header -->
       <header class="app-header">
         <div class="header-left">
-          <button @click="toggleSidebar" class="sidebar-toggle lg:hidden">
+          <button 
+            @click="toggleSidebar" 
+            class="sidebar-toggle md:hidden" 
+            aria-label="Open Navigation Menu"
+          >
             <Icon name="menu" size="24" />
           </button>
-          <NuxtLink to="/feed" class="logo hidden sm:flex">
+          
+          <NuxtLink to="/feed" class="logo hidden md:flex">
             <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
             <span class="logo-text">SocialVerse</span>
           </NuxtLink>
@@ -114,22 +102,19 @@
 
         <div class="header-right">
           <slot name="header-actions">
-            <!-- Default header actions -->
-            <button class="icon-btn hidden sm:flex" @click="toggleSearch">
+            <button class="icon-btn hidden sm:flex" @click="toggleSearch" aria-label="Search">
               <Icon name="search" size="20" />
             </button>
             
-            <!-- ✅ FIXED: Wrap notification button with badge in ClientOnly -->
             <ClientOnly>
-              <button class="icon-btn" @click="toggleNotifications">
+              <button class="icon-btn" @click="toggleNotifications" aria-label="View Notifications">
                 <Icon name="bell" size="20" />
                 <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
               </button>
             </ClientOnly>
             
-            <!-- ✅ FIXED: Wrap user menu button in ClientOnly -->
             <ClientOnly>
-              <button class="icon-btn" @click="toggleUserMenu">
+              <button class="icon-btn" @click="toggleUserMenu" aria-label="User Menu">
                 <Icon name="user" size="20" />
               </button>
             </ClientOnly>
@@ -137,26 +122,22 @@
         </div>
       </header>
 
-      <!-- Page Content -->
       <div class="page-content">
         <slot />
       </div>
     </main>
 
-    <!-- Right Sidebar (Optional) -->
     <aside v-if="showRightSidebar" class="right-sidebar hidden lg:block">
       <slot name="right-sidebar">
-        <!-- Default right sidebar content -->
-      </slot>
+        </slot>
     </aside>
 
-    <!-- Mobile Overlay -->
     <div v-if="sidebarOpen" class="sidebar-overlay" @click="closeSidebar"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 // ============================================================================
@@ -167,43 +148,41 @@ const sidebarOpen = ref(false)
 const showRightSidebar = ref(false)
 const unreadCount = ref(0)
 
+// ✅ SAFE: Centralized defensive fallback for path resolution context
+const safelyResolvedPath = computed(() => route?.path || '/')
+
 // ============================================================================
 // METHODS
 // ============================================================================
 const toggleSidebar = () => {
-  console.log('[Layout] Toggle sidebar')
   sidebarOpen.value = !sidebarOpen.value
 }
 
 const closeSidebar = () => {
-  console.log('[Layout] Close sidebar')
   sidebarOpen.value = false
 }
 
 const toggleSearch = () => {
-  console.log('[Layout] Toggle search')
   // Handle search toggle
 }
 
 const toggleNotifications = () => {
-  console.log('[Layout] Toggle notifications')
   // Handle notifications toggle
 }
 
 const toggleUserMenu = () => {
-  console.log('[Layout] Toggle user menu')
   // Handle user menu toggle
 }
 
+// ✅ SAFE: Uses localized fallback structure to shield layout components from crashing
 const isActive = (path: string) => {
-  return route.path.startsWith(path)
+  return safelyResolvedPath.value.startsWith(path)
 }
 
 // ============================================================================
-// WATCHERS - Close sidebar on route change
+// WATCHERS - Close sidebar safely on route changes
 // ============================================================================
-watch(() => route.path, () => {
-  console.log('[Layout] Route changed, closing sidebar')
+watch(safelyResolvedPath, () => {
   sidebarOpen.value = false
 })
 </script>
@@ -457,7 +436,7 @@ watch(() => route.path, () => {
 }
 
 /* ============================================================================
-   RESPONSIVE BREAKPOINTS
+   RESPONSIVE BREAKPOINTS (MATCHES NUXT TAILWIND STYLES AT 768px)
    ============================================================================ */
 
 /* Tablet (768px and up) */
