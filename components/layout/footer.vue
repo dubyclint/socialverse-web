@@ -1,9 +1,7 @@
 <template>
   <footer class="modern-footer">
     <div class="footer-container">
-      <!-- Footer Content -->
       <div class="footer-content">
-        <!-- Logo and Description -->
         <div class="footer-section">
           <div class="footer-logo">
             <img src="/logo.svg" alt="SocialVerse" />
@@ -29,7 +27,6 @@
           </div>
         </div>
 
-        <!-- Quick Links -->
         <div class="footer-section">
           <h4>Quick Links</h4>
           <ul class="footer-links">
@@ -40,7 +37,6 @@
           </ul>
         </div>
 
-        <!-- Support -->
         <div class="footer-section">
           <h4>Support</h4>
           <ul class="footer-links">
@@ -51,7 +47,6 @@
           </ul>
         </div>
 
-        <!-- Legal -->
         <div class="footer-section">
           <h4>Legal</h4>
           <ul class="footer-links">
@@ -63,50 +58,52 @@
         </div>
       </div>
 
-      <!-- Footer Bottom -->
       <div class="footer-bottom">
         <div class="footer-bottom-content">
           <p>&copy; 2024 SocialVerse. All rights reserved.</p>
           
-          <!-- User Actions -->
-          <div class="user-actions">
-            <div class="user-info">
-              <img :src="user.avatar || '/default-avatar.png'" :alt="user.name" class="user-avatar" />
-              <span>{{ user.name }}</span>
+          <ClientOnly>
+            <div class="user-actions">
+              <div class="user-info">
+                <img :src="user.avatar" :alt="user.name" class="user-avatar" />
+                <span>{{ user.name }}</span>
+              </div>
+              
+              <button @click="logout" class="logout-btn" :disabled="authLoading">
+                <Icon name="log-out" size="18" />
+                <span>{{ authLoading ? 'Logging out...' : 'Logout' }}</span>
+              </button>
             </div>
-            
-            <button @click="logout" class="logout-btn">
-              <Icon name="log-out" size="18" />
-              <span>Logout</span>
-            </button>
-          </div>
+          </ClientOnly>
         </div>
       </div>
     </div>
   </footer>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import { computed } from 'vue'
 
-// User data (would come from your auth store)
-const user = ref({
-  name: 'John Doe',
-  avatar: '/default-avatar.png'
-})
+// Assuming your app uses these auto-imported composables/stores
+const authStore = useAuthStore()
+const { logout: performLogout, loading: authLoading } = useAuth()
+
+// ✅ Synced computed state instead of hardcoded dummy data
+const user = computed(() => ({
+  name: authStore.userDisplayName || 'User',
+  avatar: authStore.userAvatar || '/default-avatar.png'
+}))
 
 const logout = async () => {
   try {
-    // Implement logout logic
-    // await $fetch('/api/auth/logout', { method: 'POST' })
-    
-    // Clear user session
-    // await clearNuxtData()
-    
-    // Redirect to login page
-    await navigateTo('/login')
+    // ✅ Defensively ensure navigation and session clearing only happens in the browser
+    if (import.meta.client) {
+      await performLogout()
+      // Note: If performLogout() doesn't handle the navigateTo('/login') internally, 
+      // you should add it directly underneath it here.
+    }
   } catch (error) {
-    console.error('Logout error:', error)
+    console.error('[Footer] Logout error:', error)
   }
 }
 </script>
@@ -246,10 +243,15 @@ const logout = async () => {
   font-weight: 500;
 }
 
-.logout-btn:hover {
+.logout-btn:hover:not(:disabled) {
   background: rgba(231, 76, 60, 0.3);
   border-color: rgba(231, 76, 60, 0.5);
   transform: translateY(-1px);
+}
+
+.logout-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Responsive Design */
@@ -293,4 +295,3 @@ const logout = async () => {
   }
 }
 </style>
-
