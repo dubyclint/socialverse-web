@@ -1,12 +1,5 @@
-<!-- FILE: /layouts/manager.vue - MANAGER PANEL LAYOUT -->
-<!-- ============================================================================
-     MANAGER LAYOUT - Used for manager/admin pages
-     Includes: Manager sidebar, header, and main content area
-     ============================================================================ -->
-
 <template>
   <div class="manager-layout">
-    <!-- Manager Sidebar -->
     <aside class="manager-sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="sidebar-header">
         <NuxtLink to="/manager" class="logo">
@@ -49,9 +42,7 @@
       </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="manager-main">
-      <!-- Header -->
       <header class="manager-header">
         <button @click="toggleSidebar" class="sidebar-toggle">
           <Icon name="menu" size="24" />
@@ -67,33 +58,37 @@
         </div>
       </header>
 
-      <!-- Page Content -->
       <div class="manager-content">
         <slot />
       </div>
     </main>
 
-    <!-- Sidebar Overlay (Mobile) -->
     <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+// ✅ FIX: Added watch to the import statement
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
 
+// ✅ SAFE: Centralized defensive fallback for path resolution context
+const safelyResolvedPath = computed(() => route?.path || '/')
+
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
 }
 
+// ✅ SAFE: Defensively evaluates the current route path
 const isActive = (path: string) => {
-  return route.path.startsWith(path)
+  return safelyResolvedPath.value.startsWith(path)
 }
 
+// ✅ SAFE: Uses safelyResolvedPath so it doesn't crash if route.path is undefined
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     '/manager': 'Manager Dashboard',
@@ -102,7 +97,7 @@ const pageTitle = computed(() => {
     '/admin/analytics': 'Analytics',
     '/admin/security': 'Security',
   }
-  return titles[route.path] || 'Manager Panel'
+  return titles[safelyResolvedPath.value] || 'Manager Panel'
 })
 
 const toggleUserMenu = () => {
@@ -110,12 +105,20 @@ const toggleUserMenu = () => {
 }
 
 const logout = async () => {
-  // Handle logout
-  await router.push('/signin')
+  try {
+    // Implement any auth clearing logic here first
+
+    // ✅ SAFE: Defensively ensure navigation only happens in the browser context
+    if (import.meta.client) {
+      await router.push('/signin')
+    }
+  } catch (error) {
+    console.error('[Manager Layout] Logout error:', error)
+  }
 }
 
-// Close sidebar on route change
-watch(() => route.path, () => {
+// ✅ SAFE: Watch the computed safe path instead of raw route.path
+watch(safelyResolvedPath, () => {
   sidebarOpen.value = false
 })
 </script>
