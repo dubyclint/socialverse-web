@@ -3,9 +3,12 @@
 // ============================================================================
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  // 1. Guard against undefined route object
+  if (!to || !to.path) return
+
   const path = to.path.replace(/\/$/, '') || '/'
 
-  // 1. Skip if it's a public route
+  // 2. Skip if it's a public route
   const publicRoutes = ['/', '/signin', '/signup', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email', '/terms-and-policy', '/privacy-policy', '/error']
   const startsWithSegment = (p: string, prefix: string) => p === prefix || p.startsWith(`${prefix}/`)
   if (publicRoutes.some((r) => startsWithSegment(path, r))) return
@@ -13,33 +16,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const profileStore = useProfileStore()
   const tokenCookie = useCookie('auth_token')
 
-  // 2. Auth Guard (Fail-safe)
+  // 3. Auth Guard
   if (!tokenCookie.value) {
     return navigateTo('/signin', { replace: true })
   }
 
-  // 3. Profile Completion Check
+  // 4. Redirect Logic (Non-blocking)
   const onCompletePage = startsWithSegment(path, '/profile/complete')
   const onCompleteSuccessPage = startsWithSegment(path, '/profile/complete-success')
 
-  // Ensure we have the profile (Works on Server and Client)
-  // Ensure profileStore.fetchProfile() is SSR-safe (passes Authorization header)
-  let profile = profileStore.profile
-  if (!profile) {
-    try {
-      await profileStore.fetchProfile()
-      profile = profileStore.profile
-    } catch (err: any) {
-      // If we can't fetch profile, assume it's missing or handle error
-      profile = null
-    }
-  }
-
+  // We check the STORE state. We do NOT await a fetch here.
+  // If the profile is null, we assume the user might need to complete it.
+  const profile = profileStore.profile
   const isComplete = profile?.profile_completed === true
 
-  // 4. Redirect Logic
-  if (!isComplete) {
-    // If not complete and not on the completion pages, lock them in
+  // If user is missing profile data (or explicitly marked incomplete)
+  if (!profile || !isComplete) {
     if (!onCompletePage && !onCompleteSuccessPage) {
       return navigateTo('/profile/complete', { replace: true })
     }
