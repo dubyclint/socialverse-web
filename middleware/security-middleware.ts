@@ -1,44 +1,39 @@
 // ============================================================================
-// FILE: /middleware/security-middleware.ts
+// FILE: /middleware/security-middleware.ts - GLOBAL SECURITY GUARD
 // ============================================================================
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  // 🚨 CRITICAL FIX: Removed `if (process.server) return`
-  // Security checks MUST run on the server to prevent leaking unauthorized HTML.
+  // 1. Safety Guard for undefined route
+  if (!to || !to.path) return
 
   const authStore = useAuthStore()
 
   try {
-    // 1. Failsafe Authentication Check
-    // If a route has this middleware but forgot to include the auth middleware,
-    // we catch them here. Because our store uses cookies, isAuthenticated works on the server.
+    // 2. Authentication Check
+    // If we reach here and the user isn't authenticated, redirect.
     if (!authStore.isAuthenticated) {
       console.warn(`[Security] Blocked unauthenticated access to: ${to.path}`)
       return navigateTo('/signin', { replace: true })
     }
 
-    // 2. Role-Based Access Control (RBAC)
+    // 3. Role-Based Access Control (RBAC)
     const userRole = authStore.user?.role || 'user'
 
-    // Example: Protecting Admin Routes
+    // Protecting Admin Routes
     if (to.path.startsWith('/admin')) {
       if (userRole !== 'admin') {
-        console.warn(`[Security] User ${authStore.userId} denied access to admin route: ${to.path}`)
-        
-        // Redirect unauthorized users to the feed, or throw a 403 Forbidden error
-        // throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+        console.warn(`[Security] User ${authStore.userId} denied access to: ${to.path}`)
         return navigateTo('/feed', { replace: true }) 
       }
     }
 
     // Example: Protecting Premium/Pro Features
-    /*
     if (to.path.startsWith('/pro-features')) {
-      if (!authStore.user?.user_metadata?.is_premium) {
+      const isPremium = authStore.user?.user_metadata?.is_premium === true
+      if (!isPremium) {
         return navigateTo('/upgrade', { replace: true })
       }
     }
-    */
 
   } catch (error) {
     console.error('[Security Middleware] Fatal Error:', error)
