@@ -3,8 +3,10 @@
 // ============================================================================
 
 export default defineNuxtRouteMiddleware((to) => {
-  // ✅ Keeping this as client-only is correct.
-  // This middleware prepares the UI state for interactions.
+  // 1. Safety Guard for undefined route
+  if (!to || !to.path) return
+
+  // 2. Client-only logic
   if (import.meta.server) return
 
   const statusRoutes = ['/stream', '/status/create', '/posts/create']
@@ -15,8 +17,7 @@ export default defineNuxtRouteMiddleware((to) => {
   try {
     const authStore = useAuthStore()
     
-    // Ensure the store is hydrated before we try to read the user
-    // (Though by the time this runs, the global auth middleware has already finished)
+    // Auth validation
     if (!authStore.user) {
       console.warn(`[Status Middleware] No user found, redirecting...`)
       return navigateTo('/signin')
@@ -27,6 +28,7 @@ export default defineNuxtRouteMiddleware((to) => {
     const isPremium = authStore.user.user_metadata?.is_premium || false
 
     // Store in route meta for reactive use in components
+    // Nuxt meta is reactive, making this perfect for UI toggles
     to.meta.userRole = userRole
     to.meta.isPremium = isPremium
 
