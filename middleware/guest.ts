@@ -1,45 +1,27 @@
 // ============================================================================
 // FILE: /middleware/guest.ts - STABLE GUEST GUARD
 // ============================================================================
-// Behavior:
-// - Allow guest pages for unauthenticated users
-// - Redirect authenticated users away from guest pages to /feed
-// - Do not create redirect loops during hydration
-// ============================================================================
 
 export default defineNuxtRouteMiddleware(async () => {
-  if (process.server) return
-
   const authStore = useAuthStore()
+  const tokenCookie = useCookie('auth_token')
 
-  // Hydrate once
-  if (!authStore.isHydrated) {
-    if (typeof authStore.hydrateFromStorage === 'function') {
-      await authStore.hydrateFromStorage()
-    } else if (typeof authStore.initializeSession === 'function') {
-      await authStore.initializeSession()
-    }
-  }
-
-  // No token or no user id => guest allowed
-  if (!authStore.token || !authStore.userId) {
-    // Important: do not force clearAuth() repeatedly here
-    // to avoid hydration-flip loops.
-    return
-  }
-
-  // Has token+userId -> validate once via store (throttled)
-  try {
+  // 1. Check for token via the cookie (SSR-Safe)
+  // If the user has a token, they have no business being on a guest/auth page.
+  if (tokenCookie.value) {
+    // Validate session if we have a token
     const isValid = await authStore.validateToken()
     if (isValid) {
       return navigateTo('/feed', { replace: true })
     }
-
-    // invalid session -> clean up and allow guest page
-    authStore.clearAuth()
-    return
-  } catch {
-    authStore.clearAuth()
-    return
   }
+
+  // 2. Fallback to client-side cleanup
+  // If the cookie is present but validation fails, ensure the store is clean
+  if (import.meta.client && !tokenCookie.value) {
+     // Optional: If you still need to ensure client-side state is wiped
+     if (authStore.isAuthenticated) authStore.clearAuth()
+  }
+
+  return
 })
