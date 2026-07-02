@@ -1,19 +1,32 @@
 // ============================================================================
-// FILE: /stores/auth.ts - FINAL FIXED PRODUCTION VERSION
+// FILE: /stores/auth.ts - FINAL FIXED PRODUCTION VERSION (COOKIE-BASED)
 // ============================================================================
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User } from '~/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(null)
-  const refreshToken = ref<string | null>(null)
-  const userId = ref<string | null>(null)
+  // ============================================================================
+  // STATE (SSR-SAFE COOKIES)
+  // Nuxt automatically synchronizes these across the server and client.
+  // ============================================================================
+  const cookieOptions = { maxAge: 60 * 60 * 24 * 7, path: '/' } // 7 Days
+  
+  const token = useCookie<string | null>('auth_token', cookieOptions)
+  const refreshToken = useCookie<string | null>('auth_refresh_token', cookieOptions)
+  const userId = useCookie<string | null>('auth_user_id', cookieOptions)
+  const rememberMe = useCookie<boolean>('auth_remember_me', { default: () => false, ...cookieOptions })
+
+  // ============================================================================
+  // STATE (CLIENT-ONLY CACHE)
+  // We keep the large user object out of cookies to avoid the 4KB browser limit.
+  // ============================================================================
   const user = ref<User | null>(null)
+  
+  // Transient state
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isHydrated = ref(false)
-  const rememberMe = ref(false)
   const lastTokenValidation = ref<number>(0)
   const isInSignupFlow = ref(false)
 
@@ -40,54 +53,35 @@ export const useAuthStore = defineStore('auth', () => {
   // ACTIONS
   // ============================================================================
   const setToken = (newToken: string | null) => {
-    token.value = newToken
-    if (process.client) {
-      newToken ? localStorage.setItem('auth_token', newToken) : localStorage.removeItem('auth_token')
-    }
+    token.value = newToken // useCookie automatically syncs this to the browser
   }
 
   const setRefreshToken = (newRefreshToken: string | null) => {
     refreshToken.value = newRefreshToken
-    if (process.client) {
-      newRefreshToken ? localStorage.setItem('auth_refresh_token', newRefreshToken) : localStorage.removeItem('auth_refresh_token')
-    }
   }
 
   const getRefreshToken = (): string | null => {
-    if (!process.client) return null
-    const stored = localStorage.getItem('auth_refresh_token')
-    if (stored) refreshToken.value = stored
-    return stored
+    return refreshToken.value
   }
 
   const setUserId = (id: string | null) => {
     userId.value = id
-    if (process.client) {
-      id ? localStorage.setItem('auth_user_id', id) : localStorage.removeItem('auth_user_id')
-    }
   }
 
   const setUser = (newUser: any) => {
     if (!newUser) {
       user.value = null
       userId.value = null
-      if (process.client) {
-        localStorage.removeItem('auth_user')
-        localStorage.removeItem('auth_user_id')
-      }
+      if (import.meta.client) localStorage.removeItem('auth_user')
       return
     }
 
     const extractedId = newUser.id || newUser.user_id
 
-    // FIX: clear stale identity if incoming user has no id
     if (!extractedId) {
       user.value = null
       userId.value = null
-      if (process.client) {
-        localStorage.removeItem('auth_user')
-        localStorage.removeItem('auth_user_id')
-      }
+      if (import.meta.client) localStorage.removeItem('auth_user')
       return
     }
 
@@ -115,12 +109,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     user.value = userObj
-    userId.value = extractedId
+    userId.value = extractedId // Updates the cookie
 
-    if (process.client) {
+    if (import.meta.client) {
       try {
         localStorage.setItem('auth_user', JSON.stringify(userObj))
-        localStorage.setItem('auth_user_id', extractedId)
       } catch (err) {
         console.error('[Auth Store] Failed to cache user data:', err)
       }
@@ -129,28 +122,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   const setRememberMe = (value: boolean) => {
     rememberMe.value = value
-    if (process.client) {
-      value ? localStorage.setItem('auth_remember_me', 'true') : localStorage.removeItem('auth_remember_me')
-    }
   }
 
   const getRememberMe = (): boolean => {
-    if (!process.client) return false
-    const stored = localStorage.getItem('auth_remember_me')
-    const value = stored === 'true'
-    rememberMe.value = value
-    return value
+    return rememberMe.value
   }
 
   const setSignupFlow = (value: boolean) => {
     isInSignupFlow.value = value
-    if (process.client) {
+    if (import.meta.client) {
       value ? sessionStorage.setItem('signup_flow', 'true') : sessionStorage.removeItem('signup_flow')
     }
   }
 
   const getSignupFlow = (): boolean => {
-    if (!process.client) return false
+    if (!import.meta.client) return false
     const stored = sessionStorage.getItem('signup_flow')
     const value = stored === 'true'
     isInSignupFlow.value = value
@@ -159,27 +145,25 @@ export const useAuthStore = defineStore('auth', () => {
 
   const clearSignupFlow = () => {
     isInSignupFlow.value = false
-    if (process.client) sessionStorage.removeItem('signup_flow')
+    if (import.meta.client) sessionStorage.removeItem('signup_flow')
   }
 
   const clearAuth = () => {
+    // Setting cookies to null automatically deletes them in the browser
     token.value = null
     refreshToken.value = null
-    user.value = null
     userId.value = null
+    
+    user.value = null
     rememberMe.value = false
     error.value = null
     lastTokenValidation.value = 0
-
-    // FIX: keep hydration marked complete; do not set false
     isHydrated.value = true
-
     isInSignupFlow.value = false
 
-    if (process.client) {
+    if (import.meta.client) {
       try {
-        const keys = ['auth_token', 'auth_user_id', 'auth_user', 'auth_remember_me', 'auth_refresh_token']
-        keys.forEach(k => localStorage.removeItem(k))
+        localStorage.removeItem('auth_user')
         sessionStorage.removeItem('signup_flow')
       } catch (err) {
         console.error('[Auth Store] Storage cleanup error:', err)
@@ -188,7 +172,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const validateToken = async () => {
-    if (!process.client || !token.value) return false
+    // Both client and server can validate the token now
+    if (!token.value) return false
+    
     if (!token.value.startsWith('eyJ') || token.value.split('.').length !== 3) {
       console.error('[Auth Store] Invalid token format detected.')
       clearAuth()
@@ -216,46 +202,35 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function hydrateFromStorage() {
-    if (!process.client || isHydrated.value) return
-    try {
-      const storedToken = localStorage.getItem('auth_token')
-      if (storedToken && storedToken.startsWith('eyJ') && storedToken.split('.').length === 3) {
-        token.value = storedToken
-      } else if (storedToken) {
-        console.warn('[Auth Store] Discarded corrupted token.')
-        localStorage.removeItem('auth_token')
-      }
-
-      refreshToken.value = localStorage.getItem('auth_refresh_token')
-      userId.value = localStorage.getItem('auth_user_id')
-
-      const storedUser = localStorage.getItem('auth_user')
-      if (storedUser) {
-        try {
+    if (isHydrated.value) return
+    
+    // NOTE: Cookies (token, refreshToken, userId, rememberMe) are ALREADY 
+    // populated by Nuxt before this function even runs!
+    
+    // We only need to hydrate the large user object and transient session data on the client
+    if (import.meta.client) {
+      try {
+        const storedUser = localStorage.getItem('auth_user')
+        if (storedUser) {
           user.value = JSON.parse(storedUser)
-
-          // FIX: sync userId from parsed user if missing/mismatched
-          if (user.value?.id) {
-            userId.value = user.value.id
-            localStorage.setItem('auth_user_id', user.value.id)
+          // Self-heal: Ensure the cached user ID matches the secure cookie ID
+          if (user.value?.id && user.value.id !== userId.value) {
+             userId.value = user.value.id
           }
-        } catch {
-          localStorage.removeItem('auth_user')
         }
+        isInSignupFlow.value = sessionStorage.getItem('signup_flow') === 'true'
+      } catch (err) {
+        console.error('[Auth Store] User hydration error:', err)
+        localStorage.removeItem('auth_user')
       }
-
-      rememberMe.value = localStorage.getItem('auth_remember_me') === 'true'
-      isInSignupFlow.value = sessionStorage.getItem('signup_flow') === 'true'
-
-      if (token.value && user.value) {
-        validateToken().catch(() => console.warn('[Auth Store] Token validation failed.'))
-      }
-
-      isHydrated.value = true
-    } catch (err) {
-      console.error('[Auth Store] Hydration error:', err)
-      isHydrated.value = true
     }
+
+    // Trigger validation if we have a token but no user object
+    if (token.value && !user.value) {
+      validateToken().catch(() => console.warn('[Auth Store] Token validation failed.'))
+    }
+
+    isHydrated.value = true
   }
 
   const initializeSession = () => hydrateFromStorage()
