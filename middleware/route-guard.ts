@@ -1,58 +1,44 @@
+// ============================================================================
 // FILE: /middleware/route-guard.ts - ROLE-BASED ACCESS CONTROL
 // ============================================================================
-// NON-GLOBAL MIDDLEWARE - Applied to admin/manager routes via definePageMeta
-// Purpose: Enforce role-based access control securely on both client and server
-// ============================================================================
 
-export default defineNuxtRouteMiddleware((to, from) => {
-  // 🚨 CRITICAL SECURITY FIX: Removed `if (process.server) return`
-  // Middleware MUST run on the server to prevent Nuxt from sending protected 
-  // HTML to unauthorized users before the client takes over.
+export default defineNuxtRouteMiddleware((to) => {
+  // 1. Safety Guard for undefined route object
+  if (!to || !to.path) return
 
-  console.log(`[Route Guard Middleware] Checking route: ${to.path}`)
-
-  // Get user from auth store 
-  // (Note: Ensure your auth store hydrates state via cookies so the server knows the user)
   const authStore = useAuthStore()
+  const tokenCookie = useCookie('auth_token')
   const user = authStore.user
 
-  // If not authenticated, redirect to signin
-  if (!user) {
-    console.warn(`[Route Guard Middleware] ✗ Unauthenticated user blocked from: ${to.path}`)
-    // Nuxt handles this gracefully on the server by sending an HTTP redirect
+  // 2. Auth Check
+  // We check for the token first because on the server, 
+  // authStore.user might not be populated until the auth middleware runs.
+  if (!tokenCookie.value || !user) {
+    console.warn(`[Route Guard] ✗ Unauthenticated access attempt: ${to.path}`)
     return navigateTo('/signin')
   }
 
-  // Get user role
   const userRole = user.role || 'user'
 
-  // Check admin routes
+  // 3. Admin Route Guard
   if (to.path.startsWith('/admin')) {
     if (userRole !== 'admin') {
-      console.warn(`[Route Guard Middleware] ✗ Non-admin user blocked from: ${to.path}`)
-      // ✅ FIX: Use abortNavigation() which is the idiomatic way to block routes in Nuxt
-      return abortNavigation(
-        createError({
-          statusCode: 403,
-          statusMessage: 'Admin access required',
-        })
-      )
+      console.warn(`[Route Guard] ✗ Non-admin blocked from: ${to.path}`)
+      return abortNavigation(createError({
+        statusCode: 403,
+        statusMessage: 'Admin access required',
+      }))
     }
-    console.log(`[Route Guard Middleware] ✓ Admin user allowed on: ${to.path}`)
   }
 
-  // Check manager routes
+  // 4. Manager Route Guard
   if (to.path.startsWith('/manager')) {
     if (userRole !== 'manager' && userRole !== 'admin') {
-      console.warn(`[Route Guard Middleware] ✗ Non-manager user blocked from: ${to.path}`)
-      // ✅ FIX: Use abortNavigation() 
-      return abortNavigation(
-        createError({
-          statusCode: 403,
-          statusMessage: 'Manager access required',
-        })
-      )
+      console.warn(`[Route Guard] ✗ Non-manager blocked from: ${to.path}`)
+      return abortNavigation(createError({
+        statusCode: 403,
+        statusMessage: 'Manager access required',
+      }))
     }
-    console.log(`[Route Guard Middleware] ✓ Manager user allowed on: ${to.path}`)
   }
 })
