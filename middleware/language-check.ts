@@ -1,30 +1,21 @@
-export default defineNuxtRouteMiddleware((to, from) => {
-  // Skip on server-side
-  if (process.server) {
-    console.log('[Language Middleware] Running on server - skipping')
-    return
-  }
+// ============================================================================
+// FILE: /middleware/language-check.ts - LOCALIZATION GUARD
+// ============================================================================
 
-  try {
-    // Get stored language from localStorage directly (no useStorage needed)
-    const storedLang = localStorage.getItem('i18n_language')
-    
-    if (storedLang) {
-      console.log('[Language Middleware] ✅ Using stored language:', storedLang)
-      return
-    }
+export default defineNuxtRouteMiddleware((to) => {
+  // 1. Safety Guard for undefined route
+  if (!to || !to.path) return
 
-    // Detect browser language as fallback
-    const browserLang = navigator.language?.split('-')[0] || 'en'
-    const supportedLangs = ['en', 'es', 'fr', 'de', 'zh', 'ja']
-    const detectedLang = supportedLangs.includes(browserLang) ? browserLang : 'en'
+  // 2. Language detection logic
+  // Use Nuxt's i18n context or your custom plugin
+  const i18n = useNuxtApp().$i18n
+  const detectedLang = i18n.locale.value
+  const path = to.path
 
-    console.log('[Language Middleware] ✅ Detected browser language:', detectedLang)
-    
-    // Store detected language directly to localStorage
-    localStorage.setItem('i18n_language', detectedLang)
-    
-  } catch (err) {
-    console.error('[Language Middleware] ❌ Error:', err)
-  }
+  // Prevent redirect loops if already on the correct language path
+  if (path.startsWith(`/${detectedLang}/`)) return
+
+  // Optional: If you want to force language prefixes for SEO
+  // const newPath = `/${detectedLang}${path === '/' ? '' : path}`
+  // return navigateTo(newPath)
 })
