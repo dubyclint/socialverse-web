@@ -3,7 +3,8 @@
 // ============================================================================
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (process.server) return
+  // 🚨 CRITICAL FIX: Removed `if (process.server) return`
+  // The server MUST enforce authentication to prevent leaking protected HTML payloads.
 
   const authStore = useAuthStore()
   const normalizedPath = to.path.replace(/\/$/, '') || '/'
@@ -44,8 +45,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Only guard protected routes
   if (!isProtectedRoute || isPublicRoute) return
 
-  // Hydrate once
-  if (!authStore.isHydrated) {
+  // ✅ SAFE HYDRATION: Only attempt to hydrate from local/session storage on the client
+  // NOTE: For true SSR protection, your auth token SHOULD be in a cookie (e.g., useCookie('token'))
+  // so the server knows the user is authenticated before sending the page.
+  if (!authStore.isHydrated && import.meta.client) {
     if (typeof authStore.hydrateFromStorage === 'function') {
       await authStore.hydrateFromStorage()
     } else if (typeof authStore.initializeSession === 'function') {
@@ -54,21 +57,25 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // If still no token/user, redirect
+  // If running on the server, Nuxt will intercept this and issue an HTTP 302 redirect securely.
   if (!authStore.token || !authStore.userId) {
-    authStore.clearAuth()
+    if (import.meta.client) authStore.clearAuth()
     return navigateTo('/signin', { replace: true })
   }
 
   // Soft validation throttle: do not hammer /api/auth/me on every navigation
   // validateToken() in your auth store already has a 60s throttle.
   try {
+    // Note: If validateToken makes a fetch call, ensure it passes cookie headers 
+    // when running on the server, or this will fail during SSR.
     const isValid = await authStore.validateToken()
     if (!isValid) {
-      authStore.clearAuth()
+      if (import.meta.client) authStore.clearAuth()
       return navigateTo('/signin', { replace: true })
     }
-  } catch {
-    authStore.clearAuth()
+  } catch (error) {
+    console.error('[Auth Middleware] Token validation failed:', error)
+    if (import.meta.client) authStore.clearAuth()
     return navigateTo('/signin', { replace: true })
   }
 
