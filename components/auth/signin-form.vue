@@ -7,32 +7,52 @@
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
         <label for="email" class="block text-sm font-medium text-slate-300 mb-2">Email</label>
-        <input id="email" v-model="formData.email" type="email" required :disabled="authStore.isLoading"
-          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500" />
+        <input 
+          id="email" 
+          v-model="formData.email" 
+          type="email" 
+          required 
+          :disabled="authStore.isLoading"
+          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" 
+        />
       </div>
 
       <div>
         <label for="password" class="block text-sm font-medium text-slate-300 mb-2">Password</label>
-        <input id="password" v-model="formData.password" type="password" required :disabled="authStore.isLoading"
-          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500" />
+        <input 
+          id="password" 
+          v-model="formData.password" 
+          type="password" 
+          required 
+          :disabled="authStore.isLoading"
+          class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500" 
+        />
       </div>
 
       <div class="flex items-center">
-        <input id="rememberMe" v-model="formData.rememberMe" type="checkbox" :disabled="authStore.isLoading" />
+        <input 
+          id="rememberMe" 
+          v-model="formData.rememberMe" 
+          type="checkbox" 
+          :disabled="authStore.isLoading"
+          class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"
+        />
         <label for="rememberMe" class="ml-2 text-sm text-slate-400">Remember me</label>
       </div>
 
-      <button type="submit" :disabled="authStore.isLoading"
-        class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold rounded-lg">
-        <span v-if="authStore.isLoading">Signing in...</span>
-        <span v-else>Sign In</span>
+      <button 
+        type="submit" 
+        :disabled="authStore.isLoading"
+        class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+      >
+        {{ authStore.isLoading ? 'Signing in...' : 'Sign In' }}
       </button>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 const emit = defineEmits<{ success: [data: any] }>()
@@ -44,11 +64,21 @@ const formData = reactive({
   rememberMe: false
 })
 
+onMounted(() => {
+  // Sync local UI state with the store's persistent cookie
+  formData.rememberMe = authStore.rememberMe
+})
+
 const handleSubmit = async () => {
+  // Clear any existing errors before attempting sign in
+  authStore.setError(null)
+  
+  // Persist rememberMe preference before login
+  authStore.setRememberMe(formData.rememberMe)
+  
   const result = await authStore.signIn(formData.email, formData.password)
   
   if (result.success) {
-    authStore.setRememberMe(formData.rememberMe)
     emit('success', result)
   }
 }
