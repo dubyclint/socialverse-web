@@ -261,38 +261,24 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useSocket } from '@/composables/use-socket'
 import { useUser } from '@/composables/use-user'
+import { useAuthStore } from '~/stores/auth' // Corrected import
 import StreamAnalytics from './stream-analytics.vue'
 import ModerationPanel from './moderation-panel.vue'
 import StreamChat from './stream-chat.vue'
 import PewGiftButton from '../pew-gift-button.vue'
-import { usestreaming } from '@/composables/use-streaming'
-import { useauth } from '@/composables/use-auth'
-  
+// Removed legacy imports: usestreaming and useauth
+
 const props = defineProps({
-  streamId: {
-    type: String,
-    required: true
-  },
-  streamUrl: {
-    type: String,
-    required: true
-  },
-  streamerId: {
-    type: String,
-    required: true
-  },
-  isStreamer: {
-    type: Boolean,
-    default: false
-  },
-  streamData: {
-    type: Object,
-    default: () => ({})
-  }
+  streamId: { type: String, required: true },
+  streamUrl: { type: String, required: true },
+  streamerId: { type: String, required: true },
+  isStreamer: { type: Boolean, default: false },
+  streamData: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits(['stream-ended', 'viewer-joined', 'viewer-left'])
 
+const authStore = useAuthStore()
 const { socket, isConnected } = useSocket('/streaming')
 const { user } = useUser()
 
@@ -326,33 +312,15 @@ let durationInterval = null
 let heartbeatInterval = null
 
 // Computed
-const currentUserId = computed(() => user.value?.id)
+// Updated to prioritize Pinia authStore
+const currentUserId = computed(() => authStore.userId || user.value?.id)
 
 // Methods
-const onVideoLoaded = () => {
-  isLoading.value = false
-  console.log('Video loaded successfully')
-}
-
-const onTimeUpdate = () => {
-  // Handle time updates for analytics
-  if (videoPlayer.value && !videoPlayer.value.paused) {
-    // Track watch time
-  }
-}
-
-const onPlay = () => {
-  console.log('Video started playing')
-}
-
-const onPause = () => {
-  console.log('Video paused')
-}
-
-const changeQuality = () => {
-  console.log('Quality changed to:', selectedQuality.value)
-  // Implement quality change logic with HLS.js or similar
-}
+const onVideoLoaded = () => { isLoading.value = false }
+const onTimeUpdate = () => {}
+const onPlay = () => {}
+const onPause = () => {}
+const changeQuality = () => { console.log('Quality changed to:', selectedQuality.value) }
 
 const sendReaction = (reactionType) => {
   if (reactionCooldown.value || !socket.value || !isConnected.value) return
@@ -363,46 +331,32 @@ const sendReaction = (reactionType) => {
     reactionType
   })
   
-  // Set cooldown
   reactionCooldown.value = true
-  setTimeout(() => {
-    reactionCooldown.value = false
-  }, 1000)
+  setTimeout(() => { reactionCooldown.value = false }, 1000)
 }
 
-const onGiftSent = (giftData) => {
-  console.log('Gift sent:', giftData)
-  // Handle gift sent confirmation
-}
+const onGiftSent = (giftData) => { console.log('Gift sent:', giftData) }
 
 const shareStream = async () => {
   const shareUrl = `${window.location.origin}/live/${props.streamId}`
-  const shareData = {
-    title: streamTitle.value,
-    text: `Watch ${streamerName.value} live on SocialVerse!`,
-    url: shareUrl
-  }
-  
   try {
-    if (navigator.share && navigator.canShare(shareData)) {
-      await navigator.share(shareData)
+    if (navigator.share) {
+      await navigator.share({ title: streamTitle.value, url: shareUrl })
     } else {
       await navigator.clipboard.writeText(shareUrl)
-      // Show toast notification
-      showToast('Stream link copied to clipboard!')
+      showToast('Link copied!')
     }
-  } catch (error) {
-    console.error('Error sharing:', error)
-  }
+  } catch (error) { console.error('Error sharing:', error) }
 }
 
 const followStreamer = async () => {
+  if (!authStore.isAuthenticated) return showToast('Please sign in to follow', 'error')
+  
   try {
     const response = await $fetch('/api/users/follow', {
       method: 'POST',
-      body: {
-        targetUserId: props.streamerId
-      }
+      headers: { 'Authorization': `Bearer ${authStore.token}` },
+      body: { targetUserId: props.streamerId }
     })
     
     if (response.success) {
@@ -410,203 +364,60 @@ const followStreamer = async () => {
       followerCount.value += 1
       showToast('Successfully followed!')
     }
-  } catch (error) {
-    console.error('Failed to follow:', error)
-    showToast('Failed to follow user', 'error')
-  }
+  } catch (error) { showToast('Failed to follow', 'error') }
 }
 
-const reportStream = () => {
-  // Open report modal or navigate to report page
-  console.log('Report stream')
-  showToast('Report submitted. Thank you for helping keep our community safe.')
-}
-
-const retryStream = () => {
-  hasError.value = false
-  isLoading.value = true
-  
-  // Reload video source
-  if (videoPlayer.value) {
-    videoPlayer.value.load()
-  }
-}
-
-const getReactionEmoji = (type) => {
-  const emojis = {
-    like: '👍',
-    love: '❤️',
-    laugh: '😂',
-    wow: '😮',
-    sad: '😢',
-    angry: '😠'
-  }
-  return emojis[type] || '👍'
-}
-
-const formatNumber = (num) => {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
-  }
-  return num.toString()
-}
-
+const reportStream = () => { showToast('Report submitted.') }
+const retryStream = () => { hasError.value = false; isLoading.value = true; videoPlayer.value?.load() }
+const getReactionEmoji = (type) => ({ like: '👍', love: '❤️', laugh: '😂', wow: '😮', sad: '😢', angry: '😠' }[type] || '👍')
+const formatNumber = (num) => (num >= 1000000 ? (num / 1000000).toFixed(1) + 'M' : (num >= 1000 ? (num / 1000).toFixed(1) + 'K' : num.toString()))
 const formatDuration = (seconds) => {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`
+  const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60
+  return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`
 }
 
 const animateReaction = (reaction) => {
-  // Add random position within video bounds
-  reaction.x = Math.random() * 300
-  reaction.y = Math.random() * 200
-  reaction.id = `reaction_${Date.now()}_${Math.random()}`
-  
+  reaction.id = `r_${Date.now()}_${Math.random()}`
   activeReactions.value.push(reaction)
-  
-  // Remove after animation
-  setTimeout(() => {
-    const index = activeReactions.value.findIndex(r => r.id === reaction.id)
-    if (index > -1) {
-      activeReactions.value.splice(index, 1)
-    }
-  }, 3000)
+  setTimeout(() => { activeReactions.value = activeReactions.value.filter(r => r.id !== reaction.id) }, 3000)
 }
 
 const animateGift = (gift) => {
-  gift.id = `gift_${Date.now()}_${Math.random()}`
+  gift.id = `g_${Date.now()}_${Math.random()}`
   activeGifts.value.push(gift)
-  
-  // Remove after animation
-  setTimeout(() => {
-    const index = activeGifts.value.findIndex(g => g.id === gift.id)
-    if (index > -1) {
-      activeGifts.value.splice(index, 1)
-    }
-  }, 5000)
+  setTimeout(() => { activeGifts.value = activeGifts.value.filter(g => g.id !== gift.id) }, 5000)
 }
 
-const showToast = (message, type = 'success') => {
-  // Implement toast notification
-  console.log(`Toast (${type}):`, message)
-}
+const showToast = (message, type = 'success') => { console.log(`Toast (${type}):`, message) }
 
 const setupSocketListeners = () => {
   if (!socket.value) return
-
-  socket.value.on('viewer-count-updated', (data) => {
-    viewerCount.value = data.count
-  })
-
-  socket.value.on('stream-reaction', (reaction) => {
-    animateReaction(reaction)
-    if (reaction.reactionType === 'like') {
-      likeCount.value += 1
-    }
-  })
-
-  socket.value.on('pewgift-received', (gift) => {
-    animateGift({
-      ...gift,
-      senderName: gift.senderName || `User ${gift.gifterId.slice(-4)}`
-    })
-  })
-
-  socket.value.on('blocked-from-stream', (data) => {
-    hasError.value = true
-    errorMessage.value = `You have been blocked from this stream: ${data.reason}`
-  })
-
-  socket.value.on('stream-ended', () => {
-    hasError.value = true
-    errorMessage.value = 'This stream has ended'
-    emit('stream-ended')
-  })
-
-  socket.value.on('chat-message-count', (data) => {
-    chatMessageCount.value = data.count
-  })
-
-  socket.value.on('connection-error', () => {
-    hasError.value = true
-    errorMessage.value = 'Connection lost. Please refresh the page.'
-  })
+  socket.value.on('viewer-count-updated', (d) => viewerCount.value = d.count)
+  socket.value.on('stream-reaction', (r) => { animateReaction(r); if (r.reactionType === 'like') likeCount.value++ })
+  socket.value.on('pewgift-received', (g) => animateGift(g))
+  socket.value.on('blocked-from-stream', (d) => { hasError.value = true; errorMessage.value = d.reason })
+  socket.value.on('stream-ended', () => { hasError.value = true; emit('stream-ended') })
+  socket.value.on('connection-error', () => { hasError.value = true; errorMessage.value = 'Connection lost.' })
 }
 
 const joinStream = () => {
   if (socket.value && isConnected.value) {
-    socket.value.emit('join-stream', {
-      streamId: props.streamId,
-      userId: currentUserId.value,
-      userCountry: 'US' // Get from geolocation or user profile
-    })
+    socket.value.emit('join-stream', { streamId: props.streamId, userId: currentUserId.value })
   }
 }
 
-const leaveStream = () => {
-  if (socket.value) {
-    socket.value.emit('leave-stream')
-  }
-}
+watch(isConnected, (val) => { if (val) { setupSocketListeners(); joinStream() } })
 
-// Watchers
-watch(isConnected, (connected) => {
-  if (connected) {
-    setupSocketListeners()
-    joinStream()
-  }
-})
-
-// Lifecycle
 onMounted(() => {
-  // Start duration timer
   const startTime = Date.now()
-  durationInterval = setInterval(() => {
-    streamDuration.value = Math.floor((Date.now() - startTime) / 1000)
-  }, 1000)
-
-  // Setup heartbeat to maintain connection
-  heartbeatInterval = setInterval(() => {
-    if (socket.value && isConnected.value) {
-      socket.value.emit('heartbeat', { streamId: props.streamId })
-    }
-  }, 30000)
-
-  // Handle video errors
-  if (videoPlayer.value) {
-    videoPlayer.value.addEventListener('error', (e) => {
-      hasError.value = true
-      errorMessage.value = 'Failed to load video stream'
-      console.error('Video error:', e)
-    })
-  }
-
-  // Setup socket if already connected
-  if (isConnected.value) {
-    setupSocketListeners()
-    joinStream()
-  }
+  durationInterval = setInterval(() => streamDuration.value = Math.floor((Date.now() - startTime) / 1000), 1000)
+  if (isConnected.value) { setupSocketListeners(); joinStream() }
 })
 
 onUnmounted(() => {
-  leaveStream()
-  
-  if (durationInterval) {
-    clearInterval(durationInterval)
-  }
-  
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval)
-  }
+  socket.value?.emit('leave-stream')
+  clearInterval(durationInterval)
+  clearInterval(heartbeatInterval)
 })
 </script>
 
