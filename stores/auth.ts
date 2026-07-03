@@ -1,4 +1,3 @@
-// /stores/auth.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User } from '~/types/auth'
@@ -16,8 +15,6 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isHydrated = ref(false)
-  const lastTokenValidation = ref<number>(0)
-  const isInSignupFlow = ref(false)
 
   // --- COMPUTED PROPERTIES ---
   const isAuthenticated = computed(() => !!token.value && !!user.value && !!userId.value)
@@ -40,16 +37,31 @@ export const useAuthStore = defineStore('auth', () => {
         method: 'POST',
         body: { email, password }
       })
-
       if (!response?.token || !response?.user?.id) throw new Error('Invalid login response')
-
       setToken(response.token)
       setUser(response.user)
       if (response.refreshToken) setRefreshToken(response.refreshToken)
-      
       return { success: true, redirectTo: response.redirectTo }
     } catch (err: any) {
       const msg = err.data?.statusMessage || err.message || 'Login failed'
+      setError(msg)
+      return { success: false, message: msg }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signUp = async (email: string, password: string, options: any = {}) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response: any = await $fetch('/api/auth/signup', {
+        method: 'POST',
+        body: { email, password, ...options }
+      })
+      return { success: true, data: response }
+    } catch (err: any) {
+      const msg = err.data?.statusMessage || err.message || 'Registration failed'
       setError(msg)
       return { success: false, message: msg }
     } finally {
@@ -92,7 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token, refreshToken, userId, user, isLoading, error, isHydrated,
     isAuthenticated, isEmailVerified, isProfileComplete,
-    signIn, setUser, setToken, setRefreshToken, setUserId, setRememberMe,
-    setLoading, setError, clearAuth, hydrateFromStorage
+    signIn, signUp, setUser, setToken, setRefreshToken, setUserId, 
+    setRememberMe, setLoading, setError, clearAuth, hydrateFromStorage
   }
 })
