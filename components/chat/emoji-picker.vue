@@ -63,7 +63,11 @@ const emit = defineEmits(['close', 'select'])
 // Reactive data
 const activeCategory = ref('smileys')
 const recentEmojis = ref([])
-
+  
+const chatStore = useChatStore()
+const recent = computed(() => chatStore.recentEmojis)
+const onSelect = (e) => chatStore.addRecentEmoji(e)
+  
 // Emoji data
 const categories = ref([
   { id: 'recent', name: 'Recently Used', icon: '🕒' },
