@@ -1,3 +1,4 @@
+// stores/ui.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -6,7 +7,6 @@ export const useUiStore = defineStore('ui', () => {
 
   const notify = (message: string, type: 'error' | 'success' = 'error') => {
     toast.value = { message, type }
-    // Auto-clear after 5 seconds
     setTimeout(() => { toast.value = null }, 5000)
   }
 
