@@ -1,5 +1,11 @@
 // composables/use-emoji-picker.ts
 import { ref, computed } from 'vue'
+// In ANY EmojiPicker component
+import { emojiCategories, emojiMap } from '~/utils/emoji-data';
+
+// You can now access the data directly
+const categories = ref(emojiCategories);
+const emojis = ref(emojiMap);
 
 export interface Emoji {
   emoji: string
