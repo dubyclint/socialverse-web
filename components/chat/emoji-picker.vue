@@ -1,31 +1,28 @@
 <template>
-  <div class="emoji-picker-container">
-    <div class="emoji-picker">
-      <div class="categories">
-        <button v-for="cat in categories" :key="cat.id" 
-                @click="activeCategory = cat.id"
-                :class="{ active: activeCategory === cat.id }">
-          {{ cat.icon }}
-        </button>
-      </div>
-
-      <div class="emoji-grid">
-        <button v-for="e in filteredEmojis" :key="e.emoji" @click="handleSelect(e.emoji)">
-          {{ e.emoji }}
-        </button>
-      </div>
-    </div>
+  <div class="emoji-picker">
+    <RecycleScroller
+      class="emoji-grid"
+      :items="filteredEmojis"
+      :item-size="40"
+      key-field="emoji"
+      v-slot="{ item }"
+    >
+      <button @click="handleSelect(item.emoji)" class="emoji-btn">
+        {{ item.emoji }}
+      </button>
+    </RecycleScroller>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useEmojiPicker } from '~/composables/use-emoji-picker'
-
-const emit = defineEmits(['select'])
-const { activeCategory, filteredEmojis, categories, addRecent } = useEmojiPicker()
-
-const handleSelect = (char: string) => {
-  addRecent(char)
-  emit('select', char)
-}
+import { RecycleScroller } from 'vue-virtual-scroller'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+// ... rest of your script
 </script>
+
+<style scoped>
+.emoji-grid {
+  height: 300px; /* Essential: The scroller needs a fixed height */
+}
+.emoji-btn { width: 40px; height: 40px; }
+</style>
