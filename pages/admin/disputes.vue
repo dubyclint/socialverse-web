@@ -17,6 +17,25 @@ definePageMeta({ middleware: 'admin' })
   
 const supabase = useSupabaseClient()
 const disputes = ref([])
+  
+onMounted(() => {
+  const channel = supabase
+    .channel('schema-db-changes')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'escrow_disputes' },
+      (payload) => {
+        // Automatically add the new dispute to the list
+        disputes.value.push(payload.new)
+      }
+    )
+    .subscribe()
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    supabase.removeChannel(channel)
+  })
+})
 
 // Fetch open disputes
 const { data } = await supabase.from('escrow_disputes').select('*').eq('status', 'open')
