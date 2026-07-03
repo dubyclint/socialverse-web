@@ -96,3 +96,10 @@ const addRecentEmoji = (emoji: string) => {
   recentEmojis.value = [emoji, ...recentEmojis.value.filter(e => e !== emoji)].slice(0, 20)
   localStorage.setItem('recentEmojis', JSON.stringify(recentEmojis.value))
 }
+
+// Add a map for trade-specific drafts or history
+const tradeMessages = ref<Record<string, any[]>>({})
+const saveTradeMessages = (id: string, msgs: any[]) => {
+  tradeMessages.value[id] = msgs
+  localStorage.setItem(`trade_${id}`, JSON.stringify(msgs))
+}
