@@ -90,3 +90,9 @@ export const useChatStore = defineStore('chat', {
     }
   }
 })
+
+const recentEmojis = ref<string[]>(JSON.parse(localStorage.getItem('recentEmojis') || '[]'))
+const addRecentEmoji = (emoji: string) => {
+  recentEmojis.value = [emoji, ...recentEmojis.value.filter(e => e !== emoji)].slice(0, 20)
+  localStorage.setItem('recentEmojis', JSON.stringify(recentEmojis.value))
+}
