@@ -13,6 +13,8 @@
 </template>
 
 <script setup>
+definePageMeta({ middleware: 'admin' })
+  
 const supabase = useSupabaseClient()
 const disputes = ref([])
 
