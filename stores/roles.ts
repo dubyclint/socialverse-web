@@ -1,7 +1,8 @@
-// stores/roles.ts (Fully Reconciled)
+// stores/roles.ts - FINAL RECONCILED
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { rolesService } from '~/services/rolesService'
+import type { Role, Permission } from '~/types/roles' // Ensure these are imported
 
 export const useRolesStore = defineStore('roles', () => {
   const roles = ref<Role[]>([])
@@ -9,10 +10,8 @@ export const useRolesStore = defineStore('roles', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Getters remain here: They operate on local state, so they are efficient
   const getRoleByName = computed(() => (name: string) => roles.value.find(r => r.name === name))
   
-  // Actions: Delegation to Services
   const loadRoles = async () => {
     loading.value = true
     try {
