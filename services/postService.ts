@@ -1,14 +1,17 @@
-// services/postService.ts
-import { api } from '~/lib/api' // Assuming a centralized api orchestrator
+import { api } from '~/lib/api'
 
 export const postService = {
+  // We use the generic <T> to get type safety for the responses
   async fetchFeed(feedType: string, page: number) {
-    return await api(`/api/posts/feed/${feedType}?page=${page}`)
+    return await api<{ posts: any[] }>(`/posts/feed/${feedType}`, {
+      query: { page }
+    })
   },
+  
   async createPost(content: string) {
-    return await api('/api/posts/create', { method: 'POST', body: { content } })
-  },
-  async likePost(postId: string) {
-    return await api(`/api/posts/${postId}/like`, { method: 'POST' })
+    return await api('/posts/create', { 
+      method: 'POST', 
+      body: { content } 
+    })
   }
 }
