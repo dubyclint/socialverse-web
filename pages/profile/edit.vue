@@ -246,26 +246,28 @@
   </div>
 </template>
 
-    <script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { useProfile } from '~/composables/use-profile'
-import type { Profile } from '~/types/profile'
+import { storeToRefs } from 'pinia'
+import { useProfileStore } from '~/stores/profile'
+
+definePageMeta({
+  middleware: 'auth',
+  layout: 'default'
+})
 
 const router = useRouter()
-const { fetchCurrentProfile, updateProfile, uploadAvatar } = useProfile()
-
-const profile = ref<Profile | null>(null)
-const isLoadingProfile = ref(true)
-const profileError = ref<string | null>(null)
+const profileStore = useProfileStore()
+const { profile, isLoading: isLoadingProfile, error: storeError } = storeToRefs(profileStore)
 
 const formData = ref({
   full_name: '',
-  username: '', // optional in edit flow
+  username: '',
   bio: '',
   location: '',
   website: '',
-  birth_date: '', // canonical
+  birth_date: '',
   gender: '',
   is_private: false,
   email_notifications: true
@@ -279,160 +281,70 @@ const isSubmitting = ref(false)
 
 const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
-const isUploadingAvatar = ref(false)
 const avatarError = ref<string | null>(null)
-
-const formRef = ref<HTMLFormElement | null>(null)
-const fullNameFieldRef = ref<HTMLDivElement | null>(null)
-const bioFieldRef = ref<HTMLDivElement | null>(null)
 
 const isFormDirty = computed(() =>
   JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value) || avatarFile.value !== null
 )
 
 const loadProfile = async () => {
-  isLoadingProfile.value = true
-  profileError.value = null
   try {
-    const currentProfile: any = await fetchCurrentProfile()
-    const p = currentProfile?.data || currentProfile
-    if (!p) throw new Error('Failed to load profile')
-
-    profile.value = p
-    formData.value = {
-      full_name: p.full_name || '',
-      username: p.username || '',
-      bio: p.bio || '',
-      location: p.location || '',
-      website: p.website || '',
-      birth_date: p.birth_date && typeof p.birth_date === 'string' ? p.birth_date.split(/[ T]/)[0] : '',
-      gender: p.gender || '',
-      is_private: p.is_private || false,
-      email_notifications: p.email_notifications !== false
+    await profileStore.fetchProfile()
+    if (profile.value) {
+      const p = profile.value
+      formData.value = {
+        full_name: p.full_name || '',
+        username: p.username || '',
+        bio: p.bio || '',
+        location: p.location || '',
+        website: p.website || '',
+        birth_date: p.birth_date ? p.birth_date.split('T')[0] : '',
+        gender: p.gender || '',
+        is_private: !!p.is_private,
+        email_notifications: p.email_notifications !== false
+      }
+      originalFormData.value = { ...formData.value }
     }
-    originalFormData.value = { ...formData.value }
   } catch (err: any) {
-    if (err?.statusCode === 404 || err?.response?.status === 404) {
-      await router.replace('/profile/complete')
-      return
-    }
-    profileError.value = err?.message || 'Failed to load profile'
-  } finally {
-    isLoadingProfile.value = false
-  }
-}
-
-const validateField = (field: string) => {
-  const errors: Record<string, string> = {}
-
-  if (field === 'full_name' || field === 'all') {
-    if (!formData.value.full_name?.trim()) errors.full_name = 'Full name is required'
-    else if (formData.value.full_name.length > 100) errors.full_name = 'Full name must be less than 100 characters'
-  }
-
-  // username no longer required in edit flow
-
-  if (field === 'bio' || field === 'all') {
-    if (!formData.value.bio?.trim()) errors.bio = 'Bio is required'
-    else if (formData.value.bio.length > 500) errors.bio = 'Bio must be less than 500 characters'
-  }
-
-  if (field === 'all') {
-    fieldErrors.value = errors
-    return Object.keys(errors).length === 0
-  } else {
-    if (errors[field]) fieldErrors.value[field] = errors[field]
-    else delete fieldErrors.value[field]
-    return !errors[field]
+    formError.value = 'Failed to load profile'
   }
 }
 
 const handleAvatarChange = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+  const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-
-  avatarError.value = null
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-  if (!allowedTypes.includes(file.type)) {
-    avatarError.value = 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'
-    avatarFile.value = null
-    return
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    avatarError.value = 'File size exceeds 5MB limit.'
-    avatarFile.value = null
-    return
-  }
-
-  const reader = new FileReader()
-  reader.onload = (e) => { avatarPreview.value = e.target?.result as string }
-  reader.onerror = () => {
-    avatarError.value = 'Failed to read file. Please try again.'
-    avatarFile.value = null
-    avatarPreview.value = null
-  }
-  reader.readAsDataURL(file)
+  if (file.size > 5 * 1024 * 1024) return (avatarError.value = 'Max 5MB')
+  
   avatarFile.value = file
+  avatarPreview.value = URL.createObjectURL(file)
 }
 
 const handleSubmit = async () => {
-  if (!validateField('all')) {
-    formError.value = 'Please fix the errors above'
-    await nextTick()
-    return
-  }
-
-  isSubmitting.value = true
   formError.value = null
-  formSuccess.value = false
-
+  isSubmitting.value = true
+  
   try {
-    let finalAvatarUrl = profile.value?.avatar_url || ''
-
+    // 1. Upload avatar if changed
+    let avatar_url = profile.value?.avatar_url
     if (avatarFile.value) {
-      isUploadingAvatar.value = true
-      const uploadRes: any = await uploadAvatar(avatarFile.value)
-      finalAvatarUrl = uploadRes?.avatar_url || uploadRes?.data?.avatar_url || uploadRes || finalAvatarUrl
-      if (!finalAvatarUrl) throw new Error('Failed to upload avatar image')
+      avatar_url = await profileStore.uploadAvatar(avatarFile.value)
     }
 
-    const payload = {
-      ...formData.value,
-      avatar_url: finalAvatarUrl
-    }
-
-    const updated: any = await updateProfile(payload)
-    if (!updated) throw new Error('Failed to update profile changes')
-
-    profile.value = {
-      ...(profile.value || ({} as Profile)),
-      ...formData.value,
-      avatar_url: finalAvatarUrl
-    } as Profile
-
+    // 2. Update profile
+    await profileStore.updateProfile({ ...formData.value, avatar_url })
+    
     originalFormData.value = { ...formData.value }
-    avatarFile.value = null
-    avatarPreview.value = null
     formSuccess.value = true
-
-    setTimeout(() => router.push('/profile'), 1200)
+    setTimeout(() => router.push('/profile'), 1000)
   } catch (err: any) {
-    formError.value = err?.message || 'Failed to save profile'
+    formError.value = err.message || 'Update failed'
   } finally {
     isSubmitting.value = false
-    isUploadingAvatar.value = false
   }
 }
 
 onMounted(loadProfile)
-
-definePageMeta({
-  middleware: 'auth',
-  layout: 'default'
-})
-</script>          
+</script>
               
 <style scoped>
 /* Better defaults for form controls in this page */
