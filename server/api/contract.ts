@@ -1,4 +1,5 @@
-import { getSupabaseClient } from "~/server/utils/database";
+// Use relative paths to bypass potential alias resolution issues on Windows
+import { getSupabaseClient } from "../utils/database"; 
 import { promises as fs } from 'fs';
 import { resolve } from 'path';
 
@@ -19,7 +20,7 @@ async function getEthClient() {
   }
 
   try {
-    // Lazy load EthClient class
+    // Lazy load EthClient class using relative path
     if (!EthClient) {
       const ethModule = await import('../../lib/eth-client');
       EthClient = ethModule.EthClient;
@@ -49,6 +50,7 @@ async function getEthClient() {
 }
 
 export default defineEventHandler(async (event) => {
+  // Ensure the database client is correctly imported and awaited
   const supabase = await getSupabaseClient();
   const ethClient = await getEthClient();
 
