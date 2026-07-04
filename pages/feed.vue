@@ -611,64 +611,47 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRoute, navigateTo } from '#app';
+import { useSocialFeed } from '~/composables/useSocialFeed';
+import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue';
+import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue'; // Ensure path is correct
+import { useTimeAgo } from '@vueuse/core';
 
-// --- State ---
-const sidebarOpen = ref(false);
-const activeTab = ref('feed');
-const searchQuery = ref('');
-const activePostMenu = ref(null);
-const activeSelectedStatus = ref(null);
-
-// --- Auth & User Store (Replace with your actual pinia/auth store) ---
-const authStore = useAuthStore(); 
-const { currentUser, userAvatar, userName, userUsername, userStatus, walletBalance, isVerified } = storeToRefs(authStore);
-
-// --- Feed Logic ---
+// --- Initialize Unified Social Feed ---
+const socialFeed = useSocialFeed();
 const { 
   posts, postsLoading, hasMorePosts, loadingMore, 
-  loadMorePosts, likePost, deletePost, refreshFeed 
-} = useFeed();
+  loadMorePosts, fetchPosts, initPipeline, 
+  userName, userAvatar, userUsername, userStatus, walletBalance, isVerified,
+  fetchedStatuses, statusLoading, triggerStatusViewer, activeSelectedStatus,
+  suggestedUsers, suggestedUsersLoading, refreshSuggestedUsers, followUser,
+  trendingTopics, trendingLoading, refreshTrending,
+  sidebarOpen, toggleSidebar, handleLogout
+} = socialFeed;
 
-const { 
-  fetchedStatuses, statusLoading, triggerStatusViewer 
-} = useStatuses();
-
-const { 
-  suggestedUsers, suggestedUsersLoading, refreshSuggestedUsers, followUser 
-} = useSuggested();
-
-const { 
-  trendingTopics, trendingLoading, refreshTrending 
-} = useTrending();
-
-// --- Handlers & Navigation ---
-const toggleSidebar = () => sidebarOpen.value = !sidebarOpen.value;
+// --- Local UI State ---
 const route = useRoute();
+const activeTab = ref('for-you'); // Matches socialFeed.feedTabs[0].id
+const searchQuery = ref('');
+const activePostMenu = ref(null);
+
+// --- Computed & Helpers ---
+const formatTime = (timestamp) => useTimeAgo(timestamp).value;
 
 const feedTabs = [
-  { id: 'feed', label: 'All', icon: 'home' },
+  { id: 'for-you', label: 'For You', icon: 'home' },
   { id: 'following', label: 'Following', icon: 'users' },
   { id: 'trending', label: 'Trending', icon: 'trending-up' }
 ];
 
-const formatTime = (timestamp) => useTimeAgo(timestamp);
-
+// --- Navigation Handlers ---
 const goToCreatePost = () => navigateTo('/posts/create');
 const goToProfilePage = () => navigateTo(`/profile/${userUsername.value}`);
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
 const goToSettingsProfile = () => navigateTo('/settings/profile');
 
-const closeStatusViewer = () => activeSelectedStatus.value = null;
-
-const handleLogout = async () => {
-  await authStore.logout();
-  navigateTo('/signin');
-};
-
-const togglePostMenu = (id) => {
-  activePostMenu.value = activePostMenu.value === id ? null : id;
-};
+const togglePostMenu = (id) => { activePostMenu.value = activePostMenu.value === id ? null : id; };
 
 const copyPostLink = (id) => {
   navigator.clipboard.writeText(`${window.location.origin}/post/${id}`);
@@ -685,8 +668,9 @@ const shareProfile = () => {
   alert('Profile link copied!');
 };
 
-onMounted(() => {
-  refreshFeed();
+// --- Lifecycle ---
+onMounted(async () => {
+  await initPipeline();
 });
 </script>
 
