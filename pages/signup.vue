@@ -110,7 +110,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { navigateTo, useRoute } from '#app'
-import { useAuth } from '~/composables/use-auth'
+import { storeToRefs } from 'pinia'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({
   layout: 'blank',
@@ -118,7 +119,10 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { signUp, loading: isAuthLoading, error: authError } = useAuth()
+const authStore = useAuthStore()
+
+// Use storeToRefs for reactive state from Pinia
+const { isLoading: isAuthLoading, error: authError } = storeToRefs(authStore)
 
 const formData = ref({
   email: '',
@@ -141,40 +145,41 @@ const handleSignup = async () => {
   localError.value = ''
   success.value = ''
 
-  const email = formData.value.email?.trim() || ''
-  const username = formData.value.username?.trim() || ''
-  const phone = formData.value.phone?.trim() || ''
-  const location = formData.value.location?.trim() || ''
-  const password = formData.value.password || ''
-
-  if (!email || !username || !phone || !location || !password) {
+  // Basic Validation
+  if (!formData.value.email || !formData.value.username || !formData.value.phone || 
+      !formData.value.location || !formData.value.password) {
     localError.value = 'All fields are required'
     return
   }
 
   try {
-    const result = await signUp(email, password, {
-      data: {
-        username: username.toLowerCase(),
-        phone,
-        location
+    // Calling the action from the Pinia store
+    const result = await authStore.signUp({
+      email: formData.value.email.trim(),
+      password: formData.value.password,
+      options: {
+        username: formData.value.username.trim().toLowerCase(),
+        phone: formData.value.phone.trim(),
+        location: formData.value.location.trim()
       }
     })
 
-    success.value = 'Account created successfully! Redirecting...'
+    if (result.success) {
+      success.value = 'Account created successfully! Redirecting...'
+      
+      const redirectFromQuery = normalizePath(route.query.redirect, '')
+      const defaultRedirect = '/signin?forceAuth=1' // Adjust based on your flow
+      const redirectUrl = redirectFromQuery || defaultRedirect
 
-    const redirectFromQuery = normalizePath(route.query.redirect, '')
-    const defaultRedirect = result?.session ? '/feed' : '/signin?forceAuth=1'
-    const redirectUrl = redirectFromQuery || defaultRedirect
-
-    setTimeout(async () => {
-      await navigateTo(redirectUrl)
-    }, 1200)
+      setTimeout(async () => {
+        await navigateTo(redirectUrl)
+      }, 1200)
+    } else {
+      localError.value = result.message || 'Registration failed'
+    }
   } catch (err: any) {
     console.error('[Signup Page] Signup failure:', err)
-    if (!localError.value) {
-      localError.value = err?.data?.statusMessage || err?.message || 'Unable to sign up'
-    }
+    localError.value = 'An unexpected error occurred'
   }
 }
 </script>
