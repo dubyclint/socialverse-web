@@ -1,5 +1,5 @@
 <!-- ============================================================================
-     FILE: /pages/feed.vue [PART 1 - STANDARDIZED CORE TEMPLATE]
+     FILE: /pages/feed.vue 
      ============================================================================ -->
 <template>
   <div class="feed-page">
