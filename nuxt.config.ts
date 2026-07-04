@@ -94,9 +94,9 @@ export default defineNuxtConfig({
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
 
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://socialverse-web.zeabur.app',
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://socialverse-web.zeabur.app',
-      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://socialverse-web.zeabur.app',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://p01--socialverse-web--9dsyp6zx99q5.code.run',
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://p01--socialverse-web--9dsyp6zx99q5.code.run',
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://p01--socialverse-web--9dsyp6zx99q5.code.run',
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
       enablePremium: true,
