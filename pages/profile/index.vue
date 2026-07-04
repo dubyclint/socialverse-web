@@ -6,23 +6,18 @@
         <p>Loading profile...</p>
       </div>
 
-      <template v-else>
+      <template v-else-if="displayProfile">
         <div class="profile-header">
           <div class="profile-picture-section">
             <div class="profile-picture-container">
               <img
-                v-if="displayProfile.avatar_url && displayProfile.avatar_url !== '/default-avatar.png'"
+                v-if="displayProfile.avatar_url"
                 :src="displayProfile.avatar_url"
-                :alt="`${displayProfile.full_name || displayProfile.display_name || 'User'} profile picture`"
+                :alt="displayProfile.full_name"
                 class="profile-picture"
                 @error="handleAvatarError"
               />
-              <img
-                v-else
-                src="/default-avatar.svg"
-                :alt="displayProfile.full_name || displayProfile.display_name || 'User'"
-                class="profile-picture default-avatar"
-              />
+              <img v-else src="/default-avatar.svg" class="profile-picture default-avatar" />
               <button v-if="isOwnProfile" @click="showAvatarUpload = true" class="edit-avatar-btn">
                 <Icon name="camera" size="16" />
               </button>
@@ -30,72 +25,20 @@
           </div>
 
           <div class="profile-info">
-            <div class="profile-name-section">
-              <h1 class="profile-name">
-                {{ displayProfile.full_name || displayProfile.display_name || displayProfile.username || 'User' }}
-                <div v-if="verificationBadges.length > 0" class="verification-badges">
-                  <button
-                    v-for="badge in verificationBadges"
-                    :key="badge.badge_type"
-                    @click="openVerificationDetails(badge)"
-                    class="verification-badge"
-                    :class="`badge-${badge.badge_type}`"
-                  >
-                    <Icon :name="getBadgeIcon(badge.badge_type)" size="16" />
-                    <span v-if="badge.badge_level > 0" class="badge-level">{{ badge.badge_level }}</span>
-                  </button>
-                </div>
-              </h1>
-              <p class="profile-username">@{{ displayProfile.username || 'unknown' }}</p>
-            </div>
-
+            <h1 class="profile-name">{{ displayProfile.full_name || 'User' }}</h1>
+            <p class="profile-username">@{{ displayProfile.username }}</p>
+            
             <div class="profile-stats">
               <div class="stat-item">
                 <span class="stat-number">{{ formatNumber(displayProfile.posts_count || 0) }}</span>
                 <span class="stat-label">Posts</span>
               </div>
-              <div class="stat-item">
-                <span class="stat-number">{{ formatNumber(displayProfile.followers_count || 0) }}</span>
-                <span class="stat-label">Followers</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">{{ formatNumber(displayProfile.following_count || 0) }}</span>
-                <span class="stat-label">Following</span>
-              </div>
             </div>
 
             <div class="profile-actions">
-              <button v-if="isOwnProfile" @click="showCreatePost = true" class="btn btn-primary">
-                <Icon name="plus" size="16" /> Create Post
-              </button>
               <button v-if="isOwnProfile" @click="showEditProfile = true" class="btn btn-secondary">
-                <Icon name="edit" size="16" /> Edit Profile
+                Edit Profile
               </button>
-              <button v-if="isOwnProfile" @click="showGeneralSettings = true" class="btn btn-tertiary">
-                <Icon name="settings" size="16" /> Settings
-              </button>
-              <button v-else @click="toggleFollow" :class="['btn', isFollowing ? 'btn-secondary' : 'btn-primary']">
-                <Icon :name="isFollowing ? 'user-minus' : 'user-plus'" size="16" />
-                {{ isFollowing ? 'Unfollow' : 'Follow' }}
-              </button>
-            </div>
-
-            <div v-if="displayProfile.bio" class="profile-bio">
-              <p>{{ displayProfile.bio }}</p>
-            </div>
-
-            <div class="profile-details">
-              <div v-if="displayProfile.location" class="detail-item">
-                <Icon name="map-pin" size="14" /><span>{{ displayProfile.location }}</span>
-              </div>
-              <div v-if="displayProfile.website" class="detail-item">
-                <Icon name="link" size="14" />
-                <a :href="displayProfile.website" target="_blank" rel="noopener noreferrer">{{ displayProfile.website }}</a>
-              </div>
-              <div v-if="displayProfile.created_at" class="detail-item">
-                <Icon name="calendar" size="14" />
-                <span>Joined {{ formatDate(displayProfile.created_at) }}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -107,52 +50,17 @@
             @click="activeTab = tab.id"
             :class="['tab-button', { active: activeTab === tab.id }]"
           >
-            <Icon :name="tab.icon" size="18" />
-            <span>{{ tab.label }}</span>
+            {{ tab.label }}
           </button>
         </div>
 
         <div class="tab-content">
-          <div v-if="activeTab === 'posts'" class="posts-tab">
-            <div v-if="userPosts.length === 0" class="empty-state">
-              <Icon name="inbox" size="48" />
-              <h3>No posts yet</h3>
-              <p>{{ isOwnProfile ? 'Share your first post!' : 'This user has not posted yet' }}</p>
-            </div>
-            <div v-else class="posts-grid">
-              <PostCard v-for="post in userPosts" :key="post.id" :post="post" />
-            </div>
-          </div>
-
-          <div v-if="activeTab === 'media'" class="media-tab">
-            <div v-if="mediaPosts.length === 0" class="empty-state">
-              <Icon name="image" size="48" />
-              <h3>No media</h3>
-              <p>{{ isOwnProfile ? 'Share photos and videos!' : 'No media shared yet' }}</p>
-            </div>
-            <div v-else class="media-grid">
-              <div v-for="post in mediaPosts" :key="post.id" class="media-item" @click="openMediaModal(post)">
-                <img v-if="post.media_type === 'image'" :src="post.media_url" :alt="post.content" class="media-thumbnail" />
-                <video v-else-if="post.media_type === 'video'" :src="post.media_url" class="media-thumbnail" muted />
-                <div class="media-overlay"><Icon name="eye" size="20" /></div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="activeTab === 'likes' && isOwnProfile" class="likes-tab">
-            <div v-if="likedPosts.length === 0" class="empty-state">
-              <Icon name="heart" size="48" />
-              <h3>No liked posts</h3>
-              <p>Posts you like will appear here</p>
-            </div>
-            <div v-else class="posts-grid">
-              <PostCard v-for="post in likedPosts" :key="post.id" :post="post" />
-            </div>
+          <div v-if="activeTab === 'posts'" class="posts-grid">
+             <PostCard v-for="post in userPosts" :key="post.id" :post="post" />
           </div>
         </div>
 
         <LazyEditProfileModal v-if="showEditProfile" @close="showEditProfile = false" />
-        <LazyGeneralSettingsModal v-if="showGeneralSettings" @close="showGeneralSettings = false" />
         <LazyAvatarUploadModal v-if="showAvatarUpload" @close="showAvatarUpload = false" />
       </template>
     </div>
@@ -160,46 +68,56 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useProfile } from '~/composables/use-profile'
+import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useProfileStore } from '~/stores/profile'
 
 definePageMeta({
   middleware: ['auth'],
   layout: 'default'
 })
 
-const {
-  loading,
-  displayProfile,
-  activeTab,
-  isFollowing,
-  verificationBadges,
-  userPosts,
-  mediaPosts,
-  likedPosts,
-  showEditProfile,
-  showGeneralSettings,
-  showAvatarUpload,
-  isOwnProfile,
-  tabs,
-  formatNumber,
-  formatDate,
-  getBadgeIcon,
-  toggleFollow,
-  openVerificationDetails,
-  openMediaModal,
-  fetchProfileData
-} = useProfile()
+const profileStore = useProfileStore()
+const { profile: displayProfile, isLoading: loading } = storeToRefs(profileStore)
+
+// Local UI state
+const activeTab = ref('posts')
+const isOwnProfile = ref(true) // Should be derived from authStore in production
+const showEditProfile = ref(false)
+const showGeneralSettings = ref(false)
+const showAvatarUpload = ref(false)
+const showCreatePost = ref(false)
+
+// Placeholder data arrays - move these to profileStore actions when ready
+const verificationBadges = ref([])
+const userPosts = ref([])
+const mediaPosts = ref([])
+const likedPosts = ref([])
+
+onMounted(async () => {
+  await profileStore.fetchProfile()
+})
 
 const handleAvatarError = (e: Event) => {
   const img = e.target as HTMLImageElement
   img.src = '/default-avatar.svg'
 }
 
-onMounted(() => {
-  fetchProfileData()
-})
+// Helpers
+const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
+const formatDate = (date: string) => new Date(date).toLocaleDateString()
+const getBadgeIcon = (type: string) => 'check-circle'
+const toggleFollow = () => { /* Logic here */ }
+const openVerificationDetails = (b: any) => { /* Logic here */ }
+const openMediaModal = (p: any) => { /* Logic here */ }
+
+const tabs = [
+  { id: 'posts', label: 'Posts', icon: 'file-text' },
+  { id: 'media', label: 'Media', icon: 'image' },
+  { id: 'likes', label: 'Likes', icon: 'heart' }
+]
 </script>
+
 
 <style scoped>
 .profile-page { min-height: 100vh; background: #0f172a; }
