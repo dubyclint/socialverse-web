@@ -1,15 +1,15 @@
 // ============================================================================
-// FILE: /composables/useSocialFeed.ts - 
+// FILE: /composables/useSocialFeed.ts 
 // ============================================================================
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { navigateTo } from '#app'
-import { useSupabaseClient } from '~/composables/useSupabaseClient'
+import { useSupabaseClient } from '~/composables/useSupabaseClient' // ADDED IMPORT
 
 export const useSocialFeed = () => {
   const route = useRoute()
   const router = useRouter()
-  const supabase = useSupabaseClient()
+  const supabase = useSupabaseClient() // INITIALIZED CLIENT
 
   // LAZY MODULE RESOLVERS
   let _cachedAuthStore: any = null
@@ -95,6 +95,34 @@ export const useSocialFeed = () => {
     return true
   }
 
+  // --- Realtime Wallet Listener ---
+  const setupWalletListener = async () => {
+    const authStore = await getAuthStore()
+    const userId = authStore?.user?.id
+    if (!userId) return
+
+    supabase
+      .channel('wallet_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newBalance = payload.new.balance
+          walletBalance.value = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: 'USD' 
+          }).format(newBalance)
+          console.log('[Feed] Wallet updated via realtime:', newBalance)
+        }
+      )
+      .subscribe()
+  }
+
   // COMPUTED PROPERTIES
   const currentUser = computed(() => getAuthStoreSync()?.user || null)
   const userName = computed(() => getProfileStoreSync()?.profile?.full_name || currentUser.value?.user_metadata?.full_name || 'User')
@@ -151,6 +179,7 @@ export const useSocialFeed = () => {
     initialized.value = true
     await fetchProfileData()
     await fetchPosts()
+    await setupWalletListener() // RECONCILED: Start listening
   }
 
   return {
