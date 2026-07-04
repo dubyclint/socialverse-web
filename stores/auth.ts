@@ -51,14 +51,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const signUp = async (email: string, password: string, options: any = {}) => {
+  const signUp = async (data: any) => {
     setLoading(true)
     setError(null)
     try {
       const response: any = await $fetch('/api/auth/signup', {
         method: 'POST',
-        body: { email, password, ...options }
+        body: data
       })
+      // If your API automatically logs them in after sign up, 
+      // you can call setUser(response.user) here.
       return { success: true, data: response }
     } catch (err: any) {
       const msg = err.data?.statusMessage || err.message || 'Registration failed'
