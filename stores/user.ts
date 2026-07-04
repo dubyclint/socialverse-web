@@ -1,53 +1,32 @@
-// stores/user.ts (Reconciled)
+// stores/user.ts
 import { defineStore } from 'pinia'
-import { ref, computed, readonly } from 'vue'
-import { userService } from '~/services/userService'
+import { authService } from '~/services/authService'
+import { profileService } from '~/services/profileService'
 
 export const useUserStore = defineStore('user', () => {
-  const currentUser = ref<any | null>(null)
-  const isAuthenticated = ref(false)
+  const user = ref(null)
+  const profile = ref(null)
   const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const profileMissing = ref(false)
 
-  const userId = computed(() => currentUser.value?.id || null)
-
-  const initializeSession = async () => {
+  // ORCHESTRATION: One action to rule them all
+  const signIn = async (email, password) => {
     isLoading.value = true
     try {
-      const { data: { session }, error: sessionError } = await userService.getSession()
-      if (sessionError) throw new Error(String(sessionError))
+      // 1. Auth Step
+      const { data, error } = await authService.signIn(email, password)
+      if (error) throw error
+
+      // 2. Profile Step
+      user.value = data.user
+      profile.value = await profileService.getMe() // Fetch profile immediately
       
-      currentUser.value = session?.user || null
-      isAuthenticated.value = !!session?.user
-    } catch (err: any) {
-      error.value = err.message
+      return { success: true }
+    } catch (err) {
+      return { success: false, message: err.message }
     } finally {
       isLoading.value = false
     }
   }
 
-  const fetchUserProfile = async (targetUserId: string) => {
-    isLoading.value = true
-    try {
-      const { data, error: profileError } = await userService.getProfile(targetUserId)
-      if (profileError) throw profileError
-      
-      profileMissing.value = !data
-      return data
-    } catch (err: any) {
-      error.value = err.message
-      return null
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  const logout = async () => {
-    await userService.signOut()
-    currentUser.value = null
-    isAuthenticated.value = false
-  }
-
-  return { currentUser, isAuthenticated, isLoading, error, profileMissing, userId, initializeSession, fetchUserProfile, logout }
+  return { user, profile, isLoading, signIn }
 })
