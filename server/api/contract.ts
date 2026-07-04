@@ -1,5 +1,4 @@
-// Use relative paths to bypass potential alias resolution issues on Windows
-import { getSupabaseClient } from "../utils/database"; 
+import { serverSupabaseClient } from '#supabase/server';
 import { promises as fs } from 'fs';
 import { resolve } from 'path';
 
@@ -20,13 +19,11 @@ async function getEthClient() {
   }
 
   try {
-    // Lazy load EthClient class using relative path
     if (!EthClient) {
       const ethModule = await import('../../lib/eth-client');
       EthClient = ethModule.EthClient;
     }
 
-    // Read ABI asynchronously
     const abiPath = resolve(process.cwd(), 'scripts/abi.json');
     const abiContent = await fs.readFile(abiPath, 'utf-8');
     const abi = JSON.parse(abiContent);
@@ -50,8 +47,8 @@ async function getEthClient() {
 }
 
 export default defineEventHandler(async (event) => {
-  // Ensure the database client is correctly imported and awaited
-  const supabase = await getSupabaseClient();
+  // Use the official Supabase helper (removes dependency on local utils/database.ts)
+  const supabase = await serverSupabaseClient(event);
   const ethClient = await getEthClient();
 
   if (!ethClient) {
@@ -61,7 +58,6 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Get query parameters
   const query = getQuery(event);
   const method = query.method as string;
 
@@ -73,10 +69,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Initialize the client if not already done
     await ethClient.initialize();
 
-    // Handle different contract methods
     switch (method) {
       case 'getBalance':
         const address = query.address as string;
@@ -87,19 +81,13 @@ export default defineEventHandler(async (event) => {
           });
         }
         const balance = await ethClient.getBalance(address);
-        return {
-          success: true,
-          balance
-        };
+        return { success: true, balance };
 
       case 'call':
         const callMethod = query.callMethod as string;
         const callArgs = query.args ? JSON.parse(query.args as string) : [];
         const result = await ethClient.call(callMethod, ...callArgs);
-        return {
-          success: true,
-          result
-        };
+        return { success: true, result };
 
       default:
         throw createError({
