@@ -1,7 +1,8 @@
+// stores/profile.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { profileService } from '~/services/profileService'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user' // Updated import
 
 export const useProfileStore = defineStore('profile', () => {
   const profile = ref<any>(null)
@@ -20,22 +21,20 @@ export const useProfileStore = defineStore('profile', () => {
     profile.value = await profileService.update(data)
   }
 
-  // Add this action to handle the file upload via your service layer
   const uploadAvatar = async (file: File) => {
-    const response = await profileService.uploadAvatar(file)
-    // Assuming the service returns an object containing the new URL
-    const newAvatarUrl = response.avatar_url || response
+    const avatarUrl = await profileService.uploadAvatar(file)
     if (profile.value) {
-      profile.value.avatar_url = newAvatarUrl
+      profile.value.avatar_url = avatarUrl
     }
-    return newAvatarUrl
+    return avatarUrl
   }
 
   const updateStreamConfig = async (data: { title: string; quality: string }) => {
-    const auth = useAuthStore()
-    if (!auth.userId) throw new Error('No user authenticated')
+    // Access the unified user store instead of the old auth store
+    const userStore = useUserStore()
+    if (!userStore.userId) throw new Error('No user authenticated')
     
-    const updated = await profileService.updateStreamConfig(auth.userId, data)
+    const updated = await profileService.updateStreamConfig(userStore.userId, data)
     if (profile.value) {
       profile.value = { ...profile.value, ...updated }
     }
