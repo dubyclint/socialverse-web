@@ -1,33 +1,22 @@
-// ============================================================================
-// FILE: /composables/use-fetch.ts
-// Description: Custom fetch client with token refresh, FormData handling,
-//              and authorization interceptors.
-// ============================================================================
+// composables/use-fetch.ts
 import { navigateTo, createError } from '#app'
 
 export const useFetchWithAuth = () => {
-  // ============================================================================
-  // LAZY STORE RESOLVERS
-  // ============================================================================
-  const getAuthStore = async () => {
-    const { useAuthStore } = await import('~/stores/auth')
-    return useAuthStore()
-  }
-
-  const getProfileStore = async () => {
-    const { useProfileStore } = await import('~/stores/profile')
-    return useProfileStore()
+  // 1. Unified Store Resolver
+  const getUserStore = async () => {
+    const { useUserStore } = await import('~/stores/user')
+    return useUserStore()
   }
 
   return async (url: string, options: any = {}) => {
-    const authStore = await getAuthStore()
+    const userStore = await getUserStore()
 
-    // 1. Refresh logic: Check if we need to refresh before executing
-    if (authStore.isTokenExpired?.()) {
-      await authStore.refreshToken?.()
+    // 2. Refresh logic: Delegate to the unified userStore
+    if (userStore.isTokenExpired?.()) {
+      await userStore.refreshToken?.()
     }
 
-    const token = authStore.token
+    const token = userStore.token
 
     if (!token) {
       throw createError({ 
@@ -36,13 +25,12 @@ export const useFetchWithAuth = () => {
       })
     }
 
-    // 2. Prepare headers
+    // 3. Prepare headers
     const headers: Record<string, string> = { 
       ...(options.headers || {}),
       'Authorization': `Bearer ${token}`
     }
 
-    // Handle Content-Type: Use 'application/json' unless it's FormData
     const isFormData = options.body instanceof FormData
     if (!isFormData) {
       headers['Content-Type'] = headers['Content-Type'] || 'application/json'
@@ -53,19 +41,14 @@ export const useFetchWithAuth = () => {
     } catch (error: any) {
       const status = error?.statusCode || error?.response?.status
 
-      // 3. Handle Unauthorized: Teardown session and redirect
+      // 4. Handle Unauthorized: Centralized cleanup
       if (status === 401 || status === 403) {
         try {
-          const profileStore = await getProfileStore()
-          
-          authStore.clearAuth?.()
-          profileStore.clearProfile?.()
+          // Instead of manually clearing multiple stores, 
+          // call one unified logout/teardown method
+          await userStore.logout()
 
           if (process.client) {
-            // Clear local storage keys
-            ['auth_token', 'auth_user', 'auth_user_id', 'refresh_token'].forEach(key => 
-              localStorage.removeItem(key)
-            )
             await navigateTo('/signin', { replace: true })
           }
         } catch (err) {
