@@ -18,7 +18,23 @@ export const profileService = {
     }))
   },
 
-  // Direct Supabase interaction for specific, non-API-proxied settings
+  // Upload user avatar
+  async uploadAvatar(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('avatar', file)
+
+    // Note: Do not manually set Content-Type; 
+    // the browser will set it with the correct boundary for FormData.
+    const response = await api('/profile/avatar', {
+      method: 'POST',
+      body: formData
+    })
+
+    const result = unwrap<{ avatar_url: string }>(response)
+    return result.avatar_url
+  },
+
+  // Direct Supabase interaction for specific settings
   async updateStreamConfig(userId: string, data: { title: string; quality: string }) {
     const client = useSupabaseClient()
     const { data: updated, error } = await client
