@@ -250,6 +250,7 @@ import { useSocialFeed } from '~/composables/useSocialFeed';
 import { UseTimeAgo } from '@vueuse/components';
 import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
+import PewGiftModal from '~/components/PewGiftModal.vue';
 
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
@@ -264,8 +265,23 @@ const {
   unreadMessages, unreadNotifications, authStore,
   profileLoading, profileError, retryProfileLoad, userFollowers, 
   userFollowing, userPosts, goToFollowers, goToFollowing, 
-  goToUserPosts, isLiveStreaming
+  goToUserPosts, isLiveStreaming, sendPewGift
 } = socialFeed;
+
+// --- Modal State Management ---
+const isGiftModalOpen = ref(false);
+const activeGiftPost = ref(null);
+
+const openGiftModal = (post) => {
+  activeGiftPost.value = post;
+  isGiftModalOpen.value = true;
+};
+
+const handleConfirmGift = async ({ postId, amount }) => {
+  await sendPewGift(postId, amount);
+  isGiftModalOpen.value = false;
+  activeGiftPost.value = null;
+};
 
 // --- Local UI State ---
 const route = useRoute();
@@ -318,6 +334,7 @@ onMounted(async () => {
   await initPipeline();
 });
 </script>
+
 
 <style>
 /* ============================================================================
