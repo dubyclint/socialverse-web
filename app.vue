@@ -19,17 +19,20 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user' // Unified store
 
 const isHydrating = ref(true)
+const userStore = useUserStore()
 
-onMounted(() => {
-  // Simple: just wait for plugin to finish, then hide loader
-  // Plugin emits 'app:plugin-ready' when done
+onMounted(async () => {
+  // 1. Initialize the unified session
+  await userStore.initializeSession()
+
+  // 2. Hide loader when ready
   const handlePluginReady = () => {
     isHydrating.value = false
   }
   
-  // Listen for plugin completion signal
   if (window.__appPluginReady) {
     handlePluginReady()
   } else {
@@ -37,7 +40,3 @@ onMounted(() => {
   }
 })
 </script>
-
-<style scoped>
-/* ... keep existing styles ... */
-</style>
