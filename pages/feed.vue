@@ -182,8 +182,7 @@
                   <NuxtLink v-for="tag in post.hashtags" :key="tag" :to="`/explore?tag=${tag}`" class="hashtag">#{{ tag }}</NuxtLink>
                 </div>
               </div>
-              <!-- INTEGRATED COMPONENT -->
-              <PostInteractionToolbar :post="post" />
+              <PostInteractionToolbar :post="post" @open-gift="openGiftModal" />
             </article>
             <div v-if="hasMorePosts" class="load-more">
               <button v-if="!loadingMore" @click="loadMorePosts" class="btn-load-more">Load More Posts</button>
@@ -196,7 +195,7 @@
           </div>
         </ClientOnly>
 
-            <aside class="feed-sidebar-right">
+        <aside class="feed-sidebar-right">
           <div class="search-card">
             <div class="search-wrapper"><Icon name="search" size="18" class="search-icon" /><input v-model="searchQuery" type="text" placeholder="Search posts, people..." class="search-input" @keyup.enter="performSearch" /></div>
           </div>
@@ -223,6 +222,14 @@
         </aside>
       </main>
 
+      <PewGiftModal 
+        v-if="isGiftModalOpen"
+        :is-open="isGiftModalOpen" 
+        :post="activeGiftPost" 
+        @close="isGiftModalOpen = false" 
+        @confirm="handleConfirmGift" 
+      />
+
       <ClientOnly>
         <div v-if="activeSelectedStatus" class="status-lightbox-modal" @click.self="closeStatusViewer">
           <div class="lightbox-content" :style="{ backgroundColor: activeSelectedStatus.colors?.background || '#000', color: activeSelectedStatus.colors?.text || '#fff' }">
@@ -242,7 +249,7 @@
       </ClientOnly>
   </div>
 </template>
-
+          
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, navigateTo } from '#app';
