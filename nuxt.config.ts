@@ -107,8 +107,11 @@ export default defineNuxtConfig({
   // ============================================================================
   // GLOBAL CSS
   // ============================================================================
-  css: ['~/assets/css/main.css'],
-'vue-virtual-scroller/dist/vue-virtual-scroller.css' ,
+  css: [
+    '~/assets/css/main.css', 
+    'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+  ],
+  
   colorMode: {
     classSuffix: '',
     preference: 'light',
