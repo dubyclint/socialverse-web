@@ -479,11 +479,11 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import { Verification } from '~/models/Verification'
 
 const emit = defineEmits(['close', 'submitted'])
-const authStore = useAuthStore()
+const userStore = useUserStore()
 
 // UI State
 const step = ref(1)
@@ -507,250 +507,120 @@ const formData = reactive({
   businessName: '',
   businessRegNumber: '',
   businessDocumentFile: null,
-  additionalDocuments: []
+  additionalDocuments: [] as File[]
 })
 
 // Verification types
 const verificationTypes = [
-  {
-    key: 'basic',
-    name: 'Basic Verification',
-    description: 'Verify your identity with government ID',
-    icon: 'user-check',
-    badge: 'Verified',
-    features: [
-      'Identity verification',
-      'Basic trust badge',
-      'Access to verified features'
-    ]
-  },
-  {
-    key: 'k2_level_1',
-    name: 'K2 Level 1',
-    description: 'Enhanced verification with address proof',
-    icon: 'shield',
-    badge: 'K2 Level 1',
-    features: [
-      'Identity + address verification',
-      'Enhanced trust badge',
-      'Higher transaction limits',
-      'Priority support'
-    ]
-  },
-  {
-    key: 'k2_level_2',
-    name: 'K2 Level 2',
-    description: 'Highest level verification with additional documents',
-    icon: 'shield-check',
-    badge: 'K2 Level 2',
-    features: [
-      'Complete identity verification',
-      'Highest trust badge',
-      'Maximum transaction limits',
-      'VIP support access',
-      'Advanced features'
-    ]
-  },
-  {
-    key: 'business',
-    name: 'Business Verification',
-    description: 'Verify your business entity',
-    icon: 'briefcase',
-    badge: 'Business',
-    features: [
-      'Business entity verification',
-      'Business trust badge',
-      'Commercial features',
-      'Business support'
-    ]
-  }
+  { key: 'basic', name: 'Basic Verification', description: 'Verify your identity with government ID', icon: 'user-check', badge: 'Verified', features: ['Identity verification', 'Basic trust badge', 'Access to verified features'] },
+  { key: 'k2_level_1', name: 'K2 Level 1', description: 'Enhanced verification with address proof', icon: 'shield', badge: 'K2 Level 1', features: ['Identity + address verification', 'Enhanced trust badge', 'Higher transaction limits', 'Priority support'] },
+  { key: 'k2_level_2', name: 'K2 Level 2', description: 'Highest level verification with additional documents', icon: 'shield-check', badge: 'K2 Level 2', features: ['Complete identity verification', 'Highest trust badge', 'Maximum transaction limits', 'VIP support access', 'Advanced features'] },
+  { key: 'business', name: 'Business Verification', description: 'Verify your business entity', icon: 'briefcase', badge: 'Business', features: ['Business entity verification', 'Business trust badge', 'Commercial features', 'Business support'] }
 ]
 
-// Countries list (simplified)
-const countries = [
-  'United States', 'Canada', 'United Kingdom', 'Germany', 'France',
-  'Australia', 'Japan', 'South Korea', 'Singapore', 'Netherlands',
-  'Sweden', 'Norway', 'Denmark', 'Switzerland', 'Austria'
-]
+const countries = ['United States', 'Canada', 'United Kingdom', 'Germany', 'France', 'Australia', 'Japan', 'South Korea', 'Singapore', 'Netherlands', 'Sweden', 'Norway', 'Denmark', 'Switzerland', 'Austria']
 
-// Computed properties
+// Computed
 const totalSteps = computed(() => {
-  if (selectedType.value === 'basic') return 4 // Type, Basic Info, Additional Docs, Review
-  if (selectedType.value === 'business') return 4 // Type, Basic Info, Business Info, Review
-  return 5 // Type, Basic Info, Address Info, Additional Docs, Review
+  if (selectedType.value === 'basic') return 4
+  if (selectedType.value === 'business') return 4
+  return 5
 })
 
-const needsAddressInfo = computed(() => {
-  return ['k2_level_1', 'k2_level_2'].includes(selectedType.value)
-})
+const needsAddressInfo = computed(() => ['k2_level_1', 'k2_level_2'].includes(selectedType.value))
 
 const canProceed = computed(() => {
   switch (step.value) {
-    case 1:
-      return selectedType.value !== ''
-    case 2:
-      return formData.fullName && formData.idType && formData.idNumber && formData.idDocumentFile
+    case 1: return selectedType.value !== ''
+    case 2: return formData.fullName && formData.idType && formData.idNumber && formData.idDocumentFile
     case 3:
-      if (needsAddressInfo.value) {
-        return formData.addressLine1 && formData.city && formData.stateProvince && 
-               formData.postalCode && formData.country && formData.proofOfAddressFile
-      }
-      if (selectedType.value === 'business') {
-        return formData.businessName && formData.businessRegNumber && formData.businessDocumentFile
-      }
+      if (needsAddressInfo.value) return formData.addressLine1 && formData.city && formData.stateProvince && formData.postalCode && formData.country && formData.proofOfAddressFile
+      if (selectedType.value === 'business') return formData.businessName && formData.businessRegNumber && formData.businessDocumentFile
       return true
-    case 4:
-      return true // Additional docs are optional
-    default:
-      return true
+    default: return true
   }
 })
 
-const canSubmit = computed(() => {
-  return canProceed.value && agreedToTerms.value
-})
+const canSubmit = computed(() => canProceed.value && agreedToTerms.value)
 
 // Methods
-const selectVerificationType = (type) => {
-  selectedType.value = type
-}
+const selectVerificationType = (type: string) => { selectedType.value = type }
+const nextStep = () => { if (canProceed.value && step.value < totalSteps.value) step.value++ }
+const previousStep = () => { if (step.value > 1) step.value-- }
 
-const nextStep = () => {
-  if (canProceed.value && step.value < totalSteps.value) {
-    step.value++
-  }
-}
-
-const previousStep = () => {
-  if (step.value > 1) {
-    step.value--
-  }
-}
-
-const handleIdDocumentUpload = (event) => {
+const handleIdDocumentUpload = (event: any) => {
   const file = event.target.files[0]
-  if (file && file.size <= 10 * 1024 * 1024) { // 10MB limit
-    formData.idDocumentFile = file
-  } else {
-    alert('File size must be less than 10MB')
-  }
+  if (file?.size <= 10 * 1024 * 1024) formData.idDocumentFile = file
+  else alert('File size must be less than 10MB')
 }
 
-const removeIdDocument = () => {
-  formData.idDocumentFile = null
-}
-
-const handleProofOfAddressUpload = (event) => {
+const handleProofOfAddressUpload = (event: any) => {
   const file = event.target.files[0]
-  if (file && file.size <= 10 * 1024 * 1024) {
-    formData.proofOfAddressFile = file
-  } else {
-    alert('File size must be less than 10MB')
-  }
+  if (file?.size <= 10 * 1024 * 1024) formData.proofOfAddressFile = file
+  else alert('File size must be less than 10MB')
 }
 
-const removeProofOfAddress = () => {
-  formData.proofOfAddressFile = null
-}
-
-const handleBusinessDocumentUpload = (event) => {
+const handleBusinessDocumentUpload = (event: any) => {
   const file = event.target.files[0]
-  if (file && file.size <= 10 * 1024 * 1024) {
-    formData.businessDocumentFile = file
-  } else {
-    alert('File size must be less than 10MB')
-  }
+  if (file?.size <= 10 * 1024 * 1024) formData.businessDocumentFile = file
+  else alert('File size must be less than 10MB')
 }
 
-const removeBusinessDocument = () => {
-  formData.businessDocumentFile = null
-}
-
-const handleAdditionalDocsUpload = (event) => {
-  const files = Array.from(event.target.files)
-  files.forEach(file => {
-    if (file.size <= 10 * 1024 * 1024) {
-      formData.additionalDocuments.push(file)
-    } else {
-      alert(`File ${file.name} is too large. Maximum size is 10MB.`)
-    }
+const handleAdditionalDocsUpload = (event: any) => {
+  Array.from(event.target.files).forEach((file: any) => {
+    if (file.size <= 10 * 1024 * 1024) formData.additionalDocuments.push(file)
   })
 }
 
-const removeAdditionalDocument = (index) => {
-  formData.additionalDocuments.splice(index, 1)
-}
+const removeIdDocument = () => { formData.idDocumentFile = null }
+const removeProofOfAddress = () => { formData.proofOfAddressFile = null }
+const removeBusinessDocument = () => { formData.businessDocumentFile = null }
+const removeAdditionalDocument = (index: number) => { formData.additionalDocuments.splice(index, 1) }
 
 const submitApplication = async () => {
   try {
     submitting.value = true
     
-    // Upload files and get URLs (implement file upload logic)
+    if (!userStore.user?.id) throw new Error('User not authenticated')
+
     const idDocumentUrl = await uploadFile(formData.idDocumentFile)
-    const proofOfAddressUrl = formData.proofOfAddressFile ? 
-      await uploadFile(formData.proofOfAddressFile) : null
-    const businessDocumentUrl = formData.businessDocumentFile ? 
-      await uploadFile(formData.businessDocumentFile) : null
-    const additionalDocumentUrls = await Promise.all(
-      formData.additionalDocuments.map(file => uploadFile(file))
-    )
+    const proofOfAddressUrl = formData.proofOfAddressFile ? await uploadFile(formData.proofOfAddressFile) : null
+    const businessDocumentUrl = formData.businessDocumentFile ? await uploadFile(formData.businessDocumentFile) : null
+    const additionalDocumentUrls = await Promise.all(formData.additionalDocuments.map(file => uploadFile(file)))
     
-    // Submit application
     const applicationData = {
       type: selectedType.value,
       fullName: formData.fullName,
       idType: formData.idType,
       idNumber: formData.idNumber,
-      idDocumentUrl: idDocumentUrl,
+      idDocumentUrl,
       addressLine1: formData.addressLine1,
       addressLine2: formData.addressLine2,
       city: formData.city,
       stateProvince: formData.stateProvince,
       postalCode: formData.postalCode,
       country: formData.country,
-      proofOfAddressUrl: proofOfAddressUrl,
+      proofOfAddressUrl,
       businessName: formData.businessName,
       businessRegNumber: formData.businessRegNumber,
-      businessDocumentUrl: businessDocumentUrl,
+      businessDocumentUrl,
       additionalDocuments: additionalDocumentUrls
     }
     
-    await Verification.submitApplication(authStore.user.id, applicationData)
-    
+    await Verification.submitApplication(userStore.user.id, applicationData)
     emit('submitted')
-    
   } catch (error) {
-    console.error('Error submitting verification application:', error)
+    console.error('Error submitting application:', error)
     alert('Failed to submit application. Please try again.')
   } finally {
     submitting.value = false
   }
 }
 
-// Utility functions
-const uploadFile = async (file) => {
-  // Implement file upload logic here
-  // Return the uploaded file URL
-  return `https://example.com/uploads/${file.name}`
-}
-
-const getVerificationTypeName = (type) => {
-  const verType = verificationTypes.find(t => t.key === type)
-  return verType ? verType.name : type
-}
-
-const formatIdType = (type) => {
-  const types = {
-    'passport': 'Passport',
-    'drivers_license': "Driver's License",
-    'national_id': 'National ID Card'
-  }
-  return types[type] || type
-}
-
-const closeModal = () => {
-  emit('close')
-}
+const uploadFile = async (file: any) => `https://example.com/uploads/${file.name}`
+const getVerificationTypeName = (type: string) => verificationTypes.find(t => t.key === type)?.name || type
+const formatIdType = (type: string) => ({ 'passport': 'Passport', 'drivers_license': "Driver's License", 'national_id': 'National ID Card' })[type] || type
+const closeModal = () => emit('close')
 </script>
 
 <style scoped>
