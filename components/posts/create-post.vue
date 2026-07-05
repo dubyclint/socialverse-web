@@ -123,24 +123,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import { useFileUpload } from '~/composables/use-file-upload'
 
 // Props & Emits
 const emit = defineEmits(['postCreated'])
 
 // Stores
-const authStore = useAuthStore()
+const userStore = useUserStore()
 
 // Composables
 const { 
   uploading, 
-  progress, 
   progressPercentage,
   error: uploadError,
-  uploadedFiles,
   uploadFile,
   clearError: clearUploadError
 } = useFileUpload()
@@ -149,20 +147,20 @@ const {
 const postContent = ref('')
 const showEmojiPicker = ref(false)
 const publishing = ref(false)
-const previewUrl = ref(null)
-const mediaFile = ref(null)
+const previewUrl = ref<string | null>(null)
+const mediaFile = ref<File | null>(null)
 const showPrivacy = ref(false)
 const selectedPrivacy = ref('public')
-const uploadedFileData = ref(null)
+const uploadedFileData = ref<any>(null)
 
 // Refs
-const fileInputRef = ref(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
-// Computed
-const userName = computed(() => authStore.userDisplayName || 'User')
-const userHandle = computed(() => authStore.profile?.username || 'user')
-const userAvatar = computed(() => authStore.profile?.avatar_url)
-const userInitials = computed(() => authStore.userInitials)
+// Computed: Accessing unified userStore state
+const userName = computed(() => userStore.userDisplayName || 'User')
+const userHandle = computed(() => userStore.user?.username || 'user')
+const userAvatar = computed(() => userStore.profile?.avatar_url)
+const userInitials = computed(() => userStore.userInitials)
 
 // Constants
 const popularEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗']
@@ -183,7 +181,7 @@ function toggleEmojiPicker() {
   showPrivacy.value = false
 }
 
-function insertEmoji(emoji) {
+function insertEmoji(emoji: string) {
   postContent.value += emoji
   showEmojiPicker.value = false
 }
@@ -192,39 +190,34 @@ function triggerFileInput() {
   fileInputRef.value?.click()
 }
 
-async function handleMediaUpload(event) {
-  const file = event.target.files[0]
-  if (file) {
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm']
-    if (!validTypes.includes(file.type)) {
-      clearUploadError()
-      return
-    }
+async function handleMediaUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
 
-    // Validate file size (max 100MB)
-    const maxSize = 100 * 1024 * 1024
-    if (file.size > maxSize) {
-      clearUploadError()
-      return
-    }
+  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm']
+  if (!validTypes.includes(file.type)) {
+    clearUploadError()
+    return
+  }
 
-    mediaFile.value = file
-    previewUrl.value = URL.createObjectURL(file)
+  const maxSize = 100 * 1024 * 1024
+  if (file.size > maxSize) {
+    clearUploadError()
+    return
+  }
 
-    // Upload file using composable
-    try {
-      const uploadedFile = await uploadFile(file, 'posts', {
-        optimize: true,
-        generateThumbnail: file.type.startsWith('image/')
-      })
+  mediaFile.value = file
+  previewUrl.value = URL.createObjectURL(file)
 
-      if (uploadedFile) {
-        uploadedFileData.value = uploadedFile
-      }
-    } catch (err) {
-      console.error('Upload error:', err)
-    }
+  try {
+    const uploadedFile = await uploadFile(file, 'posts', {
+      optimize: true,
+      generateThumbnail: file.type.startsWith('image/')
+    })
+    if (uploadedFile) uploadedFileData.value = uploadedFile
+  } catch (err) {
+    console.error('Upload error:', err)
   }
 }
 
@@ -241,18 +234,9 @@ function togglePrivacy() {
   showEmojiPicker.value = false
 }
 
-function selectPrivacy(value) {
+function selectPrivacy(value: string) {
   selectedPrivacy.value = value
   showPrivacy.value = false
-}
-
-function addGif() {
-  // TODO: Implement GIF picker
-  alert('GIF picker coming soon!')
-}
-
-function updateCharCount() {
-  // Reactive update - Vue handles this automatically
 }
 
 async function publishPost() {
@@ -261,24 +245,16 @@ async function publishPost() {
   try {
     publishing.value = true
     
-    // Prepare post data
     const postData = {
       content: postContent.value,
       privacy: selectedPrivacy.value,
       media_url: uploadedFileData.value?.url || null,
       media_path: uploadedFileData.value?.path || null,
-      user_id: authStore.user.id,
+      user_id: userStore.user?.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
     
-    // Simulate API call (replace with actual API call)
-    // const response = await $fetch('/api/posts/create', {
-    //   method: 'POST',
-    //   body: postData
-    // })
-    
-    // For demo purposes, emit with mock data
     emit('postCreated', {
       id: Date.now(),
       content: postData.content,
@@ -290,8 +266,6 @@ async function publishPost() {
       comments_count: 0,
       shares_count: 0,
       user_liked: false,
-      showComments: false,
-      comments: [],
       user: {
         name: userName.value,
         avatar: userAvatar.value,
@@ -299,14 +273,13 @@ async function publishPost() {
       }
     })
     
-    // Reset form
     postContent.value = ''
     removeMedia()
     selectedPrivacy.value = 'public'
     
   } catch (error) {
     console.error('Error publishing post:', error)
-    alert('An error occurred while publishing your post. Please try again.')
+    alert('An error occurred while publishing your post.')
   } finally {
     publishing.value = false
   }
