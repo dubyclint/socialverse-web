@@ -94,7 +94,8 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
 
 definePageMeta({
   middleware: ['auth'],
@@ -102,9 +103,9 @@ definePageMeta({
 })
 
 const router = useRouter()
-const authStore = useAuthStore()
+const userStore = useUserStore()
 
-// Start true so the form doesn't flicker while checking if profile exists
+// State
 const loading = ref(true) 
 const success = ref(false)
 const error = ref('')
@@ -119,6 +120,7 @@ const form = reactive({
   is_private: false
 })
 
+// Validation
 const validate = () => {
   if (!form.full_name.trim()) return 'Full name is required'
   if (form.full_name.trim().length > 100) return 'Full name must be less than 100 characters'
@@ -129,6 +131,7 @@ const validate = () => {
   return ''
 }
 
+// Submission
 const submit = async () => {
   error.value = ''
   const validationError = validate()
@@ -139,7 +142,8 @@ const submit = async () => {
 
   loading.value = true
   try {
-    await $fetch('/api/profile/complete', {
+    // API utility handles Authorization header internally via interceptors
+    await api('/profile/complete', {
       method: 'POST',
       body: {
         full_name: form.full_name.trim(),
@@ -149,44 +153,39 @@ const submit = async () => {
         birth_date: form.birth_date || null,
         gender: form.gender || null,
         is_private: form.is_private
-      },
-      headers: authStore.token
-        ? { Authorization: `Bearer ${authStore.token}` }
-        : undefined
+      }
     })
 
     success.value = true
     setTimeout(() => router.replace('/profile/complete-success'), 700)
   } catch (e: any) {
-    error.value = e?.data?.message || e?.statusMessage || 'Failed to complete profile'
-    loading.value = false // Only unlock loading if submission failed
+    error.value = e?.data?.message || 'Failed to complete profile'
+    loading.value = false
   }
 }
 
+// Lifecycle
 onMounted(async () => {
   try {
-    // If profile already exists, skip completion and bounce them to /profile
-    await $fetch('/api/profile/me', {
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined
-    })
+    // Check if profile exists using the unified API utility
+    await api('/profile/me')
+    // If successful, user already has a profile; bounce to main profile page
     await router.replace('/profile')
   } catch (e: any) {
-    // Extract the exact response status code returned by Nuxt 3's ofetch engine
     const status = e?.status || e?.response?.status || e?.statusCode
-
+    
+    // 404 indicates the profile setup is required
     if (status === 404) {
-      // Intended path for onboarding! Clean state, hide loading block, show blank form.
       loading.value = false 
     } else {
-      // Genuine infrastructure breakdown or network issue
       console.error('[complete-profile] precheck error:', e)
       error.value = 'Failed to verify profile status. Please refresh.'
       loading.value = false
     }
   }
 })
-</script>
-            
+</script>    
+
 <style scoped>
 .complete-page {
   min-height: 100vh;
