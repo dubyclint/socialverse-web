@@ -45,12 +45,13 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+// Updated Import: Use the unified userStore
+import { useUserStore } from '~/stores/user'
 
 const props = defineProps<{ modelValue?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const authStore = useAuthStore()
+const userStore = useUserStore() // New store instance
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const previewUrl = ref(props.modelValue || '')
@@ -81,19 +82,18 @@ const handleFileSelect = async (event: Event) => {
   uploading.value = true
 
   try {
-    // optimistic local preview
     previewUrl.value = URL.createObjectURL(file)
 
     const formData = new FormData()
     formData.append('file', file)
 
+    // Note: If you use a global fetch interceptor (recommended), 
+    // you no longer need to pass the Authorization header manually.
     const res: any = await $fetch('/api/profile/avatar-upload', {
       method: 'POST',
-      body: formData,
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined
+      body: formData
     })
 
-    // canonical response parsing
     const payload = res?.data || res
     const avatarUrl = payload?.avatar_url
 
