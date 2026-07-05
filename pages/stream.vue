@@ -128,6 +128,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
 import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
 import MobileCameraStream from '~/components/streaming/mobile-camera-stream'
 
@@ -136,7 +138,7 @@ definePageMeta({
   layout: 'default'
 })
 
-const user = useAuthStore()
+const userStore = useUserStore()
 
 // Composables connection
 const { 
@@ -148,159 +150,96 @@ const {
   stopStream
 } = useStreamBroadcast()
 
-// Stream internal states
 const currentStreamId = ref<string | null>(null)
 const errorMessage = ref('')
-
-// Reactive fallback wrappers matched with the composable state
 const viewerCount = ref(0)
 const streamDuration = ref(0)
 const streamStats = ref<any>(null)
-
 const viewers = ref<any[]>([])
 const receivedGifts = ref<any[]>([])
 const chatMessages = ref<any[]>([])
 const chatInput = ref('')
 let ws: WebSocket | null = null
 
-// Keep composable state dynamically bound to viewable metrics
-watch(broadcastViewers, (newCount) => { viewerCount.value = newCount })
-watch(broadcastDuration, (newDuration) => { streamDuration.value = newDuration })
-watch(broadcastStats, (newStats) => { streamStats.value = newStats })
+// Keep composable state bound to viewable metrics
+watch(broadcastViewers, (val) => { viewerCount.value = val })
+watch(broadcastDuration, (val) => { streamDuration.value = val })
+watch(broadcastStats, (val) => { streamStats.value = val })
 
-// Formatters
-const formatDuration = (seconds: number) => {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`
-}
-
-const formatTime = (timestamp: string) => {
-  return new Date(timestamp).toLocaleTimeString()
-}
-
-// Stream Lifecycle Actions
+// Stream Lifecycle
 const onStreamStarted = async (config: any) => {
   try {
-    const response = await $fetch('/api/stream', {
+    // Using unified API client
+    const response = await api('/stream', {
       method: 'POST',
-      body: {
-        action: 'create',
-        title: config.title,
-        category: config.category,
-        privacy: config.privacy,
-        quality: config.quality
-      }
+      body: { action: 'create', ...config }
     })
 
     if (response.success) {
       currentStreamId.value = response.data.id
-      // Invoke the composable method explicitly to capture state cleanly
       await startStream(response.data.id)
       connectWebSocket(response.data.id)
     }
   } catch (err: any) {
-    errorMessage.value = 'Failed to initialize broadcast context: ' + err.message
+    errorMessage.value = `Failed to initialize stream: ${err.message}`
   }
 }
 
 const onStreamEnded = async () => {
   try {
     if (currentStreamId.value) {
-      await $fetch(`/api/stream/${currentStreamId.value}`, {
+      await api(`/stream/${currentStreamId.value}`, {
         method: 'POST',
-        body: {
-          action: 'end',
-          duration: streamDuration.value
-        }
+        body: { action: 'end', duration: streamDuration.value }
       })
     }
     await stopStream()
     disconnectWebSocket()
     currentStreamId.value = null
   } catch (err: any) {
-    errorMessage.value = 'Error closing stream sessions securely: ' + err.message
+    errorMessage.value = `Error closing stream: ${err.message}`
   }
 }
 
-const onStreamError = (error: string) => {
-  errorMessage.value = error
-}
-
-// Realtime Connections
+// Real-time
 const connectWebSocket = (streamId: string) => {
-  try {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/api/stream/${streamId}/ws`
-    
-    ws = new WebSocket(wsUrl)
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      handleWebSocketMessage(data)
-    }
-    ws.onerror = (err) => console.error('WebSocket encountered an issue:', err)
-  } catch (err) {
-    console.error('Failed to connect real-time sockets:', err)
-  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/api/stream/${streamId}/ws`
+  ws = new WebSocket(wsUrl)
+  ws.onmessage = (event) => handleWebSocketMessage(JSON.parse(event.data))
 }
 
-const disconnectWebSocket = () => {
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-}
+const disconnectWebSocket = () => { ws?.close(); ws = null }
 
 const handleWebSocketMessage = (data: any) => {
   switch (data.type) {
-    case 'viewer-joined':
-      viewers.value.push(data.viewer)
-      viewerCount.value++
-      break
-    case 'viewer-left':
-      viewers.value = viewers.value.filter(v => v.id !== data.viewerId)
-      viewerCount.value--
-      break
-    case 'chat-message':
-      chatMessages.value.push(data.message)
-      break
-    case 'gift-received':
-      receivedGifts.value.unshift(data.gift)
-      break
-    case 'stats-update':
-      streamStats.value = data.stats
-      break
+    case 'viewer-joined': viewers.value.push(data.viewer); viewerCount.value++; break
+    case 'viewer-left': viewers.value = viewers.value.filter(v => v.id !== data.viewerId); viewerCount.value--; break
+    case 'chat-message': chatMessages.value.push(data.message); break
+    case 'gift-received': receivedGifts.value.unshift(data.gift); break
+    case 'stats-update': streamStats.value = data.stats; break
   }
 }
 
 const sendChatMessage = async () => {
   if (!chatInput.value.trim() || !currentStreamId.value) return
-
   try {
-    await $fetch(`/api/stream/${currentStreamId.value}/chat`, {
+    await api(`/stream/${currentStreamId.value}/chat`, {
       method: 'POST',
       body: { content: chatInput.value }
     })
     chatInput.value = ''
   } catch (err) {
-    console.error('Failed to post message to stream server:', err)
+    console.error('Chat error:', err)
   }
 }
 
-onMounted(() => {
-  if (!user.isAuthenticated) {
-    navigateTo('/login')
-  }
+onMounted(async () => {
+  // Ensure profile is hydrated for streaming identity
+  if (!userStore.user) await userStore.fetchProfile()
 })
 
-onUnmounted(() => {
-  disconnectWebSocket()
-})
+onUnmounted(disconnectWebSocket)
 </script>
 
 <style scoped>
