@@ -130,10 +130,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
-import { useAuthStore } from '~/stores/auth'
 
+// Chat store initialized
 const chatStore = useChatStore()
-const authStore = useAuthStore()
+
+// Chat composable for WebSocket/Realtime events
 const { 
   initialize, 
   sendMessage: emitMessage, 
@@ -147,11 +148,9 @@ const showGroupCreator = ref(false)
 const showSettings = ref(false)
 const typingTimeout = ref<NodeJS.Timeout | null>(null)
 
-// Computed properties
+// --- Computed ---
 const filteredChats = computed(() => {
-  if (!searchQuery.value) {
-    return chatStore.sortedChats
-  }
+  if (!searchQuery.value) return chatStore.sortedChats
   
   const query = searchQuery.value.toLowerCase()
   return chatStore.sortedChats.filter(chat =>
@@ -165,14 +164,12 @@ const currentChat = computed(() => {
   return chatStore.chats.get(chatStore.currentChatId)
 })
 
-// Methods
+// --- Methods ---
 const loadChats = async () => {
   try {
     chatStore.setLoading(true)
     const response = await $fetch('/api/chat/list')
-    if (response.success) {
-      chatStore.addChats(response.data)
-    }
+    if (response.success) chatStore.addChats(response.data)
   } catch (error) {
     console.error('Failed to load chats:', error)
     chatStore.setError('Failed to load chats')
@@ -185,9 +182,7 @@ const selectChat = async (chatId: string) => {
   chatStore.setCurrentChat(chatId)
   try {
     const response = await $fetch(`/api/chat/${chatId}/messages`)
-    if (response.success) {
-      chatStore.addMessages(chatId, response.data)
-    }
+    if (response.success) chatStore.addMessages(chatId, response.data)
   } catch (error) {
     console.error('Failed to load messages:', error)
     chatStore.setError('Failed to load messages')
@@ -196,7 +191,6 @@ const selectChat = async (chatId: string) => {
 
 const sendMessage = async (content: string, recipientId?: string) => {
   if (!chatStore.currentChatId || !content.trim()) return
-
   try {
     emitMessage(chatStore.currentChatId, {
       content: content.trim(),
@@ -211,7 +205,6 @@ const sendMessage = async (content: string, recipientId?: string) => {
 
 const editMessage = async (messageId: string, content: string) => {
   if (!chatStore.currentChatId) return
-
   try {
     emitEditMessage(chatStore.currentChatId, messageId, content)
   } catch (error) {
@@ -222,7 +215,6 @@ const editMessage = async (messageId: string, content: string) => {
 
 const deleteMessage = async (messageId: string) => {
   if (!chatStore.currentChatId) return
-
   try {
     emitDeleteMessage(chatStore.currentChatId, messageId)
   } catch (error) {
@@ -233,18 +225,11 @@ const deleteMessage = async (messageId: string) => {
 
 const translateMessage = async (messageId: string, text: string, targetLang: string) => {
   if (!chatStore.currentChatId) return
-
   try {
     const response = await $fetch('/api/chat/translate', {
       method: 'POST',
-      body: {
-        text,
-        targetLang,
-        messageId,
-        chatId: chatStore.currentChatId
-      }
+      body: { text, targetLang, messageId, chatId: chatStore.currentChatId }
     })
-
     if (response.success) {
       chatStore.updateMessage(chatStore.currentChatId, messageId, {
         translatedText: response.data.translatedText,
@@ -261,16 +246,8 @@ const sendGift = async (recipientId: string, giftAmount: number, message: string
   try {
     await $fetch('/api/pewgift/send', {
       method: 'POST',
-      body: {
-        recipientId: recipientId || '',
-        amount: giftAmount,
-        message,
-        messageId,
-        timestamp: Date.now()
-      }
+      body: { recipientId: recipientId || '', amount: giftAmount, message, messageId, timestamp: Date.now() }
     })
-
-    // Update balance
     chatStore.updateUserBalance(-giftAmount)
   } catch (error) {
     console.error('Failed to send gift:', error)
@@ -280,25 +257,15 @@ const sendGift = async (recipientId: string, giftAmount: number, message: string
 
 const handleTyping = (isTyping: boolean) => {
   if (!chatStore.currentChatId) return
-
-  if (typingTimeout.value) {
-    clearTimeout(typingTimeout.value)
-  }
-
+  if (typingTimeout.value) clearTimeout(typingTimeout.value)
   if (isTyping) {
-    typingTimeout.value = setTimeout(() => {
-      // Emit typing stopped
-    }, 3000)
+    typingTimeout.value = setTimeout(() => { /* Emit typing stopped */ }, 3000)
   }
 }
 
 const createGroup = async (groupData: any) => {
   try {
-    const response = await $fetch('/api/group-chat/create', {
-      method: 'POST',
-      body: groupData
-    })
-
+    const response = await $fetch('/api/group-chat/create', { method: 'POST', body: groupData })
     if (response.success) {
       chatStore.addChat(response.data)
       showGroupCreator.value = false
@@ -309,16 +276,11 @@ const createGroup = async (groupData: any) => {
   }
 }
 
-const openNewChat = () => {
-  showGroupCreator.value = true
-}
+const openNewChat = () => { showGroupCreator.value = true }
 
-// Lifecycle
+// --- Lifecycle ---
 onMounted(async () => {
-  // Initialize WebSocket/Realtime connection
   await initialize()
-  
-  // Load chats
   await loadChats()
 })
 
