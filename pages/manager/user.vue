@@ -229,16 +229,20 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
+import { useRBAC } from '~/composables/use-rbac'
+
 definePageMeta({
   middleware: ['route-guard', 'language-check', 'security-middleware'],
   layout: 'manager'
 })
   
 const { requirePermission } = useRBAC()
-const authStore = useAuthStore()
-const supabase = useSupabaseClient()
+const userStore = useUserStore()
 
-// Check manager permissions
+// RBAC Guard
 requirePermission('users.view')
 
 // Reactive data
@@ -254,188 +258,78 @@ const selectedUser = ref(null)
 const showConfirmation = ref(false)
 const confirmationTitle = ref('')
 const confirmationMessage = ref('')
-const pendingAction = ref(null)
+const pendingAction = ref<{ action: string; user: any } | null>(null)
 
-// Fetch users with filters and pagination
+// Fetch users via unified API
 const fetchUsers = async () => {
   try {
     loading.value = true
+    const params = new URLSearchParams({
+      page: currentPage.value.toString(),
+      limit: pageSize.toString(),
+      status: statusFilter.value,
+      search: searchQuery.value
+    })
+
+    const response = await api(`/manager/users?${params.toString()}`)
     
-    let query = supabase
-  .from('profiles')
-  .select(`
-    *,
-    posts:posts(count),
-    reports:reports!reported_user_id(count)
-  `)
-  .range((currentPage.value - 1) * pageSize, currentPage.value * pageSize - 1)
-  .order('created_at', { ascending: false })
-
-    // Apply filters
-    if (statusFilter.value) {
-      query = query.eq('status', statusFilter.value)
-    }
-
-    if (searchQuery.value) {
-      query = query.or(`full_name.ilike.%${searchQuery.value}%,email.ilike.%${searchQuery.value}%,username.ilike.%${searchQuery.value}%`)
-    }
-
-    const { data, error, count } = await query
-
-    if (error) throw error
-
-    // Process the data to include counts
-    users.value = data.map(user => ({
-      ...user,
-      posts_count: user.posts?.[0]?.count || 0,
-      reports_count: user.reports?.[0]?.count || 0
-    }))
-
-    totalPages.value = Math.ceil(count / pageSize)
-
+    users.value = response.data
+    totalPages.value = response.totalPages
   } catch (error) {
-    console.error('Users fetch error:', error)
+    console.error('[Manager Users] Fetch error:', error)
   } finally {
     loading.value = false
   }
 }
 
-// Debounced search
-const debouncedSearch = debounce(() => {
-  currentPage.value = 1
-  fetchUsers()
-}, 300)
-
-// User actions
-const viewUserDetails = (user) => {
-  selectedUser.value = user
+// User Actions
+const performAction = async (action: string, user: any) => {
+  try {
+    await api(`/manager/users/${user.id}/action`, {
+      method: 'POST',
+      body: { action }
+    })
+    await fetchUsers()
+    closeModal()
+  } catch (error) {
+    console.error(`[Manager Users] Action ${action} failed:`, error)
+  }
 }
 
+const confirmAction = async () => {
+  if (!pendingAction.value) return
+  await performAction(pendingAction.value.action, pendingAction.value.user)
+}
+
+// Utility: Debounce
+const debouncedSearch = debounce(async () => {
+  currentPage.value = 1
+  await fetchUsers()
+}, 300)
+
+// Helper methods (Simplified)
+const formatDate = (dateString?: string) => dateString ? new Date(dateString).toLocaleDateString() : 'Never'
 const closeModal = () => {
   selectedUser.value = null
   showConfirmation.value = false
   pendingAction.value = null
 }
 
-const suspendUser = (user) => {
-  confirmationTitle.value = 'Suspend User'
-  confirmationMessage.value = `Are you sure you want to suspend ${user.full_name || user.username}? They will not be able to access the platform.`
-  pendingAction.value = { action: 'suspend', user }
-  showConfirmation.value = true
-}
-
-const activateUser = (user) => {
-  confirmationTitle.value = 'Activate User'
-  confirmationMessage.value = `Are you sure you want to activate ${user.full_name || user.username}? They will regain access to the platform.`
-  pendingAction.value = { action: 'activate', user }
-  showConfirmation.value = true
-}
-
-const sendWarning = (user) => {
-  confirmationTitle.value = 'Send Warning'
-  confirmationMessage.value = `Send a warning message to ${user.full_name || user.username}?`
-  pendingAction.value = { action: 'warning', user }
-  showConfirmation.value = true
-}
-
-const confirmAction = async () => {
-  if (!pendingAction.value) return
-
-  const { action, user } = pendingAction.value
-
-  try {
-    switch (action) {
-      case 'suspend':
-        await updateUserStatus(user.id, 'suspended')
-        await logModerationAction('user_suspended', user.id, { reason: 'Manager action' })
-        break
-      case 'activate':
-        await updateUserStatus(user.id, 'active')
-        await logModerationAction('user_activated', user.id, { reason: 'Manager action' })
-        break
-      case 'warning':
-        await sendUserWarning(user.id)
-        await logModerationAction('warning_sent', user.id, { reason: 'Manager warning' })
-        break
-    }
-
-    // Refresh users list
-    await fetchUsers()
-    
-    // Close modals
-    closeModal()
-
-  } catch (error) {
-    console.error('Action error:', error)
-  }
-}
-
-const cancelAction = () => {
-  showConfirmation.value = false
-  pendingAction.value = null
-}
-
-// Helper functions
-const updateUserStatus = async (userId, status) => {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ 
-      status, 
-      updated_at: new Date().toISOString() 
-    })
-    .eq('id', userId)
-
-  if (error) throw error
-}
-
-const sendUserWarning = async (userId) => {
-  // Implementation for sending warning notification
-  const { error } = await supabase
-    .from('notifications')
-    .insert({
-      user_id: userId,
-      type: 'warning',
-      title: 'Account Warning',
-      message: 'Your account has received a warning from our moderation team. Please review our community guidelines.',
-      created_by: authStore.profile.id
-    })
-
-  if (error) throw error
-}
-
-const logModerationAction = async (action, userId, details) => {
-  await authStore.logAuditAction(action, 'user', userId, details)
-}
-
-const viewUserPosts = (user) => {
-  navigateTo(`/manager/posts?user=${user.id}`)
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return 'Never'
-  return new Date(dateString).toLocaleDateString()
-}
-
-// Utility function for debouncing
-function debounce(func, wait) {
-  let timeout
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout)
-      func(...args)
-    }
-    clearTimeout(timeout)
-    timeout = setTimeout(later, wait)
-  }
-}
-
-// Watch for page changes
+// Watchers
 watch(currentPage, fetchUsers)
 
-// Lifecycle
-onMounted(() => {
-  fetchUsers()
+onMounted(async () => {
+  if (!userStore.user) await userStore.fetchProfile()
+  await fetchUsers()
 })
+
+function debounce(func: Function, wait: number) {
+  let timeout: ReturnType<typeof setTimeout>
+  return (...args: any[]) => {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }
+}
 </script>
 
 <style scoped>
