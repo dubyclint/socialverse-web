@@ -5,7 +5,7 @@
 // ============================================================================
 import { ref, computed, onMounted, onUnmounted, readonly } from 'vue'
 import { useSocket } from '~/composables/use-socket'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import type { ChatMessage } from '~/stores/chat'
 
 // --- Types ---
@@ -18,7 +18,7 @@ export interface StreamUser { userId: string; username: string; avatar?: string;
 // CORE STREAMING COMPOSABLE
 // ============================================================================
 export const useStreaming = (streamId: string) => {
-  const authStore = useAuthStore()
+  const userStore = useUserStore()
   const socket = useSocket()
 
   const messages = ref<StreamMessage[]>([])
@@ -27,23 +27,38 @@ export const useStreaming = (streamId: string) => {
   const streamUsers = ref<StreamUser[]>([])
   const isConnected = ref(false)
 
-  const activeUsers = computed(() => streamUsers.value.filter(u => u.userId !== authStore.userId))
+  // Computed: Filter out current user from active list
+  const activeUsers = computed(() => 
+    streamUsers.value.filter(u => u.userId !== userStore.user?.id)
+  )
 
   const sendMessage = async (message: string): Promise<void> => {
-    if (!message.trim() || !authStore.isAuthenticated) return
+    if (!message.trim() || !userStore.isAuthenticated) return
+    
     const newMessage: StreamMessage = {
-      id: `msg-${Date.now()}`, streamId, userId: authStore.userId!, username: authStore.user?.username || 'Anonymous',
-      message, messageType: 'text', timestamp: new Date(), userAvatar: authStore.user?.avatar
+      id: `msg-${Date.now()}`,
+      streamId,
+      userId: userStore.user!.id,
+      username: userStore.user?.username || 'Anonymous',
+      message,
+      messageType: 'text',
+      timestamp: new Date(),
+      userAvatar: userStore.user?.avatar
     }
     messages.value.push(newMessage)
     socket.emit('stream:message', newMessage)
   }
 
   const sendReaction = (emoji: string): void => {
-    if (!authStore.isAuthenticated) return
+    if (!userStore.isAuthenticated) return
     const reaction: StreamReaction = {
-      id: `reaction-${Date.now()}`, userId: authStore.userId!, username: authStore.user?.username || 'Anonymous',
-      emoji, timestamp: new Date(), x: Math.random() * 100, delay: Math.random() * 0.5
+      id: `reaction-${Date.now()}`,
+      userId: userStore.user!.id,
+      username: userStore.user?.username || 'Anonymous',
+      emoji,
+      timestamp: new Date(),
+      x: Math.random() * 100,
+      delay: Math.random() * 0.5
     }
     reactions.value.push(reaction)
     socket.emit('stream:reaction', reaction)
@@ -51,11 +66,22 @@ export const useStreaming = (streamId: string) => {
   }
 
   const sendPewGift = async (giftId: string, quantity: number = 1, message?: string): Promise<void> => {
-    if (!authStore.isAuthenticated) return
+    if (!userStore.isAuthenticated) return
     const pewGift: PewGift = {
-      id: `gift-${Date.now()}`, streamId, senderId: authStore.userId!, senderUsername: authStore.user?.username || 'Anonymous',
-      senderAvatar: authStore.user?.avatar, giftId, giftName: `Gift ${giftId}`, giftImage: `/gifts/${giftId}.png`,
-      giftValue: 100, quantity, totalValue: 100 * quantity, message, timestamp: new Date(), animationType: 'normal'
+      id: `gift-${Date.now()}`,
+      streamId,
+      senderId: userStore.user!.id,
+      senderUsername: userStore.user?.username || 'Anonymous',
+      senderAvatar: userStore.user?.avatar,
+      giftId,
+      giftName: `Gift ${giftId}`,
+      giftImage: `/gifts/${giftId}.png`,
+      giftValue: 100,
+      quantity,
+      totalValue: 100 * quantity,
+      message,
+      timestamp: new Date(),
+      animationType: 'normal'
     }
     pewGifts.value.push(pewGift)
     socket.emit('stream:pewgift', pewGift)
@@ -68,16 +94,28 @@ export const useStreaming = (streamId: string) => {
         setTimeout(() => (reactions.value = reactions.value.filter(r => r.id !== reaction.id)), 3000)
     })
     socket.on('stream:pewgift', (gift: PewGift) => pewGifts.value.push(gift))
-    socket.emit('stream:join', { streamId, userId: authStore.userId })
+    
+    // Join using userStore
+    socket.emit('stream:join', { streamId, userId: userStore.user?.id })
     isConnected.value = true
   })
 
   onUnmounted(() => {
-    socket.emit('stream:leave', { streamId, userId: authStore.userId })
-    socket.off('stream:message'); socket.off('stream:reaction'); socket.off('stream:pewgift')
+    socket.emit('stream:leave', { streamId, userId: userStore.user?.id })
+    socket.off('stream:message')
+    socket.off('stream:reaction')
+    socket.off('stream:pewgift')
   })
 
-  return { messages: readonly(messages), reactions: readonly(reactions), pewGifts: readonly(pewGifts), activeUsers, sendMessage, sendReaction, sendPewGift }
+  return { 
+    messages: readonly(messages), 
+    reactions: readonly(reactions), 
+    pewGifts: readonly(pewGifts), 
+    activeUsers, 
+    sendMessage, 
+    sendReaction, 
+    sendPewGift 
+  }
 }
 
 // ============================================================================
@@ -85,10 +123,14 @@ export const useStreaming = (streamId: string) => {
 // ============================================================================
 
 export const useEnhancedStreaming = (streamId: string) => {
-  const pinnedMessages = ref<ChatMessage[]>([]); const moderatedMessages = ref<ChatMessage[]>([]); const typingUsers = ref<string[]>([])
+  const pinnedMessages = ref<ChatMessage[]>([])
+  const moderatedMessages = ref<ChatMessage[]>([])
+  const typingUsers = ref<string[]>([])
 
   return {
-    pinnedMessages: readonly(pinnedMessages), moderatedMessages: readonly(moderatedMessages), typingUsers: readonly(typingUsers),
+    pinnedMessages: readonly(pinnedMessages),
+    moderatedMessages: readonly(moderatedMessages),
+    typingUsers: readonly(typingUsers),
     pinMessage: (m: ChatMessage) => pinnedMessages.value.push(m),
     unpinMessage: (id: string) => (pinnedMessages.value = pinnedMessages.value.filter(m => m.id !== id)),
     moderateMessage: (m: ChatMessage) => { m.isModerated = true; moderatedMessages.value.push(m) }
@@ -96,23 +138,35 @@ export const useEnhancedStreaming = (streamId: string) => {
 }
 
 export const useAdaptiveStreaming = (config: any) => {
-  const selectedQuality = ref<string>('auto'); const bufferHealth = ref<number>(100); const isBuffering = ref<boolean>(false)
-  let hls: any = null; let qualityCheckInterval: any = null
+  const selectedQuality = ref<string>('auto')
+  const bufferHealth = ref<number>(100)
+  const isBuffering = ref<boolean>(false)
+  let hls: any = null
+  let qualityCheckInterval: any = null
 
   const initializeHLS = async (videoElement: HTMLVideoElement) => {
     if (typeof window === 'undefined') return
     if (!window.Hls) window.Hls = (await import('hls.js')).default
     if (window.Hls.isSupported()) {
       hls = new window.Hls({ enableWorker: true, lowLatencyMode: true })
-      hls.loadSource(config.baseStreamUrl); hls.attachMedia(videoElement)
+      hls.loadSource(config.baseStreamUrl)
+      hls.attachMedia(videoElement)
       qualityCheckInterval = setInterval(() => {
-        if (hls?.getMetrics()?.bufferStalled) { bufferHealth.value = Math.max(0, bufferHealth.value - 10); isBuffering.value = true }
-        else { bufferHealth.value = Math.min(100, bufferHealth.value + 5); isBuffering.value = false }
+        if (hls?.getMetrics()?.bufferStalled) {
+            bufferHealth.value = Math.max(0, bufferHealth.value - 10)
+            isBuffering.value = true
+        } else {
+            bufferHealth.value = Math.min(100, bufferHealth.value + 5)
+            isBuffering.value = false
+        }
       }, 1000)
     }
   }
 
-  onUnmounted(() => { clearInterval(qualityCheckInterval); hls?.destroy() })
+  onUnmounted(() => { 
+    clearInterval(qualityCheckInterval)
+    hls?.destroy() 
+  })
 
   return { selectedQuality, bufferHealth, isBuffering, initializeHLS }
 }
