@@ -1,7 +1,4 @@
 // stores/useWalletStore.ts
-import { defineStore } from 'pinia'
-import { walletService } from '~/services/wallet'
-
 export const useWalletStore = defineStore('wallet', {
   state: () => ({
     balance: 0,
@@ -9,18 +6,22 @@ export const useWalletStore = defineStore('wallet', {
     loading: false
   }),
   actions: {
-    async fetchBalance() {
-      const data = await walletService.getBalance()
-      this.balance = data.balance
-    },
-    // Optimistic Update: Change UI before the server responds
     async performTransfer(counterpartId: string, amount: number, type: string) {
-      this.balance -= amount 
+      if (this.loading) return; // Prevent double-submission
+      
+      const previousBalance = this.balance;
+      this.loading = true;
+      this.balance -= amount; // Optimistic update
+      
       try {
-        await walletService.transfer(counterpartId, amount, type)
+        await walletService.transfer(counterpartId, amount, type);
+        // Refresh balance from server to ensure accuracy
+        await this.fetchBalance(); 
       } catch (e) {
-        this.fetchBalance() // Rollback on failure
-        throw e
+        this.balance = previousBalance; // Rollback
+        throw e;
+      } finally {
+        this.loading = false;
       }
     }
   }
