@@ -11,9 +11,6 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
 
-  // ============================================================================
-  // MODULES & PINIA LAYER AUTO-IMPORTS
-  // ============================================================================
   modules: [
     '@nuxtjs/supabase',
     '@nuxtjs/tailwindcss',
@@ -25,9 +22,6 @@ export default defineNuxtConfig({
     storesDirs: ['./stores/**'],
   },
 
-  // ============================================================================
-  // SUPABASE CONFIGURATION (OPTIMIZED FOR NUXT 4 HYDRATION)
-  // ============================================================================
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_ANON_KEY,
@@ -36,15 +30,8 @@ export default defineNuxtConfig({
       login: '/signin',
       callback: '/auth/verify-email',
       exclude: [
-        '/',
-        '/register',
-        '/feed',
-        '/stream',
-        '/signin',
-        '/signup',
-        '/auth/forgot-password',
-        '/terms-and-policy',
-        '/offline.html',
+        '/', '/register', '/feed', '/stream', '/signin', '/signup', 
+        '/auth/forgot-password', '/terms-and-policy', '/offline.html',
       ],
       cookieRedirect: true,
       saveRedirectToCookie: true,
@@ -58,9 +45,6 @@ export default defineNuxtConfig({
     },
   },
 
-  // ============================================================================
-  // ROUTE RULES & CACHING
-  // ============================================================================
   routeRules: {
     '/_nuxt/**': { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
     '/favicon.ico': { headers: { 'Cache-Control': 'public, max-age=86400' } },
@@ -73,9 +57,6 @@ export default defineNuxtConfig({
     '/api/messages/**': { cache: false },
   },
 
-  // ============================================================================
-  // RUNTIME CONFIG
-  // ============================================================================
   runtimeConfig: {
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     jwtSecret: process.env.JWT_SECRET,
@@ -93,9 +74,6 @@ export default defineNuxtConfig({
     },
   },
 
-  // ============================================================================
-  // GLOBAL CSS & APP
-  // ============================================================================
   css: [
     '~/assets/css/main.css', 
     'vue-virtual-scroller/dist/vue-virtual-scroller.css'
@@ -127,9 +105,6 @@ export default defineNuxtConfig({
     layoutTransition: false,
   },
 
-  // ============================================================================
-  // VITE & NITRO
-  // ============================================================================
   vite: {
     optimizeDeps: {
       include: ['@nuxtjs/supabase', 'vue', 'pinia', '@headlessui/vue'],
@@ -165,8 +140,8 @@ export default defineNuxtConfig({
     },
   },
 
-  // Plugins are auto-registered if in /plugins directory. 
-  // Manual listing is only for forced order.
+  // Auto-registers all files in /plugins. 
+  // Explicit entry used here for 01- priority initialization.
   plugins: [
     '~/plugins/01-init-app.client.ts',
   ],
