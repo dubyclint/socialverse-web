@@ -26,14 +26,6 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ALIAS RESOLUTION
-  // ============================================================================
-  alias: {
-    '~': new URL('./', import.meta.url).pathname,
-    '@': new URL('./', import.meta.url).pathname,
-  },
-
-  // ============================================================================
   // SUPABASE CONFIGURATION (OPTIMIZED FOR NUXT 4 HYDRATION)
   // ============================================================================
   supabase: {
@@ -57,7 +49,6 @@ export default defineNuxtConfig({
       cookieRedirect: true,
       saveRedirectToCookie: true,
     },
-
     cookieOptions: {
       name: 'sb-socialverse-access',
       lifetime: 60 * 60 * 8,
@@ -68,7 +59,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // ROUTE RULES & CACHING (BYPASSING CACHE FOR ALL DYNAMIC AUTH ENTRIES)
+  // ROUTE RULES & CACHING
   // ============================================================================
   routeRules: {
     '/_nuxt/**': { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } },
@@ -77,15 +68,13 @@ export default defineNuxtConfig({
     '/offline.html': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
-    
-    // Explicitly enforce zero-cache rules across server routes
     '/api/auth/**': { cache: false },
     '/api/profile/**': { cache: false },
     '/api/messages/**': { cache: false },
   },
 
   // ============================================================================
-  // RUNTIME CONFIG (100% SECURED VIA PROCESS.ENV AUTORESOLUTIONS)
+  // RUNTIME CONFIG
   // ============================================================================
   runtimeConfig: {
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -94,9 +83,9 @@ export default defineNuxtConfig({
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
 
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://p01--socialverse-web--9dsyp6zx99q5.code.run',
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'https://p01--socialverse-web--9dsyp6zx99q5.code.run',
-      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || 'https://p01--socialverse-web--9dsyp6zx99q5.code.run',
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+      apiUrl: process.env.NUXT_PUBLIC_API_URL,
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
       enablePremium: true,
@@ -105,7 +94,7 @@ export default defineNuxtConfig({
   },
 
   // ============================================================================
-  // GLOBAL CSS
+  // GLOBAL CSS & APP
   // ============================================================================
   css: [
     '~/assets/css/main.css', 
@@ -118,52 +107,28 @@ export default defineNuxtConfig({
     fallback: 'light',
   },
 
-  // ============================================================================
-  // APP HEAD & ROUTING (REMOVED TRANSITIONS TO PREVENT HYDRATION DOUBLE-TIMING)
-  // ============================================================================
   app: {
     baseURL: process.env.NUXT_APP_BASE_URL || '/',
-
     head: {
       title: 'SocialVerse - Connect, Share, and Grow',
       meta: [
         { charset: 'utf-8' },
-        {
-          name: 'viewport',
-          content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
-        },
-        {
-          name: 'description',
-          content: 'Next-Generation Social Commerce Network - Connect with friends, share moments, and grow your social network.',
-        },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' },
+        { name: 'description', content: 'Next-Generation Social Commerce Network.' },
         { name: 'theme-color', content: '#667eea' },
-        { name: 'mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-capable', content: 'yes' },
-        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-        { name: 'apple-mobile-web-app-title', content: 'SocialVerse' },
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'manifest', href: '/manifest.json' },
-        { rel: 'apple-touch-icon', href: '/icons/icon-192x192.png' },
-        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' },
       ],
-      script: [
-        {
-          src: '/register-sw.js',
-          async: true,
-          defer: true,
-        },
-      ],
+      script: [{ src: '/register-sw.js', async: true, defer: true }],
     },
-    // Deactivated transitions to prevent collision with automated auth redirects
     pageTransition: false,
     layoutTransition: false,
   },
 
   // ============================================================================
-  // VITE - OPTIMIZED WITH SAFE CHUNK ALLOCATION
+  // VITE & NITRO
   // ============================================================================
   vite: {
     optimizeDeps: {
@@ -172,58 +137,21 @@ export default defineNuxtConfig({
     build: {
       minify: 'esbuild',
       sourcemap: 'hidden',
-      commonjsOptions: {
-        transformMixedEsModules: true,
-      },
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              return 'vendor'
-            }
-
-            if (id.includes('/stores/')) {
-              const match = id.match(/stores\/([^/]+)\.(ts|js)/)
-              if (match) {
-                return `store-${match[1]}`
-              }
-            }
-          },
-        },
-      },
-      chunkSizeWarningLimit: 2000,
+      commonjsOptions: { transformMixedEsModules: true },
     },
   },
 
-  // ============================================================================
-  // EXPERIMENTAL FEATURES
-  // ============================================================================
   experimental: {
     payloadExtraction: true,
     renderJsonPayloads: true,
     asyncEntry: true,
   },
 
-  // ============================================================================
-  // TYPESCRIPT
-  // ============================================================================
   typescript: {
     strict: true,
     shim: false,
   },
 
-  // ============================================================================
-  // BUILD HOOKS
-  // ============================================================================
-  hooks: {
-    'build:before': () => {
-      console.log('🚀 Compiling Protected SocialVerse Production Build Pipeline...')
-    },
-  },
-
-  // ============================================================================
-  // NITRO SERVER CONFIGURATION
-  // ============================================================================
   nitro: {
     prerender: {
       crawlLinks: true,
@@ -237,9 +165,8 @@ export default defineNuxtConfig({
     },
   },
 
-  // ============================================================================
-  // PLUGIN INITIALIZATION ORDER
-  // ============================================================================
+  // Plugins are auto-registered if in /plugins directory. 
+  // Manual listing is only for forced order.
   plugins: [
     '~/plugins/01-init-app.client.ts',
   ],
