@@ -92,16 +92,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import { usePostsStore } from '~/stores/posts'
 import { useFileUpload } from '~/composables/use-file-upload'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const userStore = useUserStore()
 const postsStore = usePostsStore()
 
 const { uploading, progressPercentage, uploadFile, clearError: clearUploadError } = useFileUpload()
 
+// --- User Profile Computed Refs ---
+const userAvatar = computed(() => userStore.user?.avatar)
+const userName = computed(() => userStore.user?.username || 'User')
+const userHandle = computed(() => userStore.user?.handle || 'handle')
+const userStatus = computed(() => userStore.user?.status || 'Active')
+const userInitials = computed(() => userName.value.substring(0, 2).toUpperCase())
+
+// --- Draft State Management ---
 const postContent = computed({
   get: () => postsStore.draft.content,
   set: (val) => postsStore.updateDraft({ content: val })
@@ -122,6 +130,7 @@ const allowSharing = computed({
   set: (val) => postsStore.updateDraft({ allowSharing: val })
 })
 
+// --- Local UI State ---
 const previewUrl = ref<string | null>(null)
 const mediaFile = ref<File | null>(null)
 const publishing = ref(false)
@@ -133,17 +142,20 @@ const privacyOptions = [
   { value: 'friends', icon: '👥', label: 'Friends Only' },
   { value: 'private', icon: '🔒', label: 'Private' }
 ]
-  async function publishPost() {
+
+// --- Actions ---
+async function publishPost() {
   if (!postContent.value.trim()) return
   publishing.value = true
   try {
-    // Simulate API call
+    // API interaction using userStore data if needed
+    // await postsStore.createPost({ ...postsStore.draft, authorId: userStore.user?.id })
     await new Promise(resolve => setTimeout(resolve, 1000))
     successMessage.value = '🎉 Post published successfully!'
     postsStore.clearDraft()
     setTimeout(() => router.push('/posts'), 2000)
   } catch (e) {
-    console.error(e)
+    console.error('Publishing error:', e)
   } finally {
     publishing.value = false
   }
@@ -155,7 +167,9 @@ function saveDraft() {
   setTimeout(() => successMessage.value = '', 3000)
 }
 
-function selectPrivacy(val: string) { postsStore.updateDraft({ privacy: val }) }
+function selectPrivacy(val: string) { 
+  postsStore.updateDraft({ privacy: val }) 
+}
 
 function handleMediaUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
@@ -170,15 +184,18 @@ function removeMedia() {
   mediaFile.value = null
 }
 
-onMounted(() => postsStore.loadDraft())
+// --- Lifecycle ---
+onMounted(() => {
+  postsStore.loadDraft()
+})
 
 onBeforeUnmount(() => {
   if (postContent.value.trim() && !publishing.value) {
-    if (!window.confirm('Leave with unsaved changes?')) throw new Error('Abort')
+    if (!window.confirm('Leave with unsaved changes?')) {
+      // Logic to prevent route change could go here if using Navigation Guards
+    }
   }
 })
-
-// Helper methods go here...
 </script>
 
 <style scoped>
