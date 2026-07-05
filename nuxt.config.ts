@@ -140,8 +140,6 @@ export default defineNuxtConfig({
     },
   },
 
-  // Auto-registers all files in /plugins. 
-  // Explicit entry used here for 01- priority initialization.
   plugins: [
     '~/plugins/01-init-app.client.ts',
   ],
