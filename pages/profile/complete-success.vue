@@ -112,49 +112,30 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '~/stores/auth'
-import { useProfileStore } from '~/stores/profile'
-
-definePageMeta({
-  middleware: ['auth'],
-  layout: 'default'
-})
+import { useUserStore } from '~/stores/user' 
+import { api } from '~/lib/api'
 
 const router = useRouter()
-const authStore = useAuthStore()
-const profileStore = useProfileStore()
+const userStore = useUserStore()
 
-const loading = ref(false)
+// Bind to userStore instead of authStore/profileStore
+const displayName = computed(() => userStore.user?.full_name || userStore.user?.username || 'User')
+const userEmail = computed(() => userStore.user?.email || 'Unspecified')
 
 const goToFeed = () => router.push('/feed')
 const editProfile = () => router.push('/profile/edit')
 
 onMounted(async () => {
   try {
-    loading.value = true
-
-    // Refresh canonical profile state after completion
-    const res: any = await $fetch('/api/profile/me', {
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined
-    })
-    const p = res?.data || res
-
-    // Patch store safely (depends on your store API; fallback direct assign)
-    if (p) {
-      profileStore.$patch?.({
-        profile: p,
-        displayName: p.full_name || p.display_name || p.username || 'User'
-      })
-    }
+    // Refresh user store state after completion
+    const p = await api('/profile/me')
+    userStore.setUser(p) // Ensure your userStore has a method to update state
   } catch (e) {
-    // Non-blocking on success page
     console.warn('[complete-success] profile refresh failed:', e)
-  } finally {
-    loading.value = false
   }
 })
+     
 </script>
-
 <style scoped>
 .success-page {
   min-height: 100vh;
