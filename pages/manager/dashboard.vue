@@ -86,15 +86,18 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
+import { useRBAC } from '~/composables/use-rbac'
+
 definePageMeta({
   middleware: ['route-guard', 'language-check', 'security-middleware'],
   layout: 'manager'
 })
- 
-const { $i18n } = useNuxtApp()
-const { hasPermission, getUserPermissions } = useRBAC()
-const authStore = useAuthStore()
-const supabase = useSupabaseClient()
+
+const userStore = useUserStore()
+const { getUserPermissions } = useRBAC()
 
 // Reactive data
 const pendingReports = ref(0)
@@ -103,58 +106,30 @@ const activeUsers = ref(0)
 const recentActivities = ref([])
 const managerPermissions = ref([])
 
-// Fetch dashboard data
+// Fetch dashboard data using the unified API client
 const fetchDashboardData = async () => {
   try {
-    // Fetch pending reports count
-    const { count: reportsCount } = await supabase
-      .from('reports')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
+    // Calling central API endpoints instead of direct Supabase calls
+    const response = await api('/manager/dashboard-stats')
     
-    pendingReports.value = reportsCount || 0
+    pendingReports.value = response.pendingReports || 0
+    moderatedToday.value = response.moderatedToday || 0
+    activeUsers.value = response.activeUsers || 0
+    recentActivities.value = response.recentActivities || []
 
-    // Fetch today's moderation actions
-    const today = new Date().toISOString().split('T')[0]
-    const { count: moderatedCount } = await supabase
-      .from('audit_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', authStore.profile.id)
-      .gte('created_at', today)
-      .in('action', ['post_moderated', 'user_suspended', 'report_resolved'])
-    
-    moderatedToday.value = moderatedCount || 0
-
-    // Fetch active users count
-    const { count: usersCount } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active')
-    
-    activeUsers.value = usersCount || 0
-
-    // Fetch recent activities
-    const { data: activities } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .eq('user_id', authStore.profile.id)
-      .order('created_at', { ascending: false })
-      .limit(10)
-    
-    recentActivities.value = activities || []
-
-    // Get manager permissions
-    managerPermissions.value = getUserPermissions(authStore.profile)
-      .filter(p => p.startsWith('posts.') || p.startsWith('users.') || p.startsWith('reports.'))
-
+    // Get manager permissions from the unified user object
+    if (userStore.user) {
+      managerPermissions.value = getUserPermissions(userStore.user)
+        .filter(p => p.startsWith('posts.') || p.startsWith('users.') || p.startsWith('reports.'))
+    }
   } catch (error) {
-    console.error('Dashboard data fetch error:', error)
+    console.error('[Manager Dashboard] Data fetch error:', error)
   }
 }
 
 // Helper functions
-const getActivityIcon = (type) => {
-  const icons = {
+const getActivityIcon = (type: string) => {
+  const icons: Record<string, string> = {
     post_moderated: 'file-text',
     user_suspended: 'user-x',
     report_resolved: 'check-circle',
@@ -163,25 +138,20 @@ const getActivityIcon = (type) => {
   return icons[type] || 'activity'
 }
 
-const formatTime = (timestamp) => {
-  return new Date(timestamp).toLocaleString()
-}
+const formatTime = (timestamp: string) => new Date(timestamp).toLocaleString()
 
-const formatPermission = (permission) => {
-  return permission.replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-}
+const formatPermission = (permission: string) => 
+  permission.replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
 // Lifecycle
-onMounted(() => {
-  fetchDashboardData()
+onMounted(async () => {
+  // Ensure profile is hydrated for RBAC checks
+  if (!userStore.user) await userStore.fetchProfile()
+  await fetchDashboardData()
 })
 
-// Auto-refresh every 5 minutes
 const refreshInterval = setInterval(fetchDashboardData, 5 * 60 * 1000)
-
-onUnmounted(() => {
-  clearInterval(refreshInterval)
-})
+onUnmounted(() => clearInterval(refreshInterval))
 </script>
 
 <style scoped>
