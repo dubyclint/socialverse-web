@@ -19,14 +19,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useUserStore } from '~/stores/user' // Unified store
+import { useUserStore } from '~/stores/user'
+import { usePresence } from '~/composables/usePresence'
+import { useDiscoveryStore } from '~/stores/useDiscovery'
 
 const isHydrating = ref(true)
 const userStore = useUserStore()
+const discoveryStore = useDiscoveryStore()
+
+// Initialize heartbeat
+usePresence()
 
 onMounted(async () => {
-  // 1. Initialize the unified session
-  await userStore.initializeSession()
+  // 1. Initialize session AND pre-fetch discovery feed concurrently
+  // This ensures the feed is ready the moment the app loads
+  await Promise.all([
+    userStore.initializeSession(),
+    discoveryStore.warmupFeed()
+  ])
 
   // 2. Hide loader when ready
   const handlePluginReady = () => {
