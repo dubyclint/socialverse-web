@@ -132,9 +132,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import ProfileAvatarUpload from '~/components/profile/avatar-upload.vue'
 
+// --- Interfaces ---
 interface User {
   id: string
   name: string
@@ -154,7 +155,8 @@ interface UserStats {
   posts: number
 }
 
-const authStore = useAuthStore()
+// --- State ---
+const userStore = useUserStore()
 const showAvatarUpload = ref(false)
 const isLoading = ref(true)
 const avatarUrlModel = ref('')
@@ -162,13 +164,12 @@ const avatarUrlModel = ref('')
 const user = ref<User | null>(null)
 const userStats = reactive<UserStats>({ followers: 0, following: 0, posts: 0 })
 
+// --- Methods ---
 const loadUserProfile = async () => {
   isLoading.value = true
   try {
-    // canonical source
-    const res: any = await $fetch('/api/profile/me', {
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined
-    })
+    // Fetch profile using Nuxt/Supabase auto-authenticated $fetch
+    const res: any = await $fetch('/api/profile/me') 
     const p = res?.data || res
 
     if (!p) {
@@ -179,8 +180,8 @@ const loadUserProfile = async () => {
     user.value = {
       id: p.user_id || p.id || '',
       name: p.full_name || p.display_name || 'User',
-      username: p.username || authStore.user?.email?.split('@')[0] || 'user',
-      email: p.email || authStore.user?.email || '',
+      username: p.username || userStore.user?.email?.split('@')[0] || 'user',
+      email: p.email || userStore.user?.email || '',
       avatar: p.avatar_url || '',
       bio: p.bio || '',
       verified: !!p.is_verified,
@@ -206,11 +207,9 @@ const handleAvatarModelUpdate = async (newUrl: string) => {
   if (user.value) user.value.avatar = newUrl
   showAvatarUpload.value = false
 
-  // Persist avatar in canonical update endpoint (defensive)
   try {
     await $fetch('/api/profile/update', {
       method: 'POST',
-      headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : undefined,
       body: { avatar_url: newUrl }
     })
   } catch (e) {
@@ -224,8 +223,11 @@ const formatUrl = (url: string): string =>
 const formatDate = (date: Date): string =>
   new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
 
+// --- Lifecycle ---
 onMounted(loadUserProfile)
-watch(() => authStore.user, loadUserProfile)
+
+// Watch userStore.user for reactive profile updates
+watch(() => userStore.user, loadUserProfile)
 </script>
 
 <style scoped>
