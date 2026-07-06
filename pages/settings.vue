@@ -1,55 +1,3 @@
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useAuthStore } from '~/stores/auth'
-import { useProfileStore } from '~/stores/profile'
-
-definePageMeta({ middleware: ['auth'], layout: 'default' })
-
-const authStore = useAuthStore()
-const profileStore = useProfileStore()
-
-const activeTab = ref('account')
-const isSaving = ref(false)
-const showStreamKey = ref(false)
-const toast = ref({ message: '', type: 'success' as 'success' | 'error' })
-
-const profileForm = ref({ username: '', fullName: '', bio: '' })
-const streamConfig = ref({ title: '', quality: '1080p', streamKey: '' })
-
-const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
-  toast.value = { message: msg, type }
-  setTimeout(() => { toast.value.message = '' }, 4000)
-}
-
-const loadData = async () => {
-  await profileStore.fetchProfile()
-  if (profileStore.profile) {
-    profileForm.value = { 
-      username: profileStore.profile.username, 
-      fullName: profileStore.profile.full_name, 
-      bio: profileStore.profile.bio 
-    }
-    streamConfig.value = { 
-      title: profileStore.profile.default_stream_title, 
-      quality: profileStore.profile.stream_quality || '1080p', 
-      streamKey: profileStore.profile.stream_key || '' 
-    }
-  }
-}
-
-const saveSettings = async (type: 'profile' | 'stream') => {
-  isSaving.value = true
-  try {
-    if (type === 'profile') await profileStore.updateProfile(profileForm.value)
-    else await profileStore.updateStreamConfig(streamConfig.value)
-    triggerToast('Settings synchronized successfully.')
-  } catch (e: any) { triggerToast(e.message, 'error') }
-  finally { isSaving.value = false }
-}
-
-onMounted(loadData)
-</script>
-
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 md:p-8">
     <main class="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl">
@@ -110,6 +58,72 @@ onMounted(loadData)
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useUserStore } from '~/stores/user' // Updated Store
+import { api } from '~/lib/api' // Updated API client
+
+definePageMeta({ middleware: ['auth'], layout: 'default' })
+
+const userStore = useUserStore()
+const activeTab = ref('account')
+const isSaving = ref(false)
+const showStreamKey = ref(false)
+const toast = ref({ message: '', type: 'success' as 'success' | 'error' })
+
+// Form state bound to userStore data
+const profileForm = ref({ username: '', fullName: '', bio: '' })
+const streamConfig = ref({ title: '', quality: '1080p', streamKey: '' })
+
+const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  toast.value = { message: msg, type }
+  setTimeout(() => { toast.value.message = '' }, 4000)
+}
+
+const loadData = async () => {
+  try {
+    // Assuming userStore has already fetched the user profile on login
+    // If you need fresh data, use the centralized API utility
+    const data = await api('/profile/me')
+    userStore.setUser(data)
+    
+    profileForm.value = { 
+      username: userStore.user?.username || '', 
+      fullName: userStore.user?.full_name || '', 
+      bio: userStore.user?.bio || '' 
+    }
+    streamConfig.value = { 
+      title: userStore.user?.stream_settings?.title || '', 
+      quality: userStore.user?.stream_settings?.quality || '1080p', 
+      streamKey: userStore.user?.stream_settings?.key || '' 
+    }
+  } catch (e) {
+    triggerToast('Failed to load configuration', 'error')
+  }
+}
+
+const saveSettings = async (type: 'profile' | 'stream') => {
+  isSaving.value = true
+  try {
+    const payload = type === 'profile' ? profileForm.value : streamConfig.value
+    await api(`/profile/update-${type}`, {
+      method: 'POST',
+      body: payload
+    })
+    // Sync the local store after successful API call
+    if (type === 'profile') userStore.updateProfile(profileForm.value)
+    
+    triggerToast('Settings synchronized successfully.')
+  } catch (e: any) { 
+    triggerToast(e.message || 'Update failed', 'error') 
+  } finally { 
+    isSaving.value = false 
+  }
+}
+
+onMounted(loadData)
+</script>
 
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }

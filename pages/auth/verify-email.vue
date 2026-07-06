@@ -102,7 +102,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '~/stores/auth' // ✅ FIXED: Explicitly import Pinia store context dependencies
+// Unified store import
+import { useUserStore } from '~/stores/user' 
 import { useEmailVerification } from '~/composables/use-email-verification'
 
 definePageMeta({
@@ -111,8 +112,10 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const { verifyEmail, resendVerificationEmail } = useEmailVerification()
 
+// UI State
 const loading = ref(true)
 const success = ref(false)
 const error = ref('')
@@ -120,23 +123,23 @@ const redirectCountdown = ref(5)
 const resendLoading = ref(false)
 const resendSuccess = ref('')
 
+/**
+ * Parses the URL for tokens across various Auth provider patterns
+ */
 const getTokenFromUrl = (): { token: string | null; type: string } => {
-  console.log('[Verify Email] ============ TOKEN EXTRACTION START ============')
   const hash = window.location.hash
   if (hash) {
     const accessTokenMatch = hash.match(/access_token=([^&]+)/)
-    if (accessTokenMatch && accessTokenMatch) {
+    if (accessTokenMatch?.[1]) {
       const typeMatch = hash.match(/type=([^&]+)/)
-      return { token: accessTokenMatch, type: typeMatch && typeMatch ? typeMatch : 'signup' }
+      return { token: accessTokenMatch[1], type: typeMatch?.[1] || 'signup' }
     }
   }
 
   const search = window.location.search
-  if (search) {
-    const codeMatch = search.match(/code=([^&]+)/)
-    if (codeMatch && codeMatch) {
-      return { token: codeMatch, type: 'signup' }
-    }
+  const codeMatch = search.match(/code=([^&]+)/)
+  if (codeMatch?.[1]) {
+    return { token: codeMatch[1], type: 'signup' }
   }
 
   if (route.query.token) {
@@ -163,17 +166,10 @@ onMounted(async () => {
     let username = result.user?.username
     let fullName = result.user?.full_name
 
-    // Fallback sync hook using explicitly imported store context
-    if (!userId) {
-      try {
-        const authStore = useAuthStore()
-        if (authStore && authStore.userId) {
-          userId = authStore.userId
-          userEmail = authStore.userEmail
-        }
-      } catch (err) {
-        console.warn('[Verify Email Page] Store state contextual fallback recovery skipped.')
-      }
+    // Fallback sync hook using unified store
+    if (!userId && userStore.user?.id) {
+      userId = userStore.user.id
+      userEmail = userStore.user.email
     }
 
     if (userId) {
@@ -183,7 +179,7 @@ onMounted(async () => {
           body: { userId, username, fullName, email: userEmail }
         })
       } catch (profileErr) {
-        console.error('[Verify Email Page] Handled profile upsert fallback logic:', profileErr)
+        console.error('[Verify Email Page] Profile upsert fallback:', profileErr)
       }
     }
 
@@ -195,7 +191,6 @@ onMounted(async () => {
       redirectCountdown.value--
       if (redirectCountdown.value <= 0) {
         clearInterval(interval)
-        // ✅ FIXED: Routes to verified target application paths matching your layout architecture
         router.push('/profile/complete')
       }
     }, 1000)
@@ -206,7 +201,7 @@ onMounted(async () => {
 })
 
 const resendEmail = async () => {
-  let email = prompt('Please enter your email address:') || ''
+  const email = prompt('Please enter your email address:')
   if (!email) return
 
   resendLoading.value = true

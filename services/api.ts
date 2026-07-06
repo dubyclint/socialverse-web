@@ -3,27 +3,28 @@
 // ============================================================================
 import { ofetch } from 'ofetch'
 
-// Create a configured fetch instance
 export const api = ofetch.create({
   baseURL: '/api',
   async onRequest({ options }) {
-    // 1. Get the auth store dynamically to avoid circular dependencies
-    const { useAuthStore } = await import('~/stores/auth')
-    const auth = useAuthStore()
+    // 1. Get the user store dynamically to avoid circular dependencies
+    const { useUserStore } = await import('~/stores/user')
+    const userStore = useUserStore()
 
-    // 2. Inject Authorization headers if token exists
-    if (auth.token) {
+    // 2. Inject Authorization headers using the token from our state/cookie
+    const token = useCookie('auth_token').value
+    if (token) {
       options.headers = {
         ...options.headers,
-        Authorization: `Bearer ${auth.token}`
+        Authorization: `Bearer ${token}`
       }
     }
   },
-  onResponseError({ response }) {
+  async onResponseError({ response }) {
     // 3. Centralized Error Handling
     if (response.status === 401) {
-      console.warn('[API Service] Unauthorized - Redirecting or clearing session...')
-      // Trigger a redirect or call your auth logout method here
+      console.warn('[API Service] Unauthorized - Clearing session...')
+      const { useUserStore } = await import('~/stores/user')
+      useUserStore().logout()
     }
     
     if (response.status >= 500) {
@@ -36,21 +37,3 @@ export const api = ofetch.create({
  * Helper to unwrap standard backend responses
  */
 export const unwrap = <T>(res: any): T => (res?.data ?? res) as T
-
-import { api, unwrap } from './api'
-import type { Profile } from '~/types/profile'
-
-export const profileService = {
-  async getMe(): Promise<Profile> {
-    const res = await api('/profile/me')
-    return unwrap<Profile>(res)
-  },
-
-  async update(payload: any): Promise<Profile> {
-    const res = await api('/profile/update', { 
-      method: 'POST', 
-      body: payload 
-    })
-    return unwrap<Profile>(res)
-  }
-}

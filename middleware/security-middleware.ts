@@ -1,35 +1,38 @@
 // ============================================================================
 // FILE: /middleware/security-middleware.ts - GLOBAL SECURITY GUARD
 // ============================================================================
+import { useUserStore } from '~/stores/user'
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  // 1. Safety Guard for undefined route
-  if (!to || !to.path) return
+  if (!to?.path) return
 
-  const authStore = useAuthStore()
+  const userStore = useUserStore()
+  const tokenCookie = useCookie('auth_token')
 
   try {
+    // 1. Ensure user is loaded
+    if (tokenCookie.value && !userStore.user) {
+      await userStore.fetchProfile()
+    }
+
     // 2. Authentication Check
-    // If we reach here and the user isn't authenticated, redirect.
-    if (!authStore.isAuthenticated) {
+    if (!userStore.user) {
       console.warn(`[Security] Blocked unauthenticated access to: ${to.path}`)
       return navigateTo('/signin', { replace: true })
     }
 
     // 3. Role-Based Access Control (RBAC)
-    const userRole = authStore.user?.role || 'user'
+    const userRole = userStore.user.role || 'user'
 
     // Protecting Admin Routes
-    if (to.path.startsWith('/admin')) {
-      if (userRole !== 'admin') {
-        console.warn(`[Security] User ${authStore.userId} denied access to: ${to.path}`)
-        return navigateTo('/feed', { replace: true }) 
-      }
+    if (to.path.startsWith('/admin') && userRole !== 'admin') {
+      console.warn(`[Security] User ${userStore.user.id} denied access to: ${to.path}`)
+      return navigateTo('/feed', { replace: true }) 
     }
 
-    // Example: Protecting Premium/Pro Features
+    // Protecting Premium/Pro Features
     if (to.path.startsWith('/pro-features')) {
-      const isPremium = authStore.user?.user_metadata?.is_premium === true
+      const isPremium = userStore.user.user_metadata?.is_premium === true
       if (!isPremium) {
         return navigateTo('/upgrade', { replace: true })
       }
@@ -37,7 +40,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   } catch (error) {
     console.error('[Security Middleware] Fatal Error:', error)
-    // If security fails to evaluate, default to safe action (kick them out)
+    userStore.logout()
     return navigateTo('/signin', { replace: true })
   }
 })

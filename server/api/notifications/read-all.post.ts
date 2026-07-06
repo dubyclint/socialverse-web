@@ -1,25 +1,26 @@
-// server/api/notifications/[id]/read.post.ts
 // ============================================================================
 // MARK NOTIFICATION AS READ
 // ============================================================================
-
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
+    // 1. Authenticate (Assumes requireAuth handles session check)
     const user = await requireAuth(event)
     const notificationId = getRouterParam(event, 'id')
 
     const supabase = await serverSupabaseClient(event)
 
+    // 2. Update with schema-specific columns: is_read and recipient_id
     const { error } = await supabase
       .from('notifications')
       .update({
-        read: true,
-        read_at: new Date().toISOString()
+        is_read: true,
+        // Optional: Add a read_at column if you want to track when it was read
+        // read_at: new Date().toISOString() 
       })
       .eq('id', notificationId)
-      .eq('user_id', user.id)
+      .eq('recipient_id', user.id) // Correct column name based on your schema
 
     if (error) throw error
 

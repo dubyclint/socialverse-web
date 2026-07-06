@@ -1,13 +1,11 @@
 // ============================================================================
 // FILE: /middleware/status-middleware.ts - STATUS VALIDATION
 // ============================================================================
+import { useUserStore } from '~/stores/user'
 
-export default defineNuxtRouteMiddleware((to) => {
-  // 1. Safety Guard for undefined route
-  if (!to || !to.path) return
-
-  // 2. Client-only logic
-  if (import.meta.server) return
+export default defineNuxtRouteMiddleware(async (to) => {
+  // 1. Safety Guard and Server Check
+  if (!to?.path || import.meta.server) return
 
   const statusRoutes = ['/stream', '/status/create', '/posts/create']
   const isStatusRoute = statusRoutes.some(route => to.path.startsWith(route))
@@ -15,25 +13,26 @@ export default defineNuxtRouteMiddleware((to) => {
   if (!isStatusRoute) return
 
   try {
-    const authStore = useAuthStore()
+    const userStore = useUserStore()
     
-    // Auth validation
-    if (!authStore.user) {
+    // Ensure user state is populated
+    if (!userStore.user) {
+      await userStore.fetchProfile()
+    }
+
+    // 2. Auth validation
+    if (!userStore.user) {
       console.warn(`[Status Middleware] No user found, redirecting...`)
       return navigateTo('/signin')
     }
 
-    // Access role and premium status safely
-    const userRole = authStore.user.role || 'user'
-    const isPremium = authStore.user.user_metadata?.is_premium || false
-
-    // Store in route meta for reactive use in components
-    // Nuxt meta is reactive, making this perfect for UI toggles
-    to.meta.userRole = userRole
-    to.meta.isPremium = isPremium
+    // 3. Prepare meta data for reactive UI components
+    to.meta.userRole = userStore.user.role || 'user'
+    to.meta.isPremium = userStore.user.user_metadata?.is_premium || false
 
     console.log(`[Status Middleware] ✓ UI State prepared for: ${to.path}`)
   } catch (error) {
     console.error(`[Status Middleware] Error:`, error)
+    return navigateTo('/signin')
   }
 })

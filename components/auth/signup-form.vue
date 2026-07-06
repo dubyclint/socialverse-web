@@ -1,7 +1,7 @@
 <template>
   <div class="bg-slate-800 rounded-lg shadow-xl p-8 border border-slate-700">
-    <div v-if="localValidationError || authStore.error" class="mb-4 p-4 bg-red-900/30 border border-red-500/70 rounded-lg">
-      <p class="text-red-300 text-sm font-medium">{{ localValidationError || authStore.error }}</p>
+    <div v-if="localValidationError || userStore.error" class="mb-4 p-4 bg-red-900/30 border border-red-500/70 rounded-lg">
+      <p class="text-red-300 text-sm font-medium">{{ localValidationError || userStore.error }}</p>
     </div>
 
     <div v-if="success" class="mb-4 p-4 bg-green-900/30 border border-green-500/70 rounded-lg">
@@ -16,7 +16,7 @@
           v-model="formData.email"
           type="email"
           required
-          :disabled="authStore.isLoading"
+          :disabled="userStore.isLoading"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white disabled:opacity-50"
         />
         <p v-if="errors.email" class="mt-1 text-xs text-red-400">{{ errors.email }}</p>
@@ -30,7 +30,7 @@
           @input="formData.username = formData.username.toLowerCase()"
           type="text"
           required
-          :disabled="authStore.isLoading"
+          :disabled="userStore.isLoading"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white disabled:opacity-50"
         />
         <p v-if="errors.username" class="mt-1 text-xs text-red-400">{{ errors.username }}</p>
@@ -43,7 +43,7 @@
           v-model="formData.password"
           type="password"
           required
-          :disabled="authStore.isLoading"
+          :disabled="userStore.isLoading"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white disabled:opacity-50"
         />
         <p v-if="errors.password" class="mt-1 text-xs text-red-400">{{ errors.password }}</p>
@@ -56,7 +56,7 @@
           v-model="formData.confirmPassword"
           type="password"
           required
-          :disabled="authStore.isLoading"
+          :disabled="userStore.isLoading"
           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white disabled:opacity-50"
         />
         <p v-if="errors.confirmPassword" class="mt-1 text-xs text-red-400">{{ errors.confirmPassword }}</p>
@@ -64,10 +64,10 @@
 
       <button
         type="submit"
-        :disabled="authStore.isLoading || !formData.agreeToTerms"
+        :disabled="userStore.isLoading || !formData.agreeToTerms"
         class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold rounded-lg"
       >
-        {{ authStore.isLoading ? 'Creating account...' : 'Create Account' }}
+        {{ userStore.isLoading ? 'Creating account...' : 'Create Account' }}
       </button>
     </form>
   </div>
@@ -75,10 +75,12 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+// Updated Import
+import { useUserStore } from '~/stores/user'
 
 const emit = defineEmits<{ success: [data: any] }>()
-const authStore = useAuthStore()
+// Updated Store Instance
+const userStore = useUserStore()
 
 const success = ref('')
 const localValidationError = ref('')
@@ -90,7 +92,7 @@ const formData = reactive({
 const errors = reactive({ email: '', username: '', password: '', confirmPassword: '' })
 
 const validateForm = () => {
-  // ... (Keep your existing validation logic)
+  // ... (Keep existing logic)
   return !errors.email && !errors.username && !errors.password && !errors.confirmPassword
 }
 
@@ -102,8 +104,8 @@ const handleSubmit = async () => {
     return
   }
 
-  // Use the new store action directly
-  const result = await authStore.signUp(formData.email, formData.password, {
+  // Ensure userStore has a signUp method (you may need to add it to stores/user.ts)
+  const result = await userStore.signUp(formData.email, formData.password, {
     data: { username: formData.username }
   })
 

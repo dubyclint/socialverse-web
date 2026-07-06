@@ -243,10 +243,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useStatus } from '~/composables/use-status'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
 
 definePageMeta({
-  middleware: ['auth','profile-completion', 'language-check'],
+  middleware: ['auth', 'profile-completion', 'language-check'],
   layout: 'default'
 })
 
@@ -258,78 +259,79 @@ useHead({
 })
 
 // ============================================================================
-// SETUP
+// SETUP & STATE
 // ============================================================================
-const authStore = useAuthStore()
-const { createStatus, getStatuses, deleteStatus, statuses, loading: statusLoading, error: statusError } = useStatus()
+const userStore = useUserStore()
+const { getStatuses, deleteStatus, statuses, loading: statusLoading, error: statusError } = useStatus()
 
-// ============================================================================
-// STATE
-// ============================================================================
-const statusForm = ref({
+const getInitialForm = () => ({
   content: '',
-  media_type: 'text',
+  media_type: 'text' as 'text' | 'image' | 'video' | 'emoji',
   media_url: '',
-  background_color: '#000000',
+  background_color: '#1e293b',
   text_color: '#ffffff',
   expires_at: ''
 })
 
+const statusForm = ref(getInitialForm())
 const currentPage = ref(0)
 const hasMoreStatuses = ref(true)
 
 // ============================================================================
 // COMPUTED
 // ============================================================================
-const currentUserId = computed(() => authStore.user?.id)
+const currentUserId = computed(() => userStore.user?.id)
 
 // ============================================================================
 // METHODS
 // ============================================================================
 const handleCreateStatus = async () => {
-  if (!statusForm.value.content.trim()) {
-    return
-  }
+  if (!statusForm.value.content.trim()) return
 
-  const result = await createStatus(statusForm.value.content, {
-    media_type: statusForm.value.media_type,
-    media_url: statusForm.value.media_url || undefined,
-    background_color: statusForm.value.background_color,
-    text_color: statusForm.value.text_color,
-    expires_at: statusForm.value.expires_at || undefined
-  })
+  try {
+    // Calling API directly via the unified client
+    const response = await api('/status/create', {
+      method: 'POST',
+      body: {
+        content: statusForm.value.content,
+        media_type: statusForm.value.media_type,
+        media_url: statusForm.value.media_url || null,
+        background_color: statusForm.value.background_color,
+        text_color: statusForm.value.text_color,
+        expires_at: statusForm.value.expires_at || null
+      }
+    })
 
-  if (result.success) {
-    // Reset form
-    statusForm.value = {
-      content: '',
-      media_type: 'text',
-      media_url: '',
-      background_color: '#000000',
-      text_color: '#ffffff',
-      expires_at: ''
+    if (response) {
+      statusForm.value = getInitialForm()
+      await refreshStatuses() // Refresh feed after creation
     }
+  } catch (err: any) {
+    console.error('[Status Page] Create error:', err)
   }
 }
 
 const handleDeleteStatus = async (statusId: string) => {
   if (!confirm('Are you sure you want to delete this status?')) return
 
-  const result = await deleteStatus(statusId)
-  if (result.success) {
-    console.log('Status deleted successfully')
+  try {
+    await api(`/status/${statusId}`, { method: 'DELETE' })
+    await refreshStatuses()
+  } catch (err: any) {
+    console.error('[Status Page] Delete error:', err)
   }
 }
 
 const refreshStatuses = async () => {
   currentPage.value = 0
+  hasMoreStatuses.value = true
   await getStatuses(20, 0)
 }
 
 const loadMoreStatuses = async () => {
   currentPage.value++
-  const result = await getStatuses(20, currentPage.value * 20)
-  if (result.data && result.data.length < 20) {
+  const newStatuses = await getStatuses(20, currentPage.value * 20)
+  if (!newStatuses || newStatuses.length < 20) {
     hasMoreStatuses.value = false
   }
 }
@@ -349,7 +351,7 @@ const formatTime = (date: string | Date) => {
     if (days < 7) return `${days}d ago`
     
     return d.toLocaleDateString()
-  } catch (error) {
+  } catch {
     return 'unknown'
   }
 }
@@ -361,119 +363,6 @@ onMounted(async () => {
   await refreshStatuses()
 })
 </script>
-
-<style scoped>
-/* ============================================================================
-   GLOBAL STYLES
-   ============================================================================ */
-.status-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%);
-  color: #e2e8f0;
-}
-
-.status-header {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border-bottom: 1px solid #334155;
-  padding: 2rem 1rem;
-  text-align: center;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #f1f5f9;
-}
-
-.page-subtitle {
-  margin: 0;
-  font-size: 1rem;
-  color: #94a3b8;
-}
-
-/* ============================================================================
-   MAIN CONTENT
-   ============================================================================ */
-.status-main {
-  flex: 1;
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-@media (max-width: 1024px) {
-  .status-main {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ============================================================================
-   CREATE STATUS SECTION
-   ============================================================================ */
-.create-status-section {
-  grid-column: 1;
-}
-
-.create-status-card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.section-title {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #f1f5f9;
-}
-
-/* ============================================================================
-   FORM STYLES
-   ============================================================================ */
-.status-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #cbd5e1;
-}
-
-.form-textarea,
-.form-input,
-.form-select {
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 0.75rem;
-  color: #e2e8f0;
-  font-size: 0.95rem;
-  font-family: inherit;
-  transition: all 0.2s;
-}
 
 .form-textarea:hover,
 .form-input:hover,

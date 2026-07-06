@@ -7,26 +7,30 @@ export const useUserStore = defineStore('user', () => {
   const user = ref(null)
   const profile = ref(null)
   const isLoading = ref(false)
+  const error = ref(null) // Added
+  const rememberMe = ref(false) // Added
 
-  // ORCHESTRATION: One action to rule them all
+  const setError = (val: any) => { error.value = val }
+  const setRememberMe = (val: boolean) => { rememberMe.value = val }
+
   const signIn = async (email, password) => {
     isLoading.value = true
+    error.value = null // Clear previous error
     try {
-      // 1. Auth Step
-      const { data, error } = await authService.signIn(email, password)
-      if (error) throw error
+      const { data, error: authErr } = await authService.signIn(email, password)
+      if (authErr) throw authErr
 
-      // 2. Profile Step
       user.value = data.user
-      profile.value = await profileService.getMe() // Fetch profile immediately
+      profile.value = await profileService.getMe()
       
       return { success: true }
-    } catch (err) {
+    } catch (err: any) {
+      error.value = err.message
       return { success: false, message: err.message }
     } finally {
       isLoading.value = false
     }
   }
 
-  return { user, profile, isLoading, signIn }
+  return { user, profile, isLoading, error, rememberMe, setError, setRememberMe, signIn }
 })

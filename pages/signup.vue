@@ -1,106 +1,61 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+  <div class="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-        <p class="text-gray-600">Join our community today</p>
+        <h1 class="text-2xl font-black text-white mb-2">Create Account</h1>
+        <p class="text-slate-400 text-sm">Join our community today</p>
       </div>
 
-      <div v-if="localError || authError" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p class="text-red-700 text-sm">{{ localError || authError }}</p>
+      <!-- Alerts -->
+      <div v-if="localError || authError" class="mb-6 p-3 bg-rose-900/20 border border-rose-900/50 rounded-xl">
+        <p class="text-rose-400 text-xs font-medium">{{ localError || authError }}</p>
       </div>
 
-      <div v-if="success" class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <p class="text-green-700 text-sm">{{ success }}</p>
+      <div v-if="success" class="mb-6 p-3 bg-emerald-900/20 border border-emerald-900/50 rounded-xl">
+        <p class="text-emerald-400 text-xs font-medium">{{ success }}</p>
       </div>
 
       <form @submit.prevent="handleSignup" class="space-y-4">
         <div>
-          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-          <input
-            id="email"
-            v-model="formData.email"
-            type="email"
-            autocomplete="email"
-            placeholder="you@example.com"
-            required
-            :disabled="isAuthLoading"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:text-gray-400"
-          />
+          <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Email</label>
+          <input v-model="formData.email" type="email" required :disabled="isAuthLoading"
+            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
         </div>
 
         <div>
-          <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-          <input
-            id="username"
-            v-model="formData.username"
-            type="text"
-            autocomplete="username"
-            placeholder="john_doe"
-            required
-            :disabled="isAuthLoading"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:text-gray-400"
-          />
-          <p class="text-xs text-gray-500 mt-1">3-20 characters, letters, numbers, underscore only</p>
+          <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Username</label>
+          <input v-model="formData.username" type="text" required :disabled="isAuthLoading"
+            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
         </div>
 
         <div>
-          <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-          <input
-            id="phone"
-            v-model="formData.phone"
-            type="tel"
-            autocomplete="tel"
-            placeholder="+1 (555) 123-4567"
-            required
-            :disabled="isAuthLoading"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:text-gray-400"
-          />
+          <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Phone Number</label>
+          <input v-model="formData.phone" type="tel" required :disabled="isAuthLoading"
+            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
         </div>
 
         <div>
-          <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-          <input
-            id="location"
-            v-model="formData.location"
-            type="text"
-            autocomplete="street-address"
-            placeholder="City, Country"
-            required
-            :disabled="isAuthLoading"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:text-gray-400"
-          />
+          <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Location</label>
+          <input v-model="formData.location" type="text" required :disabled="isAuthLoading"
+            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
         </div>
 
         <div>
-          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input
-            id="password"
-            v-model="formData.password"
-            type="password"
-            autocomplete="new-password"
-            placeholder="••••••••"
-            required
-            minlength="6"
-            :disabled="isAuthLoading"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:bg-gray-100 disabled:text-gray-400"
-          />
-          <p class="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+          <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Password</label>
+          <input v-model="formData.password" type="password" required minlength="6" :disabled="isAuthLoading"
+            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
         </div>
 
-        <button
-          type="submit"
-          :disabled="isAuthLoading"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
-        >
+        <button type="submit" :disabled="isAuthLoading"
+          class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3.5 rounded-xl transition-all">
           {{ isAuthLoading ? 'Creating Account...' : 'Sign Up' }}
         </button>
       </form>
 
       <div class="mt-6 text-center">
-        <p class="text-gray-600 text-sm">
-          Already have an account?
-          <NuxtLink to="/signin?forceAuth=1" class="text-blue-600 hover:text-blue-700 font-semibold">Log in</NuxtLink>
+        <p class="text-slate-500 text-xs">
+          Already have an account? 
+          <NuxtLink to="/signin" class="text-indigo-400 hover:text-indigo-300 font-bold">Log in</NuxtLink>
         </p>
       </div>
     </div>
@@ -111,75 +66,83 @@
 import { ref } from 'vue'
 import { navigateTo, useRoute } from '#app'
 import { storeToRefs } from 'pinia'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
 
-definePageMeta({
-  layout: 'blank',
-  middleware: 'guest'
-})
+definePageMeta({ layout: 'blank', middleware: 'guest' })
 
 const route = useRoute()
-const authStore = useAuthStore()
+const userStore = useUserStore()
+const { isLoading: isAuthLoading, error: authError } = storeToRefs(userStore)
 
-// Use storeToRefs for reactive state from Pinia
-const { isLoading: isAuthLoading, error: authError } = storeToRefs(authStore)
-
-const formData = ref({
-  email: '',
-  username: '',
-  phone: '',
-  location: '',
-  password: ''
-})
-
+const formData = ref({ email: '', username: '', phone: '', location: '', password: '' })
 const localError = ref('')
 const success = ref('')
-
-const normalizePath = (value: unknown, fallback = '/signin?forceAuth=1') => {
-  const raw = String(value || '').trim()
-  if (!raw) return fallback
-  return raw.startsWith('/') ? raw : `/${raw}`
-}
 
 const handleSignup = async () => {
   localError.value = ''
   success.value = ''
 
-  // Basic Validation
-  if (!formData.value.email || !formData.value.username || !formData.value.phone || 
-      !formData.value.location || !formData.value.password) {
-    localError.value = 'All fields are required'
-    return
-  }
-
   try {
-    // Calling the action from the Pinia store
-    const result = await authStore.signUp({
-      email: formData.value.email.trim(),
-      password: formData.value.password,
-      options: {
+    const response = await api('/auth/signup', {
+      method: 'POST',
+      body: {
+        email: formData.value.email.trim(),
+        password: formData.value.password,
         username: formData.value.username.trim().toLowerCase(),
         phone: formData.value.phone.trim(),
         location: formData.value.location.trim()
       }
     })
 
-    if (result.success) {
+    if (response.user) {
+      userStore.setUser(response.user)
       success.value = 'Account created successfully! Redirecting...'
-      
-      const redirectFromQuery = normalizePath(route.query.redirect, '')
-      const defaultRedirect = '/signin?forceAuth=1' // Adjust based on your flow
-      const redirectUrl = redirectFromQuery || defaultRedirect
-
-      setTimeout(async () => {
-        await navigateTo(redirectUrl)
-      }, 1200)
-    } else {
-      localError.value = result.message || 'Registration failed'
+      setTimeout(() => navigateTo('/profile/complete'), 1200)
     }
   } catch (err: any) {
-    console.error('[Signup Page] Signup failure:', err)
-    localError.value = 'An unexpected error occurred'
+    localError.value = err?.data?.message || 'Registration failed'
   }
 }
 </script>
+
+<style scoped>
+/* Ensure smooth transitions for all interactive elements */
+input, button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Custom styling for the form container to match your other cards */
+.auth-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+/* Enhancing the focus state for accessibility */
+input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Styling for the error/success boxes */
+.alert-box {
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* Subtle animation for the signup button when loading */
+button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+/* Mobile-responsive padding adjustment */
+@media (max-width: 640px) {
+  .auth-card {
+    padding: 1.5rem;
+  }
+}
+</style>

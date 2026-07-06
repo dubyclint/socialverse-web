@@ -1,141 +1,77 @@
 <template>
-  <div class="user-inbox">
-    <div class="tabs">
-      <button @click="activeTab = 'received'" :class="{ active: activeTab === 'received' }">Received</button>
-      <button @click="activeTab = 'sent'" :class="{ active: activeTab === 'sent' }">Sent</button>
+  <div class="min-h-screen bg-slate-950 p-6 text-white">
+    <!-- Header -->
+    <div class="max-w-2xl mx-auto mb-8">
+      <h1 class="text-2xl font-black">Messages</h1>
+      <div class="flex gap-4 mt-4 border-b border-slate-800">
+        <button @click="activeTab = 'received'" :class="tabClasses('received')">Received</button>
+        <button @click="activeTab = 'sent'" :class="tabClasses('sent')">Sent</button>
+      </div>
     </div>
 
-    <div v-if="activeTab === 'received'" class="messages">
-      <h3>Received Messages</h3>
-      <ul>
-        <li v-for="msg in received" :key="msg.id">
-          <img :src="msg.avatar" class="avatar" v-if="msg.avatar" />
-          <strong>{{ msg.from }}:</strong> {{ msg.text }}
-          <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
-          <span v-if="msg.read">✓ Read</span>
-        </li>
-      </ul>
+    <!-- Messages List -->
+    <div class="max-w-2xl mx-auto space-y-4">
+      <div v-for="msg in displayedMessages" :key="msg.id" class="p-4 bg-slate-900 border border-slate-800 rounded-xl">
+        <div class="flex items-center gap-3 mb-2">
+          <img v-if="msg.avatar" :src="msg.avatar" class="w-8 h-8 rounded-full" />
+          <div>
+            <p class="text-sm font-bold">{{ activeTab === 'received' ? msg.from : `To ${msg.to}` }}</p>
+            <p class="text-[10px] text-slate-500">{{ formatTime(msg.timestamp) }}</p>
+          </div>
+        </div>
+        <p class="text-sm text-slate-300">{{ msg.text }}</p>
+      </div>
     </div>
 
-    <div v-if="activeTab === 'sent'" class="messages">
-      <h3>Sent Messages</h3>
-      <ul>
-        <li v-for="msg in sent" :key="msg.id">
-          <strong>To {{ msg.to }}:</strong> {{ msg.text }}
-          <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
-        </li>
-      </ul>
-    </div>
-
-    <form @submit.prevent="sendMessage" class="send-form">
-      <input v-model="recipient" placeholder="Recipient username" required />
-      <textarea v-model="message" placeholder="Type your message..." required></textarea>
-      <button type="submit">Send</button>
+    <!-- Send Form -->
+    <form @submit.prevent="sendMessage" class="max-w-2xl mx-auto mt-8 p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+      <input v-model="recipient" placeholder="Recipient username" class="w-full bg-slate-950 p-3 rounded-lg mb-3 border border-slate-800 outline-none" />
+      <textarea v-model="message" placeholder="Type your message..." class="w-full bg-slate-950 p-3 rounded-lg mb-3 border border-slate-800 outline-none h-24"></textarea>
+      <button type="submit" class="bg-indigo-600 px-6 py-2 rounded-lg font-bold text-sm">Send</button>
     </form>
   </div>
 </template>
 
-<script setup>
-import { gun, sea } from '~/gundb/client'
-import { useAuth } from '#imports'
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
+import { api } from '~/lib/api'
 
-const { data: session } = useAuth()
-const currentUser = session.value?.user?.id || 'anonymous'
-
+const userStore = useUserStore()
 const activeTab = ref('received')
 const received = ref([])
 const sent = ref([])
 const recipient = ref('')
 const message = ref('')
 
-function formatTime(ts) {
-  return new Date(ts).toLocaleString()
-}
+const displayedMessages = computed(() => activeTab.value === 'received' ? received.value : sent.value)
+
+const tabClasses = (tab: string) => ({
+  'pb-2 border-b-2 transition': true,
+  'border-indigo-500 text-white': activeTab.value === tab,
+  'border-transparent text-slate-500': activeTab.value !== tab
+})
+
+const formatTime = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 async function sendMessage() {
-  const msg = {
-    from: currentUser,
-    to: recipient.value,
-    text: await sea.encrypt(message.value, await sea.secret(recipient.value, session.value.user)),
-    timestamp: Date.now(),
-    read: false
+  try {
+    await api('/messages/send', {
+      method: 'POST',
+      body: { to: recipient.value, text: message.value }
+    })
+    message.value = ''
+    recipient.value = ''
+    // Refresh lists here
+  } catch (err) {
+    console.error('Failed to send message', err)
   }
-
-  gun.get(`inbox/${recipient.value}`).set(msg)
-  gun.get(`sent/${currentUser}`).set(msg)
-
-  sent.value.unshift({ ...msg, text: message.value })
-  message.value = ''
-  recipient.value = ''
 }
 
-onMounted(() => {
-  gun.get(`inbox/${currentUser}`).map().on(async (data, key) => {
-    if (!received.value.find(m => m.timestamp === data.timestamp)) {
-      const decrypted = await sea.decrypt(data.text, await sea.secret(currentUser, session.value.user))
-      const profile = await gun.get(`users/${data.from}`).then()
-      received.value.unshift({
-        id: key,
-        ...data,
-        text: decrypted,
-        avatar: profile?.avatarUrl || null
-      })
-
-      gun.get(`inbox/${currentUser}/${key}`).put({ read: true })
-    }
-  })
-
-  gun.get(`sent/${currentUser}`).map().on(async (data, key) => {
-    if (!sent.value.find(m => m.timestamp === data.timestamp)) {
-      const decrypted = await sea.decrypt(data.text, await sea.secret(currentUser, session.value.user))
-      sent.value.unshift({ id: key, ...data, text: decrypted })
-    }
-  })
+onMounted(async () => {
+  // Use api() to fetch messages instead of raw GunDB calls
+  const response = await api('/messages/list')
+  received.value = response.received || []
+  sent.value = response.sent || []
 })
 </script>
-
-<style scoped>
-.user-inbox {
-  padding: 1rem;
-}
-.tabs {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.tabs button {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: #eee;
-  cursor: pointer;
-}
-.tabs button.active {
-  background: #ccc;
-}
-.messages ul {
-  list-style: none;
-  padding: 0;
-}
-.avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  margin-right: 0.5rem;
-}
-.timestamp {
-  font-size: 0.8rem;
-  color: #888;
-  margin-left: 0.5rem;
-}
-.send-form {
-  margin-top: 1rem;
-}
-.send-form input,
-.send-form textarea {
-  display: block;
-  width: 100%;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-}
-</style>

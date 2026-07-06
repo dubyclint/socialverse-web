@@ -184,7 +184,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import { useFileUpload } from '~/composables/use-file-upload'
 import MarkdownIt from 'markdown-it'
 import EmojiConvertor from 'emoji-js'
@@ -200,12 +200,12 @@ const props = defineProps<{ groupId: string }>()
 const groupId = props.groupId
 
 // Stores & Composables
-const authStore = useAuthStore()
+const userStore = useUserStore()
 const { uploadFile } = useFileUpload()
 
 // Current User
-const currentUser = computed(() => authStore.user?.id)
-const isAdmin = computed(() => authStore.user?.role === 'admin')
+const currentUser = computed(() => userStore.user?.id)
+const isAdmin = computed(() => userStore.user?.role === 'admin')
 
 // Reactive State
 const ownerId = ref<string | null>(null)
@@ -272,91 +272,56 @@ async function inviteMember(): Promise<void> {
     if (response.success) {
       inviteSuccess.value = `${inviteUserId.value} has been invited!`
       inviteUserId.value = ''
-      
-      // Reload members
       await loadGroupData()
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        inviteSuccess.value = ''
-      }, 3000)
+      setTimeout(() => { inviteSuccess.value = '' }, 3000)
     } else {
       inviteError.value = response.message || 'Failed to invite member'
     }
   } catch (error: any) {
     inviteError.value = error.message || 'An error occurred while inviting'
-    console.error('Invite error:', error)
   } finally {
     inviting.value = false
   }
 }
 
 async function removeMember(memberId: string): Promise<void> {
-  if (!confirm(`Are you sure you want to remove ${memberId} from this group?`)) {
-    return
-  }
+  if (!confirm(`Are you sure you want to remove ${memberId} from this group?`)) return
 
   removing.value = memberId
-
   try {
-    const response = await $fetch(`/api/groups/${groupId}/members/${memberId}`, {
-      method: 'DELETE'
-    })
-
+    const response = await $fetch(`/api/groups/${groupId}/members/${memberId}`, { method: 'DELETE' })
     if (response.success) {
       members.value = members.value.filter(m => m !== memberId)
     } else {
       alert(response.message || 'Failed to remove member')
     }
-  } catch (error: any) {
-    console.error('Remove member error:', error)
-    alert('An error occurred while removing the member')
   } finally {
     removing.value = null
   }
 }
 
-function triggerFileInput(): void {
-  fileInputRef.value?.click()
-}
+function triggerFileInput(): void { fileInputRef.value?.click() }
 
 async function handleFileUpload(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const files = input.files
-
   if (!files) return
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    
-    // Validate file size (max 50MB per file)
-    const maxSize = 50 * 1024 * 1024
-    if (file.size > maxSize) {
+    if (file.size > 50 * 1024 * 1024) {
       sendError.value = `File ${file.name} exceeds 50MB limit`
       continue
     }
-
-    attachments.value.push({
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type
-    })
+    attachments.value.push({ file, name: file.name, size: file.size, type: file.type })
   }
-
-  // Reset input
-  if (fileInputRef.value) {
-    fileInputRef.value.value = ''
-  }
+  if (fileInputRef.value) fileInputRef.value.value = ''
 }
 
-function removeAttachment(index: number): void {
-  attachments.value.splice(index, 1)
-}
+function removeAttachment(index: number): void { attachments.value.splice(index, 1) }
 
 async function sendMessage(): Promise<void> {
   const messageText = draft.value.trim()
-
   if (!messageText && attachments.value.length === 0) {
     sendError.value = 'Message cannot be empty'
     return
@@ -366,13 +331,10 @@ async function sendMessage(): Promise<void> {
   sendError.value = ''
 
   try {
-    // Upload attachments first
     const uploadedAttachments = []
     for (const att of attachments.value) {
       try {
-        const uploadedFile = await uploadFile(att.file, 'group-chat', {
-          optimize: false
-        })
+        const uploadedFile = await uploadFile(att.file, 'group-chat', { optimize: false })
         if (uploadedFile) {
           uploadedAttachments.push({
             url: uploadedFile.url,
@@ -380,48 +342,33 @@ async function sendMessage(): Promise<void> {
             type: uploadedFile.mimeType
           })
         }
-      } catch (err) {
-        console.error('File upload error:', err)
-      }
+      } catch (err) { console.error('File upload error:', err) }
     }
 
-    // Send message
     const response = await $fetch(`/api/groups/${groupId}/messages`, {
       method: 'POST',
-      body: {
-        text: messageText,
-        attachments: uploadedAttachments,
-        timestamp: Date.now()
-      }
+      body: { text: messageText, attachments: uploadedAttachments, timestamp: Date.now() }
     })
 
     if (response.success) {
-      // Add message to local state
       messages.value.push({
         id: response.messageId,
         from: currentUser.value,
         text: messageText,
         timestamp: Date.now(),
         attachments: uploadedAttachments,
-        avatar: authStore.profile?.avatar_url
+        avatar: userStore.profile?.avatar_url
       })
-
-      // Clear form
       draft.value = ''
       attachments.value = []
-
-      // Scroll to bottom
       await nextTick(() => {
-        if (messagesContainer.value) {
-          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-        }
+        if (messagesContainer.value) messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
       })
     } else {
       sendError.value = response.message || 'Failed to send message'
     }
   } catch (error: any) {
-    sendError.value = error.message || 'An error occurred while sending the message'
-    console.error('Send message error:', error)
+    sendError.value = error.message || 'An error occurred'
   } finally {
     sending.value = false
   }
@@ -430,33 +377,23 @@ async function sendMessage(): Promise<void> {
 async function loadGroupData(): Promise<void> {
   try {
     const response = await $fetch(`/api/groups/${groupId}`)
-
     if (response.success) {
       groupMeta.value = response.group
       ownerId.value = response.group.ownerId
       members.value = response.group.members || []
       messages.value = response.group.messages || []
-      userProfile.value = authStore.profile || {}
+      userProfile.value = userStore.profile || {}
     }
   } catch (error: any) {
     console.error('Load group data error:', error)
   }
 }
 
-// Lifecycle
 onMounted(async () => {
   await loadGroupData()
-  
-  // Scroll to bottom
   await nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-    }
+    if (messagesContainer.value) messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   })
-
-  // Optional: Set up polling or WebSocket for real-time updates
-  // const interval = setInterval(loadGroupData, 5000)
-  // onUnmounted(() => clearInterval(interval))
 })
 </script>
 
