@@ -18,6 +18,11 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
+  // Plugin registration: Explicitly defining mode ensures they run in the right environment
+  plugins: [
+    { src: '~/plugins/00-init-sequence.client', mode: 'client' },
+  ],
+
   pinia: {
     storesDirs: ['./stores/**'],
   },
@@ -33,14 +38,11 @@ export default defineNuxtConfig({
         '/', '/register', '/feed', '/stream', '/signin', '/signup', 
         '/auth/forgot-password', '/terms-and-policy', '/offline.html',
       ],
-      cookieRedirect: true,
-      saveRedirectToCookie: true,
+      saveRedirectToCookie: true, // Fixed deprecation warning
     },
     cookieOptions: {
       name: 'sb-socialverse-access',
       lifetime: 60 * 60 * 8,
-      domain: '',
-      path: '/',
       sameSite: 'lax',
     },
   },
@@ -58,6 +60,7 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Server-side secret keys (never exposed to client)
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     jwtSecret: process.env.JWT_SECRET,
     password: process.env.PASSWORD,
@@ -139,8 +142,4 @@ export default defineNuxtConfig({
       'X-XSS-Protection': '1; mode=block',
     },
   },
-
-  plugins: [
-    '~/plugins/00-init-sequence.client',
-  ],
 })
