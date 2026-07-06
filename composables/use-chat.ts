@@ -2,7 +2,7 @@
 import { useNuxtApp } from '#app'
 import { computed } from 'vue'
 
-export const useApi = () => {
+export const useChatApi = () => { // Renamed from useApi
   const { $fetch } = useNuxtApp()
 
   // 1. Unified Store Resolver
