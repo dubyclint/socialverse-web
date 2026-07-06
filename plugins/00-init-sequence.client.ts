@@ -1,4 +1,4 @@
-// /plugins/01-init-app.client.ts
+// plugins/00-init-sequence.client.ts
 import { defineNuxtPlugin } from '#app'
 
 export default defineNuxtPlugin({
