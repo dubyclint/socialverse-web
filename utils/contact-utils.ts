@@ -15,7 +15,7 @@ export class ContactUtils {
     } else if (digits.length === 11 && digits.startsWith('1')) {
       // US number with country code
       return `+${digits}`;
-    } else if (digits.length >) {
+    } else if (digits.length > 11) { // Fixed: Added 11 to complete the comparison
       // International number
       return `+${digits}`;
     }
@@ -35,7 +35,8 @@ export class ContactUtils {
     
     const cleaned = phone.replace(/\D/g, '');
     
-    if (cleaned.length ===  && cleaned.startsWith('1')) {
+    // Fixed: Added 11 to check for US format length
+    if (cleaned.length === 11 && cleaned.startsWith('1')) {
       // US format: +1 (XXX) XXX-XXXX
       return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
     }
