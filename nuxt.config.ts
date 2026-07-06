@@ -141,6 +141,6 @@ export default defineNuxtConfig({
   },
 
   plugins: [
-    '~/plugins/01-init-app.client.ts',
+    '~/plugins/00-init-sequence.client.ts',
   ],
 })
