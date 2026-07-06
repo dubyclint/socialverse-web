@@ -18,14 +18,10 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
-  // RECONCILED: Explicitly registering plugins with dependency mapping
+  // RECONCILED: Explicitly registering plugins to resolve dependency errors
   plugins: [
     { src: '~/plugins/00-init-sequence.client', mode: 'client' },
-    { 
-      src: '~/plugins/socialverse-socket-client.client', 
-      mode: 'client', 
-      dependsOn: ['00-init-sequence'] 
-    }
+    { src: '~/plugins/socialverse-socket.client', mode: 'client' }
   ],
 
   pinia: {
@@ -59,9 +55,7 @@ export default defineNuxtConfig({
     '/offline.html': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
-    '/api/auth/**': { cache: false },
-    '/api/profile/**': { cache: false },
-    '/api/messages/**': { cache: false },
+    '/api/**': { cache: false },
   },
 
   runtimeConfig: {
