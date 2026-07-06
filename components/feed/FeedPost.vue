@@ -10,7 +10,7 @@
         <div class="author-info">
           <div class="author-name-row">
             <h4 class="author-name">{{ post.author?.full_name || 'Anonymous User' }}</h4>
-            <span v-if=\"post.author?.verified\" class="verified-badge">
+            <span v-if="post.author?.verified" class="verified-badge">
               <Icon name="check-circle" size="14" />
             </span>
           </div>
