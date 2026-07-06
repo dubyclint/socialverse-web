@@ -1,9 +1,8 @@
 // server/services/geo-service.ts
 // ============================================================================
-// GEO SERVICE - FIXED WITH LAZY LOADING
+// GEO SERVICE - FIXED SYNTAX
 // ============================================================================
 
-// Lazy load axios
 let axios: any = null;
 
 async function getAxios() {
@@ -28,14 +27,14 @@ export interface LocationData {
 }
 
 export class GeoService {
-  private apiKey: string |
-  private cacheEnabled: boolean
-  private cache: Map<string, LocationData>
+  private apiKey: string;
+  private cacheEnabled: boolean;
+  private cache: Map<string, LocationData>;
 
-  constructor(apiKey?: string, cacheEnabled: boolean = true) {
-    this.apiKey = apiKey ||
-    this.cacheEnabled = cacheEnabled
-    this.cache = new Map()
+  constructor(apiKey: string = '', cacheEnabled: boolean = true) {
+    this.apiKey = apiKey;
+    this.cacheEnabled = cacheEnabled;
+    this.cache = new Map();
   }
 
   /**
@@ -43,17 +42,13 @@ export class GeoService {
    */
   async getLocationByIP(ip: string): Promise<LocationData | null> {
     try {
-      // Check cache first
       if (this.cacheEnabled && this.cache.has(ip)) {
-        console.log(`[GeoService] Cache hit for IP: ${ip}`)
-        return this.cache.get(ip)!
+        return this.cache.get(ip)!;
       }
 
       const axiosLib = await getAxios();
-
-      // Use ipapi.co (free tier: requests/day)
-      const url = `https://ipapi.co/${ip}/json/`
-      const response = await axiosLib.get(url)
+      const url = `https://ipapi.co/${ip}/json/`;
+      const response = await axiosLib.get(url);
 
       const locationData: LocationData = {
         ip: response.data.ip,
@@ -66,35 +61,26 @@ export class GeoService {
         timezone: response.data.timezone,
         isp: response.data.org,
         organization: response.data.org
-      }
+      };
 
-      // Cache the result
       if (this.cacheEnabled) {
-        this.cache.set(ip, locationData)
+        this.cache.set(ip, locationData);
       }
 
-      return locationData
+      return locationData;
     } catch (error) {
-      console.error(`[GeoService] Failed to get location for IP ${ip}:`, error)
-      return null
+      console.error(`[GeoService] Failed to get location for IP ${ip}:`, error);
+      return null;
     }
   }
 
-  /**
-   * Clear cache
-   */
   clearCache(): void {
-    this.cache.clear()
-    console.log('[GeoService] Cache cleared')
+    this.cache.clear();
   }
 
-  /**
-   * Get cache size
-   */
   getCacheSize(): number {
-    return this.cache.size
+    return this.cache.size;
   }
 }
 
-// Export singleton instance
 export const geoService = new GeoService();
