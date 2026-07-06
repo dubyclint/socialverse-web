@@ -30,8 +30,10 @@
     "types": ["node", "vitest/globals"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
       "~/*": ["./*"],
+      "@/*": ["./*"],
+      "@wallet/*": ["./services/wallet/*", "./stores/wallet/*"],
+      "@social/*": ["./services/social/*", "./stores/social/*"],
       "~": ["."],
       "@": ["."]
     }
@@ -39,4 +41,3 @@
   "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
   "exclude": ["node_modules", ".nuxt", ".output", ".nitro", "dist"]
 }
-
