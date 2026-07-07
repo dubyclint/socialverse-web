@@ -13,6 +13,21 @@ Developer workflows & commands (explicit)
 - Tests: `npm run test` (Vitest). UI runner: `npm run test:ui`.
 - Postinstall: `nuxt prepare` is run by `postinstall` script.
 
+Windows notes & pushing
+- This project requires Node >=22 and npm >=10 (see `package.json` engines). On Windows PowerShell use the standard `npm` commands; avoid POSIX single-quoted env var syntax found in some npm scripts.
+- To push changes after committing locally (PowerShell):
+
+```powershell
+git push origin main
+```
+
+When creating branches use `git switch -c <branch-name>` followed by a push with `-u` to set upstream:
+
+```powershell
+git switch -c feat/your-change
+git push -u origin feat/your-change
+```
+
 Project-specific conventions & patterns
 - Plugin ordering matters: plugins with numeric prefixes (e.g. `00-init-sequence.client.ts`) are relied on via `dependsOn` in other plugins — preserve names and `dependsOn` values.
 - Lazy store imports: many composables import stores dynamically (e.g. `useApi.getUserStore()` uses `await import('~/stores/user')`) — follow the same pattern to avoid circular deps.
