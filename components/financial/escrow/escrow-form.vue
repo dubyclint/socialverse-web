@@ -16,7 +16,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useEscrowContract } from '@/composables/use-escrow-contract'
+import { useEscrowContract } from '~/services/financial/escrow/use-escrow-contract'
 
 const seller = ref('')
 const amount = ref(0)
@@ -34,3 +34,4 @@ async function submitDeal() {
   padding: 1rem;
 }
 </style>
+

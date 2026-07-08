@@ -151,7 +151,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { usePewGift } from '~/composables/use-pewgift'
+import { usePewGift } from '~/services/financial/gifts/use-pewgift'
 
 // Props
 const props = defineProps({
@@ -750,3 +750,4 @@ if (process.client) {
   }
 }
 </style>
+

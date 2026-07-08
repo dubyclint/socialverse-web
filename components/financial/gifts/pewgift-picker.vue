@@ -138,7 +138,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePewGift } from '~/composables/use-pewgift'
+import { usePewGift } from '~/services/financial/gifts/use-pewgift'
 
 interface Props {
   recipientId?: string
@@ -745,3 +745,4 @@ const sendGift = async () => {
   }
 }
 </style>
+

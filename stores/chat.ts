@@ -1,5 +1,6 @@
 // stores/chat.ts
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { chatService } from '~/services/chatService'
 import { chatCacheService } from '~/services/chatCacheService'
 import type { ChatMessage, Chat, User, Translation, Gift, TypingUser } from '~/types/chat'

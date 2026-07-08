@@ -1,4 +1,7 @@
 // stores/useWalletStore.ts
+import { defineStore } from 'pinia'
+import { walletService } from '~/services/financial/wallet/wallet-service'
+
 export const useWalletStore = defineStore('wallet', {
   state: () => ({
     balance: 0,

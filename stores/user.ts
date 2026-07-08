@@ -1,5 +1,6 @@
 // stores/user.ts
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { authService } from '~/services/authService'
 import { profileService } from '~/services/profileService'
 
@@ -13,7 +14,7 @@ export const useUserStore = defineStore('user', () => {
   const setError = (val: any) => { error.value = val }
   const setRememberMe = (val: boolean) => { rememberMe.value = val }
 
-  const signIn = async (email, password) => {
+  const signIn = async (email: string, password: string) => {
     isLoading.value = true
     error.value = null // Clear previous error
     try {

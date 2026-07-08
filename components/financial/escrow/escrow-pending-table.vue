@@ -59,7 +59,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useEscrowContract } from '@/composables/use-escrow-contract'
+import { useEscrowContract } from '~/services/financial/escrow/use-escrow-contract'
 import { useToast } from '@/composables/use-toast'
 
 const props = defineProps({
@@ -267,3 +267,4 @@ button {
   border-radius: 8px;
 }
 </style>
+
