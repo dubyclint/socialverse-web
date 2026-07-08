@@ -1,12 +1,13 @@
 // stores/user.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { Profile } from '~/types/profile'
 import { authService } from '~/services/authService'
 import { profileService } from '~/services/profileService'
 
 export const useUserStore = defineStore('user', () => {
-  const user = ref(null)
-  const profile = ref(null)
+  const user = ref<any>(null)
+  const profile = ref<Profile | null>(null)
   const isLoading = ref(false)
   const error = ref(null) // Added
   const rememberMe = ref(false) // Added

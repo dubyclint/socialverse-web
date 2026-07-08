@@ -27,5 +27,15 @@ export const useWalletStore = defineStore('wallet', {
         this.loading = false;
       }
     }
+    ,
+    // Temporary helper: fetchBalance - implement properly in services or replace with real call
+    async fetchBalance() {
+      try {
+  const bal = (await walletService.getBalance?.()) || 0
+  this.balance = Number(bal)
+      } catch (err) {
+        // ignore for now
+      }
+    }
   }
 })
