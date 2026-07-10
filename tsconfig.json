@@ -33,19 +33,28 @@
     "paths": {
       "~/*": ["./*"],
       "@/*": ["./*"],
-      "@wallet/*": ["./services/wallet/*", "./stores/wallet/*"],
-      "@social/*": ["./services/social/*", "./stores/social/*"],
+      "@social/*": [
+        "./services/social/*",
+        "./stores/social/*",
+        "./components/social/*"
+      ],
+      "@financial/*": [
+        "./services/financial/*",
+        "./stores/financial/*",
+        "./components/financial/*"
+      ],
+      "@gateway/*": ["./server/gateway/*"],
       "~": ["."],
       "@": ["."]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
   "exclude": [
-    "node_modules", 
-    ".nuxt", 
-    ".output", 
-    ".nitro", 
-    "dist", 
+    "node_modules",
+    ".nuxt",
+    ".output",
+    ".nitro",
+    "dist",
     "supabase/functions"
   ]
 }
