@@ -1,4 +1,4 @@
-//server/utils/auth.ts
+// FILE: /server/gateway/auth/auth-bouncer.ts
 import { serverSupabaseClient } from '#supabase/server'
 import type { H3Event } from 'h3'
 

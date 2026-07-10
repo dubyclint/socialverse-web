@@ -15,6 +15,7 @@ export const useRBAC = () => {
   const getRolesStore = async () => {
     if (_cachedRolesStore) return _cachedRolesStore
     const { useRolesStore } = await import('~/stores/roles')
+    _cachedRolesStore = useRolesStore()
     return _cachedRolesStore
   }
 
@@ -37,6 +38,45 @@ export const useRBAC = () => {
     }
   }
 
-  // ... update assignManagerRole and removeManagerRole to call userStore methods ...
-  return { /* ... exports ... */ }
+  const requireRole = (role: string) => {
+    const userRole = getUserRole()
+    if (userRole !== role && userRole !== 'admin') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: `Forbidden: ${role} role required.`
+      })
+    }
+  }
+
+  const assignManagerRole = async (userId: string, _permissions?: string[]) => {
+    try {
+      const supabase = useSupabaseClient()
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'manager' })
+        .eq('id', userId)
+
+      if (error) throw error
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to assign manager role' }
+    }
+  }
+
+  const removeManagerRole = async (userId: string) => {
+    try {
+      const supabase = useSupabaseClient()
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'user' })
+        .eq('id', userId)
+
+      if (error) throw error
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to remove manager role' }
+    }
+  }
+
+  return { getUserStore, getRolesStore, getUserRole, requireAuthentication, requireRole, assignManagerRole, removeManagerRole }
 }

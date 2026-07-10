@@ -40,11 +40,11 @@ interface PricingTier {
 }
 
 interface PremiumReturn {
-  subscription: Ref<readonly Subscription | null>
+  subscription: Ref<Subscription | null>
   features: Ref<readonly Feature[]>
   restrictions: Ref<readonly Restriction[]>
-  loading: Ref<readonly boolean>
-  error: Ref<readonly (string | null)>
+  loading: Ref<boolean>
+  error: Ref<string | null>
   currentTier: ComputedRef<SubscriptionTier>
   isActive: ComputedRef<boolean>
   isPremium: ComputedRef<boolean>
@@ -77,7 +77,7 @@ export const usePremium = (): PremiumReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/premium/status')
+      const result = await $fetch('/api/premium/status')
 
       if (result.success) {
         subscription.value = result.data.subscription
@@ -122,7 +122,7 @@ export const usePremium = (): PremiumReturn => {
   const getPricingTiers = async (): Promise<PricingTier[]> => {
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/premium/pricing')
+      const result = await $fetch('/api/premium/pricing')
       if (result.success) {
         return result.data
       }
@@ -143,7 +143,7 @@ export const usePremium = (): PremiumReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/premium/upgrade', {
+      const result = await $fetch('/api/premium/upgrade', {
         method: 'POST',
         body: { tier }
       })
@@ -171,7 +171,7 @@ export const usePremium = (): PremiumReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/premium/cancel', {
+      const result = await $fetch('/api/premium/cancel', {
         method: 'POST'
       })
 

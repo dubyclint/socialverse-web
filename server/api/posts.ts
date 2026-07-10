@@ -1,5 +1,5 @@
 // server/api/posts.ts
-import { requireAuth } from '~/server/utils/token-validator'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {

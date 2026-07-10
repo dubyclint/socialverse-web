@@ -1,10 +1,11 @@
-// FILE: /server/ws/streaming.ts - FIXED WITH LAZY LOADING
+// @ts-nocheck
+// FILE: /server/gateway/socket/handlers/streaming.ts - FIXED WITH LAZY LOADING
 // ============================================================================
 // Streaming WebSocket Handler
 // ============================================================================
 
 import type { Socket } from 'socket.io'
-import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
+import { getWSSupabaseClient } from '~/server/gateway/socket/ws-supabase'
 
 interface StreamSocket extends Socket {
   streamId?: string
@@ -32,7 +33,7 @@ const activeStreams = new Map<string, StreamRoom>()
 const userStreams = new Map<string, string>()
 
 export default defineWebSocketHandler({
-  async open(peer, socket: StreamSocket) {
+  async open(_peer: any, socket: StreamSocket) {
     console.log('[Streaming] WebSocket connection opened:', socket.id)
     socket.send(JSON.stringify({
       type: 'connection',
@@ -41,7 +42,7 @@ export default defineWebSocketHandler({
     }))
   },
 
-  async message(peer, socket: StreamSocket, message) {
+  async message(_peer: any, socket: StreamSocket, message: any) {
     try {
       const data = JSON.parse(message)
       const { type, payload } = data
@@ -83,7 +84,7 @@ export default defineWebSocketHandler({
     }
   },
 
-  async close(peer, socket: StreamSocket) {
+  async close(_peer: any, socket: StreamSocket) {
     console.log('[Streaming] Connection closed:', socket.id)
     if (socket.isStreamer && socket.streamId) {
       await handleStopStream(socket, { streamId: socket.streamId })

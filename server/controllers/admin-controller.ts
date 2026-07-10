@@ -133,7 +133,7 @@ export class AdminController {
     const { postId, reason } = await readBody(event);
     const adminId = event.context.user.id;
 
-    const { data: post, error } = await client
+    const { error } = await client
       .from('posts')
       .delete()
       .eq('id', postId)

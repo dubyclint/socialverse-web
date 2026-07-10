@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface UpdateStreamRequest {
   title?: string
@@ -26,10 +27,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Verify ownership
-    const { data: stream, error: streamError } = await supabase
+    const { data: stream, error: streamError } = await _supabase
       .from('streams')
       .select('broadcaster_id')
       .eq('id', streamId)
@@ -72,7 +73,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update stream
-    const { data: updated, error: updateError } = await supabase
+    const { data: updated, error: updateError } = await _supabase
       .from('streams')
       .update({
         ...body,

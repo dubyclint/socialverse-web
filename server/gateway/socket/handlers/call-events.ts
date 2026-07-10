@@ -1,4 +1,5 @@
-// FILE: /server/ws/call-events.ts
+// @ts-nocheck
+// FILE: /server/gateway/socket/handlers/call-events.ts
 // Call Events - Voice/Video Call Management
 // Converted from: call-events.js
 

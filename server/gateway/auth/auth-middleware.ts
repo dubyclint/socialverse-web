@@ -1,8 +1,8 @@
 // ============================================================================
-// FILE: server/middleware/auth.ts
+// FILE: server/gateway/auth/auth-middleware.ts
 // ============================================================================
 import { defineEventHandler } from 'h3'
-import { authenticateUser } from '../utils/auth-utils'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   // Only process requests aimed at server endpoints
@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     console.log(`[Server Auth Middleware] Intercepting request: ${event.node.req.url}`)
     
     try {
-      await authenticateUser(event)
+      await requireAuth(event)
     } catch (error) {
       // ✅ FIXED: Removed the explicitly typed ": any" declaration 
       // This keeps the syntax valid even if compilation flags shift.

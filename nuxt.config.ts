@@ -2,6 +2,8 @@
 // FILE: /nuxt.config.ts - SECURED PRODUCTION CONFIGURATION FOR NUXT 4
 // ============================================================================
 
+import { fileURLToPath } from 'node:url'
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
@@ -9,6 +11,12 @@ export default defineNuxtConfig({
 
   future: {
     compatibilityVersion: 4,
+  },
+
+  alias: {
+    '@social': fileURLToPath(new URL('./services/social', import.meta.url)),
+    '@financial': fileURLToPath(new URL('./services/financial', import.meta.url)),
+    '@gateway': fileURLToPath(new URL('./server/gateway', import.meta.url)),
   },
 
   modules: [
@@ -129,6 +137,14 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    handlers: [
+      { route: '/api/**', handler: '~/server/gateway/auth/auth-header.ts', middleware: true },
+      { route: '/api/**', handler: '~/server/gateway/auth/auth-middleware.ts', middleware: true },
+      { route: '/**', handler: '~/server/gateway/security/cache-headers.ts', middleware: true },
+    ],
+    plugins: [
+      '~/server/gateway/socket/plugin.ts',
+    ],
     prerender: {
       crawlLinks: true,
       routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],

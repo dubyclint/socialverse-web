@@ -27,12 +27,10 @@ export interface LocationData {
 }
 
 export class GeoService {
-  private apiKey: string;
   private cacheEnabled: boolean;
   private cache: Map<string, LocationData>;
 
-  constructor(apiKey: string = '', cacheEnabled: boolean = true) {
-    this.apiKey = apiKey;
+  constructor(_apiKey: string = '', cacheEnabled: boolean = true) {
     this.cacheEnabled = cacheEnabled;
     this.cache = new Map();
   }

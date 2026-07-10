@@ -65,7 +65,7 @@ export default defineEventHandler(async (event): Promise<DeleteFileResponse> => 
     // ============================================================================
     console.log('[Delete File API] Deleting file...')
 
-    const result = await deleteFile(userId, body.bucket, body.path)
+    await deleteFile(userId, body.bucket, body.path)
 
     console.log('[Delete File API] ✅ File deleted successfully')
 

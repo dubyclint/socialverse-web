@@ -313,3 +313,33 @@ export async function remove(userId: string, palUserId: string): Promise<void> {
 export async function getAccepted(userId: string): Promise<Pal[]> {
   return PalModel.getAcceptedPals(userId)
 }
+
+// ---------------------------------------------------------------------------
+// Runtime-shaped adapter for legacy callers
+// Provides Pal.create, Pal.findOne, Pal.findAll, Pal.update
+// ---------------------------------------------------------------------------
+export const Pal: any = {
+  async create(payload: any) {
+    // accept legacy keys
+    const requester = payload.requester_id || payload.requesterId || payload.userId
+    const requested = payload.requested_id || payload.requestedId || payload.palUserId
+    return create({ requester_id: requester, requested_id: requested, message: payload.message })
+  },
+
+  async findOne(opts: any) {
+    if (opts?.where?.id) return findById(opts.where.id)
+    if (opts?.where?.requester_id && opts?.where?.requested_id) {
+      return findBetweenUsers(opts.where.requester_id, opts.where.requested_id)
+    }
+    return null
+  },
+
+  async findAll(opts: any) {
+    if (opts?.where?.userId) return PalModel.getUserPals(opts.where.userId, opts.where.status)
+    return []
+  },
+
+  async update(id: string, updates: any) {
+    return update(id, updates)
+  }
+}

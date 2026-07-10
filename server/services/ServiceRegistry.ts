@@ -4,7 +4,7 @@
 // Provides a centralized way to access all services throughout the app
 
 import { DIContainer, diContainer } from './DIContainer'
-import { ModelFactory, modelFactory } from './ModelFactory'
+import { ModelFactory } from './ModelFactory'
 
 // ============================================================================
 // SERVICE REGISTRY CLASS

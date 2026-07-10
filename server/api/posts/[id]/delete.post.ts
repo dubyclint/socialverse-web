@@ -84,14 +84,14 @@ export default defineEventHandler(async (event): Promise<DeletePostResponse> => 
       .from('post_likes')
       .delete()
       .eq('post_id', postId)
-      .catch(err => console.warn('[Posts Delete API] Warning deleting likes:', err.message))
+      .catch((err: any) => console.warn('[Posts Delete API] Warning deleting likes:', err?.message))
 
     // Delete comments
     await supabase
       .from('post_comments')
       .delete()
       .eq('post_id', postId)
-      .catch(err => console.warn('[Posts Delete API] Warning deleting comments:', err.message))
+      .catch((err: any) => console.warn('[Posts Delete API] Warning deleting comments:', err?.message))
 
     console.log('[Posts Delete API] ✅ Associated data deleted')
 

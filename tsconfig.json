@@ -31,15 +31,25 @@
     "types": ["node", "vitest/globals"],
     "baseUrl": ".",
     "paths": {
+      // Nuxt core aliases (must be re-declared because TS `extends` replaces,
+      // not merges, the parent's `paths` map). Ambient declarations in
+      // `types/ambient.d.ts` provide permissive shims for `#app`, `#imports`,
+      // `#server`, etc. so these do not need to be repeated here.
       "~/*": ["./*"],
       "@/*": ["./*"],
-      "@wallet/*": ["./services/wallet/*", "./stores/wallet/*"],
-      "@social/*": ["./services/social/*", "./stores/social/*"],
       "~": ["."],
-      "@": ["."]
+      "@": ["."],
+      // Domain aliases for the modularized SocialVerse architecture.
+      "@social/*": ["./services/social/*"],
+      "@financial/*": ["./services/financial/*"],
+      "@gateway/*": ["./server/gateway/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
+  "include": ["**/*.ts", "**/*.tsx", "**/*.vue", "**/*.d.ts"],
+  "files": [
+    "types/ambient.d.ts",
+    ".nuxt/nuxt.d.ts"
+  ],
   "exclude": [
     "node_modules", 
     ".nuxt", 

@@ -12,7 +12,7 @@ export default defineNuxtPlugin({
     const userStore = useUserStore() // Use the new unified store
 
     globalThis.$fetch = $fetch.create({
-      onRequest({ request, options }) {
+      onRequest({ options }) {
         if (!options.headers) {
           options.headers = {}
         }

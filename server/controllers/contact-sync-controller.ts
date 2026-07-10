@@ -6,7 +6,6 @@ import { readBody } from 'h3'
 import { UserContact } from '../models/user-contact'
 import { User } from '../models/user'
 import { Pal } from '../models/pal'
-import { supabase } from '../utils/supabase'
 
 // ============================================================================
 // TYPES & INTERFACES

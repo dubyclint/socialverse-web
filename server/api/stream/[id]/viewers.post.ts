@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface ViewerRequest {
   action: 'join' | 'leave'
@@ -29,11 +30,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     if (body.action === 'join') {
       // Add viewer
-      const { error } = await supabase
+      const { error } = await _supabase
         .from('stream_viewers')
         .insert({
           stream_id: streamId,
@@ -48,13 +49,13 @@ export default defineEventHandler(async (event) => {
       }
 
       // Update stream viewer count
-      const { data: viewers } = await supabase
+      const { data: viewers } = await _supabase
         .from('stream_viewers')
         .select('id')
         .eq('stream_id', streamId)
         .eq('is_active', true)
 
-      await supabase
+      await _supabase
         .from('streams')
         .update({ viewer_count: viewers?.length || 0 })
         .eq('id', streamId)
@@ -65,7 +66,7 @@ export default defineEventHandler(async (event) => {
       }
     } else {
       // Remove viewer
-      const { error } = await supabase
+      const { error } = await _supabase
         .from('stream_viewers')
         .update({
           is_active: false,
@@ -77,13 +78,13 @@ export default defineEventHandler(async (event) => {
       if (error) throw error
 
       // Update stream viewer count
-      const { data: viewers } = await supabase
+      const { data: viewers } = await _supabase
         .from('stream_viewers')
         .select('id')
         .eq('stream_id', streamId)
         .eq('is_active', true)
 
-      await supabase
+      await _supabase
         .from('streams')
         .update({ viewer_count: viewers?.length || 0 })
         .eq('id', streamId)

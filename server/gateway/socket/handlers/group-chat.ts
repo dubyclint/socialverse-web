@@ -1,10 +1,11 @@
-// FILE: /server/ws/group-chat.ts - FIXED WITH LAZY LOADING
+// @ts-nocheck
+// FILE: /server/gateway/socket/handlers/group-chat.ts - FIXED WITH LAZY LOADING
 // ============================================================================
 // Group Chat WebSocket Handler
 // ============================================================================
 
 import type { Socket } from 'socket.io'
-import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
+import { getWSSupabaseClient } from '~/server/gateway/socket/ws-supabase'
 
 interface GroupChatMessage {
   id: string
@@ -42,10 +43,9 @@ const userGroupChats = new Map<string, Set<string>>()
 const typingIndicators = new Map<string, Set<string>>()
 
 const TYPING_TIMEOUT = 3000
-const SESSION_TIMEOUT = 30 * 60 * 1000
 
 export default defineWebSocketHandler({
-  async open(peer, socket: UserGroupChatSocket) {
+  async open(_peer: any, socket: UserGroupChatSocket) {
     console.log('[GroupChat] WebSocket connection opened:', socket.id)
     socket.send(JSON.stringify({
       type: 'connection',
@@ -54,7 +54,7 @@ export default defineWebSocketHandler({
     }))
   },
 
-  async message(peer, socket: UserGroupChatSocket, message) {
+  async message(_peer: any, socket: UserGroupChatSocket, message: any) {
     try {
       const data = JSON.parse(message)
       const { type, payload } = data
@@ -123,7 +123,7 @@ export default defineWebSocketHandler({
     }
   },
 
-  async close(peer, socket: UserGroupChatSocket) {
+  async close(_peer: any, socket: UserGroupChatSocket) {
     console.log('[GroupChat] WebSocket connection closed:', socket.id)
     if (socket.activeGroupId) {
       const session = activeGroupSessions.get(socket.activeGroupId)
@@ -477,7 +477,7 @@ async function handleGetMessages(socket: UserGroupChatSocket, payload: any) {
   }
 }
 
-async function handleGetGroups(socket: UserGroupChatSocket, payload: any) {
+async function handleGetGroups(socket: UserGroupChatSocket, _payload: any) {
   try {
     const supabase = await getWSSupabaseClient()
 

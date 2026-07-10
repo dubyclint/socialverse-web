@@ -50,7 +50,7 @@ export default defineEventHandler(async (event): Promise<BatchCheckResponse> => 
     }
 
     // Build results map
-    const rulesMap = new Map(complianceRules?.map(r => [r.feature, r]) || [])
+    const rulesMap = new Map(complianceRules?.map((r: any) => [r.feature, r]) || [])
 
     const results = body.features.map(feature => ({
       feature,

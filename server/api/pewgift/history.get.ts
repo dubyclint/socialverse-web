@@ -71,7 +71,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('History API Error:', error)
     
     if (error.statusCode) {

@@ -1,4 +1,4 @@
-// FILE: /server/utils/ws-supabase.ts
+// FILE: /server/gateway/socket/ws-supabase.ts
 // ============================================================================
 // WEBSOCKET SUPABASE CLIENT - LAZY LOADED
 // ============================================================================

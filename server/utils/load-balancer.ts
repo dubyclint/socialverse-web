@@ -26,11 +26,6 @@ interface ServerCapabilities {
   maxBandwidth: number
 }
 
-interface LoadBalancingStrategy {
-  name: string
-  weight: number
-}
-
 // ============================================================================
 // LAZY-LOADED SUPABASE CLIENT
 // ============================================================================
@@ -60,7 +55,6 @@ export class LoadBalancer {
   private servers: Map<string, ServerState> = new Map()
   private supabase: SupabaseClient | null = null
   private healthCheckInterval: NodeJS.Timeout | null = null
-  private strategy: LoadBalancingStrategy = { name: 'round-robin', weight: 1 }
 
   constructor() {
     this.initializeServers()

@@ -75,8 +75,14 @@ export const useChatStore = defineStore('chat', {
 
     // --- State Mutations ---
     addMessage(message: ChatMessage) {
-      const msgs = this.messages.get(message.chatId) || []
-      this.messages.set(message.chatId, [...msgs, message].sort((a, b) => a.timestamp - b.timestamp))
+      // message.chatId can be undefined in some edge cases; guard it so TS and runtime are safe
+      const chatId = message.chatId as string | undefined
+      if (!chatId) {
+        // ignore malformed messages that lack a chatId
+        return
+      }
+      const msgs = this.messages.get(chatId) || []
+      this.messages.set(chatId, [...msgs, message].sort((a, b) => a.timestamp - b.timestamp))
       this.cacheChatState()
     },
 

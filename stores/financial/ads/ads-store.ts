@@ -46,9 +46,9 @@ export const useAdsStore = defineStore('ads', {
         }
         
         this.servedAds = await response.json();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching served ads:', error);
-        this.error = error.message || 'Failed to fetch ads';
+        this.error = String(error?.message ?? error) || 'Failed to fetch ads';
         this.servedAds = [];
       } finally {
         this.loading = false;
@@ -67,9 +67,9 @@ export const useAdsStore = defineStore('ads', {
         }
         
         this.userAds = await response.json();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching user ads:', error);
-        this.error = error.message || 'Failed to fetch user ads';
+        this.error = String(error?.message ?? error) || 'Failed to fetch user ads';
         this.userAds = [];
       } finally {
         this.loading = false;
@@ -99,9 +99,9 @@ export const useAdsStore = defineStore('ads', {
         await this.fetchUserAds();
         
         return result;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error submitting ad:', error);
-        this.error = error.message || 'Failed to submit ad';
+        this.error = String(error?.message ?? error) || 'Failed to submit ad';
         throw error;
       } finally {
         this.loading = false;

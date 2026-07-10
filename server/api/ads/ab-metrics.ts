@@ -12,12 +12,12 @@ export default defineEventHandler(async (event) => {
 
   const formats = ['image', 'video', 'text', 'audio', 'external']
   const result = formats.map(format => {
-    const filtered = metrics.filter(m => m.variant === format)
-    const adIds = [...new Set(filtered.map(m => m.adId))]
-    const clicks = metrics.filter(m => m.variant === format && m.action === 'click').length
+    const filtered = metrics.filter((m: any) => m.variant === format)
+    const adIds = [...new Set(filtered.map((m: any) => m.adId))]
+    const clicks = metrics.filter((m: any) => m.variant === format && m.action === 'click').length
     const impressions = filtered.length
     const ctr = impressions ? (clicks / impressions) * 100 : 0
-    const conv = conversions.filter(c => adIds.includes(c.adId)).length
+    const conv = conversions.filter((c: any) => adIds.includes(c.adId)).length
     return { format, impressions, clicks, ctr, conversions: conv }
   })
 

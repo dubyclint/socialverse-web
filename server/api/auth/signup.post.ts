@@ -8,7 +8,7 @@ interface SignupRequest {
   password: string
 }
 
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
+const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs))
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
     let existingUsers: any[] | null = null
     try {
       const queryPromise = supabase.from('user').select('username').eq('username', body.username).limit(1)
-      const response = await withTimeout(queryPromise, 4000, 'DATABASE_QUERY_TIMEOUT_HANG')
+      const response = await withTimeout(queryPromise, 4000, 'DATABASE_QUERY_TIMEOUT_HANG') as any
       existingUsers = response.data
       
       if (response.error) {

@@ -3,8 +3,7 @@
 // CONSOLIDATED WALLET COMPOSABLE - MODULAR EXPORTS
 // ============================================================================
 
-import { ref, computed, readonly } from 'vue'
-import WalletFactoryABI from '@/abis/WalletFactory.json'
+import { ref, readonly } from 'vue'
 
 // Lazy load ethers
 let ethers: any = null;

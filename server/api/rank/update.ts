@@ -10,11 +10,11 @@ const RANK_THRESHOLDS = [
   { name: 'Elite', minPoints: 5000 }
 ];
 
-function calculateRank(points: number) {
-  const rank = RANK_THRESHOLDS
+function calculateRank(points: number): { name: string; minPoints: number } {
+  const rank = [...RANK_THRESHOLDS]
     .reverse()
     .find(r => points >= r.minPoints);
-  return rank || RANK_THRESHOLDS[0];
+  return rank ?? RANK_THRESHOLDS[0]!;
 }
 
 export default defineEventHandler(async (event) => {

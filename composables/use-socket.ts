@@ -28,6 +28,29 @@ export const useSocket = () => {
     }
   }
 
+  // Raw plugin instance, exposed directly (not wrapped in a ref/computed) so
+  // consumers can call `socket?.emit(...)` / `socket.on(...)` the same way the
+  // plugin itself exposes these methods. By the time any component's
+  // <script setup> runs, Nuxt has already resolved every plugin's setup()
+  // (honoring `dependsOn`), so the instance is available here - matches the
+  // shape expected by components/universe-chat.vue, components/chat/chat-session.vue
+  // and components/streaming/mobile-stream-player.vue.
+  const socket = getSocketInstance()
+
+  /**
+   * Generic passthrough emit, for callers that want to emit a raw event
+   * without going through one of the named domain helpers below.
+   */
+  const emit = (event: string, data?: any) => {
+    try {
+      const socketInstance = getSocketInstance()
+      if (!socketInstance) return
+      socketInstance.emit(event, data)
+    } catch (err: any) {
+      console.error('[useSocket] Error emitting event:', err.message)
+    }
+  }
+
   // ============================================================================
   // CONNECTION MANAGEMENT
   // ============================================================================
@@ -84,10 +107,13 @@ export const useSocket = () => {
     const socket = getSocketInstance()
     if (!socket) return
 
-    const state = socket.getState()
-    isConnected.value = state.connected
-    isAuthenticated.value = state.authenticated
-    connectionError.value = state.error || null
+    // The plugin only exposes `isConnected()` (no `getState()`/authenticated/error
+    // breakdown), so mirror the same "connected implies authenticated" convention
+    // already used in `connect()` above rather than reading nonexistent fields.
+    const connected = socket.isConnected()
+    isConnected.value = connected
+    isAuthenticated.value = connected
+    if (connected) connectionError.value = null
   }
 
   // ============================================================================
@@ -378,7 +404,8 @@ export const useSocket = () => {
   // ============================================================================
 
   onMounted(() => {
-    if (process.client) {
+    // use typeof check to avoid TS errors when process.client isn't declared in some environments
+    if (typeof process !== 'undefined' && (process as any).client) {
       console.log('[useSocket] Composable mounted client-side')
       checkConnection()
     }
@@ -404,6 +431,10 @@ export const useSocket = () => {
     connectionError,
     activeChats,
     activeStreams,
+
+    // Raw plugin instance + generic emit passthrough
+    socket,
+    emit,
 
     // Computed
     isReady,

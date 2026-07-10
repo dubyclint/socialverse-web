@@ -1,4 +1,4 @@
-// FILE: /server/plugins/socket.ts (COMPLETE FIXED VERSION)
+// FILE: /server/gateway/socket/plugin.ts (COMPLETE FIXED VERSION)
 // ============================================================================
 // SOCKET.IO SERVER PLUGIN - FIXED: Proper JWT token validation
 // ============================================================================
@@ -23,7 +23,7 @@ let io: SocketIOServer | null = null
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
 
-export default defineNitroPlugin((nitroApp) => {
+export default defineNitroPlugin((nitroApp: any) => {
   console.log('[Socket.IO Plugin] 🚀 Initializing Socket.IO server...')
 
   if (process.env.NITRO_PRERENDER === 'true') {
@@ -33,20 +33,20 @@ export default defineNitroPlugin((nitroApp) => {
 
   try {
     // Initialize Socket.IO lazily on first request
-    nitroApp.hooks.hook('request', async (event) => {
+    nitroApp.hooks.hook('request', async (event: any) => {
       if (io) return
-      
+
       try {
-        const server = event.node.res.socket?.server
+        const server = event?.node?.res?.socket?.server
         if (server && !io) {
           initializeSocketIO(server)
         }
       } catch (err: any) {
-        console.warn('[Socket.IO Plugin] ⚠️ Could not initialize Socket.IO on request:', err.message)
+        console.warn('[Socket.IO Plugin] ⚠️ Could not initialize Socket.IO on request:', err?.message)
       }
     })
   } catch (err: any) {
-    console.error('[Socket.IO Plugin] ❌ Error during initialization:', err.message)
+    console.error('[Socket.IO Plugin] ❌ Error during initialization:', err?.message)
   }
 })
 
@@ -71,13 +71,13 @@ function initializeSocketIO(server: any) {
     // ============================================================================
     // AUTHENTICATION MIDDLEWARE
     // ============================================================================
-    io.use((socket: AuthenticatedSocket, next) => {
+    io.use((socket: AuthenticatedSocket, next: (err?: Error) => void) => {
       try {
         console.log('[Socket.IO Auth] Authenticating socket connection...')
 
         // Get token from auth query parameter
-        const token = socket.handshake.auth?.token
-        const userId = socket.handshake.auth?.userId
+        const token = socket.handshake?.auth?.token
+        const userId = socket.handshake?.auth?.userId
 
         if (!token) {
           console.error('[Socket.IO Auth] ❌ No token provided')
@@ -93,20 +93,20 @@ function initializeSocketIO(server: any) {
         try {
           const decoded = jwt.verify(token, JWT_SECRET) as any
           console.log('[Socket.IO Auth] ✅ Token verified for user:', userId)
-          
+
           // Attach user info to socket
           socket.userId = userId
-          socket.email = decoded.email
+          socket.email = decoded?.email
           socket.authenticated = true
-          
+
           next()
         } catch (jwtError: any) {
-          console.error('[Socket.IO Auth] ❌ JWT verification failed:', jwtError.message)
+          console.error('[Socket.IO Auth] ❌ JWT verification failed:', jwtError?.message)
           return next(new Error('Authentication error: Invalid token'))
         }
       } catch (error: any) {
-        console.error('[Socket.IO Auth] ❌ Authentication error:', error.message)
-        next(new Error('Authentication error: ' + error.message))
+        console.error('[Socket.IO Auth] ❌ Authentication error:', error?.message)
+        next(new Error('Authentication error: ' + (error?.message || 'unknown')))
       }
     })
 
@@ -140,17 +140,12 @@ function initializeSocketIO(server: any) {
 
       socket.on('chat:typing', (data: any) => {
         console.log('[Socket.IO Chat] Typing from', socket.userId)
-        socket.broadcast.emit('chat:typing', {
-          userId: socket.userId,
-          ...data
-        })
+        socket.broadcast.emit('chat:typing', { userId: socket.userId, ...data })
       })
 
       socket.on('chat:stop-typing', () => {
         console.log('[Socket.IO Chat] Stop typing from', socket.userId)
-        socket.broadcast.emit('chat:stop-typing', {
-          userId: socket.userId
-        })
+        socket.broadcast.emit('chat:stop-typing', { userId: socket.userId })
       })
 
       // ============================================================================
@@ -158,18 +153,12 @@ function initializeSocketIO(server: any) {
       // ============================================================================
       socket.on('presence:online', () => {
         console.log('[Socket.IO Presence] User online:', socket.userId)
-        io?.emit('presence:online', {
-          userId: socket.userId,
-          timestamp: new Date().toISOString()
-        })
+        io?.emit('presence:online', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
 
       socket.on('presence:offline', () => {
         console.log('[Socket.IO Presence] User offline:', socket.userId)
-        io?.emit('presence:offline', {
-          userId: socket.userId,
-          timestamp: new Date().toISOString()
-        })
+        io?.emit('presence:offline', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
 
       // ============================================================================
@@ -177,11 +166,7 @@ function initializeSocketIO(server: any) {
       // ============================================================================
       socket.on('notification:send', (data: any) => {
         console.log('[Socket.IO Notification] Notification from', socket.userId)
-        io?.emit('notification:received', {
-          ...data,
-          senderId: socket.userId,
-          timestamp: new Date().toISOString()
-        })
+        io?.emit('notification:received', { ...data, senderId: socket.userId, timestamp: new Date().toISOString() })
       })
 
       // ============================================================================
@@ -190,11 +175,8 @@ function initializeSocketIO(server: any) {
       socket.on('disconnect', (reason: string) => {
         console.log('[Socket.IO] ⚠️ Client disconnected:', socket.id, 'Reason:', reason)
         console.log('[Socket.IO] User:', socket.userId)
-        
-        io?.emit('presence:offline', {
-          userId: socket.userId,
-          timestamp: new Date().toISOString()
-        })
+
+        io?.emit('presence:offline', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
 
       // ============================================================================
@@ -207,6 +189,6 @@ function initializeSocketIO(server: any) {
 
     console.log('[Socket.IO] ✅ Socket.IO server initialized successfully')
   } catch (error: any) {
-    console.error('[Socket.IO] ❌ Failed to initialize Socket.IO:', error.message)
+    console.error('[Socket.IO] ❌ Failed to initialize Socket.IO:', error?.message)
   }
 }

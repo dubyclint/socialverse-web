@@ -3,7 +3,7 @@
 // PEWGIFT COMPOSABLE - FULLY FUNCTIONAL
 // ============================================================================
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
 
 export interface PewGiftType {
@@ -42,6 +42,9 @@ export interface PewGiftTransaction {
 }
 
 export const usePewGift = () => {
+  // Local shim for Nuxt's global $fetch during staged TS remediation.
+  // This uses the runtime global if available; otherwise it will throw at runtime.
+  const $fetchLocal: (...args: any[]) => Promise<any> = (globalThis as any).$fetch ?? (async () => { throw new Error("$fetch not available in this environment") })
   const giftTypes: Ref<PewGiftType[]> = ref([])
   const balance: Ref<PewGiftBalance | null> = ref(null)
   const loading = ref(false)
@@ -59,7 +62,7 @@ export const usePewGift = () => {
     error.value = null
     try {
       const query = category ? { category } : {}
-      const response = await $fetch<any>('/api/pewgift/types', { query })
+  const response = await $fetchLocal('/api/pewgift/types', { query })
 
       if (response.success) {
         giftTypes.value = response.data || []
@@ -78,7 +81,7 @@ export const usePewGift = () => {
   const loadBalance = async (userId?: string) => {
     try {
       const query = userId ? { userId } : {}
-      const response = await $fetch<any>('/api/pewgift/balance', { query })
+  const response = await $fetchLocal('/api/pewgift/balance', { query })
 
       if (response.success) {
         balance.value = response.data
@@ -108,7 +111,7 @@ export const usePewGift = () => {
     success.value = null
 
     try {
-      const response = await $fetch<any>('/api/pewgift/send-to-posts', {
+  const response = await $fetchLocal('/api/pewgift/send-to-posts', {
         method: 'POST',
         body: {
           postId,
@@ -155,7 +158,7 @@ export const usePewGift = () => {
     success.value = null
 
     try {
-      const response = await $fetch<any>('/api/pewgift/send', {
+  const response = await $fetchLocal('/api/pewgift/send', {
         method: 'POST',
         body: {
           commentId,
@@ -202,7 +205,7 @@ export const usePewGift = () => {
     success.value = null
 
     try {
-      const response = await $fetch<any>('/api/pewgift/send-to-stream', {
+  const response = await $fetchLocal('/api/pewgift/send-to-stream', {
         method: 'POST',
         body: {
           streamId,
@@ -248,7 +251,7 @@ export const usePewGift = () => {
     success.value = null
 
     try {
-      const response = await $fetch<any>('/api/pewgift/send-to-chat', {
+  const response = await $fetchLocal('/api/pewgift/send-to-chat', {
         method: 'POST',
         body: {
           chatId,
@@ -286,7 +289,7 @@ export const usePewGift = () => {
   const loadTransactionHistory = async (userId?: string, limit = 20, offset = 0) => {
     try {
       const query = { limit, offset, ...(userId && { userId }) }
-      const response = await $fetch<any>('/api/pewgift/history', { query })
+  const response = await $fetchLocal('/api/pewgift/history', { query })
 
       if (response.success) {
         transactions.value = response.data || []

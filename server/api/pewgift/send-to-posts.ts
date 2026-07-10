@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface SendGiftRequest {
   postId: string
@@ -40,13 +41,14 @@ export default defineEventHandler(async (event) => {
 
     if (error) {
       console.error('[PewGift API] Error:', error)
+      const rows = data as any[] | null
       throw createError({
         statusCode: 400,
-        statusMessage: data?.[0]?.message || 'Failed to send gift'
+        statusMessage: rows?.[0]?.message || 'Failed to send gift'
       })
     }
 
-    const result = data?.[0]
+    const result = (data as any[])?.[0]
     if (!result?.success) {
       throw createError({
         statusCode: 400,
@@ -101,4 +103,4 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-          
+

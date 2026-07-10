@@ -15,7 +15,7 @@ export default defineNuxtPlugin({
   // ✅ FIX: Ensure Pinia and Router are loaded before hardware hooks
   dependsOn: ['pinia'],
 
-  setup(nuxtApp) {
+  setup(_nuxtApp: any) {
     if (!process.client) return
 
     console.log('[Capacitor Hardware Plugin] Initializing native hardware interceptors')
@@ -24,7 +24,7 @@ export default defineNuxtPlugin({
       const router = useRouter()
 
       // 1. Listen for the native Android/Device hardware back button event stream
-      CapacitorApp.addListener('backButton', (event) => {
+      CapacitorApp.addListener('backButton', (_event) => {
         try {
           const currentPath = router.currentRoute.value.path
 
@@ -36,9 +36,7 @@ export default defineNuxtPlugin({
           } else {
             // 2. Map the physical hardware back push onto the Nuxt dynamic routing layer
             console.log('[Capacitor Hardware Plugin] Navigating back from:', currentPath)
-            event.register(() => {
-              router.back()
-            })
+            router.back()
           }
         } catch (error) {
           console.error('[Capacitor Hardware Plugin] Error handling back button:', error)

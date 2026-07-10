@@ -14,14 +14,25 @@ export default defineNuxtPlugin({
 
   setup() {
     console.log('[Gun] Plugin loading...')
-    
+
+    // Default fallback provide value (returned on server or on error)
+    const fallbackProvide = {
+      provide: {
+        gun: {
+          config: { enabled: false, peers: [], localStorage: false, radisk: false, multicast: false, debug: false },
+          getInstance: () => null,
+          isEnabled: () => false,
+        }
+      }
+    }
+
     try {
       // ============================================================================
       // ONLY RUN ON CLIENT-SIDE
       // ============================================================================
       if (!process.client) {
         console.log('[Gun] Server-side detected, skipping initialization')
-        return
+        return fallbackProvide
       }
 
       console.log('[Gun] Client-side detected, initializing Gun...')
@@ -45,7 +56,7 @@ export default defineNuxtPlugin({
       // ============================================================================
       if (typeof window === 'undefined') {
         console.warn('[Gun] ⚠️ Window object not available')
-        return
+        return fallbackProvide
       }
 
       // ============================================================================
@@ -116,15 +127,7 @@ export default defineNuxtPlugin({
       console.error('[Gun] ❌ Plugin initialization failed:', error)
       
       // Provide safe fallback
-      return {
-        provide: {
-          gun: {
-            config: { enabled: false },
-            getInstance: () => null,
-            isEnabled: () => false,
-          }
-        }
-      }
+      return fallbackProvide
     }
   }
 })

@@ -2,7 +2,7 @@
 
 export class GroupUtils {
   // Generate group invite link
-  static async generateInviteLink(groupId: string, inviterId: string, expiresIn: string = '7d'): Promise<string> {
+  static async generateInviteLink(groupId: string, _inviterId: string, _expiresIn: string = '7d'): Promise<string> {
     const crypto = await import('crypto');
     const token = crypto.randomBytes(32).toString('hex');
     

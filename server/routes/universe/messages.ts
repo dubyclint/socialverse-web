@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '~/server/utils/database'
-import { AuditLogModel } from '~/server/models/audit-log'
+import { AuditLogModelRuntime as AuditLogModel } from '~/server/models/audit-log'
 
 interface UniverseMessageCreate {
   content: string

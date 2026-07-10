@@ -3,7 +3,7 @@
 // ============================================================================
 import { useUserStore } from '~/stores/user'
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to: any) => {
   if (!to?.path) return
 
   const userStore = useUserStore()

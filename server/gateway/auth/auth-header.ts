@@ -1,7 +1,7 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
-export default defineEventHandler(async (event) => {
-  const path = event.path || ''
+export default defineEventHandler(async (_event: any) => {
+  const path = _event.path || ''
   if (!path.startsWith('/api/')) return
 
   // Skip middleware auth context population for public/auth bootstrap routes
@@ -17,15 +17,15 @@ export default defineEventHandler(async (event) => {
 
   try {
     // 1) Cookie/session user
-    let user: any = await serverSupabaseUser(event)
+  let user: any = await serverSupabaseUser(_event)
 
     // 2) Bearer token fallback
     if (!user) {
-      const authHeader = getHeader(event, 'authorization') || ''
+  const authHeader = getHeader(_event, 'authorization') || ''
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.slice(7).trim()
         if (token) {
-          const supabase = await serverSupabaseClient(event)
+          const supabase = await serverSupabaseClient(_event)
           const { data, error } = await supabase.auth.getUser(token)
           if (!error && data?.user) {
             user = data.user
@@ -34,17 +34,21 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    if (!user?.id) return
+    if (!user) return
 
-    const resolvedId = String(user.id || user.user_id || '').split(':')[0].trim()
-    if (!resolvedId) return
-
-    event.context.user = {
+  const rawIdVal = (user as any)?.id ?? (user as any)?.user_id ?? ''
+  let resolvedIdStr = String(rawIdVal || '')
+  if (!resolvedIdStr) return
+  const parts = resolvedIdStr.split(':')
+  const resolvedId = (parts && parts[0]) ? String(parts[0]).trim() : ''
+  if (!resolvedId) return
+    _event.context = _event.context || {}
+    _event.context.user = {
       id: resolvedId,
       user_id: resolvedId,
       sub: resolvedId,
-      email: user.email || null,
-      role: user.role || 'user',
+      email: (user as any).email || null,
+      role: (user as any).role || 'user',
       raw: user
     }
   } catch (err: any) {

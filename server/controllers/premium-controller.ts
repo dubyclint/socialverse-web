@@ -1,8 +1,10 @@
 // server/controllers/premium-controller.ts
 // Fixed for Nitro (not Express) + Supabase
 
-import { PremiumModel } from '../models/premium';
+import { PremiumModelRuntime as PremiumModel } from '../models/premium';
 import type { H3Event } from 'h3';
+import { readBody, createError } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface SubscriptionUpgradeRequest {
   tier: 'BASIC' | 'PREMIUM' | 'VIP';
@@ -118,7 +120,6 @@ export class PremiumController {
     try {
       const user = await requireAuth(event);
       const userId = user.id;
-      const body = await readBody<CancelSubscriptionRequest>(event);
 
       if (!userId) {
         throw createError({
@@ -155,7 +156,7 @@ export class PremiumController {
    * Get pricing information
    * GET /api/premium/pricing
    */
-  static async getPricing(event: H3Event): Promise<PricingResponse> {
+  static async getPricing(_event: H3Event): Promise<PricingResponse> {
     try {
       const pricing: PricingResponse = {
         BASIC: {

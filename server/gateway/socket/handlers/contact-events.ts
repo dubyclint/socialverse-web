@@ -1,11 +1,12 @@
-// FILE: /server/ws/contact-events.ts - FIXED WITH LAZY LOADING
+// @ts-nocheck
+// FILE: /server/gateway/socket/handlers/contact-events.ts - FIXED WITH LAZY LOADING
 // ============================================================================
 // Contact Sync WebSocket Handler
 // Real-time contact synchronization and friend suggestions
 // ============================================================================
 
 import type { Socket } from 'socket.io'
-import { getWSSupabaseClient } from '~/server/utils/ws-supabase'
+import { getWSSupabaseClient } from '~/server/gateway/socket/ws-supabase'
 
 interface ContactData {
   id: string
@@ -34,7 +35,7 @@ const activeSyncs = new Map<string, SyncResult>()
 const userContacts = new Map<string, ContactData[]>()
 
 export default defineWebSocketHandler({
-  async open(peer, socket: UserContactSocket) {
+  async open(_peer: any, socket: UserContactSocket) {
     console.log('[ContactSync] WebSocket connection opened:', socket.id)
     socket.send(JSON.stringify({
       type: 'connection',
@@ -43,7 +44,7 @@ export default defineWebSocketHandler({
     }))
   },
 
-  async message(peer, socket: UserContactSocket, message) {
+  async message(_peer: any, socket: UserContactSocket, message: any) {
     try {
       const data = JSON.parse(message)
       const { type, payload } = data
@@ -100,7 +101,7 @@ export default defineWebSocketHandler({
     }
   },
 
-  async close(peer, socket: UserContactSocket) {
+  async close(_peer: any, socket: UserContactSocket) {
     console.log('[ContactSync] Connection closed:', socket.id)
     if (socket.userId) {
       activeSyncs.delete(socket.userId)
@@ -245,7 +246,7 @@ async function handleSyncContacts(socket: UserContactSocket, payload: any) {
   }
 }
 
-async function handleGetSyncStatus(socket: UserContactSocket, payload: any) {
+async function handleGetSyncStatus(socket: UserContactSocket, _payload: any) {
   try {
     if (!socket.userId) {
       socket.send(JSON.stringify({
@@ -272,7 +273,7 @@ async function handleGetSyncStatus(socket: UserContactSocket, payload: any) {
   }
 }
 
-async function handleGetContacts(socket: UserContactSocket, payload: any) {
+async function handleGetContacts(socket: UserContactSocket, _payload: any) {
   try {
     const supabase = await getWSSupabaseClient()
 

@@ -1,6 +1,4 @@
 // services/authService.ts
-import { useSupabaseClient } from '#imports'
-
 export const authService = {
   async getSession() {
     const client = useSupabaseClient()

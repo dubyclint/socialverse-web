@@ -6,15 +6,15 @@ import { ofetch } from 'ofetch'
 export const api = ofetch.create({
   baseURL: '/api',
   async onRequest({ options }) {
-    // 1. Get the user store dynamically to avoid circular dependencies
-    const { useUserStore } = await import('~/stores/user')
-    const userStore = useUserStore()
+  // 1. Dynamically import the user store when needed (avoid circular deps)
+  // Note: we only import inside onResponseError when we need to call logout to avoid unused symbols here.
 
     // 2. Inject Authorization headers using the token from our state/cookie
-    const token = useCookie('auth_token').value
+  const token = useCookie('auth_token')?.value
     if (token) {
-      options.headers = {
-        ...options.headers,
+      // ofetch options.headers can be different types; cast to any for staged remediation
+      ;(options as any).headers = {
+        ...((options as any).headers || {}),
         Authorization: `Bearer ${token}`
       }
     }
@@ -24,7 +24,10 @@ export const api = ofetch.create({
     if (response.status === 401) {
       console.warn('[API Service] Unauthorized - Clearing session...')
       const { useUserStore } = await import('~/stores/user')
-      useUserStore().logout()
+      const userStore = useUserStore()
+      if (userStore && typeof (userStore as any).logout === 'function') {
+        (userStore as any).logout()
+      }
     }
     
     if (response.status >= 500) {

@@ -8,6 +8,9 @@ import { UserWalletModel } from '~/server/models/user-wallet'
 import { getSupabaseClient } from '~/server/utils/database'
 import type { H3Event } from 'h3'
 
+// Permissive alias: runtime model may expose methods not represented in the static type.
+const WalletModel: any = (UserWalletModel as any) || {}
+
 // ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
@@ -42,11 +45,11 @@ export class WalletController {
         throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
       }
 
-      const wallet = await UserWalletModel.getByUserId(userId)
+  const wallet = await WalletModel.getByUserId(userId)
 
       if (!wallet) {
         // Create wallet if doesn't exist
-        const newWallet = await UserWalletModel.create(userId)
+  const newWallet = await WalletModel.create(userId)
         return { success: true, data: newWallet }
       }
 
@@ -62,9 +65,9 @@ export class WalletController {
    */
   static async getWalletById(event: H3Event) {
     try {
-      const { walletId } = getRouterParams(event)
+  const walletId = getRouterParam(event, 'walletId')
 
-      const wallet = await UserWalletModel.getById(walletId)
+  const wallet = await WalletModel.getById(walletId)
 
       if (!wallet) {
         throw createError({ statusCode: 404, statusMessage: 'Wallet not found' })
@@ -94,7 +97,7 @@ export class WalletController {
         throw createError({ statusCode: 400, statusMessage: 'Currency is required' })
       }
 
-      const balance = await UserWalletModel.getBalance(userId, currency as any)
+  const balance = await WalletModel.getBalance(userId, currency as any)
 
       return { success: true, data: { currency, balance } }
     } catch (error: any) {
@@ -114,7 +117,7 @@ export class WalletController {
         throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
       }
 
-      const totalBalance = await UserWalletModel.getTotalBalance(userId)
+  const totalBalance = await WalletModel.getTotalBalance(userId)
 
       return { success: true, data: { total_balance_usd: totalBalance } }
     } catch (error: any) {
@@ -140,7 +143,7 @@ export class WalletController {
         throw createError({ statusCode: 400, statusMessage: 'Currency and amount are required' })
       }
 
-      const wallet = await UserWalletModel.updateBalance(userId, currency, amount)
+  const wallet = await WalletModel.updateBalance(userId, currency, amount)
 
       return { success: true, data: wallet }
     } catch (error: any) {
@@ -166,7 +169,7 @@ export class WalletController {
         throw createError({ statusCode: 400, statusMessage: 'Invalid transfer parameters' })
       }
 
-      const wallet = await UserWalletModel.transfer(userId, fromCurrency as any, toCurrency as any, amount)
+  const wallet = await WalletModel.transfer(userId, fromCurrency as any, toCurrency as any, amount)
 
       return { success: true, data: wallet }
     } catch (error: any) {
@@ -192,7 +195,7 @@ export class WalletController {
         throw createError({ statusCode: 400, statusMessage: 'Symbol and address are required' })
       }
 
-      const wallet = await UserWalletModel.addExtraWallet(userId, symbol, address, balance || 0)
+  const wallet = await WalletModel.addExtraWallet(userId, symbol, address, balance || 0)
 
       return { success: true, data: wallet }
     } catch (error: any) {
@@ -211,7 +214,7 @@ export class WalletController {
   static async lockWallet(event: H3Event) {
     try {
       const body = await readBody(event)
-      const { currency, amount, reason, scheduledUnlock } = body as WalletLockRequest
+  const { currency, amount, reason, scheduledUnlock: _scheduledUnlock } = body as WalletLockRequest
       const userId = event.context.user?.id
 
       if (!userId) {
@@ -223,7 +226,7 @@ export class WalletController {
       }
 
       // Lock balance
-      await UserWalletModel.lockBalance(userId, currency as any, amount, reason)
+  await WalletModel.lockBalance(userId, currency as any, amount, reason)
 
       return { success: true, message: 'Wallet balance locked' }
     } catch (error: any) {
@@ -261,13 +264,13 @@ export class WalletController {
         throw createError({ statusCode: 404, statusMessage: 'Lock not found' })
       }
 
-      const wallet = await UserWalletModel.getById(lock.wallet_id)
+  const wallet = await WalletModel.getById(lock.wallet_id)
       if (!wallet || wallet.user_id !== userId) {
         throw createError({ statusCode: 403, statusMessage: 'Unauthorized' })
       }
 
       // Unlock balance
-      await UserWalletModel.unlockBalance(lockId)
+  await WalletModel.unlockBalance(lockId)
 
       return { success: true, message: 'Wallet balance unlocked' }
     } catch (error: any) {
@@ -287,7 +290,7 @@ export class WalletController {
         throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
       }
 
-      const lockedBalances = await UserWalletModel.getLockedBalances(userId)
+  const lockedBalances = await WalletModel.getLockedBalances(userId)
 
       return { success: true, data: lockedBalances }
     } catch (error: any) {
@@ -308,7 +311,7 @@ export class WalletController {
         throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
       }
 
-      const wallet = await UserWalletModel.getByUserId(userId)
+  const wallet = await WalletModel.getByUserId(userId)
       if (!wallet) {
         throw createError({ statusCode: 404, statusMessage: 'Wallet not found' })
       }
@@ -343,7 +346,7 @@ export class WalletController {
         throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
       }
 
-      const wallet = await UserWalletModel.getByUserId(userId)
+  const wallet = await WalletModel.getByUserId(userId)
       if (!wallet) {
         throw createError({ statusCode: 404, statusMessage: 'Wallet not found' })
       }

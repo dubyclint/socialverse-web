@@ -1,11 +1,12 @@
 // server/utils/gift-operations-utils.ts
-import { supabase } from './auth-utils'
+import { getAdminClient } from '~/server/utils/supabase-server'
 
 export const giftOperations = {
   async sendGift(senderId: string, recipientId: string, giftData: any) {
     try {
       const { giftId, amount, message } = giftData
       
+      const supabase = await getAdminClient()
       const { data: gift, error } = await supabase
         .from('gifts')
         .insert({
@@ -29,6 +30,7 @@ export const giftOperations = {
 
   async getGiftHistory(userId: string) {
     try {
+      const supabase = await getAdminClient()
       const { data: gifts, error } = await supabase
         .from('gifts')
         .select('*')
@@ -45,6 +47,7 @@ export const giftOperations = {
 
   async getGiftStats(userId: string) {
     try {
+      const supabase = await getAdminClient()
       const { data: sent, error: sentError } = await supabase
         .from('gifts')
         .select('amount')
@@ -57,8 +60,8 @@ export const giftOperations = {
 
       if (sentError || receivedError) throw sentError || receivedError
 
-      const totalSent = sent?.reduce((sum, g) => sum + (g.amount || 0), 0) || 0
-      const totalReceived = received?.reduce((sum, g) => sum + (g.amount || 0), 0) || 0
+  const totalSent = (sent || []).reduce((sum: number, g: any) => sum + (g?.amount || 0), 0)
+  const totalReceived = (received || []).reduce((sum: number, g: any) => sum + (g?.amount || 0), 0)
 
       return {
         totalSent,

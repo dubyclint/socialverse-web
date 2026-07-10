@@ -4,11 +4,11 @@ export const validateEmail = (email: string): boolean => {
 }
 
 export const validateUserId = (userId: string): boolean => {
-  return userId && userId.length > 0
+  return !!userId && userId.length > 0
 }
 
 export const validateFeature = (feature: string): boolean => {
-  return feature && feature.length > 0
+  return !!feature && feature.length > 0
 }
 
 export const validatePriority = (priority: string): boolean => {

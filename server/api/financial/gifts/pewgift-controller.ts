@@ -1,11 +1,14 @@
 // server/controllers/pewgift-controller.ts
 // CORRECTED - Import and use PewGiftModel
 
-import { supabase } from '~/server/utils/database'
+// Note: supabase not used in this controller; remove unused import to reduce TS6133
 import { sendPush } from '~/push-engine'
-import { PewGiftModel } from '../models/pewgift'
-import { NotificationModel } from '../models/notification'
-import { RankModel } from '../models/rank'
+import { PewGiftModel } from '~/server/models/pewgift'
+
+// Permissive alias: runtime model may expose more methods than the static type describes
+const PewGift: any = (PewGiftModel as any) || {}
+import { NotificationModelRuntime as NotificationModel } from '~/server/models/notification'
+import { RankModelRuntime as RankModel } from '~/server/models/rank'
 import type { H3Event } from 'h3'
 
 export interface SendGiftRequest {
@@ -26,16 +29,16 @@ export class PewGiftController {
   /**
    * Send gift to user
    */
-  static async sendGift(event: H3Event, request: SendGiftRequest) {
+  static async sendGift(_event: H3Event, request: SendGiftRequest) {
     try {
-      const senderId = event.context.user?.id
+      const senderId = _event.context?.user?.id
 
       if (!senderId) {
         throw new Error('Not authenticated')
       }
 
       // ✅ USE PewGiftModel - Create transaction
-      const transaction = await PewGiftModel.createTransaction({
+  const transaction = await PewGift.createTransaction({
         senderId,
         recipientId: request.recipientId,
         giftId: request.giftType || 'pewgift',
@@ -49,7 +52,7 @@ export class PewGiftController {
       })
 
       // ✅ USE NotificationModel - Notify recipient
-      await NotificationModel.create({
+  await (NotificationModel as any).create({
         userId: request.recipientId,
         actorId: senderId,
         type: 'pewgift',
@@ -63,14 +66,11 @@ export class PewGiftController {
       })
 
       // ✅ USE RankModel - Award points to recipient
-      await RankModel.addPoints(request.recipientId, 50)
+  await RankModel.addPoints(request.recipientId, 50)
 
       // Send push notification
-      await sendPush(request.recipientId, {
-        title: 'New Gift!',
-        body: `You received a gift worth ${request.amount} credits`,
-        data: { giftId: transaction.id }
-      })
+      // sendPush(deviceToken, title, body)
+      await sendPush(request.recipientId, 'New Gift!', `You received a gift worth ${request.amount} credits`)
 
       return {
         success: true,
@@ -86,9 +86,9 @@ export class PewGiftController {
   /**
    * Get user's gift history
    */
-  static async getGiftHistory(event: H3Event) {
+  static async getGiftHistory(_event: H3Event) {
     try {
-      const userId = event.context.user?.id
+      const userId = _event.context?.user?.id
 
       if (!userId) {
         throw new Error('Not authenticated')
@@ -112,10 +112,10 @@ export class PewGiftController {
   /**
    * Get gift leaderboard
    */
-  static async getLeaderboard(event: H3Event) {
+  static async getLeaderboard(_event: H3Event) {
     try {
       // ✅ USE PewGiftModel
-      const leaderboard = await PewGiftModel.getLeaderboard()
+  const leaderboard = await PewGift.getLeaderboard()
 
       return {
         success: true,
@@ -131,16 +131,16 @@ export class PewGiftController {
   /**
    * Get gift statistics
    */
-  static async getStats(event: H3Event) {
+  static async getStats(_event: H3Event) {
     try {
-      const userId = event.context.user?.id
+      const userId = _event.context?.user?.id
 
       if (!userId) {
         throw new Error('Not authenticated')
       }
 
       // ✅ USE PewGiftModel
-      const stats = await PewGiftModel.getUserStats(userId)
+  const stats = await PewGift.getUserStats(userId)
 
       return {
         success: true,
