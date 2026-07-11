@@ -45,9 +45,22 @@
       ],
       "@gateway/*": ["./server/gateway/*"],
       "~": ["."],
-      "@": ["."]
+      "@": ["."],
+      "#app": ["./node_modules/nuxt/dist/app"],
+      "#app/*": ["./node_modules/nuxt/dist/app/*"],
+      "#imports": ["./.nuxt/imports"],
+      "#build": ["./.nuxt"],
+      "#build/*": ["./.nuxt/*"],
+      "#components": ["./.nuxt/components"],
+      "#unhead/composables": ["./node_modules/nuxt/dist/head/runtime/composables"],
+      "#vue-router": ["./node_modules/vue-router"],
+      "#shared": ["./shared"],
+      "#shared/*": ["./shared/*"],
+      "#server": ["./server"],
+      "#server/*": ["./server/*"]
     }
   },
+  "files": [".nuxt/nuxt.d.ts"],
   "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
   "exclude": [
     "node_modules",
