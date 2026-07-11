@@ -128,7 +128,7 @@ export class LoadBalancer {
 
   private applyStrategy(servers: ServerState[]): ServerState {
     // Implement round-robin or other strategies
-    return servers[Math.floor(Math.random() * servers.length)]
+    return servers[Math.floor(Math.random() * servers.length)] ?? servers[0]!
   }
 
   async updateServerHealth(serverId: string, healthy: boolean): Promise<void> {
@@ -158,9 +158,12 @@ export class LoadBalancer {
     this.healthCheckInterval = setInterval(async () => {
       for (const [serverId, server] of this.servers) {
         try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 5000)
           const response = await fetch(`${server.url}/health`, {
-            timeout: 5000
+            signal: controller.signal
           })
+          clearTimeout(timeoutId)
           await this.updateServerHealth(serverId, response.ok)
         } catch (error) {
           await this.updateServerHealth(serverId, false)

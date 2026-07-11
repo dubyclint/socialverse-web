@@ -11,10 +11,6 @@ interface SubscriptionUpgradeRequest {
   paymentMethod: string;
 }
 
-interface CancelSubscriptionRequest {
-  reason?: string;
-}
-
 interface PricingTier {
   price: number;
   currency: string;

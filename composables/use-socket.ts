@@ -5,7 +5,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useNuxtApp } from '#app'
 
-export const useSocket = () => {
+export const useSocket = (_namespace?: string) => {
   // State initialization 
   const isConnected = ref(false)
   const isAuthenticated = ref(false)

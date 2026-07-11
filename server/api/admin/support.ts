@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
       const { error: deleteError } = await supabase
         .from('support_contacts')
         .delete()
-        .neq('id', ) // Delete all
+        .neq('id', 0) // Delete all
         
       if (deleteError) throw deleteError
       
@@ -46,4 +46,6 @@ export default defineEventHandler(async (event) => {
       })
     }
   }
+
+  throw createError({ statusCode: 405, statusMessage: 'Method not allowed' })
 })

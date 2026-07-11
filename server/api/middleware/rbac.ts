@@ -105,7 +105,7 @@ async function verifyJWT(token: string): Promise<AuthenticatedUser | null> {
     }
 
     // Decode payload (base64)
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+    const payload = JSON.parse(Buffer.from(parts[1] ?? '', 'base64').toString())
 
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {

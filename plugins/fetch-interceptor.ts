@@ -12,7 +12,7 @@ export default defineNuxtPlugin({
     const userStore = useUserStore() // Use the new unified store
 
     globalThis.$fetch = $fetch.create({
-      onRequest({ options }) {
+      onRequest({ options }: { options: any }) {
         if (!options.headers) {
           options.headers = {}
         }
@@ -25,7 +25,7 @@ export default defineNuxtPlugin({
         }
       },
 
-      onResponseError({ response }) {
+      onResponseError({ response }: { response: any }) {
         // Trap 401 Unauthorized
         if (response.status === 401) {
           // Call the unified logout method

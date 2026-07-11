@@ -21,7 +21,7 @@ export const universeService = {
    */
   async getMessageHistory() {
     const supabase = getSupabaseClient()
-    return await supabase
+    return await supabase!
       .from('universe_messages')
       .select('*')
       .order('timestamp', { ascending: false })

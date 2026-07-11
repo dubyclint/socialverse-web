@@ -40,7 +40,7 @@ export async function uploadToCDN(
         result = await (cdnManager as any).uploadStreamSegment(
           filename.split('/')[0],
           buffer,
-          parseInt(filename.split('_')[1]) || 0
+          parseInt(filename.split('_')[1] ?? '0') || 0
         );
         break;
 

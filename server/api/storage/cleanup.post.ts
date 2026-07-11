@@ -80,7 +80,6 @@ export default defineEventHandler(async (event): Promise<CleanupResponse> => {
     const { data: deletedUsers } = await supabase
       .from('file_uploads')
       .select('user_id')
-      .distinct()
 
     if (deletedUsers) {
       for (const record of deletedUsers) {

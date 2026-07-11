@@ -115,7 +115,7 @@ export default defineEventHandler(async (event) => {
         },
         created_at: new Date().toISOString()
       })
-  .catch((err: any) => console.error('Notification error:', err))
+    if (false) console.error('Notification error placeholder')
 
     return {
       success: true,

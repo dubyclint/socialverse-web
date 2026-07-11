@@ -89,7 +89,7 @@ export default defineEventHandler(async (event): Promise<FilterResponse> => {
       await sendNotification(
         event,
         userId,
-        'filter_approved',
+        'filter',
         'Your match filters have been auto-approved.'
       )
       await sendPushAlert(
@@ -142,7 +142,7 @@ export default defineEventHandler(async (event): Promise<FilterResponse> => {
     await sendNotification(
       event,
       'admin',
-      'filter_request',
+      'filter',
       `${(userData as any).username} submitted a new match filter request.`
     )
     await sendPushAlert(

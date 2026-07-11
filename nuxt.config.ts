@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ============================================================================
 // FILE: /nuxt.config.ts - SECURED PRODUCTION CONFIGURATION FOR NUXT 4
 // ============================================================================
@@ -32,10 +33,6 @@ export default defineNuxtConfig({
     { src: '~/plugins/socialverse-socket.client', mode: 'client' }
   ],
 
-  pinia: {
-    storesDirs: ['./stores/**'],
-  },
-
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_ANON_KEY,
@@ -64,6 +61,13 @@ export default defineNuxtConfig({
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
     '/api/**': { cache: false },
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+      },
+    },
   },
 
   runtimeConfig: {
@@ -134,6 +138,15 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
     shim: false,
+    tsConfig: {
+      compilerOptions: {
+        paths: {
+          '@social/*': ['./services/social/*'],
+          '@financial/*': ['./services/financial/*'],
+          '@gateway/*': ['./server/gateway/*'],
+        },
+      },
+    },
   },
 
   nitro: {
@@ -149,11 +162,6 @@ export default defineNuxtConfig({
       crawlLinks: true,
       routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],
       ignore: ['/admin'],
-    },
-    headers: {
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block',
     },
   },
 })

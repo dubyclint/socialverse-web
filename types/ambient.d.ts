@@ -10,6 +10,7 @@ declare global {
   }
   function useRuntimeConfig(): any
   function useSupabaseClient(...args: any[]): any
+  function useSupabaseUser(): any
   function useNuxtApp(): any
   const api: any
   function useCookie(name?: string): { value: any }
@@ -57,8 +58,16 @@ declare module '#imports/*' {
 }
 
 declare module '#app' {
+  export function defineNuxtPlugin(fn: any): any
   export function useNuxtApp(): any
   export function useCookie(name?: string): any
+  export function useRuntimeConfig(): any
+  export function navigateTo(to: any, options?: any): any
+  export function createError(err: any): any
+  export function useRouter(): any
+  export function useRoute(): any
+  export function useHead(meta: any): any
+  export function useSeoMeta(meta: any): any
 }
 
 declare module '#supabase/server' {

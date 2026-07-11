@@ -54,8 +54,8 @@ export default defineEventHandler(async (event): Promise<BatchCheckResponse> => 
 
     const results = body.features.map(feature => ({
       feature,
-      allowed: !rulesMap.has(feature) || rulesMap.get(feature)?.is_allowed !== false,
-      restrictions: rulesMap.get(feature)?.restrictions || []
+      allowed: !rulesMap.has(feature) || (rulesMap.get(feature) as any)?.is_allowed !== false,
+      restrictions: (rulesMap.get(feature) as any)?.restrictions || []
     }))
 
     return {

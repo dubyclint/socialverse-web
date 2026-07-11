@@ -139,5 +139,5 @@ export function getServiceRegistry(): ServiceRegistry {
 }
 
 export function getModel(modelName: string) {
-  return serviceRegistry.getModelFactory()[modelName]
+  return (serviceRegistry.getModelFactory() as any)[modelName]
 }
