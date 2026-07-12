@@ -4,7 +4,13 @@
 // ============================================================================
 import { ref, computed, readonly } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
-import { useNuxtApp } from '#app'
+import type { ApiResponse } from '~/types/api'
+
+interface PremiumStatusData {
+  subscription: Subscription
+  features: Feature[]
+  restrictions: Restriction[]
+}
 
 type SubscriptionTier = 'FREE' | 'BASIC' | 'PREMIUM' | 'VIP'
 type SubscriptionStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | 'CANCELLED'
@@ -76,10 +82,9 @@ export const usePremium = (): PremiumReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/premium/status')
+      const result = await $fetch<ApiResponse<PremiumStatusData>>('/api/premium/status')
 
-      if (result.success) {
+      if (result.success && result.data) {
         subscription.value = result.data.subscription
         features.value = result.data.features
         restrictions.value = result.data.restrictions
@@ -121,9 +126,8 @@ export const usePremium = (): PremiumReturn => {
    */
   const getPricingTiers = async (): Promise<PricingTier[]> => {
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/premium/pricing')
-      if (result.success) {
+      const result = await $fetch<ApiResponse<PricingTier[]>>('/api/premium/pricing')
+      if (result.success && result.data) {
         return result.data
       }
       throw new Error(result.message)
@@ -142,8 +146,7 @@ export const usePremium = (): PremiumReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/premium/upgrade', {
+      const result = await $fetch<ApiResponse<null>>('/api/premium/upgrade', {
         method: 'POST',
         body: { tier }
       })
@@ -170,8 +173,7 @@ export const usePremium = (): PremiumReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/premium/cancel', {
+      const result = await $fetch<ApiResponse<null>>('/api/premium/cancel', {
         method: 'POST'
       })
 

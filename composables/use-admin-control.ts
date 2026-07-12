@@ -21,6 +21,9 @@ interface AdminControlReturn {
 const contractAddress = '0xYourAdminControlAddress'
 
 export function useAdminControl(): AdminControlReturn {
+  if (!window.ethereum) {
+    throw new Error('No Ethereum provider found. Please install a wallet.')
+  }
   const provider = new ethers.BrowserProvider(window.ethereum)
   let contract: Contract | null = null
 

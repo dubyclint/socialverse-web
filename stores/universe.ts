@@ -1,6 +1,7 @@
 // stores/universe.ts
 import { defineStore } from 'pinia'
 import { universeService } from '~/services/universeService'
+import type { UniverseMessage } from '~/types/universe'
 
 export const useUniverseStore = defineStore('universe', {
   state: () => ({

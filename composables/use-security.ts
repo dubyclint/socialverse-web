@@ -4,7 +4,7 @@
 // ============================================================================
 import { ref, computed, readonly } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
-import { useNuxtApp } from '#app'
+import type { ApiResponse } from '~/types/api'
 
 interface SecuritySession {
   id: string
@@ -71,10 +71,9 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/security/sessions')
+      const result = await $fetch<ApiResponse<{ sessions: SecuritySession[] }>>('/api/security/sessions')
 
-      if (result.success) {
+      if (result.success && result.data) {
         sessions.value = result.data.sessions
       } else {
         throw new Error(result.message)
@@ -95,8 +94,7 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch(`/api/security/sessions/${sessionId}`, {
+      const result = await $fetch<ApiResponse<null>>(`/api/security/sessions/${sessionId}`, {
         method: 'DELETE'
       })
 
@@ -122,8 +120,7 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/security/sessions/terminate-all', {
+      const result = await $fetch<ApiResponse<null>>('/api/security/sessions/terminate-all', {
         method: 'POST'
       })
 
@@ -149,10 +146,9 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/security/events')
+      const result = await $fetch<ApiResponse<{ events: SecurityEvent[] }>>('/api/security/events')
 
-      if (result.success) {
+      if (result.success && result.data) {
         securityEvents.value = result.data.events
       } else {
         throw new Error(result.message)
@@ -173,11 +169,10 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch('/api/security/statistics')
+      const result = await $fetch<ApiResponse<SecurityStatistics>>('/api/security/statistics')
 
-      if (result.success) {
-        statistics.value = result.data.statistics
+      if (result.success && result.data) {
+        statistics.value = result.data
       } else {
         throw new Error(result.message)
       }

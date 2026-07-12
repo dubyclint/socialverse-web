@@ -113,9 +113,9 @@ export const useStreamBroadcast = () => {
   }
 
   // Send data to server
-  const sendToServer = async (data: any) => {
+  const sendToServer = async (data: any): Promise<{ answer?: RTCSessionDescriptionInit; [key: string]: unknown }> => {
     try {
-      const response = await $fetch('/api/stream/broadcast', {
+      const response = await $fetch<{ answer?: RTCSessionDescriptionInit; [key: string]: unknown }>('/api/stream/broadcast', {
         method: 'POST',
         body: data
       })
@@ -325,7 +325,7 @@ export const useStreamBroadcast = () => {
       if (!streamId.value) return
 
       try {
-        const response = await $fetch(`/api/stream/${streamId.value}/viewers`)
+        const response = await $fetch<{ count?: number }>(`/api/stream/${streamId.value}/viewers`)
         if (response.count !== undefined) {
           viewerCount.value = response.count
         }
@@ -360,10 +360,10 @@ export const useStreamBroadcast = () => {
 
       if (sender) {
         const params = sender.getParameters()
-        if (!params.encodings) {
+        if (!params.encodings || params.encodings.length === 0) {
           params.encodings = [{}]
         }
-        params.encodings[0].maxBitrate = preset.bitrate * 1000
+        params.encodings[0]!.maxBitrate = preset.bitrate * 1000
         await sender.setParameters(params)
       }
 

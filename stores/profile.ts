@@ -3,10 +3,15 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { profileService } from '~/services/profileService'
 import { useUserStore } from '~/stores/user'
+import type { Profile } from '~/types/profile'
 
 export const useProfileStore = defineStore('profile', () => {
-  const profile = ref<any>(null)
+  const profile = ref<Profile | null>(null)
   const isLoading = ref<boolean>(false)
+
+  const setProfile = (value: Profile | null): void => {
+    profile.value = value
+  }
 
   const fetchProfile = async (): Promise<void> => {
     isLoading.value = true
@@ -44,6 +49,7 @@ export const useProfileStore = defineStore('profile', () => {
   return {
     profile,
     isLoading,
+    setProfile,
     fetchProfile,
     updateProfile,
     uploadAvatar,

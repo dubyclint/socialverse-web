@@ -9,6 +9,8 @@
 // ============================================================================
 
 import { ref } from 'vue'
+import type { ApiResponse } from '~/types/api'
+import type { Post, PostsPage } from '~/types/post'
 
 export const usePosts = () => {
   const loading = ref(false)
@@ -17,14 +19,14 @@ export const usePosts = () => {
   /**
    * Create post
    */
-  const createPost = async (postData: any) => {
+  const createPost = async (postData: Partial<Post>) => {
     loading.value = true
     error.value = ''
 
     try {
       console.log('[usePosts] Creating post...')
 
-      const result = await $fetch('/api/posts/create', {
+      const result = await $fetch<ApiResponse<Post>>('/api/posts/create', {
         method: 'POST',
         body: postData
       })
@@ -55,7 +57,7 @@ export const usePosts = () => {
     try {
       console.log('[usePosts] Fetching user posts...', { userId, page, limit })
 
-      const result = await $fetch(`/api/posts/user/${userId}`, {
+      const result = await $fetch<ApiResponse<PostsPage>>(`/api/posts/user/${userId}`, {
         query: { page, limit }
       })
 
@@ -85,7 +87,7 @@ export const usePosts = () => {
     try {
       console.log('[usePosts] Fetching feed posts...', { page, limit })
 
-      const result = await $fetch('/api/posts/feed', {
+      const result = await $fetch<ApiResponse<PostsPage>>('/api/posts/feed', {
         query: { page, limit }
       })
 
@@ -108,14 +110,14 @@ export const usePosts = () => {
   /**
    * Update post
    */
-  const updatePost = async (postId: string, updates: any) => {
+  const updatePost = async (postId: string, updates: Partial<Post>) => {
     loading.value = true
     error.value = ''
 
     try {
       console.log('[usePosts] Updating post...', { postId })
 
-      const result = await $fetch(`/api/posts/${postId}/update`, {
+      const result = await $fetch<ApiResponse<Post>>(`/api/posts/${postId}/update`, {
         method: 'POST',
         body: updates
       })
@@ -146,7 +148,7 @@ export const usePosts = () => {
     try {
       console.log('[usePosts] Deleting post...', { postId })
 
-      const result = await $fetch(`/api/posts/${postId}/delete`, {
+      const result = await $fetch<ApiResponse<null>>(`/api/posts/${postId}/delete`, {
         method: 'POST'
       })
 

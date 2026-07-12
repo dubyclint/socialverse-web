@@ -181,11 +181,12 @@ export const useMobileCamera = () => {
   const toggleMicrophone = async () => {
     try {
       const audioTracks = mediaStream.value?.getAudioTracks()
-      if (!audioTracks || audioTracks.length === 0) {
+      const firstAudioTrack = audioTracks?.[0]
+      if (!firstAudioTrack) {
         throw new Error('No audio track available')
       }
 
-      const isCurrentlyMuted = !audioTracks[0].enabled
+      const isCurrentlyMuted = !firstAudioTrack.enabled
       audioTracks.forEach(track => {
         track.enabled = isCurrentlyMuted
       })
@@ -201,11 +202,12 @@ export const useMobileCamera = () => {
   const toggleCamera = async () => {
     try {
       const videoTracks = mediaStream.value?.getVideoTracks()
-      if (!videoTracks || videoTracks.length === 0) {
+      const firstVideoTrack = videoTracks?.[0]
+      if (!firstVideoTrack) {
         throw new Error('No video track available')
       }
 
-      const isCurrentlyOff = !videoTracks[0].enabled
+      const isCurrentlyOff = !firstVideoTrack.enabled
       videoTracks.forEach(track => {
         track.enabled = isCurrentlyOff
       })
