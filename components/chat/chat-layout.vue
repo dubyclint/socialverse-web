@@ -130,6 +130,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
+import type { ApiResponse } from '~/types/api'
+import type { Chat, ChatMessage } from '~/types/chat'
 
 // Chat store initialized
 const chatStore = useChatStore()
@@ -154,22 +156,29 @@ const filteredChats = computed(() => {
   
   const query = searchQuery.value.toLowerCase()
   return chatStore.sortedChats.filter(chat =>
-    chat.name.toLowerCase().includes(query) ||
-    chat.lastMessage?.toLowerCase().includes(query)
+    (chat.name?.toLowerCase().includes(query) ?? false) ||
+    (chat.lastMessage?.toLowerCase().includes(query) ?? false)
   )
 })
 
 const currentChat = computed(() => {
-  if (!chatStore.currentChatId) return null
+  if (!chatStore.currentChatId) return undefined
   return chatStore.chats.get(chatStore.currentChatId)
 })
+
+const openGroupCreator = () => { showGroupCreator.value = true }
+const openSettings = () => { showSettings.value = true }
+const filterChats = () => { /* filtering handled reactively by `filteredChats` */ }
+const isUserOnline = (chat: Chat) => chatStore.onlineUsers.has(chat.id)
+const formatTime = (timestamp: number) =>
+  new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 // --- Methods ---
 const loadChats = async () => {
   try {
     chatStore.setLoading(true)
-    const response = await $fetch('/api/chat/list')
-    if (response.success) chatStore.addChats(response.data)
+    const response = await $fetch<ApiResponse<Chat[]>>('/api/chat/list')
+    if (response.success && response.data) chatStore.addChats(response.data)
   } catch (error) {
     console.error('Failed to load chats:', error)
     chatStore.setError('Failed to load chats')
@@ -181,8 +190,8 @@ const loadChats = async () => {
 const selectChat = async (chatId: string) => {
   chatStore.setCurrentChat(chatId)
   try {
-    const response = await $fetch(`/api/chat/${chatId}/messages`)
-    if (response.success) chatStore.addMessages(chatId, response.data)
+    const response = await $fetch<ApiResponse<ChatMessage[]>>(`/api/chat/${chatId}/messages`)
+    if (response.success && response.data) chatStore.addMessages(chatId, response.data)
   } catch (error) {
     console.error('Failed to load messages:', error)
     chatStore.setError('Failed to load messages')
@@ -226,11 +235,11 @@ const deleteMessage = async (messageId: string) => {
 const translateMessage = async (messageId: string, text: string, targetLang: string) => {
   if (!chatStore.currentChatId) return
   try {
-    const response = await $fetch('/api/chat/translate', {
+    const response = await $fetch<ApiResponse<{ translatedText: string }>>('/api/chat/translate', {
       method: 'POST',
       body: { text, targetLang, messageId, chatId: chatStore.currentChatId }
     })
-    if (response.success) {
+    if (response.success && response.data) {
       chatStore.updateMessage(chatStore.currentChatId, messageId, {
         translatedText: response.data.translatedText,
         translatedLang: targetLang
@@ -265,8 +274,8 @@ const handleTyping = (isTyping: boolean) => {
 
 const createGroup = async (groupData: any) => {
   try {
-    const response = await $fetch('/api/group-chat/create', { method: 'POST', body: groupData })
-    if (response.success) {
+    const response = await $fetch<ApiResponse<Chat>>('/api/group-chat/create', { method: 'POST', body: groupData })
+    if (response.success && response.data) {
       chatStore.addChat(response.data)
       showGroupCreator.value = false
     }

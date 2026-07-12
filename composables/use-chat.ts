@@ -1,5 +1,39 @@
-// composables/use-api.ts
+// composables/use-chat.ts
 import { computed } from 'vue'
+import { useSocket } from '~/composables/use-socket'
+
+interface ChatMessagePayload {
+  content: string
+  recipientId?: string
+  timestamp?: number
+}
+
+// Realtime chat glue over the Socket.IO orchestrator (`useSocket`).
+export const useChat = () => {
+  const socket = useSocket()
+
+  const initialize = async () => {
+    await socket.connect()
+  }
+
+  const sendMessage = (chatId: string, payload: ChatMessagePayload) => {
+    socket.emit('chat:message', { chatId, ...payload })
+  }
+
+  const editMessage = (chatId: string, messageId: string, content: string) => {
+    socket.emit('chat:edit', { chatId, messageId, content })
+  }
+
+  const deleteMessage = (chatId: string, messageId: string) => {
+    socket.emit('chat:delete', { chatId, messageId })
+  }
+
+  const disconnect = () => {
+    void socket.disconnect()
+  }
+
+  return { initialize, sendMessage, editMessage, deleteMessage, disconnect }
+}
 
 export const useChatApi = () => { // Renamed from useApi
   // 1. Unified Store Resolver

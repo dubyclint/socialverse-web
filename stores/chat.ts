@@ -25,6 +25,10 @@ export const useChatStore = defineStore('chat', {
 
   getters: {
     currentChatMessages: (state) => state.currentChatId ? (state.messages.get(state.currentChatId) || []) : [],
+    onlineUsersCount: (state) => state.onlineUsers.size,
+    currentChatTypingUsers: (state) => Array.from(state.typingUsers.values()),
+    currentChatTranslations: (state) => Array.from(state.translations.values()),
+    currentChatGifts: (state) => Array.from(state.gifts.values()),
     sortedChats: (state) => state.chatList
       .map(id => state.chats.get(id))
       .filter((c): c is Chat => !!c)
@@ -89,6 +93,45 @@ export const useChatStore = defineStore('chat', {
     addMessages(chatId: string, messages: ChatMessage[]) {
       this.messages.set(chatId, messages.sort((a, b) => a.timestamp - b.timestamp))
       this.cacheChatState()
+    },
+
+    setLoading(value: boolean) {
+      this.isLoading = value
+    },
+
+    setError(message: string | null) {
+      this.error = message
+    },
+
+    setCurrentChat(chatId: string | null) {
+      this.currentChatId = chatId
+    },
+
+    updateUserBalance(delta: number) {
+      this.userBalance += delta
+    },
+
+    addChat(chat: Chat) {
+      this.chats.set(chat.id, chat)
+      if (!this.chatList.includes(chat.id)) this.chatList = [chat.id, ...this.chatList]
+      this.cacheChatState()
+    },
+
+    addChats(chats: Chat[]) {
+      for (const chat of chats) {
+        this.chats.set(chat.id, chat)
+        if (!this.chatList.includes(chat.id)) this.chatList.push(chat.id)
+      }
+      this.cacheChatState()
+    },
+
+    updateMessage(chatId: string, messageId: string, patch: Partial<ChatMessage>) {
+      const msgs = this.messages.get(chatId)
+      if (!msgs) return
+      this.messages.set(
+        chatId,
+        msgs.map(m => (m.id === messageId ? { ...m, ...patch } : m))
+      )
     },
 
     reset() {

@@ -48,6 +48,20 @@ export const useRBAC = () => {
     }
   }
 
+  // Route middleware performs the authoritative gate; this is a client-side
+  // convenience check applied once the profile is available.
+  const requirePermission = (permission: string) => {
+    const userStore = _cachedUserStore
+    if (!userStore?.profile) return
+    const role = getUserRole()
+    if (role !== 'admin' && role !== 'manager') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: `Forbidden: missing permission '${permission}'.`
+      })
+    }
+  }
+
   const assignManagerRole = async (userId: string, _permissions?: string[]) => {
     try {
       const supabase = useSupabaseClient()
@@ -78,5 +92,5 @@ export const useRBAC = () => {
     }
   }
 
-  return { getUserStore, getRolesStore, getUserRole, requireAuthentication, requireRole, assignManagerRole, removeManagerRole }
+  return { getUserStore, getRolesStore, getUserRole, requireAuthentication, requireRole, requirePermission, assignManagerRole, removeManagerRole }
 }

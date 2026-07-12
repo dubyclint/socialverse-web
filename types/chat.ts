@@ -9,6 +9,8 @@ export interface ChatMessage {
   roomId?: string
   // Some parts of the app expect `chatId` instead of `roomId`.
   chatId?: string
+  translatedText?: string
+  translatedLang?: string
 }
 
 export interface User {
@@ -27,7 +29,11 @@ export interface TypingUser {
 export interface Chat {
   id: string
   title?: string
+  name?: string
+  avatar?: string
+  lastMessage?: string
   lastMessageTime?: number
+  unreadCount?: number
   isPinned?: boolean
 }
 
