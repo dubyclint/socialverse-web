@@ -17,6 +17,13 @@ interface SecuritySession {
   last_activity: string
 }
 
+interface SecurityEventData {
+  ip_address?: string
+  reason?: string
+  patterns?: string[]
+  [key: string]: unknown
+}
+
 interface SecurityEvent {
   id: string
   event_type: string
@@ -24,6 +31,16 @@ interface SecurityEvent {
   timestamp: string
   ip_address: string
   device: string
+  severity: string
+  created_at: string
+  event_data?: SecurityEventData
+}
+
+interface SecuritySeverityCounts {
+  INFO?: number
+  WARNING?: number
+  CRITICAL?: number
+  [key: string]: number | undefined
 }
 
 interface SecurityStatistics {
@@ -31,6 +48,13 @@ interface SecurityStatistics {
   active_sessions: number
   failed_login_attempts: number
   last_login: string
+  sessions?: { active: number; change: number }
+  events?: { total: number; change: number; bySeverity: SecuritySeverityCounts }
+}
+
+interface SecurityEventFilter {
+  severity?: string
+  limit?: number
 }
 
 interface SecurityReturn {
@@ -44,8 +68,8 @@ interface SecurityReturn {
   loadSessions: () => Promise<void>
   terminateSession: (sessionId: string) => Promise<any>
   terminateAllSessions: () => Promise<any>
-  loadSecurityEvents: () => Promise<void>
-  getStatistics: () => Promise<void>
+  loadSecurityEvents: (filter?: SecurityEventFilter) => Promise<void>
+  loadStatistics: () => Promise<void>
 }
 
 export const useSecurity = (): SecurityReturn => {
@@ -141,12 +165,14 @@ export const useSecurity = (): SecurityReturn => {
   /**
    * Sync complete historic operational audit trails
    */
-  const loadSecurityEvents = async (): Promise<void> => {
+  const loadSecurityEvents = async (filter?: SecurityEventFilter): Promise<void> => {
     loading.value = true
     error.value = null
 
     try {
-      const result = await $fetch<ApiResponse<{ events: SecurityEvent[] }>>('/api/security/events')
+      const result = await $fetch<ApiResponse<{ events: SecurityEvent[] }>>('/api/security/events', {
+        query: filter
+      })
 
       if (result.success && result.data) {
         securityEvents.value = result.data.events
@@ -164,7 +190,7 @@ export const useSecurity = (): SecurityReturn => {
   /**
    * Pull structural numeric parameters regarding failure tracking flags
    */
-  const getStatistics = async (): Promise<void> => {
+  const loadStatistics = async (): Promise<void> => {
     loading.value = true
     error.value = null
 
@@ -196,6 +222,6 @@ export const useSecurity = (): SecurityReturn => {
     terminateSession,
     terminateAllSessions,
     loadSecurityEvents,
-    getStatistics
+    loadStatistics
   }
 }

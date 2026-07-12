@@ -31,7 +31,7 @@
           <img
             v-if="gift.sender?.avatar_url"
             :src="gift.sender.avatar_url"
-            :alt="gift.sender.username"
+            :alt="gift.sender?.username"
             class="avatar"
           />
           <span v-else class="avatar-placeholder">👤</span>
@@ -64,7 +64,7 @@
         </div>
 
         <div class="gift-value">
-          <span class="value-amount">{{ gift.gift_type?.price_in_credits * gift.quantity }} PEW</span>
+          <span class="value-amount">{{ (gift.gift_type?.price_in_credits ?? 0) * (gift.quantity ?? 0) }} PEW</span>
           <span class="value-label">Value</span>
         </div>
       </div>
@@ -80,6 +80,31 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import type { ApiResponse } from '~/types/api'
+
+interface GiftType {
+  emoji?: string
+  name?: string
+  price_in_credits?: number
+}
+
+interface GiftParty {
+  username?: string
+  avatar_url?: string
+}
+
+interface GiftRecord {
+  id: string
+  sender_id?: string
+  recipient_id?: string
+  sender?: GiftParty
+  recipient?: GiftParty
+  gift_type?: GiftType
+  quantity?: number
+  created_at?: string
+  message?: string
+  is_anonymous?: boolean
+}
 
 const props = defineProps({
   userId: {
@@ -89,7 +114,7 @@ const props = defineProps({
 })
 
 const activeTab = ref('all')
-const gifts = ref([])
+const gifts = ref<GiftRecord[]>([])
 const loading = ref(false)
 const offset = ref(0)
 const hasMore = ref(true)
@@ -99,10 +124,10 @@ const tabs = ['all', 'sent', 'received']
 
 const filteredGifts = computed(() => {
   if (activeTab.value === 'sent') {
-    return gifts.value.filter(g => g.sender_id === props.userId)
+    return gifts.value.filter((g: GiftRecord) => g.sender_id === props.userId)
   }
   if (activeTab.value === 'received') {
-    return gifts.value.filter(g => g.recipient_id === props.userId)
+    return gifts.value.filter((g: GiftRecord) => g.recipient_id === props.userId)
   }
   return gifts.value
 })
@@ -114,7 +139,7 @@ onMounted(() => {
 const loadGiftHistory = async () => {
   loading.value = true
   try {
-    const response = await $fetch('/api/pewgift/history', {
+    const response = await $fetch<ApiResponse<GiftRecord[]>>('/api/pewgift/history', {
       query: {
         userId: props.userId,
         limit,
@@ -137,7 +162,7 @@ const loadMore = async () => {
   offset.value += limit
   loading.value = true
   try {
-    const response = await $fetch('/api/pewgift/history', {
+    const response = await $fetch<ApiResponse<GiftRecord[]>>('/api/pewgift/history', {
       query: {
         userId: props.userId,
         limit,
@@ -156,7 +181,8 @@ const loadMore = async () => {
   }
 }
 
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return ''
   const date = new Date(dateStr)
   const now = new Date()
   const diff = now.getTime() - date.getTime()

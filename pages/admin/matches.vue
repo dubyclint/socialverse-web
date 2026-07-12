@@ -151,14 +151,32 @@ definePageMeta({
   
 import { ref, onMounted } from 'vue'
 
+interface FilterRequest {
+  userId: string
+  filters: Record<string, unknown>
+}
+
+interface GroupMember {
+  id: string
+  avatar?: string
+  username?: string
+  rank?: string
+  isVerified?: boolean
+}
+
+interface OverrideGroup {
+  groupScore: number
+  members: GroupMember[]
+}
+
 // Filter Panel State
-const requests = ref([])
-const selected = ref({})
-const reasons = ref({})
+const requests = ref<FilterRequest[]>([])
+const selected = ref<Record<string, Record<string, boolean>>>({})
+const reasons = ref<Record<string, string>>({})
 
 // Group Override State
 const overrideGroup = ref('')
-const group = ref(null)
+const group = ref<OverrideGroup | null>(null)
 const activeTab = ref('filters')
 
 onMounted(async () => {
@@ -168,7 +186,7 @@ onMounted(async () => {
 async function loadFilterRequests() {
   try {
     const res = await fetch('/api/admin/filter-requests')
-    requests.value = await res.json()
+    requests.value = await res.json() as FilterRequest[]
 
     // Initialize selection state
     for (const req of requests.value) {
@@ -183,7 +201,7 @@ async function loadFilterRequests() {
   }
 }
 
-async function approve(userId) {
+async function approve(userId: string) {
   try {
     const approved = Object.entries(selected.value[userId])
       .filter(([_, val]) => val)
@@ -203,7 +221,7 @@ async function approve(userId) {
   }
 }
 
-async function reject(userId) {
+async function reject(userId: string) {
   try {
     const response = await fetch('/api/admin/rejectFilters', {
       method: 'POST',
@@ -225,8 +243,8 @@ async function reject(userId) {
 async function submitOverride() {
   try {
     const res = await fetch(`/api/match/group?overrideGroup=${overrideGroup.value}`)
-    const data = await res.json()
-    group.value = data[0]
+    const data = await res.json() as OverrideGroup[]
+    group.value = data[0] ?? null
   } catch (error) {
     console.error('Failed to create group override:', error)
   }

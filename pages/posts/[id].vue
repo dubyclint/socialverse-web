@@ -116,19 +116,40 @@ import MarkdownIt from 'markdown-it'
 const route = useRoute()
 const md = new MarkdownIt()
 
+interface PostComment {
+  id: number
+  content: string
+  author: { name: string; avatar: string }
+  createdAt: number
+  likes: number
+  isLiked: boolean
+}
+
+interface PostDetail {
+  id: string | string[] | undefined
+  title: string
+  content: string
+  author: { name: string; avatar: string }
+  createdAt: number
+  likes: number
+  images: string[]
+  tags: string[]
+  comments: PostComment[]
+}
+
 const loading = ref(true)
-const post = ref(null)
+const post = ref<PostDetail | null>(null)
 const newComment = ref('')
 const isLiked = ref(false)
 const showImageModal = ref(false)
 const selectedImage = ref('')
-const commentsSection = ref(null)
+const commentsSection = ref<HTMLElement | null>(null)
 
 // Get post ID from route params
 const postId = computed(() => route.params.id)
 
 // Mock post data
-const mockPost = {
+const mockPost: PostDetail = {
   id: postId.value,
   title: 'Welcome to SocialVerse!',
   content: 'This is a sample post showcasing the **post detail** component. You can add *markdown* formatting, images, and much more!\n\n## Features\n- Rich text content\n- Image galleries\n- Comments system\n- Like functionality',
@@ -186,6 +207,7 @@ function formatDate(timestamp: number): string {
 }
 
 function toggleLike(): void {
+  if (!post.value) return
   isLiked.value = !isLiked.value
   if (isLiked.value) {
     post.value.likes = (post.value.likes || 0) + 1
@@ -199,6 +221,7 @@ function scrollToComments(): void {
 }
 
 function sharePost(): void {
+  if (!post.value) return
   if (navigator.share) {
     navigator.share({
       title: post.value.title,
@@ -212,7 +235,7 @@ function sharePost(): void {
 }
 
 function addComment(): void {
-  if (!newComment.value.trim()) return
+  if (!newComment.value.trim() || !post.value) return
   
   const comment = {
     id: Date.now(),
@@ -232,7 +255,8 @@ function addComment(): void {
 }
 
 function likeComment(commentId: number): void {
-  const comment = post.value.comments.find(c => c.id === commentId)
+  if (!post.value) return
+  const comment = post.value.comments.find((c: PostComment) => c.id === commentId)
   if (comment) {
     comment.isLiked = !comment.isLiked
     if (comment.isLiked) {
@@ -248,12 +272,12 @@ function replyToComment(commentId: number): void {
 }
 
 function editPost(): void {
-  console.log('Editing post:', post.value.id)
+  console.log('Editing post:', post.value?.id)
 }
 
 function deletePost(): void {
   if (confirm('Are you sure you want to delete this post?')) {
-    console.log('Deleting post:', post.value.id)
+    console.log('Deleting post:', post.value?.id)
   }
 }
 
