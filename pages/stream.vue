@@ -131,7 +131,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
-import MobileCameraStream from '~/components/streaming/mobile-camera-stream'
+import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'],

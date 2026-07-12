@@ -208,15 +208,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useMobileCamera } from '~/composables/use-mobile-camera'
-import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
+import { useStreamBroadcast, type StreamConfig } from '~/composables/use-stream-broadcast'
 
-const props = defineProps({
-  streamId: String
-})
+const props = defineProps<{ streamId?: string }>()
 
-const emit = defineEmits(['stream-started', 'stream-ended', 'error'])
+const emit = defineEmits<{
+  (e: 'stream-started', config: StreamConfig): void
+  (e: 'stream-ended'): void
+  (e: 'error', message: string): void
+}>()
 
 const {
   cameraPreview,
@@ -279,13 +281,18 @@ const startMobileStream = async () => {
     if (!mediaStream.value) {
       await initializeCamera()
     }
-    
-    const streamConfig = {
+
+    if (!mediaStream.value) {
+      handleError('Camera stream is not available')
+      return
+    }
+
+    const streamConfig: StreamConfig = {
       streamId: props.streamId,
       title: streamTitle.value,
       category: streamCategory.value,
-      privacy: streamPrivacy.value,
-      quality: selectedQuality.value,
+      privacy: streamPrivacy.value as StreamConfig['privacy'],
+      quality: selectedQuality.value as StreamConfig['quality'],
       enableRecording: enableRecording.value,
       mediaStream: mediaStream.value
     }

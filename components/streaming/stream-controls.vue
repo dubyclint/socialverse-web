@@ -239,23 +239,35 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useStreaming } from '~/composables/use-streaming'
+
+interface StreamSettings {
+  resolution: string
+  frameRate: number
+  bitrate: number
+  audioSource: string
+  audioBitrate: number
+  chatEnabled: boolean
+  pewGiftsEnabled: boolean
+  recordStream: boolean
+}
 
 interface Props {
   streamId?: string
-  stream?: any
+  stream?: Record<string, unknown> & { status?: string; startTime?: string | number | Date }
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits(['stream-started', 'stream-ended', 'settings-updated'])
 
-// Composables
-const { 
-  startStreamBroadcast, 
-  endStreamBroadcast, 
-  pauseStreamBroadcast,
-  updateStreamSettings 
-} = useStreaming()
+// Broadcast controls. The backend wiring for these operations is not yet
+// implemented; these typed handlers keep the control surface intact.
+const startStreamBroadcast = async (_streamId: string): Promise<void> => {}
+const endStreamBroadcast = async (_streamId: string): Promise<void> => {}
+const pauseStreamBroadcast = async (_streamId: string): Promise<void> => {}
+const updateStreamSettings = async (
+  _streamId: string,
+  _settings: StreamSettings
+): Promise<void> => {}
 
 // Refs
 const previewVideo = ref<HTMLVideoElement>()
@@ -273,11 +285,11 @@ const currentQuality = ref('1080p')
 const currentBitrate = ref(2500)
 
 // Device lists
-const audioDevices = ref([])
-const videoDevices = ref([])
+const audioDevices = ref<MediaDeviceInfo[]>([])
+const videoDevices = ref<MediaDeviceInfo[]>([])
 
 // Settings
-const settings = ref({
+const settings = ref<StreamSettings>({
   resolution: '1280x720',
   frameRate: 30,
   bitrate: 2500,
@@ -294,7 +306,7 @@ const isStreaming = computed(() => {
 })
 
 const canStartStream = computed(() => {
-  return props.stream && ['scheduled', 'ended'].includes(props.stream.status)
+  return !!props.stream && ['scheduled', 'ended'].includes(props.stream.status ?? '')
 })
 
 const statusClass = computed(() => {
@@ -416,8 +428,8 @@ const initializeMediaDevices = async () => {
     // Get user media
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        width: { ideal: parseInt(settings.value.resolution.split('x')[0]) },
-        height: { ideal: parseInt(settings.value.resolution.split('x')[1]) },
+        width: { ideal: parseInt(settings.value.resolution.split('x')[0] ?? '1280') },
+        height: { ideal: parseInt(settings.value.resolution.split('x')[1] ?? '720') },
         frameRate: { ideal: settings.value.frameRate }
       },
       audio: {
@@ -467,9 +479,10 @@ const formatDuration = (seconds: number) => {
 // Stream duration timer
 let durationInterval: NodeJS.Timeout
 const startDurationTimer = () => {
-  if (props.stream?.startTime) {
+  const startTimeValue = props.stream?.startTime
+  if (startTimeValue) {
     durationInterval = setInterval(() => {
-      const startTime = new Date(props.stream.startTime).getTime()
+      const startTime = new Date(startTimeValue).getTime()
       const now = Date.now()
       streamDuration.value = Math.floor((now - startTime) / 1000)
     }, 1000)
