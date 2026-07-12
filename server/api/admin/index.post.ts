@@ -6,7 +6,7 @@ import {
   logAdminAction, 
   validateBody, 
   handleError 
-} from '../../utils/auth-utils';
+} from '../../gateway/auth/auth-utils';
 
 export default defineEventHandler(async (event) => {
   try {

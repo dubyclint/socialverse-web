@@ -19,7 +19,7 @@
     "preview": "nuxt preview",
     "generate": "nuxt generate",
     "start": "node .output/server/index.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "nuxi typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

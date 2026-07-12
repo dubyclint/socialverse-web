@@ -1,22 +1,20 @@
 // server/api/stream/[id].get.ts
-import { 
-  authenticateUser, 
-  streamOperations, 
-  handleError 
-} from '../../utils/auth-utils';
+import { StreamModel } from '~/server/models/stream'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
-    await authenticateUser(event);
     const { id } = event.context.params;
+    if (!id) throw createError({ statusCode: 400, statusMessage: 'Stream id required' })
 
-    const result = await streamOperations.getStream(id);
+  // Optional auth: allow anonymous viewers
+  try { await requireAuth(event) } catch (e) { /* ignore */ }
 
-    return {
-      success: true,
-      data: result
-    };
+  const result = await StreamModel.getStream(id)
+
+    return { success: true, data: result }
   } catch (error: any) {
-    return handleError(error, 'Get stream');
+    console.error('[Stream Get] Error:', error)
+    throw createError({ statusCode: error.statusCode || 500, statusMessage: error.message || 'Failed to get stream' })
   }
 });

@@ -36,9 +36,9 @@ interface SecurityStatistics {
 interface SecurityReturn {
   sessions: Ref<readonly SecuritySession[]>
   securityEvents: Ref<readonly SecurityEvent[]>
-  statistics: Ref<readonly SecurityStatistics | null>
-  loading: Ref<readonly boolean>
-  error: Ref<readonly (string | null)>
+  statistics: Ref<SecurityStatistics | null>
+  loading: Ref<boolean>
+  error: Ref<string | null>
   activeSessions: ComputedRef<SecuritySession[]>
   currentSession: ComputedRef<SecuritySession | undefined>
   loadSessions: () => Promise<void>
@@ -72,7 +72,7 @@ export const useSecurity = (): SecurityReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/sessions')
+      const result = await $fetch('/api/security/sessions')
 
       if (result.success) {
         sessions.value = result.data.sessions
@@ -96,7 +96,7 @@ export const useSecurity = (): SecurityReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>(`/api/security/sessions/${sessionId}`, {
+      const result = await $fetch(`/api/security/sessions/${sessionId}`, {
         method: 'DELETE'
       })
 
@@ -123,7 +123,7 @@ export const useSecurity = (): SecurityReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/sessions/terminate-all', {
+      const result = await $fetch('/api/security/sessions/terminate-all', {
         method: 'POST'
       })
 
@@ -150,7 +150,7 @@ export const useSecurity = (): SecurityReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/events')
+      const result = await $fetch('/api/security/events')
 
       if (result.success) {
         securityEvents.value = result.data.events
@@ -174,7 +174,7 @@ export const useSecurity = (): SecurityReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/statistics')
+      const result = await $fetch('/api/security/statistics')
 
       if (result.success) {
         statistics.value = result.data.statistics

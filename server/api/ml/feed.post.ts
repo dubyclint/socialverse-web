@@ -5,6 +5,8 @@
 
 import { generatePersonalizedFeed, logUserEvent } from '../middleware/ml-service';
 import { checkPremiumStatus } from '../middleware/premium-check';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { createError, readBody } from 'h3'
 
 interface FeedRequest {
   limit?: number;

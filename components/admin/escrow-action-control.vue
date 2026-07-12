@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useEscrowContract } from '@/composables/use-escrow-contract'
+import { useEscrowContract } from '~/services/financial/escrow/use-escrow-contract'
 
 interface Deal {
   id: number
@@ -410,3 +410,4 @@ onMounted(() => {
   font-size: 0.85rem;
 }
 </style>
+

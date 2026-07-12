@@ -53,7 +53,8 @@ export class CDNManager {
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
       })
 
-      this.initialized =console.log('[CDN Manager] Initialized successfully')
+      this.initialized = true
+      console.log('[CDN Manager] Initialized successfully')
     } catch (error) {
       console.error('[CDN Manager] Failed to initialize:', error)
       throw error

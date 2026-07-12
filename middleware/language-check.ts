@@ -2,7 +2,7 @@
 // FILE: /middleware/language-check.ts - LOCALIZATION GUARD
 // ============================================================================
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware((to: any) => {
   // 1. Safety Guard for undefined route
   if (!to || !to.path) return
 

@@ -3,7 +3,7 @@
 // GET /api/premium/pricing - Get pricing tiers
 // ============================================================================
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   try {
     const pricing = {
       BASIC: {

@@ -4,7 +4,8 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
-import { defineEventHandler, readBody, createError, getHeader } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface SendGiftRequest {
   postId?: string

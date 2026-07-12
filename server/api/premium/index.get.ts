@@ -1,13 +1,13 @@
 // server/api/premium/index.get.ts
 import { 
-  authenticateUser, 
   premiumOperations, 
   handleError 
-} from '../../utils/auth-utils';
+} from '../../gateway/auth/auth-utils';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
-    const user = await authenticateUser(event);
+    const user = await requireAuth(event);
     const query = getQuery(event);
     const { action } = query;
 

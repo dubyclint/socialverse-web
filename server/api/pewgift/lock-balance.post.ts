@@ -126,7 +126,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Lock Balance API Error:', error)
     
     if (error.statusCode) {

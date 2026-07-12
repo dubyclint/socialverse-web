@@ -17,6 +17,8 @@ async function getSupabase() {
   return supabaseInstance
 }
 
+// (moved below class)
+
 // ============================================================================
 // INTERFACES
 // ============================================================================
@@ -138,7 +140,6 @@ export class RankModel {
       throw error
     }
   }
-
   static async awardBadge(userId: string, badge: string): Promise<Rank> {
     try {
       const supabase = await getSupabase()
@@ -155,4 +156,19 @@ export class RankModel {
       throw error
     }
   }
+}
+
+// Compatibility shim for older callers
+export async function getByUserId(userId: string) {
+  return RankModel.getUserRank(userId)
+}
+
+export const RankModelRuntime: any = {
+  getByUserId,
+  getUserRank: RankModel.getUserRank,
+  createRank: RankModel.createRank,
+  addPoints: RankModel.addPoints,
+  getLeaderboard: RankModel.getLeaderboard,
+  getTierLeaderboard: RankModel.getTierLeaderboard,
+  awardBadge: RankModel.awardBadge
 }

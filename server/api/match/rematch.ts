@@ -15,17 +15,18 @@ export default defineEventHandler(async (event) => {
     _id: { $in: candidateIds }
   }).toArray()
 
-  const improved = candidates.map(u => ({
+  const improved = candidates.map((u: any) => ({
     ...u,
     matchScore: computeMatchScore(user, u)
-  })).filter(u => u.matchScore > 40)
+  })).filter((u: any) => u.matchScore > 40)
 
   if (improved.length > 0) {
-    await sendNotification(user.id, 'rematch', 'New re-match suggestions are ready.')
+    // sendNotification(event, userId, type, message)
+    await sendNotification(event, user.id, 'rematch', 'New re-match suggestions are ready.')
     await sendPushAlert(user.id, 'New Re-Match Available', 'Tap to view your updated suggestions.')
   }
 
-  return improved.map(u => ({
+  return improved.map((u: any) => ({
     id: u.id,
     username: u.username,
     avatar: u.avatar,

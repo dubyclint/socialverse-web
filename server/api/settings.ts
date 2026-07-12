@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '~/server/utils/database';
+import { getMethod, getQuery } from 'h3'
 
 export default defineEventHandler(async (event) => {
   // Initialize Supabase client

@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface StreamSettings {
   defaultTitle?: string
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<StreamSettings>(event)
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Validate settings
     if (body.bitrate && (body.bitrate < 500 || body.bitrate > 5000)) {
@@ -84,7 +85,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check if settings exist
-    const { data: existingSettings } = await supabase
+    const { data: existingSettings } = await _supabase
       .from('stream_settings')
       .select('id')
       .eq('user_id', user.id)
@@ -100,7 +101,7 @@ export default defineEventHandler(async (event) => {
 
     if (existingSettings) {
       // Update existing settings
-      const { data, error } = await supabase
+      const { data, error } = await _supabase
         .from('stream_settings')
         .update(settingsData)
         .eq('user_id', user.id)
@@ -111,7 +112,7 @@ export default defineEventHandler(async (event) => {
       result = data
     } else {
       // Create new settings
-      const { data, error } = await supabase
+      const { data, error } = await _supabase
         .from('stream_settings')
         .insert({
           ...settingsData,

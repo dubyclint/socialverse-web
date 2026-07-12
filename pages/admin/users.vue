@@ -210,22 +210,49 @@
 import { ref, computed, onMounted } from 'vue'
 import { debounce } from 'lodash-es'
 
+interface User {
+  id: string | number
+  name: string
+  email: string
+  username?: string
+  avatar?: string
+}
+
+interface Manager extends User {
+  assignedAt?: string
+}
+
+interface ManagerActivity {
+  actionsThisMonth: number
+  usersManaged: number
+  reportsResolved: number
+  recentActions: ActivityAction[]
+}
+
+interface ActivityAction {
+  id: string | number
+  type: string
+  description: string
+  targetUser: string
+  timestamp: string
+}
+
 // Tab Management
 const activeTab = ref('managers')
 
 // Managers State
-const managers = ref([])
+const managers = ref<Manager[]>([])
 const showAssignModal = ref(false)
 const showActivityModal = ref(false)
 const userSearchQuery = ref('')
-const searchResults = ref([])
-const selectedUser = ref(null)
-const selectedManager = ref(null)
-const managerActivity = ref({})
-const selectedPermissions = ref([])
+const searchResults = ref<User[]>([])
+const selectedUser = ref<User | null>(null)
+const selectedManager = ref<Manager | null>(null)
+const managerActivity = ref<Partial<ManagerActivity>>({})
+const selectedPermissions = ref<string[]>([])
 
 // Users State
-const allUsers = ref([])
+const allUsers = ref<User[]>([])
 
 const availablePermissions = [
   {
@@ -252,7 +279,7 @@ const availablePermissions = [
 
 const filteredUsers = computed(() => {
   if (!userSearchQuery.value) return allUsers.value
-  
+
   const query = userSearchQuery.value.toLowerCase()
   return allUsers.value.filter(user =>
     user.name.toLowerCase().includes(query) ||
@@ -294,7 +321,7 @@ const searchUsers = debounce(async () => {
     const { data } = await $fetch('/api/admin/users/search', {
       query: { q: userSearchQuery.value }
     })
-    searchResults.value = data.filter(user => 
+    searchResults.value = (data as User[]).filter(user =>
       !managers.value.some(manager => manager.id === user.id)
     )
   } catch (error) {
@@ -302,12 +329,12 @@ const searchUsers = debounce(async () => {
   }
 }, 300)
 
-const selectUser = (user) => {
+const selectUser = (user: User) => {
   selectedUser.value = user
   selectedPermissions.value = ['manage_users', 'handle_reports']
 }
 
-const selectUserForManager = (user) => {
+const selectUserForManager = (user: User) => {
   selectedUser.value = user
   selectedPermissions.value = ['manage_users', 'handle_reports']
   showAssignModal.value = true
@@ -318,11 +345,11 @@ const assignManager = async () => {
     await $fetch('/api/admin/managers', {
       method: 'POST',
       body: {
-        userId: selectedUser.value.id,
+        userId: selectedUser.value!.id,
         permissions: selectedPermissions.value
       }
     })
-    
+
     await loadManagers()
     closeAssignModal()
   } catch (error) {
@@ -330,7 +357,7 @@ const assignManager = async () => {
   }
 }
 
-const removeManager = async (manager) => {
+const removeManager = async (manager: Manager) => {
   if (confirm(`Are you sure you want to remove ${manager.name} as a manager?`)) {
     try {
       await $fetch(`/api/admin/managers/${manager.id}`, {
@@ -343,11 +370,11 @@ const removeManager = async (manager) => {
   }
 }
 
-const viewManagerActivity = async (manager) => {
+const viewManagerActivity = async (manager: Manager) => {
   try {
     const { data } = await $fetch(`/api/admin/managers/${manager.id}/activity`)
     selectedManager.value = manager
-    managerActivity.value = data
+    managerActivity.value = data as ManagerActivity
     showActivityModal.value = true
   } catch (error) {
     console.error('Failed to load manager activity:', error)
@@ -368,8 +395,8 @@ const closeActivityModal = () => {
   managerActivity.value = {}
 }
 
-const getActivityIcon = (type) => {
-  const icons = {
+const getActivityIcon = (type: string) => {
+  const icons: Record<string, string> = {
     'user_suspended': '🚫',
     'user_warned': '⚠️',
     'content_removed': '🗑️',
@@ -378,11 +405,11 @@ const getActivityIcon = (type) => {
   return icons[type] || '📋'
 }
 
-const formatDate = (date) => {
+const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString()
 }
 
-const formatDateTime = (date) => {
+const formatDateTime = (date: string) => {
   return new Date(date).toLocaleString()
 }
 </script>

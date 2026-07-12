@@ -20,10 +20,10 @@ export default defineEventHandler(async () => {
         
       if (error) throw error;
 
-      const totalVolume = deals?.reduce((sum, d) => sum + (d.amount || 0), 0) || 0;
+      const totalVolume = deals?.reduce((sum: any, d: any) => sum + (d.amount || 0), 0) || 0;
       const avgReleaseTime = deals
-        ?.filter(d => d.is_released && d.released_at)
-        ?.map(d => {
+        ?.filter((d: any) => d.is_released && d.released_at)
+        ?.map((d: any) => {
           const releaseTime = new Date(d.released_at).getTime();
           const createTime = new Date(d.timestamp).getTime();
           return (releaseTime - createTime) / 3600000; // Convert to hours
@@ -33,7 +33,7 @@ export default defineEventHandler(async () => {
       volume.push(Math.round(totalVolume));
       releaseTime.push(
         avgReleaseTime.length
-          ? parseFloat((avgReleaseTime.reduce((a, b) => a + b, 0) / avgReleaseTime.length).toFixed(2))
+          ? parseFloat((avgReleaseTime.reduce((a: any, b: any) => a + b, 0) / avgReleaseTime.length).toFixed(2))
           : 0
       );
     }

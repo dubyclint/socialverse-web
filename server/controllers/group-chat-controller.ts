@@ -6,9 +6,7 @@ import { getRouterParam, getQuery, readBody } from 'h3'
 import { Chat } from '../models/chat-models'
 import { ChatMessage } from '../models/chat-models'
 import { ChatParticipant } from '../models/chat-models'
-import { UserContact } from '../models/user-contact'
-import { User } from '../models/user'
-import { supabase } from '../utils/supabase'
+// legacy user imports removed during TS remediation; use context.user instead
 
 // ============================================================================
 // TYPES & INTERFACES
