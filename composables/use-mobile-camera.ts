@@ -3,7 +3,7 @@
 // MOBILE CAMERA COMPOSABLE - HANDLES ALL CAMERA OPERATIONS
 // ============================================================================
 
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
 export interface CameraConstraints {
@@ -36,8 +36,9 @@ export const useMobileCamera = () => {
         video: { facingMode: 'environment' }
       })
       const videoTrack = stream.getVideoTracks()[0]
+      if (!videoTrack) return
       const capabilities = videoTrack.getCapabilities?.()
-      hasFlash.value = capabilities?.torch ? true : false
+      hasFlash.value = (capabilities as any)?.torch ? true : false
       stream.getTracks().forEach(track => track.stop())
     } catch (err) {
       console.warn('Could not check device capabilities:', err)
@@ -158,12 +159,12 @@ export const useMobileCamera = () => {
       }
 
       const capabilities = videoTrack.getCapabilities?.()
-      if (!capabilities?.torch) {
+      if (!(capabilities as any)?.torch) {
         throw new Error('Torch not supported')
       }
 
       const settings = videoTrack.getSettings?.()
-      const currentTorch = settings?.torch || false
+      const currentTorch = (settings as any)?.torch || false
 
       await videoTrack.applyConstraints({
         advanced: [{ torch: !currentTorch }]

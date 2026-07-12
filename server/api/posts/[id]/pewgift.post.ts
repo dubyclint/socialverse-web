@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
 
   const postId = getRouterParam(event, 'id')
   const { amount } = await readBody(event)
-  const client = serverSupabaseClient(event)
+  const client = await serverSupabaseClient(event)
 
   try {
     // 1. Get post author to know who the receiver is

@@ -3,8 +3,9 @@
 
 import type { H3Event } from 'h3'
 import { StreamModel } from '../models/stream'
-import { NotificationModel } from '../models/notification'
-import { RankModel } from '../models/rank'
+const Stream: any = (StreamModel as any) || {}
+import { NotificationModelRuntime as NotificationModel } from '../models/notification'
+import { RankModelRuntime as RankModel } from '../models/rank'
 
 export class StreamController {
   /**
@@ -18,14 +19,15 @@ export class StreamController {
         throw new Error('Not authenticated')
       }
 
-      // ✅ USE StreamModel
-      const stream = await StreamModel.create({
+      // ✅ USE StreamModel (use createStream with explicit args)
+      const stream = await StreamModel.createStream(
         userId,
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        isLive: false
-      })
+        data.title,
+        data.streamUrl || '',
+        data.description,
+        data.thumbnailUrl,
+        data.scheduledAt
+      )
 
       // ✅ USE RankModel - Award points
       await RankModel.addPoints(userId, 25)
@@ -52,10 +54,13 @@ export class StreamController {
         throw new Error('Not authenticated')
       }
 
-      // ✅ USE StreamModel
-      const stream = await StreamModel.startStream(streamId, userId)
+
+  // ✅ USE StreamModel
+  const stream = await Stream.startStream(streamId)
 
       // ✅ Notify followers
+      const { getAdminClient } = await import('~/server/utils/supabase-server')
+      const supabase = await getAdminClient()
       const { data: followers } = await supabase
         .from('pals')
         .select('user_id')
@@ -64,7 +69,7 @@ export class StreamController {
 
       if (followers) {
         for (const follower of followers) {
-          await NotificationModel.create({
+          await (NotificationModel as any).create({
             userId: follower.user_id,
             actorId: userId,
             type: 'stream',
@@ -97,8 +102,8 @@ export class StreamController {
         throw new Error('Not authenticated')
       }
 
-      // ✅ USE StreamModel
-      const stream = await StreamModel.endStream(streamId, userId)
+  // ✅ USE StreamModel
+  const stream = await Stream.endStream(streamId)
 
       return {
         success: true,
@@ -114,10 +119,10 @@ export class StreamController {
   /**
    * Get stream details
    */
-  static async getStream(event: H3Event, streamId: string) {
+  static async getStream(_event: H3Event, streamId: string) {
     try {
-      // ✅ USE StreamModel
-      const stream = await StreamModel.getById(streamId)
+  // ✅ USE StreamModel
+  const stream = await Stream.getStream(streamId)
 
       if (!stream) {
         return { success: false, error: 'Stream not found' }
@@ -137,10 +142,10 @@ export class StreamController {
   /**
    * Get live streams
    */
-  static async getLiveStreams(event: H3Event) {
+  static async getLiveStreams(_event: H3Event) {
     try {
-      // ✅ USE StreamModel
-      const streams = await StreamModel.getLiveStreams()
+  // ✅ USE StreamModel
+  const streams = await Stream.getLiveStreams()
 
       return {
         success: true,

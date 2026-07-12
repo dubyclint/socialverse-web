@@ -2,7 +2,6 @@
 // FILE: /services/chatService.ts
 // ============================================================================
 import { api, unwrap } from './api'
-import { useSupabaseClient } from '#imports'
 import type { ChatMessage } from '~/types/chat'
 
 export const chatService = {
@@ -37,7 +36,7 @@ export const chatService = {
         schema: 'public', 
         table: 'messages', 
         filter: `chat_id=eq.${chatId}` 
-      }, (payload) => onMessage(payload.new))
+  }, (payload: any) => onMessage(payload.new))
       .subscribe()
   }
 }

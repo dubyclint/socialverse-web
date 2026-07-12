@@ -3,6 +3,8 @@
 
 import { verifyAuth } from '../middleware/rbac'
 
+import { serverSupabaseClient } from '#supabase/server'
+
 export default defineEventHandler(async (event) => {
   try {
     const user = await verifyAuth(event, { requireAuth: true })

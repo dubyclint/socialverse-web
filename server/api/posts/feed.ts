@@ -1,4 +1,8 @@
 // server/api/posts/feed.ts
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { getQuery, createError } from 'h3'
+import { serverSupabaseClient } from '#supabase/server'
+
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
@@ -16,15 +20,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+  const _supabase = await serverSupabaseClient(event)
 
     const offset = (page - 1) * limit
 
     // Fetch posts from public.posts table
-    const { data: posts, error, count } = await supabase
+    const { data: posts, error, count } = await _supabase
       .from('posts')
       .select('*', { count: 'exact' })
       .eq('privacy', 'public')

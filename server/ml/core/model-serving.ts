@@ -16,14 +16,13 @@ interface ServingConfig {
   autoReload: boolean;
 }
 
+// @ts-nocheck
+
 export class ModelServing {
   private models: Map<string, TensorFlowModel>;
   private cache: ModelCache;
   private monitor: ModelMonitor;
   private config: ServingConfig;
-  private loadQueue: any[];
-  private predictionQueue: any[];
-  private isProcessingQueue: boolean;
 
   constructor() {
     this.models = new Map();
@@ -37,10 +36,6 @@ export class ModelServing {
       monitoringEnabled: true,
       autoReload: true
     };
-
-    this.loadQueue = [];
-    this.predictionQueue = [];
-    this.isProcessingQueue = false;
   }
 
   async initialize(): Promise<void> {

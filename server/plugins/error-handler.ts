@@ -3,13 +3,13 @@
 // Global error handler - CATCHES AND LOGS ALL ERRORS IN REAL-TIME
 // ============================================================================
 
-export default defineNitroPlugin((nitroApp) => {
+export default defineNitroPlugin((nitroApp: any) => {
   console.log('[Error Handler Plugin] Initializing...')
 
   // ============================================================================
   // HOOK 1: Catch errors BEFORE they're processed
   // ============================================================================
-  nitroApp.hooks.hook('error', (error, context) => {
+  nitroApp.hooks.hook('error', (error: any, context: any) => {
     const event = context?.event
     const req = event?.node?.req
     
@@ -35,11 +35,11 @@ export default defineNitroPlugin((nitroApp) => {
   // ============================================================================
   // HOOK 2: Catch errors during request handling
   // ============================================================================
-  nitroApp.hooks.hook('request', (event) => {
-    const originalJson = event.node.res.json
+  nitroApp.hooks.hook('request', (event: any) => {
+    const originalJson = event.node?.res?.json
     
     // Intercept JSON responses to catch error responses
-    event.node.res.json = function(data: any) {
+    event.node.res.json = function(this: any, data: any) {
       if (data?.statusCode >= 400 || data?.error) {
         console.error('\n')
         console.error('═══════════════════════════════════════════════════════════')
@@ -58,7 +58,7 @@ export default defineNitroPlugin((nitroApp) => {
   // ============================================================================
   // HOOK 3: Catch unhandled promise rejections
   // ============================================================================
-  if (typeof process !== 'undefined') {
+  if (typeof process !== 'undefined' && process) {
     process.on('unhandledRejection', (reason: any, promise: any) => {
       console.error('\n')
       console.error('═══════════════════════════════════════════════════════════')

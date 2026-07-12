@@ -1,4 +1,8 @@
 // server/api/social/sync-contacts.post.ts
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { serverSupabaseClient } from '#supabase/server'
+import { readBody } from 'h3'
+
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
   const { phoneHashes } = await readBody(event) // Array of hashed numbers
@@ -12,7 +16,7 @@ export default defineEventHandler(async (event) => {
     .in('phone_hash', phoneHashes)
 
   // 2. Insert into the social graph
-  const relationships = matchedUsers.map(match => ({
+  const relationships = (matchedUsers || []).map((match: any) => ({
     user_id: user.id,
     friend_id: match.id,
     status: 'connected'

@@ -1,7 +1,6 @@
 // FILE: /server/routes/wallet.ts - FIXED
 // ============================================================================
 
-import { UserWalletModel } from '~/server/models/user-wallet'
 import { getSupabaseClient } from '~/server/utils/database'
 
 interface WalletUpdateRequest {

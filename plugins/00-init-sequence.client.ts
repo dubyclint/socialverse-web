@@ -4,7 +4,7 @@ import { defineNuxtPlugin } from '#app'
 export default defineNuxtPlugin({
   name: '00-init-sequence', // This must match the dependsOn string
   
-  setup(nuxtApp) {
+  setup(nuxtApp: any) {
     if (!process.client) return
 
     nuxtApp.hook('app:mounted', async () => {

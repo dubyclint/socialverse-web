@@ -1,9 +1,10 @@
 import { getSupabaseClient } from '~/server/utils/database';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
     const supabase = await getSupabaseClient();
-    const user = event.context.user;
+    const user = await requireAuth(event)
     const { recipientId, message } = await readBody(event);
 
     // Insert chat message

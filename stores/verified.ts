@@ -43,19 +43,19 @@ export const useVerifiedStore = defineStore('verified', {
 
   actions: {
     async fetchStatus(userId: string): Promise<VerificationStatus> {
-      if (this.statusMap[userId]) return this.statusMap[userId]
+      if (this.statusMap[userId]) return this.statusMap[userId] as VerificationStatus
 
       try {
         this.loading = true
         this.error = null
         const response = await fetch(`/api/verified/status?userId=${encodeURIComponent(userId)}`)
         if (!response.ok) throw new Error(`Failed to fetch status: ${response.statusText}`)
-        
+
         const data = await response.json()
-        this.statusMap[userId] = data.status || 'none'
-        return this.statusMap[userId]
+        this.statusMap[userId] = data?.status || 'none'
+  return this.statusMap[userId] as VerificationStatus
       } catch (error) {
-        this.error = (error as any).message || 'Failed to fetch verification status'
+        this.error = (error as any)?.message || 'Failed to fetch verification status'
         return 'none'
       } finally {
         this.loading = false
@@ -67,20 +67,21 @@ export const useVerifiedStore = defineStore('verified', {
       try {
         this.loading = true
         this.error = null
-        
+
         const response = await fetch('/api/verified/request', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestData)
         })
-        
+
         if (!response.ok) throw new Error(`Failed to submit: ${response.statusText}`)
-        
-        if (userStore.userId) {
-          this.statusMap[userStore.userId] = 'pending'
+
+        const uid = (userStore as any).user?.id || (userStore as any).user?.user_id
+        if (uid) {
+          this.statusMap[uid] = 'pending'
         }
       } catch (error) {
-        this.error = (error as any).message || 'Failed to submit'
+        this.error = (error as any)?.message || 'Failed to submit'
         throw error
       } finally {
         this.loading = false
@@ -95,7 +96,7 @@ export const useVerifiedStore = defineStore('verified', {
         if (!response.ok) throw new Error(`Failed to fetch pending requests`)
         this.pendingRequests = await response.json()
       } catch (error) {
-        this.error = (error as any).message || 'Failed to fetch pending requests'
+        this.error = (error as any)?.message || 'Failed to fetch pending requests'
       } finally {
         this.loading = false
       }
@@ -110,14 +111,14 @@ export const useVerifiedStore = defineStore('verified', {
           body: JSON.stringify({ id: requestId, approve })
         })
         if (!response.ok) throw new Error('Approval action failed')
-        
+
         const request = this.pendingRequests.find(req => req.id === requestId)
         if (request) {
           this.statusMap[request.userId] = approve ? 'approved' : 'rejected'
           this.pendingRequests = this.pendingRequests.filter(req => req.id !== requestId)
         }
       } catch (error) {
-        this.error = (error as any).message || 'Failed to update request'
+        this.error = (error as any)?.message || 'Failed to update request'
         throw error
       } finally {
         this.loading = false
@@ -125,9 +126,9 @@ export const useVerifiedStore = defineStore('verified', {
     },
 
     clearError() { this.error = null },
-    clearCache() { 
+    clearCache() {
       this.statusMap = {}
-      this.pendingRequests = [] 
+      this.pendingRequests = []
     }
   }
 })

@@ -65,7 +65,7 @@ export class TranslationModel {
 
       if (error) throw error
 
-      const result: Record<string, string> = {}
+      const result: Record<string, string> = Object.create(null)
       (data || []).forEach((entry: any) => {
         result[entry.key] = entry.value
       })

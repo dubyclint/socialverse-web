@@ -2,10 +2,6 @@
 // FILE: /server/ml/core/tensor-flow-model.ts - FIXED WITH LAZY LOADING
 // ============================================================================
 
-import { createRequire } from 'module'
-
-const require = createRequire(import.meta.url)
-
 // Lazy load TensorFlow
 let tf: any = null;
 
@@ -53,10 +49,10 @@ export class TensorFlowModel {
 
   constructor(
     modelName: string,
-    modelPath: string,
+    modelPath: string = '',
     version: string = '1.0.0',
     preprocessor: ((input: any) => any) | null = null,
-    postprocessor: ((output: any) => any) | null = null  // ✅ Fixed: Added default value
+    postprocessor: ((output: any) => any) | null = null // ✅ Fixed: Added default value
   ) {
     this.modelName = modelName
     this.modelPath = modelPath

@@ -1,4 +1,5 @@
 import { supabase } from '~/utils/supabase'
+import { getQuery, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -21,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
     if (error || !wallet) {
       // Create wallet if it doesn't exist
-      const { data: newWallet, error: createError } = await supabase
+      const { error: createErr } = await supabase
         .from('user_wallets')
         .insert({
           user_id: userId,
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
         .select()
         .single()
 
-      if (createError) {
+      if (createErr) {
         throw createError({
           statusCode: 500,
           statusMessage: 'Failed to create wallet'
@@ -60,10 +61,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Balance API Error:', error)
     
-    if (error.statusCode) {
+    if ((error as any)?.statusCode) {
       throw error
     }
     

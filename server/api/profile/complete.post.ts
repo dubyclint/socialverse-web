@@ -83,7 +83,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const updatePayload: Record<string, any> = {}
     
     if (body.username !== undefined) updatePayload.username = body.username.trim()
-    if (displayName !== undefined) updatePayload.display_name = displayName.trim()
+    if (displayName !== undefined && displayName !== null) updatePayload.display_name = displayName.trim()
     if (body.bio !== undefined) updatePayload.bio = body.bio.trim()
     if (body.avatar_url !== undefined) updatePayload.avatar_url = body.avatar_url
     if (body.cover_url !== undefined) updatePayload.cover_url = body.cover_url

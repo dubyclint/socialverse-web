@@ -150,12 +150,24 @@ definePageMeta({
  
 import { ref, computed, onMounted } from 'vue'
 
+interface Notification {
+  id: number
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'system'
+  fromUser: string
+  avatar: string | null
+  message: string
+  preview: string | null
+  createdAt: Date
+  isRead: boolean
+  actionUrl: string | null
+}
+
 // Reactive data
-const notifications = ref([])
+const notifications = ref<Notification[]>([])
 const showFilters = ref(false)
-const selectedType = ref('all')
-const selectedStatus = ref('all')
-const selectedTimeframe = ref('all')
+const selectedType = ref<'all' | Notification['type']>('all')
+const selectedStatus = ref<'all' | 'read' | 'unread'>('all')
+const selectedTimeframe = ref<'all' | 'today' | 'week' | 'month'>('all')
 const loading = ref(false)
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
@@ -222,7 +234,7 @@ const filteredNotifications = computed(() => {
   }
 
   // Sort by creation date (newest first)
-  return filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 })
 
 const paginatedNotifications = computed(() => {
@@ -301,7 +313,7 @@ const loadNotifications = async () => {
   }
 }
 
-const markAsRead = (id) => {
+const markAsRead = (id: number) => {
   const notification = notifications.value.find(n => n.id === id)
   if (notification) {
     notification.isRead = true
@@ -312,11 +324,11 @@ const markAllAsRead = () => {
   notifications.value.forEach(n => n.isRead = true)
 }
 
-const deleteNotification = (id) => {
+const deleteNotification = (id: number) => {
   notifications.value = notifications.value.filter(n => n.id !== id)
 }
 
-const handleNotificationClick = (notification) => {
+const handleNotificationClick = (notification: Notification) => {
   if (!notification.isRead) {
     markAsRead(notification.id)
   }
@@ -335,9 +347,9 @@ const loadMore = () => {
   currentPage.value++
 }
 
-const formatTime = (date) => {
+const formatTime = (date: Date) => {
   const now = new Date()
-  const diff = now - date
+  const diff = now.getTime() - date.getTime()
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
@@ -349,8 +361,8 @@ const formatTime = (date) => {
   return date.toLocaleDateString()
 }
 
-const formatType = (type) => {
-  const types = {
+const formatType = (type: Notification['type']) => {
+  const types: Record<Notification['type'], string> = {
     like: 'Like',
     comment: 'Comment',
     follow: 'Follow',
@@ -360,8 +372,8 @@ const formatType = (type) => {
   return types[type] || type
 }
 
-const getNotificationIcon = (type) => {
-  const icons = {
+const getNotificationIcon = (type: Notification['type']) => {
+  const icons: Record<Notification['type'], string> = {
     like: 'heart',
     comment: 'message-circle',
     follow: 'user-plus',
