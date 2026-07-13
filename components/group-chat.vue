@@ -188,6 +188,26 @@ import { useUserStore } from '~/stores/user'
 import { useFileUpload } from '~/composables/use-file-upload'
 import MarkdownIt from 'markdown-it'
 import EmojiConvertor from 'emoji-js'
+import type { ApiResponse } from '~/types/api'
+
+interface GroupData {
+  ownerId: string
+  members?: string[]
+  messages?: unknown[]
+  [key: string]: unknown
+}
+
+interface GroupResponse {
+  success: boolean
+  message?: string
+  group: GroupData
+}
+
+interface SendMessageResponse {
+  success: boolean
+  message?: string
+  messageId?: string
+}
 
 // Initialize markdown and emoji
 const md = new MarkdownIt({ breaks: true, linkify: true })
@@ -205,7 +225,6 @@ const { uploadFile } = useFileUpload()
 
 // Current User
 const currentUser = computed(() => userStore.user?.id)
-const isAdmin = computed(() => userStore.user?.role === 'admin')
 
 // Reactive State
 const ownerId = ref<string | null>(null)
@@ -264,7 +283,7 @@ async function inviteMember(): Promise<void> {
   inviteSuccess.value = ''
 
   try {
-    const response = await $fetch(`/api/groups/${groupId}/invite`, {
+    const response = await $fetch<ApiResponse<null>>(`/api/groups/${groupId}/invite`, {
       method: 'POST',
       body: { userId: inviteUserId.value }
     })
@@ -289,7 +308,7 @@ async function removeMember(memberId: string): Promise<void> {
 
   removing.value = memberId
   try {
-    const response = await $fetch(`/api/groups/${groupId}/members/${memberId}`, { method: 'DELETE' })
+    const response = await $fetch<ApiResponse<null>>(`/api/groups/${groupId}/members/${memberId}`, { method: 'DELETE' })
     if (response.success) {
       members.value = members.value.filter(m => m !== memberId)
     } else {
@@ -309,6 +328,7 @@ async function handleFileUpload(event: Event): Promise<void> {
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
+    if (!file) continue
     if (file.size > 50 * 1024 * 1024) {
       sendError.value = `File ${file.name} exceeds 50MB limit`
       continue
@@ -345,7 +365,7 @@ async function sendMessage(): Promise<void> {
       } catch (err) { console.error('File upload error:', err) }
     }
 
-    const response = await $fetch(`/api/groups/${groupId}/messages`, {
+    const response = await $fetch<SendMessageResponse>(`/api/groups/${groupId}/messages`, {
       method: 'POST',
       body: { text: messageText, attachments: uploadedAttachments, timestamp: Date.now() }
     })
@@ -376,7 +396,7 @@ async function sendMessage(): Promise<void> {
 
 async function loadGroupData(): Promise<void> {
   try {
-    const response = await $fetch(`/api/groups/${groupId}`)
+    const response = await $fetch<GroupResponse>(`/api/groups/${groupId}`)
     if (response.success) {
       groupMeta.value = response.group
       ownerId.value = response.group.ownerId

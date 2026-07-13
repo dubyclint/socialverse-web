@@ -8,6 +8,7 @@ declare module 'emoji-js' {
     text_mode: boolean
     colons_mode: boolean
     img_set: string
+    img_sets: Record<string, { path: string; sheet?: string; mask?: string }>
     init_env(): void
   }
 }
