@@ -475,7 +475,7 @@ const filteredPals = computed(() => {
 })
 
 // Methods
-const formatDate = (date) => {
+const formatDate = (date: string | Date) => {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -483,54 +483,54 @@ const formatDate = (date) => {
   })
 }
 
-const messagePal = (id) => {
+const messagePal = (id: number) => {
   console.log('Messaging PAL:', id)
   // Navigate to chat
 }
 
-const sendGift = (id) => {
+const sendGift = (id: number) => {
   console.log('Sending gift to PAL:', id)
   // Open gift modal
 }
 
-const viewProfile = (id) => {
+const viewProfile = (id: number) => {
   console.log('Viewing profile:', id)
   // Navigate to profile
 }
 
-const removePal = (id) => {
+const removePal = (id: number) => {
   if (confirm('Are you sure you want to remove this PAL?')) {
     myPals.value = myPals.value.filter(p => p.id !== id)
   }
 }
 
-const acceptRequest = (id) => {
+const acceptRequest = (id: number) => {
   console.log('Accepting request:', id)
   // API call
 }
 
-const rejectRequest = (id) => {
+const rejectRequest = (id: number) => {
   if (confirm('Are you sure you want to reject this request?')) {
     pendingRequestsList.value = pendingRequestsList.value.filter(r => r.id !== id)
   }
 }
 
-const sendPalRequest = (id) => {
+const sendPalRequest = (id: number) => {
   console.log('Sending PAL request to:', id)
   // API call
 }
 
-const viewGroup = (id) => {
+const viewGroup = (id: number) => {
   console.log('Viewing group:', id)
   // Navigate to group
 }
 
-const editGroup = (id) => {
+const editGroup = (id: number) => {
   console.log('Editing group:', id)
   // Open edit modal
 }
 
-const unblockPal = (id) => {
+const unblockPal = (id: number) => {
   if (confirm('Are you sure you want to unblock this PAL?')) {
     blockedPals.value = blockedPals.value.filter(p => p.id !== id)
   }

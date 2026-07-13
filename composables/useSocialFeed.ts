@@ -49,11 +49,27 @@ export const useSocialFeed = () => {
     ])
   }
 
+  const likePost = async (postId: string): Promise<boolean> => {
+    try {
+      await $fetch(`/api/posts/${postId}/like`, { method: 'POST' })
+      return true
+    } catch (e) {
+      console.error('[Feed] Like failed', e)
+      return false
+    }
+  }
+
+  const commentPost = (postId: string) => {
+    router.push(`/posts/${postId}`)
+  }
+
   return {
     // ... expose necessary state and methods
     currentUser,
     userName,
     handleLogout,
-    initPipeline
+    initPipeline,
+    likePost,
+    commentPost
   }
 }

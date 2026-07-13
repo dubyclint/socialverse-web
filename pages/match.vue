@@ -87,7 +87,18 @@ const filters = ref({
   category: ''
 })
 
-const groups = ref([])
+interface MatchGroupMember {
+  id: string
+  avatar?: string | null
+  name: string
+}
+
+interface MatchGroup {
+  groupScore: number
+  members: MatchGroupMember[]
+}
+
+const groups = ref<MatchGroup[]>([])
 const loading = ref(false)
 
 const submit = async () => {
