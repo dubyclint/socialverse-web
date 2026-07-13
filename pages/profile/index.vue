@@ -60,8 +60,8 @@
           </div>
         </div>
 
-        <LazyEditProfileModal v-if="showEditProfile" @close="showEditProfile = false" />
-        <LazyAvatarUploadModal v-if="showAvatarUpload" @close="showAvatarUpload = false" />
+        <EditProfileModal v-if="showEditProfile" :is-open="showEditProfile" @close="showEditProfile = false" />
+        <AvatarUploadModal v-if="showAvatarUpload" :is-open="showAvatarUpload" @close="showAvatarUpload = false" />
       </template>
     </div>
   </div>
