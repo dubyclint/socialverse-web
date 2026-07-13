@@ -17,12 +17,12 @@
         <p class="text-slate-400 mt-4">Loading your profile...</p>
       </div>
 
-      <div v-else-if="profileError" class="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
+      <div v-else-if="formError" class="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
         <div class="flex items-start gap-3">
           <Icon name="mdi:alert-circle" class="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
             <h3 class="text-red-400 font-semibold">Error Loading Profile</h3>
-            <p class="text-red-300 text-sm mt-1">{{ profileError }}</p>
+            <p class="text-red-300 text-sm mt-1">{{ formError }}</p>
           </div>
         </div>
       </div>
@@ -35,7 +35,7 @@
               <div class="relative">
                 <img
                   v-if="avatarPreview || profile?.avatar_url"
-                  :src="avatarPreview || profile?.avatar_url"
+                  :src="avatarPreview || profile?.avatar_url || ''"
                   :alt="formData.full_name || 'Avatar'"
                   class="w-24 h-24 rounded-full object-cover border-2 border-slate-600"
                 />
@@ -247,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useProfileStore } from '~/stores/profile'
@@ -259,7 +259,7 @@ definePageMeta({
 
 const router = useRouter()
 const profileStore = useProfileStore()
-const { profile, isLoading: isLoadingProfile, error: storeError } = storeToRefs(profileStore)
+const { profile, isLoading: isLoadingProfile } = storeToRefs(profileStore)
 
 const formData = ref({
   full_name: '',
@@ -282,6 +282,7 @@ const isSubmitting = ref(false)
 const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
 const avatarError = ref<string | null>(null)
+const isUploadingAvatar = ref(false)
 
 const isFormDirty = computed(() =>
   JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value) || avatarFile.value !== null
@@ -298,7 +299,7 @@ const loadProfile = async () => {
         bio: p.bio || '',
         location: p.location || '',
         website: p.website || '',
-        birth_date: p.birth_date ? p.birth_date.split('T')[0] : '',
+        birth_date: p.birth_date ? (p.birth_date.split('T')[0] ?? '') : '',
         gender: p.gender || '',
         is_private: !!p.is_private,
         email_notifications: p.email_notifications !== false
@@ -313,8 +314,11 @@ const loadProfile = async () => {
 const handleAvatarChange = (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (file.size > 5 * 1024 * 1024) return (avatarError.value = 'Max 5MB')
-  
+  if (file.size > 5 * 1024 * 1024) {
+    avatarError.value = 'Max 5MB'
+    return
+  }
+
   avatarFile.value = file
   avatarPreview.value = URL.createObjectURL(file)
 }

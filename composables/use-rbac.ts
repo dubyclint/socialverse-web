@@ -27,6 +27,25 @@ export const useRBAC = () => {
     return profile?.role || 'user'
   }
 
+  const rolePermissions: Record<string, string[]> = {
+    admin: [
+      'posts.moderate', 'posts.delete', 'posts.view',
+      'users.view', 'users.suspend', 'users.manage',
+      'reports.view', 'reports.resolve'
+    ],
+    manager: [
+      'posts.moderate', 'posts.view',
+      'users.view',
+      'reports.view', 'reports.resolve'
+    ],
+    user: []
+  }
+
+  const getUserPermissions = (user?: any): string[] => {
+    const role = getUserRole(user)
+    return rolePermissions[role] ?? []
+  }
+
   // ... Update requireAuthentication ...
   const requireAuthentication = () => {
     const userStore = _cachedUserStore
@@ -92,5 +111,5 @@ export const useRBAC = () => {
     }
   }
 
-  return { getUserStore, getRolesStore, getUserRole, requireAuthentication, requireRole, requirePermission, assignManagerRole, removeManagerRole }
+  return { getUserStore, getRolesStore, getUserRole, getUserPermissions, requireAuthentication, requireRole, requirePermission, assignManagerRole, removeManagerRole }
 }

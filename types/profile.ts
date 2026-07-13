@@ -33,6 +33,7 @@ export interface Profile {
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
+  email_notifications?: boolean
 
   // Verification & Status Properties
   profile_completed?: boolean
