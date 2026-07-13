@@ -212,7 +212,7 @@ export const useSecurity = (): SecurityReturn => {
 
   return {
     sessions: readonly(sessions),
-    securityEvents: readonly(securityEvents),
+    securityEvents: readonly(securityEvents) as Ref<readonly SecurityEvent[]>,
     statistics: readonly(statistics),
     loading: readonly(loading),
     error: readonly(error),

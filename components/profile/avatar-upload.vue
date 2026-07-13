@@ -45,13 +45,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-// Updated Import: Use the unified userStore
-import { useUserStore } from '~/stores/user'
 
 const props = defineProps<{ modelValue?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
-
-const userStore = useUserStore() // New store instance
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const previewUrl = ref(props.modelValue || '')
