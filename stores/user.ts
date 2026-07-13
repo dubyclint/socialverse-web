@@ -2,14 +2,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Profile } from '~/types/profile'
+import type { AuthUser, CallRecord } from '~/types/user'
 import { authService } from '~/services/authService'
 import { profileService } from '~/services/profileService'
 
 export const useUserStore = defineStore('user', () => {
-  const user = ref<any>(null)
+  const user = ref<AuthUser | null>(null)
   const profile = ref<Profile | null>(null)
   const isLoading = ref(false)
-  const error = ref(null) // Added
+  const error = ref<string | null>(null) // Added
   const rememberMe = ref(false) // Added
 
   // ✅ Added: consumed by use-api.ts, use-chat.ts, plugins/socket.client.ts,
@@ -17,11 +18,44 @@ export const useUserStore = defineStore('user', () => {
   const token = ref<string | null>(null)
   const posts = ref<any[]>([])
   const notifications = ref<any[]>([])
+  const callHistory = ref<CallRecord[]>([])
 
   const userId = computed<string | null>(() => user.value?.id || profile.value?.user_id || null)
   const isAuthenticated = computed<boolean>(() => !!user.value)
 
-  const setError = (val: any) => { error.value = val }
+  const userDisplayName = computed<string>(() =>
+    user.value?.full_name ||
+    user.value?.username ||
+    profile.value?.full_name ||
+    profile.value?.username ||
+    'User'
+  )
+
+  const userInitials = computed<string>(() =>
+    userDisplayName.value
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .slice(0, 2)
+      .toUpperCase()
+  )
+
+  // Merge a (partial) user payload into the session user.
+  const setUser = (payload: Partial<AuthUser> | null): void => {
+    if (payload === null) {
+      user.value = null
+      return
+    }
+    user.value = { ...(user.value ?? {}), ...payload } as AuthUser
+  }
+
+  // Merge profile field updates into the cached profile.
+  const updateProfile = (input: Partial<Profile>): void => {
+    const base = profile.value ?? ({ user_id: user.value?.id ?? '' } as Profile)
+    profile.value = { ...base, ...input }
+  }
+
+  const setError = (val: string | null) => { error.value = val }
   const setRememberMe = (val: boolean) => { rememberMe.value = val }
 
   // Keep in-memory token and the 'auth_token' cookie (read by services/api.ts,
@@ -43,7 +77,7 @@ export const useUserStore = defineStore('user', () => {
       const { data, error: authErr } = await authService.signIn(email, password)
       if (authErr) throw authErr
 
-      user.value = data.user
+      user.value = data.user as AuthUser | null
       setToken(data.session?.access_token || null)
       profile.value = await profileService.getMe()
       
@@ -95,7 +129,7 @@ export const useUserStore = defineStore('user', () => {
     isLoading.value = true
     try {
       const { data } = await authService.getSession()
-      const session = (data as any)?.session
+      const session = (data as { session?: { user: AuthUser; access_token?: string } | null } | null)?.session
       if (session) {
         user.value = session.user
         setToken(session.access_token || null)
@@ -120,6 +154,28 @@ export const useUserStore = defineStore('user', () => {
     await initializeSession()
   }
 
+  const signUp = async (
+    email: string,
+    password: string,
+    options?: { data?: Record<string, unknown> }
+  ): Promise<{ success: boolean; message?: string; user?: AuthUser | null }> => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const { data, error: authErr } = await authService.signUp(email, password, options)
+      if (authErr) throw authErr
+      user.value = (data.user as AuthUser | null) ?? null
+      setToken(data.session?.access_token ?? null)
+      return { success: true, user: user.value }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Sign up failed'
+      error.value = message
+      return { success: false, message }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     user,
     profile,
@@ -129,12 +185,18 @@ export const useUserStore = defineStore('user', () => {
     token,
     posts,
     notifications,
+    callHistory,
     userId,
     isAuthenticated,
+    userDisplayName,
+    userInitials,
     setError,
     setRememberMe,
     setToken,
+    setUser,
+    updateProfile,
     signIn,
+    signUp,
     fetchProfile,
     refreshProfile,
     logout,

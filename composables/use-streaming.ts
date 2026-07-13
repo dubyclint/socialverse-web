@@ -43,7 +43,7 @@ export const useStreaming = (streamId: string) => {
       message,
       messageType: 'text',
       timestamp: new Date(),
-      userAvatar: userStore.user?.avatar
+      userAvatar: userStore.user?.avatar ?? undefined
     }
     messages.value.push(newMessage)
   ;(socket as any).emit('stream:message', newMessage)
@@ -72,7 +72,7 @@ export const useStreaming = (streamId: string) => {
       streamId,
       senderId: userStore.user!.id,
       senderUsername: userStore.user?.username || 'Anonymous',
-      senderAvatar: userStore.user?.avatar,
+      senderAvatar: userStore.user?.avatar ?? undefined,
       giftId,
       giftName: `Gift ${giftId}`,
       giftImage: `/gifts/${giftId}.png`,

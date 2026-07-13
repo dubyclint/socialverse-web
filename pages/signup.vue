@@ -64,14 +64,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { navigateTo, useRoute } from '#app'
+import { navigateTo } from '#app'
 import { storeToRefs } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
+import type { AuthUser } from '~/types/user'
 
 definePageMeta({ layout: 'blank', middleware: 'guest' })
 
-const route = useRoute()
 const userStore = useUserStore()
 const { isLoading: isAuthLoading, error: authError } = storeToRefs(userStore)
 
@@ -84,7 +84,7 @@ const handleSignup = async () => {
   success.value = ''
 
   try {
-    const response = await api('/auth/signup', {
+    const response = await api<{ user: AuthUser | null }>('/auth/signup', {
       method: 'POST',
       body: {
         email: formData.value.email.trim(),
