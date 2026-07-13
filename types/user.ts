@@ -38,6 +38,7 @@ export interface AuthUser {
   // Supabase auth identity
   id: string
   email?: string | null
+  email_confirmed_at?: string | null
   user_metadata?: UserMetadata
 
   // App profile fields merged onto the session user

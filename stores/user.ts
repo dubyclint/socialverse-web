@@ -40,6 +40,19 @@ export const useUserStore = defineStore('user', () => {
       .toUpperCase()
   )
 
+  const userAvatar = computed<string | null>(() =>
+    user.value?.avatar ||
+    user.value?.avatar_url ||
+    profile.value?.avatar_url ||
+    null
+  )
+
+  const userEmail = computed<string | null>(() =>
+    user.value?.email || profile.value?.email || null
+  )
+
+  const isEmailVerified = computed<boolean>(() => !!user.value?.email_confirmed_at)
+
   // Merge a (partial) user payload into the session user.
   const setUser = (payload: Partial<AuthUser> | null): void => {
     if (payload === null) {
@@ -190,6 +203,9 @@ export const useUserStore = defineStore('user', () => {
     isAuthenticated,
     userDisplayName,
     userInitials,
+    userAvatar,
+    userEmail,
+    isEmailVerified,
     setError,
     setRememberMe,
     setToken,
