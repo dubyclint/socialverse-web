@@ -34,7 +34,7 @@
                 <label class="filter-item">
                   <input 
                     type="checkbox" 
-                    v-model="selected[req.userId][key]" 
+                    v-model="selected[req.userId]![key]" 
                   />
                   <span class="filter-name">{{ key }}</span>
                   <span class="filter-value">{{ val }}</span>
@@ -190,10 +190,11 @@ async function loadFilterRequests() {
 
     // Initialize selection state
     for (const req of requests.value) {
-      selected.value[req.userId] = {}
+      const userSelection: Record<string, boolean> = {}
       for (const key in req.filters) {
-        selected.value[req.userId][key] = true
+        userSelection[key] = true
       }
+      selected.value[req.userId] = userSelection
       reasons.value[req.userId] = ''
     }
   } catch (error) {
@@ -203,7 +204,7 @@ async function loadFilterRequests() {
 
 async function approve(userId: string) {
   try {
-    const approved = Object.entries(selected.value[userId])
+    const approved = Object.entries(selected.value[userId] ?? {})
       .filter(([_, val]) => val)
       .map(([key]) => key)
 

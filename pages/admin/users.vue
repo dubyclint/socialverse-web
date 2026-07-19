@@ -295,7 +295,7 @@ onMounted(async () => {
 
 const loadManagers = async () => {
   try {
-    const { data } = await $fetch('/api/admin/managers')
+    const { data } = await $fetch<{ data: Manager[] }>('/api/admin/managers')
     managers.value = data
   } catch (error) {
     console.error('Failed to load managers:', error)
@@ -304,7 +304,7 @@ const loadManagers = async () => {
 
 const loadAllUsers = async () => {
   try {
-    const { data } = await $fetch('/api/admin/users')
+    const { data } = await $fetch<{ data: User[] }>('/api/admin/users')
     allUsers.value = data
   } catch (error) {
     console.error('Failed to load users:', error)
@@ -318,10 +318,10 @@ const searchUsers = debounce(async () => {
   }
 
   try {
-    const { data } = await $fetch('/api/admin/users/search', {
+    const { data } = await $fetch<{ data: User[] }>('/api/admin/users/search', {
       query: { q: userSearchQuery.value }
     })
-    searchResults.value = (data as User[]).filter(user =>
+    searchResults.value = data.filter(user =>
       !managers.value.some(manager => manager.id === user.id)
     )
   } catch (error) {
@@ -372,9 +372,9 @@ const removeManager = async (manager: Manager) => {
 
 const viewManagerActivity = async (manager: Manager) => {
   try {
-    const { data } = await $fetch(`/api/admin/managers/${manager.id}/activity`)
+    const { data } = await $fetch<{ data: ManagerActivity }>(`/api/admin/managers/${manager.id}/activity`)
     selectedManager.value = manager
-    managerActivity.value = data as ManagerActivity
+    managerActivity.value = data
     showActivityModal.value = true
   } catch (error) {
     console.error('Failed to load manager activity:', error)
@@ -405,7 +405,8 @@ const getActivityIcon = (type: string) => {
   return icons[type] || '📋'
 }
 
-const formatDate = (date: string) => {
+const formatDate = (date: string | undefined) => {
+  if (!date) return 'N/A'
   return new Date(date).toLocaleDateString()
 }
 

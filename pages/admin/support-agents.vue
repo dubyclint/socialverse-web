@@ -35,34 +35,55 @@
   
 import { ref, onMounted } from 'vue'
 
-const agent = ref({
+interface AgentForm {
+  agentId: string
+  name: string
+  contact: string
+  method: string
+  region: string
+  assignedFeatures: string
+  active: boolean
+}
+
+interface SupportAgent {
+  agentId: string
+  name: string
+  method: string
+  region: string
+  assignedFeatures: string[]
+}
+
+const agent = ref<AgentForm>({
   agentId: '',
   name: '',
   contact: '',
   method: 'native',
   region: '',
-  assignedFeatures: [],
+  assignedFeatures: '',
   active: true
 })
 
-const agents = ref([])
+const agents = ref<SupportAgent[]>([])
 
 async function fetchAgents() {
   const res = await fetch('/api/admin/supportAgents')
-  agents.value = await res.json()
+  agents.value = (await res.json()) as SupportAgent[]
 }
 
 async function saveAgent() {
-  agent.value.assignedFeatures = agent.value.assignedFeatures.split(',').map(f => f.trim())
+  const payload = {
+    ...agent.value,
+    assignedFeatures: agent.value.assignedFeatures.split(',').map(f => f.trim())
+  }
   await fetch('/api/admin/supportAgents', {
     method: 'POST',
-    body: JSON.stringify(agent.value),
+    body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' }
   })
   fetchAgents()
 }
 
-async function removeAgent(agentId) {
+async function removeAgent(agentId: string) {
   await fetch('/api/admin/supportAgents', {
     method: 'DELETE',
     body: JSON.stringify({ agentId }),

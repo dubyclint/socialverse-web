@@ -40,7 +40,8 @@ onMounted(async () => {
     const data = await res.json()
 
     // Volume Chart
-    new Chart(document.getElementById('volumeChart'), {
+    const volumeEl = document.getElementById('volumeChart') as HTMLCanvasElement | null
+    if (volumeEl) new Chart(volumeEl, {
       type: 'bar',
       data: {
         labels: data.months,
@@ -53,7 +54,8 @@ onMounted(async () => {
     })
 
     // Release Time Chart
-    new Chart(document.getElementById('releaseTimeChart'), {
+    const releaseEl = document.getElementById('releaseTimeChart') as HTMLCanvasElement | null
+    if (releaseEl) new Chart(releaseEl, {
       type: 'line',
       data: {
         labels: data.months,

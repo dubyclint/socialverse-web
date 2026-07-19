@@ -459,7 +459,7 @@ const newVerificationsThisMonth = computed(() => {
   const thisMonth = new Date()
   thisMonth.setDate(1)
   return verifiedUsers.value.filter(user => 
-    new Date(user.verificationDate) >= thisMonth
+    new Date(user.verificationDate ?? '') >= thisMonth
   ).length
 })
 
@@ -475,7 +475,7 @@ const rejectedThisWeek = computed(() => {
   const weekAgo = new Date()
   weekAgo.setDate(weekAgo.getDate() - 7)
   return rejectedUsers.value.filter(user => 
-    new Date(user.rejectionDate) >= weekAgo
+    new Date(user.rejectionDate ?? '') >= weekAgo
   ).length
 })
 
@@ -703,7 +703,7 @@ const bulkReject = async () => {
         user.verificationStatus = 'rejected'
         user.isVerified = false
         user.rejectionDate = new Date().toISOString()
-        user.rejectionReason = reason
+        user.rejectionReason = reason || undefined
       }
     }
     selectedUsers.value = []
