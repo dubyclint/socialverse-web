@@ -78,7 +78,7 @@ const fetchAdDashboardMetrics = async () => {
       { id: 'global_session_node_2', channel_label: 'Gaming & Arena Stream' }
     ]
     // Set a default target session anchor
-    targetStreamIdForAd.value = activeStreamsList.value.id
+    targetStreamIdForAd.value = activeStreamsList.value[0]?.id ?? ''
 
   } catch (err) {
     console.error('❌ [Ad Dashboard Engine] Failed to parse ledger data matrix:', err)

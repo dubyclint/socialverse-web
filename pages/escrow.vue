@@ -326,7 +326,7 @@ const filteredHistory = computed(() => {
 })
 
 // Methods
-const formatDate = (date) => {
+const formatDate = (date: string | number | Date) => {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -334,27 +334,27 @@ const formatDate = (date) => {
   })
 }
 
-const releaseEscrow = (id) => {
+const releaseEscrow = (id: string) => {
   alert(`Releasing escrow ${id}...`)
   // API call would go here
 }
 
-const disputeEscrow = (id) => {
+const disputeEscrow = (id: string) => {
   alert(`Filing dispute for escrow ${id}...`)
   // API call would go here
 }
 
-const viewDetails = (id) => {
+const viewDetails = (id: string) => {
   alert(`Viewing details for ${id}...`)
   // Navigate to details page
 }
 
-const respondToDispute = (id) => {
+const respondToDispute = (id: string) => {
   alert(`Responding to dispute ${id}...`)
   // Open response modal
 }
 
-const viewDisputeDetails = (id) => {
+const viewDisputeDetails = (id: string) => {
   alert(`Viewing dispute details for ${id}...`)
   // Navigate to dispute details
 }

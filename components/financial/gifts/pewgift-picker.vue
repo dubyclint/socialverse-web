@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { usePewGift } from '~/services/financial/gifts/use-pewgift'
 
 interface Props {
@@ -160,7 +160,6 @@ const emit = defineEmits<{
 }>()
 
 const {
-  giftTypes,
   balance,
   loading,
   selectedGift,
@@ -191,7 +190,7 @@ onMounted(async () => {
   await loadGiftTypes()
   await loadBalance()
   if (categories.value.length > 0) {
-    selectedCategory.value = categories.value[0]
+    selectedCategory.value = categories.value[0] ?? ''
   }
 })
 

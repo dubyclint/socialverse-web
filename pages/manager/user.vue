@@ -43,7 +43,7 @@
           <tr v-for="user in users" :key="user.id" class="user-row">
             <td class="user-info">
               <div class="user-avatar">
-                <img :src="user.avatar_url || '/default-avatar.png'" :alt="user.full_name" />
+                <img :src="user.avatar_url || '/default-avatar.png'" :alt="user.full_name || ''" />
               </div>
               <div class="user-details">
                 <div class="user-name">{{ user.full_name || user.username }}</div>
@@ -141,7 +141,7 @@
         
         <div class="user-details-content">
           <div class="user-profile">
-            <img :src="selectedUser.avatar_url || '/default-avatar.png'" :alt="selectedUser.full_name" />
+            <img :src="selectedUser.avatar_url || '/default-avatar.png'" :alt="selectedUser.full_name || ''" />
             <div class="profile-info">
               <h4>{{ selectedUser.full_name || selectedUser.username }}</h4>
               <p>{{ selectedUser.email }}</p>

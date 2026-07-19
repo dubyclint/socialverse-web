@@ -31,10 +31,10 @@
         />
       </div>
       <div class="action-buttons">
-        <button @click="release" class="btn btn-success" :disabled="!dealId || actionLoading">
+        <button @click="release" class="btn btn-success" :disabled="!dealId || !!actionLoading">
           {{ actionLoading === 'release' ? 'Processing...' : 'Release' }}
         </button>
-        <button @click="refund" class="btn btn-danger" :disabled="!dealId || actionLoading">
+        <button @click="refund" class="btn btn-danger" :disabled="!dealId || !!actionLoading">
           {{ actionLoading === 'refund' ? 'Processing...' : 'Refund' }}
         </button>
       </div>
@@ -104,7 +104,17 @@ const actionLoading = ref<string | null>(null)
 const processingDeal = ref<number | null>(null)
 const error = ref('')
 
-const { releaseDeal: contractRelease, refundDeal: contractRefund } = useEscrowContract()
+const contractRelease = async (id: number): Promise<string> => {
+  const escrow = await useEscrowContract()
+  const tx = await escrow.confirmDelivery(BigInt(id))
+  return tx?.hash ?? String(tx)
+}
+
+const contractRefund = async (id: number): Promise<string> => {
+  const escrow = await useEscrowContract()
+  const tx = await escrow.refund(BigInt(id))
+  return tx?.hash ?? String(tx)
+}
 
 const loadDeals = async () => {
   loading.value = true
