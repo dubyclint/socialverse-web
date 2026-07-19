@@ -12,4 +12,11 @@ export interface UniverseMessage {
   country?: string
   interest?: string
   language?: string
+  reactions?: Record<string, number>
+}
+
+export interface UniverseMatchedUser {
+  id: string
+  username?: string
+  avatar?: string
 }

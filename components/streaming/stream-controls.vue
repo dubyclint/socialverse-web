@@ -253,7 +253,7 @@ interface StreamSettings {
 
 interface Props {
   streamId?: string
-  stream?: Record<string, unknown> & { status?: string; startTime?: string | number | Date }
+  stream?: Record<string, unknown> & { status?: string; startTime?: string | number | Date; viewerCount?: number }
 }
 
 const props = defineProps<Props>()

@@ -88,7 +88,7 @@
               😊 React
             </button>
             <button 
-              @click="$emit('send-gift', message.user?.id, message.id)"
+              @click="$emit('send-gift', message.user?.id || '', message.id)"
               class="action-btn"
               title="Send gift"
             >
@@ -158,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 
 interface Message {
   id: string
@@ -223,7 +223,7 @@ const formatTime = (timestamp: string): string => {
   return date.toLocaleDateString()
 }
 
-const isOwnMessage = (message: Message): boolean => {
+const isOwnMessage = (_message: Message): boolean => {
   // Implement logic to check if message is from current user
   return false
 }

@@ -103,7 +103,7 @@
                   <p class="upload-note">Accepted formats: JPG, PNG, PDF (Max 10MB)</p>
                   <button
                     type="button"
-                    @click="$refs.idDocumentInput.click()"
+                    @click="($refs.idDocumentInput as HTMLInputElement).click()"
                     class="upload-btn"
                   >
                     Choose File
@@ -216,7 +216,7 @@
                   <p class="upload-note">Document must be dated within the last 3 months</p>
                   <button
                     type="button"
-                    @click="$refs.proofOfAddressInput.click()"
+                    @click="($refs.proofOfAddressInput as HTMLInputElement).click()"
                     class="upload-btn"
                   >
                     Choose File
@@ -282,7 +282,7 @@
                   <p>Upload business registration certificate or incorporation documents</p>
                   <button
                     type="button"
-                    @click="$refs.businessDocumentInput.click()"
+                    @click="($refs.businessDocumentInput as HTMLInputElement).click()"
                     class="upload-btn"
                   >
                     Choose File
@@ -326,7 +326,7 @@
                 <p class="upload-note">Such as professional licenses, certificates, or other credentials</p>
                 <button
                   type="button"
-                  @click="$refs.additionalDocsInput.click()"
+                  @click="($refs.additionalDocsInput as HTMLInputElement).click()"
                   class="upload-btn"
                 >
                   Choose Files
@@ -480,7 +480,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { useUserStore } from '~/stores/user'
-import { Verification } from '~/models/Verification'
 
 const emit = defineEmits(['close', 'submitted'])
 const userStore = useUserStore()
@@ -496,17 +495,17 @@ const formData = reactive({
   fullName: '',
   idType: '',
   idNumber: '',
-  idDocumentFile: null,
+  idDocumentFile: null as File | null,
   addressLine1: '',
   addressLine2: '',
   city: '',
   stateProvince: '',
   postalCode: '',
   country: '',
-  proofOfAddressFile: null,
+  proofOfAddressFile: null as File | null,
   businessName: '',
   businessRegNumber: '',
-  businessDocumentFile: null,
+  businessDocumentFile: null as File | null,
   additionalDocuments: [] as File[]
 })
 
@@ -607,7 +606,10 @@ const submitApplication = async () => {
       additionalDocuments: additionalDocumentUrls
     }
     
-    await Verification.submitApplication(userStore.user.id, applicationData)
+    await $fetch('/api/verified/request', {
+      method: 'POST',
+      body: { userId: userStore.user.id, ...applicationData }
+    })
     emit('submitted')
   } catch (error) {
     console.error('Error submitting application:', error)

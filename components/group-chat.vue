@@ -213,7 +213,9 @@ interface SendMessageResponse {
 const md = new MarkdownIt({ breaks: true, linkify: true })
 const emoji = new EmojiConvertor()
 emoji.img_set = 'emojione'
-emoji.img_sets.emojione.path = 'https://cdn.jsdelivr.net/emojione/assets/4.5/png/64/'
+if (emoji.img_sets.emojione) {
+  emoji.img_sets.emojione.path = 'https://cdn.jsdelivr.net/emojione/assets/4.5/png/64/'
+}
 
 // Props
 const props = defineProps<{ groupId: string }>()

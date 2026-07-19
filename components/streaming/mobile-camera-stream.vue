@@ -221,7 +221,6 @@ const emit = defineEmits<{
 }>()
 
 const {
-  cameraPreview,
   mediaStream,
   isConnecting,
   canSwitchCamera,

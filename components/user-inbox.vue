@@ -34,13 +34,20 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 
-const userStore = useUserStore()
+interface InboxMessage {
+  id: string
+  avatar?: string
+  from: string
+  to: string
+  timestamp: number
+  text: string
+}
+
 const activeTab = ref('received')
-const received = ref([])
-const sent = ref([])
+const received = ref<InboxMessage[]>([])
+const sent = ref<InboxMessage[]>([])
 const recipient = ref('')
 const message = ref('')
 
@@ -70,7 +77,7 @@ async function sendMessage() {
 
 onMounted(async () => {
   // Use api() to fetch messages instead of raw GunDB calls
-  const response = await api('/messages/list')
+  const response = await api<{ received: InboxMessage[]; sent: InboxMessage[] }>('/messages/list')
   received.value = response.received || []
   sent.value = response.sent || []
 })

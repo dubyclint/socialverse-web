@@ -15,7 +15,7 @@
 
     <!-- Chat Window -->
     <universe-chat-window 
-      :messages="filteredMessages"
+      :messages="windowMessages"
       :online-count="onlineCount"
       :matched-users="matchedUsers"
       :loading="loading"
@@ -117,6 +117,19 @@ const onlineCount = computed(() => universeStore.onlineCount)
 const unreadCount = computed(() => universeStore.unreadCount)
 const matchedUsers = computed(() => universeStore.matchedUsers)
 const filteredMessages = computed(() => universeStore.filteredMessages)
+const windowMessages = computed(() =>
+  filteredMessages.value.map(m => ({
+    id: m.id,
+    user: { id: m.user_id, name: m.username, avatar: m.avatar },
+    content: m.content,
+    timestamp: m.created_at,
+    likes: m.likes,
+    liked: m.liked,
+    reactions: m.reactions
+      ? Object.entries(m.reactions).map(([emoji, count]) => `${emoji} ${count}`)
+      : []
+  }))
+)
 
 // Methods
 const handleSearch = (query: string): void => {
@@ -164,13 +177,10 @@ const translateMessage = (messageId: string, text: string, targetLang: string): 
   socket?.emit('universe:translate-message', { messageId, text, targetLang })
 }
 
-const sendGift = (recipientId: string, giftId: string, amount: number, message: string, messageId: string): void => {
-  socket?.emit('universe:send-gift', { 
-    recipientId, 
-    giftId, 
-    giftAmount: amount, 
-    message, 
-    messageId 
+const sendGift = (recipientId: string, messageId: string): void => {
+  socket?.emit('universe:send-gift', {
+    recipientId,
+    messageId
   })
 }
 
@@ -199,7 +209,7 @@ const handleFileUpload = async (event: Event): Promise<void> => {
     const formData = new FormData()
     formData.append('file', file)
     
-    const response = await $fetch('/api/upload', {
+    const response = await $fetch<{ success: boolean; data: { url: string } }>('/api/upload', {
       method: 'POST',
       body: formData
     })

@@ -38,7 +38,7 @@ import { useUser } from '~/composables/use-user'
 import { useMobileDetection } from '~/composables/use-mobile-detection'
 
 // Initialize composables
-const { socket, connect, disconnect, emit, on } = useSocket('/streaming')
+const { socket, connect, disconnect, on } = useSocket('/streaming')
 const { isAuthenticated, fetchUserProfile } = useUser()
 const { isMobile, screenSize, isTablet, deviceOrientation } = useMobileDetection()
 
@@ -107,15 +107,6 @@ const toggleFullscreen = async () => {
   }
 }
 
-const exitFullscreen = async () => {
-  try {
-    await document.exitFullscreen()
-    isFullscreen.value = false
-  } catch (error) {
-    console.error('Exit fullscreen error:', error)
-  }
-}
-
 const onVideoLoaded = () => {
   duration.value = videoPlayer.value?.duration || 0
   // Initialize adaptive streaming when video is loaded
@@ -165,7 +156,7 @@ const shareStream = async () => {
 
 const followStreamer = async () => {
   try {
-    const response = await $fetch('/api/users/follow', {
+    const response = await $fetch<{ success: boolean }>('/api/users/follow', {
       method: 'POST',
       body: { targetUserId: props.streamerId }
     })
@@ -185,33 +176,16 @@ const formatNumber = (num: number) => {
   return num.toString()
 }
 
-const onMessageSent = (message: string) => {
-  console.log('Message sent:', message)
-  // Emit socket event for real-time chat
-  if (socket) {
-    emit('chat:message', { streamId: props.streamId, message })
-  }
-}
-
-const onUserJoined = (user: any) => {
-  console.log('User joined:', user)
-  // Emit socket event
-  if (socket) {
-    emit('user:joined', { streamId: props.streamId, user })
-  }
-}
-
-const onUserLeft = (userId: string) => {
-  console.log('User left:', userId)
-  // Emit socket event
-  if (socket) {
-    emit('user:left', { streamId: props.streamId, userId })
-  }
-}
-
 const loadStreamData = async () => {
   try {
-    const response = await $fetch(`/api/streams/${props.streamId}`)
+    const response = await $fetch<{
+      title: string
+      streamerName: string
+      streamUrl: string
+      viewerCount: number
+      isFollowing: boolean
+      followerCount: number
+    }>(`/api/streams/${props.streamId}`)
     streamTitle.value = response.title
     streamerName.value = response.streamerName
     adaptiveStreamUrl.value = response.streamUrl

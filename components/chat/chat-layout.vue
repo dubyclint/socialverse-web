@@ -80,7 +80,7 @@
             </div>
 
             <!-- Unread Badge -->
-            <div v-if="chat.unreadCount > 0" class="unread-badge">
+            <div v-if="(chat.unreadCount ?? 0) > 0" class="unread-badge">
               {{ chat.unreadCount }}
             </div>
           </div>
