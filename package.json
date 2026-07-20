@@ -30,6 +30,9 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudfront": "^3.1078.0",
+    "@aws-sdk/client-s3": "^3.1078.0",
+    "@aws-sdk/lib-storage": "^3.1078.0",
     "@capacitor/app": "^5.0.0",
     "@capacitor/core": "^5.0.0",
     "@nuxtjs/color-mode": "^3.5.2",
@@ -38,7 +41,6 @@
     "@pinia/nuxt": "^0.6.0",
     "@supabase/supabase-js": "^2.50.0",
     "@vitalets/google-translate-api": "^9.2.0",
-    "aws-sdk": "^1.18.0",
     "bcrypt": "^6.0.0",
     "chart.js": "^4.5.1",
     "compression": "^1.7.4",
