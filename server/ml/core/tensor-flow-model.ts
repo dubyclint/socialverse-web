@@ -8,7 +8,9 @@ let tf: any = null;
 async function getTensorFlow() {
   if (!tf) {
     try {
-      tf = await import('@tensorflow/tfjs-node');
+      // Optional native backend; resolved dynamically so it is not a hard build dependency
+      const nodeBackend = '@tensorflow/tfjs-node';
+      tf = await import(/* @vite-ignore */ nodeBackend);
       console.log('[TensorFlow] Loaded successfully');
     } catch (error) {
       console.error('[TensorFlow] Failed to load:', error);

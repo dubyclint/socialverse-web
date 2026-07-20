@@ -3,14 +3,16 @@
 // GEO SERVICE - FIXED SYNTAX
 // ============================================================================
 
-let axios: any = null;
-
-async function getAxios() {
-  if (!axios) {
-    const module = await import('axios');
-    axios = module.default;
-  }
-  return axios;
+interface IpApiResponse {
+  ip: string
+  country_name: string
+  country_code: string
+  region: string
+  city: string
+  latitude: number
+  longitude: number
+  timezone: string
+  org?: string
 }
 
 export interface LocationData {
@@ -44,21 +46,20 @@ export class GeoService {
         return this.cache.get(ip)!;
       }
 
-      const axiosLib = await getAxios();
       const url = `https://ipapi.co/${ip}/json/`;
-      const response = await axiosLib.get(url);
+      const data = await $fetch<IpApiResponse>(url);
 
       const locationData: LocationData = {
-        ip: response.data.ip,
-        country: response.data.country_name,
-        countryCode: response.data.country_code,
-        region: response.data.region,
-        city: response.data.city,
-        latitude: response.data.latitude,
-        longitude: response.data.longitude,
-        timezone: response.data.timezone,
-        isp: response.data.org,
-        organization: response.data.org
+        ip: data.ip,
+        country: data.country_name,
+        countryCode: data.country_code,
+        region: data.region,
+        city: data.city,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        timezone: data.timezone,
+        isp: data.org,
+        organization: data.org
       };
 
       if (this.cacheEnabled) {
