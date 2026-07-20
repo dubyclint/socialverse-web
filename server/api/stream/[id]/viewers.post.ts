@@ -13,7 +13,7 @@ interface ViewerRequest {
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
     const body = await readBody<ViewerRequest>(event)
 
     if (!streamId) {

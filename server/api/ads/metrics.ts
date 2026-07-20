@@ -7,8 +7,8 @@ export default defineEventHandler(async (event) => {
   }).toArray()
 
   const match: any = { adId: { $in: ads.map((a: any) => a.id) } }
-  if (startDate) match.timestamp = { $gte: new Date(startDate).getTime() }
-  if (endDate) match.timestamp = { ...match.timestamp, $lte: new Date(endDate).getTime() }
+  if (startDate) match.timestamp = { $gte: new Date(startDate as string).getTime() }
+  if (endDate) match.timestamp = { ...match.timestamp, $lte: new Date(endDate as string).getTime() }
 
   const metrics = await db.collection('adMetrics').aggregate([
     { $match: match },

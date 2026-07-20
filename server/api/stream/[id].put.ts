@@ -17,7 +17,7 @@ interface UpdateStreamRequest {
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
     const body = await readBody<UpdateStreamRequest>(event)
 
     if (!streamId) {

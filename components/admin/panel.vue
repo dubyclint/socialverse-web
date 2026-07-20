@@ -325,7 +325,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { supabase } from '~/utils/supabase';
 
 // Reactive data
@@ -540,7 +540,7 @@ const generateBalanceReport = async () => {
 
 const processBalanceAdjustment = async () => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('balance_adjustments')
       .insert({
         user_id: balanceUserId.value,
@@ -586,7 +586,7 @@ const configurePermissions = () => {
 
 const assignManager = async () => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('user_roles')
       .insert({
         user_id: managerUserId.value,

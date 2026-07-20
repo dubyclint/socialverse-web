@@ -5,10 +5,11 @@ export default defineEventHandler(async (event) => {
   const supabase = await getSupabaseClient()
   const user = event.context.user
   const { size = 4, region, category, overrideGroup } = getQuery(event)
+  const groupSize = Number(size) || 4
 
   // Admin override: force group by IDs
   if (overrideGroup) {
-  const ids = overrideGroup.split(',').map((id: string) => id.trim())
+  const ids = (overrideGroup as string).split(',').map((id: string) => id.trim())
     const { data: users } = await supabase
       .from('users')
       .select('*')
@@ -52,15 +53,15 @@ export default defineEventHandler(async (event) => {
   let topCandidates = scored.sort((a: any, b: any) => b.matchScore - a.matchScore).slice(0, 30)
 
   const groups = []
-  while (topCandidates.length >= size - 1) {
+  while (topCandidates.length >= groupSize - 1) {
     const seed: any = topCandidates.shift()
     const compatible = topCandidates.filter((u: any) =>
       computeMatchScore(seed, u) > 25 &&
       !user.pals?.includes(u.id) &&
       !seed.pals?.includes(u.id)
-    ).slice(0, size - 1)
+    ).slice(0, groupSize - 1)
 
-    if (compatible.length >= size - 1) {
+    if (compatible.length >= groupSize - 1) {
   groups.push([seed, ...compatible])
   topCandidates = topCandidates.filter((u: any) => !compatible.includes(u))
     }

@@ -9,7 +9,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
 
     if (!streamId) {
       throw createError({

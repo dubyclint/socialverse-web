@@ -8,7 +8,7 @@ export default defineNuxtRouteMiddleware((to: any) => {
 
   // 2. Language detection logic
   // Use Nuxt's i18n context or your custom plugin
-  const i18n = useNuxtApp().$i18n
+  const i18n = useNuxtApp().$i18n as { locale: { value: string } }
   const detectedLang = i18n.locale.value
   const path = to.path
 

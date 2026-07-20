@@ -94,7 +94,6 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 
 definePageMeta({
@@ -103,7 +102,6 @@ definePageMeta({
 })
 
 const router = useRouter()
-const userStore = useUserStore()
 
 // State
 const loading = ref(true) 

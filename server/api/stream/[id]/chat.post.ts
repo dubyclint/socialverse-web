@@ -9,7 +9,8 @@ interface ChatMessage {
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
+    if (!streamId) throw createError({ statusCode: 400, statusMessage: 'Stream ID is required' })
     const body = await readBody<ChatMessage>(event)
 
     if (!body.content || body.content.trim().length === 0) {

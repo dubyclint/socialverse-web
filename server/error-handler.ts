@@ -1,6 +1,7 @@
 // server/error-handler.ts
 export default defineEventHandler((event) => {
-  const error = event.node.req.error
+  const req = event.node.req as typeof event.node.req & { error?: Error }
+  const error = req.error
   
   if (error) {
     console.error('[Nitro Error Handler]', {

@@ -4,7 +4,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
-    const { id } = event.context.params;
+    const id = event.context.params?.id
     if (!id) throw createError({ statusCode: 400, statusMessage: 'Stream id required' })
 
   // Optional auth: allow anonymous viewers

@@ -4,8 +4,8 @@ export default defineEventHandler(async (event) => {
   const match: any = { action: 'variant' }
   if (page) match.page = page
   if (region) match.region = region
-  if (startDate) match.timestamp = { $gte: new Date(startDate).getTime() }
-  if (endDate) match.timestamp = { ...match.timestamp, $lte: new Date(endDate).getTime() }
+  if (startDate) match.timestamp = { $gte: new Date(startDate as string).getTime() }
+  if (endDate) match.timestamp = { ...match.timestamp, $lte: new Date(endDate as string).getTime() }
 
   const metrics = await db.collection('adMetrics').find(match).toArray()
   const conversions = await db.collection('adConversions').find().toArray()

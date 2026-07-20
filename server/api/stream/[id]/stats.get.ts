@@ -7,7 +7,7 @@ import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
 
     if (!streamId) {
       throw createError({
