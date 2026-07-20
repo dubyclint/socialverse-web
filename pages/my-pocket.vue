@@ -15,7 +15,7 @@ definePageMeta({
   layout: 'default'
 })
  
-import walletoverview from '@/components/wallet-overview.vue'
+import walletoverview from '@/components/financial/wallet/wallet-overview.vue'
 import cryptoswap from '@/components/crypto-swap.vue'
 </script>
 
