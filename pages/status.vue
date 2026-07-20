@@ -364,6 +364,7 @@ onMounted(async () => {
 })
 </script>
 
+<style scoped>
 .form-textarea:hover,
 .form-input:hover,
 .form-select:hover {

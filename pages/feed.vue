@@ -163,7 +163,7 @@
                   <div class="author-name-row"><h4 class="post-author-name">{{ post.author?.full_name }}</h4><span v-if="post.author?.verified" class="verified-badge" title="Verified"><Icon name="check-circle" size="14" /></span></div>
                   <p class="post-author-username">@{{ post.author?.username }}</p>
                   <span class="post-timestamp">
-                    <UseTimeAgo v-slot="{ timeAgo }" :time="post.created_at">{{ timeAgo }}</UseTimeAgo>
+                    {{ formatTimeAgo(post.created_at) }}
                   </span>
                 </div>
                 <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options"><Icon name="more-vertical" size="20" /></button>
@@ -194,6 +194,7 @@
             <div class="no-posts-actions"><NuxtLink to="/explore" class="btn-explore"><Icon name="compass" size="18" /> Explore People</NuxtLink><button @click="goToCreatePost" class="btn-create"><Icon name="plus-square" size="18" /> Create Post</button></div>
           </div>
         </ClientOnly>
+        </section>
 
         <aside class="feed-sidebar-right">
           <div class="search-card">
@@ -254,10 +255,9 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, navigateTo } from '#app';
 import { useSocialFeed } from '~/composables/useSocialFeed';
-import { UseTimeAgo } from '@vueuse/components';
 import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
-import PewGiftModal from '~/components/PewGiftModal.vue';
+import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
@@ -274,6 +274,21 @@ const {
   userFollowing, userPosts, goToFollowers, goToFollowing, 
   goToUserPosts, isLiveStreaming, sendPewGift
 } = socialFeed;
+
+// --- Relative time formatting ---
+const formatTimeAgo = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+};
 
 // --- Modal State Management ---
 const isGiftModalOpen = ref(false);

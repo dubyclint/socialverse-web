@@ -933,9 +933,7 @@ onMounted(async () => {
 
 .recent-activity {
   margin-top: 1.5rem;
-}*
-<style scoped>
-/* ... previous styles ... */
+}
 
 .recent-activity h4 {
   margin: 0 0 1rem 0;
