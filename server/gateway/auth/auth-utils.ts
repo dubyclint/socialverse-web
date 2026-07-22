@@ -1,3 +1,4 @@
+// server/gateway/auth/auth-utils.ts
 // Temporary permissive shim for auth-related server utilities.
 // Replace with real implementations in a subsequent pass.
 
