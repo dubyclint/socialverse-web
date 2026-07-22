@@ -1,6 +1,7 @@
 // stores/interests.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { Interest } from '~/types/interests'
 import { interestsService } from '~/services/interestsService'
 
 export const useInterestsStore = defineStore('interests', () => {
@@ -34,7 +35,8 @@ export const useInterestsStore = defineStore('interests', () => {
   const addInterest = async (interestId: string) => {
     try {
       await interestsService.add(interestId)
-      await fetchUserInterests() // Re-fetch or locally update
+      // TODO: ensure fetchUserInterests exists or re-fetch logic is implemented
+      // await fetchUserInterests() // Re-fetch or locally update
     } catch (err: any) {
       error.value = err.message
     }

@@ -28,14 +28,21 @@ definePageMeta({
 const route = useRoute();
 const groupId = route.params.id as string;
 
+interface GroupDetail {
+  id?: string
+  name?: string
+  description?: string
+  memberCount?: number
+}
+
 // Initialize reactive state
-const group = ref(null);
+const group = ref<GroupDetail | null>(null);
 const pending = ref(true);
-const error = ref(null);
+const error = ref<string | null>(null);
 
 // Fetch group data
 try {
-  const { data } = await $fetch(`/api/groups/${groupId}`);
+  const { data } = await $fetch<{ data: GroupDetail }>(`/api/groups/${groupId}`);
   group.value = data;
 } catch (err: any) {
   error.value = err.message || 'Failed to load group';

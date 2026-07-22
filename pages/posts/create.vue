@@ -100,7 +100,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const postsStore = usePostsStore()
 
-const { uploading, progressPercentage, uploadFile, clearError: clearUploadError } = useFileUpload()
+const { uploading, progressPercentage } = useFileUpload()
 
 // --- User Profile Computed Refs ---
 const userAvatar = computed(() => userStore.user?.avatar)
@@ -144,6 +144,18 @@ const privacyOptions = [
 ]
 
 // --- Actions ---
+function goBack() {
+  router.back()
+}
+
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+function addGif() {
+  triggerFileInput()
+}
+
 async function publishPost() {
   if (!postContent.value.trim()) return
   publishing.value = true

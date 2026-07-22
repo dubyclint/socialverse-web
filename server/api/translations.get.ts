@@ -4,6 +4,9 @@
 // ✅ FIXED: Simple endpoint that returns empty array as fallback
 // This allows the app to use local translations without errors
 
+import { serverSupabaseClient } from '#supabase/server'
+import { getQuery } from 'h3'
+
 export default defineEventHandler(async (event) => {
   try {
     const { lang } = getQuery(event)

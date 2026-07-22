@@ -25,7 +25,6 @@
         class="post-textarea"
         rows="4"
         maxlength="2000"
-        @input="updateCharCount"
       ></textarea>
       
       <!-- Character Counter -->
@@ -188,6 +187,10 @@ function insertEmoji(emoji: string) {
 
 function triggerFileInput() {
   fileInputRef.value?.click()
+}
+
+function addGif() {
+  triggerFileInput()
 }
 
 async function handleMediaUpload(event: Event) {

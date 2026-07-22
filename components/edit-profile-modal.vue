@@ -20,8 +20,6 @@
 </template>
 
 <script setup lang="ts">
-import ProfileEditProfile from '~/components/profile/edit-profile.vue'
-
 defineProps<{
   isOpen: boolean
   isNewProfile?: boolean

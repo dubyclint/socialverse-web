@@ -142,9 +142,21 @@ const analytics = ref({
   activeCampaigns: 0
 })
 
-const recentActivity = ref([])
+interface CampaignActivity {
+  id: number
+  campaign: string
+  advertiser: string
+  impressions: number
+  clicks: number
+  revenue: number
+  status: string
+}
+
+const recentActivity = ref<CampaignActivity[]>([])
 
 // Methods
+const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
+
 const refreshData = async () => {
   loading.value = true
   try {
@@ -191,11 +203,11 @@ const exportData = () => {
   console.log('Exporting analytics data...')
 }
 
-const viewDetails = (id) => {
+const viewDetails = (id: number) => {
   navigateTo(`/admin/campaigns/${id}`)
 }
 
-const pauseCampaign = async (id) => {
+const pauseCampaign = async (id: number) => {
   // Implement pause functionality
   console.log('Pausing campaign:', id)
 }

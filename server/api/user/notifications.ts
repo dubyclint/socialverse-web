@@ -1,4 +1,7 @@
 // server/api/user/notifications.ts
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { serverSupabaseClient } from '#supabase/server'
+
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
@@ -15,13 +18,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+  const _supabase = await serverSupabaseClient(event)
 
     // Fetch notifications for user
-    const { data: notifications, error } = await supabase
+    const { data: notifications, error } = await _supabase
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)

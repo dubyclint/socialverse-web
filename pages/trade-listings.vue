@@ -168,11 +168,23 @@ const filteredListings = computed(() => {
   return filtered;
 });
 
-function formatDate(timestamp) {
+interface TradeListing {
+  id: number
+  title: string
+  description: string
+  price: number
+  category: string
+  image: string
+  status: string
+  seller: { name: string; avatar: string }
+  createdAt: number
+}
+
+function formatDate(timestamp: number) {
   return new Date(timestamp).toLocaleDateString();
 }
 
-function viewListing(listing) {
+function viewListing(listing: TradeListing) {
   console.log('Viewing listing:', listing);
   // Navigate to listing detail page
 }

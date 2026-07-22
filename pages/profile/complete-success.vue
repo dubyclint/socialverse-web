@@ -27,7 +27,7 @@
 
       <!-- Success Message -->
       <h1 class="success-title">Profile Completed!</h1>
-      <p class="success-subtitle">Welcome to Socialverse, {{ profileStore.displayName || 'User' }}!</p>
+      <p class="success-subtitle">Welcome to Socialverse, {{ displayName }}!</p>
 
       <!-- Profile Summary Card -->
       <div class="profile-summary">
@@ -37,7 +37,7 @@
           </div>
           <div class="summary-content">
             <p class="summary-label">Full Name</p>
-            <p class="summary-value">{{ profileStore.displayName || 'Not Set' }}</p>
+            <p class="summary-value">{{ displayName }}</p>
           </div>
         </div>
 
@@ -49,7 +49,7 @@
           </div>
           <div class="summary-content">
             <p class="summary-label">Email</p>
-            <p class="summary-value">{{ authStore.userEmail || 'Unspecified' }}</p>
+            <p class="summary-value">{{ userEmail }}</p>
           </div>
         </div>
 
@@ -61,7 +61,7 @@
           </div>
           <div class="summary-content">
             <p class="summary-label">Interests</p>
-            <p class="summary-value">{{ profileStore.interests?.length || 0 }} selected</p>
+            <p class="summary-value">{{ interestCount }} selected</p>
           </div>
         </div>
       </div>
@@ -110,10 +110,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user' 
 import { api } from '~/lib/api'
+import type { AuthUser } from '~/types/user'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -121,6 +122,7 @@ const userStore = useUserStore()
 // Bind to userStore instead of authStore/profileStore
 const displayName = computed(() => userStore.user?.full_name || userStore.user?.username || 'User')
 const userEmail = computed(() => userStore.user?.email || 'Unspecified')
+const interestCount = computed(() => userStore.profile?.interests?.length || 0)
 
 const goToFeed = () => router.push('/feed')
 const editProfile = () => router.push('/profile/edit')
@@ -128,7 +130,7 @@ const editProfile = () => router.push('/profile/edit')
 onMounted(async () => {
   try {
     // Refresh user store state after completion
-    const p = await api('/profile/me')
+    const p = await api<AuthUser>('/profile/me')
     userStore.setUser(p) // Ensure your userStore has a method to update state
   } catch (e) {
     console.warn('[complete-success] profile refresh failed:', e)

@@ -40,8 +40,13 @@ export interface Database {
       }
       profiles: {
         Row: {
+          id: string
           user_id: string
           full_name: string | null
+          name: string | null
+          username: string | null
+          email: string | null
+          role: string | null
           bio: string | null
           avatar_url: string | null
           location: string | null
@@ -58,12 +63,19 @@ export interface Database {
           verified_at: string | null
           verification_status: string
           badge_count: number
+          default_stream_title: string | null
+          stream_quality: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
+          id?: string
           user_id: string
           full_name?: string | null
+          name?: string | null
+          username?: string | null
+          email?: string | null
+          role?: string | null
           bio?: string | null
           avatar_url?: string | null
           location?: string | null
@@ -80,12 +92,19 @@ export interface Database {
           verified_at?: string | null
           verification_status?: string
           badge_count?: number
+          default_stream_title?: string | null
+          stream_quality?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
+          id?: string
           user_id?: string
           full_name?: string | null
+          name?: string | null
+          username?: string | null
+          email?: string | null
+          role?: string | null
           bio?: string | null
           avatar_url?: string | null
           location?: string | null
@@ -102,6 +121,8 @@ export interface Database {
           verified_at?: string | null
           verification_status?: string
           badge_count?: number
+          default_stream_title?: string | null
+          stream_quality?: string | null
           created_at?: string
           updated_at?: string
         }

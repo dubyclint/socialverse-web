@@ -1,19 +1,6 @@
 import { ref, computed } from 'vue'
-
-interface UniverseMessage {
-  id: string
-  user_id: string
-  username: string
-  avatar?: string
-  content: string
-  created_at: string
-  likes: number
-  replies: number
-  liked: boolean
-  country?: string
-  interest?: string
-  language?: string
-}
+import type { ApiResponse } from '~/types/api'
+import type { UniverseMessage } from '~/types/universe'
 
 export const useUniverseMessage = () => {
   const messages = ref<UniverseMessage[]>([])
@@ -39,7 +26,7 @@ export const useUniverseMessage = () => {
       if (country) query.country = country
       if (interest) query.interest = interest
 
-      const { data } = await $fetch('/api/universe/messages', {
+      const { data } = await $fetch<ApiResponse<UniverseMessage[]>>('/api/universe/messages', {
         query
       })
 
@@ -69,7 +56,7 @@ export const useUniverseMessage = () => {
     error.value = null
 
     try {
-      const { data } = await $fetch('/api/universe/send', {
+      const { data } = await $fetch<ApiResponse<UniverseMessage>>('/api/universe/send', {
         method: 'POST',
         body: {
           content: content.trim(),
@@ -94,12 +81,12 @@ export const useUniverseMessage = () => {
   // Like message
   const likeMessage = async (messageId: string) => {
     try {
-      const { data } = await $fetch(`/api/universe/messages/${messageId}/like`, {
+      const { data } = await $fetch<ApiResponse<{ likes: number; liked: boolean }>>(`/api/universe/messages/${messageId}/like`, {
         method: 'POST'
       })
 
       const message = messages.value.find(m => m.id === messageId)
-      if (message) {
+      if (message && data) {
         message.likes = data.likes
         message.liked = data.liked
       }
@@ -141,13 +128,13 @@ export const useUniverseMessage = () => {
     }
 
     try {
-      const { data } = await $fetch(`/api/universe/messages/${messageId}/reply`, {
+      const { data } = await $fetch<ApiResponse<{ replies: number }>>(`/api/universe/messages/${messageId}/reply`, {
         method: 'POST',
         body: { content }
       })
 
       const message = messages.value.find(m => m.id === messageId)
-      if (message) {
+      if (message && data) {
         message.replies = data.replies
       }
 
@@ -162,7 +149,7 @@ export const useUniverseMessage = () => {
   // Add reaction/emoji
   const addReaction = async (messageId: string, emoji: string) => {
     try {
-      const { data } = await $fetch(`/api/universe/messages/${messageId}/reaction`, {
+      const { data } = await $fetch<ApiResponse<Record<string, unknown>>>(`/api/universe/messages/${messageId}/reaction`, {
         method: 'POST',
         body: { emoji }
       })

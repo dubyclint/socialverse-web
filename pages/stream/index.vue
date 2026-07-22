@@ -3,7 +3,7 @@
      Unified Streaming Layout Frame - Fixed via Native Auto-Imports
      ============================================================================ -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 // FIXED: Replaced alias pathways with hard relative referencing to eliminate the double-slash compiler bugs
 import StreamChat from '~/components/streaming/stream-chat.vue'
 
@@ -11,8 +11,6 @@ definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check'],
   layout: 'default'
 })
-
-const supabase = useSupabaseClient()
 
 // Active Stream Node State Trackers
 const streamId = ref('global-broadcast-node-01')

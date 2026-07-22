@@ -56,18 +56,25 @@ useHead({
   ]
 })
 
-const notifications = ref([])
+interface NotificationItem {
+  _id: string
+  type: string
+  message: string
+  timestamp: string
+}
+
+const notifications = ref<NotificationItem[]>([])
 
 onMounted(async () => {
   try {
     const res = await fetch('/api/user/notifications')
-    notifications.value = await res.json()
+    notifications.value = (await res.json()) as NotificationItem[]
   } catch (error) {
     console.error('Error loading notifications:', error)
   }
 })
 
-function formatTime(ts) {
+function formatTime(ts: string) {
   return new Date(ts).toLocaleString()
 }
 </script>

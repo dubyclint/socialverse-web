@@ -5,8 +5,9 @@
 // ============================================================================
 
 import { useNuxtApp } from '#app'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-export const useSupabaseClient = () => {
+export const useSupabaseClient = (): SupabaseClient => {
   const nuxtApp = useNuxtApp()
   
   // Verify that the Nuxt App Context has loaded the Supabase injection layer
@@ -16,5 +17,5 @@ export const useSupabaseClient = () => {
   }
   
   // Return the underlying operational client engine instance directly
-  return nuxtApp.$supabase.client
+  return nuxtApp.$supabase.client as SupabaseClient
 }

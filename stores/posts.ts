@@ -2,8 +2,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+interface PostDraft {
+  content: string
+  privacy: string
+  allowComments: boolean
+  allowSharing: boolean
+  saved_at: string | null
+}
+
 export const usePostsStore = defineStore('posts', () => {
-  const draft = ref({
+  const draft = ref<PostDraft>({
     content: '',
     privacy: 'public',
     allowComments: true,

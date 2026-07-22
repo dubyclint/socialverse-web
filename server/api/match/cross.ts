@@ -1,8 +1,8 @@
 import { computeMatchScore } from '~/server/utils/match-score'
 
 export default defineEventHandler(async (event) => {
-  const user = event.context.user
-  const memory = await db.collection('users').findOne({ _id: user.id }, {
+  const user: any = event.context.user
+  const memory: any = await db.collection('users').findOne({ _id: user.id }, {
     projection: {
       recentMatches: 1,
       skippedMatches: 1,
@@ -11,20 +11,20 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  const allUsers = await db.collection('users').find({ _id: { $ne: user.id } }).toArray()
+  const allUsers: any[] = await db.collection('users').find({ _id: { $ne: user.id } }).toArray()
 
-  const scored = allUsers.map(u => ({
+  const scored: any[] = allUsers.map((u: any) => ({
     ...u,
     matchScore: computeMatchScore(user, u)
-  })).filter(u =>
+  })).filter((u: any) =>
     u.matchScore > 30 &&
     !memory.recentMatches?.includes(u.id) &&
     !memory.skippedMatches?.includes(u.id)
   )
 
-  const sorted = scored.sort((a, b) => b.matchScore - a.matchScore).slice(0, 10)
+  const sorted = scored.sort((a: any, b: any) => b.matchScore - a.matchScore).slice(0, 10)
 
-  return sorted.map(u => ({
+  return sorted.map((u: any) => ({
     id: u.id,
     username: u.username,
     avatar: u.avatar,

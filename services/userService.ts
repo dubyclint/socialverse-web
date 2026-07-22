@@ -1,6 +1,4 @@
 // services/userService.ts
-import { useNuxtApp } from '#app'
-
 const getSupabase = () => {
   const nuxtApp = useNuxtApp()
   return nuxtApp.$supabase?.client || (nuxtApp as any).$supabase

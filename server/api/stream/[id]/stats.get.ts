@@ -7,7 +7,7 @@ import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
 
     if (!streamId) {
       throw createError({
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
       .eq('target_id', streamId)
       .eq('target_type', 'stream')
 
-    const totalGiftValue = gifts?.reduce((sum, gift) => sum + (gift.amount || 0), 0) || 0
+  const totalGiftValue = gifts?.reduce((sum: number, gift: any) => sum + (gift?.amount || 0), 0) || 0
 
     return {
       success: true,

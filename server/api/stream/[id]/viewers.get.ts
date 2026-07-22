@@ -3,7 +3,8 @@ import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    const { id } = event.context.params
+    const id = event.context.params?.id
+    if (!id) throw createError({ statusCode: 400, statusMessage: 'Stream ID is required' })
     const supabase = await serverSupabaseClient(event)
 
     // Get active viewers count

@@ -176,17 +176,17 @@
           >
             <div class="status-header-item">
               <img
-                :src="status.author?.avatar_url || '/default-avatar.png'"
-                :alt="status.author?.full_name"
+                :src="status.author_profile?.avatar_url || '/default-avatar.png'"
+                :alt="status.author_profile?.full_name || ''"
                 class="status-avatar"
               />
               <div class="status-author-info">
-                <h4 class="status-author-name">{{ status.author?.full_name }}</h4>
-                <p class="status-author-username">@{{ status.author?.username }}</p>
-                <span class="status-time">{{ formatTime(status.created_at) }}</span>
+                <h4 class="status-author-name">{{ status.author_profile?.full_name }}</h4>
+                <p class="status-author-username">@{{ status.author_profile?.username }}</p>
+                <span class="status-time">{{ formatTime(status.created_at || '') }}</span>
               </div>
               <button
-                v-if="status.author?.id === currentUserId"
+                v-if="status.author_profile?.id === currentUserId"
                 @click="handleDeleteStatus(status.id)"
                 class="btn-delete"
                 title="Delete"
@@ -262,7 +262,7 @@ useHead({
 // SETUP & STATE
 // ============================================================================
 const userStore = useUserStore()
-const { getStatuses, deleteStatus, statuses, loading: statusLoading, error: statusError } = useStatus()
+const { getStatuses, statuses, loading: statusLoading, error: statusError } = useStatus()
 
 const getInitialForm = () => ({
   content: '',
@@ -331,7 +331,7 @@ const refreshStatuses = async () => {
 const loadMoreStatuses = async () => {
   currentPage.value++
   const newStatuses = await getStatuses(20, currentPage.value * 20)
-  if (!newStatuses || newStatuses.length < 20) {
+  if (!newStatuses?.data || newStatuses.data.length < 20) {
     hasMoreStatuses.value = false
   }
 }
@@ -364,6 +364,7 @@ onMounted(async () => {
 })
 </script>
 
+<style scoped>
 .form-textarea:hover,
 .form-input:hover,
 .form-select:hover {

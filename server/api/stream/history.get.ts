@@ -1,5 +1,7 @@
 // server/api/stream/history.get.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { getQuery } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {

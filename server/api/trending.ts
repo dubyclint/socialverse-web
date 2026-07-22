@@ -1,4 +1,7 @@
 // server/api/trending.ts
+import { serverSupabaseClient } from '#supabase/server'
+import { getQuery } from 'h3'
+
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
@@ -6,10 +9,7 @@ export default defineEventHandler(async (event) => {
 
     console.log('[API] Fetching trending topics - limit:', limit)
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = await serverSupabaseClient(event)
 
     // Fetch trending hashtags
     const { data: trending, error } = await supabase

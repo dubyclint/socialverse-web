@@ -7,7 +7,7 @@ import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
     const query = getQuery(event)
     const limit = Math.min(parseInt(query.limit as string) || 50, 100)
     const offset = parseInt(query.offset as string) || 0

@@ -18,14 +18,21 @@ definePageMeta({
  
 import { ref, onMounted } from 'vue'
 
-const sessions = ref([])
+interface ChatSession {
+  sessionId: string
+  userId: string
+  agentId?: string | null
+  status: string
+}
+
+const sessions = ref<ChatSession[]>([])
 
 async function fetchSessions() {
   const res = await fetch('/api/support/chat?admin=true')
-  sessions.value = await res.json()
+  sessions.value = (await res.json()) as ChatSession[]
 }
 
-function viewSession(s) {
+function viewSession(s: ChatSession) {
   console.log('Viewing session:', s)
 }
 

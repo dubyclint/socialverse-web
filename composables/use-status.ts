@@ -5,12 +5,14 @@
 // ============================================================================
 
 import { ref, computed } from 'vue'
+import type { ApiResponse } from '~/types/api'
+import type { Status } from '~/types/status'
 
 export const useStatus = () => {
-  const statuses = ref<any[]>([])
+  const statuses = ref<Status[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const userStatuses = ref<any[]>([])
+  const userStatuses = ref<Status[]>([])
 
   /**
    * Create a new status
@@ -28,7 +30,7 @@ export const useStatus = () => {
     try {
       console.log('[useStatus] Creating status:', content)
 
-      const result = await $fetch('/api/status/create', {
+      const result = await $fetch<ApiResponse<Status>>('/api/status/create', {
         method: 'POST',
         body: {
           content,
@@ -71,7 +73,7 @@ export const useStatus = () => {
     try {
       console.log('[useStatus] Fetching statuses for user:', userId)
 
-      const result = await $fetch(`/api/status/user/${userId}`)
+      const result = await $fetch<ApiResponse<Status[]>>(`/api/status/user/${userId}`)
 
       if (result?.success) {
         console.log('[useStatus] ✅ User statuses fetched:', result.data?.length || 0)
@@ -101,7 +103,7 @@ export const useStatus = () => {
     try {
       console.log('[useStatus] Fetching statuses:', { limit, offset })
 
-      const result = await $fetch('/api/status', {
+      const result = await $fetch<ApiResponse<Status[]>>('/api/status', {
         query: { limit, offset }
       })
 
@@ -137,7 +139,7 @@ export const useStatus = () => {
     try {
       console.log('[useStatus] Deleting status:', statusId)
 
-      const result = await $fetch(`/api/status/${statusId}`, {
+      const result = await $fetch<ApiResponse<null>>(`/api/status/${statusId}`, {
         method: 'DELETE'
       })
 
@@ -170,7 +172,7 @@ export const useStatus = () => {
     try {
       console.log('[useStatus] Fetching status:', statusId)
 
-      const result = await $fetch(`/api/status/${statusId}`)
+      const result = await $fetch<ApiResponse<Status>>(`/api/status/${statusId}`)
 
       if (result?.success) {
         console.log('[useStatus] ✅ Status fetched')

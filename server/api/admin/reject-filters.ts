@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
     if (error) throw error
 
-    await sendNotification(userId, 'filter', `Your match filters were rejected: '${reason.slice(0, 40)}'`)
+    await sendNotification(event, userId, 'filter', `Your match filters were rejected: '${reason.slice(0, 40)}'`)
     await sendPushAlert(userId, 'Match Filters Rejected', `Reason: ${reason.slice(0, 40)}`)
 
     return { success: true }

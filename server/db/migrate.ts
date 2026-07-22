@@ -5,13 +5,6 @@
 // NOTE: This script is for data migrations and seeding only.
 // For schema changes, use Supabase SQL Editor directly.
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
 /**
  * Lazy-load Supabase to prevent bundling issues
  */
@@ -27,41 +20,6 @@ async function getSupabaseClient() {
   }
 
   return createClient(supabaseUrl, supabaseServiceKey)
-}
-
-/**
- * Read SQL file from disk
- */
-function readSqlFile(filename: string): string {
-  const filePath = path.join(__dirname, filename)
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`SQL file not found: ${filePath}`)
-  }
-  return fs.readFileSync(filePath, 'utf-8')
-}
-
-/**
- * Execute SQL query using Supabase RPC
- * NOTE: This requires a stored procedure 'exec_sql' to exist in your database
- * If it doesn't exist, use direct query execution instead
- */
-async function executeSqlViaRpc(supabase: any, sql: string, description: string): Promise<boolean> {
-  try {
-    console.log(`\n📝 Running: ${description}...`)
-    
-    const { error } = await supabase.rpc('exec_sql', { sql_query: sql })
-    
-    if (error) {
-      console.error(`❌ Error in ${description}:`, error)
-      return false
-    }
-    
-    console.log(`✅ ${description} completed`)
-    return true
-  } catch (err: any) {
-    console.error(`❌ Exception in ${description}:`, err.message)
-    return false
-  }
 }
 
 /**
@@ -148,7 +106,7 @@ async function createDefaultAdminUser(supabase: any) {
   const adminExists = existingAdmin?.users?.some((u: any) => u.email === adminEmail)
 
   if (!adminExists) {
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { error: authError } = await supabase.auth.admin.createUser({
       email: adminEmail,
       password: adminPassword,
       email_confirm: true,

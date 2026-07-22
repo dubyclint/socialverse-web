@@ -5,17 +5,6 @@
 
 import { supabase } from '~/server/utils/database'
 
-// Lazy load axios
-let axios: any = null;
-
-async function getAxios() {
-  if (!axios) {
-    const module = await import('axios');
-    axios = module.default;
-  }
-  return axios;
-}
-
 export interface SanctionedEntity {
   id: string
   name: string
@@ -43,7 +32,7 @@ export class SanctionsService {
       // Check cache first
       const cacheKey = `${name}:${country || 'any'}`
       if (this.cache.has(cacheKey)) {
-        return
+        return true
       }
 
       // Check database
@@ -74,12 +63,10 @@ export class SanctionsService {
    */
   async updateSanctionsList(): Promise<void> {
     try {
-      const axiosLib = await getAxios();
-
       // Example: Fetch from OFAC or UN sanctions list
-      const response = await axiosLib.get('https://api.sanctions-list.com/v1/entities')
+      const response = await $fetch<any[]>('https://api.sanctions-list.com/v1/entities')
 
-      const entities: SanctionedEntity[] = response.data.map((item: any) => ({
+      const entities: SanctionedEntity[] = response.map((item: any) => ({
         id: item.id,
         name: item.name,
         type: item.type,

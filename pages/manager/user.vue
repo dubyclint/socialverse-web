@@ -43,7 +43,7 @@
           <tr v-for="user in users" :key="user.id" class="user-row">
             <td class="user-info">
               <div class="user-avatar">
-                <img :src="user.avatar_url || '/default-avatar.png'" :alt="user.full_name" />
+                <img :src="user.avatar_url || '/default-avatar.png'" :alt="user.full_name || ''" />
               </div>
               <div class="user-details">
                 <div class="user-name">{{ user.full_name || user.username }}</div>
@@ -67,7 +67,7 @@
               {{ formatDate(user.last_login) }}
             </td>
             <td class="reports-cell">
-              <span class="reports-count" :class="{ 'has-reports': user.reports_count > 0 }">
+              <span class="reports-count" :class="{ 'has-reports': (user.reports_count ?? 0) > 0 }">
                 {{ user.reports_count || 0 }}
               </span>
             </td>
@@ -141,7 +141,7 @@
         
         <div class="user-details-content">
           <div class="user-profile">
-            <img :src="selectedUser.avatar_url || '/default-avatar.png'" :alt="selectedUser.full_name" />
+            <img :src="selectedUser.avatar_url || '/default-avatar.png'" :alt="selectedUser.full_name || ''" />
             <div class="profile-info">
               <h4>{{ selectedUser.full_name || selectedUser.username }}</h4>
               <p>{{ selectedUser.email }}</p>
@@ -245,8 +245,27 @@ const userStore = useUserStore()
 // RBAC Guard
 requirePermission('users.view')
 
+interface ManagerUser {
+  id: string
+  avatar_url?: string | null
+  full_name?: string | null
+  username?: string | null
+  email?: string | null
+  role?: string | null
+  status?: string | null
+  created_at?: string | null
+  last_login?: string | null
+  reports_count?: number
+  posts_count?: number
+}
+
+interface ManagerUsersResponse {
+  data: ManagerUser[]
+  totalPages: number
+}
+
 // Reactive data
-const users = ref([])
+const users = ref<ManagerUser[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('')
@@ -254,11 +273,11 @@ const currentPage = ref(1)
 const totalPages = ref(1)
 const pageSize = 20
 
-const selectedUser = ref(null)
+const selectedUser = ref<ManagerUser | null>(null)
 const showConfirmation = ref(false)
 const confirmationTitle = ref('')
 const confirmationMessage = ref('')
-const pendingAction = ref<{ action: string; user: any } | null>(null)
+const pendingAction = ref<{ action: string; user: ManagerUser } | null>(null)
 
 // Fetch users via unified API
 const fetchUsers = async () => {
@@ -271,7 +290,7 @@ const fetchUsers = async () => {
       search: searchQuery.value
     })
 
-    const response = await api(`/manager/users?${params.toString()}`)
+    const response = await api<ManagerUsersResponse>(`/manager/users?${params.toString()}`)
     
     users.value = response.data
     totalPages.value = response.totalPages
@@ -283,7 +302,30 @@ const fetchUsers = async () => {
 }
 
 // User Actions
-const performAction = async (action: string, user: any) => {
+const viewUserDetails = (user: ManagerUser) => {
+  selectedUser.value = user
+}
+
+const promptAction = (action: string, user: ManagerUser, title: string, message: string) => {
+  pendingAction.value = { action, user }
+  confirmationTitle.value = title
+  confirmationMessage.value = message
+  showConfirmation.value = true
+}
+
+const suspendUser = (user: ManagerUser) =>
+  promptAction('suspend', user, 'Suspend User', `Suspend ${user.full_name || user.username || 'this user'}?`)
+const activateUser = (user: ManagerUser) =>
+  promptAction('activate', user, 'Activate User', `Activate ${user.full_name || user.username || 'this user'}?`)
+const sendWarning = (user: ManagerUser) =>
+  promptAction('warn', user, 'Send Warning', `Send a warning to ${user.full_name || user.username || 'this user'}?`)
+const viewUserPosts = (user: ManagerUser) => navigateTo(`/manager/users/${user.id}/posts`)
+const cancelAction = () => {
+  showConfirmation.value = false
+  pendingAction.value = null
+}
+
+const performAction = async (action: string, user: ManagerUser) => {
   try {
     await api(`/manager/users/${user.id}/action`, {
       method: 'POST',
@@ -308,7 +350,7 @@ const debouncedSearch = debounce(async () => {
 }, 300)
 
 // Helper methods (Simplified)
-const formatDate = (dateString?: string) => dateString ? new Date(dateString).toLocaleDateString() : 'Never'
+const formatDate = (dateString?: string | null) => dateString ? new Date(dateString).toLocaleDateString() : 'Never'
 const closeModal = () => {
   selectedUser.value = null
   showConfirmation.value = false

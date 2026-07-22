@@ -1,5 +1,6 @@
 // server/api/follows/status/[userId].get.ts - Check Follow Status
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {

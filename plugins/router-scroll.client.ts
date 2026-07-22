@@ -10,12 +10,12 @@ export default defineNuxtPlugin({
   // ✅ FIX: Force Pinia core/router layers to load cleanly before extending window scroll behaviors
   dependsOn: ['pinia'],
 
-  setup(nuxtApp) {
+  setup(_nuxtApp: any) {
     if (!process.client) return
 
     const router = useRouter()
 
-    router.options.scrollBehavior = (to, from, savedPosition) => {
+    router.options.scrollBehavior = (to: any, _from: any, savedPosition: any) => {
       try {
         // ✅ SAFE: Yield standard coordinate sets instead of forcing history mutation side-effects
         if (savedPosition) {

@@ -1,5 +1,6 @@
 // server/api/stream/[id]/chat.post.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface ChatMessage {
   content: string
@@ -8,7 +9,8 @@ interface ChatMessage {
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
+    if (!streamId) throw createError({ statusCode: 400, statusMessage: 'Stream ID is required' })
     const body = await readBody<ChatMessage>(event)
 
     if (!body.content || body.content.trim().length === 0) {
@@ -18,10 +20,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Save chat message
-    const { data: message, error } = await supabase
+    const { data: message, error } = await _supabase
       .from('stream_chat')
       .insert({
         stream_id: streamId,

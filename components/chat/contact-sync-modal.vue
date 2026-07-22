@@ -61,7 +61,7 @@
 
 <script setup>
 import { ref, defineEmits } from 'vue'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 const emit = defineEmits(['close', 'synced'])
 

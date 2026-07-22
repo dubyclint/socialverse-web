@@ -4,11 +4,12 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
-    const { id: streamId } = event.context.params
+    const streamId = event.context.params?.id
 
     if (!streamId) {
       throw createError({
@@ -17,10 +18,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Verify ownership
-    const { data: stream, error: streamError } = await supabase
+    const { data: stream, error: streamError } = await _supabase
       .from('streams')
       .select('broadcaster_id')
       .eq('id', streamId)
@@ -41,7 +42,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Delete stream (cascade will handle related data)
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await _supabase
       .from('streams')
       .delete()
       .eq('id', streamId)

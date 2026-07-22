@@ -1,7 +1,7 @@
 <template>
   <div>
-    <giftsummary />
-    <gifthistory />
+    <PewgiftSummary />
+    <PewgiftHistory :user-id="userId" />
   </div>
 </template>
 
@@ -11,6 +11,11 @@ definePageMeta({
   layout: 'default'
 })
 
-import pewgiftsummary from '@/components/pewgift-summary.vue'
-import pewgifthistory from '@/components/pewgift-history.vue'
+import { computed } from 'vue'
+import { useUserStore } from '~/stores/user'
+import PewgiftSummary from '@/components/financial/gifts/pewgift-summary.vue'
+import PewgiftHistory from '@/components/financial/gifts/pewgift-history.vue'
+
+const userStore = useUserStore()
+const userId = computed(() => userStore.user?.id ?? '')
 </script>

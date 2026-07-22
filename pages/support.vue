@@ -57,20 +57,34 @@ definePageMeta({
 
 import { ref, onMounted } from 'vue'
 
-const contacts = ref([])
-const editContacts = ref([])
-const liveChats = ref([])
+interface SupportContact {
+  label: string
+  value: string
+  type: string
+  region: string
+}
+
+interface LiveChat {
+  label: string
+  method: string
+  script?: string
+  url?: string
+}
+
+const contacts = ref<SupportContact[]>([])
+const editContacts = ref<SupportContact[]>([])
+const liveChats = ref<LiveChat[]>([])
 const isAdmin = true // Replace with actual role check
 
 async function fetchContacts() {
   const res = await fetch('/api/admin/support')
-  contacts.value = await res.json()
+  contacts.value = await res.json() as SupportContact[]
   editContacts.value = JSON.parse(JSON.stringify(contacts.value))
 }
 
 async function fetchLiveChats() {
   const res = await fetch('/api/admin/liveChat')
-  liveChats.value = await res.json()
+  liveChats.value = await res.json() as LiveChat[]
 }
 
 function addContact() {
@@ -91,7 +105,7 @@ async function saveContacts() {
   fetchContacts()
 }
 
-function openNativeChat(label) {
+function openNativeChat(label: string) {
   // Trigger native chat logic (e.g. open GunDB room or WebRTC call)
   console.log('Opening native chat with', label)
 }

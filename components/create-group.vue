@@ -25,6 +25,7 @@ async function createGroup() {
   };
   
   // gun.get('groups').set(groupData); // Commented out - gun not available
+  console.log('Creating group', groupData)
   
   // Reset form
   groupName.value = '';

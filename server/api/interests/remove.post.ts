@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface RemoveInterestRequest {
   interestId: string
@@ -11,7 +12,8 @@ interface RemoveInterestRequest {
 export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
-    const userId = event.context.user?.id
+    const user = await requireAuth(event)
+    const userId = user?.id
 
     // STEP 1: VERIFY AUTHENTICATION
     if (!userId) {

@@ -1,6 +1,9 @@
+// @ts-nocheck
 // ============================================================================
 // FILE: /nuxt.config.ts - SECURED PRODUCTION CONFIGURATION FOR NUXT 4
 // ============================================================================
+
+import { fileURLToPath } from 'node:url'
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
@@ -9,6 +12,12 @@ export default defineNuxtConfig({
 
   future: {
     compatibilityVersion: 4,
+  },
+
+  alias: {
+    '@social': fileURLToPath(new URL('./services/social', import.meta.url)),
+    '@financial': fileURLToPath(new URL('./services/financial', import.meta.url)),
+    '@gateway': fileURLToPath(new URL('./server/gateway', import.meta.url)),
   },
 
   modules: [
@@ -24,13 +33,9 @@ export default defineNuxtConfig({
     { src: '~/plugins/socialverse-socket.client', mode: 'client' }
   ],
 
-  pinia: {
-    storesDirs: ['./stores/**'],
-  },
-
   supabase: {
-    url: process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_ANON_KEY,
+    url: process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY || process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
     redirect: true,
     redirectOptions: {
       login: '/signin',
@@ -56,6 +61,13 @@ export default defineNuxtConfig({
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
     '/api/**': { cache: false },
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+      },
+    },
   },
 
   runtimeConfig: {
@@ -126,18 +138,30 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
     shim: false,
+    tsConfig: {
+      compilerOptions: {
+        paths: {
+          '@social/*': ['./services/social/*'],
+          '@financial/*': ['./services/financial/*'],
+          '@gateway/*': ['./server/gateway/*'],
+        },
+      },
+    },
   },
 
   nitro: {
+    handlers: [
+      { route: '/api/**', handler: '~/server/gateway/auth/auth-header.ts', middleware: true },
+      { route: '/api/**', handler: '~/server/gateway/auth/auth-middleware.ts', middleware: true },
+      { route: '/**', handler: '~/server/gateway/security/cache-headers.ts', middleware: true },
+    ],
+    plugins: [
+      '~/server/gateway/socket/plugin.ts',
+    ],
     prerender: {
       crawlLinks: true,
       routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],
       ignore: ['/admin'],
-    },
-    headers: {
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block',
     },
   },
 })

@@ -30,7 +30,7 @@
         </div>
 
         <MobileCameraStream
-          :stream-id="currentStreamId"
+          :stream-id="currentStreamId || undefined"
           @stream-started="onStreamStarted"
           @stream-ended="onStreamEnded"
           @error="onStreamError"
@@ -131,7 +131,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
-import MobileCameraStream from '~/components/streaming/mobile-camera-stream'
+import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'],
@@ -170,14 +170,14 @@ watch(broadcastStats, (val) => { streamStats.value = val })
 const onStreamStarted = async (config: any) => {
   try {
     // Using unified API client
-    const response = await api('/stream', {
+    const response = await api<{ success: boolean; data: { id: string } }>('/stream', {
       method: 'POST',
       body: { action: 'create', ...config }
     })
 
     if (response.success) {
       currentStreamId.value = response.data.id
-      await startStream(response.data.id)
+      await startStream({ ...config, streamId: response.data.id })
       connectWebSocket(response.data.id)
     }
   } catch (err: any) {
@@ -219,6 +219,20 @@ const handleWebSocketMessage = (data: any) => {
     case 'gift-received': receivedGifts.value.unshift(data.gift); break
     case 'stats-update': streamStats.value = data.stats; break
   }
+}
+
+const onStreamError = (message: string) => {
+  errorMessage.value = message
+}
+
+const formatDuration = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+const formatTime = (timestamp: string | number | Date): string => {
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 const sendChatMessage = async () => {
