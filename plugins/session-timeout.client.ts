@@ -3,7 +3,7 @@
 // ============================================================================
 import { defineNuxtPlugin, useRouter } from '#app'
 import { watch } from 'vue'
-import { useUserStore } from '~/stores/user' // Updated import
+import { useSupabaseUser } from '#imports'
 
 export default defineNuxtPlugin({
   name: 'socialverse-session-timeout',
@@ -11,29 +11,29 @@ export default defineNuxtPlugin({
   setup() {
     if (!process.client) return
 
-    const userStore = useUserStore() // Using the unified store
+    const user = useSupabaseUser()
     const router = useRouter()
     
     const SESSION_TIMEOUT = 15 * 60 * 1000
     const WARNING_TIME = 14 * 60 * 1000
     
-    let inactivityTimer: any = null
-    let warningTimer: any = null
+    let inactivityTimer: ReturnType<typeof setTimeout> | null = null
+    let warningTimer: ReturnType<typeof setTimeout> | null = null
     
     const resetInactivityTimer = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer)
       if (warningTimer) clearTimeout(warningTimer)
       
-      // Enforce operational boundaries using unified store state
-      if (!userStore.isAuthenticated) return
+      // Enforce operational boundaries using native session state
+      if (!user.value) return
       
       warningTimer = setTimeout(() => {
         window.dispatchEvent(new CustomEvent('session-warning'))
       }, WARNING_TIME)
       
       inactivityTimer = setTimeout(async () => {
-        // Unified logout cleans everything in the UserStore
-        await userStore.logout()
+        const client = useSupabaseClient()
+        await client.auth.signOut()
         
         await router.push('/signin')
         window.dispatchEvent(new CustomEvent('session-expired'))
@@ -50,15 +50,15 @@ export default defineNuxtPlugin({
     const setupActivityListeners = () => {
       const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click']
       const handleActivity = () => {
-        if (userStore.isAuthenticated) resetInactivityTimer()
+        if (user.value) resetInactivityTimer()
       }
       events.forEach(event => window.addEventListener(event, handleActivity, { passive: true }))
       
-      if (userStore.isAuthenticated) resetInactivityTimer()
+      if (user.value) resetInactivityTimer()
     }
     
     watch(
-      () => userStore.isAuthenticated,
+      () => user.value,
       (isAuth) => {
         isAuth ? resetInactivityTimer() : clearInactivityTimer()
       },
