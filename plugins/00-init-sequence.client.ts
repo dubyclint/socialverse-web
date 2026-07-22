@@ -2,7 +2,7 @@
 import { defineNuxtPlugin } from '#app'
 
 export default defineNuxtPlugin({
-  name: '00-init-sequence', // This must match the dependsOn string
+  name: '00-init-sequence',
   
   setup(nuxtApp: any) {
     if (!process.client) return
@@ -11,20 +11,12 @@ export default defineNuxtPlugin({
       console.log('[Init Plugin] 🚀 Starting application initialization...')
 
       try {
-        const pinia = nuxtApp.$pinia
-        if (!pinia) {
-          console.warn('[Init Plugin] ⚠️ Pinia not ready')
-          return
-        }
-
-        const { useUserStore } = await import('~/stores/user')
-        const userStore = useUserStore(pinia)
-        
-        await userStore.initializeSession()
-        console.log('[Init Plugin] ✅ User session and profile hydrated')
+        // Session hydration is now handled natively by @nuxtjs/supabase module.
+        // We only retain genuine app-level initializations here.
 
         window.__appPluginReady = true
         window.dispatchEvent(new Event('app:plugin-ready'))
+        console.log('[Init Plugin] ✅ Application initialization complete')
 
       } catch (error: any) {
         console.error('[Init Plugin] ❌ Initialization failed:', error?.message)
