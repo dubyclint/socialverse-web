@@ -3,7 +3,7 @@
 // ============================================================================
 import { defineNuxtPlugin, useRouter } from '#app'
 import { watch } from 'vue'
-import { useSupabaseUser } from '#imports'
+import { useSupabaseUser, useSupabaseClient } from '#imports'
 
 export default defineNuxtPlugin({
   name: 'socialverse-session-timeout',
