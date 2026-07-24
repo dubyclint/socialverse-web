@@ -1,42 +1,19 @@
 // FILE: /server/gateway/auth/auth-bouncer.ts
-import { serverSupabaseClient } from '#supabase/server'
-import type { H3Event } from 'h3'
+import { serverSupabaseUser } from '#supabase/server'
+import { createError, type H3Event } from 'h3'
 
-// --- Token Validation Logic ---
-export function extractTokenFromHeader(authHeader: string | undefined): string | null {
-  if (!authHeader) return null
-  return authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
-}
-
-export async function validateTokenAndGetUser(event: H3Event, token: string) {
-  try {
-    const supabase = await serverSupabaseClient(event)
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    return { user, error }
-  } catch (error) {
-    return { user: null, error }
-  }
-}
-
+// --- Auth Bouncer & Session Extraction ---
 export async function getAuthenticatedUser(event: H3Event): Promise<any> {
   if (event.context.user?.id) return event.context.user
-  
-  const authHeader = event.node.req.headers.authorization
-  if (authHeader) {
-    const token = extractTokenFromHeader(authHeader)
-    if (token) {
-      const { user, error } = await validateTokenAndGetUser(event, token)
-      if (user && !error) return user
-    }
-  }
 
   try {
-    const supabase = await serverSupabaseClient(event)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) return session.user
+    // Leverage the native Nuxt Supabase module helper to read and validate the session cookie
+    const user = await serverSupabaseUser(event)
+    if (user) return user
   } catch (error) {
-    console.error('[Auth] Session check error:', error)
+    console.error('[Auth Bouncer] Native session extraction error:', error)
   }
+
   return null
 }
 
