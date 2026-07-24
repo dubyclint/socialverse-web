@@ -1,4 +1,3 @@
-// @ts-nocheck
 // ============================================================================
 // FILE: /nuxt.config.ts - SECURED PRODUCTION CONFIGURATION FOR NUXT 4
 // ============================================================================
@@ -27,10 +26,10 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
-  // RECONCILED: Explicitly registering plugins to resolve dependency errors
   plugins: [
     { src: '~/plugins/00-init-sequence.client', mode: 'client' },
-    { src: '~/plugins/socialverse-socket.client', mode: 'client' }
+    { src: '~/plugins/socialverse-socket.client', mode: 'client' },
+    { src: '~/plugins/session-timeout.client', mode: 'client' },
   ],
 
   supabase: {
@@ -48,8 +47,10 @@ export default defineNuxtConfig({
     },
     cookieOptions: {
       name: 'sb-socialverse-access',
-      lifetime: 60 * 60 * 8,
+      maxAge: 60 * 60 * 8, // Corrected from lifetime to maxAge
+      path: '/',
       sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     },
   },
 
