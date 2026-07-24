@@ -1,10 +1,12 @@
+// ============================================================================
+// FILE: /server/gateway/auth/auth-header.ts
+// ============================================================================
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 export default defineEventHandler(async (_event: any) => {
   const path = _event.path || ''
   if (!path.startsWith('/api/')) return
 
-  // Skip middleware auth context population for public/auth bootstrap routes
   const publicApiPrefixes = [
     '/api/auth/login',
     '/api/auth/signup',
@@ -16,12 +18,10 @@ export default defineEventHandler(async (_event: any) => {
   if (publicApiPrefixes.some((p) => path.startsWith(p))) return
 
   try {
-    // 1) Cookie/session user
-  let user: any = await serverSupabaseUser(_event)
+    let user: any = await serverSupabaseUser(_event)
 
-    // 2) Bearer token fallback
     if (!user) {
-  const authHeader = getHeader(_event, 'authorization') || ''
+      const authHeader = getHeader(_event, 'authorization') || ''
       if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
         const token = authHeader.slice(7).trim()
         if (token) {
@@ -36,12 +36,13 @@ export default defineEventHandler(async (_event: any) => {
 
     if (!user) return
 
-  const rawIdVal = (user as any)?.id ?? (user as any)?.user_id ?? ''
-  let resolvedIdStr = String(rawIdVal || '')
-  if (!resolvedIdStr) return
-  const parts = resolvedIdStr.split(':')
-  const resolvedId = (parts && parts[0]) ? String(parts[0]).trim() : ''
-  if (!resolvedId) return
+    const rawIdVal = (user as any)?.id ?? (user as any)?.user_id ?? ''
+    let resolvedIdStr = String(rawIdVal || '')
+    if (!resolvedIdStr) return
+    const parts = resolvedIdStr.split(':')
+    const resolvedId = (parts && parts[0]) ? String(parts[0]).trim() : ''
+    if (!resolvedId) return
+
     _event.context = _event.context || {}
     _event.context.user = {
       id: resolvedId,
@@ -52,7 +53,6 @@ export default defineEventHandler(async (_event: any) => {
       raw: user
     }
   } catch (err: any) {
-    // Never hard-fail globally from middleware
     console.warn('[Auth Middleware] Unable to populate context user:', err?.message || err)
     return
   }
