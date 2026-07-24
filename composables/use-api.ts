@@ -1,44 +1,40 @@
 // composables/use-api.ts
 import { computed } from 'vue'
+import { useSupabaseUser, useSupabaseClient } from '#imports'
 
 export const useApi = () => {
-  // 1. Unified Store Resolver
+  const user = useSupabaseUser()
+  const client = useSupabaseClient()
+
+  // 1. Unified Store Resolver / Compatibility Shim
   let _cachedUserStore: any = null
 
   const getUserStore = async () => {
     if (_cachedUserStore) return _cachedUserStore
-    // Import the unified store
-    const { useUserStore } = await import('~/stores/user')
-    _cachedUserStore = useUserStore()
-    return _cachedUserStore
+    try {
+      const { useUserStore } = await import('~/stores/user')
+      _cachedUserStore = useUserStore()
+      return _cachedUserStore
+    } catch {
+      return null
+    }
   }
 
-  // Helper for synchronous checks
   const getActiveUserStoreSync = () => _cachedUserStore
 
-  // 2. Updated Auth Headers
-  const getAuthHeaders = () => {
+  // 2. Updated Auth Headers (Cookies handle session automatically; keeping content-type default)
+  const getAuthHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    const userStore = getActiveUserStoreSync()
-    
-    // Access token from unified store
-    const token = userStore?.token 
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
     return headers
   }
 
-  // 3. Updated User ID Retrieval
+  // 3. Native User ID Retrieval
   const getUserId = (): string | null => {
-    const userStore = getActiveUserStoreSync()
-    return userStore?.userId || null
+    return user.value?.id || null
   }
 
-  // 4. Mapped State Objects
-  // Using computed properties to ensure reactivity when the store is initialized
-  const profile = computed(() => getActiveUserStoreSync()?.profile || null)
+  // 4. Mapped State Objects (Falling back to native session data with store sync if available)
+  const profile = computed(() => getActiveUserStoreSync()?.profile || user.value || null)
   const posts = computed(() => getActiveUserStoreSync()?.posts || [])
   const notifications = computed(() => getActiveUserStoreSync()?.notifications || [])
 
