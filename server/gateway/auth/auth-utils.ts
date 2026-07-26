@@ -4,6 +4,8 @@
 // validation, and admin/utility stubs with strict typecheck compliance.
 
 import { createError, type H3Event } from 'h3'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from './auth-bouncer'
 
 // Small validation helper expected by various endpoints during migration.
 export function validateBody(body: Record<string, any>, fields: string[]): void {
@@ -38,9 +40,24 @@ export const premiumOperations = {
   }
 }
 
-// Admin guard stub expected by admin endpoints during migration.
-export async function requireAdmin(_event: H3Event): Promise<{ id: string }> {
-  return { id: 'admin-stub' }
+// Admin guard: authenticates via the Supabase session cookie, then verifies the
+// caller's `profiles.role` is `admin`.
+export async function requireAdmin(event: H3Event): Promise<{ id: string }> {
+  const user = await requireAuth(event)
+
+  const client = await serverSupabaseClient(event)
+  const { data: profile } = await client
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = (profile as { role?: string | null } | null)?.role
+  if (role !== 'admin') {
+    throw createError({ statusCode: 403, statusMessage: 'Admin access required' })
+  }
+
+  return { id: user.id }
 }
 
 // Admin audit logging stub expected by admin endpoints during migration.

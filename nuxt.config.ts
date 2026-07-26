@@ -45,9 +45,14 @@ export default defineNuxtConfig({
       ],
       saveRedirectToCookie: true,
     },
+    types: '~/types/database.types.ts',
+    // `cookieOptions` only accepts cookie serialization options; the cookie name
+    // is controlled by `cookiePrefix`. Set it explicitly so the prefix is stable
+    // whether or not SUPABASE_URL is present at build time (it otherwise defaults
+    // to a value derived from the URL, which would differ between build and runtime).
+    cookiePrefix: 'sb-socialverse',
     cookieOptions: {
-      name: 'sb-socialverse-access',
-      maxAge: 60 * 60 * 8, // Corrected from lifetime to maxAge
+      maxAge: 60 * 60 * 8,
       path: '/',
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -121,7 +126,7 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: {
-      include: ['@nuxtjs/supabase', 'vue', 'pinia', '@headlessui/vue'],
+      include: ['@nuxtjs/supabase', 'vue', 'pinia'],
     },
     build: {
       minify: 'esbuild',
@@ -151,9 +156,12 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    preset: process.env.NITRO_PRESET || 'node-server',
+    minify: true,
+    sourceMap: false,
+    compressPublicAssets: true,
     handlers: [
       { route: '/api/**', handler: '~/server/gateway/auth/auth-header.ts', middleware: true },
-      { route: '/api/**', handler: '~/server/gateway/auth/auth-middleware.ts', middleware: true },
       { route: '/**', handler: '~/server/gateway/security/cache-headers.ts', middleware: true },
     ],
     plugins: [

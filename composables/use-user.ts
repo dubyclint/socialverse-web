@@ -21,10 +21,7 @@ export const useUser = (_namespace?: string) => {
     loading.value = true
     error.value = ''
     try {
-      // Use unified store for token and logic
-      const response = await $fetch<any>('/api/users/profile', {
-        headers: userStore.token ? { Authorization: `Bearer ${userStore.token}` } : undefined
-      })
+      const response = await $fetch<any>('/api/users/profile')
       profile.value = response
     } catch (err: any) {
       error.value = err?.message || 'Failed to fetch profile data.'
@@ -40,7 +37,6 @@ export const useUser = (_namespace?: string) => {
     try {
       const response = await $fetch<any>('/api/users/profile', {
         method: 'PUT',
-        headers: userStore.token ? { Authorization: `Bearer ${userStore.token}` } : undefined,
         body: data
       })
       profile.value = response

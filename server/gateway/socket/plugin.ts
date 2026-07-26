@@ -130,7 +130,7 @@ export default defineNitroPlugin((nitroApp: any) => {
         io?.emit('notification:received', { ...data, senderId: socket.userId, timestamp: new Date().toISOString() })
       })
 
-      socket.on('disconnect', (reason: string) => {
+      socket.on('disconnect', () => {
         io?.emit('presence:offline', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
     })

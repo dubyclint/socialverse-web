@@ -307,7 +307,6 @@ const followStreamer = async () => {
   try {
     const response = await $fetch('/api/users/follow', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${userStore.token}` },
       body: { targetUserId: props.streamerId }
     })
     

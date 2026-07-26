@@ -44,7 +44,12 @@
     "types/vue-shims.d.ts",
     ".nuxt/nuxt.d.ts"
   ],
+  // `nuxt.config.ts` and build-time modules are type-checked by Nuxt's own
+  // generated node project (`.nuxt/tsconfig.node.json`), which provides the
+  // config-only globals; checking them here as app code would not resolve them.
   "exclude": [
+    "nuxt.config.ts",
+    "modules",
     "node_modules",
     ".nuxt",
     ".output",

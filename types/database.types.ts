@@ -4,6 +4,8 @@
 // Auto-generated Supabase database types (UPDATED)
 // ============================================================================
 
+import type { VerificationStatus, VerifiedBadgeType } from './profile'
+
 export type Json =
   | string
   | number
@@ -37,6 +39,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -59,9 +62,9 @@ export interface Database {
           rank_points: number
           rank_level: number
           is_verified: boolean
-          verified_badge_type: string | null
+          verified_badge_type: VerifiedBadgeType | null
           verified_at: string | null
-          verification_status: string
+          verification_status: VerificationStatus
           badge_count: number
           default_stream_title: string | null
           stream_quality: string | null
@@ -88,9 +91,9 @@ export interface Database {
           rank_points?: number
           rank_level?: number
           is_verified?: boolean
-          verified_badge_type?: string | null
+          verified_badge_type?: VerifiedBadgeType | null
           verified_at?: string | null
-          verification_status?: string
+          verification_status?: VerificationStatus
           badge_count?: number
           default_stream_title?: string | null
           stream_quality?: string | null
@@ -117,15 +120,16 @@ export interface Database {
           rank_points?: number
           rank_level?: number
           is_verified?: boolean
-          verified_badge_type?: string | null
+          verified_badge_type?: VerifiedBadgeType | null
           verified_at?: string | null
-          verification_status?: string
+          verification_status?: VerificationStatus
           badge_count?: number
           default_stream_title?: string | null
           stream_quality?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       interests: {
         Row: {
@@ -158,6 +162,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       user_interests: {
         Row: {
@@ -178,6 +183,7 @@ export interface Database {
           interest_id?: string
           created_at?: string
         }
+        Relationships: []
       }
       badge_requests: {
         Row: {
@@ -210,6 +216,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       verified_badges: {
         Row: {
@@ -245,6 +252,7 @@ export interface Database {
           awarded_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       posts: {
         Row: {
@@ -271,6 +279,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -297,13 +306,26 @@ export interface Database {
           created_at?: string
           read_at?: string | null
         }
+        Relationships: []
+      }
+      // Only the tables above have been transcribed from the live schema. Until
+      // `supabase gen types typescript` replaces this file, every other table
+      // resolves through this fallback instead of `never`.
+      [table: string]: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      [fn: string]: {
+        Args: Record<string, any>
+        Returns: any
+      }
     }
     Enums: {
       [_ in never]: never

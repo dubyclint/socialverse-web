@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { useSupabaseClient } from '~/composables/useSupabaseClient'
+import { useSupabaseClient } from '#imports'
 
 export const useEscrowStore = defineStore('escrow', {
   state: () => ({

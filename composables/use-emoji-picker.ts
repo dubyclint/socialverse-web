@@ -1,9 +1,10 @@
 // composables/use-emoji-picker.ts
 import { ref, shallowRef, computed, onMounted } from 'vue'
+import type { Emoji } from '~/utils/emojis'
 
 export const useEmojiPicker = () => {
   // Use shallowRef for the large dataset to boost performance
-  const allEmojis = shallowRef<any[]>([])
+  const allEmojis = shallowRef<Emoji[]>([])
   const recent = ref<string[]>([])
   const activeCategory = ref('smileys')
   const searchQuery = ref('')
@@ -11,7 +12,7 @@ export const useEmojiPicker = () => {
 
   // Load data dynamically to keep the initial app bundle small
   const init = async () => {
-    const { EMOJIS } = await import('~/utils/emoji-data')
+    const { EMOJIS } = await import('~/utils/emojis')
     allEmojis.value = EMOJIS
     
     // Load recent emojis from storage

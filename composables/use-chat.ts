@@ -50,19 +50,11 @@ export const useChatApi = () => { // Renamed from useApi
   // Helper for synchronous checks
   const getActiveUserStoreSync = () => _cachedUserStore
 
-  // 2. Updated Auth Headers
-  const getAuthHeaders = () => {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    const userStore = getActiveUserStoreSync()
-    
-    // Access token from unified store
-    const token = userStore?.token 
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-    return headers
-  }
+  // 2. Request headers. Same-origin `/api/*` calls carry the Supabase SSR cookie,
+  // so no Authorization header is needed.
+  const getAuthHeaders = (): Record<string, string> => ({
+    'Content-Type': 'application/json'
+  })
 
   // 3. Updated User ID Retrieval
   const getUserId = (): string | null => {

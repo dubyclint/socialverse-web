@@ -8,7 +8,6 @@ export default defineEventHandler(async (_event: any) => {
   if (!path.startsWith('/api/')) return
 
   const publicApiPrefixes = [
-    '/api/auth/login',
     '/api/auth/signup',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',

@@ -2,7 +2,7 @@
 // FILE: /middleware/auth.ts - STABLE PROTECTED-ROUTE GUARD
 // ============================================================================
 import { defineNuxtRouteMiddleware, navigateTo } from '#app'
-import { useSupabaseUser, useSupabaseClient } from '#imports'
+import { useSupabaseUser } from '#imports'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!to?.path) return

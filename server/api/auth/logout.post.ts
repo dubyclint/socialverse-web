@@ -68,10 +68,8 @@ export default defineEventHandler(async (event) => {
       path: '/'
     }
 
-    setCookie(event, 'auth_token', '', cookieOptions)
-    setCookie(event, 'auth_refresh_token', '', cookieOptions)
     setCookie(event, 'auth_user', '', cookieOptions)
-    
+
     console.log('[Logout API] ✅ Storage response cookies purged.')
     console.log('[Logout API] ============ LOGOUT END ============')
 

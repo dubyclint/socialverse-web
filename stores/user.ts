@@ -5,10 +5,11 @@ import type { Profile } from '~/types/profile'
 import type { AuthUser, CallRecord } from '~/types/user'
 import { authService } from '~/services/authService'
 import { profileService } from '~/services/profileService'
-import { useSupabaseUser, useSupabaseClient } from '#imports'
+import { useSupabaseUser, useSupabaseClient, useSupabaseSession } from '#imports'
 
 export const useUserStore = defineStore('user', () => {
   const supabaseUser = useSupabaseUser()
+  const supabaseSession = useSupabaseSession()
   const supabase = useSupabaseClient()
 
   const user = ref<AuthUser | null>(null)
@@ -17,7 +18,10 @@ export const useUserStore = defineStore('user', () => {
   const error = ref<string | null>(null)
   const rememberMe = ref(false)
 
-  const token = ref<string | null>(null)
+  // Derived from the live Supabase session so it is populated on cookie-restored
+  // sessions too, not just on an explicit sign-in. Only cross-origin consumers
+  // (Socket.IO) need it — same-origin `/api/*` calls authenticate via the cookie.
+  const token = computed<string | null>(() => supabaseSession.value?.access_token ?? null)
   const posts = ref<any[]>([])
   const notifications = ref<any[]>([])
   const callHistory = ref<CallRecord[]>([])
@@ -72,10 +76,6 @@ export const useUserStore = defineStore('user', () => {
   const setError = (val: string | null) => { error.value = val }
   const setRememberMe = (val: boolean) => { rememberMe.value = val }
 
-  const setToken = (val: string | null) => {
-    token.value = val
-  }
-
   const signIn = async (email: string, password: string) => {
     isLoading.value = true
     error.value = null
@@ -84,8 +84,7 @@ export const useUserStore = defineStore('user', () => {
       if (authErr) throw authErr
 
       user.value = (data?.user as AuthUser) || (supabaseUser.value as unknown as AuthUser) || null
-      setToken(data?.session?.access_token || null)
-      
+
       try {
         profile.value = await profileService.getMe()
       } catch {
@@ -124,7 +123,6 @@ export const useUserStore = defineStore('user', () => {
     profile.value = null
     posts.value = []
     notifications.value = []
-    setToken(null)
   }
 
   const initializeSession = async (): Promise<void> => {
@@ -139,10 +137,9 @@ export const useUserStore = defineStore('user', () => {
         }
       } else {
         const { data } = await authService.getSession()
-        const session = (data as { session?: { user: AuthUser; access_token?: string } | null } | null)?.session
+        const session = (data as { session?: { user: AuthUser } | null } | null)?.session
         if (session) {
           user.value = session.user
-          setToken(session.access_token || null)
           try {
             profile.value = await profileService.getMe()
           } catch {
@@ -158,7 +155,9 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const isTokenExpired = (): boolean => {
-    return false
+    const expiresAt = supabaseSession.value?.expires_at
+    if (!expiresAt) return false
+    return expiresAt * 1000 <= Date.now()
   }
 
   const refreshToken = async (): Promise<void> => {
@@ -176,7 +175,6 @@ export const useUserStore = defineStore('user', () => {
       const { data, error: authErr } = await authService.signUp(email, password, options)
       if (authErr) throw authErr
       user.value = (data?.user as AuthUser | null) ?? null
-      setToken(data?.session?.access_token ?? null)
       return { success: true, user: user.value }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sign up failed'
@@ -206,7 +204,6 @@ export const useUserStore = defineStore('user', () => {
     isEmailVerified,
     setError,
     setRememberMe,
-    setToken,
     setUser,
     updateProfile,
     signIn,

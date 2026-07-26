@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: /services/chatService.ts
 // ============================================================================
-import { api, unwrap } from './api'
+import { api, unwrap } from './http'
 import type { ChatMessage } from '~/types/chat'
 
 export const chatService = {

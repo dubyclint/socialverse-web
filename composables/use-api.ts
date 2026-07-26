@@ -1,10 +1,9 @@
 // composables/use-api.ts
 import { computed } from 'vue'
-import { useSupabaseUser, useSupabaseClient } from '#imports'
+import { useSupabaseUser } from '#imports'
 
 export const useApi = () => {
   const user = useSupabaseUser()
-  const client = useSupabaseClient()
 
   // 1. Unified Store Resolver / Compatibility Shim
   let _cachedUserStore: any = null

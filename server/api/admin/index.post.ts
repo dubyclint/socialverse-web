@@ -2,15 +2,16 @@
 // ✅ FIXED - Single unified admin handler
 import { 
   requireAdmin, 
-  supabase, 
   logAdminAction, 
   validateBody, 
   handleError 
 } from '../../gateway/auth/auth-utils';
+import { getSupabaseAdmin } from '../../utils/supabase';
 
 export default defineEventHandler(async (event) => {
   try {
     const admin = await requireAdmin(event);
+    const supabase = await getSupabaseAdmin();
     const body = await readBody(event);
     const { action, user_id, amount, reason } = body;
 

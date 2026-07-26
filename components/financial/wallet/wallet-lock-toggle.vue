@@ -269,8 +269,7 @@ export default {
         const response = await fetch('/api/wallet/lock', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.$auth.token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(payload)
         });
@@ -299,8 +298,7 @@ export default {
         const response = await fetch('/api/wallet/unlock', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.$auth.token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             walletId: this.wallet.id,
@@ -332,8 +330,7 @@ export default {
         const response = await fetch('/api/wallet/schedule-unlock', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.$auth.token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             walletId: this.wallet.id,
@@ -364,11 +361,7 @@ export default {
       if (!this.showHistory) return;
 
       try {
-        const response = await fetch(`/api/wallet/${this.wallet.id}/lock-status`, {
-          headers: {
-            'Authorization': `Bearer ${this.$auth.token}`
-          }
-        });
+        const response = await fetch(`/api/wallet/${this.wallet.id}/lock-status`);
 
         const result = await response.json();
 

@@ -20,10 +20,10 @@ export default defineNuxtRouteMiddleware(async (to: any) => {
   if (publicRoutes.some((r) => startsWithSegment(path, r))) return
 
   const profileStore = useProfileStore()
-  const tokenCookie = useCookie('auth_token')
+  const user = useSupabaseUser()
 
   // 3. Auth Guard
-  if (!tokenCookie.value) {
+  if (!user.value) {
     return navigateTo('/signin', { replace: true })
   }
 
