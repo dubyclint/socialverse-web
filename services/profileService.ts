@@ -41,12 +41,12 @@ export const profileService = {
   ): Promise<{ default_stream_title: string | null; stream_quality: string | null }> {
     const client = useSupabaseClient()
     const { data: updated, error } = await client
-      .from('profiles')
+      .from('user')
       .update({
         default_stream_title: data.title,
         stream_quality: data.quality
       })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select('default_stream_title, stream_quality')
       .single()
 

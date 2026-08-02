@@ -26,6 +26,12 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
+  components: [
+    // Templates reference these as <Icon>, <Logo>, <ToggleSwitch>, ... not <UiIcon>
+    { path: '~/components/ui', pathPrefix: false },
+    '~/components',
+  ],
+
   plugins: [
     { src: '~/plugins/00-init-sequence.client', mode: 'client' },
     { src: '~/plugins/socialverse-socket.client', mode: 'client' },

@@ -8,9 +8,6 @@ export interface Post extends PostRow {
   tags?: string[]
   mentions?: string[]
   media?: Array<{ url: string; type: string }>
-  likes_count?: number
-  comments_count?: number
-  shares_count?: number
   is_liked?: boolean
   author_profile?: {
     id: string

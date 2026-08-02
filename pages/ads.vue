@@ -10,6 +10,7 @@ definePageMeta({
 })
 
 const supabase = useSupabaseClient()
+const supabaseUser = useSupabaseUser()
 
 // Core Reactive Storage Containers
 const campaigns = ref<any[]>([])
@@ -28,7 +29,7 @@ const activeTab = ref('Overview')
 const tabs = ['Overview', 'Campaigns', 'Performance', 'Billing']
 
 // Computed Data Metrics directly calculated out of live state data arrays
-const activeCampaignsCount = computed(() => campaigns.value.filter(c => c.status === 'active').length)
+const activeCampaignsCount = computed(() => campaigns.value.filter(c => c.status === 'ACTIVE').length)
 const totalBudgetAllocated = computed(() => campaigns.value.reduce((acc, curr) => acc + (Number(curr.budget_limit) || 0), 0))
 const totalImpressionsCount = computed(() => campaigns.value.reduce((acc, curr) => acc + (Number(curr.impressions) || 0), 0))
 const totalClicksCount = computed(() => campaigns.value.reduce((acc, curr) => acc + (Number(curr.clicks) || 0), 0))
@@ -127,12 +128,15 @@ const injectProgrammaticAdIntoStream = async (campaign: any) => {
     campaign.impressions = (campaign.impressions || 0) + 1
     
     // Optional: Log an analytical transaction event into the ledger for statistics audit checks
-    await supabase.from('transactions').insert({
-      amount: 0.15,
-      type: 'expense',
-      description: `Programmatic Sync Charge: Banner Overlay Impression on room ${targetStreamIdForAd.value}`,
-      metadata: { campaign_id: campaign.id, metrics_shift: 'impression' }
-    })
+    if (supabaseUser.value) {
+      await supabase.from('transactions').insert({
+        user_id: supabaseUser.value.id,
+        amount: 0.15,
+        type: 'debit',
+        description: `Programmatic Sync Charge: Banner Overlay Impression on room ${targetStreamIdForAd.value}`,
+        metadata: { campaign_id: campaign.id, metrics_shift: 'impression' }
+      })
+    }
 
   } catch (err: any) {
     console.error('❌ Ingest matrix transmission error:', err.message)
@@ -151,7 +155,7 @@ const formatDate = (dateString: string) => {
 }
 
 const toggleCampaignStatus = async (id: string, currentStatus: string) => {
-  const nextStatus = currentStatus === 'active' ? 'paused' : 'active'
+  const nextStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
   const { error } = await supabase
     .from('ads_campaigns')
     .update({ status: nextStatus })
@@ -251,14 +255,14 @@ onMounted(() => {
                 </div>
                 <div class="flex items-center gap-3">
                   <button 
-                    v-if="campaign.status === 'active'"
+                    v-if="campaign.status === 'ACTIVE'"
                     @click="injectProgrammaticAdIntoStream(campaign)"
                     :disabled="isInjecting !== null"
                     class="bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-400 hover:text-white text-[10px] font-black px-3 py-1.5 rounded transition-all uppercase tracking-wide disabled:opacity-40"
                   >
                     {{ isInjecting === campaign.id ? 'Firing Signal...' : '⚡ Inject Overlay' }}
                   </button>
-                  <span :class="['px-2 py-0.5 text-[9px] font-black uppercase rounded border', campaign.status === 'active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-400 border-slate-700']">
+                  <span :class="['px-2 py-0.5 text-[9px] font-black uppercase rounded border', campaign.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-400 border-slate-700']">
                     {{ campaign.status }}
                   </span>
                 </div>
@@ -309,14 +313,14 @@ onMounted(() => {
                   <td class="p-4 font-bold text-white truncate max-w-xs">{{ campaign.title }}</td>
                   <td class="p-4 uppercase font-mono text-[11px] text-slate-400">{{ campaign.ad_type }}</td>
                   <td class="p-4">
-                    <span :class="['px-2 py-0.5 text-[9px] font-black uppercase rounded border', campaign.status === 'active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-400 border-slate-700']">
+                    <span :class="['px-2 py-0.5 text-[9px] font-black uppercase rounded border', campaign.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-400 border-slate-700']">
                       {{ campaign.status }}
                     </span>
                   </td>
                   <td class="p-4 font-mono font-bold text-indigo-400">${{ (Number(campaign.budget_limit) || 0).toFixed(2) }}</td>
                   <td class="p-4 text-right space-x-3 whitespace-nowrap">
                     <button 
-                      v-if="campaign.status === 'active'"
+                      v-if="campaign.status === 'ACTIVE'"
                       @click="injectProgrammaticAdIntoStream(campaign)"
                       :disabled="isInjecting !== null"
                       class="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold disabled:opacity-40"
@@ -324,7 +328,7 @@ onMounted(() => {
                       Inject Ad
                     </button>
                     <button @click="toggleCampaignStatus(campaign.id, campaign.status)" class="text-[11px] text-amber-400 hover:underline font-bold">
-                      {{ campaign.status === 'active' ? 'Pause' : 'Activate' }}
+                      {{ campaign.status === 'ACTIVE' ? 'Pause' : 'Activate' }}
                     </button>
                     <button @click="deleteCampaignItem(campaign.id)" class="text-[11px] text-rose-400 hover:underline font-bold">
                       Delete

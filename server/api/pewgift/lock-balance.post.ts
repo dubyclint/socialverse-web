@@ -1,7 +1,7 @@
-import { supabase } from '~/utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface LockBalanceRequest {
-  userId: string
   isLocked: boolean
   isPremium: boolean
   isAdmin?: boolean
@@ -10,13 +10,10 @@ interface LockBalanceRequest {
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<LockBalanceRequest>(event)
-    
-    if (!body.userId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'User ID is required'
-      })
-    }
+
+    const user = await requireAuth(event)
+    const userId = user.id as string
+    const supabase = await serverSupabaseClient(event)
 
     // Check if user is premium or admin
     if (!body.isPremium && !body.isAdmin) {
@@ -30,7 +27,7 @@ export default defineEventHandler(async (event) => {
     const { data: wallet, error: walletError } = await supabase
       .from('user_wallets')
       .select('*')
-      .eq('user_id', body.userId)
+      .eq('user_id', userId)
       .single()
 
     if (walletError || !wallet) {
@@ -47,7 +44,7 @@ export default defineEventHandler(async (event) => {
         is_locked: body.isLocked,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', body.userId)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -67,7 +64,7 @@ export default defineEventHandler(async (event) => {
           locked_balance: 0,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', body.userId)
+        .eq('user_id', userId)
 
       if (unlockError) {
         console.error('Failed to unlock balance:', unlockError)
@@ -79,7 +76,7 @@ export default defineEventHandler(async (event) => {
     const { error: logError } = await supabase
       .from('balance_lock_logs')
       .insert({
-        user_id: body.userId,
+        user_id: userId,
         action: body.isLocked ? 'locked' : 'unlocked',
         previous_status: wallet.is_locked,
         new_status: body.isLocked,
@@ -95,7 +92,7 @@ export default defineEventHandler(async (event) => {
     const { error: notificationError } = await supabase
       .from('notifications')
       .insert({
-        user_id: body.userId,
+        user_id: userId,
         type: 'balance_lock_changed',
         title: body.isLocked ? '🔒 Balance Locked' : '🔓 Balance Unlocked',
         message: body.isLocked 

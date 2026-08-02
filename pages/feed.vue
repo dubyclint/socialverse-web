@@ -54,15 +54,27 @@
           </button>
           <NuxtLink to="/status" class="sidebar-item" @click="toggleSidebar"><Icon name="layers" size="18" /> <span>Statuses</span></NuxtLink>
           <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar"><Icon name="message-circle" size="18" /> <span>Chat</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
+          <NuxtLink to="/universe" class="sidebar-item" @click="toggleSidebar"><Icon name="globe" size="18" /> <span>Universe Chat</span></NuxtLink>
           <NuxtLink to="/notifications" class="sidebar-item" @click="toggleSidebar"><Icon name="bell" size="18" /> <span>Notifications</span><span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span></NuxtLink>
           <NuxtLink to="/inbox" class="sidebar-item" @click="toggleSidebar"><Icon name="inbox" size="18" /> <span>Inbox</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
           <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar"><Icon name="compass" size="18" /> <span>Explore</span></NuxtLink>
           <div class="sidebar-divider"></div>
-          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P Trading</span></NuxtLink>
-          <NuxtLink to="/escrow" class="sidebar-item" @click="toggleSidebar"><Icon name="shield" size="18" /> <span>Escrow</span></NuxtLink>
+          <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create Post</span></NuxtLink>
+          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="video" size="18" /> <span>Live Streaming</span></NuxtLink>
+          <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar"><Icon name="heart" size="18" /> <span>Match</span></NuxtLink>
+          <NuxtLink to="/pal" class="sidebar-item" @click="toggleSidebar"><Icon name="users" size="18" /> <span>My PALs</span></NuxtLink>
+          <NuxtLink to="/cross-meet" class="sidebar-item" @click="toggleSidebar"><Icon name="video" size="18" /> <span>Cross Meet</span></NuxtLink>
+          <div class="sidebar-divider"></div>
           <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
+          <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="credit-card" size="18" /> <span>Wallet</span></NuxtLink>
+          <NuxtLink to="/my-pocket" class="sidebar-item" @click="toggleSidebar"><Icon name="pocket" size="18" /> <span>My Pocket</span></NuxtLink>
+          <NuxtLink to="/pewgift" class="sidebar-item" @click="toggleSidebar"><Icon name="gift" size="18" /> <span>PewGift</span></NuxtLink>
+          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P Trading</span></NuxtLink>
+          <NuxtLink to="/trade-listings" class="sidebar-item" @click="toggleSidebar"><Icon name="store" size="18" /> <span>Trade Listings</span></NuxtLink>
+          <NuxtLink to="/escrow" class="sidebar-item" @click="toggleSidebar"><Icon name="shield" size="18" /> <span>Escrow</span></NuxtLink>
           <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar"><Icon name="megaphone" size="18" /> <span>Ads</span></NuxtLink>
           <div class="sidebar-divider"></div>
+          <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar"><Icon name="life-buoy" size="18" /> <span>Support</span></NuxtLink>
           <NuxtLink to="/support-chat" class="sidebar-item" @click="toggleSidebar"><Icon name="headphones" size="18" /> <span>Agent Support</span></NuxtLink>
           <NuxtLink to="/terms-and-policy" class="sidebar-item" @click="toggleSidebar"><Icon name="file-text" size="18" /> <span>Policy & T&Cs</span></NuxtLink>
           <NuxtLink to="/settings" class="sidebar-item" @click="toggleSidebar"><Icon name="settings" size="18" /> <span>Settings</span></NuxtLink>
@@ -112,7 +124,7 @@
 
        <section class="feed-content">
         <div class="feed-tabs">
-          <button v-for="tab in feedTabs" :key="tab.id" :class="['feed-tab', { active: activeTab === tab.id }]" @click="activeTab = tab.id; refreshFeed()">
+          <button v-for="tab in feedTabs" :key="tab.id" :class="['feed-tab', { active: activeTab === tab.id }]" @click="activeTab = tab.id; refreshFeed(tab.id)">
             <Icon :name="tab.icon" size="18" /> <span>{{ tab.label }}</span>
           </button>
         </div>
@@ -307,6 +319,11 @@ const handleConfirmGift = async ({ postId, amount }) => {
 
 // --- Local UI State ---
 const route = useRoute();
+const feedTabs = [
+  { id: 'for-you', label: 'For You', icon: 'sparkles' },
+  { id: 'following', label: 'Following', icon: 'users' },
+  { id: 'trending', label: 'Trending', icon: 'trending-up' },
+];
 const activeTab = ref('for-you'); 
 const searchQuery = ref('');
 const activePostMenu = ref(null);

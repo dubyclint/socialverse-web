@@ -1,18 +1,15 @@
-import { supabase } from '~/utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
-    const userId = query.userId as string
     const limit = parseInt(query.limit as string) || 20
     const offset = parseInt(query.offset as string) || 0
 
-    if (!userId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'User ID is required'
-      })
-    }
+    const user = await requireAuth(event)
+    const userId = user.id as string
+    const supabase = await serverSupabaseClient(event)
 
     // Get PewGift transaction history
     const { data: transactions, error } = await supabase

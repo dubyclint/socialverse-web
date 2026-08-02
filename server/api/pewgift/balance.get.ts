@@ -1,17 +1,12 @@
-import { supabase } from '~/utils/supabase'
-import { getQuery, createError } from 'h3'
+import { serverSupabaseClient } from '#supabase/server'
+import { createError } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
-    const query = getQuery(event)
-    const userId = query.userId as string
-
-    if (!userId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'User ID is required'
-      })
-    }
+    const user = await requireAuth(event)
+    const userId = user.id as string
+    const supabase = await serverSupabaseClient(event)
 
     // Get user wallet information
     const { data: wallet, error } = await supabase

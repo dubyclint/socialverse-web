@@ -39,6 +39,34 @@ const totalChatMessagesProcessed = computed(() => {
   return streamSessions.value.reduce((acc, s) => acc + (s.total_chat_messages || 0), 0)
 })
 
+const durationInMinutes = (startedAt: string | null, endedAt: string | null): number => {
+  if (!startedAt || !endedAt) return 0
+  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
+  return ms > 0 ? Math.round(ms / 60000) : 0
+}
+
+// Chat volume is stored per message, so it is aggregated client-side for the
+// handful of sessions shown on this page.
+const loadChatCounts = async (streamIds: string[]): Promise<Map<string, number>> => {
+  const counts = new Map<string, number>()
+  if (streamIds.length === 0) return counts
+
+  const { data, error } = await supabase
+    .from('stream_chats')
+    .select('stream_id')
+    .in('stream_id', streamIds)
+
+  if (error) {
+    console.error('Chat volume lookup failed:', error.message)
+    return counts
+  }
+
+  for (const row of data) {
+    counts.set(row.stream_id, (counts.get(row.stream_id) ?? 0) + 1)
+  }
+  return counts
+}
+
 // Database Ingestion Matrix Loop
 const loadStreamHistory = async () => {
   isLoading.value = true
@@ -47,15 +75,29 @@ const loadStreamHistory = async () => {
     if (!user) return
 
     const { data, error } = await supabase
-      .from('stream_sessions')
+      .from('streams')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('creator_id', user.id)
       .order('started_at', { ascending: false })
 
     if (error) throw error
 
     if (data && data.length > 0) {
-      streamSessions.value = data
+      const chatCounts = await loadChatCounts(data.map(stream => stream.id))
+
+      streamSessions.value = data.map(stream => ({
+        id: stream.id,
+        title: stream.title,
+        thumbnail_url: null,
+        started_at: stream.started_at,
+        ended_at: stream.ended_at,
+        duration_minutes: durationInMinutes(stream.started_at, stream.ended_at),
+        viewer_count: stream.current_viewer_count,
+        peak_viewers: stream.peak_viewer_count,
+        avg_viewers: stream.current_viewer_count,
+        total_chat_messages: chatCounts.get(stream.id) ?? 0,
+        status: stream.broadcast_status
+      }))
     } else {
       // Fallback fallback seed arrays if historical records are empty
       streamSessions.value = [
@@ -173,7 +215,7 @@ const downloadTelemetryLog = (session: any) => {
 const deleteStreamRecord = async (id: string | number) => {
   if (!confirm('Are you sure you want to purge this broadcast session file?')) return
   try {
-    await supabase.from('stream_sessions').delete().eq('id', id)
+    await supabase.from('streams').delete().eq('id', String(id))
     streamSessions.value = streamSessions.value.filter(s => s.id !== id)
   } catch (err: any) {
     console.error('Purge transaction error:', err.message)

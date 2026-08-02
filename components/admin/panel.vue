@@ -326,7 +326,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '~/utils/supabase';
+import { useSupabaseClient } from '#imports';
+
+const supabase = useSupabaseClient();
 
 // Reactive data
 const loading = ref(false);
@@ -418,7 +420,7 @@ const loadUserStats = async () => {
     
     const today = new Date().toDateString();
     stats.value.newUsersToday = users?.filter(user => 
-      new Date(user.created_at).toDateString() === today
+      user.created_at ? new Date(user.created_at).toDateString() === today : false
     ).length || 0;
   } catch (error) {
     console.error('Error loading user stats:', error);
@@ -428,7 +430,7 @@ const loadUserStats = async () => {
 const loadPewStats = async () => {
   try {
     const { data: pews, error } = await supabase
-      .from('pews')
+      .from('posts')
       .select('id, created_at');
 
     if (error) throw error;
@@ -447,7 +449,7 @@ const loadPewStats = async () => {
 const loadBalanceStats = async () => {
   try {
     const { data: balances, error } = await supabase
-      .from('user_balances')
+      .from('wallets')
       .select('balance');
 
     if (error) throw error;
@@ -463,8 +465,8 @@ const loadBalanceStats = async () => {
 const loadManagerStats = async () => {
   try {
     const { data: managers, error } = await supabase
-      .from('user_roles')
-      .select('*')
+      .from('user')
+      .select('user_id, role')
       .in('role', ['manager', 'admin', 'moderator']);
 
     if (error) throw error;
@@ -478,7 +480,7 @@ const loadManagerStats = async () => {
 const loadModerationStats = async () => {
   try {
     const { data: flagged, error } = await supabase
-      .from('content_reports')
+      .from('reports')
       .select('*')
       .eq('status', 'pending');
 
@@ -540,28 +542,14 @@ const generateBalanceReport = async () => {
 
 const processBalanceAdjustment = async () => {
   try {
-    const { error } = await supabase
-      .from('balance_adjustments')
-      .insert({
-        user_id: balanceUserId.value,
+    await $fetch('/api/admin/balance-adjustment', {
+      method: 'POST',
+      body: {
+        userId: balanceUserId.value,
         amount: balanceAmount.value,
         action: balanceAction.value,
-        reason: balanceReason.value,
-        admin_id: 'current_admin_id', // Get from auth
-        created_at: new Date().toISOString()
-      });
-
-    if (error) throw error;
-
-    // Update user balance
-    const adjustment = balanceAction.value === 'add' ? balanceAmount.value : 
-                     balanceAction.value === 'subtract' ? -balanceAmount.value : 
-                     balanceAmount.value;
-
-    await supabase.rpc('adjust_user_balance', {
-      user_id: balanceUserId.value,
-      adjustment: adjustment,
-      set_balance: balanceAction.value === 'set'
+        reason: balanceReason.value
+      }
     });
 
     showBalanceModal.value = false;
@@ -586,17 +574,14 @@ const configurePermissions = () => {
 
 const assignManager = async () => {
   try {
-    const { error } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: managerUserId.value,
-        role: managerRole.value,
-        permissions: selectedPermissions.value,
-        assigned_by: 'current_admin_id', // Get from auth
-        created_at: new Date().toISOString()
-      });
-
-    if (error) throw error;
+    await $fetch('/api/admin/managers', {
+      method: 'POST',
+      body: {
+        userId: managerUserId.value,
+        scope: managerRole.value,
+        permissions: selectedPermissions.value
+      }
+    });
 
     showManagerModal.value = false;
     await refreshAllData();
