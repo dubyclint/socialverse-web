@@ -166,10 +166,10 @@ export default defineNuxtConfig({
     minify: true,
     sourceMap: false,
     compressPublicAssets: true,
-    handlers: [
-      { route: '/api/**', handler: '~/server/gateway/auth/auth-header.ts', middleware: true },
-      { route: '/**', handler: '~/server/gateway/security/cache-headers.ts', middleware: true },
-    ],
+    // Required for the Socket.IO bridge in server/gateway/socket/plugin.ts.
+    experimental: {
+      websocket: true,
+    },
     plugins: [
       '~/server/gateway/socket/plugin.ts',
     ],

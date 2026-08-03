@@ -84,7 +84,7 @@ const handleSignup = async () => {
   success.value = ''
 
   try {
-    const response = await api<{ user: AuthUser | null }>('/auth/signup', {
+    const response = await api<{ success: boolean; error?: string; user: AuthUser | null }>('/auth/signup', {
       method: 'POST',
       body: {
         email: formData.value.email.trim(),
@@ -95,11 +95,23 @@ const handleSignup = async () => {
       }
     })
 
-    if (response.user) {
-      userStore.setUser(response.user)
-      success.value = 'Account created successfully! Redirecting...'
-      setTimeout(() => navigateTo('/profile/complete'), 1200)
+    if (!response.success || !response.user) {
+      localError.value = response.error || 'Registration failed'
+      return
     }
+
+    userStore.setUser(response.user)
+
+    // The signup route provisions the account with the service-role client, which
+    // cannot set the SSR cookie, so the browser session is established here.
+    const session = await userStore.signIn(formData.value.email.trim(), formData.value.password)
+    if (!session.success) {
+      localError.value = session.message || 'Account created, but sign-in failed. Please sign in.'
+      return
+    }
+
+    success.value = 'Account created successfully! Redirecting...'
+    setTimeout(() => navigateTo('/profile/complete'), 1200)
   } catch (err: any) {
     localError.value = err?.data?.message || 'Registration failed'
   }

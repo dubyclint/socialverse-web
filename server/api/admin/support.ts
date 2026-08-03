@@ -1,50 +1,52 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import type { Database } from '~/types/database.types'
+
+// The `support_contacts` table holds user-submitted tickets; the published
+// support channels are platform configuration, so they live here.
+const CONFIG_KEY = 'support_channels'
+
+interface SupportChannel {
+  label: string
+  value: string
+  type: string
+  region: string
+}
 
 export default defineEventHandler(async (event) => {
-  const supabase = await serverSupabaseClient(event)
+  const client = await serverSupabaseClient<Database>(event)
   const method = getMethod(event)
-  
+
   if (method === 'GET') {
-    try {
-      const { data: contacts, error } = await supabase
-        .from('support_contacts')
-        .select('*')
-        
-      if (error) throw error
-      return contacts
-    } catch (err) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to fetch support contacts'
-      })
-    }
+    await requireAuth(event)
+    const { data, error } = await client
+      .from('platform_configurations')
+      .select('config_values')
+      .eq('config_key', CONFIG_KEY)
+      .maybeSingle()
+
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    return Array.isArray(data?.config_values) ? (data.config_values as unknown as SupportChannel[]) : []
   }
 
   if (method === 'POST') {
-    try {
-      const contacts = await readBody(event)
-      
-      // Delete existing contacts and insert new ones
-      const { error: deleteError } = await supabase
-        .from('support_contacts')
-        .delete()
-        .neq('id', 0) // Delete all
-        
-      if (deleteError) throw deleteError
-      
-      const { error: insertError } = await supabase
-        .from('support_contacts')
-        .insert(contacts)
-        
-      if (insertError) throw insertError
-      
-      return { success: true, message: 'Support contacts updated.' }
-    } catch (err) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to update support contacts'
-      })
-    }
+    await requireAdmin(event)
+    const channels = await readBody<SupportChannel[]>(event)
+
+    const { error } = await client
+      .from('platform_configurations')
+      .upsert(
+        {
+          config_key: CONFIG_KEY,
+          config_values: channels as unknown as Database['public']['Tables']['platform_configurations']['Insert']['config_values'],
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'config_key' }
+      )
+
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    return { success: true, message: 'Support contacts updated.' }
   }
 
   throw createError({ statusCode: 405, statusMessage: 'Method not allowed' })

@@ -10,12 +10,9 @@ import { ofetch } from 'ofetch'
 export const api = ofetch.create({
   baseURL: '/api',
   credentials: 'same-origin',
-  async onResponseError({ response }) {
-    if (response.status === 401) {
-      const { useUserStore } = await import('~/stores/user')
-      await useUserStore().logout()
-    }
-
+  onResponseError({ response }) {
+    // A 401 is left to route middleware; signing out here would drop the
+    // session on any single unauthorized response.
     if (response.status >= 500) {
       console.error('[API] Server error:', response._data?.message || 'Internal Server Error')
     }

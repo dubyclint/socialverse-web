@@ -55,7 +55,8 @@ definePageMeta({
   layout: 'default'
 })
 
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
 
 interface SupportContact {
   label: string
@@ -74,17 +75,16 @@ interface LiveChat {
 const contacts = ref<SupportContact[]>([])
 const editContacts = ref<SupportContact[]>([])
 const liveChats = ref<LiveChat[]>([])
-const isAdmin = true // Replace with actual role check
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.user?.role === 'admin' || userStore.user?.role === 'manager')
 
 async function fetchContacts() {
-  const res = await fetch('/api/admin/support')
-  contacts.value = await res.json() as SupportContact[]
+  contacts.value = await $fetch<SupportContact[]>('/api/admin/support')
   editContacts.value = JSON.parse(JSON.stringify(contacts.value))
 }
 
 async function fetchLiveChats() {
-  const res = await fetch('/api/admin/liveChat')
-  liveChats.value = await res.json() as LiveChat[]
+  liveChats.value = await $fetch<LiveChat[]>('/api/admin/live-chat')
 }
 
 function addContact() {
@@ -97,12 +97,11 @@ function addContact() {
 }
 
 async function saveContacts() {
-  await fetch('/api/admin/support', {
+  await $fetch('/api/admin/support', {
     method: 'POST',
-    body: JSON.stringify(editContacts.value),
-    headers: { 'Content-Type': 'application/json' }
+    body: editContacts.value
   })
-  fetchContacts()
+  await fetchContacts()
 }
 
 function openNativeChat(label: string) {

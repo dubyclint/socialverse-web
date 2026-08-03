@@ -1,4 +1,3 @@
-import { useUserStore } from '~/stores/user'
 import { useUiStore } from '~/stores/ui'
 
 // Same-origin `/api/*` requests carry the Supabase SSR cookie automatically,
@@ -13,12 +12,8 @@ const customFetch = $fetch.create({
     
     uiStore.notify(message, 'error')
     console.error(`[API Error] ${response.status}:`, message)
-    
-    // Optional: Handle 401s centrally here
-    if (response.status === 401) {
-        const userStore = useUserStore()
-        userStore.logout()
-    }
+    // A 401 is not signed out: route middleware owns session state, and tearing
+    // the session down here logs the user out on any single unauthorized call.
   }
 })
 

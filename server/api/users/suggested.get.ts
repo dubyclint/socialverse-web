@@ -45,16 +45,17 @@ export default defineEventHandler(async (event) => {
     // ============================================================================
     // STEP 4: Fetch suggested users from user_profiles table
     // ============================================================================
-    console.log('[Suggested Users API] Fetching from user_profiles table...')
+    console.log('[Suggested Users API] Fetching from user table...')
 
     const { data: suggestedUsers, error } = await supabase
-      .from('user_profiles')
-      .select('id, username, full_name, avatar_url, bio')
-      .neq('id', userId)
+      .from('user')
+      .select('user_id, username, display_name, avatar_url, bio, followers_count')
+      .neq('user_id', userId)
+      .order('followers_count', { ascending: false })
       .limit(limit)
 
     if (error) {
-      console.warn('[Suggested Users API] ⚠️ user_profiles table error:', error.message)
+      console.warn('[Suggested Users API] ⚠️ user table error:', error.message)
       // Return empty array instead of throwing error
       console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (EMPTY) ============')
       return {
@@ -71,12 +72,12 @@ export default defineEventHandler(async (event) => {
     // STEP 5: Format response
     // ============================================================================
     const formatted = (suggestedUsers || []).map((u: any) => ({
-      id: u.id,
-      full_name: u.full_name || 'Unknown',
+      id: u.user_id,
+      full_name: u.display_name || u.username || 'Unknown',
       username: u.username || 'unknown',
       avatar_url: u.avatar_url || '/default-avatar.svg',
       bio: u.bio || '',
-      followers_count: 0,
+      followers_count: u.followers_count ?? 0,
       following: false
     }))
 

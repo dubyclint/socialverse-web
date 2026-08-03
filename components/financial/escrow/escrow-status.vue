@@ -1,20 +1,34 @@
 <template>
   <div class="escrow-status">
     <h3>Escrow Status</h3>
-    <p>Amount: {{ escrow.amount }} USDC</p>
-    <p>Fee: {{ escrow.fee }} USDC</p>
-    <p>Status: {{ escrow.isReleased ? 'Released' : 'Pending' }}</p>
-    <p>Admin Approval: {{ escrow.approvedByAdmin ? 'Approved' : 'Waiting' }}</p>
+    <p v-if="!escrow">No escrow selected.</p>
+    <template v-else>
+      <p>Amount: {{ escrow.amount }} USDC</p>
+      <p>Fee: {{ escrow.fee }} USDC</p>
+      <p>Status: {{ escrow.isReleased ? 'Released' : 'Pending' }}</p>
+      <p>Admin Approval: {{ escrow.approvedByAdmin ? 'Approved' : 'Waiting' }}</p>
+    </template>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
-const escrow = ref({})
+
+interface EscrowStatus {
+  amount: number
+  fee: number
+  isReleased: boolean
+  approvedByAdmin: boolean
+}
+
+const props = defineProps<{ tradeId?: string }>()
+const escrow = ref<EscrowStatus | null>(null)
 
 onMounted(async () => {
-  const res = await fetch('http://localhost:3000/api/escrow/status?tradeId=trade123')
-  escrow.value = await res.json()
+  if (!props.tradeId) return
+  escrow.value = await $fetch<EscrowStatus>('/api/escrow', {
+    query: { tradeId: props.tradeId }
+  })
 })
 </script>
 

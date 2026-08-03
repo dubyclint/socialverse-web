@@ -82,13 +82,16 @@ export default defineEventHandler(async (event: H3Event) => {
     
     const updatePayload: Record<string, any> = {}
     
-    if (body.username !== undefined) updatePayload.username = body.username.trim()
-    if (displayName !== undefined && displayName !== null) updatePayload.display_name = displayName.trim()
-    if (body.bio !== undefined) updatePayload.bio = body.bio.trim()
+    const trimmed = (value: string | null | undefined): string | null =>
+      typeof value === 'string' ? value.trim() : null
+
+    if (body.username !== undefined) updatePayload.username = trimmed(body.username)
+    if (displayName !== null) updatePayload.display_name = trimmed(displayName)
+    if (body.bio !== undefined) updatePayload.bio = trimmed(body.bio)
     if (body.avatar_url !== undefined) updatePayload.avatar_url = body.avatar_url
     if (body.cover_url !== undefined) updatePayload.cover_url = body.cover_url
-    if (body.website !== undefined) updatePayload.website = body.website.trim()
-    if (body.location !== undefined) updatePayload.location = body.location.trim()
+    if (body.website !== undefined) updatePayload.website = trimmed(body.website)
+    if (body.location !== undefined) updatePayload.location = trimmed(body.location)
     if (body.birth_date !== undefined) updatePayload.birth_date = body.birth_date
     if (body.gender !== undefined) updatePayload.gender = body.gender
     if (body.phone !== undefined) updatePayload.phone = body.phone
@@ -99,31 +102,22 @@ export default defineEventHandler(async (event: H3Event) => {
     console.log('[Profile Complete API] ✅ Payload prepared:', Object.keys(updatePayload))
 
     // ============================================================================
-    // STEP 4: UPSERT profile directly to 'user' table
+    // STEP 4: Update the existing 'user' row
     // ============================================================================
-    // Use UPSERT to:
-    // - Create profile if it doesn't exist
-    // - Update profile if it already exists
-    
-    console.log('[Profile Complete API] Upserting profile to user table...')
+    // Signup always provisions the row, so this is an update: an upsert would
+    // have to satisfy the NOT NULL columns this payload deliberately omits.
+
+    console.log('[Profile Complete API] Updating user table...')
 
     const { data: profile, error: upsertError } = await supabase
       .from('user')
-      .upsert(
-        {
-          user_id: userId,
-          ...updatePayload
-        },
-        {
-          onConflict: 'user_id',
-          ignoreDuplicates: false
-        }
-      )
+      .update(updatePayload)
+      .eq('user_id', userId)
       .select('*')
       .single()
 
     if (upsertError) {
-      console.error('[Profile Complete API] ❌ Upsert error:', upsertError.message)
+      console.error('[Profile Complete API] ❌ Update error:', upsertError.message)
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to complete profile: ' + upsertError.message

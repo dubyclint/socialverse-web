@@ -36,7 +36,7 @@ export default defineNuxtRouteMiddleware(async (to: any) => {
 
   } catch (error) {
     console.error('[Security Middleware] Fatal Error:', error)
-    userStore.logout()
-    return navigateTo('/signin', { replace: true })
+    // A guard failure must not destroy a valid session; only block the route.
+    if (!supabaseUser.value) return navigateTo('/signin', { replace: true })
   }
 })

@@ -6,6 +6,8 @@ interface SignupRequest {
   email: string
   username: string
   password: string
+  phone?: string
+  location?: string
 }
 
 const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
@@ -98,6 +100,9 @@ export default defineEventHandler(async (event) => {
           user_id: userId, 
           username: body.username.toLowerCase().trim(),
           display_name: body.username.trim(), 
+          email: authData.user.email,
+          phone: body.phone?.trim() || null,
+          location: body.location?.trim() || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }

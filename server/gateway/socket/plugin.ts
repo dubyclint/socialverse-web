@@ -5,7 +5,7 @@
 
 import { Server as SocketIOServer } from 'socket.io'
 import type { Socket } from 'socket.io'
-import jwt from 'jsonwebtoken'
+import { createClient } from '@supabase/supabase-js'
 import { Server as Engine } from 'engine.io'
 import { defineEventHandler } from 'h3'
 
@@ -16,8 +16,6 @@ interface AuthenticatedSocket extends Socket {
 }
 
 let io: SocketIOServer | null = null
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
 
 export default defineNitroPlugin((nitroApp: any) => {
   console.log('[Socket.IO Plugin] 🚀 Initializing Socket.IO server...')
@@ -66,22 +64,26 @@ export default defineNitroPlugin((nitroApp: any) => {
     // ============================================================================
     // AUTHENTICATION MIDDLEWARE
     // ============================================================================
-    io.use((socket: AuthenticatedSocket, next: (err?: Error) => void) => {
+    // The handshake token is a Supabase access token; Supabase itself is the
+    // only authority that can validate it (the project signs with rotating keys).
+    const config = useRuntimeConfig()
+    const supabase = createClient(config.public.supabase.url, config.public.supabase.key)
+
+    io.use(async (socket: AuthenticatedSocket, next: (err?: Error) => void) => {
       try {
         const token = socket.handshake?.auth?.token
-        const userId = socket.handshake?.auth?.userId
 
         if (!token) {
           return next(new Error('Authentication error: No token provided'))
         }
 
-        if (!userId) {
-          return next(new Error('Authentication error: No user ID provided'))
+        const { data, error } = await supabase.auth.getUser(token)
+        if (error || !data.user) {
+          return next(new Error('Authentication error: Invalid token'))
         }
 
-        const decoded = jwt.verify(token, JWT_SECRET) as any
-        socket.userId = userId
-        socket.email = decoded?.email
+        socket.userId = data.user.id
+        socket.email = data.user.email
         socket.authenticated = true
 
         next()

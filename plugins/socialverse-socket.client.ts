@@ -28,11 +28,7 @@ export default defineNuxtPlugin({
     console.log('[Socket.IO] Initializing lifecycle sequence...')
 
     try {
-      // Standardized to useUserStore
-      const { useUserStore } = await import('~/stores/user')
-      const userStore = useUserStore()
-
-      if (userStore.token) {
+      if (useSupabaseUser().value) {
         console.log('[Socket.IO] ✅ Active session found. Triggering auto-connect...')
         await autoConnect()
       }
@@ -107,26 +103,25 @@ async function autoConnect(): Promise<Socket | null> {
   try {
     if (socketInstance?.connected) return socketInstance
 
-    const { useUserStore } = await import('~/stores/user')
-    const userStore = useUserStore()
-
-    if (!userStore.token) return null
+    // The socket server may be cross-origin, so it is authenticated with an
+    // explicit access token taken from the Supabase session rather than a cookie.
+    const { data: { session } } = await useSupabaseClient().auth.getSession()
+    if (!session) return null
 
     const config = useRuntimeConfig()
     const socketUrl = config.public.socketUrl || window.location.origin
 
     socketInstance = io(socketUrl, {
-      auth: { token: userStore.token, userId: userStore.userId },
+      auth: { token: session.access_token, userId: session.user.id },
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: MAX_CONNECTION_ATTEMPTS,
       transports: ['websocket']
     })
 
-    socketInstance.on('connect_error', (error: any) => {
-      if (error.message?.includes('auth') || error.message?.includes('unauthorized')) {
-        userStore.logout() // Standardized to the new unified logout
-      }
+    socketInstance.on('connect_error', (error: Error) => {
+      // A failed realtime connection never invalidates the HTTP session.
+      console.warn('[Socket.IO] ⚠️ Connection error:', error.message)
     })
 
     return socketInstance
