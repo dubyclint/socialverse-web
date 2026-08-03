@@ -99,6 +99,10 @@ export const useChatStore = defineStore('chat', {
       this.isLoading = value
     },
 
+    setConnected(value: boolean) {
+      this.isConnected = value
+    },
+
     setError(message: string | null) {
       this.error = message
     },

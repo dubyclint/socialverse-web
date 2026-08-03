@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
 import type { ApiResponse } from '~/types/api'
@@ -138,12 +138,15 @@ const chatStore = useChatStore()
 
 // Chat composable for WebSocket/Realtime events
 const { 
+  isConnected,
   initialize, 
   sendMessage: emitMessage, 
   editMessage: emitEditMessage,
   deleteMessage: emitDeleteMessage,
   disconnect 
 } = useChat()
+
+watch(isConnected, connected => chatStore.setConnected(connected), { immediate: true })
 
 const searchQuery = ref('')
 const showGroupCreator = ref(false)

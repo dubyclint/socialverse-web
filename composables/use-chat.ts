@@ -32,7 +32,14 @@ export const useChat = () => {
     void socket.disconnect()
   }
 
-  return { initialize, sendMessage, editMessage, deleteMessage, disconnect }
+  return {
+    isConnected: socket.isConnected,
+    initialize,
+    sendMessage,
+    editMessage,
+    deleteMessage,
+    disconnect
+  }
 }
 
 export const useChatApi = () => { // Renamed from useApi
