@@ -219,6 +219,13 @@ begin
 end;
 $$;
 
+-- Legacy balance-moving triggers on gift_transactions. Both debited the sender
+-- again on insert — on top of send_pewgift() — and `process_gift_transfer` was
+-- broken outright (it passed text into wallet_ledger.transaction_type, an enum),
+-- so every gift insert aborted. Money now moves in exactly one place.
+drop trigger if exists trg_after_gift_insert          on public.gift_transactions;
+drop trigger if exists on_gift_sent_transfer_balances on public.gift_transactions;
+
 -- Sends a catalogue gift: prices it server-side, moves the credits and records
 -- the gift. Clients never supply the price.
 create or replace function public.send_pewgift(
