@@ -1,288 +1,128 @@
-// @ts-nocheck
-// FILE: /server/gateway/socket/handlers/pewgift.ts - FIXED WITH LAZY LOADING
-// ============================================================================
-// PewGift WebSocket Handler
-// ============================================================================
+// PewGift WebSocket handler. Gifts are priced and settled by the money-core
+// `send_pewgift` function; the socket only carries intent and broadcasts
+// receipts.
 
-import type { Socket } from 'socket.io'
 import { getWSSupabaseClient } from '~/server/gateway/socket/ws-supabase'
 
-interface PewGift {
-  id: string
-  senderId: string
-  senderName: string
-  senderAvatar?: string
+interface GiftPeer {
+  send: (payload: string) => unknown
+  context: Record<string, unknown>
+}
+
+interface SendGiftPayload {
   recipientId: string
-  recipientName: string
-  giftType: 'pewgift' | 'superchat' | 'donation' | 'badge'
-  amount: number
-  currency: string
+  giftId: string
+  quantity?: number
+  streamId?: string
   message?: string
-  status: 'pending' | 'completed' | 'failed'
-  createdAt: string
 }
 
-interface UserPewGiftSocket extends Socket {
-  userId?: string
+interface GiftReceipt {
+  transaction_id: string
+  total_cost: number
+  new_sender_balance: number
 }
 
-const giftQueue = new Map<string, PewGift[]>()
-const recentGifts = new Map<string, PewGift[]>()
+const send = (peer: GiftPeer, type: string, payload: Record<string, unknown> = {}) => {
+  peer.send(JSON.stringify({ type, ...payload, timestamp: new Date().toISOString() }))
+}
+
+const userIdOf = (peer: GiftPeer): string | undefined =>
+  typeof peer.context.userId === 'string' ? peer.context.userId : undefined
 
 export default defineWebSocketHandler({
-  async open(_peer: any, socket: UserPewGiftSocket) {
-    console.log('[PewGift] WebSocket connection opened:', socket.id)
-    socket.send(JSON.stringify({
-      type: 'connection',
-      message: 'Connected to pewgift server',
-      timestamp: new Date().toISOString()
-    }))
+  open(peer) {
+    send(peer as unknown as GiftPeer, 'connection', { message: 'Connected to pewgift server' })
   },
 
-  async message(_peer: any, socket: UserPewGiftSocket, message: any) {
-    try {
-      const data = JSON.parse(message)
-      const { type, payload } = data
+  async message(rawPeer, rawMessage) {
+    const peer = rawPeer as unknown as GiftPeer
 
-      switch (type) {
+    let parsed: { type?: string, payload?: unknown }
+    try {
+      parsed = JSON.parse(rawMessage.text())
+    } catch {
+      return send(peer, 'error', { message: 'Malformed payload' })
+    }
+
+    try {
+      switch (parsed.type) {
         case 'authenticate':
-          await handleAuthenticate(socket, payload)
-          break
+          return await handleAuthenticate(peer, parsed.payload as { token: string })
         case 'send_gift':
-          await handleSendGift(socket, payload)
-          break
-        case 'get_gifts':
-          await handleGetGifts(socket, payload)
-          break
+          return await handleSendGift(peer, parsed.payload as SendGiftPayload)
         case 'get_gift_history':
-          await handleGetGiftHistory(socket, payload)
-          break
-        case 'get_leaderboard':
-          await handleGetLeaderboard(socket, payload)
-          break
+          return await handleGetGiftHistory(peer, parsed.payload as { limit?: number, offset?: number })
         default:
-          socket.send(JSON.stringify({
-            type: 'error',
-            message: `Unknown pewgift type: ${type}`
-          }))
+          return send(peer, 'error', { message: `Unknown pewgift type: ${parsed.type}` })
       }
     } catch (error) {
       console.error('[PewGift] Message error:', error)
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Failed to process pewgift'
-      }))
+      send(peer, 'error', { message: 'Failed to process pewgift' })
     }
   },
 
-  async close(_peer: any, socket: UserPewGiftSocket) {
-    console.log('[PewGift] Connection closed:', socket.id)
+  close() {
+    console.log('[PewGift] Connection closed')
   }
 })
 
-// ============================================================================
-// HANDLER FUNCTIONS
-// ============================================================================
+/** Identity comes from the Supabase access token, never from the client payload. */
+async function handleAuthenticate(peer: GiftPeer, payload: { token: string }) {
+  const supabase = await getWSSupabaseClient()
+  const { data, error } = await supabase.auth.getUser(payload?.token)
 
-async function handleAuthenticate(socket: UserPewGiftSocket, payload: any) {
-  try {
-    socket.userId = payload.userId
-    console.log('[PewGift] User authenticated:', socket.userId)
-    
-    socket.send(JSON.stringify({
-      type: 'authenticated',
-      userId: socket.userId,
-      timestamp: new Date().toISOString()
-    }))
-  } catch (error) {
-    console.error('[PewGift] Authentication error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Authentication failed'
-    }))
+  if (error || !data.user) {
+    return send(peer, 'error', { message: 'Authentication failed' })
   }
+
+  peer.context.userId = data.user.id
+  send(peer, 'authenticated', { userId: data.user.id })
 }
 
-async function handleSendGift(socket: UserPewGiftSocket, payload: any) {
-  try {
-    const supabase = await getWSSupabaseClient()
-
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    const { recipientId, giftType, amount, currency, message } = payload
-
-    const gift: PewGift = {
-      id: crypto.randomUUID(),
-      senderId: socket.userId,
-      senderName: payload.senderName || 'Anonymous',
-      recipientId,
-      recipientName: payload.recipientName || 'Unknown',
-      giftType,
-      amount,
-      currency,
-      message,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    }
-
-    // Save to database
-    const { error } = await supabase
-      .from('pewgifts')
-      .insert({
-        id: gift.id,
-        sender_id: socket.userId,
-        recipient_id: recipientId,
-        gift_type: giftType,
-        amount,
-        currency,
-        message,
-        status: 'completed',
-        created_at: gift.createdAt
-      })
-
-    if (error) throw error
-
-    // Add to queue for recipient
-    if (!giftQueue.has(recipientId)) {
-      giftQueue.set(recipientId, [])
-    }
-    giftQueue.get(recipientId)!.push(gift)
-
-    // Add to recent gifts
-    if (!recentGifts.has(recipientId)) {
-      recentGifts.set(recipientId, [])
-    }
-    recentGifts.get(recipientId)!.unshift(gift)
-    if (recentGifts.get(recipientId)!.length > 100) {
-      recentGifts.get(recipientId)!.pop()
-    }
-
-    socket.send(JSON.stringify({
-      type: 'gift_sent',
-      giftId: gift.id,
-      timestamp: new Date().toISOString()
-    }))
-  } catch (error) {
-    console.error('[PewGift] Send gift error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to send gift'
-    }))
+async function handleSendGift(peer: GiftPeer, payload: SendGiftPayload) {
+  const userId = userIdOf(peer)
+  if (!userId) return send(peer, 'error', { message: 'Not authenticated' })
+  if (!payload?.recipientId || !payload?.giftId) {
+    return send(peer, 'error', { message: 'Recipient and gift are required' })
   }
+
+  const supabase = await getWSSupabaseClient()
+  const { data, error } = await supabase.rpc('send_pewgift', {
+    p_sender_id: userId,
+    p_recipient_id: payload.recipientId,
+    p_gift_id: payload.giftId,
+    p_quantity: payload.quantity ?? 1,
+    p_stream_id: payload.streamId,
+    p_context: { message: payload.message ?? null }
+  })
+
+  if (error) return send(peer, 'error', { message: error.message })
+
+  const receipt = data as GiftReceipt
+  send(peer, 'gift_sent', {
+    giftId: receipt.transaction_id,
+    totalCost: receipt.total_cost,
+    newBalance: receipt.new_sender_balance
+  })
 }
 
-async function handleGetGifts(socket: UserPewGiftSocket, _payload: any) {
-  try {
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
+async function handleGetGiftHistory(peer: GiftPeer, payload: { limit?: number, offset?: number }) {
+  const userId = userIdOf(peer)
+  if (!userId) return send(peer, 'error', { message: 'Not authenticated' })
 
-    const gifts = giftQueue.get(socket.userId) || []
+  const limit = payload?.limit ?? 50
+  const offset = payload?.offset ?? 0
+  const supabase = await getWSSupabaseClient()
 
-    socket.send(JSON.stringify({
-      type: 'gifts',
-      gifts,
-      timestamp: new Date().toISOString()
-    }))
+  const { data, error } = await supabase
+    .from('gift_transactions')
+    .select('id, gift_id, sender_id, recipient_id, credit_value, stream_id, created_at')
+    .eq('recipient_id', userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
-    // Clear queue after sending
-    giftQueue.delete(socket.userId)
-  } catch (error) {
-    console.error('[PewGift] Get gifts error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to fetch gifts'
-    }))
-  }
-}
+  if (error) return send(peer, 'error', { message: error.message })
 
-async function handleGetGiftHistory(socket: UserPewGiftSocket, payload: any) {
-  try {
-    const supabase = await getWSSupabaseClient()
-
-    if (!socket.userId) {
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Not authenticated'
-      }))
-      return
-    }
-
-    const { limit = 50, offset = 0 } = payload
-
-    const { data, error } = await supabase
-      .from('pewgifts')
-      .select('*')
-      .eq('recipient_id', socket.userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (error) throw error
-
-    socket.send(JSON.stringify({
-      type: 'gift_history',
-      gifts: data || [],
-      timestamp: new Date().toISOString()
-    }))
-  } catch (error) {
-    console.error('[PewGift] Get gift history error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to fetch gift history'
-    }))
-  }
-}
-
-async function handleGetLeaderboard(socket: UserPewGiftSocket, payload: any) {
-  try {
-    const supabase = await getWSSupabaseClient()
-    const { limit = 100 } = payload
-
-    const { data, error } = await supabase
-      .from('pewgifts')
-      .select('recipient_id, amount')
-      .eq('status', 'completed')
-      .order('amount', { ascending: false })
-      .limit(limit)
-
-    if (error) throw error
-
-    // Aggregate by recipient
-    const leaderboard = (data || []).reduce((acc: any, gift: any) => {
-      const existing = acc.find((item: any) => item.userId === gift.recipient_id)
-      if (existing) {
-        existing.totalAmount += gift.amount
-      } else {
-        acc.push({
-          userId: gift.recipient_id,
-          totalAmount: gift.amount
-        })
-      }
-      return acc
-    }, [])
-
-    leaderboard.sort((a: any, b: any) => b.totalAmount - a.totalAmount)
-
-    socket.send(JSON.stringify({
-      type: 'leaderboard',
-      leaderboard: leaderboard.slice(0, limit),
-      timestamp: new Date().toISOString()
-    }))
-  } catch (error) {
-    console.error('[PewGift] Get leaderboard error:', error)
-    socket.send(JSON.stringify({
-      type: 'error',
-      message: 'Failed to fetch leaderboard'
-    }))
-  }
+  send(peer, 'gift_history', { gifts: data || [] })
 }

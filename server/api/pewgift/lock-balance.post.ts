@@ -1,138 +1,84 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import type { Database } from '~/types/database.types'
 
-interface LockBalanceRequest {
-  isLocked: boolean
-  isPremium: boolean
-  isAdmin?: boolean
-}
+const PEWGIFT_CURRENCY = 'PEW'
 
 export default defineEventHandler(async (event) => {
-  try {
-    const body = await readBody<LockBalanceRequest>(event)
+  const user = await requireAuth(event)
+  const body = await readBody<{ isLocked: boolean }>(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    const user = await requireAuth(event)
-    const userId = user.id as string
-    const supabase = await serverSupabaseClient(event)
+  // Entitlement is decided server side; the client cannot claim premium/admin.
+  const { data: profile } = await supabase
+    .from('user')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle()
 
-    // Check if user is premium or admin
-    if (!body.isPremium && !body.isAdmin) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Balance lock feature is only available for premium users. Upgrade to premium to access this security feature.'
-      })
-    }
+  const isPrivileged = profile?.role === 'admin' || profile?.role === 'manager'
 
-    // Get current wallet
-    const { data: wallet, error: walletError } = await supabase
-      .from('user_wallets')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-
-    if (walletError || !wallet) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Wallet not found'
-      })
-    }
-
-    // Update lock status
-    const { data: updatedWallet, error: updateError } = await supabase
-      .from('user_wallets')
-      .update({
-        is_locked: body.isLocked,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .select()
-      .single()
-
-    if (updateError) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to update balance lock status'
-      })
-    }
-
-    // If unlocking balance, move locked_balance to pew_balance
-    if (!body.isLocked && wallet.locked_balance > 0) {
-      const { error: unlockError } = await supabase
-        .from('user_wallets')
-        .update({
-          pew_balance: parseFloat(wallet.pew_balance) + parseFloat(wallet.locked_balance),
-          locked_balance: 0,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId)
-
-      if (unlockError) {
-        console.error('Failed to unlock balance:', unlockError)
-        // Don't throw error here, lock status was already updated
-      }
-    }
-
-    // Create audit log
-    const { error: logError } = await supabase
-      .from('balance_lock_logs')
-      .insert({
-        user_id: userId,
-        action: body.isLocked ? 'locked' : 'unlocked',
-        previous_status: wallet.is_locked,
-        new_status: body.isLocked,
-        performed_by: body.isAdmin ? 'admin' : 'user',
-        created_at: new Date().toISOString()
-      })
-
-    if (logError) {
-      console.error('Failed to create balance lock log:', logError)
-    }
-
-    // Create notification
-    const { error: notificationError } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: userId,
-        type: 'balance_lock_changed',
-        title: body.isLocked ? '🔒 Balance Locked' : '🔓 Balance Unlocked',
-        message: body.isLocked 
-          ? 'Your PEW balance has been locked for security. All send, withdraw, and swap functions are disabled.'
-          : 'Your PEW balance has been unlocked. You can now send, withdraw, and swap PEW.',
-        data: {
-          isLocked: body.isLocked,
-          timestamp: new Date().toISOString()
-        },
-        is_read: false,
-        created_at: new Date().toISOString()
-      })
-
-    if (notificationError) {
-      console.error('Failed to create balance lock notification:', notificationError)
-    }
-
-    return {
-      success: true,
-      message: body.isLocked 
-        ? 'Balance locked successfully. All transactions are now disabled for security.'
-        : 'Balance unlocked successfully. You can now perform transactions.',
-      data: {
-        isLocked: body.isLocked,
-        balance: parseFloat(updatedWallet.pew_balance),
-        lockedBalance: parseFloat(updatedWallet.locked_balance),
-        timestamp: new Date().toISOString()
-      }
-    }
-
-  } catch (error: any) {
-    console.error('Lock Balance API Error:', error)
-    
-    if (error.statusCode) {
-      throw error
-    }
-    
+  if (!isPrivileged) {
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to update balance lock status'
+      statusCode: 403,
+      statusMessage: 'Balance lock is only available to premium users. Upgrade to enable this security feature.'
     })
+  }
+
+  const { data: wallet, error: walletError } = await supabase
+    .from('wallets')
+    .select('balance, locked_balance, is_locked')
+    .eq('user_id', user.id)
+    .eq('currency', PEWGIFT_CURRENCY)
+    .maybeSingle()
+
+  if (walletError) throw createError({ statusCode: 500, statusMessage: walletError.message })
+  if (!wallet) throw createError({ statusCode: 404, statusMessage: 'Wallet not found' })
+
+  const lockedBalance = Number(wallet.locked_balance) || 0
+  const balance = Number(wallet.balance) || 0
+
+  // Unlocking returns any held credits to the spendable balance.
+  const next = body.isLocked
+    ? { is_locked: true }
+    : { is_locked: false, balance: balance + lockedBalance, locked_balance: 0 }
+
+  const { data: updated, error: updateError } = await supabase
+    .from('wallets')
+    .update({ ...next, updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('currency', PEWGIFT_CURRENCY)
+    .select('balance, locked_balance, is_locked')
+    .single()
+
+  if (updateError) {
+    throw createError({ statusCode: 500, statusMessage: 'Failed to update balance lock status' })
+  }
+
+  await supabase.from('audit_logs').insert({
+    user_id: user.id,
+    action: body.isLocked ? 'wallet_locked' : 'wallet_unlocked',
+    timestamp: new Date().toISOString(),
+    ip_address: getRequestIP(event, { xForwardedFor: true }) || 'unknown',
+    user_agent: getRequestHeader(event, 'user-agent') || 'unknown'
+  })
+
+  await supabase.from('notifications').insert({
+    recipient_id: user.id,
+    event_type: 'SYSTEM_ALERT',
+    source_id: user.id,
+    message_text: body.isLocked
+      ? 'Your Pewgift balance has been locked. Sends and withdrawals are disabled.'
+      : 'Your Pewgift balance has been unlocked.'
+  })
+
+  return {
+    success: true,
+    message: body.isLocked ? 'Balance locked successfully.' : 'Balance unlocked successfully.',
+    data: {
+      isLocked: updated.is_locked,
+      balance: Number(updated.balance),
+      lockedBalance: Number(updated.locked_balance)
+    }
   }
 })

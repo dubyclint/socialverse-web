@@ -1,136 +1,61 @@
-// server/api/chat/pewgift.post.ts - SEND GIFT IN CHAT
-// ==================================================
-
-import { verifyAuth } from '../middleware/rbac'
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { mapGiftError } from '~/server/utils/pewgift-errors'
+import type { Database } from '~/types/database.types'
 
 export default defineEventHandler(async (event) => {
-  try {
-    const user = await verifyAuth(event, { requireAuth: true })
-    if (!user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
+  const user = await requireAuth(event)
+  const body = await readBody<{
+    recipientId?: string
+    giftId?: string
+    quantity?: number
+    roomId?: string
+    message?: string
+  }>(event)
 
-    const body = await readBody(event)
-    const { recipientId, giftId, giftAmount, message: giftMessage, messageId } = body
+  if (!body.recipientId || !body.giftId) {
+    throw createError({ statusCode: 400, statusMessage: 'Recipient and gift are required' })
+  }
 
-    if (!recipientId || !giftId || !giftAmount) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Recipient, gift, and amount are required'
-      })
-    }
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    const supabase = await serverSupabaseClient(event)
+  const { data: gift } = await supabase
+    .from('gift_catalog')
+    .select('id, name')
+    .eq('id', body.giftId)
+    .single()
 
-    // Check sender balance
-    const { data: senderBalance } = await supabase
-      .from('pewgift_balance')
-      .select('balance')
-      .eq('user_id', user.id)
-      .single()
+  if (!gift) throw createError({ statusCode: 404, statusMessage: 'Gift not found' })
 
-    if (!senderBalance || senderBalance.balance < giftAmount) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Insufficient balance'
-      })
-    }
+  const { data: result, error } = await supabase.rpc('send_pewgift', {
+    p_sender_id: user.id,
+    p_recipient_id: body.recipientId,
+    p_gift_id: body.giftId,
+    p_quantity: body.quantity ?? 1,
+    p_stream_id: undefined,
+    p_context: { chat_room_id: body.roomId ?? null, message: body.message ?? null }
+  })
 
-    // Create gift transaction
-    const giftId_unique = `gift_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  if (error) throw mapGiftError(error)
 
-    const { error: giftError } = await supabase
-      .from('pewgift_transactions')
-      .insert({
-        id: giftId_unique,
-        sender_id: user.id,
-        recipient_id: recipientId,
-        gift_id: giftId,
-        amount: giftAmount,
-        message: giftMessage,
-        message_id: messageId,
-        status: 'completed',
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single()
+  const receipt = result as { transaction_id: string, total_cost: number, new_sender_balance: number }
 
-    if (giftError) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to send gift',
-        data: giftError
-      })
-    }
+  await supabase.from('notifications').insert({
+    recipient_id: body.recipientId,
+    notifier_id: user.id,
+    event_type: 'GIFT_RECEIVED',
+    source_id: receipt.transaction_id,
+    message_text: body.message || `You received a ${gift.name}!`
+  })
 
-    // Deduct from sender balance
-    await supabase
-      .from('pewgift_balance')
-      .update({
-        balance: senderBalance.balance - giftAmount
-      })
-      .eq('user_id', user.id)
-
-    // Add to recipient balance
-    const { data: recipientBalance } = await supabase
-      .from('pewgift_balance')
-      .select('balance')
-      .eq('user_id', recipientId)
-      .single()
-
-    if (recipientBalance) {
-      await supabase
-        .from('pewgift_balance')
-        .update({
-          balance: recipientBalance.balance + giftAmount
-        })
-        .eq('user_id', recipientId)
-    } else {
-      await supabase
-        .from('pewgift_balance')
-        .insert({
-          user_id: recipientId,
-          balance: giftAmount
-        })
-    }
-
-    // Create notification for recipient
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: recipientId,
-        type: 'gift_received',
-        title: `${user.username} sent you a gift!`,
-        message: giftMessage,
-        data: {
-          giftId: giftId_unique,
-          senderId: user.id,
-          senderName: user.username,
-          amount: giftAmount,
-          messageId
-        },
-        created_at: new Date().toISOString()
-      })
-    if (false) console.error('Notification error placeholder')
-
-    return {
-      success: true,
-      data: {
-        giftId: giftId_unique,
-        recipientId,
-        amount: giftAmount,
-        message: giftMessage,
-        timestamp: new Date().toISOString()
-      },
-      message: 'Gift sent successfully'
-    }
-
-  } catch (error) {
-    console.error('Send gift error:', error)
-    throw error
+  return {
+    success: true,
+    data: {
+      transactionId: receipt.transaction_id,
+      recipientId: body.recipientId,
+      amount: receipt.total_cost,
+      newBalance: receipt.new_sender_balance
+    },
+    message: 'Gift sent successfully'
   }
 })

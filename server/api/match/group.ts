@@ -11,9 +11,9 @@ export default defineEventHandler(async (event) => {
   if (overrideGroup) {
   const ids = (overrideGroup as string).split(',').map((id: string) => id.trim())
     const { data: users } = await supabase
-      .from('users')
+      .from('user')
       .select('*')
-      .in('id', ids)
+      .in('user_id', ids)
 
     return [{
       members: users?.map((u: any) => ({
@@ -31,9 +31,9 @@ export default defineEventHandler(async (event) => {
 
   // Standard matching flow
   let query = supabase
-    .from('users')
+    .from('user')
     .select('*')
-    .neq('id', user.id)
+    .neq('user_id', user.id)
 
   if (region) {
     query = query.eq('location', region)

@@ -210,14 +210,14 @@ export class PolicyEngine {
     try {
       const supabase = await getSupabaseClient();
       const { data: user, error } = await supabase
-        .from('users')
-        .select('tier')
-        .eq('id', userId)
+        .from('user')
+        .select('rank')
+        .eq('user_id', userId)
         .single()
 
       if (error || !user) return false
 
-      return this.compareValues(user.tier, operator, value)
+      return this.compareValues(user.rank, operator, value)
     } catch (error: any) {
       console.error('Error evaluating user tier:', error)
       return false

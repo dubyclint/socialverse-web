@@ -1,268 +1,120 @@
-// FILE: /server/models/pewgift.ts
-// REFACTORED: Lazy-loaded Supabase with Exported Wrapper Functions
+// Gift records for the closed-loop credit system. Rows are written by the
+// money-core `send_pewgift` function inside the same transaction that moves the
+// credits, so this model is read-only apart from that call.
 
-// ============================================================================
-// LAZY-LOADED SUPABASE CLIENT
-// ============================================================================
-let supabaseInstance: any = null
+import { getAdminClient } from '~/server/utils/supabase-server'
 
-async function getSupabase() {
-  if (!supabaseInstance) {
-    const { createClient } = await import('@supabase/supabase-js')
-    supabaseInstance = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-  }
-  return supabaseInstance
-}
-
-// ============================================================================
-// INTERFACES
-// ============================================================================
 export interface PewGift {
   id: string
-  senderId: string
-  recipientId: string
-  amount: number
-  message?: string
-  status: 'PENDING' | 'SENT' | 'RECEIVED' | 'CANCELLED'
-  sentAt?: string
-  receivedAt?: string
-  createdAt: string
+  gift_id: string
+  sender_id: string
+  recipient_id: string
+  credit_value: number
+  stream_id: string | null
+  created_at: string
 }
 
-// ============================================================================
-// MODEL CLASS
-// ============================================================================
-export class PewGiftModel {
-  static async sendGift(senderId: string, recipientId: string, amount: number, message?: string): Promise<PewGift> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .insert({
-          senderId,
-          recipientId,
-          amount,
-          message,
-          status: 'PENDING',
-          createdAt: new Date().toISOString()
-        })
-        .select()
-        .single()
+export interface SendPewGiftInput {
+  senderId: string
+  recipientId: string
+  giftId: string
+  quantity?: number
+  streamId?: string
+  message?: string
+}
 
-      if (error) throw error
-      return data as PewGift
-    } catch (error) {
-      console.error('[PewGiftModel] Error sending gift:', error)
-      throw error
-    }
+export interface PewGiftReceipt {
+  transaction_id: string
+  total_cost: number
+  new_sender_balance: number
+}
+
+const SELECT = 'id, gift_id, sender_id, recipient_id, credit_value, stream_id, created_at'
+
+export class PewGiftModel {
+  static async send(input: SendPewGiftInput): Promise<PewGiftReceipt> {
+    const supabase = await getAdminClient()
+    const { data, error } = await supabase.rpc('send_pewgift', {
+      p_sender_id: input.senderId,
+      p_recipient_id: input.recipientId,
+      p_gift_id: input.giftId,
+      p_quantity: input.quantity ?? 1,
+      p_stream_id: input.streamId,
+      p_context: { message: input.message ?? null }
+    })
+
+    if (error) throw error
+    return data as PewGiftReceipt
   }
 
-  static async getGift(id: string): Promise<PewGift | null> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) {
-        console.warn('[PewGiftModel] Gift not found')
-        return null
-      }
-
-      return data as PewGift
-    } catch (error) {
-      console.error('[PewGiftModel] Error fetching gift:', error)
-      throw error
-    }
+  static async getById(id: string): Promise<PewGift | null> {
+    const supabase = await getAdminClient()
+    const { data, error } = await supabase.from('gift_transactions').select(SELECT).eq('id', id).maybeSingle()
+    if (error) throw error
+    return (data as PewGift) ?? null
   }
 
   static async getUserReceivedGifts(userId: string, limit = 50, offset = 0): Promise<PewGift[]> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('recipientId', userId)
-        .order('createdAt', { ascending: false })
-        .range(offset, offset + limit - 1)
-
-      if (error) throw error
-      return (data || []) as PewGift[]
-    } catch (error) {
-      console.error('[PewGiftModel] Error fetching received gifts:', error)
-      throw error
-    }
+    return await listGifts('recipient_id', userId, limit, offset)
   }
 
   static async getUserSentGifts(userId: string, limit = 50, offset = 0): Promise<PewGift[]> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .select('*')
-        .eq('senderId', userId)
-        .order('createdAt', { ascending: false })
-        .range(offset, offset + limit - 1)
+    return await listGifts('sender_id', userId, limit, offset)
+  }
 
-      if (error) throw error
-      return (data || []) as PewGift[]
-    } catch (error) {
-      console.error('[PewGiftModel] Error fetching sent gifts:', error)
-      throw error
+  static async getUserStats(userId: string) {
+    const supabase = await getAdminClient()
+    const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
+      supabase.from('gift_transactions').select('credit_value').eq('sender_id', userId),
+      supabase.from('gift_transactions').select('credit_value').eq('recipient_id', userId)
+    ])
+
+    if (sentError || receivedError) throw sentError || receivedError
+
+    const sum = (rows: { credit_value: number }[] | null) =>
+      (rows || []).reduce((total, row) => total + Number(row.credit_value || 0), 0)
+
+    return {
+      totalSent: sum(sent),
+      totalReceived: sum(received),
+      sentCount: sent?.length || 0,
+      receivedCount: received?.length || 0
     }
   }
 
-  static async updateStatus(id: string, status: string): Promise<PewGift> {
-    try {
-      const supabase = await getSupabase()
-      const updates: any = { status }
+  /** Top receivers over the trailing window, aggregated from recorded transactions. */
+  static async getLeaderboard(limit = 50, sinceDays = 30) {
+    const supabase = await getAdminClient()
+    const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString()
 
-      if (status === 'RECEIVED') {
-        updates.receivedAt = new Date().toISOString()
-      } else if (status === 'SENT') {
-        updates.sentAt = new Date().toISOString()
-      }
+    const { data, error } = await supabase
+      .from('gift_transactions')
+      .select('recipient_id, credit_value')
+      .gte('created_at', since)
 
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
+    if (error) throw error
 
-      if (error) throw error
-      return data as PewGift
-    } catch (error) {
-      console.error('[PewGiftModel] Error updating gift status:', error)
-      throw error
+    const totals = new Map<string, number>()
+    for (const row of data || []) {
+      totals.set(row.recipient_id, (totals.get(row.recipient_id) || 0) + Number(row.credit_value))
     }
-  }
 
-  static async confirmGiftReceived(id: string): Promise<PewGift> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .update({
-          status: 'RECEIVED',
-          receivedAt: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as PewGift
-    } catch (error) {
-      console.error('[PewGiftModel] Error confirming gift:', error)
-      throw error
-    }
-  }
-
-  static async cancelGift(id: string): Promise<PewGift> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('pewgifts')
-        .update({ status: 'CANCELLED' })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data as PewGift
-    } catch (error) {
-      console.error('[PewGiftModel] Error cancelling gift:', error)
-      throw error
-    }
+    return [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([userId, totalCredits], index) => ({ rank: index + 1, userId, totalCredits }))
   }
 }
 
-// ============================================================================
-// EXPORTED WRAPPER FUNCTIONS FOR CONTROLLERS
-// ============================================================================
-// These functions provide a clean API for controllers to use
-// They wrap the class methods with names expected by the refactored controllers
+async function listGifts(column: 'sender_id' | 'recipient_id', userId: string, limit: number, offset: number) {
+  const supabase = await getAdminClient()
+  const { data, error } = await supabase
+    .from('gift_transactions')
+    .select(SELECT)
+    .eq(column, userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
-/**
- * Create a new pew gift
- * ✅ Lazy-loaded: Supabase only loads when this function is called
- */
-export async function create(data: {
-  sender_id: string
-  receiver_id: string
-  gift_type?: string
-  gift_name?: string
-  gift_value: number
-  message?: string
-  is_anonymous?: boolean
-}): Promise<PewGift> {
-  return PewGiftModel.sendGift(
-    data.sender_id,
-    data.receiver_id,
-    data.gift_value,
-    data.message
-  )
-}
-
-/**
- * Find pew gift by ID
- */
-export async function findById(id: string): Promise<PewGift | null> {
-  return PewGiftModel.getGift(id)
-}
-
-/**
- * Find pew gifts by receiver ID
- */
-export async function findByReceiverId(
-  receiverId: string,
-  limit = 20,
-  offset = 0
-): Promise<PewGift[]> {
-  return PewGiftModel.getUserReceivedGifts(receiverId, limit, offset)
-}
-
-/**
- * Find pew gifts by sender ID
- */
-export async function findBySenderId(
-  senderId: string,
-  limit = 20,
-  offset = 0
-): Promise<PewGift[]> {
-  return PewGiftModel.getUserSentGifts(senderId, limit, offset)
-}
-
-/**
- * Update pew gift
- */
-export async function update(
-  id: string,
-  updates: Partial<PewGift>
-): Promise<PewGift> {
-  if (updates.status) {
-    return PewGiftModel.updateStatus(id, updates.status)
-  }
-  
-  return PewGiftModel.getGift(id) as Promise<PewGift>
-}
-
-/**
- * Accept pew gift
- */
-export async function accept(id: string): Promise<PewGift> {
-  return PewGiftModel.confirmGiftReceived(id)
-}
-
-/**
- * Cancel pew gift
- */
-export async function cancel(id: string): Promise<PewGift> {
-  return PewGiftModel.cancelGift(id)
+  if (error) throw error
+  return (data || []) as PewGift[]
 }

@@ -1,60 +1,26 @@
-// server/api/stream/[id]/chat.post.ts
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
-
-interface ChatMessage {
-  content: string
-}
+import type { Database } from '~/types/database.types'
 
 export default defineEventHandler(async (event) => {
-  try {
-    const user = await requireAuth(event)
-    const streamId = event.context.params?.id
-    if (!streamId) throw createError({ statusCode: 400, statusMessage: 'Stream ID is required' })
-    const body = await readBody<ChatMessage>(event)
+  const user = await requireAuth(event)
+  const streamId = event.context.params?.id
+  if (!streamId) throw createError({ statusCode: 400, statusMessage: 'Stream ID is required' })
 
-    if (!body.content || body.content.trim().length === 0) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Message content is required'
-      })
-    }
-
-  const _supabase = await serverSupabaseClient(event)
-
-    // Save chat message
-    const { data: message, error } = await _supabase
-      .from('stream_chat')
-      .insert({
-        stream_id: streamId,
-        user_id: user.id,
-        username: user.user_metadata?.name || 'Anonymous',
-        avatar_url: user.user_metadata?.avatar_url,
-        content: body.content,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    // Broadcast to WebSocket clients
-    await broadcastToStream(streamId, {
-      type: 'chat-message',
-      message: message
-    })
-
-    return {
-      success: true,
-      data: message
-    }
-  } catch (error: any) {
-    throw error
+  const body = await readBody<{ content?: string }>(event)
+  if (!body.content?.trim()) {
+    throw createError({ statusCode: 400, statusMessage: 'Message content is required' })
   }
-})
 
-async function broadcastToStream(streamId: string, data: any) {
-  // Implement WebSocket broadcast logic
-  // This would typically use a pub/sub system like Redis
-  console.log(`Broadcasting to stream ${streamId}:`, data)
-}
+  const supabase = await serverSupabaseClient<Database>(event)
+
+  const { data: message, error } = await supabase
+    .from('stream_chats')
+    .insert({ stream_id: streamId, user_id: user.id, message_text: body.content.trim() })
+    .select('id, stream_id, user_id, message_text, is_pinned, created_at')
+    .single()
+
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+
+  return { success: true, data: message }
+})

@@ -33,9 +33,9 @@ export default defineEventHandler(async (event) => {
 
     // Get current user data
     const { data: user, error: fetchError } = await supabase
-      .from('users')
+      .from('user')
       .select('rank_points')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
       
     if (fetchError) throw fetchError;
@@ -46,13 +46,13 @@ export default defineEventHandler(async (event) => {
 
     // Update user's points and rank
     const { error: updateError } = await supabase
-      .from('users')
+      .from('user')
       .update({
         rank_points: newPoints,
         rank: newRank.name,
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId);
+      .eq('user_id', userId);
       
     if (updateError) throw updateError;
 

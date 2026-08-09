@@ -13,10 +13,10 @@ export const User: any = {
     const where = opts?.where || {}
     const supabase = await getSupabaseClient()
     try {
-      let q = supabase.from('users').select('*')
+      let q = supabase.from('user').select('*')
       if (where.phone) q = q.eq('phone', where.phone)
       if (where.email) q = q.eq('email', where.email)
-      if (where.id) q = q.eq('id', where.id)
+      if (where.id) q = q.eq('user_id', where.id)
       const { data, error } = await q.maybeSingle()
       if (error) throw error
       return data || null

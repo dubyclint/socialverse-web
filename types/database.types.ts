@@ -460,6 +460,92 @@ export type Database = {
           },
         ]
       }
+      country_tiers: {
+        Row: {
+          country_code: string
+          tier: number
+          updated_at: string
+        }
+        Insert: {
+          country_code: string
+          tier: number
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string
+          tier?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      deposits: {
+        Row: {
+          created_at: string
+          credited_pewgift: number
+          external_ref: string | null
+          fee_pewgift: number
+          gross_pewgift: number
+          id: string
+          idempotency_key: string
+          metadata: Json
+          platform_rate_pct: number
+          provider_code: string | null
+          rate_used: number
+          route: Database["public"]["Enums"]["deposit_route"]
+          settled_at: string | null
+          source_amount: number
+          source_currency: string
+          status: Database["public"]["Enums"]["deposit_state"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credited_pewgift?: number
+          external_ref?: string | null
+          fee_pewgift?: number
+          gross_pewgift?: number
+          id?: string
+          idempotency_key: string
+          metadata?: Json
+          platform_rate_pct?: number
+          provider_code?: string | null
+          rate_used: number
+          route: Database["public"]["Enums"]["deposit_route"]
+          settled_at?: string | null
+          source_amount: number
+          source_currency: string
+          status?: Database["public"]["Enums"]["deposit_state"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credited_pewgift?: number
+          external_ref?: string | null
+          fee_pewgift?: number
+          gross_pewgift?: number
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          platform_rate_pct?: number
+          provider_code?: string | null
+          rate_used?: number
+          route?: Database["public"]["Enums"]["deposit_route"]
+          settled_at?: string | null
+          source_amount?: number
+          source_currency?: string
+          status?: Database["public"]["Enums"]["deposit_state"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposits_provider_code_fkey"
+            columns: ["provider_code"]
+            isOneToOne: false
+            referencedRelation: "payment_providers"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       escrow_agreements: {
         Row: {
           arbitrator_id: string | null
@@ -614,6 +700,45 @@ export type Database = {
           seller_id?: string
           status?: Database["public"]["Enums"]["escrow_status"] | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fee_settings: {
+        Row: {
+          country_code: string | null
+          flat_fee: number
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          min_amount: number
+          percent_rate: number
+          route: Database["public"]["Enums"]["deposit_route"] | null
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          country_code?: string | null
+          flat_fee?: number
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          percent_rate?: number
+          route?: Database["public"]["Enums"]["deposit_route"] | null
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string | null
+          flat_fee?: number
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          percent_rate?: number
+          route?: Database["public"]["Enums"]["deposit_route"] | null
+          scope?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -791,6 +916,27 @@ export type Database = {
           },
         ]
       }
+      idempotency_keys: {
+        Row: {
+          created_at: string
+          key: string
+          response: Json | null
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          response?: Json | null
+          scope: string
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          response?: Json | null
+          scope?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -887,6 +1033,42 @@ export type Database = {
           provider?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      payment_providers: {
+        Row: {
+          code: string
+          config: Json
+          created_at: string
+          display_name: string
+          id: string
+          is_enabled: boolean
+          route: Database["public"]["Enums"]["deposit_route"]
+          supported_currencies: string[]
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          config?: Json
+          created_at?: string
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          route: Database["public"]["Enums"]["deposit_route"]
+          supported_currencies?: string[]
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          config?: Json
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          route?: Database["public"]["Enums"]["deposit_route"]
+          supported_currencies?: string[]
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1243,6 +1425,194 @@ export type Database = {
           },
         ]
       }
+      stream_match_events: {
+        Row: {
+          actor_id: string
+          created_at: string
+          gift_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["stream_match_event_kind"]
+          match_id: string
+          points: number
+          side: number
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          gift_id?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["stream_match_event_kind"]
+          match_id: string
+          points: number
+          side: number
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          gift_id?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["stream_match_event_kind"]
+          match_id?: string
+          points?: number
+          side?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_match_events_gift_id_fkey"
+            columns: ["gift_id"]
+            isOneToOne: false
+            referencedRelation: "gift_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stream_match_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "stream_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stream_match_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          match_id: string
+          score: number
+          side: number
+          stream_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          match_id: string
+          score?: number
+          side: number
+          stream_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          match_id?: string
+          score?: number
+          side?: number
+          stream_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_match_participants_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "stream_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stream_match_participants_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stream_matches: {
+        Row: {
+          created_at: string
+          created_by: string
+          duration_seconds: number
+          ends_at: string | null
+          id: string
+          mode: Database["public"]["Enums"]["stream_match_mode"]
+          started_at: string | null
+          status: Database["public"]["Enums"]["stream_match_state"]
+          updated_at: string
+          winning_side: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          duration_seconds?: number
+          ends_at?: string | null
+          id?: string
+          mode?: Database["public"]["Enums"]["stream_match_mode"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["stream_match_state"]
+          updated_at?: string
+          winning_side?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          duration_seconds?: number
+          ends_at?: string | null
+          id?: string
+          mode?: Database["public"]["Enums"]["stream_match_mode"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["stream_match_state"]
+          updated_at?: string
+          winning_side?: number | null
+        }
+        Relationships: []
+      }
+      stream_settings: {
+        Row: {
+          created_at: string
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          settings?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stream_viewers: {
+        Row: {
+          id: string
+          is_active: boolean
+          joined_at: string
+          left_at: string | null
+          stream_id: string
+          viewer_id: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          joined_at?: string
+          left_at?: string | null
+          stream_id: string
+          viewer_id: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          joined_at?: string
+          left_at?: string | null
+          stream_id?: string
+          viewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_viewers_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streams: {
         Row: {
           broadcast_status: Database["public"]["Enums"]["stream_broadcast_state"]
@@ -1399,8 +1769,11 @@ export type Database = {
       user: {
         Row: {
           avatar_url: string | null
+          ban_reason: string | null
+          banned_at: string | null
           bio: string | null
           birth_date: string | null
+          can_toggle_rank: boolean
           cover_url: string | null
           created_at: string | null
           default_stream_title: string | null
@@ -1410,7 +1783,9 @@ export type Database = {
           following_count: number
           full_name: string | null
           gender: string | null
+          hide_rank: boolean
           interest_tags: string[] | null
+          is_banned: boolean
           is_private: boolean
           is_verified: boolean | null
           last_seen: string | null
@@ -1419,20 +1794,26 @@ export type Database = {
           phone_hash: string | null
           posts_count: number
           profile_completed: boolean
+          push_token: string | null
           rank: string | null
           rank_level: number
           rank_points: number
+          rank_toggle_expires: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           stream_quality: string | null
           updated_at: string | null
           user_id: string
           username: string
+          verified_at: string | null
           website: string | null
         }
         Insert: {
           avatar_url?: string | null
+          ban_reason?: string | null
+          banned_at?: string | null
           bio?: string | null
           birth_date?: string | null
+          can_toggle_rank?: boolean
           cover_url?: string | null
           created_at?: string | null
           default_stream_title?: string | null
@@ -1442,7 +1823,9 @@ export type Database = {
           following_count?: number
           full_name?: string | null
           gender?: string | null
+          hide_rank?: boolean
           interest_tags?: string[] | null
+          is_banned?: boolean
           is_private?: boolean
           is_verified?: boolean | null
           last_seen?: string | null
@@ -1451,20 +1834,26 @@ export type Database = {
           phone_hash?: string | null
           posts_count?: number
           profile_completed?: boolean
+          push_token?: string | null
           rank?: string | null
           rank_level?: number
           rank_points?: number
+          rank_toggle_expires?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           stream_quality?: string | null
           updated_at?: string | null
           user_id: string
           username: string
+          verified_at?: string | null
           website?: string | null
         }
         Update: {
           avatar_url?: string | null
+          ban_reason?: string | null
+          banned_at?: string | null
           bio?: string | null
           birth_date?: string | null
+          can_toggle_rank?: boolean
           cover_url?: string | null
           created_at?: string | null
           default_stream_title?: string | null
@@ -1474,7 +1863,9 @@ export type Database = {
           following_count?: number
           full_name?: string | null
           gender?: string | null
+          hide_rank?: boolean
           interest_tags?: string[] | null
+          is_banned?: boolean
           is_private?: boolean
           is_verified?: boolean | null
           last_seen?: string | null
@@ -1483,14 +1874,17 @@ export type Database = {
           phone_hash?: string | null
           posts_count?: number
           profile_completed?: boolean
+          push_token?: string | null
           rank?: string | null
           rank_level?: number
           rank_points?: number
+          rank_toggle_expires?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           stream_quality?: string | null
           updated_at?: string | null
           user_id?: string
           username?: string
+          verified_at?: string | null
           website?: string | null
         }
         Relationships: []
@@ -1666,18 +2060,24 @@ export type Database = {
         Row: {
           balance: number
           currency: string
+          is_locked: boolean
+          locked_balance: number
           updated_at: string
           user_id: string
         }
         Insert: {
           balance?: number
           currency?: string
+          is_locked?: boolean
+          locked_balance?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           balance?: number
           currency?: string
+          is_locked?: boolean
+          locked_balance?: number
           updated_at?: string
           user_id?: string
         }
@@ -1821,10 +2221,15 @@ export type Database = {
             } & "Could not choose the best candidate function between: public.check_username_available(p_username => text), public.check_username_available(p_username => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
           }
       cleanup_old_data: { Args: never; Returns: undefined }
+      ensure_wallet: {
+        Args: { p_currency?: string; p_user_id: string }
+        Returns: undefined
+      }
       execute_p2p_escrow_action: {
         Args: { action_type: string; target_trade_id: string }
         Returns: boolean
       }
+      finalize_stream_match: { Args: { p_match_id: string }; Returns: number }
       get_suggested_friends: {
         Args: { p_user_id: string }
         Returns: {
@@ -1856,6 +2261,45 @@ export type Database = {
             }
             Returns: undefined
           }
+      record_match_event: {
+        Args: {
+          p_actor_id: string
+          p_gift_id?: string
+          p_kind: Database["public"]["Enums"]["stream_match_event_kind"]
+          p_match_id: string
+          p_points: number
+          p_side: number
+        }
+        Returns: number
+      }
+      send_pewgift: {
+        Args: {
+          p_context?: Json
+          p_gift_id: string
+          p_quantity?: number
+          p_recipient_id: string
+          p_sender_id: string
+          p_stream_id?: string
+        }
+        Returns: Json
+      }
+      settle_deposit: { Args: { p_deposit_id: string }; Returns: number }
+      sync_stream_viewer_counts: {
+        Args: { p_stream_id: string }
+        Returns: number
+      }
+      transfer_pewgift: {
+        Args: {
+          p_amount: number
+          p_credit_type: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+          p_debit_type: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+          p_metadata?: Json
+          p_recipient_id: string
+          p_reference_id?: string
+          p_sender_id: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       ad_action_type: "IMPRESSION" | "CLICK"
@@ -1879,6 +2323,19 @@ export type Database = {
         | "REJECTED"
         | "DISCONNECTED"
       call_type_mode: "AUDIO" | "VIDEO"
+      deposit_route:
+        | "CARD"
+        | "PSP"
+        | "BANK_TRANSFER"
+        | "CRYPTO"
+        | "P2P"
+        | "SUPPORT_AGENT"
+      deposit_state:
+        | "PENDING"
+        | "AWAITING_PAYMENT"
+        | "SETTLED"
+        | "FAILED"
+        | "REFUNDED"
       escrow_contract_state:
         | "PROPOSED"
         | "FUNDED"
@@ -1917,6 +2374,9 @@ export type Database = {
         | "released"
         | "cancelled"
       stream_broadcast_state: "PREPARING" | "LIVE" | "ENDED"
+      stream_match_event_kind: "GIFT" | "TAP"
+      stream_match_mode: "SOLO" | "TEAM"
+      stream_match_state: "PENDING" | "LIVE" | "FINISHED" | "CANCELLED"
       transaction_category: "credit" | "debit"
       user_role: "user" | "moderator" | "admin" | "manager"
       wallet_transaction_ledger_type:
@@ -2081,6 +2541,21 @@ export const Constants = {
         "DISCONNECTED",
       ],
       call_type_mode: ["AUDIO", "VIDEO"],
+      deposit_route: [
+        "CARD",
+        "PSP",
+        "BANK_TRANSFER",
+        "CRYPTO",
+        "P2P",
+        "SUPPORT_AGENT",
+      ],
+      deposit_state: [
+        "PENDING",
+        "AWAITING_PAYMENT",
+        "SETTLED",
+        "FAILED",
+        "REFUNDED",
+      ],
       escrow_contract_state: [
         "PROPOSED",
         "FUNDED",
@@ -2124,6 +2599,9 @@ export const Constants = {
         "cancelled",
       ],
       stream_broadcast_state: ["PREPARING", "LIVE", "ENDED"],
+      stream_match_event_kind: ["GIFT", "TAP"],
+      stream_match_mode: ["SOLO", "TEAM"],
+      stream_match_state: ["PENDING", "LIVE", "FINISHED", "CANCELLED"],
       transaction_category: ["credit", "debit"],
       user_role: ["user", "moderator", "admin", "manager"],
       wallet_transaction_ledger_type: [

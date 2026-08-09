@@ -19,9 +19,9 @@ export default defineEventHandler(async (event) => {
   const { region, category, size = 4, verified_only: verifiedOnly, title } = eventMeta
 
   let query = supabase
-    .from('users')
+    .from('user')
     .select('*')
-    .neq('id', user.id)
+    .neq('user_id', user.id)
 
   if (region) {
     query = query.eq('location', region)

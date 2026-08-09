@@ -28,7 +28,7 @@ export class AdminController {
     const offset = parseInt(query.offset as string) || 0;
 
     const { data: users, error } = await client
-      .from('users')
+      .from('user')
       .select('*')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -43,16 +43,16 @@ export class AdminController {
     const adminId = event.context.user.id;
 
     const { data: user, error } = await client
-      .from('users')
+      .from('user')
       .update({ is_banned: true, ban_reason: reason })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single();
 
     if (error) throw error;
     await logAdminAction(adminId, 'user_ban', userId, 'user', { reason });
-    if (user?.device_token) {
-      await sendPush(user.device_token, '⛔ Account Banned', `Reason: ${reason}`);
+    if (user?.push_token) {
+      await sendPush(user.push_token, '⛔ Account Banned', `Reason: ${reason}`);
     }
     return { success: true, data: user };
   }
@@ -63,16 +63,16 @@ export class AdminController {
     const adminId = event.context.user.id;
 
     const { data: user, error } = await client
-      .from('users')
+      .from('user')
       .update({ is_banned: false, ban_reason: null })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single();
 
     if (error) throw error;
     await logAdminAction(adminId, 'user_unban', userId, 'user');
-    if (user?.device_token) {
-      await sendPush(user.device_token, '✅ Account Restored', 'Your account has been restored.');
+    if (user?.push_token) {
+      await sendPush(user.push_token, '✅ Account Restored', 'Your account has been restored.');
     }
     return { success: true, data: user };
   }
@@ -83,9 +83,9 @@ export class AdminController {
     const adminId = event.context.user.id;
 
     const { data: user, error } = await client
-      .from('users')
+      .from('user')
       .update({ is_verified: verified })
-      .eq('id', userId)
+      .eq('user_id', userId)
       .select()
       .single();
 

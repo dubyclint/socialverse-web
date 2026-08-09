@@ -52,9 +52,9 @@ export default defineEventHandler(async (event): Promise<FilterResponse> => {
 
     // Get user data from Supabase
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single()
 
     if (userError) throw userError
@@ -72,9 +72,9 @@ export default defineEventHandler(async (event): Promise<FilterResponse> => {
     if (trust.isTrusted) {
       // Update user filters in Supabase
       const { error: updateError } = await supabase
-        .from('users')
+        .from('user')
         .update({ match_filters: filters })
-        .eq('id', userId)
+        .eq('user_id', userId)
 
       if (updateError) throw updateError
 

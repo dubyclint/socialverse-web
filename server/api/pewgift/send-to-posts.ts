@@ -1,106 +1,75 @@
-// server/api/pewgift/send-to-post.post.ts
-// ============================================================================
-// SEND GIFT TO POST
-// ============================================================================
-
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { mapGiftError } from '~/server/utils/pewgift-errors'
+import type { Database } from '~/types/database.types'
 
 interface SendGiftRequest {
   postId: string
   giftTypeId: string
-  quantity: number
+  quantity?: number
   message?: string
-  isAnonymous: boolean
+  isAnonymous?: boolean
 }
 
 export default defineEventHandler(async (event) => {
-  try {
-    const user = await requireAuth(event)
-    const body = await readBody<SendGiftRequest>(event)
+  const user = await requireAuth(event)
+  const body = await readBody<SendGiftRequest>(event)
 
-    if (!body.postId || !body.giftTypeId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Post ID and gift type ID are required'
-      })
-    }
+  if (!body.postId || !body.giftTypeId) {
+    throw createError({ statusCode: 400, statusMessage: 'Post ID and gift type ID are required' })
+  }
 
-    const supabase = await serverSupabaseClient(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    // Call the function to send gift
-    const { data, error } = await supabase
-      .rpc('send_gift_to_post', {
-        sender_id_param: user.id,
-        post_id_param: body.postId,
-        gift_type_id_param: body.giftTypeId,
-        quantity_param: body.quantity || 1,
-        message_param: body.message || null,
-        is_anonymous_param: body.isAnonymous || false
-      })
+  const { data: post } = await supabase
+    .from('posts')
+    .select('user_id')
+    .eq('id', body.postId)
+    .single()
 
-    if (error) {
-      console.error('[PewGift API] Error:', error)
-      const rows = data as any[] | null
-      throw createError({
-        statusCode: 400,
-        statusMessage: rows?.[0]?.message || 'Failed to send gift'
-      })
-    }
+  if (!post) throw createError({ statusCode: 404, statusMessage: 'Post not found' })
+  if (post.user_id === user.id) {
+    throw createError({ statusCode: 400, statusMessage: 'Cannot send gifts to yourself' })
+  }
 
-    const result = (data as any[])?.[0]
-    if (!result?.success) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: result?.message || 'Failed to send gift'
-      })
-    }
+  const { data: gift } = await supabase
+    .from('gift_catalog')
+    .select('id, name')
+    .eq('id', body.giftTypeId)
+    .single()
 
-    // Get post author for notification
-    const { data: post } = await supabase
-      .from('posts')
-      .select('user_id')
-      .eq('id', body.postId)
-      .single()
+  if (!gift) throw createError({ statusCode: 404, statusMessage: 'Gift not found' })
 
-    // Send notification
-    if (post && post.user_id !== user.id) {
-      const { data: giftType } = await supabase
-        .from('pewgift_types')
-        .select('name, emoji')
-        .eq('id', body.giftTypeId)
-        .single()
+  const { data: result, error } = await supabase.rpc('send_pewgift', {
+    p_sender_id: user.id,
+    p_recipient_id: post.user_id,
+    p_gift_id: body.giftTypeId,
+    p_quantity: body.quantity ?? 1,
+    p_stream_id: undefined,
+    p_context: { post_id: body.postId, anonymous: body.isAnonymous ?? false }
+  })
 
-      const { data: sender } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single()
+  if (error) throw mapGiftError(error)
 
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: post.user_id,
-          type: 'gift',
-          title: `${body.isAnonymous ? 'Someone' : sender?.username} sent you a ${giftType?.emoji} ${giftType?.name}`,
-          message: `You received a gift on your post`,
-          related_id: body.postId,
-          related_type: 'post'
-        })
-    }
+  const receipt = result as { transaction_id: string, total_cost: number, new_sender_balance: number }
 
-    return {
-      success: true,
-      data: {
-        newBalance: result.new_balance,
-        message: 'Gift sent successfully'
-      }
-    }
-  } catch (error: any) {
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.message || 'Failed to send gift'
-    })
+  await supabase.from('post_gifts').insert({
+    post_id: body.postId,
+    sender_id: user.id,
+    receiver_id: post.user_id,
+    amount: receipt.total_cost
+  })
+
+  await supabase.from('notifications').insert({
+    recipient_id: post.user_id,
+    notifier_id: body.isAnonymous ? null : user.id,
+    event_type: 'GIFT_RECEIVED',
+    source_id: body.postId,
+    message_text: `You received a ${gift.name} on your post`
+  })
+
+  return {
+    success: true,
+    data: { newBalance: receipt.new_sender_balance, message: 'Gift sent successfully' }
   }
 })
-

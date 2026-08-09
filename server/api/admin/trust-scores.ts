@@ -9,7 +9,7 @@ export default defineEventHandler(async (_event) => {
     const supabase = await getSupabaseAdminClient()
 
     const { data: users, error } = await supabase
-      .from('users')
+      .from('user')
       .select('*')
 
     if (error) throw error
@@ -17,13 +17,10 @@ export default defineEventHandler(async (_event) => {
     const scored = (users || []).map((user: any) => {
       const trust = evaluateTrust(user)
       return {
-        id: user.id,
+        id: user.user_id,
         username: user.username,
-        country: user.country,
-        region: user.region,
+        location: user.location,
         is_verified: user.is_verified,
-        kyc_verified: user.kyc_verified,
-        is_premium: user.is_premium,
         trust_score: trust.priorityRatio,
         criteria_met: trust.criteriaMet,
         is_trusted: trust.isTrusted

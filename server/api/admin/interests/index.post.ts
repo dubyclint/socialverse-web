@@ -31,9 +31,9 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const { data: adminUser } = await supabase
-      .from('users')
+      .from('user')
       .select('role')
-      .eq('id', user.data.user.id)
+      .eq('user_id', user.data.user.id)
       .single()
 
     if (adminUser?.role !== 'admin') {

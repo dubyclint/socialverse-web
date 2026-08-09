@@ -1,40 +1,31 @@
-// server/api/pewgift/types.get.ts
-// ============================================================================
-// GET AVAILABLE PEWGIFT TYPES
-// ============================================================================
-
 import { serverSupabaseClient } from '#supabase/server'
+import type { Database } from '~/types/database.types'
+
+type GiftTier = Database['public']['Enums']['gift_tier_level']
 
 export default defineEventHandler(async (event) => {
-  try {
-    const query = getQuery(event)
-    const category = query.category as string
+  const query = getQuery(event)
+  const tier = query.tier as GiftTier | undefined
 
-    const supabase = await serverSupabaseClient(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    let queryBuilder = supabase
-      .from('pewgift_types')
-      .select('*')
-      .eq('is_active', true)
+  let builder = supabase
+    .from('gift_catalog')
+    .select('id, name, cost_credits, tier, icon_url')
+    .eq('is_active', true)
 
-    if (category) {
-      queryBuilder = queryBuilder.eq('category', category)
-    }
+  if (tier) builder = builder.eq('tier', tier)
 
-    const { data: gifts, error } = await queryBuilder
-      .order('rarity', { ascending: false })
-      .order('price_in_credits', { ascending: true })
+  const { data: gifts, error } = await builder.order('cost_credits', { ascending: true })
 
-    if (error) throw error
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-    return {
-      success: true,
-      data: gifts || []
-    }
-  } catch (error: any) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Failed to fetch gift types'
-    })
+  return {
+    success: true,
+    // < 5 PEW plays a light animation; >= 5 PEW plays the full-screen tier effect.
+    data: (gifts || []).map(gift => ({
+      ...gift,
+      animation: Number(gift.cost_credits) >= 5 ? 'fullscreen' : 'light'
+    }))
   }
 })

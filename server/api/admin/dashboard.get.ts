@@ -23,7 +23,7 @@ export default defineEventHandler(async (_event): Promise<DashboardStats> => {
 
     // Get total users
     const { count: totalUsers } = await supabase
-      .from('users')
+      .from('user')
       .select('*', { count: 'exact', head: true })
 
     // Get total trades
@@ -49,9 +49,9 @@ export default defineEventHandler(async (_event): Promise<DashboardStats> => {
 
     // Get verified vs unverified users
     const { count: verifiedUsers } = await supabase
-      .from('users')
+      .from('user')
       .select('*', { count: 'exact', head: true })
-      .eq('verified', true)
+      .eq('is_verified', true)
 
     const unverifiedUsers = (totalUsers || 0) - (verifiedUsers || 0)
 
