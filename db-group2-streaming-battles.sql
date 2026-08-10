@@ -145,6 +145,24 @@ begin
     raise exception 'match is not accepting contributions' using errcode = '22023';
   end if;
 
+  if not exists (select 1 from public.stream_match_participants
+                 where match_id = p_match_id and side = p_side) then
+    raise exception 'side is not part of this match' using errcode = '22023';
+  end if;
+
+  -- Taps are free engagement, so they are worth one point and throttled here
+  -- rather than trusted from the client.
+  if p_kind = 'TAP' then
+    if p_points <> 1 then
+      raise exception 'a tap is worth one point' using errcode = '22023';
+    end if;
+    if (select count(*) from public.stream_match_events
+         where match_id = p_match_id and actor_id = p_actor_id and kind = 'TAP'
+           and created_at > now() - interval '10 seconds') >= 20 then
+      raise exception 'tap rate limit exceeded' using errcode = '53400';
+    end if;
+  end if;
+
   insert into public.stream_match_events (match_id, side, actor_id, kind, points, gift_id)
   values (p_match_id, p_side, p_actor_id, p_kind, p_points, p_gift_id);
 
@@ -156,6 +174,55 @@ begin
   from public.stream_match_events where match_id = p_match_id and side = p_side;
 
   return v_side_score;
+end;
+$$;
+
+-- Starts a match; ends_at is derived from the server clock so every client
+-- counts down against the same authoritative deadline.
+create or replace function public.start_stream_match(p_match_id uuid, p_actor_id uuid)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_status public.stream_match_state;
+  v_creator uuid;
+  v_duration integer;
+  v_ends_at timestamptz;
+  v_sides integer;
+begin
+  select status, created_by, duration_seconds, ends_at
+    into v_status, v_creator, v_duration, v_ends_at
+  from public.stream_matches where id = p_match_id for update;
+
+  if v_status is null then
+    raise exception 'match not found' using errcode = 'P0002';
+  end if;
+  if v_status = 'LIVE' then
+    return v_ends_at;
+  end if;
+  if v_status <> 'PENDING' then
+    raise exception 'match cannot be started' using errcode = '22023';
+  end if;
+  if p_actor_id <> v_creator
+     and not exists (select 1 from public."user" where user_id = p_actor_id and role in ('admin', 'manager')) then
+    raise exception 'not authorised to start this match' using errcode = '42501';
+  end if;
+
+  select count(distinct side) into v_sides
+  from public.stream_match_participants where match_id = p_match_id;
+
+  if v_sides < 2 then
+    raise exception 'both sides must have a co-host' using errcode = '22023';
+  end if;
+
+  update public.stream_matches
+     set status = 'LIVE', started_at = now(), ends_at = now() + make_interval(secs => v_duration), updated_at = now()
+   where id = p_match_id
+  returning ends_at into v_ends_at;
+
+  return v_ends_at;
 end;
 $$;
 

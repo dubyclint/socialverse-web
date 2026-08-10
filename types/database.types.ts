@@ -2629,6 +2629,10 @@ export type Database = {
         Returns: Json
       }
       settle_deposit: { Args: { p_deposit_id: string }; Returns: number }
+      start_stream_match: {
+        Args: { p_actor_id: string; p_match_id: string }
+        Returns: string
+      }
       sync_stream_viewer_counts: {
         Args: { p_stream_id: string }
         Returns: number

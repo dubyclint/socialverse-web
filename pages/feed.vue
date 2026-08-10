@@ -131,6 +131,10 @@
         </div>
 
         <ClientOnly>
+          <LiveRail v-if="activeTab === 'for-you'" />
+        </ClientOnly>
+
+        <ClientOnly>
           <div class="status-tray-container">
             <div class="status-tray-header"><span class="tray-title">Active Statuses</span><NuxtLink to="/status" class="tray-action-link"><Icon name="plus" size="14" /> Create Status</NuxtLink></div>
             <div v-if="statusLoading" class="status-tray-loading"><div class="spinner-mini"></div></div>
@@ -271,6 +275,7 @@ import { useSocialFeed } from '~/composables/useSocialFeed';
 import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
+import LiveRail from '~/components/feed/live-rail.vue';
 
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
