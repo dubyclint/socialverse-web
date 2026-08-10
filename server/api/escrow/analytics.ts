@@ -1,48 +1,43 @@
-import { getSupabaseClient } from '~/server/utils/database';
+import { serverSupabaseClient } from '#supabase/server'
+import { requireRole } from '~/server/utils/rbac'
+import type { Database } from '~/types/database.types'
 
-export default defineEventHandler(async () => {
-  try {
-    const supabase = await getSupabaseClient();
-    const now = new Date();
-    const months = [];
-    const volume = [];
-    const releaseTime = [];
+/** Four-month escrow volume and mean time-to-release, from the P2P trade book. */
+export default defineEventHandler(async (event) => {
+  await requireRole(event, 'moderator')
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    for (let i = 3; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+  const now = new Date()
+  const months: string[] = []
+  const volume: number[] = []
+  const releaseTime: number[] = []
 
-      const { data: deals, error } = await supabase
-        .from('escrow_deals')
-        .select('*')
-        .gte('timestamp', start.toISOString())
-        .lt('timestamp', end.toISOString());
-        
-      if (error) throw error;
+  for (let i = 3; i >= 0; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
 
-      const totalVolume = deals?.reduce((sum: any, d: any) => sum + (d.amount || 0), 0) || 0;
-      const avgReleaseTime = deals
-        ?.filter((d: any) => d.is_released && d.released_at)
-        ?.map((d: any) => {
-          const releaseTime = new Date(d.released_at).getTime();
-          const createTime = new Date(d.timestamp).getTime();
-          return (releaseTime - createTime) / 3600000; // Convert to hours
-        }) || [];
+    const { data: trades, error } = await supabase
+      .from('p2p_trades')
+      .select('amount, created_at, released_at, status')
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
 
-      months.push(start.toLocaleString('default', { month: 'short' }));
-      volume.push(Math.round(totalVolume));
-      releaseTime.push(
-        avgReleaseTime.length
-          ? parseFloat((avgReleaseTime.reduce((a: any, b: any) => a + b, 0) / avgReleaseTime.length).toFixed(2))
-          : 0
-      );
-    }
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-    return { months, volume, releaseTime };
-  } catch (err) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to fetch escrow analytics'
-    });
+    const rows = trades ?? []
+    const totalVolume = rows.reduce((sum, trade) => sum + Number(trade.amount), 0)
+    const hoursToRelease = rows
+      .filter(trade => trade.status === 'released' && trade.released_at)
+      .map(trade => (new Date(trade.released_at as string).getTime() - new Date(trade.created_at).getTime()) / 3600000)
+
+    months.push(start.toLocaleString('default', { month: 'short' }))
+    volume.push(Math.round(totalVolume))
+    releaseTime.push(
+      hoursToRelease.length
+        ? Number((hoursToRelease.reduce((a, b) => a + b, 0) / hoursToRelease.length).toFixed(2))
+        : 0
+    )
   }
-});
+
+  return { months, volume, releaseTime }
+})

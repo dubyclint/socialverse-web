@@ -1,5 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { requireAmount, requireUuid } from '~/server/utils/input'
+import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
 
 interface OpenTradeBody {
@@ -17,17 +19,19 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<OpenTradeBody>(event)
   const supabase = await serverSupabaseClient<Database>(event)
 
-  if (!body.listingId || !body.amount || body.amount <= 0) {
-    throw createError({ statusCode: 400, statusMessage: 'listingId and a positive amount are required' })
-  }
+  const listingId = requireUuid(body.listingId, 'listingId')
+  const amount = requireAmount(body.amount, 'amount')
+
   if (!body.acceptedTerms) {
     throw createError({ statusCode: 400, statusMessage: 'Trade terms must be accepted' })
   }
 
+  await enforceRateLimit(event, 'p2p:open-trade', { limit: 10, windowMs: 60_000 }, user.id)
+
   const { data: tradeId, error } = await supabase.rpc('open_p2p_trade', {
-    p_listing_id: body.listingId,
+    p_listing_id: listingId,
     p_buyer_id: user.id,
-    p_amount: body.amount
+    p_amount: amount
   })
 
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })

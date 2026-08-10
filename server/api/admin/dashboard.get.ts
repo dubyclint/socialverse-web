@@ -31,21 +31,20 @@ export default defineEventHandler(async (_event): Promise<DashboardStats> => {
       .from('trades')
       .select('*', { count: 'exact', head: true })
 
-    // Get total escrow value
+    // Escrow is the open (unsettled) part of the P2P trade book.
+    const openStatuses = ['created', 'funded', 'disputed']
+
     const { data: escrowData } = await supabase
-      .from('escrow_trades')
+      .from('p2p_trades')
       .select('amount')
-      .eq('is_released', false)
-      .eq('is_refunded', false)
+      .in('status', openStatuses)
 
-    const totalEscrowValue = escrowData?.reduce((sum: number, trade: any) => sum + (trade.amount || 0), 0) || 0
+    const totalEscrowValue = escrowData?.reduce((sum: number, trade: any) => sum + Number(trade.amount || 0), 0) || 0
 
-    // Get pending escrows count
     const { count: pendingEscrows } = await supabase
-      .from('escrow_trades')
+      .from('p2p_trades')
       .select('*', { count: 'exact', head: true })
-      .eq('is_released', false)
-      .eq('is_refunded', false)
+      .in('status', openStatuses)
 
     // Get verified vs unverified users
     const { count: verifiedUsers } = await supabase

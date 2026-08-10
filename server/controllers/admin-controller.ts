@@ -176,7 +176,7 @@ export class AdminController {
   static async getPendingEscrows(event: H3Event) {
     const client = await this.getAdminClient(event);
     const { data: escrows, error } = await client
-      .from('escrow_trades')
+      .from('p2p_trades')
       .select('*')
       .eq('status', 'disputed');
 
@@ -189,12 +189,12 @@ export class AdminController {
     const { escrowId } = await readBody(event);
     const adminId = event.context.user.id;
 
-    const { data: escrow, error } = await client
-      .from('escrow_trades')
-      .update({ status: 'released', is_released: true })
-      .eq('id', escrowId)
-      .select()
-      .single();
+    // Settlement runs through the locking SQL function so the seller's locked
+    // balance and the buyer's credit move together.
+    const { data: escrow, error } = await client.rpc('release_p2p_trade', {
+      p_trade_id: escrowId,
+      p_actor_id: adminId
+    });
 
     if (error) throw error;
     await logAdminAction(adminId, 'escrow_release', escrowId, 'escrow');

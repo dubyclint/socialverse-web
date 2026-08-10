@@ -1,6 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { mapGiftError } from '~/server/utils/pewgift-errors'
+import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
 
 interface SendGiftToStreamRequest {
@@ -14,6 +15,7 @@ interface SendGiftToStreamRequest {
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await enforceRateLimit(event, 'pewgift:send', { limit: 30, windowMs: 60_000 }, user.id)
   const body = await readBody<SendGiftToStreamRequest>(event)
 
   if (!body.streamId || !body.streamerId || !body.giftTypeId) {

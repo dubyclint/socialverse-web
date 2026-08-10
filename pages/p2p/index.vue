@@ -49,7 +49,13 @@ async function selectTrade(id: string) {
   await loadTrades()
 }
 
-onMounted(loadTrades)
+const route = useRoute()
+
+onMounted(async () => {
+  await loadTrades()
+  const requested = route.query.trade
+  if (typeof requested === 'string') await selectTrade(requested)
+})
 </script>
 
 <style scoped>
