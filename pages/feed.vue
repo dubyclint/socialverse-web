@@ -70,6 +70,7 @@
           <NuxtLink to="/my-pocket" class="sidebar-item" @click="toggleSidebar"><Icon name="pocket" size="18" /> <span>My Pocket</span></NuxtLink>
           <NuxtLink to="/pewgift" class="sidebar-item" @click="toggleSidebar"><Icon name="gift" size="18" /> <span>PewGift</span></NuxtLink>
           <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P Trading</span></NuxtLink>
+          <NuxtLink to="/p2p/sell" class="sidebar-item" @click="toggleSidebar"><Icon name="store" size="18" /> <span>Sell Pewgift</span></NuxtLink>
           <NuxtLink to="/trade-listings" class="sidebar-item" @click="toggleSidebar"><Icon name="store" size="18" /> <span>Trade Listings</span></NuxtLink>
           <NuxtLink to="/escrow" class="sidebar-item" @click="toggleSidebar"><Icon name="shield" size="18" /> <span>Escrow</span></NuxtLink>
           <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar"><Icon name="megaphone" size="18" /> <span>Ads</span></NuxtLink>
