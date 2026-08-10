@@ -1,11 +1,3 @@
-// ============================================================================
-// FILE: /types/database.types.ts
-// ============================================================================
-// Generated from the live Supabase schema:
-//   supabase gen types typescript --db-url <project pooler url>
-// Regenerate after every migration instead of editing by hand.
-// ============================================================================
-
 export type Json =
   | string
   | number
@@ -970,35 +962,177 @@ export type Database = {
         }
         Relationships: []
       }
+      p2p_listings: {
+        Row: {
+          alt_payment_method_id: string | null
+          asset_code: string
+          available_pewgift: number
+          created_at: string
+          id: string
+          is_active: boolean
+          margin_pct: number
+          max_amount: number
+          min_amount: number
+          payment_method_id: string | null
+          seller_id: string
+          terms: string | null
+          updated_at: string
+        }
+        Insert: {
+          alt_payment_method_id?: string | null
+          asset_code: string
+          available_pewgift?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          margin_pct?: number
+          max_amount: number
+          min_amount?: number
+          payment_method_id?: string | null
+          seller_id: string
+          terms?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alt_payment_method_id?: string | null
+          asset_code?: string
+          available_pewgift?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          margin_pct?: number
+          max_amount?: number
+          min_amount?: number
+          payment_method_id?: string | null
+          seller_id?: string
+          terms?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_listings_alt_payment_method_id_fkey"
+            columns: ["alt_payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "seller_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_listings_asset_code_fkey"
+            columns: ["asset_code"]
+            isOneToOne: false
+            referencedRelation: "supported_assets"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "p2p_listings_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "seller_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_listings_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       p2p_trades: {
         Row: {
           amount: number
+          asset_code: string | null
           buyer_id: string
+          chat_room_id: string | null
           created_at: string
+          dispute_reason: string | null
+          expires_at: string | null
+          fee_pewgift: number
           id: string
+          listing_id: string | null
+          margin_pct: number
+          paid_declared_at: string | null
+          payment_method_id: string | null
+          rate_used: number | null
+          released_at: string | null
           seller_id: string
+          source_amount: number | null
           status: Database["public"]["Enums"]["p2p_trade_status"]
           updated_at: string
         }
         Insert: {
           amount: number
+          asset_code?: string | null
           buyer_id: string
+          chat_room_id?: string | null
           created_at?: string
+          dispute_reason?: string | null
+          expires_at?: string | null
+          fee_pewgift?: number
           id?: string
+          listing_id?: string | null
+          margin_pct?: number
+          paid_declared_at?: string | null
+          payment_method_id?: string | null
+          rate_used?: number | null
+          released_at?: string | null
           seller_id: string
+          source_amount?: number | null
           status?: Database["public"]["Enums"]["p2p_trade_status"]
           updated_at?: string
         }
         Update: {
           amount?: number
+          asset_code?: string | null
           buyer_id?: string
+          chat_room_id?: string | null
           created_at?: string
+          dispute_reason?: string | null
+          expires_at?: string | null
+          fee_pewgift?: number
           id?: string
+          listing_id?: string | null
+          margin_pct?: number
+          paid_declared_at?: string | null
+          payment_method_id?: string | null
+          rate_used?: number | null
+          released_at?: string | null
           seller_id?: string
+          source_amount?: number | null
           status?: Database["public"]["Enums"]["p2p_trade_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "p2p_trades_asset_code_fkey"
+            columns: ["asset_code"]
+            isOneToOne: false
+            referencedRelation: "supported_assets"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "p2p_trades_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_trades_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_trades_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "seller_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_methods: {
         Row: {
@@ -1361,6 +1495,135 @@ export type Database = {
           },
         ]
       }
+      security_alerts: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          id: string
+          kind: string
+          severity: string
+          subject_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind: string
+          severity?: string
+          subject_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind?: string
+          severity?: string
+          subject_id?: string | null
+        }
+        Relationships: []
+      }
+      seller_payment_methods: {
+        Row: {
+          account_name: string | null
+          account_ref: string | null
+          asset_code: string | null
+          bank_name: string | null
+          created_at: string
+          id: string
+          instructions: string | null
+          kind: Database["public"]["Enums"]["seller_method_kind"]
+          network: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          seller_id: string
+          status: Database["public"]["Enums"]["seller_method_state"]
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_ref?: string | null
+          asset_code?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          kind: Database["public"]["Enums"]["seller_method_kind"]
+          network?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          seller_id: string
+          status?: Database["public"]["Enums"]["seller_method_state"]
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          account_ref?: string | null
+          asset_code?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          kind?: Database["public"]["Enums"]["seller_method_kind"]
+          network?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          seller_id?: string
+          status?: Database["public"]["Enums"]["seller_method_state"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_payment_methods_asset_code_fkey"
+            columns: ["asset_code"]
+            isOneToOne: false
+            referencedRelation: "supported_assets"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "seller_payment_methods_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      seller_profiles: {
+        Row: {
+          granted_at: string
+          granted_by: string
+          is_active: boolean
+          max_margin_pct: number
+          notes: string | null
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by: string
+          is_active?: boolean
+          max_margin_pct?: number
+          notes?: string | null
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string
+          is_active?: boolean
+          max_margin_pct?: number
+          notes?: string | null
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       status_views: {
         Row: {
           id: string
@@ -1688,6 +1951,51 @@ export type Database = {
           subject?: string
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      supported_assets: {
+        Row: {
+          code: string
+          decimals: number
+          display_name: string
+          is_enabled: boolean
+          kind: Database["public"]["Enums"]["p2p_asset_kind"]
+          max_deposit: number | null
+          min_deposit: number
+          network: string | null
+          rate_updated_at: string
+          reference_rate: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          decimals?: number
+          display_name: string
+          is_enabled?: boolean
+          kind: Database["public"]["Enums"]["p2p_asset_kind"]
+          max_deposit?: number | null
+          min_deposit?: number
+          network?: string | null
+          rate_updated_at?: string
+          reference_rate?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          decimals?: number
+          display_name?: string
+          is_enabled?: boolean
+          kind?: Database["public"]["Enums"]["p2p_asset_kind"]
+          max_deposit?: number | null
+          min_deposit?: number
+          network?: string | null
+          rate_updated_at?: string
+          reference_rate?: number
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2197,6 +2505,10 @@ export type Database = {
           reputation_score: number
         }[]
       }
+      cancel_p2p_trade: {
+        Args: { p_actor_id: string; p_reason?: string; p_trade_id: string }
+        Returns: number
+      }
       check_email_available: {
         Args: { p_email: string }
         Returns: {
@@ -2221,13 +2533,17 @@ export type Database = {
             } & "Could not choose the best candidate function between: public.check_username_available(p_username => text), public.check_username_available(p_username => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
           }
       cleanup_old_data: { Args: never; Returns: undefined }
+      declare_p2p_paid: {
+        Args: { p_actor_id: string; p_trade_id: string }
+        Returns: string
+      }
+      dispute_p2p_trade: {
+        Args: { p_actor_id: string; p_reason: string; p_trade_id: string }
+        Returns: undefined
+      }
       ensure_wallet: {
         Args: { p_currency?: string; p_user_id: string }
         Returns: undefined
-      }
-      execute_p2p_escrow_action: {
-        Args: { action_type: string; target_trade_id: string }
-        Returns: boolean
       }
       finalize_stream_match: { Args: { p_match_id: string }; Returns: number }
       get_suggested_friends: {
@@ -2238,6 +2554,27 @@ export type Database = {
         }[]
       }
       is_chat_room_member: { Args: { p_room_id: string }; Returns: boolean }
+      match_p2p_sellers: {
+        Args: { p_amount: number; p_asset_code: string; p_limit?: number }
+        Returns: {
+          available_pewgift: number
+          effective_rate: number
+          has_alt_method: boolean
+          is_verified: boolean
+          listing_id: string
+          margin_pct: number
+          price_per_pewgift: number
+          quote_amount: number
+          reference_rate: number
+          role: Database["public"]["Enums"]["user_role"]
+          seller_id: string
+          username: string
+        }[]
+      }
+      open_p2p_trade: {
+        Args: { p_amount: number; p_buyer_id: string; p_listing_id: string }
+        Returns: string
+      }
       process_live_pewgift: {
         Args: { gift_amount: number; target_streamer_id: string }
         Returns: boolean
@@ -2271,6 +2608,14 @@ export type Database = {
           p_side: number
         }
         Returns: number
+      }
+      release_p2p_trade: {
+        Args: { p_actor_id: string; p_trade_id: string }
+        Returns: number
+      }
+      seller_is_frozen: {
+        Args: { p_seller_id: string; p_window?: string }
+        Returns: boolean
       }
       send_pewgift: {
         Args: {
@@ -2367,12 +2712,15 @@ export type Database = {
         | "ESCROW_UPDATE"
         | "STREAM_LIVE"
         | "SYSTEM_ALERT"
+      p2p_asset_kind: "FIAT" | "CRYPTO"
       p2p_trade_status:
         | "created"
         | "funded"
         | "disputed"
         | "released"
         | "cancelled"
+      seller_method_kind: "BANK" | "CRYPTO" | "CUSTOM"
+      seller_method_state: "PENDING" | "APPROVED" | "REJECTED"
       stream_broadcast_state: "PREPARING" | "LIVE" | "ENDED"
       stream_match_event_kind: "GIFT" | "TAP"
       stream_match_mode: "SOLO" | "TEAM"
@@ -2591,6 +2939,7 @@ export const Constants = {
         "STREAM_LIVE",
         "SYSTEM_ALERT",
       ],
+      p2p_asset_kind: ["FIAT", "CRYPTO"],
       p2p_trade_status: [
         "created",
         "funded",
@@ -2598,6 +2947,8 @@ export const Constants = {
         "released",
         "cancelled",
       ],
+      seller_method_kind: ["BANK", "CRYPTO", "CUSTOM"],
+      seller_method_state: ["PENDING", "APPROVED", "REJECTED"],
       stream_broadcast_state: ["PREPARING", "LIVE", "ENDED"],
       stream_match_event_kind: ["GIFT", "TAP"],
       stream_match_mode: ["SOLO", "TEAM"],
