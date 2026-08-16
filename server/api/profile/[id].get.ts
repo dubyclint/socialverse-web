@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     const { data: profile, error } = await supabase
       .from('user')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single()
 
     if (error) {
