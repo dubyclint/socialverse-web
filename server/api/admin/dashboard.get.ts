@@ -28,7 +28,7 @@ export default defineEventHandler(async (_event): Promise<DashboardStats> => {
 
     // Get total trades
     const { count: totalTrades } = await supabase
-      .from('trades')
+      .from('p2p_trades')
       .select('*', { count: 'exact', head: true })
 
     // Escrow is the open (unsettled) part of the P2P trade book.
@@ -56,19 +56,19 @@ export default defineEventHandler(async (_event): Promise<DashboardStats> => {
 
     // Get trade stats
     const { count: pendingTrades } = await supabase
-      .from('trades')
+      .from('p2p_trades')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
+      .in('status', ['created', 'funded', 'paid'])
 
     const { count: completedTrades } = await supabase
-      .from('trades')
+      .from('p2p_trades')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed')
+      .eq('status', 'released')
 
     const { count: failedTrades } = await supabase
-      .from('trades')
+      .from('p2p_trades')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'failed')
+      .in('status', ['cancelled', 'disputed'])
 
     // Get recent audit logs
     const { data: auditLogs } = await supabase

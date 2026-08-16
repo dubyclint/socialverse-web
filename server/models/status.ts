@@ -19,15 +19,15 @@ async function getSupabase() {
 // ============================================================================
 export interface Status {
   id: string
-  userId: string
-  content: string
-  mediaUrl?: string
-  backgroundColor?: string
-  textColor?: string
-  expiresAt: string
-  viewCount: number
-  createdAt: string
-  deletedAt?: string
+  user_id: string
+  content: string | null
+  media_url?: string | null
+  background_color?: string | null
+  text_color?: string | null
+  expires_at: string
+  view_count: number
+  created_at: string
+  deleted_at?: string | null
 }
 
 // Input type used by some API handlers (legacy snake_case allowed)
@@ -62,16 +62,16 @@ export class StatusModel {
     try {
       const supabase = await getSupabase()
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .insert({
-          userId,
+          user_id: userId,
           content,
-          mediaUrl,
-          backgroundColor,
-          textColor,
-          expiresAt,
-          viewCount: 0,
-          createdAt: new Date().toISOString()
+          media_url: mediaUrl,
+          background_color: backgroundColor,
+          text_color: textColor,
+          expires_at: expiresAt,
+          view_count: 0,
+          created_at: new Date().toISOString()
         })
         .select()
         .single()
@@ -88,10 +88,10 @@ export class StatusModel {
     try {
       const supabase = await getSupabase()
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .select('*')
         .eq('id', id)
-        .is('deletedAt', null)
+        .is('deleted_at', null)
         .single()
 
       if (error) {
@@ -112,12 +112,12 @@ export class StatusModel {
       const now = new Date().toISOString()
 
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .select('*')
-        .eq('userId', userId)
-        .gt('expiresAt', now)
-        .is('deletedAt', null)
-        .order('createdAt', { ascending: false })
+        .eq('user_id', userId)
+        .gt('expires_at', now)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       return (data || []) as Status[]
@@ -134,12 +134,12 @@ export class StatusModel {
       const now = new Date().toISOString()
 
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .select('*')
-        .eq('userId', userId)
-        .gt('expiresAt', now)
-        .is('deletedAt', null)
-        .order('createdAt', { ascending: false })
+        .eq('user_id', userId)
+        .gt('expires_at', now)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
         .limit(1)
         .single()
 
@@ -155,8 +155,8 @@ export class StatusModel {
     try {
       const supabase = await getSupabase()
       const { error } = await supabase
-        .from('statuses')
-        .update({ deletedAt: new Date().toISOString() })
+        .from('user_statuses')
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
 
       if (error) throw error
@@ -213,12 +213,12 @@ export class StatusModel {
 
       const now = new Date().toISOString()
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .select('*')
-        .in('userId', ids)
-        .gt('expiresAt', now)
-        .is('deletedAt', null)
-        .order('createdAt', { ascending: false })
+        .in('user_id', ids)
+        .gt('expires_at', now)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       return (data || []) as Status[]
@@ -248,13 +248,13 @@ export class StatusModel {
     try {
       const supabase = await getSupabase()
       const { data, error } = await supabase
-        .from('statuses')
-        .select('viewCount')
+        .from('user_statuses')
+        .select('view_count')
         .eq('id', statusId)
         .single()
 
       if (error || !data) return 0
-      return data.viewCount || 0
+      return data.view_count || 0
     } catch (err) {
       console.error('[StatusModel] getStatusViewCount error:', err)
       return 0
