@@ -91,22 +91,25 @@ export default defineEventHandler(async (event) => {
     const freshToken = authData.session.access_token
     console.log('[Signup API] Step 5: Auth instance created safely. ID:', userId)
 
-    // === BREAKPOINT 3: SCHEMA-PERFECT "user" TABLE ROW INSERTION ===
-    console.log('[Signup API] Step 6: Injecting row into verified "user" columns...')
+    // === BREAKPOINT 3: SCHEMA-PERFECT "user" TABLE ROW UPSERT ===
+    // auth.users has an on-insert trigger (handle_new_user_signup) that already
+    // creates the profile row and its PEW wallet, so this completes that row
+    // rather than inserting a second one.
+    console.log('[Signup API] Step 6: Completing profile row for verified "user" columns...')
     const { error: insertError } = await supabase
       .from('user')
-      .insert([
+      .upsert(
         {
-          user_id: userId, 
+          user_id: userId,
           username: body.username.toLowerCase().trim(),
-          display_name: body.username.trim(), 
+          display_name: body.username.trim(),
           email: authData.user.email,
           phone: body.phone?.trim() || null,
           location: body.location?.trim() || null,
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }
-      ])
+        },
+        { onConflict: 'user_id' }
+      )
 
     if (insertError) {
       console.error('[Signup API] ❌ Breakpoint 3 Failed: "user" table insertion error ->', insertError)

@@ -755,6 +755,45 @@ export type Database = {
         }
         Relationships: []
       }
+      file_uploads: {
+        Row: {
+          bucket: string
+          created_at: string
+          deleted_at: string | null
+          file_size: number
+          file_type: string
+          filename: string
+          id: string
+          metadata: Json
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          deleted_at?: string | null
+          file_size: number
+          file_type: string
+          filename: string
+          id?: string
+          metadata?: Json
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          deleted_at?: string | null
+          file_size?: number
+          file_type?: string
+          filename?: string
+          id?: string
+          metadata?: Json
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string | null
@@ -2649,6 +2688,7 @@ export type Database = {
         }
         Returns: number
       }
+      user_storage_used: { Args: { p_user_id: string }; Returns: number }
     }
     Enums: {
       ad_action_type: "IMPRESSION" | "CLICK"

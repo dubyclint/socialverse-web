@@ -8,10 +8,11 @@
 // ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
-// Removed unused H3Event import and avoid direct '#supabase/server' import here
-// to reduce type noise during staged remediation. Use a permissive declaration
-// for the serverSupabaseClient factory so types don't block the incremental fixes.
-declare function serverSupabaseClient(): any
+import { getSupabaseAdmin } from '~/server/utils/supabase'
+
+// Accounting runs with the service-role client: quota and cleanup read rows
+// across users, which RLS deliberately hides from a request-scoped client.
+const serverSupabaseClient = getSupabaseAdmin
 
 /**
  * Storage configuration
@@ -388,7 +389,7 @@ export async function generateThumbnail(buffer: Buffer, _opts: { width?: number;
 /**
  * Upload a file buffer to storage (very small wrapper around trackUpload)
  */
-export async function uploadFile(userId: string, buffer: Buffer, filename: string, mimeType: string, bucket = 'uploads') {
+export async function uploadFile(userId: string, buffer: Buffer, filename: string, mimeType: string, bucket = 'temp-uploads') {
   // In production this would call Supabase storage; here we track the upload and return a URL
   const generatedPath = generateUniqueFilename(userId || 'anon', filename)
   await trackUpload(userId || 'anon', generatedPath, buffer.length, mimeType, bucket)

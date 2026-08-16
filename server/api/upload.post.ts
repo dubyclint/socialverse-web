@@ -7,7 +7,7 @@
 // ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import {
   STORAGE_CONFIG,
   validateFile,
@@ -37,10 +37,10 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     console.log('[Upload API] Step 1: Authenticating...')
 
   const _supabase = await serverSupabaseClient(event)
-    
-  const { data: { session }, error: sessionError } = await _supabase.auth.getSession()
 
-    if (sessionError || !session?.user) {
+  const user = await serverSupabaseUser(event)
+
+    if (!user) {
       console.error('[Upload API] ❌ Unauthorized')
       throw createError({
         statusCode: 401,
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
       })
     }
 
-    const userId = session.user.id
+    const userId = user.id
     console.log('[Upload API] ✅ User authenticated:', userId)
 
     // ============================================================================
@@ -67,7 +67,9 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
 
   const file = formData.find((part: any) => part.name === 'file')
   const bucketField = formData.find((part: any) => part.name === 'bucket')
-    const bucket = bucketField?.data?.toString() || STORAGE_CONFIG.buckets.uploads
+    // STORAGE_CONFIG.buckets[x] is a descriptor object, so the bucket *name* is
+    // what belongs here; passing the descriptor made every default upload fail.
+    const bucket: string = bucketField?.data?.toString() || STORAGE_CONFIG.buckets.uploads.name
 
     if (!file || !file.data) {
       throw createError({
