@@ -26,13 +26,11 @@ export default defineEventHandler(async (event) => {
     }
 
     const supabase = await serverSupabaseClient(event)
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     // Insert message
     const { error } = await supabase
       .from('universe_messages')
       .insert({
-        id: messageId,
         user_id: user.id,
         content,
         country: country || null,
@@ -52,7 +50,6 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       data: {
-        id: messageId,
         userId: user.id,
         content,
         country,
