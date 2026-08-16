@@ -68,10 +68,10 @@ export default defineEventHandler(async (event): Promise<ApiResponse> => {
         is_draft,
         privacy,
         scheduled_at,
-        profiles!inner (
+        user!inner (
           user_id,
           username,
-          full_name,
+          display_name,
           avatar_url,
           is_verified
         )

@@ -17,9 +17,9 @@ export default defineEventHandler(async (event) => {
       .select(`
         *,
         viewer_count:stream_viewers(count),
-        chat_count:stream_chat(count)
+        chat_count:stream_chats(count)
       `)
-      .eq('broadcaster_id', user.id)
+      .eq('creator_id', user.id)
       .order('started_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
