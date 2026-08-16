@@ -13,9 +13,9 @@ export default defineEventHandler(async (event) => {
 
     // Fetch trending hashtags
     const { data: trending, error } = await supabase
-      .from('hashtags')
+      .from('trending_hashtags')
       .select('*')
-      .order('usage_count', { ascending: false })
+      .order('count', { ascending: false })
       .limit(limit)
 
     if (error) {

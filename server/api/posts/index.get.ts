@@ -84,12 +84,11 @@ export default defineEventHandler(async (event): Promise<ApiResponse> => {
     if (feedTrack === 'following') {
       // Get user's friends
       const { data: friendships } = await supabase
-        .from('friendships')
-        .select('user_id, friend_id')
-        .or(`(user_id.eq.${userId}),(friend_id.eq.${userId})`)
-        .eq('status', 'accepted')
+        .from('user_follows')
+        .select('follower_id, following_id')
+        .or(`(follower_id.eq.${userId}),(following_id.eq.${userId})`)
 
-  const friendIds = friendships?.map((f: any) => f.user_id === userId ? f.friend_id : f.user_id) || []
+  const friendIds = friendships?.map((f: any) => f.follower_id === userId ? f.following_id : f.follower_id) || []
       const allUserIds = [userId, ...friendIds]
       
       postsQuery = postsQuery.in('user_id', allUserIds)

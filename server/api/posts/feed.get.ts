@@ -28,14 +28,13 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
     let friendIds: string[] = []
     try {
       const { data: friendships, error } = await supabase
-        .from('friendships')
-        .select('user_id, friend_id, status')
-        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-        .eq('status', 'accepted')
+        .from('user_follows')
+        .select('follower_id, following_id')
+        .or(`follower_id.eq.${userId},following_id.eq.${userId}`)
 
       if (!error && Array.isArray(friendships)) {
         friendIds = friendships
-          .map((f: any) => (f.user_id === userId ? f.friend_id : f.user_id))
+          .map((f: any) => (f.follower_id === userId ? f.following_id : f.follower_id))
           .filter(Boolean)
       }
     } catch (e) {
