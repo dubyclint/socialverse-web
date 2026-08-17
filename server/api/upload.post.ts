@@ -135,9 +135,14 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
 
     const filename = generateUniqueFilename(userId, file.filename || 'file')
 
+  // Without an explicit contentType Supabase stores the object as text/plain,
+  // which every image/video bucket rejects.
   const { error: uploadError } = await _supabase.storage
       .from(bucket)
-      .upload(filename, file.data, { upsert: true })
+      .upload(filename, file.data, {
+        upsert: true,
+        contentType: file.type || 'application/octet-stream'
+      })
 
     if (uploadError) {
       console.error('[Upload API] ❌ Upload error:', uploadError.message)
