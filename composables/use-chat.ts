@@ -8,6 +8,14 @@ interface ChatMessagePayload {
   timestamp?: number
 }
 
+export interface IncomingChatMessage {
+  id: string
+  chatId: string
+  content: string
+  senderId: string
+  timestamp: string
+}
+
 // Realtime chat glue over the Socket.IO orchestrator (`useSocket`).
 export const useChat = () => {
   const socket = useSocket()
@@ -18,6 +26,18 @@ export const useChat = () => {
 
   const sendMessage = (chatId: string, payload: ChatMessagePayload) => {
     socket.emit('chat:message', { chatId, ...payload })
+  }
+
+  const joinChat = (chatId: string) => {
+    socket.emit('chat:join', { chatId })
+  }
+
+  const leaveChat = (chatId: string) => {
+    socket.emit('chat:leave', { chatId })
+  }
+
+  const onMessage = (handler: (message: IncomingChatMessage) => void) => {
+    socket.on('chat:message', handler)
   }
 
   const editMessage = (chatId: string, messageId: string, content: string) => {
@@ -35,6 +55,9 @@ export const useChat = () => {
   return {
     isConnected: socket.isConnected,
     initialize,
+    joinChat,
+    leaveChat,
+    onMessage,
     sendMessage,
     editMessage,
     deleteMessage,

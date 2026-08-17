@@ -116,7 +116,9 @@ async function autoConnect(): Promise<Socket | null> {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: MAX_CONNECTION_ATTEMPTS,
-      transports: ['websocket']
+      // Polling first, upgrading to websocket: a websocket-only client cannot
+      // connect through proxies (or the dev server) that do not upgrade.
+      transports: ['polling', 'websocket']
     })
 
     socketInstance.on('connect_error', (error: Error) => {

@@ -18,9 +18,9 @@ export const chatService = {
    * Sends a message via API.
    */
   async sendMessage(chatId: string, content: string) {
-    return await api(`/chat/${chatId}/send`, {
+    return await api(`/chat/${chatId}/messages`, {
       method: 'POST',
-      body: { content }
+      body: { message: content }
     })
   },
 
@@ -31,12 +31,12 @@ export const chatService = {
     const client = useSupabaseClient()
     return client
       .channel(`chat:${chatId}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages', 
-        filter: `chat_id=eq.${chatId}` 
-  }, (payload: any) => onMessage(payload.new))
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `room_id=eq.${chatId}`
+      }, (payload: any) => onMessage(payload.new))
       .subscribe()
   }
 }

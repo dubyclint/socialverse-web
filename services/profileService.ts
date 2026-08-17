@@ -21,11 +21,11 @@ export const profileService = {
   // Upload user avatar
   async uploadAvatar(file: File): Promise<string> {
     const formData = new FormData()
-    formData.append('avatar', file)
+    formData.append('file', file)
 
     // Note: Do not manually set Content-Type; 
     // the browser will set it with the correct boundary for FormData.
-    const response = await api('/profile/avatar', {
+    const response = await api('/profile/avatar-upload', {
       method: 'POST',
       body: formData
     })

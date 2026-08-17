@@ -336,9 +336,9 @@ const activePostMenu = ref(null);
 
 // --- Navigation & Action Handlers ---
 const goToCreatePost = () => navigateTo('/posts/create');
-const goToProfilePage = () => navigateTo(`/profile/${userUsername.value}`);
+const goToProfilePage = () => navigateTo('/profile');
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
-const goToSettingsProfile = () => navigateTo('/settings/profile');
+const goToSettingsProfile = () => navigateTo('/profile/edit');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
 
 const togglePostMenu = (id) => { activePostMenu.value = activePostMenu.value === id ? null : id; };

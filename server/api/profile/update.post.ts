@@ -26,6 +26,17 @@ export default defineEventHandler(async (event) => {
     if (body.cover_url !== undefined) updateData.cover_url = body.cover_url
     if (body.website !== undefined) updateData.website = body.website
     if (body.location !== undefined) updateData.location = body.location
+    if (body.birth_date !== undefined) updateData.birth_date = body.birth_date
+    if (body.gender !== undefined) updateData.gender = body.gender
+    if (body.is_private !== undefined) updateData.is_private = body.is_private
+
+    // The edit form calls it full_name; display_name is what the feed and
+    // profile cards read, so keep the two in step.
+    const name = body.full_name ?? body.display_name
+    if (name !== undefined) {
+      updateData.full_name = name
+      updateData.display_name = name
+    }
 
     updateData.updated_at = new Date().toISOString()
 

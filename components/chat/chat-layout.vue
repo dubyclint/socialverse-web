@@ -135,11 +135,15 @@ import type { Chat, ChatMessage } from '~/types/chat'
 
 // Chat store initialized
 const chatStore = useChatStore()
+const currentUser = useSupabaseUser()
+const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 // Chat composable for WebSocket/Realtime events
 const { 
   isConnected,
   initialize, 
+  joinChat,
+  onMessage,
   sendMessage: emitMessage, 
   editMessage: emitEditMessage,
   deleteMessage: emitDeleteMessage,
@@ -192,6 +196,7 @@ const loadChats = async () => {
 
 const selectChat = async (chatId: string) => {
   chatStore.setCurrentChat(chatId)
+  joinChat(chatId)
   try {
     const response = await $fetch<ApiResponse<ChatMessage[]>>(`/api/chat/${chatId}/messages`)
     if (response.success && response.data) chatStore.addMessages(chatId, response.data)
@@ -293,6 +298,20 @@ const openNewChat = () => { showGroupCreator.value = true }
 // --- Lifecycle ---
 onMounted(async () => {
   await initialize()
+
+  onMessage((message) => {
+    const sender = chatStore.chats.get(message.chatId)
+    chatStore.addMessage({
+      id: message.id,
+      userId: message.senderId,
+      username: message.senderId === currentUserId.value ? 'You' : sender?.name || 'unknown',
+      message: message.content,
+      timestamp: new Date(message.timestamp).getTime(),
+      roomId: message.chatId,
+      chatId: message.chatId
+    })
+  })
+
   await loadChats()
 })
 
