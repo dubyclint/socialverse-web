@@ -113,6 +113,34 @@
     </div>
 
     <!-- Modals -->
+    <div v-if="showNewChat" class="new-chat-overlay" @click.self="closeNewChat">
+      <div class="new-chat-modal">
+        <div class="new-chat-header">
+          <h3>New chat</h3>
+          <button class="btn-icon" @click="closeNewChat"><Icon name="x" /></button>
+        </div>
+        <input
+          v-model="userSearch"
+          class="new-chat-search"
+          type="text"
+          placeholder="Search people by name or @username"
+          @input="searchUsers"
+        />
+        <p v-if="isSearching" class="new-chat-hint">Searching…</p>
+        <p v-else-if="userSearch.length >= 2 && userResults.length === 0" class="new-chat-hint">No users found</p>
+        <p v-else-if="userSearch.length < 2" class="new-chat-hint">Type at least 2 characters</p>
+        <ul class="new-chat-results">
+          <li v-for="result in userResults" :key="result.user_id">
+            <button class="new-chat-result" :disabled="isStartingChat" @click="startDirectChat(result.user_id)">
+              <img :src="result.avatar_url || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
+              <span class="new-chat-name">{{ result.display_name || result.username }}</span>
+              <span class="new-chat-username">@{{ result.username }}</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
     <GroupCreator 
       v-if="showGroupCreator"
       @close="showGroupCreator = false"
@@ -132,6 +160,14 @@ import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
 import type { ApiResponse } from '~/types/api'
 import type { Chat, ChatMessage } from '~/types/chat'
+
+interface DirectoryUser {
+  user_id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  is_verified: boolean
+}
 
 // Chat store initialized
 const chatStore = useChatStore()
@@ -154,6 +190,11 @@ watch(isConnected, connected => chatStore.setConnected(connected), { immediate: 
 
 const searchQuery = ref('')
 const showGroupCreator = ref(false)
+const showNewChat = ref(false)
+const userSearch = ref('')
+const userResults = ref<DirectoryUser[]>([])
+const isSearching = ref(false)
+const isStartingChat = ref(false)
 const showSettings = ref(false)
 const typingTimeout = ref<NodeJS.Timeout | null>(null)
 
@@ -293,7 +334,53 @@ const createGroup = async (groupData: any) => {
   }
 }
 
-const openNewChat = () => { showGroupCreator.value = true }
+const openNewChat = () => { showNewChat.value = true }
+const closeNewChat = () => {
+  showNewChat.value = false
+  userSearch.value = ''
+  userResults.value = []
+}
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+const searchUsers = () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  const term = userSearch.value.trim()
+  if (term.length < 2) {
+    userResults.value = []
+    return
+  }
+  searchTimer = setTimeout(async () => {
+    isSearching.value = true
+    try {
+      const response = await $fetch<ApiResponse<DirectoryUser[]>>('/api/users/search', { query: { q: term } })
+      userResults.value = response.data ?? []
+    } catch {
+      userResults.value = []
+    } finally {
+      isSearching.value = false
+    }
+  }, 250)
+}
+
+const startDirectChat = async (userId: string) => {
+  isStartingChat.value = true
+  try {
+    const response = await $fetch<ApiResponse<{ id: string }>>('/api/chat/direct', {
+      method: 'POST',
+      body: { userId }
+    })
+    const chatId = response.data?.id
+    if (!chatId) throw new Error('No chat returned')
+    closeNewChat()
+    await loadChats()
+    await selectChat(chatId)
+  } catch (error) {
+    console.error('Failed to start chat:', error)
+    chatStore.setError('Failed to start chat')
+  } finally {
+    isStartingChat.value = false
+  }
+}
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -321,6 +408,28 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.new-chat-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; z-index: 1200;
+}
+.new-chat-modal {
+  width: min(420px, 94vw); background: #fff; border-radius: 12px; padding: 1rem;
+}
+.new-chat-header { display: flex; align-items: center; justify-content: space-between; }
+.new-chat-search {
+  width: 100%; margin-top: .75rem; padding: .6rem .75rem;
+  border: 1px solid #d1d5db; border-radius: 8px;
+}
+.new-chat-hint { color: #6b7280; font-size: .85rem; margin: .75rem 0 0; }
+.new-chat-results { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 45vh; overflow: auto; }
+.new-chat-result {
+  display: flex; align-items: center; gap: .6rem; width: 100%;
+  padding: .5rem; background: none; border: 0; cursor: pointer; text-align: left;
+}
+.new-chat-result:hover { background: #f3f4f6; }
+.new-chat-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.new-chat-username { color: #6b7280; font-size: .8rem; }
+
 .chat-layout {
   display: flex;
   flex-direction: column;
