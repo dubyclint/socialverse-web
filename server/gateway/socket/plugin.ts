@@ -79,6 +79,36 @@ export default defineNitroPlugin((nitroApp: any) => {
 
     const roomOf = (chatId: string) => `chat:${chatId}`
 
+    /** Sender identity is resolved server-side so clients cannot spoof it. */
+    const senderOf = async (userId: string) => {
+      const { data } = await admin
+        .from('user')
+        .select('username, display_name, avatar_url')
+        .eq('user_id', userId)
+        .maybeSingle()
+      return {
+        senderName: data?.display_name || data?.username || 'unknown',
+        senderAvatar: data?.avatar_url || undefined
+      }
+    }
+
+    /**
+     * Delivery/read state is tracked as a per-member watermark, so marking
+     * one message read implicitly covers everything older.
+     */
+    const markWatermark = async (
+      chatId: string,
+      userId: string,
+      column: 'last_delivered_at' | 'last_read_at',
+      at: string
+    ) => {
+      await admin
+        .from('chat_room_members')
+        .update({ [column]: at })
+        .eq('room_id', chatId)
+        .eq('user_id', userId)
+    }
+
     const isMember = async (chatId: string, userId: string): Promise<boolean> => {
       const { data } = await admin
         .from('chat_room_members')
@@ -149,19 +179,18 @@ export default defineNitroPlugin((nitroApp: any) => {
 
       // Messages are persisted here rather than mirrored between clients, so
       // history survives reconnects and only room members receive them.
-      const handleMessage = async (data: any) => {
+      const handleMessage = async (data: any, ack?: (result: any) => void) => {
         const chatId: string | undefined = data?.chatId
         const text: string = (data?.message ?? data?.content ?? '').toString().trim()
+        const tempId: string | undefined = data?.tempId ? String(data.tempId) : undefined
+        const fail = (message: string) => {
+          socket.emit('chat:error', { chatId, tempId, message })
+          ack?.({ success: false, tempId, error: message })
+        }
 
-        if (!chatId || !text || !socket.userId) return
-        if (text.length > 2000) {
-          socket.emit('chat:error', { chatId, message: 'Message too long' })
-          return
-        }
-        if (!(await isMember(chatId, socket.userId))) {
-          socket.emit('chat:error', { chatId, message: 'Not a member of this chat' })
-          return
-        }
+        if (!chatId || !text || !socket.userId) return fail('Invalid message')
+        if (text.length > 2000) return fail('Message too long')
+        if (!(await isMember(chatId, socket.userId))) return fail('Not a member of this chat')
 
         const { data: inserted, error } = await admin
           .from('chat_messages')
@@ -169,28 +198,52 @@ export default defineNitroPlugin((nitroApp: any) => {
           .select('id, created_at')
           .single()
 
-        if (error) {
-          socket.emit('chat:error', { chatId, message: 'Failed to send message' })
-          return
-        }
+        if (error) return fail('Failed to send message')
 
         await admin.from('chat_rooms').update({ updated_at: new Date().toISOString() }).eq('id', chatId)
+        await markWatermark(chatId, socket.userId, 'last_read_at', inserted.created_at)
 
-        io?.to(roomOf(chatId)).emit('chat:message', {
+        const sender = await senderOf(socket.userId)
+        const payload = {
           id: inserted.id,
           chatId,
           content: text,
           senderId: socket.userId,
-          timestamp: inserted.created_at
-        })
+          ...sender,
+          timestamp: inserted.created_at,
+          tempId
+        }
+
+        io?.to(roomOf(chatId)).emit('chat:message', payload)
+        ack?.({ success: true, ...payload })
       }
 
       socket.on('chat:message', handleMessage)
       socket.on('send_message', handleMessage)
 
+      // Receipts: the recipient reports having received (delivered) or opened
+      // (read) a chat; the room is told so senders can show ticks.
+      const handleReceipt =
+        (column: 'last_delivered_at' | 'last_read_at', event: string) => async (data: any) => {
+          const chatId: string | undefined = data?.chatId
+          if (!chatId || !socket.userId) return
+          if (!(await isMember(chatId, socket.userId))) return
+
+          const at = data?.at ? new Date(data.at).toISOString() : new Date().toISOString()
+          await markWatermark(chatId, socket.userId, column, at)
+          io?.to(roomOf(chatId)).emit(event, { chatId, userId: socket.userId, at })
+        }
+
+      socket.on('chat:delivered', handleReceipt('last_delivered_at', 'chat:delivered'))
+      socket.on('chat:read', handleReceipt('last_read_at', 'chat:read'))
+
       const handleTyping = (data: any) => {
         if (!data?.chatId) return
-        socket.to(roomOf(data.chatId)).emit('chat:typing', { userId: socket.userId, chatId: data.chatId })
+        const isTyping = data?.isTyping !== false
+        socket.to(roomOf(data.chatId)).emit(isTyping ? 'chat:typing' : 'chat:stop-typing', {
+          userId: socket.userId,
+          chatId: data.chatId
+        })
       }
 
       socket.on('chat:typing', handleTyping)

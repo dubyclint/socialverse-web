@@ -440,18 +440,24 @@ export type Database = {
         Row: {
           id: string
           joined_at: string
+          last_delivered_at: string | null
+          last_read_at: string | null
           room_id: string
           user_id: string
         }
         Insert: {
           id?: string
           joined_at?: string
+          last_delivered_at?: string | null
+          last_read_at?: string | null
           room_id: string
           user_id: string
         }
         Update: {
           id?: string
           joined_at?: string
+          last_delivered_at?: string | null
+          last_read_at?: string | null
           room_id?: string
           user_id?: string
         }

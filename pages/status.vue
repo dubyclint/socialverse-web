@@ -176,7 +176,7 @@
           >
             <div class="status-header-item">
               <img
-                :src="status.author_profile?.avatar_url || '/default-avatar.png'"
+                :src="status.author_profile?.avatar_url || '/default-avatar.svg'"
                 :alt="status.author_profile?.full_name || ''"
                 class="status-avatar"
               />

@@ -394,6 +394,22 @@ onMounted(async () => {
 }
 
 /* ============================================================================
+   AVATARS
+   Sized explicitly: an uploaded photo otherwise renders at its natural size
+   and blows the layout apart.
+   ============================================================================ */
+.user-avatar-wrapper, .profile-avatar-wrapper, .node-avatar-wrapper { position: relative; display: inline-flex; flex: 0 0 auto; }
+.user-avatar, .profile-avatar, .node-avatar, .create-post-avatar,
+.post-avatar, .rec-avatar, .lightbox-author-avatar, .skeleton-avatar {
+  border-radius: 9999px; object-fit: cover; flex: 0 0 auto; background-color: #334155;
+}
+.user-avatar { width: 2.25rem; height: 2.25rem; }
+.profile-avatar { width: 5rem; height: 5rem; border: 2px solid #3b82f6; }
+.node-avatar { width: 3.5rem; height: 3.5rem; border: 2px solid #3b82f6; }
+.create-post-avatar, .post-avatar, .lightbox-author-avatar { width: 2.5rem; height: 2.5rem; }
+.rec-avatar, .skeleton-avatar { width: 2.25rem; height: 2.25rem; }
+
+/* ============================================================================
    HEADER & NAVIGATION
    ============================================================================ */
 .feed-header { position: sticky; top: 0; z-index: 50; background-color: #1e293b; border-bottom: 1px solid #334155; }

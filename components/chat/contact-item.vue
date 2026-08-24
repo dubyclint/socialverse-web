@@ -7,7 +7,7 @@
   >
     <div class="contact-avatar">
       <img 
-        :src="contact.avatar || '/default-avatar.png'" 
+        :src="contact.avatar || '/default-avatar.svg'" 
         :alt="contact.username"
       />
       <div 

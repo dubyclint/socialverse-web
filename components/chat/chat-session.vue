@@ -13,7 +13,7 @@
         <div class="chat-avatar" @click="viewProfile">
           <img 
             v-if="chat.type === 'direct'"
-            :src="chat.avatar || '/default-avatar.png'" 
+            :src="chat.avatar || '/default-avatar.svg'" 
             :alt="chat.name"
           />
           <div v-else class="group-avatar">
@@ -102,13 +102,13 @@
             :key="message.id"
             class="message-wrapper"
             :class="{ 
-              'own-message': message.senderId === currentUser.id,
+              'own-message': message.senderId === currentUser?.id,
               'system-message': message.messageType === 'system'
             }"
           >
             <message-bubble
               :message="message"
-              :isOwn="message.senderId === currentUser.id"
+              :isOwn="message.senderId === currentUser?.id"
               :showAvatar="shouldShowAvatar(message, group)"
               :showName="shouldShowName(message, group)"
               @edit="editMessage"
@@ -253,6 +253,9 @@ const props = defineProps({
   chat: Object,
   currentUser: Object,
   messages: { type: Array, default: () => [] },
+  // Typing state is owned by the layout (it is the socket listener), so it
+  // arrives as a prop rather than being tracked twice.
+  typingUsers: { type: Array, default: () => [] },
   isLoading: Boolean
 })
 
@@ -277,7 +280,6 @@ const isRecording = ref(false)
 const recordingDuration = ref(0)
 const isSending = ref(false)
 const hasAttachment = ref(false)
-const typingUsers = ref([])
 const typingTimeout = ref(null)
 
 // Refs
@@ -292,7 +294,7 @@ const groupedMessages = computed(() => {
   const groups = {}
   
   props.messages.forEach(message => {
-    const date = format(new Date(message.createdAt), 'yyyy-MM-dd')
+    const date = format(new Date(message.timestamp), 'yyyy-MM-dd')
     if (!groups[date]) {
       groups[date] = []
     }
@@ -386,8 +388,10 @@ const handleKeyDown = (event) => {
 const handleInput = () => {
   // Auto-resize textarea
   const textarea = messageInput.value
-  textarea.style.height = 'auto'
-  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+  if (textarea) {
+    textarea.style.height = 'auto'
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+  }
   
   // Send typing indicator
   if (messageText.value.trim()) {
@@ -457,9 +461,8 @@ const sendMessage = async () => {
       // Clear input
       messageText.value = ''
       cancelReply()
-      
-      // Reset textarea height
-      messageInput.value.style.height = 'auto'
+
+      if (messageInput.value) messageInput.value.style.height = 'auto'
     }
     
     // Stop typing indicator
@@ -650,21 +653,6 @@ const handleClickOutside = (event) => {
 
 // Socket event handlers
 const setupSocketListeners = () => {
-  socket.on('user_typing', (data) => {
-    if (data.chatId === props.chat.id && data.userId !== props.currentUser.id) {
-      const existingUser = typingUsers.value.find(user => user.userId === data.userId)
-      
-      if (data.isTyping && !existingUser) {
-        typingUsers.value.push({
-          userId: data.userId,
-          username: data.username
-        })
-      } else if (!data.isTyping && existingUser) {
-        typingUsers.value = typingUsers.value.filter(user => user.userId !== data.userId)
-      }
-    }
-  })
-  
   socket.on('user_recording_voice', (data) => {
     if (data.chatId === props.chat.id) {
       console.log(`${data.username} is ${data.isRecording ? 'recording' : 'not recording'} voice`)

@@ -147,7 +147,7 @@
             <td>
               <div class="user-info">
                 <img 
-                  :src="user.avatar || '/default-avatar.png'" 
+                  :src="user.avatar || '/default-avatar.svg'" 
                   :alt="user.username"
                   class="user-avatar"
                 />
@@ -298,7 +298,7 @@
           <div v-if="selectedUser" class="user-details-content">
             <div class="user-profile-section">
               <img 
-                :src="selectedUser.avatar || '/default-avatar.png'" 
+                :src="selectedUser.avatar || '/default-avatar.svg'" 
                 :alt="selectedUser.username"
                 class="profile-avatar"
               />

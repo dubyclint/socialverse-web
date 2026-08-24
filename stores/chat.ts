@@ -26,7 +26,10 @@ export const useChatStore = defineStore('chat', {
   getters: {
     currentChatMessages: (state) => state.currentChatId ? (state.messages.get(state.currentChatId) || []) : [],
     onlineUsersCount: (state) => state.onlineUsers.size,
-    currentChatTypingUsers: (state) => Array.from(state.typingUsers.values()),
+    currentChatTypingUsers: (state) =>
+      Array.from(state.typingUsers.values()).filter(
+        (typing) => typing.chatId === state.currentChatId && typing.isTyping
+      ),
     currentChatTranslations: (state) => Array.from(state.translations.values()),
     currentChatGifts: (state) => Array.from(state.gifts.values()),
     sortedChats: (state) => state.chatList
@@ -79,15 +82,51 @@ export const useChatStore = defineStore('chat', {
 
     // --- State Mutations ---
     addMessage(message: ChatMessage) {
-      // message.chatId can be undefined in some edge cases; guard it so TS and runtime are safe
-      const chatId = message.chatId as string | undefined
-      if (!chatId) {
-        // ignore malformed messages that lack a chatId
-        return
-      }
+      const chatId = message.chatId
+      if (!chatId) return
+
       const msgs = this.messages.get(chatId) || []
-      this.messages.set(chatId, [...msgs, message].sort((a, b) => a.timestamp - b.timestamp))
+      // The sender sees its own message twice (optimistic echo, then the
+      // server broadcast); reconcile on tempId, then on id.
+      const index = msgs.findIndex(
+        (existing) =>
+          existing.id === message.id ||
+          (message.tempId !== undefined && existing.id === message.tempId)
+      )
+
+      const next = index >= 0
+        ? msgs.map((existing, i) => (i === index ? { ...existing, ...message } : existing))
+        : [...msgs, message]
+
+      this.messages.set(chatId, next.sort((a, b) => a.timestamp - b.timestamp))
       this.cacheChatState()
+    },
+
+    setTyping(chatId: string, userId: string, username: string, isTyping: boolean) {
+      const key = `${chatId}:${userId}`
+      if (isTyping) this.typingUsers.set(key, { userId, username, isTyping, chatId })
+      else this.typingUsers.delete(key)
+    },
+
+    /**
+     * Applies a delivery/read watermark: every own message at or before `at`
+     * moves to that status. Statuses only ever move forward.
+     */
+    applyReceipt(chatId: string, at: string, status: 'delivered' | 'read', ownUserId: string) {
+      const msgs = this.messages.get(chatId)
+      if (!msgs) return
+
+      const rank = { sending: 0, failed: 0, sent: 1, delivered: 2, read: 3 } as const
+      const watermark = new Date(at).getTime()
+
+      this.messages.set(
+        chatId,
+        msgs.map((message) => {
+          if (message.senderId !== ownUserId || message.timestamp > watermark) return message
+          const current = message.status ?? 'sent'
+          return rank[current] >= rank[status] ? message : { ...message, status }
+        })
+      )
     },
 
     addMessages(chatId: string, messages: ChatMessage[]) {

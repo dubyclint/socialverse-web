@@ -62,7 +62,7 @@
             <!-- Chat Avatar -->
             <div class="chat-avatar">
               <img 
-                :src="chat.avatar || '/default-avatar.png'"
+                :src="chat.avatar || '/default-avatar.svg'"
                 :alt="chat.name"
               />
               <div v-if="isUserOnline(chat)" class="online-indicator"></div>
@@ -98,6 +98,7 @@
         <ChatSession 
           v-else
           :chat="currentChat"
+          :current-user="{ id: currentUserId }"
           :messages="chatStore.currentChatMessages"
           :typingUsers="chatStore.currentChatTypingUsers"
           :translations="chatStore.currentChatTranslations"
@@ -141,7 +142,7 @@
       </div>
     </div>
 
-    <GroupCreator 
+    <CreateGroup 
       v-if="showGroupCreator"
       @close="showGroupCreator = false"
       @create="createGroup"
@@ -180,6 +181,11 @@ const {
   initialize, 
   joinChat,
   onMessage,
+  onTyping,
+  onReceipt,
+  sendTyping,
+  markDelivered,
+  markRead,
   sendMessage: emitMessage, 
   editMessage: emitEditMessage,
   deleteMessage: emitDeleteMessage,
@@ -241,23 +247,50 @@ const selectChat = async (chatId: string) => {
   try {
     const response = await $fetch<ApiResponse<ChatMessage[]>>(`/api/chat/${chatId}/messages`)
     if (response.success && response.data) chatStore.addMessages(chatId, response.data)
+    // Opening a chat is what marks it read, which also implies delivered.
+    markDelivered(chatId)
+    markRead(chatId)
+    chatStore.unreadCounts.set(chatId, 0)
   } catch (error) {
     console.error('Failed to load messages:', error)
     chatStore.setError('Failed to load messages')
   }
 }
 
-const sendMessage = async (content: string, recipientId?: string) => {
-  if (!chatStore.currentChatId || !content.trim()) return
-  try {
-    emitMessage(chatStore.currentChatId, {
-      content: content.trim(),
-      recipientId,
-      timestamp: Date.now()
-    })
-  } catch (error) {
-    console.error('Failed to send message:', error)
-    chatStore.setError('Failed to send message')
+/**
+ * Accepts either a plain string or the payload object emitted by ChatSession.
+ * The bubble is rendered immediately as `sending` and reconciled with the
+ * server's acknowledgement (or marked `failed`).
+ */
+const sendMessage = async (payload: string | { content: string; recipientId?: string }) => {
+  const chatId = chatStore.currentChatId
+  const content = (typeof payload === 'string' ? payload : payload?.content ?? '').trim()
+  if (!chatId || !content) return
+
+  const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  chatStore.addMessage({
+    id: tempId,
+    chatId,
+    senderId: currentUserId.value ?? '',
+    senderName: 'You',
+    content,
+    timestamp: Date.now(),
+    messageType: 'text',
+    status: 'sending',
+    tempId
+  })
+
+  sendTyping(chatId, false)
+
+  const ack = await emitMessage(chatId, {
+    content,
+    recipientId: typeof payload === 'string' ? undefined : payload?.recipientId,
+    tempId
+  })
+
+  if (!ack.success) {
+    chatStore.updateMessage(chatId, tempId, { status: 'failed' })
+    chatStore.setError(ack.error || 'Failed to send message')
   }
 }
 
@@ -314,10 +347,14 @@ const sendGift = async (recipientId: string, giftAmount: number, message: string
 }
 
 const handleTyping = (isTyping: boolean) => {
-  if (!chatStore.currentChatId) return
+  const chatId = chatStore.currentChatId
+  if (!chatId) return
+
   if (typingTimeout.value) clearTimeout(typingTimeout.value)
+  sendTyping(chatId, isTyping)
+
   if (isTyping) {
-    typingTimeout.value = setTimeout(() => { /* Emit typing stopped */ }, 3000)
+    typingTimeout.value = setTimeout(() => sendTyping(chatId, false), 3000)
   }
 }
 
@@ -387,16 +424,39 @@ onMounted(async () => {
   await initialize()
 
   onMessage((message) => {
-    const sender = chatStore.chats.get(message.chatId)
+    const own = message.senderId === currentUserId.value
+    const chat = chatStore.chats.get(message.chatId)
+
     chatStore.addMessage({
       id: message.id,
-      userId: message.senderId,
-      username: message.senderId === currentUserId.value ? 'You' : sender?.name || 'unknown',
-      message: message.content,
+      tempId: message.tempId,
+      chatId: message.chatId,
+      senderId: message.senderId,
+      senderName: own ? 'You' : message.senderName || chat?.name || 'unknown',
+      senderAvatar: message.senderAvatar,
+      content: message.content,
+      messageType: 'text',
       timestamp: new Date(message.timestamp).getTime(),
-      roomId: message.chatId,
-      chatId: message.chatId
+      status: own ? 'sent' : undefined
     })
+
+    if (own) return
+
+    // Received while the chat is open counts as read; otherwise only delivered.
+    markDelivered(message.chatId)
+    if (chatStore.currentChatId === message.chatId) markRead(message.chatId)
+    else chatStore.unreadCounts.set(message.chatId, (chatStore.unreadCounts.get(message.chatId) ?? 0) + 1)
+  })
+
+  onTyping((event, isTyping) => {
+    if (event.userId === currentUserId.value) return
+    const chat = chatStore.chats.get(event.chatId)
+    chatStore.setTyping(event.chatId, event.userId, chat?.name || 'Someone', isTyping)
+  })
+
+  onReceipt((receipt, kind) => {
+    if (receipt.userId === currentUserId.value) return
+    chatStore.applyReceipt(receipt.chatId, receipt.at, kind, currentUserId.value ?? '')
   })
 
   await loadChats()

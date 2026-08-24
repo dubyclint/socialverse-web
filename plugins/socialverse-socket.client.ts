@@ -11,6 +11,16 @@ import { io, Socket } from 'socket.io-client'
 let socketInstance: Socket | null = null
 const MAX_CONNECTION_ATTEMPTS = 5
 
+// Listeners registered before the socket exists (or surviving a reconnect that
+// replaced the instance) are kept here and re-attached to every new instance.
+const listeners = new Map<string, Set<(data: any) => void>>()
+
+const attachListeners = (instance: Socket) => {
+  for (const [event, handlers] of listeners) {
+    for (const handler of handlers) instance.on(event, handler)
+  }
+}
+
 export default defineNuxtPlugin({
   name: 'socialverse-socket-client',
   dependsOn: ['00-init-sequence'],
@@ -58,19 +68,27 @@ export default defineNuxtPlugin({
         }
       },
 
-      emit(event: string, data?: any): void {
+      emit(event: string, data?: any, ack?: (response: any) => void): void {
         if (socketInstance?.connected) {
-          socketInstance.emit(event, data)
+          if (ack) socketInstance.emit(event, data, ack)
+          else socketInstance.emit(event, data)
         } else {
           console.warn('[Socket.IO] ⚠️ Transmission dropped. Socket offline:', event)
+          ack?.({ success: false, error: 'Socket offline' })
         }
       },
 
       on(event: string, callback: (data: any) => void): void {
+        const handlers = listeners.get(event) ?? new Set()
+        if (handlers.has(callback)) return
+        handlers.add(callback)
+        listeners.set(event, handlers)
         socketInstance?.on(event, callback)
       },
 
       off(event: string, callback?: (data: any) => void): void {
+        if (callback) listeners.get(event)?.delete(callback)
+        else listeners.delete(event)
         socketInstance?.off(event, callback)
       },
 
@@ -120,6 +138,8 @@ async function autoConnect(): Promise<Socket | null> {
       // connect through proxies (or the dev server) that do not upgrade.
       transports: ['polling', 'websocket']
     })
+
+    attachListeners(socketInstance)
 
     socketInstance.on('connect_error', (error: Error) => {
       // A failed realtime connection never invalidates the HTTP session.

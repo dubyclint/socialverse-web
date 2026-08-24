@@ -7,7 +7,7 @@
         <div class="call-header">
           <div class="call-info">
             <div class="caller-avatar">
-              <img :src="call.caller?.avatar || '/default-avatar.png'" :alt="call.caller?.username" />
+              <img :src="call.caller?.avatar || '/default-avatar.svg'" :alt="call.caller?.username" />
             </div>
             <div class="caller-details">
               <div class="caller-name">{{ call.caller?.username }}</div>

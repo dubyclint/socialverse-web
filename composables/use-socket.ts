@@ -41,11 +41,11 @@ export const useSocket = (_namespace?: string) => {
    * Generic passthrough emit, for callers that want to emit a raw event
    * without going through one of the named domain helpers below.
    */
-  const emit = (event: string, data?: any) => {
+  const emit = (event: string, data?: any, ack?: (response: any) => void) => {
     try {
       const socketInstance = getSocketInstance()
-      if (!socketInstance) return
-      socketInstance.emit(event, data)
+      if (!socketInstance) return ack?.({ success: false, error: 'Socket unavailable' })
+      socketInstance.emit(event, data, ack)
     } catch (err: any) {
       console.error('[useSocket] Error emitting event:', err.message)
     }

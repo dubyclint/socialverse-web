@@ -49,7 +49,7 @@
             </div>
             <div class="group-members">
               <div v-for="member in group.members" :key="member.id" class="member-item">
-                <img :src="member.avatar || '/default-avatar.png'" :alt="member.name" class="member-avatar" />
+                <img :src="member.avatar || '/default-avatar.svg'" :alt="member.name" class="member-avatar" />
                 <span class="member-name">{{ member.name }}</span>
               </div>
             </div>

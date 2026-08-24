@@ -5,7 +5,7 @@
     <template v-else>
       <div class="messages">
         <div v-for="msg in messages" :key="msg.id" class="message">
-          <strong>{{ msg.username }}:</strong> {{ msg.message }}
+          <strong>{{ msg.senderName }}:</strong> {{ msg.content }}
           <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
         </div>
         <p v-if="!messages.length" class="empty">No messages yet.</p>

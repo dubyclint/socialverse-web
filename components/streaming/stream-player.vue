@@ -193,7 +193,7 @@
       <div class="stream-meta">
         <div class="streamer-info">
           <img 
-            :src="streamerAvatar || '/default-avatar.png'" 
+            :src="streamerAvatar || '/default-avatar.svg'" 
             :alt="streamerName"
             class="streamer-avatar"
           >

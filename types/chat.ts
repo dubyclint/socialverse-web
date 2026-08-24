@@ -1,14 +1,20 @@
 // types/chat.ts
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
+
 export interface ChatMessage {
   id: string
-  userId: string
-  username: string
-  message: string
+  chatId: string
+  senderId: string
+  senderName: string
+  senderAvatar?: string
+  content: string
   timestamp: number
-  avatar?: string
-  roomId?: string
-  // Some parts of the app expect `chatId` instead of `roomId`.
-  chatId?: string
+  messageType?: 'text' | 'image' | 'file' | 'system'
+  status?: MessageStatus
+  /** Client-side id of an optimistic message, echoed back by the server. */
+  tempId?: string
+  isEdited?: boolean
+  isDeleted?: boolean
   translatedText?: string
   translatedLang?: string
 }
@@ -24,6 +30,7 @@ export interface TypingUser {
   userId: string
   username: string
   isTyping: boolean
+  chatId: string
 }
 
 export interface Chat {

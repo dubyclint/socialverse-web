@@ -12,14 +12,30 @@ export default defineEventHandler(async (event) => {
 
   const client = await serverSupabaseClient<Database>(event)
 
-  const { data: membership } = await client
+  const { data: members } = await client
     .from('chat_room_members')
-    .select('room_id')
+    .select('user_id, last_delivered_at, last_read_at')
     .eq('room_id', chatId)
-    .eq('user_id', user.id)
-    .maybeSingle()
 
+  const membership = (members || []).find(member => member.user_id === user.id)
   if (!membership) throw createError({ statusCode: 403, statusMessage: 'Not a member of this chat' })
+
+  // A message counts as delivered/read once every other member's watermark
+  // has passed it.
+  const others = (members || []).filter(member => member.user_id !== user.id)
+  const watermark = (column: 'last_delivered_at' | 'last_read_at'): number => {
+    if (!others.length) return 0
+    let earliest = Infinity
+    for (const member of others) {
+      const value = column === 'last_delivered_at' ? member.last_delivered_at : member.last_read_at
+      if (!value) return 0
+      earliest = Math.min(earliest, new Date(value).getTime())
+    }
+    return earliest
+  }
+
+  const deliveredUpTo = watermark('last_delivered_at')
+  const readUpTo = watermark('last_read_at')
 
   const { data: rows, error } = await client
     .from('chat_messages')
@@ -32,22 +48,32 @@ export default defineEventHandler(async (event) => {
 
   const senderIds = Array.from(new Set((rows || []).map(row => row.sender_id)))
   const { data: senders } = senderIds.length
-    ? await client.from('user').select('user_id, username, avatar_url').in('user_id', senderIds)
+    ? await client.from('user').select('user_id, username, display_name, avatar_url').in('user_id', senderIds)
     : { data: [] }
 
   const senderById = new Map((senders || []).map(sender => [sender.user_id, sender]))
 
   const data: ChatMessage[] = (rows || []).reverse().map(row => {
     const sender = senderById.get(row.sender_id)
+    const timestamp = new Date(row.created_at).getTime()
+    const own = row.sender_id === user.id
+
     return {
       id: row.id,
-      userId: row.sender_id,
-      username: sender?.username || 'unknown',
-      avatar: sender?.avatar_url || undefined,
-      message: row.message_text || '',
-      timestamp: new Date(row.created_at).getTime(),
-      roomId: row.room_id,
-      chatId: row.room_id
+      chatId: row.room_id,
+      senderId: row.sender_id,
+      senderName: sender?.display_name || sender?.username || 'unknown',
+      senderAvatar: sender?.avatar_url || undefined,
+      content: row.message_text || '',
+      messageType: 'text' as const,
+      timestamp,
+      status: !own
+        ? undefined
+        : timestamp <= readUpTo
+          ? ('read' as const)
+          : timestamp <= deliveredUpTo
+            ? ('delivered' as const)
+            : ('sent' as const)
     }
   })
 

@@ -13,7 +13,9 @@ export default defineEventHandler(async (event) => {
   if (term.length < 2) return { success: true, data: [] }
 
   const client = await serverSupabaseClient<Database>(event)
-  const pattern = `%${term.replace(/[%_]/g, '')}%`
+  // Only `%` is stripped: underscores are legal in usernames, and as a LIKE
+  // wildcard they merely widen the match instead of dropping the character.
+  const pattern = `%${term.replace(/%/g, '')}%`
 
   const { data, error } = await client
     .from('user')

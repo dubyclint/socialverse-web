@@ -39,7 +39,7 @@
           <div class="message-header">
             <div class="user-info">
               <img 
-                :src="message.user?.avatar || '/default-avatar.png'"
+                :src="message.user?.avatar || '/default-avatar.svg'"
                 :alt="message.user?.name"
                 class="user-avatar"
               />
