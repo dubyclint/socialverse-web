@@ -28,43 +28,25 @@
     <div v-else class="gifts-list">
       <div v-for="gift in filteredGifts" :key="gift.id" class="gift-item">
         <div class="gift-avatar">
-          <img
-            v-if="gift.sender?.avatar_url"
-            :src="gift.sender.avatar_url"
-            :alt="gift.sender?.username"
-            class="avatar"
-          />
-          <span v-else class="avatar-placeholder">👤</span>
+          <span class="avatar-placeholder">🎁</span>
         </div>
 
         <div class="gift-details">
           <div class="gift-header">
-            <span class="gift-emoji">{{ gift.gift_type?.emoji }}</span>
-            <span class="gift-name">{{ gift.gift_type?.name }}</span>
-            <span class="gift-quantity">x{{ gift.quantity }}</span>
+            <span class="gift-name">{{ gift.giftName || 'Gift' }}</span>
+            <span v-if="gift.giftTier" class="gift-quantity">{{ gift.giftTier }}</span>
           </div>
 
           <div class="gift-info">
-            <span v-if="gift.sender_id === userId" class="direction sent">
-              Sent to {{ gift.recipient?.username }}
+            <span class="direction" :class="gift.type">
+              {{ gift.type === 'sent' ? 'Sent' : 'Received' }}
             </span>
-            <span v-else class="direction received">
-              Received from {{ gift.sender?.username }}
-            </span>
-            <span class="timestamp">{{ formatDate(gift.created_at) }}</span>
-          </div>
-
-          <div v-if="gift.message" class="gift-message">
-            💬 {{ gift.message }}
-          </div>
-
-          <div v-if="gift.is_anonymous" class="anonymous-badge">
-            🔒 Anonymous
+            <span class="timestamp">{{ formatDate(gift.createdAt) }}</span>
           </div>
         </div>
 
         <div class="gift-value">
-          <span class="value-amount">{{ (gift.gift_type?.price_in_credits ?? 0) * (gift.quantity ?? 0) }} PEW</span>
+          <span class="value-amount">{{ gift.amount }} PEW</span>
           <span class="value-label">Value</span>
         </div>
       </div>
@@ -82,28 +64,20 @@
 import { ref, computed, onMounted } from 'vue'
 import type { ApiResponse } from '~/types/api'
 
-interface GiftType {
-  emoji?: string
-  name?: string
-  price_in_credits?: number
-}
-
-interface GiftParty {
-  username?: string
-  avatar_url?: string
-}
-
 interface GiftRecord {
   id: string
-  sender_id?: string
-  recipient_id?: string
-  sender?: GiftParty
-  recipient?: GiftParty
-  gift_type?: GiftType
-  quantity?: number
-  created_at?: string
-  message?: string
-  is_anonymous?: boolean
+  type: 'sent' | 'received'
+  amount: number
+  senderId?: string
+  recipientId?: string
+  giftName?: string | null
+  giftTier?: string | null
+  createdAt?: string
+}
+
+interface HistoryPayload {
+  transactions: GiftRecord[]
+  pagination: { total: number, limit: number, offset: number, hasMore: boolean }
 }
 
 const props = defineProps({
@@ -123,34 +97,27 @@ const limit = 20
 const tabs = ['all', 'sent', 'received']
 
 const filteredGifts = computed(() => {
-  if (activeTab.value === 'sent') {
-    return gifts.value.filter((g: GiftRecord) => g.sender_id === props.userId)
-  }
-  if (activeTab.value === 'received') {
-    return gifts.value.filter((g: GiftRecord) => g.recipient_id === props.userId)
-  }
-  return gifts.value
+  if (activeTab.value === 'all') return gifts.value
+  return gifts.value.filter((g: GiftRecord) => g.type === activeTab.value)
 })
 
 onMounted(() => {
   loadGiftHistory()
 })
 
+const fetchPage = async () => {
+  const response = await $fetch<ApiResponse<HistoryPayload>>('/api/pewgift/history', {
+    query: { limit, offset: offset.value }
+  })
+  return response.data
+}
+
 const loadGiftHistory = async () => {
   loading.value = true
   try {
-    const response = await $fetch<ApiResponse<GiftRecord[]>>('/api/pewgift/history', {
-      query: {
-        userId: props.userId,
-        limit,
-        offset: offset.value
-      }
-    })
-
-    if (response.success) {
-      gifts.value = response.data || []
-      hasMore.value = response.data?.length === limit
-    }
+    const payload = await fetchPage()
+    gifts.value = payload?.transactions ?? []
+    hasMore.value = payload?.pagination.hasMore ?? false
   } catch (error) {
     console.error('Failed to load gift history:', error)
   } finally {
@@ -162,18 +129,9 @@ const loadMore = async () => {
   offset.value += limit
   loading.value = true
   try {
-    const response = await $fetch<ApiResponse<GiftRecord[]>>('/api/pewgift/history', {
-      query: {
-        userId: props.userId,
-        limit,
-        offset: offset.value
-      }
-    })
-
-    if (response.success) {
-      gifts.value.push(...(response.data || []))
-      hasMore.value = response.data?.length === limit
-    }
+    const payload = await fetchPage()
+    gifts.value.push(...(payload?.transactions ?? []))
+    hasMore.value = payload?.pagination.hasMore ?? false
   } catch (error) {
     console.error('Failed to load more gifts:', error)
   } finally {

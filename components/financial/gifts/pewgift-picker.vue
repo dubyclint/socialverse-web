@@ -46,36 +46,36 @@
             </div>
           </div>
 
-          <!-- Category Tabs -->
+          <!-- Tier Tabs -->
           <div class="category-tabs">
             <button
-              v-for="category in categories"
-              :key="category"
-              @click="selectedCategory = category"
+              v-for="tier in tiers"
+              :key="tier"
+              @click="selectedTier = tier"
               class="category-tab"
-              :class="{ active: selectedCategory === category }"
+              :class="{ active: selectedTier === tier }"
             >
-              {{ getCategoryEmoji(category) }} {{ category }}
+              {{ getTierEmoji(tier) }} {{ tier }}
             </button>
           </div>
 
           <!-- Gifts Grid -->
           <div class="gifts-grid">
             <div
-              v-for="gift in getGiftsByCategory(selectedCategory)"
+              v-for="gift in getGiftsByTier(selectedTier)"
               :key="gift.id"
               class="gift-card"
               :class="{ selected: selectedGift?.id === gift.id, disabled: !canAfford(gift) }"
               @click="selectGift(gift)"
             >
               <div class="gift-image">
-                <img v-if="gift.image_url" :src="gift.image_url" :alt="gift.name" />
-                <span v-else class="gift-emoji">{{ gift.emoji }}</span>
+                <img v-if="gift.icon_url" :src="gift.icon_url" :alt="gift.name" />
+                <span v-else class="gift-emoji">🎁</span>
               </div>
               <div class="gift-info">
                 <h4>{{ gift.name }}</h4>
-                <p class="gift-rarity" :class="gift.rarity">{{ gift.rarity }}</p>
-                <p class="gift-price">{{ gift.price_in_credits }} PEW</p>
+                <p class="gift-rarity" :class="gift.tier.toLowerCase()">{{ gift.tier }}</p>
+                <p class="gift-price">{{ gift.cost_credits }} PEW</p>
               </div>
               <div v-if="selectedGift?.id === gift.id" class="selected-indicator">✓</div>
             </div>
@@ -139,6 +139,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { usePewGift } from '~/services/financial/gifts/use-pewgift'
+import type { GiftTier, PewGiftType } from '~/services/financial/gifts/use-pewgift'
 
 interface Props {
   recipientId?: string
@@ -174,8 +175,8 @@ const {
   sendGiftToComment,
   sendGiftToStream,
   sendGiftToChat,
-  categories,
-  getGiftsByCategory,
+  tiers,
+  getGiftsByTier,
   canAffordGift,
   totalCost,
   resetForm,
@@ -183,14 +184,14 @@ const {
 } = usePewGift()
 
 const showPicker = ref(false)
-const selectedCategory = ref('')
+const selectedTier = ref<GiftTier>('BRONZE')
 const unreadGifts = ref(0)
 
 onMounted(async () => {
   await loadGiftTypes()
   await loadBalance()
-  if (categories.value.length > 0) {
-    selectedCategory.value = categories.value[0] ?? ''
+  if (tiers.value.length > 0) {
+    selectedTier.value = tiers.value[0] as GiftTier
   }
 })
 
@@ -207,7 +208,7 @@ const closePicker = () => {
   clearMessages()
 }
 
-const selectGift = (gift: any) => {
+const selectGift = (gift: PewGiftType) => {
   selectedGift.value = gift
 }
 
@@ -219,29 +220,24 @@ const decreaseQuantity = () => {
   if (quantity.value > 1) quantity.value--
 }
 
-const canAfford = (gift: any) => {
-  return balance.value && balance.value.balance >= gift.price_in_credits
+const canAfford = (gift: PewGiftType) => {
+  return Boolean(balance.value && balance.value.balance >= gift.cost_credits)
 }
 
 const openTopUp = () => {
   // Navigate to wallet/topup page
-  navigateTo('/wallet/topup')
+  navigateTo('/wallet')
 }
 
-const getCategoryEmoji = (category: string) => {
-  const emojiMap: Record<string, string> = {
-    'love': '❤️',
-    'celebration': '🎉',
-    'funny': '😂',
-    'nature': '🌿',
-    'animals': '🐾',
-    'food': '🍕',
-    'sports': '⚽',
-    'music': '🎵',
-    'tech': '💻',
-    'other': '✨'
+const getTierEmoji = (tier: GiftTier) => {
+  const emojiMap: Record<GiftTier, string> = {
+    BRONZE: '🥉',
+    SILVER: '🥈',
+    GOLD: '🥇',
+    PLATINUM: '💠',
+    DIAMOND: '💎'
   }
-  return emojiMap[category] || '🎁'
+  return emojiMap[tier] || '🎁'
 }
 
 const sendGift = async () => {
