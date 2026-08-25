@@ -9,9 +9,6 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 interface UpdateStreamRequest {
   title?: string
   description?: string
-  category?: string
-  privacy?: string
-  thumbnail_url?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -32,7 +29,7 @@ export default defineEventHandler(async (event) => {
     // Verify ownership
     const { data: stream, error: streamError } = await _supabase
       .from('streams')
-      .select('broadcaster_id')
+      .select('creator_id')
       .eq('id', streamId)
       .single()
 
@@ -43,7 +40,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (stream.broadcaster_id !== user.id) {
+    if (stream.creator_id !== user.id) {
       throw createError({
         statusCode: 403,
         statusMessage: 'You do not have permission to update this stream'
@@ -58,25 +55,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (body.category && !['just-chatting', 'gaming', 'music', 'art', 'cooking', 'fitness', 'education', 'other'].includes(body.category)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid category'
-      })
-    }
-
-    if (body.privacy && !['public', 'pals-only', 'private'].includes(body.privacy)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid privacy setting'
-      })
-    }
-
     // Update stream
     const { data: updated, error: updateError } = await _supabase
       .from('streams')
       .update({
-        ...body,
+        ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.description !== undefined ? { description: body.description } : {}),
         updated_at: new Date().toISOString()
       })
       .eq('id', streamId)

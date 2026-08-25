@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     // Verify ownership
     const { data: stream, error: streamError } = await _supabase
       .from('streams')
-      .select('broadcaster_id')
+      .select('creator_id')
       .eq('id', streamId)
       .single()
 
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (stream.broadcaster_id !== user.id) {
+    if (stream.creator_id !== user.id) {
       throw createError({
         statusCode: 403,
         statusMessage: 'You do not have permission to delete this stream'

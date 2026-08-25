@@ -146,7 +146,6 @@ const {
   viewerCount: broadcastViewers,
   streamDuration: broadcastDuration,
   streamStats: broadcastStats,
-  startStream,
   stopStream
 } = useStreamBroadcast()
 
@@ -172,12 +171,16 @@ const onStreamStarted = async (config: any) => {
     // Using unified API client
     const response = await api<{ success: boolean; data: { id: string } }>('/stream', {
       method: 'POST',
-      body: { action: 'create', ...config }
+      body: {
+        action: 'create',
+        title: config.title || `${userStore.profile?.username || 'Live'} stream`,
+        description: config.category
+      }
     })
 
     if (response.success) {
       currentStreamId.value = response.data.id
-      await startStream({ ...config, streamId: response.data.id })
+      await api('/stream', { method: 'POST', body: { action: 'start', stream_id: response.data.id } })
       connectWebSocket(response.data.id)
     }
   } catch (err: any) {
@@ -188,9 +191,9 @@ const onStreamStarted = async (config: any) => {
 const onStreamEnded = async () => {
   try {
     if (currentStreamId.value) {
-      await api(`/stream/${currentStreamId.value}`, {
+      await api('/stream', {
         method: 'POST',
-        body: { action: 'end', duration: streamDuration.value }
+        body: { action: 'end', stream_id: currentStreamId.value }
       })
     }
     await stopStream()

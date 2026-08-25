@@ -1,45 +1,59 @@
-// server/api/stream/index.post.ts
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { StreamModel } from '~/server/models/stream'
 
-function validateBody(body: any, fields: string[]) {
-  for (const f of fields) {
-    if (body[f] === undefined || body[f] === null) {
-      throw createError({ statusCode: 400, statusMessage: `Missing required field: ${f}` })
-    }
+type StreamAction = 'create' | 'start' | 'end' | 'viewers'
+
+const requireOwnership = async (streamId: string, userId: string) => {
+  const stream = await StreamModel.getStream(streamId)
+  if (!stream) throw createError({ statusCode: 404, statusMessage: 'Stream not found' })
+  if (stream.creator_id !== userId) {
+    throw createError({ statusCode: 403, statusMessage: 'Not your stream' })
   }
+  return stream
 }
 
 export default defineEventHandler(async (event) => {
-  try {
   const user = await requireAuth(event)
-    const body = await readBody(event)
-    const { action } = body
+  const body = await readBody<{
+    action?: StreamAction
+    stream_id?: string
+    streamId?: string
+    title?: string
+    description?: string
+    viewerCount?: number
+  }>(event)
 
-    validateBody(body, ['action'])
+  const action = body?.action
+  const streamId = body?.stream_id || body?.streamId
 
-    let result: any = null
+  if (!action) throw createError({ statusCode: 400, statusMessage: 'Missing required field: action' })
 
-    if (action === 'create') {
-      validateBody(body, ['title'])
-      result = await StreamModel.createStream((user as any)?.id, body.title, body.streamUrl || '', body.description)
-    } else if (action === 'update') {
-      validateBody(body, ['stream_id'])
-      result = await StreamModel.updateViewerCount(body.stream_id, body.viewerCount || 0)
-    } else if (action === 'delete') {
-      validateBody(body, ['stream_id'])
-      result = await StreamModel.endStream(body.stream_id)
-    } else {
-      throw createError({ statusCode: 400, statusMessage: `Unknown action: ${action}` })
+  if (action === 'create') {
+    if (!body.title?.trim()) {
+      throw createError({ statusCode: 400, statusMessage: 'Missing required field: title' })
     }
-
-    return {
-      success: true,
-      message: `Stream ${action} successful`,
-      data: result
-    }
-  } catch (error: any) {
-    console.error('Stream operation error:', error)
-    throw createError({ statusCode: 500, statusMessage: 'Stream operation failed' })
+    const stream = await StreamModel.createStream(user.id, body.title.trim(), '', body.description)
+    return { success: true, message: 'Stream created', data: stream }
   }
+
+  if (!streamId) {
+    throw createError({ statusCode: 400, statusMessage: 'Missing required field: stream_id' })
+  }
+
+  await requireOwnership(streamId, user.id)
+
+  if (action === 'start') {
+    return { success: true, message: 'Stream live', data: await StreamModel.startStream(streamId) }
+  }
+
+  if (action === 'end') {
+    return { success: true, message: 'Stream ended', data: await StreamModel.endStream(streamId) }
+  }
+
+  if (action === 'viewers') {
+    await StreamModel.updateViewerCount(streamId, Math.max(0, Number(body.viewerCount) || 0))
+    return { success: true, message: 'Viewer count updated', data: null }
+  }
+
+  throw createError({ statusCode: 400, statusMessage: `Unknown action: ${action}` })
 })
