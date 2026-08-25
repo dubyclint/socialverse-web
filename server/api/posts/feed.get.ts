@@ -1,105 +1,36 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { DEFAULT_RANKING, loadConfig, rankPosts } from '~/server/utils/feed-ranker'
+import type { FeedRankingWeights, RankedPost } from '~/server/utils/feed-ranker'
+import type { Database } from '~/types/database.types'
 
 interface FeedResponse {
   success: boolean
-  data?: {
-    posts: any[]
-    total: number
+  data: {
+    posts: RankedPost[]
     page: number
     limit: number
     hasMore: boolean
   }
-  message?: string
 }
 
+/**
+ * Legacy posts feed: same ranking as /api/feed, without the ad slots so
+ * post-only consumers keep a plain array.
+ */
 export default defineEventHandler(async (event): Promise<FeedResponse> => {
-  try {
-    const contextUser: any = await requireAuth(event)
-    const userId = contextUser?.id || contextUser?.user_id || null
+  const user = await requireAuth(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    const query = getQuery(event)
-    const page = Math.max(1, Number.parseInt(String(query.page ?? '1'), 10) || 1)
-    const limit = Math.min(50, Math.max(1, Number.parseInt(String(query.limit ?? '12'), 10) || 12))
-    const offset = (page - 1) * limit
+  const query = getQuery(event)
+  const page = Math.max(1, Number.parseInt(String(query.page ?? '1'), 10) || 1)
+  const limit = Math.min(50, Math.max(1, Number.parseInt(String(query.limit ?? '12'), 10) || 12))
 
-    const supabase = await serverSupabaseClient(event)
+  const weights = await loadConfig<FeedRankingWeights>(supabase, 'feed_ranking', DEFAULT_RANKING)
+  const posts = await rankPosts(supabase, user.id, limit, (page - 1) * limit, weights)
 
-    let friendIds: string[] = []
-    try {
-      const { data: friendships, error } = await supabase
-        .from('user_follows')
-        .select('follower_id, following_id')
-        .or(`follower_id.eq.${userId},following_id.eq.${userId}`)
-
-      if (!error && Array.isArray(friendships)) {
-        friendIds = friendships
-          .map((f: any) => (f.follower_id === userId ? f.following_id : f.follower_id))
-          .filter(Boolean)
-      }
-    } catch (e) {
-      console.warn('[Feed API] friendships lookup skipped:', e)
-    }
-
-    const ids = Array.from(new Set([userId, ...friendIds]))
-
-    // Primary query (full filter set)
-  let posts: any[] = []
-  let count: number = 0
-
-    let result = await supabase
-      .from('posts')
-      .select('*', { count: 'exact' })
-      .in('user_id', ids)
-      .in('privacy', ['public', 'friends'])
-      .eq('is_draft', false)
-      .is('scheduled_at', null)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    // Fallback 1: remove scheduled filter
-    if (result.error) {
-      console.warn('[Feed API] primary query failed, fallback#1:', result.error.message)
-      result = await supabase
-        .from('posts')
-        .select('*', { count: 'exact' })
-        .in('user_id', ids)
-        .in('privacy', ['public', 'friends'])
-        .eq('is_draft', false)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1)
-    }
-
-    // Fallback 2: self posts only, minimal assumptions
-    if (result.error) {
-      console.warn('[Feed API] fallback#1 failed, fallback#2:', result.error.message)
-      result = await supabase
-        .from('posts')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1)
-    }
-
-    if (result.error) {
-      console.error('[Feed API] all queries failed:', result.error)
-      throw createError({ statusCode: 500, statusMessage: 'Failed to fetch feed posts' })
-    }
-
-  posts = result.data ?? []
-  count = typeof result.count === 'number' ? result.count : 0
-
-    const total = count ?? 0
-    const hasMore = page * limit < total
-
-    return {
-      success: true,
-      data: { posts, total, page, limit, hasMore },
-      message: 'Feed posts fetched successfully'
-    }
-  } catch (error: any) {
-    if (error?.statusCode) throw error
-    console.error('[Feed API] internal error:', error)
-    throw createError({ statusCode: 500, statusMessage: 'Internal Server Error' })
+  return {
+    success: true,
+    data: { posts, page, limit, hasMore: posts.length === limit }
   }
 })
