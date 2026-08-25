@@ -1972,9 +1972,13 @@ export type Database = {
           created_at: string
           hashtags: string[]
           id: string
+          is_draft: boolean
           likes_count: number
           media_urls: string[]
+          privacy: string
+          scheduled_at: string | null
           shares_count: number
+          title: string | null
           updated_at: string
           user_id: string
         }
@@ -1984,9 +1988,13 @@ export type Database = {
           created_at?: string
           hashtags?: string[]
           id?: string
+          is_draft?: boolean
           likes_count?: number
           media_urls?: string[]
+          privacy?: string
+          scheduled_at?: string | null
           shares_count?: number
+          title?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1996,13 +2004,39 @@ export type Database = {
           created_at?: string
           hashtags?: string[]
           id?: string
+          is_draft?: boolean
           likes_count?: number
           media_urls?: string[]
+          privacy?: string
+          scheduled_at?: string | null
           shares_count?: number
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       rank_config: {
         Row: {
@@ -3451,7 +3485,29 @@ export type Database = {
           user_id?: string | null
           views?: never
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -3615,6 +3671,14 @@ export type Database = {
             }
             Returns: undefined
           }
+      record_ad_interaction: {
+        Args: {
+          p_campaign_id: string
+          p_interaction: Database["public"]["Enums"]["ad_action_type"]
+          p_viewer_id: string
+        }
+        Returns: number
+      }
       record_match_event: {
         Args: {
           p_actor_id: string
@@ -3624,6 +3688,10 @@ export type Database = {
           p_points: number
           p_side: number
         }
+        Returns: number
+      }
+      refresh_trending_hashtags: {
+        Args: { p_window?: string }
         Returns: number
       }
       release_p2p_trade: {

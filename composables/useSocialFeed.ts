@@ -41,6 +41,19 @@ export interface SuggestedUser extends FeedAuthor {
 
 export type FeedTab = 'for-you' | 'following' | 'trending'
 
+export interface FeedAd {
+  id: string
+  title: string
+  creativeUrl: string | null
+  destinationUrl: string | null
+  advertiserId: string
+}
+
+export type FeedItem =
+  | { type: 'post', post: FeedPost }
+  | { type: 'ad', ad: FeedAd }
+  | { type: 'external_ad', provider: string, clientId: string, slotId: string }
+
 export interface TrendingTopic {
   id: string
   title: string
@@ -55,18 +68,6 @@ interface UserRow {
   full_name: string | null
   avatar_url: string | null
   is_verified: boolean | null
-}
-
-interface PostRow {
-  id: string
-  user_id: string
-  content: string | null
-  media_urls: string[] | null
-  hashtags: string[] | null
-  likes_count: number | null
-  comments_count: number | null
-  shares_count: number | null
-  created_at: string
 }
 
 interface StatusRow {
@@ -104,7 +105,10 @@ export const useSocialFeed = () => {
   const walletBalance = ref('$0.00')
 
   // Feed state
-  const posts = ref<FeedPost[]>([])
+  const feedItems = ref<FeedItem[]>([])
+  const posts = computed<FeedPost[]>(() =>
+    feedItems.value.flatMap(item => (item.type === 'post' ? [item.post] : []))
+  )
   const postsLoading = ref(false)
   const loadingMore = ref(false)
   const hasMorePosts = ref(false)
@@ -177,73 +181,21 @@ export const useSocialFeed = () => {
     return authors
   }
 
-  const loadFollowedUserIds = async (): Promise<string[]> => {
-    if (!currentUserId.value) return []
+  /**
+   * Single ranked feed source: in-app ads take their reserved slots, ranked
+   * posts fill the rest, and the external network only backfills ad slots the
+   * in-app inventory could not.
+   */
+  const loadFeed = async (targetPage: number): Promise<FeedItem[]> => {
+    const response = await $fetch<{
+      success: boolean
+      data: { items: FeedItem[]; hasMore: boolean }
+    }>('/api/feed', {
+      query: { page: targetPage, limit: PAGE_SIZE, tab: activeTab.value },
+    })
 
-    const { data, error } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', currentUserId.value)
-
-    if (error) {
-      console.error('[Feed] Following lookup failed', error.message)
-      return []
-    }
-
-    return ((data ?? []) as { following_id: string }[]).map((row) => row.following_id)
-  }
-
-  const loadPosts = async (targetPage: number): Promise<FeedPost[]> => {
-    const from = targetPage * PAGE_SIZE
-
-    let query = supabase
-      .from('posts')
-      .select('id,user_id,content,media_urls,hashtags,likes_count,comments_count,shares_count,created_at')
-
-    if (activeTab.value === 'following') {
-      const followedIds = await loadFollowedUserIds()
-      if (followedIds.length === 0) {
-        hasMorePosts.value = false
-        return []
-      }
-      query = query.in('user_id', followedIds)
-    }
-
-    const { data, error } =
-      activeTab.value === 'trending'
-        ? await query.order('likes_count', { ascending: false }).range(from, from + PAGE_SIZE - 1)
-        : await query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1)
-
-    if (error) throw new Error(error.message)
-
-    const rows = (data ?? []) as PostRow[]
-    hasMorePosts.value = rows.length === PAGE_SIZE
-
-    const authors = await loadAuthors(rows.map((row) => row.user_id))
-
-    let likedPostIds = new Set<string>()
-    if (currentUserId.value && rows.length > 0) {
-      const { data: likes } = await supabase
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', currentUserId.value)
-        .in('post_id', rows.map((row) => row.id))
-
-      likedPostIds = new Set(((likes ?? []) as { post_id: string }[]).map((like) => like.post_id))
-    }
-
-    return rows.map((row) => ({
-      id: row.id,
-      content: row.content ?? '',
-      created_at: row.created_at,
-      media: row.media_urls ?? [],
-      hashtags: row.hashtags ?? [],
-      likes_count: row.likes_count ?? 0,
-      comments_count: row.comments_count ?? 0,
-      shares_count: row.shares_count ?? 0,
-      liked_by_me: likedPostIds.has(row.id),
-      author: toAuthor(authors.get(row.user_id)),
-    }))
+    hasMorePosts.value = response.data?.hasMore ?? false
+    return response.data?.items ?? []
   }
 
   const refreshFeed = async (tab: FeedTab = activeTab.value) => {
@@ -251,10 +203,10 @@ export const useSocialFeed = () => {
     postsLoading.value = true
     try {
       page.value = 0
-      posts.value = await loadPosts(0)
+      feedItems.value = await loadFeed(0)
     } catch (e) {
-      console.error('[Feed] Loading posts failed', e)
-      posts.value = []
+      console.error('[Feed] Loading feed failed', e)
+      feedItems.value = []
       hasMorePosts.value = false
     } finally {
       postsLoading.value = false
@@ -266,11 +218,11 @@ export const useSocialFeed = () => {
     loadingMore.value = true
     try {
       const next = page.value + 1
-      const more = await loadPosts(next)
-      posts.value = [...posts.value, ...more]
+      const more = await loadFeed(next)
+      feedItems.value = [...feedItems.value, ...more]
       page.value = next
     } catch (e) {
-      console.error('[Feed] Loading more posts failed', e)
+      console.error('[Feed] Loading more feed items failed', e)
     } finally {
       loadingMore.value = false
     }
@@ -517,18 +469,22 @@ export const useSocialFeed = () => {
     router.push(`/posts/${postId}`)
   }
 
-  const sendPewGift = async (postId: string, amount: number): Promise<boolean> => {
+  /** Gift value is server-controlled; the client only names the catalog gift. */
+  const sendPewGift = async (postId: string, giftTypeId: string, quantity = 1): Promise<boolean> => {
     const post = posts.value.find((p) => p.id === postId)
     if (!currentUserId.value || !post?.author) return false
 
     try {
-      const { error } = await supabase.from('post_gifts').insert({
-        post_id: postId,
-        sender_id: currentUserId.value,
-        receiver_id: post.author.id,
-        amount,
+      await $fetch('/api/pewgift/send-to-posts', {
+        method: 'POST',
+        body: {
+          postId,
+          recipientId: post.author.id,
+          giftTypeId,
+          quantity,
+          targetType: 'post',
+        },
       })
-      if (error) throw new Error(error.message)
       return true
     } catch (e) {
       console.error('[Feed] Gift failed', e)
@@ -544,6 +500,7 @@ export const useSocialFeed = () => {
   return {
     // posts
     posts,
+    feedItems,
     postsLoading,
     hasMorePosts,
     loadingMore,

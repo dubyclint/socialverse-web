@@ -172,8 +172,10 @@
         <ClientOnly>
           <EmailVerificationBanner :isVerified="authStore.isEmailVerified" :email="authStore.userEmail" @send-verification="handleVerificationSent" @dismiss="handleBannerDismissed" @verified="handleEmailVerified" />
           <div v-if="postsLoading && posts.length === 0" class="loading-state"><div class="spinner"></div><p>Loading posts...</p></div>
-          <div v-else-if="posts.length > 0" class="posts-list">
-            <article v-for="post in posts" :key="post.id" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
+          <div v-else-if="feedItems.length > 0" class="posts-list">
+            <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
+            <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
+            <article v-for="post in postOf(item)" :key="post.id" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
               <div class="post-header">
                 <img :src="post.author?.avatar_url || '/default-avatar.svg'" :alt="post.author?.full_name" class="post-avatar" @click="goToUserProfile(post.author?.username, post.author?.id)" :style="{ cursor: post.author?.id ? 'pointer' : 'default' }" :title="post.author?.id ? 'View profile' : 'Profile unavailable'" />
                 <div class="post-author-info">
@@ -201,6 +203,7 @@
               </div>
               <PostInteractionToolbar :post="post" @open-gift="openGiftModal" />
             </article>
+            </template>
             <div v-if="hasMorePosts" class="load-more">
               <button v-if="!loadingMore" @click="loadMorePosts" class="btn-load-more">Load More Posts</button>
               <div v-else class="loading-more"><div class="spinner-small"></div> <span>Loading...</span></div>
@@ -276,6 +279,7 @@ import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vu
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
+import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
 
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
@@ -290,7 +294,7 @@ const {
   unreadMessages, unreadNotifications, authStore,
   profileLoading, profileError, retryProfileLoad, userFollowers, 
   userFollowing, userPosts, goToFollowers, goToFollowing, 
-  goToUserPosts, isLiveStreaming, sendPewGift
+  goToUserPosts, isLiveStreaming, feedItems
 } = socialFeed;
 
 // --- Relative time formatting ---
@@ -308,6 +312,9 @@ const formatTimeAgo = (value) => {
   return date.toLocaleDateString();
 };
 
+// Ranked feed items include sponsored slots; posts render through this alias.
+const postOf = (item) => (item.type === 'post' ? [item.post] : []);
+
 // --- Modal State Management ---
 const isGiftModalOpen = ref(false);
 const activeGiftPost = ref(null);
@@ -317,8 +324,7 @@ const openGiftModal = (post) => {
   isGiftModalOpen.value = true;
 };
 
-const handleConfirmGift = async ({ postId, amount }) => {
-  await sendPewGift(postId, amount);
+const handleConfirmGift = () => {
   isGiftModalOpen.value = false;
   activeGiftPost.value = null;
 };
