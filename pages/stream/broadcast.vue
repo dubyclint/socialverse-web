@@ -72,10 +72,10 @@
           <div class="chat-messages">
             <div v-for="msg in chatMessages" :key="msg.id" class="chat-message">
               <div class="message-header">
-                <strong>{{ msg.username }}</strong>
-                <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
+                <strong>{{ msg.user_id.slice(0, 8) }}</strong>
+                <span class="message-time">{{ formatTime(msg.created_at) }}</span>
               </div>
-              <p class="message-content">{{ msg.content }}</p>
+              <p class="message-content">{{ msg.message_text }}</p>
             </div>
           </div>
           <div class="chat-input">
@@ -132,6 +132,7 @@ import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
 import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
+import { useStreamBroadcasterPeers } from '~/composables/use-stream-webrtc'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'],
@@ -149,6 +150,8 @@ const {
   stopStream
 } = useStreamBroadcast()
 
+const { start: startPublishing, stop: stopPublishing, viewerIds } = useStreamBroadcasterPeers()
+
 const currentStreamId = ref<string | null>(null)
 const errorMessage = ref('')
 const viewerCount = ref(0)
@@ -158,7 +161,6 @@ const viewers = ref<any[]>([])
 const receivedGifts = ref<any[]>([])
 const chatMessages = ref<any[]>([])
 const chatInput = ref('')
-let ws: WebSocket | null = null
 
 // Keep composable state bound to viewable metrics
 watch(broadcastViewers, (val) => { viewerCount.value = val })
@@ -181,7 +183,7 @@ const onStreamStarted = async (config: any) => {
     if (response.success) {
       currentStreamId.value = response.data.id
       await api('/stream', { method: 'POST', body: { action: 'start', stream_id: response.data.id } })
-      connectWebSocket(response.data.id)
+      startPublishing(response.data.id, config.mediaStream)
     }
   } catch (err: any) {
     errorMessage.value = `Failed to initialize stream: ${err.message}`
@@ -197,32 +199,41 @@ const onStreamEnded = async () => {
       })
     }
     await stopStream()
-    disconnectWebSocket()
+    stopPublishing()
     currentStreamId.value = null
   } catch (err: any) {
     errorMessage.value = `Error closing stream: ${err.message}`
   }
 }
 
-// Real-time
-const connectWebSocket = (streamId: string) => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/api/stream/${streamId}/ws`
-  ws = new WebSocket(wsUrl)
-  ws.onmessage = (event) => handleWebSocketMessage(JSON.parse(event.data))
-}
+// Viewer count comes from the signalling hub's live peer list.
+watch(viewerIds, (ids) => {
+  viewerCount.value = ids.length
+  viewers.value = ids.map((id) => ({ id, username: 'Viewer' }))
+})
 
-const disconnectWebSocket = () => { ws?.close(); ws = null }
+interface StreamChatRow { id: string; user_id: string; message_text: string; created_at: string }
 
-const handleWebSocketMessage = (data: any) => {
-  switch (data.type) {
-    case 'viewer-joined': viewers.value.push(data.viewer); viewerCount.value++; break
-    case 'viewer-left': viewers.value = viewers.value.filter(v => v.id !== data.viewerId); viewerCount.value--; break
-    case 'chat-message': chatMessages.value.push(data.message); break
-    case 'gift-received': receivedGifts.value.unshift(data.gift); break
-    case 'stats-update': streamStats.value = data.stats; break
+let chatPoll: ReturnType<typeof setInterval> | null = null
+
+const loadChat = async () => {
+  if (!currentStreamId.value) return
+  try {
+    const res = await api<{ success: boolean; data: StreamChatRow[] }>(
+      `/stream/${currentStreamId.value}/chat?limit=50`
+    )
+    chatMessages.value = [...(res.data || [])].reverse()
+  } catch (err) {
+    console.error('Stream chat load failed:', err)
   }
 }
+
+watch(currentStreamId, (id) => {
+  if (chatPoll) clearInterval(chatPoll)
+  if (!id) return
+  void loadChat()
+  chatPoll = setInterval(loadChat, 4000)
+})
 
 const onStreamError = (message: string) => {
   errorMessage.value = message
@@ -246,6 +257,7 @@ const sendChatMessage = async () => {
       body: { content: chatInput.value }
     })
     chatInput.value = ''
+    await loadChat()
   } catch (err) {
     console.error('Chat error:', err)
   }
@@ -256,7 +268,10 @@ onMounted(async () => {
   if (!userStore.user) await userStore.fetchProfile()
 })
 
-onUnmounted(disconnectWebSocket)
+onUnmounted(() => {
+  stopPublishing()
+  if (chatPoll) clearInterval(chatPoll)
+})
 </script>
 
 <style scoped>
