@@ -872,6 +872,45 @@ export type Database = {
         }
         Relationships: []
       }
+      external_ad_slots: {
+        Row: {
+          bid_per_mille: number
+          client_id: string
+          created_at: string
+          id: string
+          interest_ids: string[]
+          is_active: boolean
+          label: string
+          provider: string
+          slot_id: string
+          updated_at: string
+        }
+        Insert: {
+          bid_per_mille?: number
+          client_id: string
+          created_at?: string
+          id?: string
+          interest_ids?: string[]
+          is_active?: boolean
+          label: string
+          provider?: string
+          slot_id: string
+          updated_at?: string
+        }
+        Update: {
+          bid_per_mille?: number
+          client_id?: string
+          created_at?: string
+          id?: string
+          interest_ids?: string[]
+          is_active?: boolean
+          label?: string
+          provider?: string
+          slot_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fee_settings: {
         Row: {
           country_code: string | null

@@ -42,8 +42,30 @@ const trackClick = async (campaignId: string) => {
   }
 }
 
+/** AdSense needs its loader script once per page plus a push per placement. */
+const mountAdsense = (clientId: string) => {
+  const src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`
+  if (!document.querySelector(`script[src="${src}"]`)) {
+    const script = document.createElement('script')
+    script.src = src
+    script.async = true
+    script.crossOrigin = 'anonymous'
+    document.head.appendChild(script)
+  }
+
+  const globals = window as unknown as { adsbygoogle?: unknown[] }
+  globals.adsbygoogle = globals.adsbygoogle || []
+  globals.adsbygoogle.push({})
+}
+
 onMounted(async () => {
-  if (props.item.type !== 'ad') return
+  if (props.item.type === 'external_ad') {
+    if (props.item.provider === 'adsense' && props.item.clientId) {
+      mountAdsense(props.item.clientId)
+    }
+    return
+  }
+
   try {
     await $fetch('/api/ads/track', {
       method: 'POST',

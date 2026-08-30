@@ -28,11 +28,9 @@ useHead({ title: 'Monetization' })
 
 const surfaces: Array<{ to: string; emoji: string; title: string; description: string }> = [
   { to: '/wallet', emoji: '👛', title: 'Wallet', description: 'Balances, deposits and withdrawals' },
-  { to: '/my-pocket', emoji: '🪙', title: 'My Pocket', description: 'Everyday spending balance' },
   { to: '/pewgift', emoji: '🎁', title: 'PewGift', description: 'Send and receive gifts on posts, chats and streams' },
   { to: '/ads', emoji: '🎯', title: 'Ad Center', description: 'Create and monitor advertising campaigns' },
   { to: '/p2p', emoji: '📈', title: 'P2P Trading', description: 'Trade directly with other users' },
-  { to: '/trade-listings', emoji: '🏪', title: 'Trade Listings', description: 'Browse and publish trade offers' },
   { to: '/escrow', emoji: '🔒', title: 'Escrow', description: 'Secure transactions and dispute resolution' },
   { to: '/stream', emoji: '📺', title: 'Live Streaming', description: 'Earn from gifts and stream ads' }
 ]

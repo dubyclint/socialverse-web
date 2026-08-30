@@ -52,7 +52,7 @@ export interface FeedAd {
 export type FeedItem =
   | { type: 'post', post: FeedPost }
   | { type: 'ad', ad: FeedAd }
-  | { type: 'external_ad', provider: string, clientId: string, slotId: string }
+  | { type: 'external_ad', slotRef: string, provider: string, clientId: string, slotId: string }
 
 export interface TrendingTopic {
   id: string

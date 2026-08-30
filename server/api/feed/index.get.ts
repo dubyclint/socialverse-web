@@ -5,6 +5,7 @@ import {
   DEFAULT_RANKING,
   interleave,
   loadConfig,
+  loadExternalSlots,
   loadInAppAds,
   rankPosts
 } from '~/server/utils/feed-ranker'
@@ -43,12 +44,17 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
   const tab: FeedTab = tabParam === 'following' || tabParam === 'trending' ? tabParam : 'for-you'
 
   const posts = await rankPosts(supabase, user.id, limit, page * limit, weights, tab)
-  const inAppAds = ads.enabled ? await loadInAppAds(supabase, ads.max_in_app_ads) : []
+  const [inAppAds, externalSlots] = await Promise.all([
+    ads.enabled ? loadInAppAds(supabase, ads.max_in_app_ads) : Promise.resolve([]),
+    ads.enabled && ads.external_fallback
+      ? loadExternalSlots(supabase, user.id)
+      : Promise.resolve([])
+  ])
 
   return {
     success: true,
     data: {
-      items: interleave(posts, inAppAds, ads),
+      items: interleave(posts, inAppAds, ads, externalSlots),
       page,
       limit,
       hasMore: posts.length === limit

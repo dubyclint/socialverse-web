@@ -17,7 +17,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   ]
   const protectedPrefixes = [
     '/feed', '/profile', '/settings', '/notifications', 
-    '/messages', '/inbox', '/chat', '/explore', '/match', '/wallet', '/admin'
+    '/messages', '/chat', '/explore', '/match', '/wallet', '/admin'
   ]
 
   const startsWithSegment = (path: string, prefix: string) => 

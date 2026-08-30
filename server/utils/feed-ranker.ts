@@ -78,10 +78,17 @@ export interface InAppAd {
   advertiserId: string
 }
 
+export interface ExternalAdSlot {
+  id: string
+  provider: string
+  clientId: string
+  slotId: string
+}
+
 export type FeedItem =
   | { type: 'post', post: RankedPost }
   | { type: 'ad', ad: InAppAd }
-  | { type: 'external_ad', provider: string, clientId: string, slotId: string }
+  | { type: 'external_ad', slotRef: string, provider: string, clientId: string, slotId: string }
 
 type Client = SupabaseClient<Database>
 
@@ -270,29 +277,87 @@ export const loadInAppAds = async (client: Client, limit: number): Promise<InApp
 }
 
 /**
+ * Registered external network placements, ordered by how well they match the
+ * viewer's interests and then by bid. Placements with no interest targeting
+ * match everyone, so they act as the house fallback.
+ */
+export const loadExternalSlots = async (
+  client: Client,
+  userId: string
+): Promise<ExternalAdSlot[]> => {
+  const [{ data: slots }, { data: interestLinks }] = await Promise.all([
+    client
+      .from('external_ad_slots')
+      .select('id, provider, client_id, slot_id, interest_ids, bid_per_mille')
+      .eq('is_active', true),
+    client.from('user_interests').select('interest_id').eq('user_id', userId)
+  ])
+
+  if (!slots?.length) return []
+
+  const viewerInterests = new Set((interestLinks ?? []).map(row => row.interest_id))
+
+  return slots
+    .map(row => {
+      const targeting = row.interest_ids ?? []
+      const matches = targeting.filter(id => viewerInterests.has(id)).length
+      return {
+        slot: {
+          id: row.id,
+          provider: row.provider,
+          clientId: row.client_id,
+          slotId: row.slot_id
+        },
+        matches,
+        untargeted: targeting.length === 0,
+        bid: Number(row.bid_per_mille ?? 0)
+      }
+    })
+    .filter(entry => entry.matches > 0 || entry.untargeted)
+    .sort((a, b) => b.matches - a.matches || b.bid - a.bid)
+    .map(entry => entry.slot)
+}
+
+/**
  * In-app ads take the reserved slots first; ranked posts fill the rest; the
  * external network only fills slots left empty when in-app inventory runs out.
  */
 export const interleave = (
   posts: RankedPost[],
   ads: InAppAd[],
-  config: AdServingConfig
+  config: AdServingConfig,
+  externalSlots: ExternalAdSlot[] = []
 ): FeedItem[] => {
   const items: FeedItem[] = []
   const adQueue = [...ads]
   const every = Math.max(1, config.every_n_items)
   let postIndex = 0
   let slot = 0
+  let externalIndex = 0
 
-  const externalSlot = (): FeedItem | null =>
-    config.external_fallback && config.external_client_id
-      ? {
-          type: 'external_ad',
-          provider: config.external_provider,
-          clientId: config.external_client_id,
-          slotId: config.external_slot_id
-        }
-      : null
+  const configuredSlot: ExternalAdSlot | null = config.external_client_id
+    ? {
+        id: 'config',
+        provider: config.external_provider,
+        clientId: config.external_client_id,
+        slotId: config.external_slot_id
+      }
+    : null
+
+  const rotation = externalSlots.length ? externalSlots : configuredSlot ? [configuredSlot] : []
+
+  const externalSlot = (): FeedItem | null => {
+    if (!config.external_fallback || rotation.length === 0) return null
+    const next = rotation[externalIndex % rotation.length] as ExternalAdSlot
+    externalIndex += 1
+    return {
+      type: 'external_ad',
+      slotRef: next.id,
+      provider: next.provider,
+      clientId: next.clientId,
+      slotId: next.slotId
+    }
+  }
 
   while (postIndex < posts.length) {
     const isAdSlot =
