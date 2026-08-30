@@ -254,6 +254,63 @@ export default defineNitroPlugin((nitroApp: any) => {
         socket.to(roomOf(data.chatId)).emit('chat:stop-typing', { userId: socket.userId, chatId: data.chatId })
       })
 
+      // Universe is a single global room; membership is open to any
+      // authenticated user, so only the message itself is validated.
+      const universeRoom = 'universe'
+
+      const emitUniverseCount = () => {
+        const count = io?.sockets.adapter.rooms.get(universeRoom)?.size ?? 0
+        io?.to(universeRoom).emit('universe:online-count', { count })
+      }
+
+      socket.on('universe:join', async () => {
+        await socket.join(universeRoom)
+        emitUniverseCount()
+      })
+
+      socket.on('universe:leave', async () => {
+        await socket.leave(universeRoom)
+        emitUniverseCount()
+      })
+
+      socket.on('universe:send-message', async (data: any, ack?: (result: any) => void) => {
+        const content: string = (data?.content ?? '').toString().trim()
+        const tempId: string | undefined = data?.tempId ? String(data.tempId) : undefined
+        const fail = (message: string) => {
+          socket.emit('universe:error', { tempId, message })
+          ack?.({ success: false, tempId, error: message })
+        }
+
+        if (!socket.userId || !content) return fail('Invalid message')
+        if (content.length > 2000) return fail('Message too long')
+
+        const { data: inserted, error } = await admin
+          .from('universe_messages')
+          .insert({
+            user_id: socket.userId,
+            content,
+            country: data?.country || null,
+            interest: data?.interest || null,
+            language: data?.language || 'en'
+          })
+          .select('id, content, country, interest, language, created_at')
+          .single()
+
+        if (error) return fail('Failed to send message')
+
+        const sender = await senderOf(socket.userId)
+        const payload = {
+          ...inserted,
+          user_id: socket.userId,
+          username: sender.senderName,
+          avatar: sender.senderAvatar,
+          tempId
+        }
+
+        io?.to(universeRoom).emit('universe:message', payload)
+        ack?.({ success: true, ...payload })
+      })
+
       socket.on('presence:online', () => {
         io?.emit('presence:online', { userId: socket.userId, timestamp: new Date().toISOString() })
       })

@@ -1,66 +1,36 @@
-// server/api/universe/send.post.ts - SEND UNIVERSE MESSAGE
-// ==========================================================
-
-import { verifyAuth } from '../middleware/rbac'
-
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import type { Database } from '~/types/database.types'
 
 export default defineEventHandler(async (event) => {
-  try {
-    const user = await verifyAuth(event, { requireAuth: true })
-    if (!user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
+  const user = await serverSupabaseUser(event)
+  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
-    const body = await readBody(event)
-    const { content, country, interest, language = 'en' } = body
+  const body = await readBody<{
+    content?: string
+    country?: string
+    interest?: string
+    language?: string
+  }>(event)
 
-    if (!content) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Message content is required'
-      })
-    }
+  const content = (body?.content ?? '').trim()
+  if (!content) throw createError({ statusCode: 400, statusMessage: 'Message content is required' })
+  if (content.length > 2000) throw createError({ statusCode: 400, statusMessage: 'Message too long' })
 
-    const supabase = await serverSupabaseClient(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    // Insert message
-    const { error } = await supabase
-      .from('universe_messages')
-      .insert({
-        user_id: user.id,
-        content,
-        country: country || null,
-        interest: interest || null,
-        language: language || 'en',
-        created_at: new Date().toISOString()
-      })
+  const { data, error } = await supabase
+    .from('universe_messages')
+    .insert({
+      user_id: user.id,
+      content,
+      country: body.country || null,
+      interest: body.interest || null,
+      language: body.language || 'en'
+    })
+    .select('id, user_id, content, country, interest, language, created_at')
+    .single()
 
-    if (error) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to send message',
-        data: error
-      })
-    }
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-    return {
-      success: true,
-      data: {
-        userId: user.id,
-        content,
-        country,
-        interest,
-        language,
-        timestamp: new Date().toISOString()
-      }
-    }
-
-  } catch (error) {
-    console.error('Send universe message error:', error)
-    throw error
-  }
+  return { success: true, data }
 })

@@ -70,81 +70,6 @@
             ></video>
           </div>
 
-          <!-- Message Actions -->
-          <div class="message-actions">
-            <button 
-              @click="$emit('like-message', message.id)"
-              class="action-btn"
-              :class="{ active: message.liked }"
-              title="Like message"
-            >
-              {{ message.liked ? '❤️' : '🤍' }} {{ message.likes || 0 }}
-            </button>
-            <button 
-              @click="toggleReactions(message.id)"
-              class="action-btn"
-              title="Add reaction"
-            >
-              😊 React
-            </button>
-            <button 
-              @click="$emit('send-gift', message.user?.id || '', message.id)"
-              class="action-btn"
-              title="Send gift"
-            >
-              🎁 Gift
-            </button>
-            <button 
-              @click="toggleTranslate(message.id)"
-              class="action-btn"
-              title="Translate"
-            >
-              🌐 Translate
-            </button>
-          </div>
-
-          <!-- Reactions -->
-          <div v-if="message.reactions && message.reactions.length > 0" class="reactions">
-            <span 
-              v-for="(reaction, idx) in message.reactions" 
-              :key="idx"
-              class="reaction"
-            >
-              {{ reaction }}
-            </span>
-          </div>
-
-          <!-- Emoji Picker for Reactions -->
-          <div v-if="activeReactionMessage === message.id" class="emoji-picker-inline">
-            <span 
-              v-for="emoji in reactionEmojis"
-              :key="emoji"
-              @click="addReactionToMessage(message.id, emoji)"
-              class="emoji-option"
-            >
-              {{ emoji }}
-            </span>
-          </div>
-
-          <!-- Translate Section -->
-          <div v-if="activeTranslateMessage === message.id" class="translate-section">
-            <select v-model="translateLang" class="lang-select">
-              <option value="es">🇪🇸 Spanish</option>
-              <option value="fr">🇫🇷 French</option>
-              <option value="de">🇩🇪 German</option>
-              <option value="it">🇮🇹 Italian</option>
-              <option value="pt">🇵🇹 Portuguese</option>
-              <option value="ja">🇯🇵 Japanese</option>
-              <option value="zh">🇨🇳 Chinese</option>
-              <option value="ko">🇰🇷 Korean</option>
-            </select>
-            <button 
-              @click="translateMessage(message.id, message.content)"
-              class="translate-btn"
-            >
-              Translate
-            </button>
-          </div>
         </div>
       </div>
 
@@ -158,8 +83,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-
 interface Message {
   id: string
   user?: {
@@ -170,9 +93,6 @@ interface Message {
   }
   content: string
   timestamp: string
-  likes?: number
-  liked?: boolean
-  reactions?: string[]
   fileUrl?: string
   fileType?: string
   fileName?: string
@@ -181,32 +101,19 @@ interface Message {
 interface Props {
   messages: Message[]
   onlineCount: number
-  matchedUsers?: any[]
+  currentUserId?: string
+  hasMore?: boolean
   loading?: boolean
   error?: string | null
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
-const emit = defineEmits<{
-  'send-message': [content: string]
-  'like-message': [messageId: string]
-  'add-reaction': [messageId: string, emoji: string]
-  'translate-message': [messageId: string, text: string, lang: string]
-  'send-gift': [userId: string, messageId: string]
+defineEmits<{
   'load-more': []
   'close-error': []
 }>()
 
-// State
-const activeReactionMessage = ref<string | null>(null)
-const activeTranslateMessage = ref<string | null>(null)
-const translateLang = ref('es')
-const hasMore = ref(true)
-
-const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '👏']
-
-// Methods
 const formatTime = (timestamp: string): string => {
   const date = new Date(timestamp)
   const now = new Date()
@@ -223,28 +130,8 @@ const formatTime = (timestamp: string): string => {
   return date.toLocaleDateString()
 }
 
-const isOwnMessage = (_message: Message): boolean => {
-  // Implement logic to check if message is from current user
-  return false
-}
-
-const toggleReactions = (messageId: string): void => {
-  activeReactionMessage.value = activeReactionMessage.value === messageId ? null : messageId
-}
-
-const addReactionToMessage = (messageId: string, emoji: string): void => {
-  emit('add-reaction', messageId, emoji)
-  activeReactionMessage.value = null
-}
-
-const toggleTranslate = (messageId: string): void => {
-  activeTranslateMessage.value = activeTranslateMessage.value === messageId ? null : messageId
-}
-
-const translateMessage = (messageId: string, text: string): void => {
-  emit('translate-message', messageId, text, translateLang.value)
-  activeTranslateMessage.value = null
-}
+const isOwnMessage = (message: Message): boolean =>
+  Boolean(props.currentUserId && message.user?.id === props.currentUserId)
 </script>
 
 <style scoped>
