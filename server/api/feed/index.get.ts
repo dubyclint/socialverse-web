@@ -1,10 +1,10 @@
+import { loadConfig } from '~/server/utils/platform-config'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import {
   DEFAULT_ADS,
   DEFAULT_RANKING,
   interleave,
-  loadConfig,
   loadExternalSlots,
   loadInAppAds,
   rankPosts

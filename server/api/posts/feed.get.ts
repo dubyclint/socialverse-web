@@ -1,6 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
-import { DEFAULT_RANKING, loadConfig, rankPosts } from '~/server/utils/feed-ranker'
+import { DEFAULT_RANKING, rankPosts } from '~/server/utils/feed-ranker'
+import { loadConfig } from '~/server/utils/platform-config'
 import type { FeedRankingWeights, RankedPost } from '~/server/utils/feed-ranker'
 import type { Database } from '~/types/database.types'
 

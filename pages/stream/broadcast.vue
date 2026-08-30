@@ -133,6 +133,7 @@ import { api } from '~/lib/api'
 import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
 import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
 import { useStreamBroadcasterPeers } from '~/composables/use-stream-webrtc'
+import { fetchStreamTransport, useWhipPublisher } from '~/composables/use-stream-whip'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'],
@@ -151,6 +152,8 @@ const {
 } = useStreamBroadcast()
 
 const { start: startPublishing, stop: stopPublishing, viewerIds } = useStreamBroadcasterPeers()
+const { publish: publishToMediaServer, stop: stopMediaServer } = useWhipPublisher()
+const transportMode = ref<'mesh' | 'whip'>('mesh')
 
 const currentStreamId = ref<string | null>(null)
 const errorMessage = ref('')
@@ -183,7 +186,14 @@ const onStreamStarted = async (config: any) => {
     if (response.success) {
       currentStreamId.value = response.data.id
       await api('/stream', { method: 'POST', body: { action: 'start', stream_id: response.data.id } })
-      startPublishing(response.data.id, config.mediaStream)
+
+      const transport = await fetchStreamTransport(response.data.id)
+      transportMode.value = transport.mode
+      if (transport.mode === 'whip') {
+        await publishToMediaServer(transport, config.mediaStream)
+      } else {
+        startPublishing(response.data.id, config.mediaStream)
+      }
     }
   } catch (err: any) {
     errorMessage.value = `Failed to initialize stream: ${err.message}`
@@ -200,14 +210,17 @@ const onStreamEnded = async () => {
     }
     await stopStream()
     stopPublishing()
+    stopMediaServer()
     currentStreamId.value = null
   } catch (err: any) {
     errorMessage.value = `Error closing stream: ${err.message}`
   }
 }
 
-// Viewer count comes from the signalling hub's live peer list.
+// Mesh viewer count comes from the signalling hub; with a media server the
+// provider owns the audience, so the count stays server-reported.
 watch(viewerIds, (ids) => {
+  if (transportMode.value !== 'mesh') return
   viewerCount.value = ids.length
   viewers.value = ids.map((id) => ({ id, username: 'Viewer' }))
 })
@@ -270,6 +283,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopPublishing()
+  stopMediaServer()
   if (chatPoll) clearInterval(chatPoll)
 })
 </script>

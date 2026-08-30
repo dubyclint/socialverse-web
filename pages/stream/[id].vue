@@ -13,7 +13,7 @@
 
       <div class="player">
         <video ref="videoEl" class="player-video" autoplay playsinline />
-        <p v-if="waitingForBroadcaster" class="player-overlay">Waiting for the broadcaster…</p>
+        <p v-if="waitingForStream" class="player-overlay">Waiting for the broadcaster…</p>
       </div>
 
       <StreamBattle v-if="matchId" :match-id="matchId" />
@@ -41,6 +41,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import StreamBattle from '~/components/streaming/stream-battle.vue'
 import GiftPicker from '~/components/financial/gifts/pewgift-picker.vue'
 import { useStreamViewerPeer } from '~/composables/use-stream-webrtc'
+import { fetchStreamTransport, useWhepViewer } from '~/composables/use-stream-whip'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion'],
@@ -70,11 +71,17 @@ const chatInput = ref('')
 const messages = ref<StreamChatRow[]>([])
 
 const { join, leave, remoteStream, waitingForBroadcaster } = useStreamViewerPeer()
+const { play: playFromMediaServer, stop: stopMediaServer, remoteStream: providerStream } = useWhepViewer()
 
 const { data, pending } = await useFetch<{ data: StreamRow }>(() => `/api/stream/${streamId.value}`)
 const stream = computed(() => data.value?.data ?? null)
 
-watch(remoteStream, (media) => {
+const waitingForStream = computed(() =>
+  providerStream.value ? false : waitingForBroadcaster.value
+)
+
+watch([remoteStream, providerStream], ([mesh, provider]) => {
+  const media = provider ?? mesh
   if (videoEl.value && media) videoEl.value.srcObject = media
 })
 
@@ -102,7 +109,17 @@ const sendMessage = async () => {
 let chatPoll: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
-  join(streamId.value)
+  try {
+    const transport = await fetchStreamTransport(streamId.value)
+    if (transport.mode === 'whip') {
+      await playFromMediaServer(transport)
+    } else {
+      join(streamId.value)
+    }
+  } catch (error) {
+    console.error('[Stream] transport negotiation failed', error)
+    join(streamId.value)
+  }
 
   try {
     await $fetch(`/api/stream/${streamId.value}/viewers`, { method: 'POST', body: { action: 'join' } })
@@ -123,6 +140,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   leave()
+  stopMediaServer()
   if (chatPoll) clearInterval(chatPoll)
   void $fetch(`/api/stream/${streamId.value}/viewers`, { method: 'POST', body: { action: 'leave' } }).catch(() => {})
 })
