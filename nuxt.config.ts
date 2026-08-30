@@ -102,14 +102,16 @@ export default defineNuxtConfig({
   },
 
   css: [
-    '~/assets/css/main.css', 
+    '~/assets/css/app.css',
+    '~/assets/css/main.css',
+    '~/assets/css/transitions.css',
     'vue-virtual-scroller/dist/vue-virtual-scroller.css'
   ],
   
   colorMode: {
     classSuffix: '',
-    preference: 'light',
-    fallback: 'light',
+    preference: 'dark',
+    fallback: 'dark',
   },
 
   app: {
