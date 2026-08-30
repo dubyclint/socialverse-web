@@ -24,6 +24,20 @@ Branch `devin/typecheck-fixes-fresh` → PR #3. Live DB: `idguhsjzhfzamwrptncu`.
 - `utils/supabase.ts` (4th Supabase client, threw on import).
 - Custom `auth_token` cookie, duplicate `/api/auth/login`, manual bearer injection.
 
+## MAIN-BRANCH MODULE AUDIT (114 deleted paths, `origin/main...HEAD`)
+Every deleted path was checked for a live replacement. Result: **restore none** — all are superseded.
+
+| Group | Files | Replacement |
+|---|---|---|
+| Legacy ORM models (`server/models/*`) | 40 | No ORM layer exists; server routes query Supabase directly on the live schema. Most modelled tables don't exist. |
+| Legacy controllers (`server/controllers/*`, `server/api/controllers/*.js`) | 22 | Nitro route handlers under `server/api/**`. |
+| Legacy WS modules (`server/ws/*`, `plugins/socket.client.ts`, `server/plugins/socket.ts`) | 10 | `server/gateway/socket/plugin.ts` (chat, receipts, typing, calls, universe, presence, notifications). |
+| Duplicate/mock pages | 5 | Consolidated: `/inbox`→`/notifications`, `/trade-listings`+`/p2p`→`/p2p`, `/my-pocket`→`/wallet`, `/cross-meet`→`/match`. |
+| Superseded API routes (`posts/feed.ts`, `trending.ts`, `ads/track.ts`, `user/notifications.ts`, `stream/broadcast.post.ts`, `universe/filter.get.ts`, …) | 14 | `posts/feed.get.ts`, `trending.get.ts`, `ads/track.post.ts`, `user/notifications.get.ts`, `stream/[id]/ws`, `universe/messages.get.ts`. |
+| Duplicate Supabase clients / auth (`utils/supabase.ts`, `server/utils/auth.ts`, `server/middleware/auth.ts`, `auth/login.post.ts`, `auth/refresh.ts`) | 8 | Supabase SSR module (`#supabase/server`); custom `auth_token` JWT path deliberately removed. |
+| Duplicate components (escrow, pewgift, wallet-lock, p2p-trade-form) | 6 | Namespaced under `components/financial/**`. |
+| DI/service scaffolding, load balancer, sanctions, A/B service | 9 | Not wired to anything; A/B + sanctions pending decisions #2/#3. |
+
 ## TO DO (next, no decision needed)
 1. **Profile identity format** — `user.user_id` vs `profiles.id` are used inconsistently in a few remaining callers; normalise on `user_id` (uuid = `auth.users.id`).
 2. Feed feature wiring audit — walk every link in `feed.vue` and confirm each index page reads live tables (p2p, escrow, streaming, chat, ads, support, monetization, wallet, pewgift, universe, match, pals).
