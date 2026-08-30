@@ -7,10 +7,10 @@
         <div class="call-header">
           <div class="call-info">
             <div class="caller-avatar">
-              <img :src="call.caller?.avatar || '/default-avatar.svg'" :alt="call.caller?.username" />
+              <img :src="call.peerAvatar || '/default-avatar.svg'" :alt="call.peerName" />
             </div>
             <div class="caller-details">
-              <div class="caller-name">{{ call.caller?.username }}</div>
+              <div class="caller-name">{{ call.peerName || 'Unknown' }}</div>
               <div class="call-status">{{ getCallStatus() }}</div>
             </div>
           </div>
@@ -43,23 +43,19 @@
         <div class="call-controls">
           <button 
             class="control-btn mute-btn"
-            :class="{ active: call.isMuted }"
+            :class="{ active: isMuted }"
             @click="$emit('toggleMute')"
           >
-            <Icon :name="call.isMuted ? 'mic-off' : 'mic'" />
+            <Icon :name="isMuted ? 'mic-off' : 'mic'" />
           </button>
 
           <button 
             v-if="call.callType === 'video'"
             class="control-btn video-btn"
-            :class="{ active: !call.isVideoEnabled }"
+            :class="{ active: isVideoOff }"
             @click="$emit('toggleVideo')"
           >
-            <Icon :name="call.isVideoEnabled ? 'video' : 'video-off'" />
-          </button>
-
-          <button class="control-btn speaker-btn">
-            <Icon name="volume-2" />
+            <Icon :name="isVideoOff ? 'video-off' : 'video'" />
           </button>
 
           <button 
@@ -72,10 +68,10 @@
 
         <!-- Incoming Call Actions -->
         <div class="incoming-actions" v-if="call.isIncoming && !call.isActive">
-          <button class="action-btn decline-btn" @click="$emit('endCall')">
+          <button class="action-btn decline-btn" @click="$emit('rejectCall')">
             <Icon name="phone-off" />
           </button>
-          <button class="action-btn accept-btn" @click="acceptCall">
+          <button class="action-btn accept-btn" @click="$emit('acceptCall')">
             <Icon name="phone" />
           </button>
         </div>
@@ -84,26 +80,52 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+<script setup lang="ts">
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import Icon from '@/components/ui/icon.vue'
+import type { ActiveCall } from '~/composables/use-webrtc-call'
 
-// Props
-const props = defineProps({
-  call: Object
-})
+const props = defineProps<{
+  call: ActiveCall | null
+  localStream?: MediaStream | null
+  remoteStream?: MediaStream | null
+  isMuted?: boolean
+  isVideoOff?: boolean
+}>()
 
-// Emits
-const emit = defineEmits(['endCall', 'toggleMute', 'toggleVideo'])
+defineEmits(['endCall', 'acceptCall', 'rejectCall', 'toggleMute', 'toggleVideo'])
 
-// Reactive data
 const callDuration = ref(0)
 const isAudioActive = ref(false)
-const callTimer = ref(null)
+const callTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const audioTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
-// Refs
-const remoteVideo = ref(null)
-const localVideo = ref(null)
+const remoteVideo = ref<HTMLVideoElement | null>(null)
+const localVideo = ref<HTMLVideoElement | null>(null)
+
+watch(
+  () => props.remoteStream,
+  stream => {
+    if (remoteVideo.value) remoteVideo.value.srcObject = stream ?? null
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.localStream,
+  stream => {
+    if (localVideo.value) localVideo.value.srcObject = stream ?? null
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.call?.isActive,
+  active => {
+    if (active) startCallTimer()
+    else stopCallTimer()
+  }
+)
 
 // Computed
 const getCallStatus = () => {
@@ -119,16 +141,10 @@ const getCallStatus = () => {
 }
 
 // Methods
-const formatCallDuration = (seconds) => {
+const formatCallDuration = (seconds: number) => {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-}
-
-const acceptCall = () => {
-  // Handle call acceptance
-  console.log('Accept call')
-  startCallTimer()
 }
 
 const startCallTimer = () => {
@@ -144,20 +160,19 @@ const stopCallTimer = () => {
   }
 }
 
-// Lifecycle
 onMounted(() => {
-  if (props.call?.isActive) {
-    startCallTimer()
-  }
-  
-  // Simulate audio activity
-  setInterval(() => {
-    isAudioActive.value = Math.random() > 0.5
+  if (props.call?.isActive) startCallTimer()
+  if (remoteVideo.value) remoteVideo.value.srcObject = props.remoteStream ?? null
+  if (localVideo.value) localVideo.value.srcObject = props.localStream ?? null
+
+  audioTimer.value = setInterval(() => {
+    isAudioActive.value = Boolean(props.call?.isActive)
   }, 500)
 })
 
 onUnmounted(() => {
   stopCallTimer()
+  if (audioTimer.value) clearInterval(audioTimer.value)
 })
 </script>
 

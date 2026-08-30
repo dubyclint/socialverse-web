@@ -109,9 +109,24 @@
           @delete-message="deleteMessage"
           @translate-message="translateMessage"
           @send-gift="sendGift"
+          @start-call="handleStartCall"
         />
       </div>
     </div>
+
+    <CallInterface
+      v-if="activeCall"
+      :call="activeCall"
+      :local-stream="localStream"
+      :remote-stream="remoteStream"
+      :is-muted="isMuted"
+      :is-video-off="isVideoOff"
+      @accept-call="acceptCall"
+      @reject-call="rejectCall"
+      @end-call="hangUp"
+      @toggle-mute="toggleMute"
+      @toggle-video="toggleVideo"
+    />
 
     <!-- Modals -->
     <div v-if="showNewChat" class="new-chat-overlay" @click.self="closeNewChat">
@@ -159,6 +174,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
+import { useWebrtcCall } from '~/composables/use-webrtc-call'
+import CallInterface from '~/components/chat/call-interface.vue'
 import type { ApiResponse } from '~/types/api'
 import type { Chat, ChatMessage } from '~/types/chat'
 
@@ -193,6 +210,36 @@ const {
 } = useChat()
 
 watch(isConnected, connected => chatStore.setConnected(connected), { immediate: true })
+
+const {
+  call: activeCall,
+  localStream,
+  remoteStream,
+  isMuted,
+  isVideoOff,
+  startCall,
+  acceptCall,
+  rejectCall,
+  hangUp,
+  toggleMute,
+  toggleVideo
+} = useWebrtcCall()
+
+const handleStartCall = async (payload: {
+  targetUserId: string | null
+  chatId: string
+  callType: 'audio' | 'video'
+}) => {
+  if (!payload.targetUserId) return
+  const chat = chatStore.chats.get(payload.chatId)
+  await startCall({
+    chatId: payload.chatId,
+    targetUserId: payload.targetUserId,
+    callType: payload.callType,
+    peerName: chat?.name,
+    peerAvatar: chat?.avatar
+  })
+}
 
 const searchQuery = ref('')
 const showGroupCreator = ref(false)
