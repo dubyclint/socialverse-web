@@ -7,7 +7,8 @@ export default defineEventHandler(async (event): Promise<{ success: boolean }> =
   await requireAdmin(event)
   const body = await readBody<Partial<StreamingConfig>>(event)
 
-  const provider = body.provider === 'whip' ? 'whip' : 'mesh'
+  const provider: StreamingConfig['provider'] =
+    body.provider === 'whip' || body.provider === 'cloudflare' ? body.provider : 'mesh'
   const ingest = (body.whip_ingest_url ?? '').trim()
   const playback = (body.whep_playback_url ?? '').trim()
 

@@ -1,21 +1,23 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseServiceRole } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { loadConfig } from '~/server/utils/platform-config'
+import { createCloudflareLiveInput } from '~/server/utils/streaming/cloudflare'
 import type { Database } from '~/types/database.types'
 
 /**
  * Streaming transport. `mesh` publishes browser-to-browser and only suits small
- * rooms; `whip` hands ingest and playback to a WebRTC CDN (Cloudflare Stream,
- * Dolby, Cloudflare-compatible SFUs) which is what carries large audiences.
+ * rooms. `whip` points at any WHIP/WHEP media server, and `cloudflare`
+ * provisions a Cloudflare Stream live input per broadcast so the edge, rather
+ * than the broadcaster's uplink, carries the audience.
  */
 export type StreamingConfig = {
-  provider: 'mesh' | 'whip'
+  provider: 'mesh' | 'whip' | 'cloudflare'
   whip_ingest_url: string
   whep_playback_url: string
   bearer_token: string
 }
 
-const DEFAULT_STREAMING: StreamingConfig = {
+export const DEFAULT_STREAMING: StreamingConfig = {
   provider: 'mesh',
   whip_ingest_url: '',
   whep_playback_url: '',
@@ -41,14 +43,60 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
 
   const { data: stream, error } = await supabase
     .from('streams')
-    .select('id, creator_id, stream_key')
+    .select('id, title, creator_id, stream_key, provider_input_id, ingest_url, playback_url')
     .eq('id', streamId)
     .single()
 
   if (error || !stream) throw createError({ statusCode: 404, statusMessage: 'Stream not found' })
 
-  const config = await loadConfig<StreamingConfig>(supabase, 'streaming', DEFAULT_STREAMING)
+  const config = await loadConfig(supabase, 'streaming', DEFAULT_STREAMING)
   const isBroadcaster = stream.creator_id === user.id
+
+  if (config.provider === 'cloudflare') {
+    const { cloudflareAccountId, cloudflareStreamToken } = useRuntimeConfig(event)
+
+    if (!cloudflareAccountId || !cloudflareStreamToken) {
+      // No credentials means no edge fan-out; mesh keeps small rooms working.
+      return { success: true, data: { mode: 'mesh' } }
+    }
+
+    let ingestUrl = stream.ingest_url
+    let playbackUrl = stream.playback_url
+
+    if (!playbackUrl) {
+      if (!isBroadcaster) return { success: true, data: { mode: 'mesh' } }
+
+      const input = await createCloudflareLiveInput(
+        cloudflareAccountId,
+        cloudflareStreamToken,
+        `${stream.title} (${stream.id})`
+      )
+      ingestUrl = input.ingestUrl
+      playbackUrl = input.playbackUrl
+
+      const admin = serverSupabaseServiceRole<Database>(event)
+      const { error: updateError } = await admin
+        .from('streams')
+        .update({
+          media_provider: 'cloudflare',
+          provider_input_id: input.inputId,
+          ingest_url: input.ingestUrl,
+          playback_url: input.playbackUrl
+        })
+        .eq('id', stream.id)
+
+      if (updateError) throw createError({ statusCode: 500, statusMessage: updateError.message })
+    }
+
+    return {
+      success: true,
+      data: {
+        mode: 'whip',
+        ingestUrl: isBroadcaster ? ingestUrl ?? undefined : undefined,
+        playbackUrl: playbackUrl ?? undefined
+      }
+    }
+  }
 
   if (config.provider !== 'whip' || !config.whip_ingest_url || !config.whep_playback_url) {
     return { success: true, data: { mode: 'mesh' } }

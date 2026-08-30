@@ -2615,7 +2615,11 @@ export type Database = {
           description: string | null
           ended_at: string | null
           id: string
+          ingest_url: string | null
+          media_provider: string
           peak_viewer_count: number
+          playback_url: string | null
+          provider_input_id: string | null
           started_at: string | null
           stream_key: string
           title: string
@@ -2629,7 +2633,11 @@ export type Database = {
           description?: string | null
           ended_at?: string | null
           id?: string
+          ingest_url?: string | null
+          media_provider?: string
           peak_viewer_count?: number
+          playback_url?: string | null
+          provider_input_id?: string | null
           started_at?: string | null
           stream_key: string
           title: string
@@ -2643,7 +2651,11 @@ export type Database = {
           description?: string | null
           ended_at?: string | null
           id?: string
+          ingest_url?: string | null
+          media_provider?: string
           peak_viewer_count?: number
+          playback_url?: string | null
+          provider_input_id?: string | null
           started_at?: string | null
           stream_key?: string
           title?: string

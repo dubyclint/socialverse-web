@@ -17,9 +17,16 @@
         <span>Transport</span>
         <select v-model="form.provider">
           <option value="mesh">Browser mesh (development / small rooms)</option>
-          <option value="whip">WHIP / WHEP media server (scales)</option>
+          <option value="cloudflare">Cloudflare Stream (scales to large audiences)</option>
+          <option value="whip">Other WHIP / WHEP media server</option>
         </select>
       </label>
+
+      <p v-if="form.provider === 'cloudflare'" class="hint">
+        Each broadcast provisions its own Cloudflare live input automatically. Set
+        <code>CLOUDFLARE_ACCOUNT_ID</code> and <code>CLOUDFLARE_STREAM_TOKEN</code> (token needs
+        Stream:Edit) in the deployment environment; until they are present streams fall back to mesh.
+      </p>
 
       <template v-if="form.provider === 'whip'">
         <label>
@@ -64,7 +71,7 @@ definePageMeta({
 useHead({ title: 'Streaming Transport' })
 
 interface StreamingConfig {
-  provider: 'mesh' | 'whip'
+  provider: 'mesh' | 'whip' | 'cloudflare'
   whip_ingest_url: string
   whep_playback_url: string
   bearer_token: string

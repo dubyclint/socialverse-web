@@ -87,6 +87,8 @@ export default defineNuxtConfig({
     jwtSecret: process.env.JWT_SECRET,
     password: process.env.PASSWORD,
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
+    cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+    cloudflareStreamToken: process.env.CLOUDFLARE_STREAM_TOKEN,
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
