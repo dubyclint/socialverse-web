@@ -69,7 +69,7 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     } else if (currentUserId) {
       // Check if users are friends
       const { data: friendship } = await supabase
-        .from('user_follows')
+        .from('follows')
         .select('id')
         .or(`(follower_id.eq.${currentUserId},following_id.eq.${userId}),(follower_id.eq.${userId},following_id.eq.${currentUserId})`)
         .maybeSingle()

@@ -139,12 +139,14 @@
           v-model="userSearch"
           class="new-chat-search"
           type="text"
-          placeholder="Search people by name or @username"
+          placeholder="Search your contacts and conversations"
           @input="searchUsers"
         />
         <p v-if="isSearching" class="new-chat-hint">Searching…</p>
-        <p v-else-if="userSearch.length >= 2 && userResults.length === 0" class="new-chat-hint">No users found</p>
-        <p v-else-if="userSearch.length < 2" class="new-chat-hint">Type at least 2 characters</p>
+        <p v-else-if="userResults.length === 0" class="new-chat-hint">
+          No one in your contacts matches. Direct messages are limited to people you follow, your
+          contacts and existing conversations — use Find Friends to meet someone new.
+        </p>
         <ul class="new-chat-results">
           <li v-for="result in userResults" :key="result.user_id">
             <button class="new-chat-result" :disabled="isStartingChat" @click="startDirectChat(result.user_id)">
@@ -154,6 +156,21 @@
             </button>
           </li>
         </ul>
+
+        <div v-if="suggestions.length" class="new-chat-suggestions">
+          <h4>People you may know</h4>
+          <ul class="new-chat-results">
+            <li v-for="person in suggestions" :key="person.id">
+              <NuxtLink class="new-chat-result" :to="`/profile/${person.username}`" @click="closeNewChat">
+                <img :src="person.avatar_url" alt="" class="new-chat-avatar" />
+                <span class="new-chat-name">{{ person.full_name }}</span>
+                <span class="new-chat-username">
+                  {{ person.mutual_count ? `${person.mutual_count} mutual` : person.location || `@${person.username}` }}
+                </span>
+              </NuxtLink>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
@@ -185,6 +202,15 @@ interface DirectoryUser {
   display_name: string | null
   avatar_url: string | null
   is_verified: boolean
+}
+
+interface SuggestedUser {
+  id: string
+  username: string
+  full_name: string
+  avatar_url: string
+  location: string | null
+  mutual_count: number
 }
 
 // Chat store initialized
@@ -246,6 +272,7 @@ const showGroupCreator = ref(false)
 const showNewChat = ref(false)
 const userSearch = ref('')
 const userResults = ref<DirectoryUser[]>([])
+const suggestions = ref<SuggestedUser[]>([])
 const isSearching = ref(false)
 const isStartingChat = ref(false)
 const showSettings = ref(false)
@@ -418,32 +445,43 @@ const createGroup = async (groupData: any) => {
   }
 }
 
-const openNewChat = () => { showNewChat.value = true }
+const openNewChat = async () => {
+  showNewChat.value = true
+  await Promise.all([loadNetwork(), loadSuggestions()])
+}
 const closeNewChat = () => {
   showNewChat.value = false
   userSearch.value = ''
   userResults.value = []
 }
 
+const loadNetwork = async (term = '') => {
+  isSearching.value = true
+  try {
+    const response = await $fetch<ApiResponse<DirectoryUser[]>>('/api/chat/people', { query: { q: term } })
+    userResults.value = response.data ?? []
+  } catch {
+    userResults.value = []
+  } finally {
+    isSearching.value = false
+  }
+}
+
+const loadSuggestions = async () => {
+  try {
+    const response = await $fetch<ApiResponse<SuggestedUser[]>>('/api/users/suggested')
+    suggestions.value = response.data ?? []
+  } catch {
+    suggestions.value = []
+  }
+}
+
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 const searchUsers = () => {
   if (searchTimer) clearTimeout(searchTimer)
   const term = userSearch.value.trim()
-  if (term.length < 2) {
-    userResults.value = []
-    return
-  }
-  searchTimer = setTimeout(async () => {
-    isSearching.value = true
-    try {
-      const response = await $fetch<ApiResponse<DirectoryUser[]>>('/api/users/search', { query: { q: term } })
-      userResults.value = response.data ?? []
-    } catch {
-      userResults.value = []
-    } finally {
-      isSearching.value = false
-    }
-  }, 250)
+  if (term.length > 0 && term.length < 2) return
+  searchTimer = setTimeout(() => loadNetwork(term), 250)
 }
 
 const startDirectChat = async (userId: string) => {
@@ -528,6 +566,8 @@ onUnmounted(() => {
   border: 1px solid #d1d5db; border-radius: 8px;
 }
 .new-chat-hint { color: #6b7280; font-size: .85rem; margin: .75rem 0 0; }
+.new-chat-suggestions { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: .75rem; }
+.new-chat-suggestions h4 { font-size: .85rem; color: var(--color-text-muted); margin: 0; }
 .new-chat-results { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 45vh; overflow: auto; }
 .new-chat-result {
   display: flex; align-items: center; gap: .6rem; width: 100%;

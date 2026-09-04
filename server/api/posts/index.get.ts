@@ -84,7 +84,7 @@ export default defineEventHandler(async (event): Promise<ApiResponse> => {
     if (feedTrack === 'following') {
       // Get user's friends
       const { data: friendships } = await supabase
-        .from('user_follows')
+        .from('follows')
         .select('follower_id, following_id')
         .or(`(follower_id.eq.${userId}),(following_id.eq.${userId})`)
 

@@ -1,108 +1,128 @@
-// ============================================================================
-// FIXED: /server/api/users/suggested.get.ts - USES JWT FROM MIDDLEWARE
-// ============================================================================
-// GET SUGGESTED USERS - FIXED: Uses JWT from auth middleware
-// ✅ FIXED: Uses event.context.user from JWT middleware
-// ✅ FIXED: Proper authentication and error handling
-// ============================================================================
+import { defineEventHandler, getQuery, createError } from 'h3'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import type { Database } from '~/types/database.types'
 
-import { serverSupabaseClient } from '#supabase/server'
+/** Recommendations stay on while a user is still building a network. */
+const RECOMMEND_BELOW_FOLLOWING = 100
+const MIN_SUGGESTIONS = 2
+const MAX_SUGGESTIONS = 5
+
+const SCORE = {
+  mutual: 40,
+  contact: 35,
+  location: 20,
+  continent: 10,
+  interest: 8,
+  verified: 5
+} as const
+
+type Candidate = Database['public']['Tables']['user']['Row']
+
+const continentOf = (location: string | null): string | null => {
+  if (!location) return null
+  const parts = location.split(',').map(p => p.trim()).filter(Boolean)
+  return parts.length > 1 ? (parts[parts.length - 1] as string).toLowerCase() : null
+}
 
 export default defineEventHandler(async (event) => {
-  try {
-    console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS START ============')
-    console.log('[Suggested Users API] Fetching suggested users...')
+  const user = await serverSupabaseUser(event)
+  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
-    // ============================================================================
-    // STEP 1: Get user from JWT middleware (NOT from Supabase session)
-    // ============================================================================
-    const user = event.context.user
-    
-    if (!user || !user.id) {
-      console.error('[Suggested Users API] ❌ Unauthorized - No user in context')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized - Please log in'
-      })
-    }
+  const limit = Math.min(
+    Math.max(Number(getQuery(event).limit) || MAX_SUGGESTIONS, MIN_SUGGESTIONS),
+    MAX_SUGGESTIONS
+  )
 
-    const userId = user.id
-    console.log('[Suggested Users API] ✅ User authenticated:', userId)
+  const client = await serverSupabaseClient<Database>(event)
 
-    // ============================================================================
-    // STEP 2: Get Supabase client for database queries
-    // ============================================================================
-    const supabase = await serverSupabaseClient(event)
-    console.log('[Suggested Users API] Supabase client initialized')
+  const { data: me } = await client
+    .from('user')
+    .select('user_id, location, interest_tags, following_count')
+    .eq('user_id', user.id)
+    .single()
 
-    // ============================================================================
-    // STEP 3: Parse query parameters
-    // ============================================================================
-    const query = getQuery(event)
-    const limit = Math.min(parseInt(query.limit as string) || 5, 20)
-    console.log('[Suggested Users API] Limit:', limit)
+  if (me && me.following_count >= RECOMMEND_BELOW_FOLLOWING) {
+    return { success: true, data: [], reason: 'network_established' }
+  }
 
-    // ============================================================================
-    // STEP 4: Fetch suggested users from user_profiles table
-    // ============================================================================
-    console.log('[Suggested Users API] Fetching from user table...')
+  const [following, blocks, contacts] = await Promise.all([
+    client.from('follows').select('following_id').eq('follower_id', user.id),
+    client.from('user_blocks').select('blocked_id').eq('blocker_id', user.id),
+    client.from('user_contacts').select('contact_id').eq('user_id', user.id).not('contact_id', 'is', null)
+  ])
 
-    const { data: suggestedUsers, error } = await supabase
+  const followingIds = (following.data ?? []).map(f => f.following_id)
+  const contactIds = new Set((contacts.data ?? []).map(c => c.contact_id).filter((id): id is string => Boolean(id)))
+  const blockedIds = (blocks.data ?? [])
+    .map(b => b.blocked_id)
+    .filter((id): id is string => Boolean(id))
+  const excluded = new Set<string>([user.id, ...followingIds, ...blockedIds])
+
+  // Friends-of-friends: the strongest in-app signal available on this schema.
+  const { data: secondDegree } = followingIds.length
+    ? await client.from('follows').select('following_id').in('follower_id', followingIds)
+    : { data: [] as { following_id: string }[] }
+
+  const mutualCount = new Map<string, number>()
+  ;(secondDegree ?? []).forEach(f => {
+    if (excluded.has(f.following_id)) return
+    mutualCount.set(f.following_id, (mutualCount.get(f.following_id) ?? 0) + 1)
+  })
+
+  const candidateIds = [...new Set([...mutualCount.keys(), ...contactIds])].filter(id => !excluded.has(id))
+
+  const [byRelation, popular] = await Promise.all([
+    candidateIds.length
+      ? client
+          .from('user')
+          .select('*')
+          .in('user_id', candidateIds)
+          .eq('is_banned', false)
+          .limit(50)
+      : Promise.resolve({ data: [] as Candidate[] }),
+    client
       .from('user')
-      .select('user_id, username, display_name, avatar_url, bio, followers_count')
-      .neq('user_id', userId)
+      .select('*')
+      .eq('is_banned', false)
+      .eq('is_private', false)
       .order('followers_count', { ascending: false })
-      .limit(limit)
+      .limit(50)
+  ])
 
-    if (error) {
-      console.warn('[Suggested Users API] ⚠️ user table error:', error.message)
-      // Return empty array instead of throwing error
-      console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (EMPTY) ============')
-      return {
-        success: true,
-        data: [],
-        total: 0,
-        message: 'No suggested users available'
-      }
-    }
+  const pool = new Map<string, Candidate>()
+  ;[...(byRelation.data ?? []), ...(popular.data ?? [])].forEach(candidate => {
+    if (!excluded.has(candidate.user_id)) pool.set(candidate.user_id, candidate)
+  })
 
-    console.log('[Suggested Users API] ✅ Suggested users fetched:', suggestedUsers?.length || 0)
+  const myContinent = continentOf(me?.location ?? null)
+  const myInterests = new Set(me?.interest_tags ?? [])
 
-    // ============================================================================
-    // STEP 5: Format response
-    // ============================================================================
-    const formatted = (suggestedUsers || []).map((u: any) => ({
-      id: u.user_id,
-      full_name: u.display_name || u.username || 'Unknown',
-      username: u.username || 'unknown',
-      avatar_url: u.avatar_url || '/default-avatar.svg',
-      bio: u.bio || '',
-      followers_count: u.followers_count ?? 0,
-      following: false
-    }))
+  const scored = [...pool.values()].map(candidate => {
+    const mutuals = mutualCount.get(candidate.user_id) ?? 0
+    const sharedInterests = (candidate.interest_tags ?? []).filter(tag => myInterests.has(tag)).length
 
-    console.log('[Suggested Users API] ✅ Response formatted:', formatted.length)
-    console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (SUCCESS) ============')
+    let score = mutuals * SCORE.mutual + sharedInterests * SCORE.interest
+    if (contactIds.has(candidate.user_id)) score += SCORE.contact
+    if (me?.location && candidate.location === me.location) score += SCORE.location
+    else if (myContinent && continentOf(candidate.location) === myContinent) score += SCORE.continent
+    if (candidate.is_verified) score += SCORE.verified
 
     return {
-      success: true,
-      data: formatted,
-      total: formatted.length
+      id: candidate.user_id,
+      username: candidate.username,
+      full_name: candidate.display_name || candidate.username,
+      avatar_url: candidate.avatar_url || '/default-avatar.svg',
+      bio: candidate.bio ?? '',
+      location: candidate.location,
+      followers_count: candidate.followers_count,
+      is_verified: candidate.is_verified ?? false,
+      mutual_count: mutuals,
+      shared_interests: sharedInterests,
+      score
     }
+  })
 
-  } catch (error: any) {
-    console.error('[Suggested Users API] ❌ Error:', error.message)
-    console.log('[Suggested Users API] ============ FETCH SUGGESTED USERS END (ERROR) ============')
-    
-    if (error.statusCode) {
-      throw error
-    }
+  scored.sort((a, b) => b.score - a.score || b.followers_count - a.followers_count)
 
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to fetch suggested users',
-      data: { details: error.message }
-    })
-  }
+  return { success: true, data: scored.slice(0, limit), total: scored.length }
 })
-
