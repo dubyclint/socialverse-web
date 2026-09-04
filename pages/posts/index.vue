@@ -7,7 +7,7 @@
   <div class="posts-page">
     <!-- Create Post Section -->
     <section class="create-post-section">
-      <CreatePost />
+      <CreatePost @post-created="fetchPosts" />
     </section>
 
     <!-- Latest Posts Section -->
@@ -51,6 +51,8 @@ definePageMeta({
 })
   
 import { ref, onMounted } from 'vue'
+import CreatePost from '~/components/posts/create-post.vue'
+import PostCard from '~/components/posts/post-card.vue'
 import type { Post } from '~/types/post'
 
 const posts = ref<Post[]>([])
@@ -65,11 +67,8 @@ const fetchPosts = async () => {
   error.value = null
   
   try {
-    // TODO: Replace with actual API call
-    // const { data } = await $fetch('/api/posts')
-    // posts.value = data
-    
-    console.log('Fetching posts...')
+    const response = await $fetch<{ success: boolean, data: { posts: Post[] } }>('/api/posts/feed')
+    posts.value = response.data?.posts ?? []
   } catch (err) {
     console.error('Error fetching posts:', err)
     error.value = 'Failed to load posts. Please try again.'

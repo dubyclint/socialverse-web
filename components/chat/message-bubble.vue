@@ -324,11 +324,12 @@ const handleContextMenu = (event: MouseEvent) => {
 .sender-name {
   font-weight: 600;
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .message-text {
-  background: #f0f0f0;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   padding: 10px 12px;
   border-radius: 8px;
   word-wrap: break-word;
@@ -352,8 +353,8 @@ const handleContextMenu = (event: MouseEvent) => {
 }
 
 .own-message .message-text {
-  background: #007bff;
-  color: white;
+  background: var(--color-primary);
+  color: #ffffff;
 }
 
 .message-actions {

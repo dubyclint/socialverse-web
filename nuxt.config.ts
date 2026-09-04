@@ -125,7 +125,8 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#667eea' },
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
+        { rel: 'apple-touch-icon', href: '/icons/icon-192x192.png' },
         { rel: 'manifest', href: '/manifest.json' },
       ],
       script: [{ src: '/register-sw.js', async: true, defer: true }],

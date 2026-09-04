@@ -70,6 +70,8 @@
             </div>
           </div>
 
+          <p v-if="errorMessage" class="publish-error">{{ errorMessage }}</p>
+
           <div class="action-section">
             <button @click="saveDraft" class="btn btn-secondary">💾 Save Draft</button>
             <button @click="publishPost" class="btn btn-primary" :disabled="!postContent.trim() || publishing">
@@ -100,14 +102,14 @@ const router = useRouter()
 const userStore = useUserStore()
 const postsStore = usePostsStore()
 
-const { uploading, progressPercentage } = useFileUpload()
+const { uploading, progressPercentage, uploadFile } = useFileUpload()
 
 // --- User Profile Computed Refs ---
-const userAvatar = computed(() => userStore.user?.avatar)
-const userName = computed(() => userStore.user?.username || 'User')
-const userHandle = computed(() => userStore.user?.handle || 'handle')
-const userStatus = computed(() => userStore.user?.status || 'Active')
-const userInitials = computed(() => userName.value.substring(0, 2).toUpperCase())
+const userAvatar = computed(() => userStore.userAvatar)
+const userName = computed(() => userStore.userDisplayName || 'User')
+const userHandle = computed(() => userStore.profile?.username || userStore.user?.username || 'user')
+const userStatus = computed(() => (userStore.profile ? 'Active' : ''))
+const userInitials = computed(() => userStore.userInitials)
 
 // --- Draft State Management ---
 const postContent = computed({
@@ -136,6 +138,7 @@ const mediaFile = ref<File | null>(null)
 const publishing = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const successMessage = ref('')
+const errorMessage = ref('')
 
 const privacyOptions = [
   { value: 'public', icon: '🌍', label: 'Public' },
@@ -159,15 +162,38 @@ function addGif() {
 async function publishPost() {
   if (!postContent.value.trim()) return
   publishing.value = true
+  errorMessage.value = ''
   try {
-    // API interaction using userStore data if needed
-    // await postsStore.createPost({ ...postsStore.draft, authorId: userStore.user?.id })
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const hashtags = Array.from(
+      new Set((postContent.value.match(/#[\p{L}0-9_]+/gu) || []).map(tag => tag.slice(1).toLowerCase()))
+    )
+
+    const media: Array<{ url: string, type: string }> = []
+    if (mediaFile.value) {
+      const uploaded = await uploadFile(mediaFile.value, 'posts', { optimize: true })
+      if (!uploaded) throw new Error('Media upload failed')
+      media.push({ url: uploaded.url, type: mediaFile.value.type })
+    }
+
+    const response = await $fetch<{ success: boolean, data?: { id: string } }>('/api/posts/create', {
+      method: 'POST',
+      body: {
+        content: postContent.value.trim(),
+        privacy: selectedPrivacy.value,
+        tags: hashtags,
+        media
+      }
+    })
+
+    if (!response?.data) throw new Error('Post was not created')
+
     successMessage.value = '🎉 Post published successfully!'
     postsStore.clearDraft()
-    setTimeout(() => router.push('/posts'), 2000)
+    removeMedia()
+    await router.push('/posts')
   } catch (e) {
-    console.error('Publishing error:', e)
+    const message = e instanceof Error ? e.message : 'Failed to publish post'
+    errorMessage.value = message
   } finally {
     publishing.value = false
   }
@@ -197,8 +223,9 @@ function removeMedia() {
 }
 
 // --- Lifecycle ---
-onMounted(() => {
+onMounted(async () => {
   postsStore.loadDraft()
+  if (!userStore.profile) await userStore.fetchProfile()
 })
 
 onBeforeUnmount(() => {
@@ -211,7 +238,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.create-post-page { min-height: 100vh; background: #f5f7fa; padding: 2rem 1rem; }
+.create-post-page { min-height: 100vh; background: var(--color-bg-primary); padding: 2rem 1rem; }
+.publish-error { color: #f87171; margin: .75rem 0 0; font-size: .9rem; }
 .page-header { background: white; padding: 1.5rem; margin-bottom: 2rem; position: sticky; top: 0; z-index: 100; }
 .header-content { display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
 .create-post-container { display: grid; grid-template-columns: 1fr 350px; gap: 2rem; max-width: 1200px; margin: 0 auto; }

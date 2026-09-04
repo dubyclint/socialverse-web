@@ -417,6 +417,8 @@ onMounted(async () => {
 .feed-header { position: sticky; top: 0; z-index: 50; background-color: #1e293b; border-bottom: 1px solid #334155; }
 .header-top { display: flex; align-items: center; justify-content: space-between; height: 4rem; max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
 .header-left, .header-center, .header-right { display: flex; align-items: center; }
+.logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #f8fafc; font-weight: 600; }
+.logo-img { width: 32px; height: 32px; flex-shrink: 0; }
 .menu-btn { background: none; border: none; color: #94a3b8; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s; }
 .menu-btn:hover { color: #f8fafc; background-color: #334155; }
 .nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; }
