@@ -4,7 +4,7 @@
 // ============================================================================
 import { ref, computed, readonly } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
-import { useNuxtApp } from '#app'
+import type { ApiResponse } from '~/types/api'
 
 interface SecuritySession {
   id: string
@@ -17,6 +17,13 @@ interface SecuritySession {
   last_activity: string
 }
 
+interface SecurityEventData {
+  ip_address?: string
+  reason?: string
+  patterns?: string[]
+  [key: string]: unknown
+}
+
 interface SecurityEvent {
   id: string
   event_type: string
@@ -24,6 +31,16 @@ interface SecurityEvent {
   timestamp: string
   ip_address: string
   device: string
+  severity: string
+  created_at: string
+  event_data?: SecurityEventData
+}
+
+interface SecuritySeverityCounts {
+  INFO?: number
+  WARNING?: number
+  CRITICAL?: number
+  [key: string]: number | undefined
 }
 
 interface SecurityStatistics {
@@ -31,21 +48,28 @@ interface SecurityStatistics {
   active_sessions: number
   failed_login_attempts: number
   last_login: string
+  sessions?: { active: number; change: number }
+  events?: { total: number; change: number; bySeverity: SecuritySeverityCounts }
+}
+
+interface SecurityEventFilter {
+  severity?: string
+  limit?: number
 }
 
 interface SecurityReturn {
   sessions: Ref<readonly SecuritySession[]>
   securityEvents: Ref<readonly SecurityEvent[]>
-  statistics: Ref<readonly SecurityStatistics | null>
-  loading: Ref<readonly boolean>
-  error: Ref<readonly (string | null)>
+  statistics: Ref<SecurityStatistics | null>
+  loading: Ref<boolean>
+  error: Ref<string | null>
   activeSessions: ComputedRef<SecuritySession[]>
   currentSession: ComputedRef<SecuritySession | undefined>
   loadSessions: () => Promise<void>
   terminateSession: (sessionId: string) => Promise<any>
   terminateAllSessions: () => Promise<any>
-  loadSecurityEvents: () => Promise<void>
-  getStatistics: () => Promise<void>
+  loadSecurityEvents: (filter?: SecurityEventFilter) => Promise<void>
+  loadStatistics: () => Promise<void>
 }
 
 export const useSecurity = (): SecurityReturn => {
@@ -71,10 +95,9 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/sessions')
+      const result = await $fetch<ApiResponse<{ sessions: SecuritySession[] }>>('/api/security/sessions')
 
-      if (result.success) {
+      if (result.success && result.data) {
         sessions.value = result.data.sessions
       } else {
         throw new Error(result.message)
@@ -95,8 +118,7 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>(`/api/security/sessions/${sessionId}`, {
+      const result = await $fetch<ApiResponse<null>>(`/api/security/sessions/${sessionId}`, {
         method: 'DELETE'
       })
 
@@ -122,8 +144,7 @@ export const useSecurity = (): SecurityReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/sessions/terminate-all', {
+      const result = await $fetch<ApiResponse<null>>('/api/security/sessions/terminate-all', {
         method: 'POST'
       })
 
@@ -144,15 +165,16 @@ export const useSecurity = (): SecurityReturn => {
   /**
    * Sync complete historic operational audit trails
    */
-  const loadSecurityEvents = async (): Promise<void> => {
+  const loadSecurityEvents = async (filter?: SecurityEventFilter): Promise<void> => {
     loading.value = true
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/events')
+      const result = await $fetch<ApiResponse<{ events: SecurityEvent[] }>>('/api/security/events', {
+        query: filter
+      })
 
-      if (result.success) {
+      if (result.success && result.data) {
         securityEvents.value = result.data.events
       } else {
         throw new Error(result.message)
@@ -168,16 +190,15 @@ export const useSecurity = (): SecurityReturn => {
   /**
    * Pull structural numeric parameters regarding failure tracking flags
    */
-  const getStatistics = async (): Promise<void> => {
+  const loadStatistics = async (): Promise<void> => {
     loading.value = true
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/security/statistics')
+      const result = await $fetch<ApiResponse<SecurityStatistics>>('/api/security/statistics')
 
-      if (result.success) {
-        statistics.value = result.data.statistics
+      if (result.success && result.data) {
+        statistics.value = result.data
       } else {
         throw new Error(result.message)
       }
@@ -191,7 +212,7 @@ export const useSecurity = (): SecurityReturn => {
 
   return {
     sessions: readonly(sessions),
-    securityEvents: readonly(securityEvents),
+    securityEvents: readonly(securityEvents) as Ref<readonly SecurityEvent[]>,
     statistics: readonly(statistics),
     loading: readonly(loading),
     error: readonly(error),
@@ -201,6 +222,6 @@ export const useSecurity = (): SecurityReturn => {
     terminateSession,
     terminateAllSessions,
     loadSecurityEvents,
-    getStatistics
+    loadStatistics
   }
 }

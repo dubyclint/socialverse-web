@@ -1,3 +1,6 @@
+<!-- ============================================================================ -->
+<!-- FILE: /components/auth/signin-form.vue -->
+<!-- ============================================================================ -->
 <template>
   <div class="bg-slate-800 rounded-lg shadow-xl p-8 border border-slate-700">
     <div v-if="userStore.error" class="mb-4 p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
@@ -53,11 +56,9 @@
 
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue'
-// Updated import
 import { useUserStore } from '~/stores/user'
 
 const emit = defineEmits<{ success: [data: any] }>()
-// Updated store instance
 const userStore = useUserStore()
 
 const formData = reactive({
@@ -67,17 +68,14 @@ const formData = reactive({
 })
 
 onMounted(() => {
-  // Sync local UI state with the store's persistent cookie
   formData.rememberMe = userStore.rememberMe
 })
 
 const handleSubmit = async () => {
-  // Clear any existing errors before attempting sign in
   userStore.setError(null)
-  
-  // Persist rememberMe preference before login
   userStore.setRememberMe(formData.rememberMe)
   
+  // Directly delegates to authService.signIn() via store wrapper (no custom /api/auth/login fetches)
   const result = await userStore.signIn(formData.email, formData.password)
   
   if (result.success) {

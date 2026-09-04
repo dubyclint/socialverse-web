@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     if (error) throw error
 
     // Format comments
-    const formattedComments = comments?.map(comment => ({
+    const formattedComments = comments?.map((comment: any) => ({
       ...comment,
       likes_count: comment.comment_likes?.length || 0,
       user: comment.profiles

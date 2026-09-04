@@ -1,5 +1,7 @@
 // server/api/wallet/balance.get.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)

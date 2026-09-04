@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ✅ UPDATED: Selects 'user_id' instead of 'id' to accurately reflect profile row tracking
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('user_id')
       .ilike('username', trimmedUsername)

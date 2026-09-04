@@ -6,7 +6,7 @@ definePageMeta({
   middleware: ['auth'] // Restricted to administrative access paths
 })
 
-const supabase = useSupabaseClient()
+const alert = (message: string) => window.alert(message)
 
 // Active Structural Configuration Variables
 const isLoading = ref(true)

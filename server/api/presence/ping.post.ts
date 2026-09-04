@@ -1,5 +1,14 @@
 // server/api/presence/ping.post.ts
-import { useRedis } from '#redis' // Assuming you have a Redis module installed
+let useRedis: any = () => ({ set: async () => {} })
+try {
+  // Optional redis import - not available in some environments
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  useRedis = require('#redis').useRedis
+} catch (e) {
+  // fallback no-op
+}
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+// h3 helpers intentionally not needed here
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)

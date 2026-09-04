@@ -39,7 +39,7 @@
                     :key="contact.id"
                     class="contact-chip"
                   >
-                    <img :src="contact.avatar || '/default-avatar.png'" :alt="contact.username" />
+                    <img :src="contact.avatar || '/default-avatar.svg'" :alt="contact.username" />
                     <span>{{ contact.username }}</span>
                     <button @click="removeContact(contact.id)">✕</button>
                   </div>
@@ -56,7 +56,7 @@
                     :class="{ selected: isContactSelected(contact.id) }"
                     @click="toggleContact(contact)"
                   >
-                    <img :src="contact.avatar || '/default-avatar.png'" :alt="contact.username" />
+                    <img :src="contact.avatar || '/default-avatar.svg'" :alt="contact.username" />
                     <span>{{ contact.username }}</span>
                     <input type="checkbox" :checked="isContactSelected(contact.id)" />
                   </div>
@@ -71,7 +71,7 @@
                     :class="{ selected: isContactSelected(contact.id) }"
                     @click="toggleContact(contact)"
                   >
-                    <img :src="contact.avatar || '/default-avatar.png'" :alt="contact.username" />
+                    <img :src="contact.avatar || '/default-avatar.svg'" :alt="contact.username" />
                     <span>{{ contact.username }}</span>
                     <input type="checkbox" :checked="isContactSelected(contact.id)" />
                   </div>
@@ -306,7 +306,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 interface Contact {
   id: string

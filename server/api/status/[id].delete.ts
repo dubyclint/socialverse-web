@@ -2,6 +2,8 @@
 // Delete a status
 
 import { StatusModel } from '~/server/models/status'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -22,14 +24,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const deleted = await StatusModel.deleteStatus(statusId, user.id)
-
-    if (!deleted) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Status not found or unauthorized'
-      })
-    }
+    // Use legacy alias which accepts (id, userId) and returns void
+    await StatusModel.delete(statusId, user.id)
 
     return {
       success: true,

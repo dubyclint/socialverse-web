@@ -49,7 +49,7 @@
             </div>
             <div class="group-members">
               <div v-for="member in group.members" :key="member.id" class="member-item">
-                <img :src="member.avatar || '/default-avatar.png'" :alt="member.name" class="member-avatar" />
+                <img :src="member.avatar || '/default-avatar.svg'" :alt="member.name" class="member-avatar" />
                 <span class="member-name">{{ member.name }}</span>
               </div>
             </div>
@@ -87,7 +87,18 @@ const filters = ref({
   category: ''
 })
 
-const groups = ref([])
+interface MatchGroupMember {
+  id: string
+  avatar?: string | null
+  name: string
+}
+
+interface MatchGroup {
+  groupScore: number
+  members: MatchGroupMember[]
+}
+
+const groups = ref<MatchGroup[]>([])
 const loading = ref(false)
 
 const submit = async () => {

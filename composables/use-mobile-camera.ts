@@ -3,7 +3,7 @@
 // MOBILE CAMERA COMPOSABLE - HANDLES ALL CAMERA OPERATIONS
 // ============================================================================
 
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
 export interface CameraConstraints {
@@ -36,8 +36,9 @@ export const useMobileCamera = () => {
         video: { facingMode: 'environment' }
       })
       const videoTrack = stream.getVideoTracks()[0]
+      if (!videoTrack) return
       const capabilities = videoTrack.getCapabilities?.()
-      hasFlash.value = capabilities?.torch ? true : false
+      hasFlash.value = (capabilities as any)?.torch ? true : false
       stream.getTracks().forEach(track => track.stop())
     } catch (err) {
       console.warn('Could not check device capabilities:', err)
@@ -158,12 +159,12 @@ export const useMobileCamera = () => {
       }
 
       const capabilities = videoTrack.getCapabilities?.()
-      if (!capabilities?.torch) {
+      if (!(capabilities as any)?.torch) {
         throw new Error('Torch not supported')
       }
 
       const settings = videoTrack.getSettings?.()
-      const currentTorch = settings?.torch || false
+      const currentTorch = (settings as any)?.torch || false
 
       await videoTrack.applyConstraints({
         advanced: [{ torch: !currentTorch }]
@@ -180,11 +181,12 @@ export const useMobileCamera = () => {
   const toggleMicrophone = async () => {
     try {
       const audioTracks = mediaStream.value?.getAudioTracks()
-      if (!audioTracks || audioTracks.length === 0) {
+      const firstAudioTrack = audioTracks?.[0]
+      if (!firstAudioTrack) {
         throw new Error('No audio track available')
       }
 
-      const isCurrentlyMuted = !audioTracks[0].enabled
+      const isCurrentlyMuted = !firstAudioTrack.enabled
       audioTracks.forEach(track => {
         track.enabled = isCurrentlyMuted
       })
@@ -200,11 +202,12 @@ export const useMobileCamera = () => {
   const toggleCamera = async () => {
     try {
       const videoTracks = mediaStream.value?.getVideoTracks()
-      if (!videoTracks || videoTracks.length === 0) {
+      const firstVideoTrack = videoTracks?.[0]
+      if (!firstVideoTrack) {
         throw new Error('No video track available')
       }
 
-      const isCurrentlyOff = !videoTracks[0].enabled
+      const isCurrentlyOff = !firstVideoTrack.enabled
       videoTracks.forEach(track => {
         track.enabled = isCurrentlyOff
       })

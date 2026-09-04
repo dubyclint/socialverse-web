@@ -10,4 +10,6 @@ export default defineEventHandler(async (event) => {
     setTrustCriteria(body)
     return { success: true }
   }
+
+  throw createError({ statusCode: 405, statusMessage: 'Method not allowed' })
 })

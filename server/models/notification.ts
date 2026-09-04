@@ -6,14 +6,11 @@
 // LAZY-LOADED SUPABASE CLIENT
 // ============================================================================
 let supabaseInstance: any = null
+import { getAdminClient } from '~/server/utils/supabase-server'
 
 async function getSupabase() {
   if (!supabaseInstance) {
-    const { createClient } = await import('@supabase/supabase-js')
-    supabaseInstance = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    supabaseInstance = await getAdminClient()
   }
   return supabaseInstance
 }
@@ -157,7 +154,7 @@ export class NotificationModel {
  * Create a new notification
  * ✅ Lazy-loaded: Supabase only loads when this function is called
  */
-export async function create(data: {
+export async function createInternal(data: {
   user_id: string
   type: NotificationType
   title: string
@@ -221,3 +218,38 @@ export async function markAsRead(id: string): Promise<Notification> {
 export async function delete_(id: string): Promise<void> {
   return NotificationModel.deleteNotification(id)
 }
+
+// Compatibility adapter: controllers expect `create` to be exported
+export async function createNotificationAdapter(payload: any): Promise<Notification> {
+  // map legacy keys to current create signature
+  return createInternal({
+    user_id: payload.userId || payload.user_id,
+    type: payload.type || 'system',
+    title: payload.title || payload.subject || '',
+    message: payload.message || payload.body || '',
+    data: payload.data,
+    sender_id: payload.actorId || payload.sender_id
+  })
+}
+
+// Also export `create` named to satisfy older imports
+export const create = createNotificationAdapter
+
+// Compatibility: static adapter on the class for older callers that do
+// `NotificationModel.create(...)`
+;(NotificationModel as any).create = async function (payload: any) {
+  return createNotificationAdapter(payload)
+}
+
+// Export a runtime NotificationModel object to match older imports
+export const NotificationModelRuntime: any = {
+  create: createNotificationAdapter,
+  findById,
+  findByUserId,
+  update,
+  markAsRead,
+  delete: delete_
+}
+
+// Also export default runtime-compatible name used elsewhere
+export const NotificationModelAny: any = NotificationModelRuntime

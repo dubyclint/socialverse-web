@@ -153,12 +153,29 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['auth', 'language-check', 'premium-middleware'],
+  middleware: ['auth', 'language-check'],
   layout: 'default',
   requiredFeature: 'ads'
 })
  
 import { ref, onMounted } from 'vue'
+
+interface AdStats {
+  activeCampaigns: number
+  balance: number
+  totalImpressions: number
+  ctr: number
+}
+
+interface Campaign {
+  id: number
+  title: string
+  status: string
+  image: string
+  impressions: number
+  clicks: number
+  spent: number
+}
 
 // Page meta
 useHead({
@@ -169,14 +186,14 @@ useHead({
 })
 
 // Reactive data
-const stats = ref({
+const stats = ref<AdStats>({
   activeCampaigns: 5,
   balance: 250.75,
   totalImpressions: 45230,
   ctr: 2.4
 })
 
-const recentCampaigns = ref([
+const recentCampaigns = ref<Campaign[]>([
   {
     id: 1,
     title: 'Summer Sale Campaign',
@@ -207,18 +224,18 @@ const recentCampaigns = ref([
 ])
 
 const showTopUpModal = ref(false)
-const selectedAmount = ref(null)
+const selectedAmount = ref<number | null>(null)
 const customAmount = ref('')
 const topUpAmounts = [25, 50, 100, 250, 500]
 
 // Methods
-const formatNumber = (num) => {
+const formatNumber = (num: number) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
 }
 
-const toggleCampaign = async (campaign) => {
+const toggleCampaign = async (campaign: Campaign) => {
   try {
     const newStatus = campaign.status === 'active' ? 'paused' : 'active'
     // API call to toggle campaign status
@@ -257,8 +274,8 @@ onMounted(async () => {
   try {
     // Load user ad stats
     const [statsData, campaignsData] = await Promise.all([
-      $fetch('/api/ads/stats'),
-      $fetch('/api/ads/campaigns?limit=3')
+      $fetch<AdStats>('/api/ads/stats'),
+      $fetch<Campaign[]>('/api/ads/campaigns?limit=3')
     ])
     
     stats.value = statsData

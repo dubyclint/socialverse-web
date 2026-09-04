@@ -76,7 +76,7 @@
         <div class="stat-content">
           <h3>{{ statistics?.events?.bySeverity?.CRITICAL || 0 }}</h3>
           <p>Critical Events</p>
-          <span class="stat-change" v-if="statistics?.events?.bySeverity?.CRITICAL > 0">Action required</span>
+          <span class="stat-change" v-if="(statistics?.events?.bySeverity?.CRITICAL ?? 0) > 0">Action required</span>
           <span class="stat-change" v-else>All clear</span>
         </div>
       </div>
@@ -185,13 +185,13 @@
             </div>
             <div class="event-details">
               <p v-if="event.event_data?.ip_address">
-                <strong>IP:</strong> {{ event.event_data.ip_address }}
+                <strong>IP:</strong> {{ event.event_data?.ip_address }}
               </p>
               <p v-if="event.event_data?.reason">
-                <strong>Reason:</strong> {{ event.event_data.reason }}
+                <strong>Reason:</strong> {{ event.event_data?.reason }}
               </p>
               <p v-if="event.event_data?.patterns">
-                <strong>Patterns:</strong> {{ event.event_data.patterns.join(', ') }}
+                <strong>Patterns:</strong> {{ event.event_data?.patterns?.join(', ') }}
               </p>
             </div>
           </div>
@@ -424,13 +424,10 @@ import { useSecurity } from '~/composables/use-security'
 
 // Composables
 const {
-  sessions,
   securityEvents,
   statistics,
   loading,
-  error,
   activeSessions,
-  currentSession,
   loadSessions,
   terminateSession,
   terminateAllSessions,
@@ -460,8 +457,8 @@ const passwordForm = ref({
 const securityScore = computed(() => {
   let score = 100
   if (!settings.value.twoFactorEnabled) score -= 20
-  if (statistics.value?.events?.bySeverity?.CRITICAL > 0) score -= 15
-  if (statistics.value?.events?.bySeverity?.WARNING > 0) score -= 10
+  if ((statistics.value?.events?.bySeverity?.CRITICAL ?? 0) > 0) score -= 15
+  if ((statistics.value?.events?.bySeverity?.WARNING ?? 0) > 0) score -= 10
   return Math.max(0, score)
 })
 
@@ -483,7 +480,7 @@ const getSecurityMessage = (): string => {
 const getRecommendations = (): string[] => {
   const recs: string[] = []
   if (!settings.value.twoFactorEnabled) recs.push('Enable 2FA')
-  if (statistics.value?.events?.bySeverity?.CRITICAL > 0) recs.push('Review critical events')
+  if ((statistics.value?.events?.bySeverity?.CRITICAL ?? 0) > 0) recs.push('Review critical events')
   if (activeSessions.value.length > 5) recs.push('Terminate unused sessions')
   return recs
 }

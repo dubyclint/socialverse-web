@@ -4,6 +4,8 @@
 // ============================================================================
 
 import { getRecommendations, logUserEvent } from '../../middleware/ml-service';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { getQuery, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {

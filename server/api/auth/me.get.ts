@@ -44,9 +44,9 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    const resolvedId = String(user.id || user.user_id || '')
-      .split(':')[0]
-      .trim()
+    const userAny = user as any
+    const rawId = userAny?.id || userAny?.user_id || ''
+    const resolvedId = rawId ? String(rawId).split(':')[0]?.trim() : ''
 
     if (!resolvedId) {
       throw createError({

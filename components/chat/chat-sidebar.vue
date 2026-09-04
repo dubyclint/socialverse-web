@@ -139,7 +139,7 @@
       <div class="my-status-section">
         <div class="my-status-item" @click="viewMyStatus">
           <div class="status-avatar">
-            <img :src="currentUser.avatar || '/default-avatar.png'" :alt="currentUser.username" />
+            <img :src="currentUser.avatar || '/default-avatar.svg'" :alt="currentUser.username" />
             <div class="add-status-btn" v-if="!currentUser.hasActiveStatus">
               <icon name="plus" />
             </div>

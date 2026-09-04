@@ -7,7 +7,7 @@
   >
     <div class="contact-avatar">
       <img 
-        :src="contact.avatar || '/default-avatar.png'" 
+        :src="contact.avatar || '/default-avatar.svg'" 
         :alt="contact.username"
       />
       <div 
@@ -36,7 +36,7 @@
 
 <script setup>
 import { formatDistanceToNow } from 'date-fns'
-import Icon from '@/components/ui/Icon.vue'
+import Icon from '@/components/ui/icon.vue'
 
 // Props
 const props = defineProps({

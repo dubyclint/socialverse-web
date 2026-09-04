@@ -15,12 +15,12 @@
     <ClientOnly>
       <div class="notifications-container">
         <ul v-if="notifications.length" class="notifications-list">
-          <li v-for="note in notifications" :key="note._id" class="notification-item">
+          <li v-for="note in notifications" :key="note.id" class="notification-item">
             <div class="notification-content">
-              <strong class="notification-type">{{ note.type.toUpperCase() }}:</strong> 
-              <span class="notification-message">{{ note.message }}</span>
+              <strong class="notification-type">{{ note.event_type }}:</strong>
+              <span class="notification-message">{{ note.message_text }}</span>
             </div>
-            <small class="notification-time">{{ formatTime(note.timestamp) }}</small>
+            <small class="notification-time">{{ formatTime(note.created_at) }}</small>
           </li>
         </ul>
         <div v-else class="empty-state">
@@ -56,18 +56,26 @@ useHead({
   ]
 })
 
-const notifications = ref([])
+interface NotificationItem {
+  id: string
+  event_type: string
+  message_text: string | null
+  is_read: boolean | null
+  created_at: string
+}
+
+const notifications = ref<NotificationItem[]>([])
 
 onMounted(async () => {
   try {
-    const res = await fetch('/api/user/notifications')
-    notifications.value = await res.json()
+    const res = await $fetch<{ data: NotificationItem[] }>('/api/user/notifications')
+    notifications.value = res.data ?? []
   } catch (error) {
     console.error('Error loading notifications:', error)
   }
 })
 
-function formatTime(ts) {
+function formatTime(ts: string) {
   return new Date(ts).toLocaleString()
 }
 </script>

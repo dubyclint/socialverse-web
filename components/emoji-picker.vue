@@ -85,8 +85,7 @@ const {
   categories,
   filteredEmojis,
   togglePicker,
-  selectCategory,
-  selectEmoji
+  selectCategory
 } = useEmojiPicker()
 
 const getCategoryIcon = (category: string): string => {

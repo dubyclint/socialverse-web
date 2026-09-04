@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface CancelRequest {
   reason?: string;
@@ -21,10 +22,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<CancelRequest>(event);
-    const supabase = await serverSupabaseClient(event);
+  const _supabase = await serverSupabaseClient(event);
 
     // Get active subscription
-    const { data: subscription, error: fetchError } = await supabase
+    const { data: subscription, error: fetchError } = await _supabase
       .from('premium_subscriptions')
       .select('*')
       .eq('user_id', user.id)
@@ -39,7 +40,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Cancel subscription
-    const { error: updateError } = await supabase
+    const { error: updateError } = await _supabase
       .from('premium_subscriptions')
       .update({
         status: 'cancelled',
@@ -54,7 +55,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Log event
-    await supabase
+    await _supabase
       .from('premium_events')
       .insert({
         user_id: user.id,

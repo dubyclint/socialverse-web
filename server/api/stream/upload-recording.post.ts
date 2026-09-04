@@ -1,12 +1,15 @@
 // server/api/stream/upload-recording.post.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { createError } from 'h3'
+import { readMultipartFormData } from 'h3'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 
 export default defineEventHandler(async (event) => {
   try {
-    const user = await requireAuth(event)
-    const formData = await readMultipartFormData(event)
+    await requireAuth(event)
+    const formData = await readMultipartFormData(event) as any
 
     if (!formData) {
       throw createError({
@@ -15,8 +18,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const fileField = formData.find(f => f.name === 'file')
-    const streamIdField = formData.find(f => f.name === 'streamId')
+  const fileField = formData.find((f: any) => f.name === 'file')
+  const streamIdField = formData.find((f: any) => f.name === 'streamId')
 
     if (!fileField || !streamIdField) {
       throw createError({
@@ -36,10 +39,10 @@ export default defineEventHandler(async (event) => {
     const filePath = join(uploadDir, fileName)
     await writeFile(filePath, fileField.data)
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Update stream record with recording URL
-    const { error } = await supabase
+    const { error } = await _supabase
       .from('streams')
       .update({
         recording_url: `/recordings/${fileName}`

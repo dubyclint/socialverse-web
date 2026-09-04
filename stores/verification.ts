@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { verificationService } from '~/services/verificationService'
+import type { VerificationStatus, BadgeRequest } from '~/types/verification'
 
 export const useVerificationStore = defineStore('verification', () => {
   const verificationStatus = ref<VerificationStatus>('none')

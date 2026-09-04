@@ -13,7 +13,7 @@
               <img
                 v-if="displayProfile.avatar_url"
                 :src="displayProfile.avatar_url"
-                :alt="displayProfile.full_name"
+                :alt="displayProfile.full_name || ''"
                 class="profile-picture"
                 @error="handleAvatarError"
               />
@@ -60,8 +60,8 @@
           </div>
         </div>
 
-        <LazyEditProfileModal v-if="showEditProfile" @close="showEditProfile = false" />
-        <LazyAvatarUploadModal v-if="showAvatarUpload" @close="showAvatarUpload = false" />
+        <EditProfileModal v-if="showEditProfile" :is-open="showEditProfile" @close="showEditProfile = false" />
+        <AvatarUploadModal v-if="showAvatarUpload" :is-open="showAvatarUpload" @close="showAvatarUpload = false" />
       </template>
     </div>
   </div>
@@ -71,6 +71,7 @@
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProfileStore } from '~/stores/profile'
+import type { Post } from '~/types/post'
 
 definePageMeta({
   middleware: ['auth'],
@@ -84,15 +85,10 @@ const { profile: displayProfile, isLoading: loading } = storeToRefs(profileStore
 const activeTab = ref('posts')
 const isOwnProfile = ref(true) // Should be derived from authStore in production
 const showEditProfile = ref(false)
-const showGeneralSettings = ref(false)
 const showAvatarUpload = ref(false)
-const showCreatePost = ref(false)
 
 // Placeholder data arrays - move these to profileStore actions when ready
-const verificationBadges = ref([])
-const userPosts = ref([])
-const mediaPosts = ref([])
-const likedPosts = ref([])
+const userPosts = ref<Post[]>([])
 
 onMounted(async () => {
   await profileStore.fetchProfile()
@@ -105,11 +101,6 @@ const handleAvatarError = (e: Event) => {
 
 // Helpers
 const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
-const formatDate = (date: string) => new Date(date).toLocaleDateString()
-const getBadgeIcon = (type: string) => 'check-circle'
-const toggleFollow = () => { /* Logic here */ }
-const openVerificationDetails = (b: any) => { /* Logic here */ }
-const openMediaModal = (p: any) => { /* Logic here */ }
 
 const tabs = [
   { id: 'posts', label: 'Posts', icon: 'file-text' },

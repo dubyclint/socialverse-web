@@ -4,7 +4,6 @@
 // ============================================================================
 
 import { supabase } from '~/server/utils/database'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface AuditLogEntry {
   id?: string

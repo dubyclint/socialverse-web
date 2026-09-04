@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-async function generateMLFeed(tf: any) {
+async function generateMLFeed(_tf: any) {
   // Example ML processing
   // This only runs if TensorFlow is loaded
   return []

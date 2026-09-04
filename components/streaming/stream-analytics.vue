@@ -127,7 +127,7 @@
               <div class="performer-rank">{{ index + 1 }}</div>
               <div class="performer-avatar">
                 <img 
-                  :src="gifter.avatar || '/default-avatar.png'" 
+                  :src="gifter.avatar || '/default-avatar.svg'" 
                   :alt="gifter.username"
                 >
               </div>
@@ -150,7 +150,7 @@
               <div class="performer-rank">{{ index + 1 }}</div>
               <div class="performer-avatar">
                 <img 
-                  :src="chatter.avatar || '/default-avatar.png'" 
+                  :src="chatter.avatar || '/default-avatar.svg'" 
                   :alt="chatter.username"
                 >
               </div>

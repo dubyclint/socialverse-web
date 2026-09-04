@@ -5,6 +5,7 @@
 
 import { servePersonalizedAds, logUserEvent } from '../middleware/ml-service';
 import { checkPremiumStatus } from '../middleware/premium-check';
+import { requireAuth } from '../../gateway/auth/auth-bouncer';
 
 export default defineEventHandler(async (event) => {
   try {

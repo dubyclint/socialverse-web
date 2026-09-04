@@ -24,6 +24,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOST=0.0.0.0
 
+# Copy the entire .output directory (contains both server bundle and public assets)
 COPY --from=builder /src/.output ./.output
 
 EXPOSE 8080

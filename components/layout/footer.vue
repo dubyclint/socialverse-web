@@ -91,7 +91,7 @@ const { logout: performLogout, loading: authLoading } = useAuth()
 // ✅ Synced computed state instead of hardcoded dummy data
 const user = computed(() => ({
   name: authStore.userDisplayName || 'User',
-  avatar: authStore.userAvatar || '/default-avatar.png'
+  avatar: authStore.userAvatar || '/default-avatar.svg'
 }))
 
 const logout = async () => {

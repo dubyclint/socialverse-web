@@ -1,4 +1,4 @@
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   return {
     status: 'OK',
     service: 'Socialverse API',

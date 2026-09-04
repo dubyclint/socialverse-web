@@ -16,9 +16,9 @@ export default defineEventHandler(async (event) => {
 
     // Get current user data
     const { data: user, error: fetchError } = await supabase
-      .from('users')
+      .from('user')
       .select('can_toggle_rank, rank_toggle_expires, hide_rank')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
       
     if (fetchError) throw fetchError;
@@ -43,12 +43,12 @@ export default defineEventHandler(async (event) => {
 
     // Update user's rank visibility
     const { error: updateError } = await supabase
-      .from('users')
+      .from('user')
       .update({ 
         hide_rank: newStatus,
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId);
+      .eq('user_id', userId);
       
     if (updateError) throw updateError;
 

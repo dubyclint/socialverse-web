@@ -3,7 +3,7 @@
 // STREAM BROADCAST COMPOSABLE - HANDLES STREAMING & BROADCASTING
 // ============================================================================
 
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
 export interface StreamConfig {
@@ -50,81 +50,8 @@ export const useStreamBroadcast = () => {
     '360p': { bitrate: 500, width: 640, height: 360, frameRate: 24 }
   }
 
-  // Initialize WebRTC connection
-  const initializeWebRTC = async (config: StreamConfig) => {
-    try {
-      const iceServers = [
-        { urls: ['stun:stun.l.google.com:19302'] },
-        { urls: ['stun:stun1.l.google.com:19302'] },
-        { urls: ['stun:stun2.l.google.com:19302'] }
-      ]
-
-      peerConnection = new RTCPeerConnection({
-        iceServers
-      })
-
-      // Add media stream tracks
-      config.mediaStream.getTracks().forEach(track => {
-        peerConnection?.addTrack(track, config.mediaStream)
-      })
-
-      // Handle ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          // Send ICE candidate to server
-          sendToServer({
-            type: 'ice-candidate',
-            candidate: event.candidate
-          })
-        }
-      }
-
-      // Handle connection state changes
-      peerConnection.onconnectionstatechange = () => {
-        console.log('Connection state:', peerConnection?.connectionState)
-        if (peerConnection?.connectionState === 'failed') {
-          error.value = 'Connection failed. Attempting to reconnect...'
-        }
-      }
-
-      // Create and send offer
-      const offer = await peerConnection.createOffer()
-      await peerConnection.setLocalDescription(offer)
-
-      // Send offer to server
-      const response = await sendToServer({
-        type: 'offer',
-        offer: offer,
-        streamConfig: config
-      })
-
-      if (response.answer) {
-        await peerConnection.setRemoteDescription(
-          new RTCSessionDescription(response.answer)
-        )
-      }
-
-      return peerConnection
-    } catch (err: any) {
-      error.value = 'Failed to initialize WebRTC: ' + err.message
-      console.error('WebRTC initialization error:', err)
-      throw err
-    }
-  }
-
-  // Send data to server
-  const sendToServer = async (data: any) => {
-    try {
-      const response = await $fetch('/api/stream/broadcast', {
-        method: 'POST',
-        body: data
-      })
-      return response
-    } catch (err: any) {
-      console.error('Server communication error:', err)
-      throw err
-    }
-  }
+  // Media publishing is handled by useStreamBroadcasterPeers (WebRTC mesh);
+  // this composable owns recording, timers and local stream state only.
 
   // Start stream
   const startStream = async (config: StreamConfig) => {
@@ -138,9 +65,6 @@ export const useStreamBroadcast = () => {
 
     try {
       currentConfig.value = config
-
-      // Initialize WebRTC
-      await initializeWebRTC(config)
 
       // Start recording if enabled
       if (config.enableRecording) {
@@ -156,13 +80,6 @@ export const useStreamBroadcast = () => {
       startDurationTimer()
       startStatsMonitoring()
       startViewerCountPolling()
-
-      // Notify server
-      await sendToServer({
-        type: 'stream-started',
-        streamId: streamId.value,
-        config: config
-      })
 
       console.log('Stream started successfully')
     } catch (err: any) {
@@ -208,15 +125,6 @@ export const useStreamBroadcast = () => {
       isLive.value = false
       streamDuration.value = 0
       viewerCount.value = 0
-
-      // Notify server
-      if (streamId.value) {
-        await sendToServer({
-          type: 'stream-ended',
-          streamId: streamId.value,
-          duration: streamDuration.value
-        })
-      }
 
       console.log('Stream stopped successfully')
     } catch (err: any) {
@@ -300,7 +208,6 @@ export const useStreamBroadcast = () => {
         stats.forEach(report => {
           if (report.type === 'outbound-rtp' && report.kind === 'video') {
             const bytes = report.bytesSent
-            const packets = report.packetsSent
             bitrate = Math.round((bytes * 8) / 1000) // kbps
             frameRate = report.framesPerSecond || 0
             resolution = `${report.frameWidth}x${report.frameHeight}`
@@ -326,7 +233,7 @@ export const useStreamBroadcast = () => {
       if (!streamId.value) return
 
       try {
-        const response = await $fetch(`/api/stream/${streamId.value}/viewers`)
+        const response = await $fetch<{ count?: number }>(`/api/stream/${streamId.value}/viewers`)
         if (response.count !== undefined) {
           viewerCount.value = response.count
         }
@@ -361,10 +268,10 @@ export const useStreamBroadcast = () => {
 
       if (sender) {
         const params = sender.getParameters()
-        if (!params.encodings) {
+        if (!params.encodings || params.encodings.length === 0) {
           params.encodings = [{}]
         }
-        params.encodings[0].maxBitrate = preset.bitrate * 1000
+        params.encodings[0]!.maxBitrate = preset.bitrate * 1000
         await sender.setParameters(params)
       }
 

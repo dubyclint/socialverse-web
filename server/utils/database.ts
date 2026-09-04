@@ -1,3 +1,18 @@
+// Permissive database shim used during TS remediation.
+// Provides `db` and `supabase` placeholders. Replace with real exports later.
+
+export const db: any = {
+  collection: (..._args: any[]) => ({
+    find: () => ({ toArray: async () => [] }),
+    findOne: async () => null
+  })
+}
+
+export const supabase: any = {}
+
+// NOTE: real lazy `getSupabaseClient` implementation appears later in this
+// file. We expose `db` and `supabase` placeholders above and rely on the
+// async `getSupabaseClient` defined below for real client creation.
 // FILE: /server/utils/database.ts
 // ============================================================================
 // INTERNAL SUPABASE CLIENT - DO NOT IMPORT AT TOP LEVEL

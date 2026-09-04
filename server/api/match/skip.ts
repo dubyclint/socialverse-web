@@ -1,5 +1,7 @@
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+
 export default defineEventHandler(async (event) => {
-  const user = event.context.user
+  const user = await requireAuth(event)
   const { userId } = await readBody(event)
 
   await db.collection('users').updateOne(

@@ -7,7 +7,7 @@
 // ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import {
   STORAGE_CONFIG,
   validateFile,
@@ -36,11 +36,11 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     // ============================================================================
     console.log('[Upload API] Step 1: Authenticating...')
 
-    const supabase = await serverSupabaseClient(event)
-    
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  const _supabase = await serverSupabaseClient(event)
 
-    if (sessionError || !session?.user) {
+  const user = await serverSupabaseUser(event)
+
+    if (!user) {
       console.error('[Upload API] ❌ Unauthorized')
       throw createError({
         statusCode: 401,
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
       })
     }
 
-    const userId = session.user.id
+    const userId = user.id
     console.log('[Upload API] ✅ User authenticated:', userId)
 
     // ============================================================================
@@ -65,9 +65,11 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
       })
     }
 
-    const file = formData.find(part => part.name === 'file')
-    const bucketField = formData.find(part => part.name === 'bucket')
-    const bucket = bucketField?.data?.toString() || STORAGE_CONFIG.buckets.uploads
+  const file = formData.find((part: any) => part.name === 'file')
+  const bucketField = formData.find((part: any) => part.name === 'bucket')
+    // STORAGE_CONFIG.buckets[x] is a descriptor object, so the bucket *name* is
+    // what belongs here; passing the descriptor made every default upload fail.
+    const bucket: string = bucketField?.data?.toString() || STORAGE_CONFIG.buckets.uploads.name
 
     if (!file || !file.data) {
       throw createError({
@@ -88,14 +90,8 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     // ============================================================================
     console.log('[Upload API] Step 3: Validating file...')
 
-    const allowedTypes = [
-      ...STORAGE_CONFIG.allowedImageTypes,
-      ...STORAGE_CONFIG.allowedVideoTypes,
-      ...STORAGE_CONFIG.allowedAudioTypes,
-      ...STORAGE_CONFIG.allowedDocumentTypes
-    ]
-
-    const validation = validateFile(file, allowedTypes, STORAGE_CONFIG.maxFileSize)
+  // Validate using new signature: (buffer, filename, bucket, mimeType)
+  const validation = validateFile(file.data, file.filename || 'file', bucket, file.type || 'application/octet-stream')
 
     if (!validation.valid) {
       console.error('[Upload API] ❌ File validation failed:', validation.error)
@@ -139,9 +135,14 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
 
     const filename = generateUniqueFilename(userId, file.filename || 'file')
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+  // Without an explicit contentType Supabase stores the object as text/plain,
+  // which every image/video bucket rejects.
+  const { error: uploadError } = await _supabase.storage
       .from(bucket)
-      .upload(filename, file.data, { upsert: true })
+      .upload(filename, file.data, {
+        upsert: true,
+        contentType: file.type || 'application/octet-stream'
+      })
 
     if (uploadError) {
       console.error('[Upload API] ❌ Upload error:', uploadError.message)
@@ -158,7 +159,7 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     // ============================================================================
     console.log('[Upload API] Step 6: Getting public URL...')
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = _supabase.storage
       .from(bucket)
       .getPublicUrl(filename)
 

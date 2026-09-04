@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
           })
         }
         
-        const { data: newInterest, error: createError } = await supabase
+        const { data: newInterest, error: insertError } = await supabase
           .from('interests')
           .insert({
             name: body.interest.name,
@@ -66,11 +66,11 @@ export default defineEventHandler(async (event) => {
           .select()
           .single()
         
-        if (createError) {
+        if (insertError) {
           throw createError({
             statusCode: 500,
             statusMessage: 'Failed to create interest',
-            data: createError
+            data: insertError
           })
         }
         
@@ -207,7 +207,7 @@ export default defineEventHandler(async (event) => {
       data: result
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin interests error:', error)
     
     if (error.statusCode) {

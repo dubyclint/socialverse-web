@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '~/stores/user'
 
-export const useUser = () => {
+export const useUser = (_namespace?: string) => {
   const userStore = useUserStore()
   
   // Reactive state
@@ -21,10 +21,7 @@ export const useUser = () => {
     loading.value = true
     error.value = ''
     try {
-      // Use unified store for token and logic
-      const response = await $fetch<any>('/api/users/profile', {
-        headers: userStore.token ? { Authorization: `Bearer ${userStore.token}` } : undefined
-      })
+      const response = await $fetch<any>('/api/users/profile')
       profile.value = response
     } catch (err: any) {
       error.value = err?.message || 'Failed to fetch profile data.'
@@ -40,7 +37,6 @@ export const useUser = () => {
     try {
       const response = await $fetch<any>('/api/users/profile', {
         method: 'PUT',
-        headers: userStore.token ? { Authorization: `Bearer ${userStore.token}` } : undefined,
         body: data
       })
       profile.value = response

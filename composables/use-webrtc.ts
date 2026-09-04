@@ -1,5 +1,5 @@
 // composables/useWebRTC.ts
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onUnmounted } from 'vue'
 import { WebRTCManager, type WebRTCConfig, type StreamQuality, type PeerConnection } from '~/lib/webrtc/WebRTCManager'
 
 interface WebRTCPeer {
@@ -89,28 +89,28 @@ export const useWebRTC = (streamId: string) => {
       currentQuality.value = webrtcManager.getCurrentQuality()
 
       // Set up event handlers
-      webrtcManager.onPeerConnect((peer) => {
+      webrtcManager.onPeerConnect((peer: any) => {
         updatePeerInfo(peer)
       })
 
-      webrtcManager.onPeerDisconnect((peerId) => {
+      webrtcManager.onPeerDisconnect((peerId: any) => {
         peers.delete(peerId)
         connectionStats.delete(peerId)
       })
 
-      webrtcManager.onStreamReceive((peerId, stream) => {
+      webrtcManager.onStreamReceive((peerId: any, stream: any) => {
         const peer = peers.get(peerId)
         if (peer) {
           peer.stream = stream
         }
       })
 
-      webrtcManager.onStatsReceive((peerId, stats) => {
+      webrtcManager.onStatsReceive((peerId: any, stats: any) => {
         updateConnectionStats(peerId, stats)
       })
 
       console.log('WebRTC initialized successfully')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to initialize WebRTC:', error)
       connectionErrors.value.push(`Initialization failed: ${error.message}`)
     }
@@ -165,7 +165,7 @@ export const useWebRTC = (streamId: string) => {
         connectionErrors.value.push('Signaling connection failed')
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to connect to signaling server:', error)
       connectionErrors.value.push(`Signaling failed: ${error.message}`)
     }
@@ -178,12 +178,13 @@ export const useWebRTC = (streamId: string) => {
     }
 
     try {
-      localStream.value = await webrtcManager.startLocalStream(constraints)
+      const stream = await webrtcManager.startLocalStream(constraints)
+      localStream.value = stream
       isStreaming.value = true
       
       // Update media state
-      const videoTrack = localStream.value.getVideoTracks()[0]
-      const audioTrack = localStream.value.getAudioTracks()[0]
+      const videoTrack = stream.getVideoTracks()[0]
+      const audioTrack = stream.getAudioTracks()[0]
       
       isVideoEnabled.value = videoTrack?.enabled || false
       isAudioEnabled.value = audioTrack?.enabled || false
@@ -199,8 +200,8 @@ export const useWebRTC = (streamId: string) => {
         enabled: isAudioEnabled.value
       })
 
-      return localStream.value
-    } catch (error) {
+      return stream
+    } catch (error: any) {
       console.error('Failed to start local stream:', error)
       connectionErrors.value.push(`Camera/microphone access failed: ${error.message}`)
       throw error
@@ -224,7 +225,7 @@ export const useWebRTC = (streamId: string) => {
       })
 
       return screenStream
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start screen share:', error)
       connectionErrors.value.push(`Screen sharing failed: ${error.message}`)
       throw error
@@ -286,7 +287,7 @@ export const useWebRTC = (streamId: string) => {
 
       // Notify signaling server
       sendSignalingMessage('quality-change', { quality })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to change quality:', error)
       connectionErrors.value.push(`Quality change failed: ${error.message}`)
     }
@@ -407,7 +408,7 @@ export const useWebRTC = (streamId: string) => {
         default:
           console.log('Unknown signaling message type:', type)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error handling signaling message:', error)
       connectionErrors.value.push(`Signaling error: ${error.message}`)
     }
@@ -418,7 +419,7 @@ export const useWebRTC = (streamId: string) => {
     if (!webrtcManager) return
 
     try {
-      const peer = await webrtcManager.createPeerConnection(
+      await webrtcManager.createPeerConnection(
         peerData.peerId,
         peerData.userId,
         peerData.username,
@@ -446,7 +447,7 @@ export const useWebRTC = (streamId: string) => {
           offer
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create peer connection:', error)
       connectionErrors.value.push(`Peer connection failed: ${error.message}`)
     }
@@ -464,7 +465,7 @@ export const useWebRTC = (streamId: string) => {
         toPeerId: data.fromPeerId,
         answer
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to handle offer:', error)
       connectionErrors.value.push(`Offer handling failed: ${error.message}`)
     }
@@ -476,7 +477,7 @@ export const useWebRTC = (streamId: string) => {
 
     try {
       await webrtcManager.handleAnswer(data.fromPeerId, data.answer)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to handle answer:', error)
       connectionErrors.value.push(`Answer handling failed: ${error.message}`)
     }

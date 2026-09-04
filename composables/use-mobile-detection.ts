@@ -3,7 +3,7 @@
 
 import { ref, onMounted, onUnmounted } from 'vue'
 
-export const useMobileDetection = () => {
+export const useMobileDetection = (_namespace?: string) => {
   const isMobile = ref(false)
   const screenSize = ref({ width: 0, height: 0 })
   const isTablet = ref(false)

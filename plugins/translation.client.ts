@@ -10,7 +10,7 @@ export default defineNuxtPlugin({
   // ✅ FIX: Force Pinia core to load first before importing stateful localization composables
   dependsOn: ['pinia'],
 
-  async setup(nuxtApp) {
+  async setup(_nuxtApp: any) {
     console.log('[Plugin] Translation plugin initializing...')
     
     try {

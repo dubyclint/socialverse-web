@@ -15,7 +15,7 @@ export default defineNuxtPlugin({
   // ✅ FIX: Ensure Pinia is loaded before Sonner initialization
   dependsOn: ['pinia'],
 
-  setup(nuxtApp) {
+  setup(nuxtApp: any) {
     if (!process.client) return
 
     console.log('[Sonner Plugin] Initializing Sonner toast notification system')

@@ -1,15 +1,15 @@
 // server/api/pewgift/index.post.ts
 import { 
-  authenticateUser, 
   validateBody, 
   handleError 
-} from '../../utils/auth-utils'
+} from '../../gateway/auth/auth-utils'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { rateLimit } from '../../utils/rate-limit-utils'
 import { giftOperations } from '../../utils/gift-operations-utils'
 
 export default defineEventHandler(async (event) => {
   try {
-    const user = await authenticateUser(event)
+  const user = await requireAuth(event)
     const body = await readBody(event)
     const { action } = body
 
@@ -19,8 +19,13 @@ export default defineEventHandler(async (event) => {
 
     if (action === 'send') {
       await rateLimit(10, 60000)(event) // 10 requests per minute
-      validateBody(body, ['recipient_id', 'gift_id', 'amount'])
-      result = await giftOperations.sendGift(user.id, body.recipient_id, body)
+      validateBody(body, ['recipient_id', 'gift_id'])
+      result = await giftOperations.sendGift(user.id, body.recipient_id, {
+        giftId: body.gift_id,
+        quantity: body.quantity,
+        streamId: body.stream_id,
+        message: body.message
+      })
     } 
     else if (action === 'history') {
       result = await giftOperations.getGiftHistory(user.id)

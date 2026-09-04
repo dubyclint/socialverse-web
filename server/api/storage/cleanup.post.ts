@@ -59,7 +59,7 @@ export default defineEventHandler(async (event): Promise<CleanupResponse> => {
     console.log('[Storage Cleanup API] Finding orphaned files...')
 
     // Get all tracked files
-    const { data: trackedFiles, error: trackedError } = await supabase
+    const { error: trackedError } = await supabase
       .from('file_uploads')
       .select('id, user_id, bucket, filename, file_size')
 
@@ -80,7 +80,6 @@ export default defineEventHandler(async (event): Promise<CleanupResponse> => {
     const { data: deletedUsers } = await supabase
       .from('file_uploads')
       .select('user_id')
-      .distinct()
 
     if (deletedUsers) {
       for (const record of deletedUsers) {

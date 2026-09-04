@@ -1,5 +1,7 @@
 // server/api/stream/history.get.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { getQuery } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -15,9 +17,9 @@ export default defineEventHandler(async (event) => {
       .select(`
         *,
         viewer_count:stream_viewers(count),
-        chat_count:stream_chat(count)
+        chat_count:stream_chats(count)
       `)
-      .eq('broadcaster_id', user.id)
+      .eq('creator_id', user.id)
       .order('started_at', { ascending: false })
       .range(offset, offset + limit - 1)
 

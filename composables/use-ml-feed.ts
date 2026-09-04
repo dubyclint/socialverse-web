@@ -4,7 +4,13 @@
 // ============================================================================
 import { ref, readonly } from 'vue'
 import type { Ref } from 'vue'
-import { useNuxtApp } from '#app'
+import type { ApiResponse } from '~/types/api'
+
+interface FeedData {
+  feed: FeedItem[]
+  nextCursor?: string | null
+  refreshToken?: string | null
+}
 
 interface FeedItem {
   id: string
@@ -34,11 +40,11 @@ interface InteractionData {
 
 interface MLFeedReturn {
   feedItems: Ref<readonly FeedItem[]>
-  isLoading: Ref<readonly boolean>
-  error: Ref<readonly any>
-  hasMore: Ref<readonly boolean>
-  nextCursor: Ref<readonly string | null>
-  refreshToken: Ref<readonly string | null>
+  isLoading: Ref<boolean>
+  error: Ref<any>
+  hasMore: Ref<boolean>
+  nextCursor: Ref<string | null>
+  refreshToken: Ref<string | null>
   generateFeed: (options?: FeedGenerationOptions) => Promise<any>
   loadMore: () => Promise<any>
   refresh: () => Promise<any>
@@ -71,8 +77,7 @@ export const useMLFeed = (): MLFeedReturn => {
    */
   const getFallbackFeed = async (): Promise<FeedItem[]> => {
     try {
-      const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/feed/fallback')
+      const result = await $fetch<ApiResponse<FeedData>>('/api/feed/fallback')
       return result.data?.feed || []
     } catch (err) {
       console.error('[ML Feed] Error fetching fallback feed:', err)
@@ -88,8 +93,7 @@ export const useMLFeed = (): MLFeedReturn => {
     error.value = null
 
     try {
-      const { $fetch } = useNuxtApp()
-      const response = await $fetch<any>('/api/ml/feed', {
+      const response = await $fetch<ApiResponse<FeedData>>('/api/ml/feed', {
         method: 'POST',
         body: {
           feedType: options.feedType || 'home',
@@ -101,7 +105,7 @@ export const useMLFeed = (): MLFeedReturn => {
         }
       })
 
-      const data = response?.data || response
+      const data: FeedData = response?.data || { feed: [] }
 
       if (options.append && feedItems.value.length > 0) {
         feedItems.value.push(...(data.feed || []))
@@ -152,8 +156,7 @@ export const useMLFeed = (): MLFeedReturn => {
    */
   const trackInteraction = async (interaction: InteractionData): Promise<void> => {
     try {
-      const { $fetch } = useNuxtApp()
-      await $fetch('/api/ml/interaction', {
+      await $fetch<ApiResponse<null>>('/api/ml/interaction', {
         method: 'POST',
         body: {
           itemId: interaction.itemId,

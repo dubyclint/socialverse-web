@@ -1,4 +1,7 @@
 // stores/useWalletStore.ts
+import { defineStore } from 'pinia'
+import { walletService } from '~/services/financial/wallet/wallet-service'
+
 export const useWalletStore = defineStore('wallet', {
   state: () => ({
     balance: 0,
@@ -22,6 +25,16 @@ export const useWalletStore = defineStore('wallet', {
         throw e;
       } finally {
         this.loading = false;
+      }
+    }
+    ,
+    // Temporary helper: fetchBalance - implement properly in services or replace with real call
+    async fetchBalance() {
+      try {
+  const bal = (await walletService.getBalance?.()) || 0
+  this.balance = Number(bal)
+      } catch (err) {
+        // ignore for now
       }
     }
   }

@@ -245,12 +245,25 @@ definePageMeta({
 })
 import { ref, computed, onMounted } from 'vue'
 
+interface Rank {
+  id: number
+  name: string
+  description?: string
+  level: number
+  pointsRequired: number
+  icon?: string
+  color: string
+  privileges: string[]
+  isActive: boolean
+  userCount?: number
+}
+
 // Reactive data
 const showAddForm = ref(false)
-const editingRank = ref(null)
+const editingRank = ref<Rank | null>(null)
 const saving = ref(false)
 
-const currentRank = ref({
+const currentRank = ref<Partial<Rank>>({
   name: '',
   description: '',
   level: 1,
@@ -261,7 +274,7 @@ const currentRank = ref({
   isActive: true
 })
 
-const ranks = ref([])
+const ranks = ref<Rank[]>([])
 
 const availablePrivileges = [
   { key: 'custom_profile', label: 'Custom Profile Theme' },
@@ -349,26 +362,31 @@ const loadRanks = async () => {
 }
 
 const saveRank = async () => {
-  if (!currentRank.value.name.trim()) return
+  if (!currentRank.value.name?.trim()) return
 
   saving.value = true
   try {
     if (editingRank.value) {
       // Update existing rank
-      const index = ranks.value.findIndex(r => r.id === editingRank.value.id)
+      const index = ranks.value.findIndex(r => r.id === editingRank.value!.id)
       if (index !== -1) {
-        ranks.value[index] = { ...editingRank.value, ...currentRank.value }
+        ranks.value[index] = { ...editingRank.value, ...currentRank.value } as Rank
       }
     } else {
       // Create new rank
-      const newRank = {
+      const newRank: Rank = {
         id: Date.now(),
         ...currentRank.value,
+        level: currentRank.value.level ?? 1,
+        pointsRequired: currentRank.value.pointsRequired ?? 0,
+        color: currentRank.value.color ?? 'gray',
+        privileges: currentRank.value.privileges ?? [],
+        isActive: currentRank.value.isActive ?? true,
         userCount: 0
-      }
+      } as Rank
       ranks.value.push(newRank)
     }
-    
+
     closeForm()
   } catch (error) {
     console.error('Error saving rank:', error)
@@ -377,13 +395,13 @@ const saveRank = async () => {
   }
 }
 
-const editRank = (rank) => {
+const editRank = (rank: Rank) => {
   editingRank.value = rank
   currentRank.value = { ...rank }
   showAddForm.value = true
 }
 
-const toggleRankStatus = async (rank) => {
+const toggleRankStatus = async (rank: Rank) => {
   try {
     rank.isActive = !rank.isActive
     // API call would go here
@@ -393,7 +411,7 @@ const toggleRankStatus = async (rank) => {
   }
 }
 
-const deleteRank = async (id) => {
+const deleteRank = async (id: number) => {
   if (!confirm('Are you sure you want to delete this rank? Users with this rank will be affected.')) {
     return
   }
@@ -421,12 +439,12 @@ const closeForm = () => {
   }
 }
 
-const getPrivilegeLabel = (key) => {
+const getPrivilegeLabel = (key: string) => {
   const privilege = availablePrivileges.find(p => p.key === key)
   return privilege ? privilege.label : key
 }
 
-const formatNumber = (num) => {
+const formatNumber = (num: number) => {
   return new Intl.NumberFormat().format(num)
 }
 

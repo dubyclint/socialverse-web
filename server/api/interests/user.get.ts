@@ -3,11 +3,13 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
-    const userId = event.context.user?.id
+    const user = await requireAuth(event)
+    const userId = user?.id
 
     // STEP 1: VERIFY AUTHENTICATION
     if (!userId) {
@@ -32,7 +34,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // STEP 3: EXTRACT INTEREST DETAILS
-    const interests = userInterests?.map(ui => ui.interests) || []
+  const interests = userInterests?.map((ui: any) => ui.interests) || []
 
     // STEP 4: GROUP BY CATEGORY
     const groupedInterests = interests.reduce((acc: any, interest: any) => {

@@ -45,7 +45,15 @@
   
 import { ref } from 'vue'
 
-const override = ref({
+interface UserOverride {
+  userId: string
+  overrideType: string
+  key: string
+  value: string
+  reason: string
+}
+
+const override = ref<UserOverride>({
   userId: '',
   overrideType: 'premium',
   key: '',
@@ -54,7 +62,7 @@ const override = ref({
 })
 
 const queryUserId = ref('')
-const overrides = ref([])
+const overrides = ref<UserOverride[]>([])
 
 async function fetchOverrides() {
   if (!queryUserId.value) return
@@ -71,7 +79,7 @@ async function saveOverride() {
   fetchOverrides()
 }
 
-async function removeOverride(o) {
+async function removeOverride(o: UserOverride) {
   await fetch('/api/admin/userOverrides', {
     method: 'DELETE',
     body: JSON.stringify({ userId: o.userId, key: o.key }),

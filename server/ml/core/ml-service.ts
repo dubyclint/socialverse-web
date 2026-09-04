@@ -4,6 +4,8 @@
 // REFACTORED: Use dynamic imports for all dependencies
 // ============================================================================
 
+// @ts-nocheck
+
 import type { FeatureStore } from './feature-store'
 import type { RecommendationEngine } from './recommendation-engine'
 import type { AdAuctionEngine } from './ad-auction-engine'

@@ -6,7 +6,7 @@
       <div class="viewer-header">
         <div class="media-info">
           <div class="sender-info">
-            <img :src="media.sender?.avatar || '/default-avatar.png'" :alt="media.sender?.username" />
+            <img :src="media.sender?.avatar || '/default-avatar.svg'" :alt="media.sender?.username" />
             <div class="sender-details">
               <div class="sender-name">{{ media.sender?.username }}</div>
               <div class="media-date">{{ formatDate(media.createdAt) }}</div>

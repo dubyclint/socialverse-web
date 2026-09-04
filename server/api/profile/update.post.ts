@@ -2,10 +2,20 @@
 // CORRECTED VERSION
 
 import { serverSupabaseClient } from '#supabase/server'
+import type { Database } from '~/types/database.types'
+
+type UserUpdate = Database['public']['Tables']['user']['Update']
+
+// Postgres rejects '' for date/uuid columns; the edit form sends it for cleared fields.
+const nullIfBlank = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length ? trimmed : null
+}
 
 export default defineEventHandler(async (event) => {
   try {
-    const supabase = await serverSupabaseClient(event)
+    const supabase = await serverSupabaseClient<Database>(event)
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -17,7 +27,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const updateData: any = {}
+    const updateData: UserUpdate = {}
 
     // Only include fields that are provided
     if (body.username !== undefined) updateData.username = body.username
@@ -26,6 +36,17 @@ export default defineEventHandler(async (event) => {
     if (body.cover_url !== undefined) updateData.cover_url = body.cover_url
     if (body.website !== undefined) updateData.website = body.website
     if (body.location !== undefined) updateData.location = body.location
+    if (body.birth_date !== undefined) updateData.birth_date = nullIfBlank(body.birth_date)
+    if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
+    if (body.is_private !== undefined) updateData.is_private = body.is_private
+
+    // The edit form calls it full_name; display_name is what the feed and
+    // profile cards read, so keep the two in step.
+    const name = body.full_name ?? body.display_name
+    if (name !== undefined) {
+      updateData.full_name = name
+      updateData.display_name = name
+    }
 
     updateData.updated_at = new Date().toISOString()
 
@@ -33,7 +54,7 @@ export default defineEventHandler(async (event) => {
     const { data, error } = await supabase
       .from('user')
       .update(updateData)
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .select()
       .single()
 

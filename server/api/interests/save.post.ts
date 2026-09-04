@@ -7,16 +7,11 @@ interface SaveInterestsRequest {
   interests: string[]
 }
 
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+
 export default defineEventHandler(async (event) => {
   try {
-    const user = event.context.user
-    
-    if (!user || !user.id) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
+    const user = await requireAuth(event)
 
     const body = await readBody<SaveInterestsRequest>(event)
 

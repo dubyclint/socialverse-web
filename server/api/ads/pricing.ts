@@ -3,9 +3,9 @@ export default defineEventHandler(async (event) => {
     return await db.collection('adPricing').find().toArray()
   }
 
-  const pricing = await readBody(event)
+  const pricing: any = await readBody(event)
   await db.collection('adPricing').deleteMany({})
-  await db.collection('adPricing').insertMany(Object.entries(pricing).map(([type, rates]) => ({
+  await db.collection('adPricing').insertMany(Object.entries(pricing).map(([type, rates]: [string, any]) => ({
     type, ...rates
   })))
 

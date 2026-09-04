@@ -247,7 +247,7 @@ const fetchTrades = async () => {
       query.status = statusFilter.value
     }
 
-    const { data } = await $fetch('/api/escrow', { query })
+    const { data } = await $fetch<{ data: { trades: EscrowTrade[]; total: number } }>('/api/escrow', { query })
 
     trades.value = data.trades
     totalTrades.value = data.total

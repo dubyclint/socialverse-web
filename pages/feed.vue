@@ -54,15 +54,24 @@
           </button>
           <NuxtLink to="/status" class="sidebar-item" @click="toggleSidebar"><Icon name="layers" size="18" /> <span>Statuses</span></NuxtLink>
           <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar"><Icon name="message-circle" size="18" /> <span>Chat</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
+          <NuxtLink to="/universe" class="sidebar-item" @click="toggleSidebar"><Icon name="globe" size="18" /> <span>Universe Chat</span></NuxtLink>
           <NuxtLink to="/notifications" class="sidebar-item" @click="toggleSidebar"><Icon name="bell" size="18" /> <span>Notifications</span><span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span></NuxtLink>
-          <NuxtLink to="/inbox" class="sidebar-item" @click="toggleSidebar"><Icon name="inbox" size="18" /> <span>Inbox</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
           <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar"><Icon name="compass" size="18" /> <span>Explore</span></NuxtLink>
           <div class="sidebar-divider"></div>
-          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P Trading</span></NuxtLink>
-          <NuxtLink to="/escrow" class="sidebar-item" @click="toggleSidebar"><Icon name="shield" size="18" /> <span>Escrow</span></NuxtLink>
+          <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create Post</span></NuxtLink>
+          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="video" size="18" /> <span>Live Streaming</span></NuxtLink>
+          <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar"><Icon name="heart" size="18" /> <span>Match</span></NuxtLink>
+          <NuxtLink to="/pal" class="sidebar-item" @click="toggleSidebar"><Icon name="users" size="18" /> <span>My PALs</span></NuxtLink>
+          <div class="sidebar-divider"></div>
           <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
+          <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="credit-card" size="18" /> <span>Wallet</span></NuxtLink>
+          <NuxtLink to="/pewgift" class="sidebar-item" @click="toggleSidebar"><Icon name="gift" size="18" /> <span>PewGift</span></NuxtLink>
+          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P Trading</span></NuxtLink>
+          <NuxtLink to="/p2p/sell" class="sidebar-item" @click="toggleSidebar"><Icon name="store" size="18" /> <span>Sell Pewgift</span></NuxtLink>
+          <NuxtLink to="/escrow" class="sidebar-item" @click="toggleSidebar"><Icon name="shield" size="18" /> <span>Escrow</span></NuxtLink>
           <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar"><Icon name="megaphone" size="18" /> <span>Ads</span></NuxtLink>
           <div class="sidebar-divider"></div>
+          <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar"><Icon name="life-buoy" size="18" /> <span>Support</span></NuxtLink>
           <NuxtLink to="/support-chat" class="sidebar-item" @click="toggleSidebar"><Icon name="headphones" size="18" /> <span>Agent Support</span></NuxtLink>
           <NuxtLink to="/terms-and-policy" class="sidebar-item" @click="toggleSidebar"><Icon name="file-text" size="18" /> <span>Policy & T&Cs</span></NuxtLink>
           <NuxtLink to="/settings" class="sidebar-item" @click="toggleSidebar"><Icon name="settings" size="18" /> <span>Settings</span></NuxtLink>
@@ -112,10 +121,14 @@
 
        <section class="feed-content">
         <div class="feed-tabs">
-          <button v-for="tab in feedTabs" :key="tab.id" :class="['feed-tab', { active: activeTab === tab.id }]" @click="activeTab = tab.id; refreshFeed()">
+          <button v-for="tab in feedTabs" :key="tab.id" :class="['feed-tab', { active: activeTab === tab.id }]" @click="activeTab = tab.id; refreshFeed(tab.id)">
             <Icon :name="tab.icon" size="18" /> <span>{{ tab.label }}</span>
           </button>
         </div>
+
+        <ClientOnly>
+          <LiveRail v-if="activeTab === 'for-you'" />
+        </ClientOnly>
 
         <ClientOnly>
           <div class="status-tray-container">
@@ -155,15 +168,17 @@
         <ClientOnly>
           <EmailVerificationBanner :isVerified="authStore.isEmailVerified" :email="authStore.userEmail" @send-verification="handleVerificationSent" @dismiss="handleBannerDismissed" @verified="handleEmailVerified" />
           <div v-if="postsLoading && posts.length === 0" class="loading-state"><div class="spinner"></div><p>Loading posts...</p></div>
-          <div v-else-if="posts.length > 0" class="posts-list">
-            <article v-for="post in posts" :key="post.id" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
+          <div v-else-if="feedItems.length > 0" class="posts-list">
+            <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
+            <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
+            <article v-for="post in postOf(item)" :key="post.id" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
               <div class="post-header">
                 <img :src="post.author?.avatar_url || '/default-avatar.svg'" :alt="post.author?.full_name" class="post-avatar" @click="goToUserProfile(post.author?.username, post.author?.id)" :style="{ cursor: post.author?.id ? 'pointer' : 'default' }" :title="post.author?.id ? 'View profile' : 'Profile unavailable'" />
                 <div class="post-author-info">
                   <div class="author-name-row"><h4 class="post-author-name">{{ post.author?.full_name }}</h4><span v-if="post.author?.verified" class="verified-badge" title="Verified"><Icon name="check-circle" size="14" /></span></div>
                   <p class="post-author-username">@{{ post.author?.username }}</p>
                   <span class="post-timestamp">
-                    <UseTimeAgo v-slot="{ timeAgo }" :time="post.created_at">{{ timeAgo }}</UseTimeAgo>
+                    {{ formatTimeAgo(post.created_at) }}
                   </span>
                 </div>
                 <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options"><Icon name="more-vertical" size="20" /></button>
@@ -184,6 +199,7 @@
               </div>
               <PostInteractionToolbar :post="post" @open-gift="openGiftModal" />
             </article>
+            </template>
             <div v-if="hasMorePosts" class="load-more">
               <button v-if="!loadingMore" @click="loadMorePosts" class="btn-load-more">Load More Posts</button>
               <div v-else class="loading-more"><div class="spinner-small"></div> <span>Loading...</span></div>
@@ -194,6 +210,7 @@
             <div class="no-posts-actions"><NuxtLink to="/explore" class="btn-explore"><Icon name="compass" size="18" /> Explore People</NuxtLink><button @click="goToCreatePost" class="btn-create"><Icon name="plus-square" size="18" /> Create Post</button></div>
           </div>
         </ClientOnly>
+        </section>
 
         <aside class="feed-sidebar-right">
           <div class="search-card">
@@ -254,10 +271,11 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, navigateTo } from '#app';
 import { useSocialFeed } from '~/composables/useSocialFeed';
-import { UseTimeAgo } from '@vueuse/components';
 import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
-import PewGiftModal from '~/components/PewGiftModal.vue';
+import PewGiftModal from '~/components/modals/PewGiftModal.vue';
+import LiveRail from '~/components/feed/live-rail.vue';
+import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
 
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
@@ -272,8 +290,26 @@ const {
   unreadMessages, unreadNotifications, authStore,
   profileLoading, profileError, retryProfileLoad, userFollowers, 
   userFollowing, userPosts, goToFollowers, goToFollowing, 
-  goToUserPosts, isLiveStreaming, sendPewGift
+  goToUserPosts, isLiveStreaming, feedItems
 } = socialFeed;
+
+// --- Relative time formatting ---
+const formatTimeAgo = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+};
+
+// Ranked feed items include sponsored slots; posts render through this alias.
+const postOf = (item) => (item.type === 'post' ? [item.post] : []);
 
 // --- Modal State Management ---
 const isGiftModalOpen = ref(false);
@@ -284,23 +320,27 @@ const openGiftModal = (post) => {
   isGiftModalOpen.value = true;
 };
 
-const handleConfirmGift = async ({ postId, amount }) => {
-  await sendPewGift(postId, amount);
+const handleConfirmGift = () => {
   isGiftModalOpen.value = false;
   activeGiftPost.value = null;
 };
 
 // --- Local UI State ---
 const route = useRoute();
+const feedTabs = [
+  { id: 'for-you', label: 'For You', icon: 'sparkles' },
+  { id: 'following', label: 'Following', icon: 'users' },
+  { id: 'trending', label: 'Trending', icon: 'trending-up' },
+];
 const activeTab = ref('for-you'); 
 const searchQuery = ref('');
 const activePostMenu = ref(null);
 
 // --- Navigation & Action Handlers ---
 const goToCreatePost = () => navigateTo('/posts/create');
-const goToProfilePage = () => navigateTo(`/profile/${userUsername.value}`);
+const goToProfilePage = () => navigateTo('/profile');
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
-const goToSettingsProfile = () => navigateTo('/settings/profile');
+const goToSettingsProfile = () => navigateTo('/profile/edit');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
 
 const togglePostMenu = (id) => { activePostMenu.value = activePostMenu.value === id ? null : id; };
@@ -356,11 +396,29 @@ onMounted(async () => {
 }
 
 /* ============================================================================
+   AVATARS
+   Sized explicitly: an uploaded photo otherwise renders at its natural size
+   and blows the layout apart.
+   ============================================================================ */
+.user-avatar-wrapper, .profile-avatar-wrapper, .node-avatar-wrapper { position: relative; display: inline-flex; flex: 0 0 auto; }
+.user-avatar, .profile-avatar, .node-avatar, .create-post-avatar,
+.post-avatar, .rec-avatar, .lightbox-author-avatar, .skeleton-avatar {
+  border-radius: 9999px; object-fit: cover; flex: 0 0 auto; background-color: #334155;
+}
+.user-avatar { width: 2.25rem; height: 2.25rem; }
+.profile-avatar { width: 5rem; height: 5rem; border: 2px solid #3b82f6; }
+.node-avatar { width: 3.5rem; height: 3.5rem; border: 2px solid #3b82f6; }
+.create-post-avatar, .post-avatar, .lightbox-author-avatar { width: 2.5rem; height: 2.5rem; }
+.rec-avatar, .skeleton-avatar { width: 2.25rem; height: 2.25rem; }
+
+/* ============================================================================
    HEADER & NAVIGATION
    ============================================================================ */
 .feed-header { position: sticky; top: 0; z-index: 50; background-color: #1e293b; border-bottom: 1px solid #334155; }
 .header-top { display: flex; align-items: center; justify-content: space-between; height: 4rem; max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
 .header-left, .header-center, .header-right { display: flex; align-items: center; }
+.logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #f8fafc; font-weight: 600; }
+.logo-img { width: 32px; height: 32px; flex-shrink: 0; }
 .menu-btn { background: none; border: none; color: #94a3b8; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s; }
 .menu-btn:hover { color: #f8fafc; background-color: #334155; }
 .nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; }

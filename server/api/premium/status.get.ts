@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { checkPremiumStatus } from '../middleware/premium-check';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {

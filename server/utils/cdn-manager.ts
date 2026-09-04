@@ -1,6 +1,13 @@
 // ============================================================================
-// FILE: /server/utils/cdn-manager.ts - FIXED WITH LAZY LOADING
+// FILE: /server/utils/cdn-manager.ts - AWS SDK v3
 // ============================================================================
+
+import { S3Client } from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
+import {
+  CloudFrontClient,
+  CreateInvalidationCommand
+} from '@aws-sdk/client-cloudfront'
 
 interface CDNUploadResult {
   success: boolean
@@ -16,62 +23,42 @@ interface InvalidationResult {
   error?: string
 }
 
-// Lazy load AWS SDK only when needed
-let AWS: any = null
-let S3: any = null
-let CloudFront: any = null
-
-async function loadAWS() {
-  if (!AWS) {
-    const awsSdk = await import('aws-sdk')
-    AWS = awsSdk.default
-    S3 = awsSdk.S3
-    CloudFront = awsSdk.CloudFront
-  }
-  return { AWS, S3, CloudFront }
-}
-
 export class CDNManager {
-  private s3Client: any = null
-  private cloudFrontClient: any = null
+  private s3Client: S3Client | null = null
+  private cloudFrontClient: CloudFrontClient | null = null
   private initialized = false
 
-  async initialize() {
+  initialize() {
     if (this.initialized) return
 
-    try {
-      const { S3, CloudFront } = await loadAWS()
-      
-      this.s3Client = new S3({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || 'us-east-1'
-      })
-
-      this.cloudFrontClient = new CloudFront({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-      })
-
-      this.initialized =console.log('[CDN Manager] Initialized successfully')
-    } catch (error) {
-      console.error('[CDN Manager] Failed to initialize:', error)
-      throw error
+    const region = process.env.AWS_REGION || 'us-east-1'
+    const credentials = {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
     }
+
+    this.s3Client = new S3Client({ region, credentials })
+    this.cloudFrontClient = new CloudFrontClient({ region, credentials })
+
+    this.initialized = true
+    console.log('[CDN Manager] Initialized successfully')
   }
 
   async uploadFile(file: Buffer, key: string): Promise<CDNUploadResult> {
     try {
-      await this.initialize()
+      this.initialize()
 
-      const params = {
-        Bucket: process.env.AWS_S3_BUCKET || '',
-        Key: key,
-        Body: file,
-        ACL: 'public-read'
-      }
+      const upload = new Upload({
+        client: this.s3Client!,
+        params: {
+          Bucket: process.env.AWS_S3_BUCKET || '',
+          Key: key,
+          Body: file,
+          ACL: 'public-read'
+        }
+      })
 
-      const result = await this.s3Client.upload(params).promise()
+      const result = await upload.done()
 
       return {
         success: true,
@@ -90,9 +77,9 @@ export class CDNManager {
 
   async invalidateCache(paths: string[]): Promise<InvalidationResult> {
     try {
-      await this.initialize()
+      this.initialize()
 
-      const params = {
+      const command = new CreateInvalidationCommand({
         DistributionId: process.env.AWS_CLOUDFRONT_DISTRIBUTION_ID || '',
         InvalidationBatch: {
           CallerReference: `${Date.now()}`,
@@ -101,13 +88,13 @@ export class CDNManager {
             Items: paths
           }
         }
-      }
+      })
 
-      const result = await this.cloudFrontClient.createInvalidation(params).promise()
+      const result = await this.cloudFrontClient!.send(command)
 
       return {
         success: true,
-        invalidationId: result.Invalidation.Id
+        invalidationId: result.Invalidation?.Id
       }
     } catch (error) {
       console.error('[CDN Manager] Invalidation failed:', error)

@@ -3,8 +3,8 @@
 // Load balancer middleware for stream routing
 // ============================================================================
 
-import { H3Event } from 'h3';
-import { LoadBalancer } from '../../utils/load-balancer';
+import type { H3Event } from 'h3';
+
 
 export interface StreamServerSelection {
   serverId: string;
@@ -24,14 +24,14 @@ export async function selectStreamServer(
   } = {}
 ): Promise<StreamServerSelection | null> {
   try {
-    const loadBalancer = event.context.loadBalancer as LoadBalancer;
+    const loadBalancer = event.context.loadBalancer as any;
     
     if (!loadBalancer) {
       console.error('Load Balancer not initialized');
       return null;
     }
 
-    const server = loadBalancer.getBestServer({
+    const server = (loadBalancer as any).getBestServer({
       region: options.region,
       protocol: options.protocol || 'webrtc',
       quality: options.quality || '720p',
@@ -58,16 +58,16 @@ export async function trackStreamLoad(
   action: 'add' | 'remove'
 ): Promise<void> {
   try {
-    const loadBalancer = event.context.loadBalancer as LoadBalancer;
+    const loadBalancer = event.context.loadBalancer as any;
     
     if (!loadBalancer) {
       return;
     }
 
     if (action === 'add') {
-      loadBalancer.addServerLoad(serverId, streamId);
+      (loadBalancer as any).addServerLoad(serverId, streamId);
     } else {
-      loadBalancer.removeServerLoad(serverId, streamId);
+      (loadBalancer as any).removeServerLoad(serverId, streamId);
     }
   } catch (error) {
     console.error('Error tracking stream load:', error);
@@ -78,13 +78,13 @@ export async function getServerHealth(
   event: H3Event
 ): Promise<{ [key: string]: any } | null> {
   try {
-    const loadBalancer = event.context.loadBalancer as LoadBalancer;
+    const loadBalancer = event.context.loadBalancer as any;
     
     if (!loadBalancer) {
       return null;
     }
 
-    return loadBalancer.getServerStats?.();
+    return (loadBalancer as any).getServerStats?.();
   } catch (error) {
     console.error('Error getting server health:', error);
     return null;
