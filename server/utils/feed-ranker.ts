@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
+import { CANDIDATE_COLUMNS, getAuthors, getCandidatePool } from '~/server/utils/feed-cache'
+import type { CandidatePost } from '~/server/utils/feed-cache'
 
 export interface FeedRankingWeights {
   like_weight: number
@@ -157,33 +159,49 @@ export const rankPosts = async (
 
   if (tab === 'following' && followingIds.size === 0) return []
 
-  let candidateQuery = client
-    .from('posts')
-    .select(
-      'id, user_id, content, media_urls, hashtags, likes_count, comments_count, shares_count, created_at'
-    )
-    .eq('is_draft', false)
-    .is('scheduled_at', null)
-    .in('privacy', ['public', 'friends'])
+  // Public posts come from the shared cached pool; anything with restricted
+  // visibility is read through the viewer's own client so RLS decides what they
+  // are allowed to see. Only the scoring is personal.
+  // The viewer's own posts are read uncached so a post they just published is
+  // in their feed immediately rather than after the pool TTL.
+  const [publicPool, { data: restricted }, { data: own }] = await Promise.all([
+    getCandidatePool(weights.candidate_pool, tab),
+    client
+      .from('posts')
+      .select(CANDIDATE_COLUMNS)
+      .eq('is_draft', false)
+      .is('scheduled_at', null)
+      .neq('privacy', 'public')
+      .order('created_at', { ascending: false })
+      .limit(weights.candidate_pool),
+    client
+      .from('posts')
+      .select(CANDIDATE_COLUMNS)
+      .eq('user_id', userId)
+      .eq('is_draft', false)
+      .is('scheduled_at', null)
+      .order('created_at', { ascending: false })
+      .limit(25)
+  ])
 
-  if (tab === 'following') {
-    candidateQuery = candidateQuery.in('user_id', Array.from(followingIds))
+  const byId = new Map<string, CandidatePost>()
+  for (const row of [
+    ...publicPool,
+    ...((restricted ?? []) as CandidatePost[]),
+    ...((own ?? []) as CandidatePost[])
+  ]) {
+    byId.set(row.id, row)
   }
 
-  const { data: candidates, error } = await candidateQuery
-    .order('created_at', { ascending: false })
-    .limit(weights.candidate_pool)
+  const rows: CandidatePost[] =
+    tab === 'following'
+      ? Array.from(byId.values()).filter(row => followingIds.has(row.user_id))
+      : Array.from(byId.values())
 
-  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-
-  const rows = candidates ?? []
   if (!rows.length) return []
 
-  const [{ data: authors }, { data: likes }] = await Promise.all([
-    client
-      .from('user')
-      .select('user_id, username, display_name, full_name, avatar_url, is_verified')
-      .in('user_id', Array.from(new Set(rows.map(row => row.user_id)))),
+  const [authors, { data: likes }] = await Promise.all([
+    getAuthors(Array.from(new Set(rows.map(row => row.user_id)))),
     client
       .from('post_likes')
       .select('post_id')
@@ -191,7 +209,7 @@ export const rankPosts = async (
       .in('post_id', rows.map(row => row.id))
   ])
 
-  const authorById = new Map((authors ?? []).map(author => [author.user_id, author]))
+  const authorById = new Map(authors.map(author => [author.user_id, author]))
   const likedPostIds = new Set((likes ?? []).map(like => like.post_id))
   const now = Date.now()
 
