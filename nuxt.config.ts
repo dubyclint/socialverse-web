@@ -4,10 +4,14 @@
 
 import { fileURLToPath } from 'node:url'
 
+// `CAPACITOR_BUILD=true nuxi generate` produces the static SPA bundle the native
+// shells load; the default build stays SSR for the web.
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true'
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
-  ssr: true,
+  ssr: !isCapacitorBuild,
 
   future: {
     compatibilityVersion: 4,
@@ -36,6 +40,7 @@ export default defineNuxtConfig({
     { src: '~/plugins/00-init-sequence.client', mode: 'client' },
     { src: '~/plugins/socialverse-socket.client', mode: 'client' },
     { src: '~/plugins/session-timeout.client', mode: 'client' },
+    { src: '~/plugins/platform.client', mode: 'client' },
   ],
 
   supabase: {
@@ -98,6 +103,8 @@ export default defineNuxtConfig({
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
       enablePremium: true,
       enableAnalytics: true,
+      isCapacitorBuild,
+      appDomain: process.env.NUXT_PUBLIC_APP_DOMAIN || process.env.NUXT_PUBLIC_SITE_URL || '',
     },
   },
 
@@ -105,6 +112,7 @@ export default defineNuxtConfig({
     '~/assets/css/app.css',
     '~/assets/css/main.css',
     '~/assets/css/transitions.css',
+    '~/assets/css/platform.css',
     'vue-virtual-scroller/dist/vue-virtual-scroller.css'
   ],
   
@@ -167,7 +175,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    preset: process.env.NITRO_PRESET || 'node-server',
+    preset: isCapacitorBuild ? 'static' : (process.env.NITRO_PRESET || 'node-server'),
     minify: true,
     sourceMap: false,
     compressPublicAssets: true,
@@ -175,13 +183,13 @@ export default defineNuxtConfig({
     experimental: {
       websocket: true,
     },
-    plugins: [
-      '~/server/gateway/socket/plugin.ts',
-    ],
-    prerender: {
-      crawlLinks: true,
-      routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],
-      ignore: ['/admin'],
-    },
+    plugins: isCapacitorBuild ? [] : ['~/server/gateway/socket/plugin.ts'],
+    prerender: isCapacitorBuild
+      ? { crawlLinks: false, routes: [], ignore: ['/'] }
+      : {
+          crawlLinks: true,
+          routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],
+          ignore: ['/admin'],
+        },
   },
 })
