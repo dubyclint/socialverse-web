@@ -1,49 +1,66 @@
-// server/api/posts/[id]/comments.get.ts
-// ============================================================================
-// GET POST COMMENTS
-// ============================================================================
-
 import { serverSupabaseClient } from '#supabase/server'
+import type { Database } from '~/types/database.types'
 
-export default defineEventHandler(async (event) => {
-  try {
-    const postId = getRouterParam(event, 'id')
-    const query = getQuery(event)
-    const limit = Math.min(parseInt(query.limit as string) || 20, 50)
-    const offset = parseInt(query.offset as string) || 0
+export interface PostCommentView {
+  id: string
+  postId: string
+  parentId: string | null
+  content: string
+  createdAt: string
+  author: {
+    id: string
+    username: string
+    name: string
+    avatar: string | null
+  }
+}
 
-    const supabase = await serverSupabaseClient(event)
+export default defineEventHandler(async (event): Promise<{ success: boolean, data: PostCommentView[] }> => {
+  const postId = getRouterParam(event, 'id')
+  if (!postId) throw createError({ statusCode: 400, statusMessage: 'Post id is required' })
 
-    // Get comments with user info
-    const { data: comments, error } = await supabase
-      .from('post_comments')
-      .select(`
-        *,
-        profiles (id, username, avatar_url),
-        comment_likes (id)
-      `)
-      .eq('post_id', postId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+  const query = getQuery(event)
+  const limit = Math.min(50, Math.max(1, Number.parseInt(String(query.limit ?? '20'), 10) || 20))
+  const offset = Math.max(0, Number.parseInt(String(query.offset ?? '0'), 10) || 0)
 
-    if (error) throw error
+  const client = await serverSupabaseClient<Database>(event)
 
-    // Format comments
-    const formattedComments = comments?.map((comment: any) => ({
-      ...comment,
-      likes_count: comment.comment_likes?.length || 0,
-      user: comment.profiles
-    })) || []
+  const { data: comments, error } = await client
+    .from('post_comments')
+    .select('id, post_id, parent_id, comment_text, created_at, user_id')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true })
+    .range(offset, offset + limit - 1)
 
-    return {
-      success: true,
-      data: formattedComments
-    }
-  } catch (error: any) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Failed to fetch comments'
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+
+  const authorIds = Array.from(new Set((comments ?? []).map(row => row.user_id)))
+  const { data: authors } = authorIds.length
+    ? await client
+        .from('user')
+        .select('user_id, username, display_name, full_name, avatar_url')
+        .in('user_id', authorIds)
+    : { data: [] }
+
+  const authorById = new Map((authors ?? []).map(row => [row.user_id, row]))
+
+  return {
+    success: true,
+    data: (comments ?? []).map((row) => {
+      const author = authorById.get(row.user_id)
+      return {
+        id: row.id,
+        postId: row.post_id,
+        parentId: row.parent_id,
+        content: row.comment_text,
+        createdAt: row.created_at,
+        author: {
+          id: row.user_id,
+          username: author?.username ?? 'unknown',
+          name: author?.full_name || author?.display_name || author?.username || 'Unknown user',
+          avatar: author?.avatar_url ?? null
+        }
+      }
     })
   }
 })
