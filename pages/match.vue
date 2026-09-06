@@ -38,11 +38,15 @@
             </select>
           </div>
 
-          <button type="submit" class="btn-submit">Find Group</button>
+          <button type="submit" class="btn-submit" :disabled="loading">
+            {{ loading ? 'Finding…' : 'Find Group' }}
+          </button>
         </form>
 
+        <p v-if="error" class="match-error">{{ error }}</p>
+
         <div v-if="groups.length > 0" class="groups-list">
-          <div v-for="group in groups" :key="group.groupScore" class="group-card">
+          <div v-for="(group, index) in groups" :key="index" class="group-card">
             <div class="group-header">
               <h4>Group Score: {{ group.groupScore }}</h4>
               <span class="group-size">{{ group.members.length }} members</span>
@@ -57,7 +61,7 @@
           </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-else-if="!loading" class="empty-state">
           <Icon name="users" size="48" />
           <p>No groups found. Try adjusting your filters.</p>
         </div>
@@ -89,8 +93,12 @@ const filters = ref({
 
 interface MatchGroupMember {
   id: string
-  avatar?: string | null
+  username: string
   name: string
+  avatar: string | null
+  rank: string | null
+  isVerified: boolean
+  matchScore: number
 }
 
 interface MatchGroup {
@@ -100,15 +108,22 @@ interface MatchGroup {
 
 const groups = ref<MatchGroup[]>([])
 const loading = ref(false)
+const error = ref('')
 
 const submit = async () => {
   loading.value = true
+  error.value = ''
   try {
-    console.log('Finding groups with filters:', filters.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    groups.value = await $fetch<MatchGroup[]>('/api/match/group', {
+      query: {
+        size: filters.value.size,
+        region: filters.value.region,
+        category: filters.value.category
+      }
+    })
+  } catch (err) {
     groups.value = []
-  } catch (error) {
-    console.error('Error finding groups:', error)
+    error.value = err instanceof Error ? err.message : 'Could not load matches'
   } finally {
     loading.value = false
   }
@@ -126,6 +141,11 @@ const submit = async () => {
 
 .page-header {
   margin-bottom: 2rem;
+}
+
+.match-error {
+  color: #f87171;
+  margin: 0 0 1rem 0;
 }
 
 .page-header h1 {

@@ -2,13 +2,14 @@ import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { DEFAULT_RANKING, rankPosts } from '~/server/utils/feed-ranker'
 import { loadConfig } from '~/server/utils/platform-config'
-import type { FeedRankingWeights, RankedPost } from '~/server/utils/feed-ranker'
+import type { FeedRankingWeights, FeedTab, RankedPost } from '~/server/utils/feed-ranker'
 import type { Database } from '~/types/database.types'
 
 interface FeedResponse {
   success: boolean
   data: {
     posts: RankedPost[]
+    tab: FeedTab
     page: number
     limit: number
     hasMore: boolean
@@ -26,12 +27,14 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
   const query = getQuery(event)
   const page = Math.max(1, Number.parseInt(String(query.page ?? '1'), 10) || 1)
   const limit = Math.min(50, Math.max(1, Number.parseInt(String(query.limit ?? '12'), 10) || 12))
+  const requestedTab = String(query.tab ?? 'for-you')
+  const tab: FeedTab = requestedTab === 'following' || requestedTab === 'trending' ? requestedTab : 'for-you'
 
   const weights = await loadConfig<FeedRankingWeights>(supabase, 'feed_ranking', DEFAULT_RANKING)
-  const posts = await rankPosts(supabase, user.id, limit, (page - 1) * limit, weights)
+  const posts = await rankPosts(supabase, user.id, limit, (page - 1) * limit, weights, tab)
 
   return {
     success: true,
-    data: { posts, page, limit, hasMore: posts.length === limit }
+    data: { posts, tab, page, limit, hasMore: posts.length === limit }
   }
 })

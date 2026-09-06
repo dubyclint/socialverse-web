@@ -1,24 +1,44 @@
-// services/interestsService.ts
-const $fetchLocal = (globalThis as any).$fetch ?? (async () => { throw new Error('$fetch not available') })
+import { api } from './http'
+import type { Interest } from '~/types/interests'
+
+interface InterestListResponse {
+  success: boolean
+  data: Interest[]
+}
+
+interface UserInterestsResponse {
+  success: boolean
+  interests: Interest[]
+  grouped: Record<string, Interest[]>
+  total: number
+}
+
+interface MutationResponse {
+  success: boolean
+  message?: string
+  error?: string
+}
 
 export const interestsService = {
-  async fetchAll() {
-    return await $fetchLocal('/api/interests/list')
+  async fetchAll(): Promise<Interest[]> {
+    const res = await api<InterestListResponse>('/interests/list')
+    return res.data ?? []
   },
 
-  async fetchUserInterests() {
-    return await $fetchLocal('/api/interests/user')
+  async fetchUserInterests(): Promise<Interest[]> {
+    const res = await api<UserInterestsResponse>('/interests/user')
+    return res.interests ?? []
   },
 
-  async add(interestId: string) {
-    return await $fetchLocal('/api/interests/add', {
+  async add(interestId: string): Promise<MutationResponse> {
+    return await api<MutationResponse>('/interests/add', {
       method: 'POST',
       body: { interestId }
     })
   },
 
-  async remove(interestId: string) {
-    return await $fetchLocal('/api/interests/remove', {
+  async remove(interestId: string): Promise<MutationResponse> {
+    return await api<MutationResponse>('/interests/remove', {
       method: 'POST',
       body: { interestId }
     })
