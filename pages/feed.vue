@@ -171,7 +171,7 @@
           <div v-else-if="feedItems.length > 0" class="posts-list">
             <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
             <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
-            <article v-for="post in postOf(item)" :key="post.id" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
+            <article v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
               <div class="post-header">
                 <img :src="post.author?.avatar_url || '/default-avatar.svg'" :alt="post.author?.full_name" class="post-avatar" @click="goToUserProfile(post.author?.username, post.author?.id)" :style="{ cursor: post.author?.id ? 'pointer' : 'default' }" :title="post.author?.id ? 'View profile' : 'Profile unavailable'" />
                 <div class="post-author-info">
@@ -290,7 +290,7 @@ const {
   unreadMessages, unreadNotifications, authStore,
   profileLoading, profileError, retryProfileLoad, userFollowers, 
   userFollowing, userPosts, goToFollowers, goToFollowing, 
-  goToUserPosts, isLiveStreaming, feedItems
+  goToUserPosts, isLiveStreaming, feedItems, trackImpression
 } = socialFeed;
 
 // --- Relative time formatting ---

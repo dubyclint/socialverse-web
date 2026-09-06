@@ -11,6 +11,7 @@ export interface FeedRankingWeights {
   affinity_boost: number
   gravity: number
   candidate_pool: number
+  seen_penalty: number
 }
 
 export interface AdServingConfig {
@@ -33,7 +34,8 @@ export const DEFAULT_RANKING: FeedRankingWeights = {
   interest_boost: 2,
   affinity_boost: 1.8,
   gravity: 1.5,
-  candidate_pool: 300
+  candidate_pool: 300,
+  seen_penalty: 0.35
 }
 
 export const DEFAULT_ADS: AdServingConfig = {
@@ -68,6 +70,7 @@ export interface RankedPost {
   author: FeedAuthor | null
   score: number
   reason: 'following' | 'interest' | 'affinity' | 'popular'
+  seen: boolean
 }
 
 export interface InAppAd {
@@ -113,11 +116,11 @@ export const rankPosts = async (
     client.from('user_interests').select('interest_id').eq('user_id', userId),
     client
       .from('user_interactions')
-      .select('item_id, item_type')
+      .select('item_id, interaction_type')
       .eq('user_id', userId)
       .eq('item_type', 'post')
       .order('created_at', { ascending: false })
-      .limit(200)
+      .limit(500)
   ])
 
   const followingIds = new Set((following ?? []).map(row => row.following_id))
@@ -132,13 +135,23 @@ export const rankPosts = async (
     interestTags = new Set((interests ?? []).map(row => row.name.toLowerCase()))
   }
 
-  const interactedPostIds = (interactions ?? []).map(row => row.item_id)
+  // A passive impression means "already seen"; an explicit action means the
+  // viewer engages with that author, which is the affinity signal.
+  const seenPostIds = new Set(
+    (interactions ?? [])
+      .filter(row => row.interaction_type === 'view' || row.interaction_type === 'hide')
+      .map(row => row.item_id)
+  )
+  const engagedPostIds = (interactions ?? [])
+    .filter(row => row.interaction_type !== 'view' && row.interaction_type !== 'hide')
+    .map(row => row.item_id)
+
   let affinityAuthorIds = new Set<string>()
-  if (interactedPostIds.length) {
+  if (engagedPostIds.length) {
     const { data: interactedPosts } = await client
       .from('posts')
       .select('user_id')
-      .in('id', interactedPostIds)
+      .in('id', engagedPostIds)
     affinityAuthorIds = new Set((interactedPosts ?? []).map(row => row.user_id))
   }
 
@@ -194,8 +207,15 @@ export const rankPosts = async (
 
     if (tab === 'trending') score = engagement
 
+    // Interests match a hashtag, or the interest name appearing in the body,
+    // so posts that were never hashtagged can still be ranked on interest.
+    const body = (row.content ?? '').toLowerCase()
+    const matchesInterest =
+      hashtags.some(tag => interestTags.has(tag)) ||
+      Array.from(interestTags).some(tag => tag.length > 3 && body.includes(tag))
+
     let reason: RankedPost['reason'] = 'popular'
-    if (tab !== 'trending' && hashtags.some(tag => interestTags.has(tag))) {
+    if (tab !== 'trending' && matchesInterest) {
       score *= weights.interest_boost
       reason = 'interest'
     }
@@ -207,6 +227,9 @@ export const rankPosts = async (
       score *= weights.following_boost
       reason = 'following'
     }
+
+    const seen = seenPostIds.has(row.id)
+    if (seen && tab !== 'trending') score *= weights.seen_penalty
 
     const author = authorById.get(row.user_id)
 
@@ -230,7 +253,8 @@ export const rankPosts = async (
           }
         : null,
       score,
-      reason
+      reason,
+      seen
     }
   })
 

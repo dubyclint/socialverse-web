@@ -96,6 +96,7 @@ const guessMediaType = (url: string | null): 'image' | 'video' | 'text' => {
 
 export const useSocialFeed = () => {
   const router = useRouter()
+  const tracking = useFeedTracking()
   const userStore = useUserStore()
   const supabase = useSupabaseClient()
   const supabaseUser = useSupabaseUser()
@@ -433,6 +434,7 @@ export const useSocialFeed = () => {
 
   const likePost = async (postId: string): Promise<boolean> => {
     if (!currentUserId.value) return false
+    tracking.track(postId, 'like')
 
     const post = posts.value.find((p) => p.id === postId)
 
@@ -466,6 +468,7 @@ export const useSocialFeed = () => {
   }
 
   const commentPost = (postId: string) => {
+    tracking.track(postId, 'comment')
     router.push(`/posts/${postId}`)
   }
 
@@ -475,6 +478,7 @@ export const useSocialFeed = () => {
     if (!currentUserId.value || !post?.author) return false
 
     try {
+      tracking.track(postId, 'share')
       await $fetch('/api/pewgift/send-to-posts', {
         method: 'POST',
         body: {
@@ -501,6 +505,8 @@ export const useSocialFeed = () => {
     // posts
     posts,
     feedItems,
+    trackImpression: tracking.trackImpression,
+    trackInteraction: tracking.track,
     postsLoading,
     hasMorePosts,
     loadingMore,
