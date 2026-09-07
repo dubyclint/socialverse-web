@@ -85,7 +85,21 @@ verification. Custom scheme for OAuth callbacks: `viorp://`.
 | In-app account deletion | Settings → Delete account (`/settings/delete-account`) |
 | External deletion request | https://viorp.com/settings/delete-account, or privacy@viorp.com |
 
-## 7. Listing copy
+## 7. Desktop (Electron)
+
+The desktop shell lives in `electron/` and loads the same static bundle as the mobile builds.
+
+```bash
+npm run electron:build   # CAPACITOR_BUILD=true nuxt generate + cap sync
+npm run electron:start   # loads .output/public/index.html
+npm run electron:dev     # loads http://localhost:3000 instead
+```
+
+`preload.js` exposes only `window.viorpDesktop` (platform flag + `viorp://` deep-link callback);
+context isolation and sandbox are on, node integration off, and external links open in the
+system browser.
+
+## 8. Listing copy
 
 - **Name:** Viorp
 - **Subtitle:** Connect, share and grow

@@ -6,6 +6,10 @@ declare global {
     ethereum?: import('ethers').Eip1193Provider
     Hls?: unknown
     __appPluginReady?: boolean
+    viorpDesktop?: {
+      platform: 'electron'
+      onDeepLink: (handler: (url: string) => void) => void
+    }
   }
 
   // Media capture extensions used by mobile camera streaming (torch/flash).

@@ -12,6 +12,7 @@ export const useDevicePlatform = () => {
   const platform = computed<DevicePlatform>(() => {
     const detected = Capacitor.getPlatform()
     if (detected === 'android' || detected === 'ios' || detected === 'electron') return detected
+    if (import.meta.client && window.viorpDesktop?.platform === 'electron') return 'electron'
     return 'web'
   })
 
