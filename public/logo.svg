@@ -1,8 +1,15 @@
-<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="120" height="120" rx="28" fill="#0A0F1E"/>
-  <path d="M32 34 L60 88" stroke="#6FFFD4" stroke-width="8" stroke-linecap="round"/>
-  <path d="M88 34 L60 88" stroke="#6FFFD4" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="32" cy="34" r="8" fill="#6FFFD4"/>
-  <circle cx="88" cy="34" r="8" fill="#6FFFD4"/>
-  <circle cx="60" cy="88" r="9" fill="#FFC857"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Viorp">
+  <defs>
+    <linearGradient id="viorpLeft" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#E879C8"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="viorpRight" x1="1" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#F5E27A"/>
+      <stop offset="100%" stop-color="#9BF3C0"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 18 L40 18 L60 72 L44 78 Z" fill="url(#viorpLeft)"/>
+  <path d="M102 18 L80 18 L60 72 L76 78 Z" fill="url(#viorpRight)"/>
+  <rect x="44" y="76" width="32" height="32" rx="11" fill="#9FF7E4"/>
 </svg>
