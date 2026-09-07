@@ -1,4 +1,4 @@
- 
+ 
 <!-- components/TradeMessage.vue -->
 <template>
   <div class="trade-message">
@@ -21,4 +21,4 @@ interface TradeMessageData {
 const props = defineProps<{ message: TradeMessageData }>()
 const displayedText = computed(() => props.message.content)
 </script>
- 
+ 

@@ -1,6 +1,7 @@
 import { createError } from 'h3'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+// eslint-disable-next-line no-control-regex -- stripping control characters is the intent
 const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g
 
 function fail(message: string): never {

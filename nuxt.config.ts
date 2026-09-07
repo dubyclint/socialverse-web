@@ -188,7 +188,8 @@ export default defineNuxtConfig({
     },
     plugins: isCapacitorBuild ? [] : ['~/server/gateway/socket/plugin.ts'],
     prerender: isCapacitorBuild
-      ? { crawlLinks: false, routes: [], ignore: ['/'] }
+      // SPA shell only: Capacitor needs index.html as the single entry point.
+      ? { crawlLinks: false, routes: ['/'], failOnError: false }
       : {
           crawlLinks: true,
           routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],

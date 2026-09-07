@@ -44,12 +44,22 @@ export const STORAGE_CONFIG: any = {
     'chat-media': {
       name: 'chat-media',
       maxSize: 25 * 1024 * 1024,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'video/mp4']
+      allowedMimeTypes: [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+        'video/mp4',
+        'audio/mpeg',
+        'audio/ogg',
+        'audio/webm',
+        'application/pdf'
+      ]
     },
     streams: {
       name: 'streams',
-      maxSize: 150 * 1024 * 1024,
-      allowedMimeTypes: ['video/mp4', 'video/webm']
+      maxSize: 100 * 1024 * 1024,
+      allowedMimeTypes: ['video/mp4', 'video/webm', 'image/jpeg', 'image/png']
     },
     gifts: {
       name: 'gifts',
@@ -295,6 +305,13 @@ export async function deleteFile(
   }
 }
 
+const ALLOWED_EXTENSIONS = new Set(Object.values({
+  image: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+  video: ['.mp4', '.webm', '.mov'],
+  audio: ['.mp3', '.ogg', '.weba', '.m4a', '.wav'],
+  document: ['.pdf']
+}).flat())
+
 /**
  * Validate file before upload
  */
@@ -319,13 +336,28 @@ export function validateFile(
     // Check mime type
     const allowed = bucketCfg.allowedMimeTypes || []
     if (!allowed.includes(mimeType || '')) {
-      return { valid: false, error: `Invalid file type for bucket ${bucket}. Allowed: ${allowed.join(', ')}` }
+      return {
+        valid: false,
+        error: `File type ${mimeType} is not allowed in bucket ${bucket}. Allowed: ${allowed.join(', ')}`
+      }
+    }
+
+    // Reject executable/unknown extensions regardless of the declared mime type
+    const extension = filename.includes('.') ? `.${filename.split('.').pop()!.toLowerCase()}` : ''
+    if (!ALLOWED_EXTENSIONS.has(extension)) {
+      return {
+        valid: false,
+        error: `File extension ${extension || '(none)'} is not allowed`
+      }
     }
 
     // Check size
     const maxSize = bucketCfg.maxSize || STORAGE_CONFIG.maxFileSize
     if (fileBuffer.length > maxSize) {
-      return { valid: false, error: `File size exceeds ${(maxSize / 1024 / 1024).toFixed(2)}MB limit` }
+      return {
+        valid: false,
+        error: `File size exceeds limit of ${(maxSize / 1024 / 1024).toFixed(2)}MB`
+      }
     }
 
     return { valid: true }

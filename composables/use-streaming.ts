@@ -33,7 +33,7 @@ export const useStreaming = (streamId: string) => {
   )
 
   const sendMessage = async (message: string): Promise<void> => {
-  if (!message.trim() || !Boolean(userStore.user)) return
+  if (!message.trim() || !userStore.user) return
     
     const newMessage: StreamMessage = {
       id: `msg-${Date.now()}`,
@@ -50,7 +50,7 @@ export const useStreaming = (streamId: string) => {
   }
 
   const sendReaction = (emoji: string): void => {
-  if (!Boolean(userStore.user)) return
+  if (!userStore.user) return
     const reaction: StreamReaction = {
       id: `reaction-${Date.now()}`,
       userId: userStore.user!.id,
@@ -66,7 +66,7 @@ export const useStreaming = (streamId: string) => {
   }
 
   const sendPewGift = async (giftId: string, quantity: number = 1, message?: string): Promise<void> => {
-  if (!Boolean(userStore.user)) return
+  if (!userStore.user) return
     const pewGift: PewGift = {
       id: `gift-${Date.now()}`,
       streamId,

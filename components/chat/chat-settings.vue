@@ -177,7 +177,10 @@
               <div class="setting-title">Allow people to share your status</div>
               <div class="setting-description">Let others share your status updates</div>
             </div>
-            <ToggleSwitch v-model="settings.allowStatusSharing" />
+            <ToggleSwitch
+              :model-value="settings.allowStatusSharing"
+              @update:model-value="updateSetting('allowStatusSharing', $event)"
+            />
           </div>
 
           <div class="setting-item">
@@ -220,7 +223,10 @@
               <div class="setting-title">Enable App Lock</div>
               <div class="setting-description">Require authentication to open chat</div>
             </div>
-            <ToggleSwitch v-model="settings.appLockEnabled" />
+            <ToggleSwitch
+              :model-value="settings.appLockEnabled"
+              @update:model-value="updateSetting('appLockEnabled', $event)"
+            />
           </div>
 
           <div v-if="settings.appLockEnabled" class="lock-options">

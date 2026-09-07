@@ -89,8 +89,10 @@
     "web3": "^4.11.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.2.2",
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^6.2.2",
+    "@capacitor/ios": "^6.2.2",
     "@nuxt/devtools": "^4.0.0-alpha.7",
     "@types/bcrypt": "^5.0.2",
     "@types/compression": "^1.7.5",

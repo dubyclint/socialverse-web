@@ -20,4 +20,4 @@ interface EscrowMessageData {
 const props = defineProps<{ message: EscrowMessageData }>()
 const displayedText = computed(() => props.message.text)
 </script>
- 
+ 
