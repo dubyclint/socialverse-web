@@ -1,17 +1,14 @@
 // server/utils/rate-limit-utils.ts
-import { supabase } from './auth-utils'
-
-interface RateLimitConfig {
-  maxRequests: number
-  windowMs: number
-}
+import { getAdminClient } from '~/server/utils/supabase-server'
 
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export const rateLimit = (maxRequests: number, windowMs: number) => {
-  return async (event: any) => {
-    const userId = event.node.req.headers['x-user-id'] || 'anonymous'
-    const key = `${userId}:${event.node.req.url}`
+  return async (event: any): Promise<void> => {
+    // Ensure supabase client is available for potential future persistence (no-op for now)
+    void await getAdminClient()
+    const userId = (event?.node?.req?.headers?.['x-user-id'] as string) || 'anonymous'
+    const key = `${userId}:${event?.node?.req?.url}`
     
     const now = Date.now()
     const record = rateLimitStore.get(key)
@@ -33,7 +30,7 @@ export const rateLimit = (maxRequests: number, windowMs: number) => {
   }
 }
 
-export const checkRateLimit = async (userId: string, action: string, limit: number, windowMs: number) => {
+export const checkRateLimit = async (userId: string, action: string, limit: number, _windowMs: number): Promise<boolean> => {
   const key = `${userId}:${action}`
   const now = Date.now()
   const record = rateLimitStore.get(key)

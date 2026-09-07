@@ -60,9 +60,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user' // Updated Store
 import { api } from '~/lib/api' // Updated API client
+import type { AuthUser } from '~/types/user'
 
 definePageMeta({ middleware: ['auth'], layout: 'default' })
 
@@ -85,7 +86,7 @@ const loadData = async () => {
   try {
     // Assuming userStore has already fetched the user profile on login
     // If you need fresh data, use the centralized API utility
-    const data = await api('/profile/me')
+    const data = await api<AuthUser>('/profile/me')
     userStore.setUser(data)
     
     profileForm.value = { 
@@ -112,7 +113,13 @@ const saveSettings = async (type: 'profile' | 'stream') => {
       body: payload
     })
     // Sync the local store after successful API call
-    if (type === 'profile') userStore.updateProfile(profileForm.value)
+    if (type === 'profile') {
+      userStore.updateProfile({
+        username: profileForm.value.username,
+        full_name: profileForm.value.fullName,
+        bio: profileForm.value.bio
+      })
+    }
     
     triggerToast('Settings synchronized successfully.')
   } catch (e: any) { 

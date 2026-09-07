@@ -2,13 +2,18 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { profileService } from '~/services/profileService'
-import { useUserStore } from '~/stores/user' // Updated import
+import { useUserStore } from '~/stores/user'
+import type { Profile } from '~/types/profile'
 
 export const useProfileStore = defineStore('profile', () => {
-  const profile = ref<any>(null)
-  const isLoading = ref(false)
+  const profile = ref<Profile | null>(null)
+  const isLoading = ref<boolean>(false)
 
-  const fetchProfile = async () => {
+  const setProfile = (value: Profile | null): void => {
+    profile.value = value
+  }
+
+  const fetchProfile = async (): Promise<void> => {
     isLoading.value = true
     try {
       profile.value = await profileService.getMe()
@@ -17,11 +22,11 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  const updateProfile = async (data: any) => {
+  const updateProfile = async (data: any): Promise<void> => {
     profile.value = await profileService.update(data)
   }
 
-  const uploadAvatar = async (file: File) => {
+  const uploadAvatar = async (file: File): Promise<string> => {
     const avatarUrl = await profileService.uploadAvatar(file)
     if (profile.value) {
       profile.value.avatar_url = avatarUrl
@@ -29,23 +34,25 @@ export const useProfileStore = defineStore('profile', () => {
     return avatarUrl
   }
 
-  const updateStreamConfig = async (data: { title: string; quality: string }) => {
-    // Access the unified user store instead of the old auth store
+  const updateStreamConfig = async (data: { title: string; quality: string }): Promise<void> => {
     const userStore = useUserStore()
-    if (!userStore.userId) throw new Error('No user authenticated')
-    
-    const updated = await profileService.updateStreamConfig(userStore.userId, data)
+    // userStore exposes 'user' object; use user?.id or user?.user_id depending on shape
+    const uid = (userStore as any).user?.id || (userStore as any).user?.user_id
+    if (!uid) throw new Error('No user authenticated')
+
+    const updated = await profileService.updateStreamConfig(uid, data)
     if (profile.value) {
       profile.value = { ...profile.value, ...updated }
     }
   }
 
-  return { 
-    profile, 
-    isLoading, 
-    fetchProfile, 
-    updateProfile, 
-    uploadAvatar, 
-    updateStreamConfig 
+  return {
+    profile,
+    isLoading,
+    setProfile,
+    fetchProfile,
+    updateProfile,
+    uploadAvatar,
+    updateStreamConfig
   }
 })

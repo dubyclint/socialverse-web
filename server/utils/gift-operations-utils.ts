@@ -1,74 +1,59 @@
-// server/utils/gift-operations-utils.ts
-import { supabase } from './auth-utils'
+import { getAdminClient } from '~/server/utils/supabase-server'
+
+export interface SendGiftInput {
+  giftId: string
+  quantity?: number
+  streamId?: string
+  message?: string
+}
 
 export const giftOperations = {
-  async sendGift(senderId: string, recipientId: string, giftData: any) {
-    try {
-      const { giftId, amount, message } = giftData
-      
-      const { data: gift, error } = await supabase
-        .from('gifts')
-        .insert({
-          sender_id: senderId,
-          recipient_id: recipientId,
-          gift_id: giftId,
-          amount,
-          message,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single()
+  /** Prices and moves the credits inside the money-core function; never client-priced. */
+  async sendGift(senderId: string, recipientId: string, giftData: SendGiftInput) {
+    const supabase = await getAdminClient()
+    const { data, error } = await supabase.rpc('send_pewgift', {
+      p_sender_id: senderId,
+      p_recipient_id: recipientId,
+      p_gift_id: giftData.giftId,
+      p_quantity: giftData.quantity ?? 1,
+      p_stream_id: giftData.streamId,
+      p_context: { message: giftData.message ?? null }
+    })
 
-      if (error) throw error
-      return gift
-    } catch (error) {
-      console.error('[Gift] Send error:', error)
-      throw error
-    }
+    if (error) throw error
+    return data
   },
 
   async getGiftHistory(userId: string) {
-    try {
-      const { data: gifts, error } = await supabase
-        .from('gifts')
-        .select('*')
-        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
+    const supabase = await getAdminClient()
+    const { data, error } = await supabase
+      .from('gift_transactions')
+      .select('id, gift_id, sender_id, recipient_id, credit_value, stream_id, created_at')
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
 
-      if (error) throw error
-      return gifts
-    } catch (error) {
-      console.error('[Gift] History error:', error)
-      throw error
-    }
+    if (error) throw error
+    return data
   },
 
   async getGiftStats(userId: string) {
-    try {
-      const { data: sent, error: sentError } = await supabase
-        .from('gifts')
-        .select('amount')
-        .eq('sender_id', userId)
+    const supabase = await getAdminClient()
 
-      const { data: received, error: receivedError } = await supabase
-        .from('gifts')
-        .select('amount')
-        .eq('recipient_id', userId)
+    const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
+      supabase.from('gift_transactions').select('credit_value').eq('sender_id', userId),
+      supabase.from('gift_transactions').select('credit_value').eq('recipient_id', userId)
+    ])
 
-      if (sentError || receivedError) throw sentError || receivedError
+    if (sentError || receivedError) throw sentError || receivedError
 
-      const totalSent = sent?.reduce((sum, g) => sum + (g.amount || 0), 0) || 0
-      const totalReceived = received?.reduce((sum, g) => sum + (g.amount || 0), 0) || 0
+    const sum = (rows: { credit_value: number }[] | null) =>
+      (rows || []).reduce((total, row) => total + Number(row.credit_value || 0), 0)
 
-      return {
-        totalSent,
-        totalReceived,
-        sentCount: sent?.length || 0,
-        receivedCount: received?.length || 0
-      }
-    } catch (error) {
-      console.error('[Gift] Stats error:', error)
-      throw error
+    return {
+      totalSent: sum(sent),
+      totalReceived: sum(received),
+      sentCount: sent?.length || 0,
+      receivedCount: received?.length || 0
     }
   }
 }

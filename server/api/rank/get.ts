@@ -53,7 +53,7 @@ export default defineEventHandler(async (event): Promise<RankResponse> => {
     const { data: user, error: userError } = await supabase
       .from('user')  // ✅ FIXED: Changed from 'users' to 'user'
       .select('rank, rank_points, rank_level')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single()
 
     if (userError) {

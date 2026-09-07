@@ -9,6 +9,8 @@
       </div>
 
       <div class="modal-content">
+        <ProfileAvatarUpload v-model="avatarUrl" class="avatar-section" />
+
         <ProfileEditProfile
           :is-new-profile="isNewProfile"
           :initial-data="initialData"
@@ -20,8 +22,6 @@
 </template>
 
 <script setup lang="ts">
-import ProfileEditProfile from '~/components/profile/edit-profile.vue'
-
 defineProps<{
   isOpen: boolean
   isNewProfile?: boolean
@@ -32,6 +32,13 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'success', data: any): void
 }>()
+
+const profileStore = useProfileStore()
+const avatarUrl = ref<string>(profileStore.profile?.avatar_url || '')
+
+watch(avatarUrl, (url) => {
+  if (url && profileStore.profile) profileStore.profile.avatar_url = url
+})
 
 const handleSuccess = (data: any) => {
   emit('success', data)
@@ -59,4 +66,5 @@ const handleSuccess = (data: any) => {
 .modal-title { margin: 0; color: #f1f5f9; }
 .close-btn { background: none; border: none; color: #94a3b8; cursor: pointer; }
 .modal-content { padding: 1.25rem; }
+.avatar-section { margin-bottom: 1.25rem; }
 </style>

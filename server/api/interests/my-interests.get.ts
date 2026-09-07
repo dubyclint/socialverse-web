@@ -3,9 +3,11 @@
 // Get current user's interests
 // ============================================================================
 
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+
 export default defineEventHandler(async (event) => {
   try {
-    const user = event.context.user
+    const user = await requireAuth(event)
     
     if (!user || !user.id) {
       throw createError({

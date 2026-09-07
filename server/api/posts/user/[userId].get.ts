@@ -69,11 +69,10 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     } else if (currentUserId) {
       // Check if users are friends
       const { data: friendship } = await supabase
-        .from('friendships')
+        .from('follows')
         .select('id')
-        .or(`(user_id.eq.${currentUserId},friend_id.eq.${userId}),(user_id.eq.${userId},friend_id.eq.${currentUserId})`)
-        .eq('status', 'accepted')
-        .single()
+        .or(`(follower_id.eq.${currentUserId},following_id.eq.${userId}),(follower_id.eq.${userId},following_id.eq.${currentUserId})`)
+        .maybeSingle()
 
       if (friendship) {
         privacyFilter = ['public', 'friends']

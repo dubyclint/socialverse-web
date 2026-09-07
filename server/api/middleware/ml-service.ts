@@ -3,8 +3,8 @@
 // ML Service middleware for recommendations and personalization
 // ============================================================================
 
-import { H3Event } from 'h3';
-import { MLService } from '../../ml/core/ml-service';
+import type { H3Event } from 'h3';
+
 
 export async function generatePersonalizedFeed(
   event: H3Event,
@@ -12,7 +12,7 @@ export async function generatePersonalizedFeed(
   limit: number = 50
 ): Promise<any[] | null> {
   try {
-    const mlService = event.context.mlService as MLService;
+    const mlService = event.context.mlService as any;
     
     if (!mlService) {
       console.error('ML Service not initialized');
@@ -33,7 +33,7 @@ export async function servePersonalizedAds(
   limit: number = 3
 ): Promise<any[] | null> {
   try {
-    const mlService = event.context.mlService as MLService;
+  const mlService = event.context.mlService as any;
     
     if (!mlService) {
       console.error('ML Service not initialized');
@@ -54,7 +54,7 @@ export async function getRecommendations(
   limit: number = 20
 ): Promise<any[] | null> {
   try {
-    const mlService = event.context.mlService as MLService;
+  const mlService = event.context.mlService as any;
     
     if (!mlService) {
       console.error('ML Service not initialized');
@@ -80,7 +80,7 @@ export async function logUserEvent(
   }
 ): Promise<void> {
   try {
-    const mlService = event.context.mlService as MLService;
+  const mlService = event.context.mlService as any;
     
     if (!mlService) {
       return;
@@ -100,7 +100,7 @@ export async function getModelMetrics(
   event: H3Event
 ): Promise<any | null> {
   try {
-    const mlService = event.context.mlService as MLService;
+  const mlService = event.context.mlService as any;
     
     if (!mlService) {
       return null;

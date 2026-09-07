@@ -6,9 +6,9 @@ export default defineEventHandler(async (event) => {
     ...(device && { deviceTarget: device })
   }).toArray()
 
-  const match: any = { adId: { $in: ads.map(a => a.id) } }
-  if (startDate) match.timestamp = { $gte: new Date(startDate).getTime() }
-  if (endDate) match.timestamp = { ...match.timestamp, $lte: new Date(endDate).getTime() }
+  const match: any = { adId: { $in: ads.map((a: any) => a.id) } }
+  if (startDate) match.timestamp = { $gte: new Date(startDate as string).getTime() }
+  if (endDate) match.timestamp = { ...match.timestamp, $lte: new Date(endDate as string).getTime() }
 
   const metrics = await db.collection('adMetrics').aggregate([
     { $match: match },
@@ -20,10 +20,10 @@ export default defineEventHandler(async (event) => {
   ]).toArray()
 
   const pricing = await db.collection('adPricing').find().toArray()
-  const pricingMap = Object.fromEntries(pricing.map(p => [p.type, p]))
+  const pricingMap = Object.fromEntries(pricing.map((p: any) => [p.type, p]))
 
-  return ads.map(ad => {
-    const m = metrics.find(x => x._id === ad.id) || { impressions: 0, clicks: 0 }
+  return ads.map((ad: any) => {
+    const m = metrics.find((x: any) => x._id === ad.id) || { impressions: 0, clicks: 0 }
     const rates = pricingMap[ad.type] || { cpm: 0, cpc: 0 }
     const spend = (m.impressions / 1000) * rates.cpm + m.clicks * rates.cpc
     return { ...ad, ...m, spend }

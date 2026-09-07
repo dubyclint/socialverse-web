@@ -26,6 +26,11 @@ export default {
       // ============================================================================
       // SPACING - RESPONSIVE SCALE
       // ============================================================================
+      fontFamily: {
+        heading: ['Satoshi', 'Inter', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+      },
+
       spacing: {
         'safe-top': 'env(safe-area-inset-top)',
         'safe-bottom': 'env(safe-area-inset-bottom)',
@@ -37,6 +42,14 @@ export default {
       // COLORS - DARK MODE THEME
       // ============================================================================
       colors: {
+        // Viorp "Aurora Night" brand palette
+        'deep-aurora': '#0A0F1E',
+        'charcoal': '#121827',
+        'aurora-mint': '#6FFFD4',
+        'solar-gold': '#FFC857',
+        'dark-grey': '#1F2937',
+        'off-white': '#F0FFFB',
+        'aurora-error': '#FF2E88',
         'dark': {
           '50': '#f8fafc',
           '100': '#f1f5f9',
@@ -51,6 +64,7 @@ export default {
         },
         'primary': {
           '50': '#eff6ff',
+
           '100': '#dbeafe',
           '200': '#bfdbfe',
           '300': '#93c5fd',
@@ -126,6 +140,9 @@ export default {
         'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
         'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        'glow': '0 0 8px rgba(111, 255, 212, 0.4)',
+        'glow-lg': '0 0 16px rgba(111, 255, 212, 0.4)',
+        'card': '0 4px 20px rgba(10, 15, 30, 0.3)',
       },
     },
   },

@@ -5,14 +5,11 @@
 // LAZY-LOADED SUPABASE CLIENT
 // ============================================================================
 let supabaseInstance: any = null
+import { getAdminClient } from '~/server/utils/supabase-server'
 
 async function getSupabase() {
   if (!supabaseInstance) {
-    const { createClient } = await import('@supabase/supabase-js')
-    supabaseInstance = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    supabaseInstance = await getAdminClient()
   }
   return supabaseInstance
 }
@@ -22,15 +19,25 @@ async function getSupabase() {
 // ============================================================================
 export interface Status {
   id: string
-  userId: string
+  user_id: string
+  content: string | null
+  media_url?: string | null
+  background_color?: string | null
+  text_color?: string | null
+  expires_at: string
+  view_count: number
+  created_at: string
+  deleted_at?: string | null
+}
+
+// Input type used by some API handlers (legacy snake_case allowed)
+export type CreateStatusInput = {
   content: string
-  mediaUrl?: string
-  backgroundColor?: string
-  textColor?: string
-  expiresAt: string
-  viewCount: number
-  createdAt: string
-  deletedAt?: string
+  media_type?: string
+  media_url?: string
+  background_color?: string
+  text_color?: string
+  expires_at?: string
 }
 
 export interface Presence {
@@ -55,16 +62,16 @@ export class StatusModel {
     try {
       const supabase = await getSupabase()
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .insert({
-          userId,
+          user_id: userId,
           content,
-          mediaUrl,
-          backgroundColor,
-          textColor,
-          expiresAt,
-          viewCount: 0,
-          createdAt: new Date().toISOString()
+          media_url: mediaUrl,
+          background_color: backgroundColor,
+          text_color: textColor,
+          expires_at: expiresAt,
+          view_count: 0,
+          created_at: new Date().toISOString()
         })
         .select()
         .single()
@@ -81,10 +88,10 @@ export class StatusModel {
     try {
       const supabase = await getSupabase()
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .select('*')
         .eq('id', id)
-        .is('deletedAt', null)
+        .is('deleted_at', null)
         .single()
 
       if (error) {
@@ -105,12 +112,12 @@ export class StatusModel {
       const now = new Date().toISOString()
 
       const { data, error } = await supabase
-        .from('statuses')
+        .from('user_statuses')
         .select('*')
-        .eq('userId', userId)
-        .gt('expiresAt', now)
-        .is('deletedAt', null)
-        .order('createdAt', { ascending: false })
+        .eq('user_id', userId)
+        .gt('expires_at', now)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       return (data || []) as Status[]
@@ -120,12 +127,36 @@ export class StatusModel {
     }
   }
 
+  // Get the currently active status for a user (most recent, not expired)
+  static async getActiveStatus(userId: string): Promise<Status | null> {
+    try {
+      const supabase = await getSupabase()
+      const now = new Date().toISOString()
+
+      const { data, error } = await supabase
+        .from('user_statuses')
+        .select('*')
+        .eq('user_id', userId)
+        .gt('expires_at', now)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error || !data) return null
+      return data as Status
+    } catch (err) {
+      console.error('[StatusModel] getActiveStatus error:', err)
+      return null
+    }
+  }
+
   static async deleteStatus(id: string): Promise<void> {
     try {
       const supabase = await getSupabase()
       const { error } = await supabase
-        .from('statuses')
-        .update({ deletedAt: new Date().toISOString() })
+        .from('user_statuses')
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
 
       if (error) throw error
@@ -147,6 +178,92 @@ export class StatusModel {
       console.error('[StatusModel] Error incrementing view count:', error)
       throw error
     }
+  }
+
+  // --- Compatibility adapters (legacy names used by controllers) ---
+  // These thin adapters keep existing controllers working while we
+  // incrementally migrate model/controller APIs to stricter typings.
+
+  static async create(data: any): Promise<Status> {
+    // Accept either camelCase or snake_case fields
+    const userId = data.userId || data.user_id || data.user
+    return StatusModel.createStatus(
+      userId,
+      data.content,
+      data.expiresAt || data.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      data.mediaUrl || data.media_url,
+      data.backgroundColor || data.background_color,
+      data.textColor || data.text_color
+    )
+  }
+
+  static async getFriendStatuses(userId: string): Promise<Status[]> {
+    try {
+      const supabase = await getSupabase()
+      const { data: pals, error: palsError } = await supabase
+        .from('pals')
+        .select('pal_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted')
+
+      if (palsError) throw palsError
+
+      const ids = (pals || []).map((p: any) => p.pal_id)
+      if (!ids || ids.length === 0) return []
+
+      const now = new Date().toISOString()
+      const { data, error } = await supabase
+        .from('user_statuses')
+        .select('*')
+        .in('user_id', ids)
+        .gt('expires_at', now)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return (data || []) as Status[]
+    } catch (err) {
+      console.error('[StatusModel] getFriendStatuses adapter error:', err)
+      return []
+    }
+  }
+
+  static async recordView(statusId: string, _viewerId?: string): Promise<Status | null> {
+    try {
+      await StatusModel.incrementViewCount(statusId)
+      return await StatusModel.getStatus(statusId)
+    } catch (err) {
+      console.error('[StatusModel] recordView adapter error:', err)
+      return null
+    }
+  }
+
+  // Alias used by older codepaths
+  static async recordStatusView(statusId: string, _viewerId?: string): Promise<void> {
+    await StatusModel.incrementViewCount(statusId)
+  }
+
+  // Backwards-compatible helper used by older controllers
+  static async getStatusViewCount(statusId: string): Promise<number> {
+    try {
+      const supabase = await getSupabase()
+      const { data, error } = await supabase
+        .from('user_statuses')
+        .select('view_count')
+        .eq('id', statusId)
+        .single()
+
+      if (error || !data) return 0
+      return data.view_count || 0
+    } catch (err) {
+      console.error('[StatusModel] getStatusViewCount error:', err)
+      return 0
+    }
+  }
+
+  // legacy alias: controllers call `StatusModel.delete(id, userId)` in some places
+  static async delete(id: string, _userId?: string): Promise<void> {
+    return StatusModel.deleteStatus(id)
   }
 }
 

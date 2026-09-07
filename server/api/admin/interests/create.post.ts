@@ -22,12 +22,12 @@ export default defineEventHandler(async (event) => {
 
     // Check if user is admin
     const { data: user } = await supabase
-      .from('users')
-      .select('role_id')
-      .eq('id', userId)
+      .from('user')
+      .select('role')
+      .eq('user_id', userId)
       .single()
 
-    if (user?.role_id !== 'admin') {
+    if (user?.role !== 'admin') {
       throw createError({
         statusCode: 403,
         statusMessage: 'Only admins can create interests'

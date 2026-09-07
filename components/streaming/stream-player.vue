@@ -193,7 +193,7 @@
       <div class="stream-meta">
         <div class="streamer-info">
           <img 
-            :src="streamerAvatar || '/default-avatar.png'" 
+            :src="streamerAvatar || '/default-avatar.svg'" 
             :alt="streamerName"
             class="streamer-avatar"
           >
@@ -264,7 +264,7 @@ import { useUserStore } from '~/stores/user' // Corrected: Using the unified sto
 import StreamAnalytics from './stream-analytics.vue'
 import ModerationPanel from './moderation-panel.vue'
 import StreamChat from './stream-chat.vue'
-import PewGiftButton from '../pew-gift-button.vue'
+import PewGiftButton from '../financial/gifts/pewgift-button.vue'
 
 const props = defineProps({
   streamId: { type: String, required: true },
@@ -307,7 +307,6 @@ const followStreamer = async () => {
   try {
     const response = await $fetch('/api/users/follow', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${userStore.token}` },
       body: { targetUserId: props.streamerId }
     })
     

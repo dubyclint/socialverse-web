@@ -177,7 +177,10 @@
               <div class="setting-title">Allow people to share your status</div>
               <div class="setting-description">Let others share your status updates</div>
             </div>
-            <ToggleSwitch v-model="settings.allowStatusSharing" />
+            <ToggleSwitch
+              :model-value="settings.allowStatusSharing"
+              @update:model-value="updateSetting('allowStatusSharing', $event)"
+            />
           </div>
 
           <div class="setting-item">
@@ -220,7 +223,10 @@
               <div class="setting-title">Enable App Lock</div>
               <div class="setting-description">Require authentication to open chat</div>
             </div>
-            <ToggleSwitch v-model="settings.appLockEnabled" />
+            <ToggleSwitch
+              :model-value="settings.appLockEnabled"
+              @update:model-value="updateSetting('appLockEnabled', $event)"
+            />
           </div>
 
           <div v-if="settings.appLockEnabled" class="lock-options">
@@ -287,7 +293,7 @@
           <div class="invite-message">
             <textarea
               v-model="inviteMessage"
-              placeholder="Hey! Join me on SocialVerse..."
+              placeholder="Hey! Join me on Viorp..."
               class="invite-textarea"
               rows="3"
             ></textarea>
@@ -330,7 +336,7 @@ const userStore = useUserStore()
 
 // Reactive data
 const currentSection = ref('main')
-const inviteMessage = ref('Hey! Join me on SocialVerse - a private social platform. Download: [APP_LINK]')
+const inviteMessage = ref('Hey! Join me on Viorp - a private social platform. Download: [APP_LINK]')
 const hiddenContactsCount = ref(0)
 const deviceContacts = ref([])
 const storageData = ref({

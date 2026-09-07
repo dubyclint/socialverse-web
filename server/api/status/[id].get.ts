@@ -2,6 +2,7 @@
 // Get a specific status
 
 import { StatusModel } from '~/server/models/status'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {

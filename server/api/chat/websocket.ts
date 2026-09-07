@@ -1,6 +1,7 @@
 // server/api/chat/websocket.ts
 import { Server } from 'socket.io'
-import type { NitroApp } from 'nitropack'
+// locally alias nitropack types as `any` to avoid requiring the ambient package during migration
+type NitroApp = any
 
 interface ChatMessage {
   id: string

@@ -4,16 +4,17 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
     const user = await requireAuth(event)
     const postId = getRouterParam(event, 'id')
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Verify post ownership
-    const { data: post } = await supabase
+    const { data: post } = await _supabase
       .from('posts')
       .select('user_id')
       .eq('id', postId)
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get analytics
-    const { data: analytics, error: analyticsError } = await supabase
+    const { error: analyticsError } = await _supabase
       .from('post_analytics')
       .select('*')
       .eq('post_id', postId)
@@ -38,22 +39,22 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get engagement data
-    const { data: likes } = await supabase
+    const { data: likes } = await _supabase
       .from('post_likes')
       .select('created_at')
       .eq('post_id', postId)
 
-    const { data: comments } = await supabase
+    const { data: comments } = await _supabase
       .from('post_comments')
       .select('created_at')
       .eq('post_id', postId)
 
-    const { data: shares } = await supabase
+    const { data: shares } = await _supabase
       .from('post_shares')
       .select('shared_at')
       .eq('post_id', postId)
 
-    const { data: views } = await supabase
+    const { data: views } = await _supabase
       .from('post_views')
       .select('viewed_at, device_type, country')
       .eq('post_id', postId)
@@ -78,8 +79,9 @@ export default defineEventHandler(async (event) => {
       return acc
     }, {}) || {}
 
-    const topCountries = Object.entries(countryBreakdown)
-      .sort((a: any, b: any) => b[1] - a[1])
+    const entries = Object.entries(countryBreakdown) as [string, number][]
+    const topCountries = entries
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([country]) => country)
 
@@ -94,9 +96,9 @@ export default defineEventHandler(async (event) => {
         deviceBreakdown,
         topCountries,
         timeline: {
-          likes: likes?.map(l => l.created_at) || [],
-          comments: comments?.map(c => c.created_at) || [],
-          shares: shares?.map(s => s.shared_at) || []
+          likes: likes?.map((l: any) => l.created_at) || [],
+          comments: comments?.map((c: any) => c.created_at) || [],
+          shares: shares?.map((s: any) => s.shared_at) || []
         }
       }
     }

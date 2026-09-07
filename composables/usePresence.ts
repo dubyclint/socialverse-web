@@ -1,7 +1,9 @@
 // composables/usePresence.ts
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useSupabaseUser } from '#imports'
 
 export const usePresence = () => {
+  const supabaseUser = useSupabaseUser()
   const isOnline = ref(true)
   const currentIntent = ref<string | null>(null)
   let heartbeatInterval: any = null
@@ -11,6 +13,10 @@ export const usePresence = () => {
    * Also retrieves and updates the user's current intent.
    */
   const sendHeartbeat = async () => {
+    // Presence is only meaningful for a signed-in user, and the endpoint
+    // requires authentication
+    if (!supabaseUser.value) return
+
     // Only send pings if the user has the tab active
     if (document.visibilityState === 'visible') {
       try {

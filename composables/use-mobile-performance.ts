@@ -1,5 +1,5 @@
 // composables/use-mobile-performance.ts
-import { ref, computed, readonly, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, readonly, onMounted, onUnmounted } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
 
 interface DeviceInfo {

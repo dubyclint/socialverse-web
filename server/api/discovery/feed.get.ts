@@ -1,23 +1,25 @@
 // server/api/discovery/feed.get.ts
+import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { getDiscoveryContent } from '~/server/utils/ad-engine'
+import { checkPresence } from '~/server/utils/presence'
+import type { Database } from '~/types/database.types'
+
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  
-  // 1. Determine Content Priority
-  // We use our orchestrated helper function to decide what to show
-  const content = await getDiscoveryContent(user.id)
-  
-  // 2. Append Presence Metadata
-  // We check Redis to see if the content owners are currently "Online"
-  // to prioritize "Live" content in the feed
-  const feedWithPresence = await Promise.all(
-    content.data.map(async (item: any) => {
-      const isOnline = await checkPresence(item.id) 
-      return { ...item, isOnline }
-    })
+  const client = await serverSupabaseClient<Database>(event)
+
+  const content = await getDiscoveryContent(client, user.id)
+
+  const items = await Promise.all(
+    content.data.map(async item => ({
+      ...item,
+      isOnline: await checkPresence(item.id)
+    }))
   )
 
   return {
-    strategy: content.type, // 'social', 'network', or 'external'
-    items: feedWithPresence
+    strategy: content.type,
+    items
   }
 })

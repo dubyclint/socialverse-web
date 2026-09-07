@@ -2,13 +2,25 @@
 // FILE: /nuxt.config.ts - SECURED PRODUCTION CONFIGURATION FOR NUXT 4
 // ============================================================================
 
+import { fileURLToPath } from 'node:url'
+
+// `CAPACITOR_BUILD=true nuxi generate` produces the static SPA bundle the native
+// shells load; the default build stays SSR for the web.
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true'
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: false },
-  ssr: true,
+  ssr: !isCapacitorBuild,
 
   future: {
     compatibilityVersion: 4,
+  },
+
+  alias: {
+    '@social': fileURLToPath(new URL('./services/social', import.meta.url)),
+    '@financial': fileURLToPath(new URL('./services/financial', import.meta.url)),
+    '@gateway': fileURLToPath(new URL('./server/gateway', import.meta.url)),
   },
 
   modules: [
@@ -18,19 +30,22 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
-  // RECONCILED: Explicitly registering plugins to resolve dependency errors
-  plugins: [
-    { src: '~/plugins/00-init-sequence.client', mode: 'client' },
-    { src: '~/plugins/socialverse-socket.client', mode: 'client' }
+  components: [
+    // Templates reference these as <Icon>, <Logo>, <ToggleSwitch>, ... not <UiIcon>
+    { path: '~/components/ui', pathPrefix: false },
+    '~/components',
   ],
 
-  pinia: {
-    storesDirs: ['./stores/**'],
-  },
+  plugins: [
+    { src: '~/plugins/00-init-sequence.client', mode: 'client' },
+    { src: '~/plugins/socialverse-socket.client', mode: 'client' },
+    { src: '~/plugins/session-timeout.client', mode: 'client' },
+    { src: '~/plugins/platform.client', mode: 'client' },
+  ],
 
   supabase: {
-    url: process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_ANON_KEY,
+    url: process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY || process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
     redirect: true,
     redirectOptions: {
       login: '/signin',
@@ -41,10 +56,17 @@ export default defineNuxtConfig({
       ],
       saveRedirectToCookie: true,
     },
+    types: '~/types/database.types.ts',
+    // `cookieOptions` only accepts cookie serialization options; the cookie name
+    // is controlled by `cookiePrefix`. Set it explicitly so the prefix is stable
+    // whether or not SUPABASE_URL is present at build time (it otherwise defaults
+    // to a value derived from the URL, which would differ between build and runtime).
+    cookiePrefix: 'sb-socialverse',
     cookieOptions: {
-      name: 'sb-socialverse-access',
-      lifetime: 60 * 60 * 8,
+      maxAge: 60 * 60 * 8,
+      path: '/',
       sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     },
   },
 
@@ -56,6 +78,13 @@ export default defineNuxtConfig({
     '/sw.js': { headers: { 'Cache-Control': 'public, max-age=3600' } },
     '/admin/**': { ssr: false },
     '/api/**': { cache: false },
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+      },
+    },
   },
 
   runtimeConfig: {
@@ -63,41 +92,52 @@ export default defineNuxtConfig({
     jwtSecret: process.env.JWT_SECRET,
     password: process.env.PASSWORD,
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
+    cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+    cloudflareStreamToken: process.env.CLOUDFLARE_STREAM_TOKEN,
 
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
       apiUrl: process.env.NUXT_PUBLIC_API_URL,
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
       enablePremium: true,
       enableAnalytics: true,
+      isCapacitorBuild,
+      appDomain: process.env.NUXT_PUBLIC_APP_DOMAIN || process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
     },
   },
 
   css: [
-    '~/assets/css/main.css', 
+    '~/assets/css/theme.css',
+    '~/assets/css/app.css',
+    '~/assets/css/main.css',
+    '~/assets/css/transitions.css',
+    '~/assets/css/platform.css',
     'vue-virtual-scroller/dist/vue-virtual-scroller.css'
   ],
   
   colorMode: {
     classSuffix: '',
-    preference: 'light',
-    fallback: 'light',
+    preference: 'dark',
+    fallback: 'dark',
   },
 
   app: {
     baseURL: process.env.NUXT_APP_BASE_URL || '/',
     head: {
-      title: 'SocialVerse - Connect, Share, and Grow',
+      title: 'Viorp - Connect, Share, and Grow',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' },
         { name: 'description', content: 'Next-Generation Social Commerce Network.' },
-        { name: 'theme-color', content: '#667eea' },
+        { name: 'theme-color', content: '#0A0F1E' },
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
         { rel: 'manifest', href: '/manifest.json' },
       ],
       script: [{ src: '/register-sw.js', async: true, defer: true }],
@@ -108,7 +148,7 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: {
-      include: ['@nuxtjs/supabase', 'vue', 'pinia', '@headlessui/vue'],
+      include: ['@nuxtjs/supabase', 'vue', 'pinia'],
     },
     build: {
       minify: 'esbuild',
@@ -126,18 +166,34 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
     shim: false,
+    tsConfig: {
+      compilerOptions: {
+        paths: {
+          '@social/*': ['./services/social/*'],
+          '@financial/*': ['./services/financial/*'],
+          '@gateway/*': ['./server/gateway/*'],
+        },
+      },
+    },
   },
 
   nitro: {
-    prerender: {
-      crawlLinks: true,
-      routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],
-      ignore: ['/admin'],
+    preset: isCapacitorBuild ? 'static' : (process.env.NITRO_PRESET || 'node-server'),
+    minify: true,
+    sourceMap: false,
+    compressPublicAssets: true,
+    // Required for the Socket.IO bridge in server/gateway/socket/plugin.ts.
+    experimental: {
+      websocket: true,
     },
-    headers: {
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block',
-    },
+    plugins: isCapacitorBuild ? [] : ['~/server/gateway/socket/plugin.ts'],
+    prerender: isCapacitorBuild
+      // SPA shell only: Capacitor needs index.html as the single entry point.
+      ? { crawlLinks: false, routes: ['/'], failOnError: false }
+      : {
+          crawlLinks: true,
+          routes: ['/sitemap.xml', '/robots.txt', '/offline.html'],
+          ignore: ['/admin'],
+        },
   },
 })

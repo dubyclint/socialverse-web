@@ -1,4 +1,3 @@
-import { serverSupabaseClient } from '#supabase/server';
 import { promises as fs } from 'fs';
 import { resolve } from 'path';
 
@@ -48,7 +47,6 @@ async function getEthClient() {
 
 export default defineEventHandler(async (event) => {
   // Use the official Supabase helper (removes dependency on local utils/database.ts)
-  const supabase = await serverSupabaseClient(event);
   const ethClient = await getEthClient();
 
   if (!ethClient) {
@@ -72,7 +70,7 @@ export default defineEventHandler(async (event) => {
     await ethClient.initialize();
 
     switch (method) {
-      case 'getBalance':
+      case 'getBalance': {
         const address = query.address as string;
         if (!address) {
           throw createError({
@@ -82,12 +80,14 @@ export default defineEventHandler(async (event) => {
         }
         const balance = await ethClient.getBalance(address);
         return { success: true, balance };
+      }
 
-      case 'call':
+      case 'call': {
         const callMethod = query.callMethod as string;
         const callArgs = query.args ? JSON.parse(query.args as string) : [];
         const result = await ethClient.call(callMethod, ...callArgs);
         return { success: true, result };
+      }
 
       default:
         throw createError({

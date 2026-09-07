@@ -7,7 +7,7 @@
   <div class="posts-page">
     <!-- Create Post Section -->
     <section class="create-post-section">
-      <CreatePost />
+      <CreatePost @post-created="fetchPosts" />
     </section>
 
     <!-- Latest Posts Section -->
@@ -21,9 +21,9 @@
       <div v-else class="posts-list">
         <PostCard 
           v-for="post in posts" 
-          :key="post.id || post._id" 
+          :key="post.id" 
           :post="post"
-          @pewgift="handlepewGift"
+          @pewgift="handlePewgift"
           @like="handleLike"
           @comment="handleComment"
           @share="handleShare"
@@ -51,12 +51,13 @@ definePageMeta({
 })
   
 import { ref, onMounted } from 'vue'
-import CreatePost from '@/components/posts/create-post.vue'
-import PostCard from '@/components/posts/post-card.vue'
+import CreatePost from '~/components/posts/create-post.vue'
+import PostCard from '~/components/posts/post-card.vue'
+import type { Post } from '~/types/post'
 
-const posts = ref([])
+const posts = ref<Post[]>([])
 const loading = ref(false)
-const error = ref(null)
+const error = ref<string | null>(null)
 
 /**
  * Fetch posts from backend
@@ -66,11 +67,8 @@ const fetchPosts = async () => {
   error.value = null
   
   try {
-    // TODO: Replace with actual API call
-    // const { data } = await $fetch('/api/posts')
-    // posts.value = data
-    
-    console.log('Fetching posts...')
+    const response = await $fetch<{ success: boolean, data: { posts: Post[] } }>('/api/posts/feed')
+    posts.value = response.data?.posts ?? []
   } catch (err) {
     console.error('Error fetching posts:', err)
     error.value = 'Failed to load posts. Please try again.'
@@ -82,7 +80,7 @@ const fetchPosts = async () => {
 /**
  * Handle pewgift action from post card
  */
-const handlePewgift = (postId) => {
+const handlePewgift = (postId: string) => {
   console.log('Pewgift action triggered for post:', postId)
   // This will be handled by the pewgift-button component in post-card
 }
@@ -90,21 +88,21 @@ const handlePewgift = (postId) => {
 /**
  * Handle like action from post card
  */
-const handleLike = (postId) => {
+const handleLike = (postId: string) => {
   console.log('Like action triggered for post:', postId)
 }
 
 /**
  * Handle comment action from post card
  */
-const handleComment = (postId) => {
+const handleComment = (postId: string) => {
   console.log('Comment action triggered for post:', postId)
 }
 
 /**
  * Handle share action from post card
  */
-const handleShare = (postId) => {
+const handleShare = (postId: string) => {
   console.log('Share action triggered for post:', postId)
 }
 

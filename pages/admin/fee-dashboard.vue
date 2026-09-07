@@ -51,7 +51,15 @@ definePageMeta({
   
 import { ref, onMounted } from 'vue'
 
-const fee = ref({
+interface FeeSetting {
+  type: string
+  makerPercent: number | null
+  takerPercent: number | null
+  flatFee: number | null
+  userRevenueShare: number | null
+}
+
+const fee = ref<FeeSetting>({
   type: '',
   makerPercent: null,
   takerPercent: null,
@@ -59,11 +67,11 @@ const fee = ref({
   userRevenueShare: null
 })
 
-const fees = ref([])
+const fees = ref<FeeSetting[]>([])
 
 async function fetchFees() {
   const res = await fetch('/api/admin/fee-settings')
-  fees.value = await res.json()
+  fees.value = (await res.json()) as FeeSetting[]
 }
 
 async function saveFee() {

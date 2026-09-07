@@ -33,6 +33,7 @@ export interface Profile {
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
+  email_notifications?: boolean
 
   // Verification & Status Properties
   profile_completed?: boolean
@@ -51,6 +52,7 @@ export interface Profile {
   followers_count?: number
   following_count?: number
   posts_count?: number
+  wallet_balance?: number
 
   // Core Collections
   interests?: Interest[]

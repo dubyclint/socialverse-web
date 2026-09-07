@@ -11,8 +11,16 @@ definePageMeta({
 
 const supabase = useSupabaseClient()
 
+interface AlgorithmWeights {
+  interest_match_weight: number
+  geographic_proximity_weight: number
+  interaction_history_weight: number
+  min_similarity_threshold: number
+  max_recommendation_limit: number
+}
+
 // Core Reactive States for Tuning Weights
-const weights = ref({
+const weights = ref<AlgorithmWeights>({
   interest_match_weight: 0.50,
   geographic_proximity_weight: 0.25,
   interaction_history_weight: 0.25,
@@ -20,7 +28,7 @@ const weights = ref({
   max_recommendation_limit: 20
 })
 
-const initialWeights = ref<any>(null)
+const initialWeights = ref<AlgorithmWeights | null>(null)
 const isLoading = ref(true)
 const isSaving = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -69,9 +77,11 @@ const fetchAlgorithmConfigurations = async () => {
 
     if (error && error.code !== 'PGRST116') throw error // Ignore missing row error to allow initial setup
     
-    if (data && data.config_values) {
-      weights.value = { ...data.config_values }
-      initialWeights.value = { ...data.config_values }
+    const configValues = data?.config_values as Partial<AlgorithmWeights> | null
+
+    if (configValues) {
+      weights.value = { ...weights.value, ...configValues }
+      initialWeights.value = { ...weights.value }
     }
   } catch (err: any) {
     console.error('❌ Failed to pull platform matrix thresholds:', err.message)

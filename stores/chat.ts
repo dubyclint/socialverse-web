@@ -1,5 +1,6 @@
 // stores/chat.ts
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { chatService } from '~/services/chatService'
 import { chatCacheService } from '~/services/chatCacheService'
 import type { ChatMessage, Chat, User, Translation, Gift, TypingUser } from '~/types/chat'
@@ -24,6 +25,13 @@ export const useChatStore = defineStore('chat', {
 
   getters: {
     currentChatMessages: (state) => state.currentChatId ? (state.messages.get(state.currentChatId) || []) : [],
+    onlineUsersCount: (state) => state.onlineUsers.size,
+    currentChatTypingUsers: (state) =>
+      Array.from(state.typingUsers.values()).filter(
+        (typing) => typing.chatId === state.currentChatId && typing.isTyping
+      ),
+    currentChatTranslations: (state) => Array.from(state.translations.values()),
+    currentChatGifts: (state) => Array.from(state.gifts.values()),
     sortedChats: (state) => state.chatList
       .map(id => state.chats.get(id))
       .filter((c): c is Chat => !!c)
@@ -74,14 +82,99 @@ export const useChatStore = defineStore('chat', {
 
     // --- State Mutations ---
     addMessage(message: ChatMessage) {
-      const msgs = this.messages.get(message.chatId) || []
-      this.messages.set(message.chatId, [...msgs, message].sort((a, b) => a.timestamp - b.timestamp))
+      const chatId = message.chatId
+      if (!chatId) return
+
+      const msgs = this.messages.get(chatId) || []
+      // The sender sees its own message twice (optimistic echo, then the
+      // server broadcast); reconcile on tempId, then on id.
+      const index = msgs.findIndex(
+        (existing) =>
+          existing.id === message.id ||
+          (message.tempId !== undefined && existing.id === message.tempId)
+      )
+
+      const next = index >= 0
+        ? msgs.map((existing, i) => (i === index ? { ...existing, ...message } : existing))
+        : [...msgs, message]
+
+      this.messages.set(chatId, next.sort((a, b) => a.timestamp - b.timestamp))
       this.cacheChatState()
+    },
+
+    setTyping(chatId: string, userId: string, username: string, isTyping: boolean) {
+      const key = `${chatId}:${userId}`
+      if (isTyping) this.typingUsers.set(key, { userId, username, isTyping, chatId })
+      else this.typingUsers.delete(key)
+    },
+
+    /**
+     * Applies a delivery/read watermark: every own message at or before `at`
+     * moves to that status. Statuses only ever move forward.
+     */
+    applyReceipt(chatId: string, at: string, status: 'delivered' | 'read', ownUserId: string) {
+      const msgs = this.messages.get(chatId)
+      if (!msgs) return
+
+      const rank = { sending: 0, failed: 0, sent: 1, delivered: 2, read: 3 } as const
+      const watermark = new Date(at).getTime()
+
+      this.messages.set(
+        chatId,
+        msgs.map((message) => {
+          if (message.senderId !== ownUserId || message.timestamp > watermark) return message
+          const current = message.status ?? 'sent'
+          return rank[current] >= rank[status] ? message : { ...message, status }
+        })
+      )
     },
 
     addMessages(chatId: string, messages: ChatMessage[]) {
       this.messages.set(chatId, messages.sort((a, b) => a.timestamp - b.timestamp))
       this.cacheChatState()
+    },
+
+    setLoading(value: boolean) {
+      this.isLoading = value
+    },
+
+    setConnected(value: boolean) {
+      this.isConnected = value
+    },
+
+    setError(message: string | null) {
+      this.error = message
+    },
+
+    setCurrentChat(chatId: string | null) {
+      this.currentChatId = chatId
+    },
+
+    updateUserBalance(delta: number) {
+      this.userBalance += delta
+    },
+
+    addChat(chat: Chat) {
+      this.chats.set(chat.id, chat)
+      if (!this.chatList.includes(chat.id)) this.chatList = [chat.id, ...this.chatList]
+      this.cacheChatState()
+    },
+
+    addChats(chats: Chat[]) {
+      for (const chat of chats) {
+        this.chats.set(chat.id, chat)
+        if (!this.chatList.includes(chat.id)) this.chatList.push(chat.id)
+      }
+      this.cacheChatState()
+    },
+
+    updateMessage(chatId: string, messageId: string, patch: Partial<ChatMessage>) {
+      const msgs = this.messages.get(chatId)
+      if (!msgs) return
+      this.messages.set(
+        chatId,
+        msgs.map(m => (m.id === messageId ? { ...m, ...patch } : m))
+      )
     },
 
     reset() {
@@ -91,15 +184,15 @@ export const useChatStore = defineStore('chat', {
   }
 })
 
-const recentEmojis = ref<string[]>(JSON.parse(localStorage.getItem('recentEmojis') || '[]'))
-const addRecentEmoji = (emoji: string) => {
+export const recentEmojis = ref<string[]>(JSON.parse(localStorage.getItem('recentEmojis') || '[]'))
+export const addRecentEmoji = (emoji: string) => {
   recentEmojis.value = [emoji, ...recentEmojis.value.filter(e => e !== emoji)].slice(0, 20)
   localStorage.setItem('recentEmojis', JSON.stringify(recentEmojis.value))
 }
 
 // Add a map for trade-specific drafts or history
-const tradeMessages = ref<Record<string, any[]>>({})
-const saveTradeMessages = (id: string, msgs: any[]) => {
+export const tradeMessages = ref<Record<string, any[]>>({})
+export const saveTradeMessages = (id: string, msgs: any[]) => {
   tradeMessages.value[id] = msgs
   localStorage.setItem(`trade_${id}`, JSON.stringify(msgs))
 }

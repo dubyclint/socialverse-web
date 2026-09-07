@@ -24,13 +24,13 @@ export default defineEventHandler(async (event) => {
 
     // Update user match filters
     const { error: userError } = await supabase
-      .from('users')
+      .from('user')
       .update({ match_filters: approvedFilters })
-      .eq('id', userId)
+      .eq('user_id', userId)
 
     if (userError) throw userError
 
-    await sendNotification(userId, 'filter', 'Your match filters were approved.')
+    await sendNotification(event, userId, 'filter', 'Your match filters were approved.')
     await sendPushAlert(userId, 'Match Filters Approved', 'Your filters are now active.')
 
     return { success: true }

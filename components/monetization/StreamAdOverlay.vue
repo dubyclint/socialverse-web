@@ -15,7 +15,12 @@ interface AdCampaign {
   skip_offset_seconds: number
 }
 
-const props = defineProps<{
+// The campaign table stores billing/targeting only, so playback timing uses
+// these defaults.
+const DEFAULT_AD_DURATION_SECONDS = 15
+const DEFAULT_AD_SKIP_OFFSET_SECONDS = 5
+
+defineProps<{
   streamId: string
 }>()
 
@@ -34,22 +39,24 @@ const fetchEligibleAdCampaign = async () => {
     const { data, error } = await supabase
       .from('ads_campaigns')
       .select('*')
-      .eq('status', 'active')
+      .eq('status', 'ACTIVE')
       .limit(1)
       .maybeSingle()
 
     if (error) throw error
     
     if (data) {
+      const creativeUrl = data.ad_creative_url
+
       currentAd.value = {
         id: data.id,
         title: data.title || 'Sponsored Showcase',
-        ad_type: data.ad_type || 'video',
-        media_url: data.media_url,
-        destination_url: data.destination_url || 'https://socialverse.com',
-        duration_seconds: data.duration_seconds || 15,
-        is_skippable: data.is_skippable ?? true,
-        skip_offset_seconds: data.skip_offset_seconds || 5
+        ad_type: /\.(mp4|webm|m3u8)$/i.test(creativeUrl) ? 'video' : 'banner',
+        media_url: creativeUrl,
+        destination_url: data.target_destination_url || 'https://socialverse.com',
+        duration_seconds: DEFAULT_AD_DURATION_SECONDS,
+        is_skippable: true,
+        skip_offset_seconds: DEFAULT_AD_SKIP_OFFSET_SECONDS
       }
       triggerAdLifecycle()
     }
@@ -90,9 +97,8 @@ const trackAdInteraction = async () => {
   const { error } = await supabase
     .from('ad_interactions')
     .insert({
-      ad_id: currentAd.value.id,
-      interaction_type: 'click',
-      metadata: { source: 'stream_player_overlay', stream_id: props.streamId }
+      campaign_id: currentAd.value.id,
+      interaction_type: 'CLICK'
     })
     
   if (error) console.error('❌ Failed to push interaction metrics:', error)

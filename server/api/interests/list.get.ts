@@ -3,7 +3,7 @@
 // Get all available interests
 // ============================================================================
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   try {
     const { getAdminClient } = await import('~/server/utils/supabase-server')
     const supabase = await getAdminClient()

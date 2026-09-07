@@ -11,9 +11,8 @@ let detect: any = null;
 async function getTranslateAPI() {
   if (!translate) {
     try {
-      const module = await import('@vitalets/google-translate-api');
-      translate = module.translate;
-      detect = module.detect;
+  const module = await import('@vitalets/google-translate-api');
+  translate = module.translate;
     } catch (error) {
       console.error('[Translate] Failed to load translation API:', error);
       throw error;

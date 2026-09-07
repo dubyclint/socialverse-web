@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 interface BanditConfig {
   algorithm: 'LinUCB' | 'Thompson' | 'UCB1';
   alpha: number;

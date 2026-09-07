@@ -2,6 +2,8 @@
 // Create a new status
 
 import { StatusModel, type CreateStatusInput } from '~/server/models/status'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -39,7 +41,8 @@ export default defineEventHandler(async (event) => {
       expires_at
     }
 
-    const status = await StatusModel.createStatus(user.id, statusInput)
+  // Use compatibility adapter which accepts a single object (legacy callers)
+  const status = await StatusModel.create({ userId: user.id, ...statusInput })
 
     return {
       success: true,

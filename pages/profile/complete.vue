@@ -94,8 +94,8 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
+import { useProfileStore } from '~/stores/profile'
 
 definePageMeta({
   middleware: ['auth'],
@@ -103,7 +103,7 @@ definePageMeta({
 })
 
 const router = useRouter()
-const userStore = useUserStore()
+const profileStore = useProfileStore()
 
 // State
 const loading = ref(true) 
@@ -156,6 +156,8 @@ const submit = async () => {
       }
     })
 
+    await profileStore.fetchProfile()
+
     success.value = true
     setTimeout(() => router.replace('/profile/complete-success'), 700)
   } catch (e: any) {
@@ -167,21 +169,27 @@ const submit = async () => {
 // Lifecycle
 onMounted(async () => {
   try {
-    // Check if profile exists using the unified API utility
-    await api('/profile/me')
-    // If successful, user already has a profile; bounce to main profile page
-    await router.replace('/profile')
-  } catch (e: any) {
-    const status = e?.status || e?.response?.status || e?.statusCode
-    
-    // 404 indicates the profile setup is required
-    if (status === 404) {
-      loading.value = false 
-    } else {
-      console.error('[complete-profile] precheck error:', e)
-      error.value = 'Failed to verify profile status. Please refresh.'
-      loading.value = false
+    await profileStore.fetchProfile()
+    const profile = profileStore.profile
+
+    // Only an already-completed profile skips this page; a row always exists
+    // from signup, so existence alone must not bounce the user away.
+    if (profile?.profile_completed) {
+      await router.replace('/profile')
+      return
     }
+
+    if (profile) {
+      form.full_name = profile.full_name || ''
+      form.bio = profile.bio || ''
+      form.location = profile.location || ''
+      form.website = profile.website || ''
+    }
+  } catch (e: any) {
+    console.error('[complete-profile] precheck error:', e)
+    error.value = 'Failed to verify profile status. Please refresh.'
+  } finally {
+    loading.value = false
   }
 })
 </script>    

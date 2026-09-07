@@ -3,7 +3,7 @@
 // ============================================================================
 import { getSupabaseAdminClient } from '~/server/utils/database'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   try {
     const supabase = await getSupabaseAdminClient()
 

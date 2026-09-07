@@ -1,17 +1,23 @@
-// server/middleware/logging.ts
-// ✅ NEW: Request/response logging middleware
+import { getCorrelationId, logger } from '~/server/utils/logger'
 
+/** Structured access log; the correlation id is echoed back for client traces. */
 export default defineEventHandler((event) => {
   const startTime = Date.now()
-  
-  // Log incoming request
-  console.log(`[${new Date().toISOString()}] ${event.node.req.method} ${event.node.req.url}`)
-  
-  // Hook into response to log completion
+  const correlationId = getCorrelationId(event)
+  setResponseHeader(event, 'x-correlation-id', correlationId)
+
   event.node.res.on('finish', () => {
-    const duration = Date.now() - startTime
-    const statusCode = event.node.res.statusCode
-    
-    console.log(`[${new Date().toISOString()}] ${event.node.req.method} ${event.node.req.url} - ${statusCode} (${duration}ms)`)
+    const status = event.node.res.statusCode
+    const fields = {
+      correlationId,
+      method: event.method,
+      path: event.path,
+      status,
+      durationMs: Date.now() - startTime
+    }
+
+    if (status >= 500) logger.error('request failed', fields)
+    else if (status >= 400) logger.warn('request rejected', fields)
+    else logger.info('request completed', fields)
   })
 })

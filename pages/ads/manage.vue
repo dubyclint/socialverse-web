@@ -251,9 +251,9 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 
 // Page meta
 useHead({
-  title: 'Manage Ads - SocialVerse',
+  title: 'Manage Ads - Viorp',
   meta: [
-    { name: 'description', content: 'Manage and monitor your advertising campaigns on SocialVerse' }
+    { name: 'description', content: 'Manage and monitor your advertising campaigns on Viorp' }
   ]
 })
 

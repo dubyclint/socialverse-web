@@ -35,7 +35,14 @@ export default defineEventHandler(async (event) => {
     console.log(`[VERIFY-EMAIL] Processing type verification matching: [${type || 'signup'}]`)
 
     // Verify user token context with Supabase Auth Layer
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.verifyUserWithToken({
+    // runtime-guard the admin API because some supabase client builds may not include the admin surface
+    const verifyFn: any = (supabaseAdmin as any)?.auth?.admin?.verifyUserWithToken
+    if (typeof verifyFn !== 'function') {
+      console.error('[VERIFY-EMAIL] supabase admin verifyUserWithToken is not available on this runtime')
+      throw createError({ statusCode: 500, statusMessage: 'Verification backend not available' })
+    }
+
+    const { data: authData, error: authError } = await verifyFn({
       type: (type === 'signup' ? 'signup' : 'email'),
       token: token
     })
