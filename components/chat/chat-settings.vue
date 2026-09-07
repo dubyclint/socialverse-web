@@ -287,7 +287,7 @@
           <div class="invite-message">
             <textarea
               v-model="inviteMessage"
-              placeholder="Hey! Join me on SocialVerse..."
+              placeholder="Hey! Join me on Viorp..."
               class="invite-textarea"
               rows="3"
             ></textarea>
@@ -330,7 +330,7 @@ const userStore = useUserStore()
 
 // Reactive data
 const currentSection = ref('main')
-const inviteMessage = ref('Hey! Join me on SocialVerse - a private social platform. Download: [APP_LINK]')
+const inviteMessage = ref('Hey! Join me on Viorp - a private social platform. Download: [APP_LINK]')
 const hiddenContactsCount = ref(0)
 const deviceContacts = ref([])
 const storageData = ref({

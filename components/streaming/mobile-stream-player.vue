@@ -139,7 +139,7 @@ const shareStream = async () => {
   const shareUrl = `${window.location.origin}/stream/${props.streamId}`
   const shareData = {
     title: streamTitle.value,
-    text: `Watch ${streamerName.value} live on SocialVerse!`,
+    text: `Watch ${streamerName.value} live on Viorp!`,
     url: shareUrl
   }
 

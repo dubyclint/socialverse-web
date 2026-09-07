@@ -1,99 +1,82 @@
 <template>
-  <div class="logo-container" :class="sizeClass">
-    <svg 
-      viewBox="0 0 32 32" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg"
-      :width="width"
-      :height="height"
-    >
-      <!-- Background Circle -->
-      <circle cx="16" cy="16" r="16" fill="url(#gradient1)"/>
-      
-      <!-- Social Network Icon -->
-      <g transform="translate(8, 8)">
-        <!-- Center Node -->
-        <circle cx="8" cy="8" r="2.5" fill="white"/>
-        
-        <!-- Connected Nodes -->
-        <circle cx="2" cy="4" r="1.5" fill="white" opacity="0.9"/>
-        <circle cx="14" cy="4" r="1.5" fill="white" opacity="0.9"/>
-        <circle cx="2" cy="12" r="1.5" fill="white" opacity="0.9"/>
-        <circle cx="14" cy="12" r="1.5" fill="white" opacity="0.9"/>
-        
-        <!-- Connection Lines -->
-        <line x1="8" y1="8" x2="2" y2="4" stroke="white" stroke-width="1" opacity="0.6"/>
-        <line x1="8" y1="8" x2="14" y2="4" stroke="white" stroke-width="1" opacity="0.6"/>
-        <line x1="8" y1="8" x2="2" y2="12" stroke="white" stroke-width="1" opacity="0.6"/>
-        <line x1="8" y1="8" x2="14" y2="12" stroke="white" stroke-width="1" opacity="0.6"/>
-      </g>
-      
-      <!-- Gradient Definition -->
-      <defs>
-        <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-        </linearGradient>
-      </defs>
-    </svg>
-    <span v-if="showText" class="logo-text">{{ text }}</span>
+  <NuxtLink v-if="to" :to="to" class="logo" :class="sizeClass">
+    <img :src="src" :alt="`${text} logo`" class="logo__mark" />
+    <span v-if="showText" class="logo__text">{{ text }}</span>
+  </NuxtLink>
+  <div v-else class="logo" :class="sizeClass">
+    <img :src="src" :alt="`${text} logo`" class="logo__mark" />
+    <span v-if="showText" class="logo__text">{{ text }}</span>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps({
-  size: {
-    type: String,
-    default: 'md', // 'sm', 'md', 'lg', 'xl'
-    validator: (value) => ['sm', 'md', 'lg', 'xl'].includes(value)
-  },
-  showText: {
-    type: Boolean,
-    default: true
-  },
-  text: {
-    type: String,
-    default: 'SocialVerse'
-  }
-})
+type LogoSize = 'sm' | 'md' | 'lg' | 'xl'
 
-const sizeClass = computed(() => `logo-${props.size}`)
+const props = withDefaults(
+  defineProps<{
+    size?: LogoSize
+    showText?: boolean
+    text?: string
+    to?: string
+    src?: string
+  }>(),
+  { size: 'md', showText: true, text: 'Viorp', to: '', src: '/logo.svg' }
+)
 
-const width = computed(() => {
-  const sizes = { sm: 24, md: 32, lg: 48, xl: 64 }
-  return sizes[props.size]
-})
-
-const height = computed(() => width.value)
+const sizeClass = computed(() => `logo--${props.size}`)
 </script>
 
 <style scoped>
-.logo-container {
-  display: flex;
+.logo {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-sm, 8px);
+  text-decoration: none;
+  color: var(--text-primary, #f0fffb);
 }
 
-.logo-text {
-  font-weight: 700;
-  color: white;
+.logo__mark {
+  display: block;
+  object-fit: contain;
 }
 
-.logo-sm .logo-text {
-  font-size: 0.875rem;
+.logo__text {
+  font-family: var(--font-heading, Inter, sans-serif);
+  font-weight: var(--weight-bold, 800);
+  letter-spacing: -0.01em;
 }
 
-.logo-md .logo-text {
+.logo--sm .logo__mark {
+  width: 24px;
+  height: 24px;
+}
+.logo--sm .logo__text {
   font-size: 1rem;
 }
 
-.logo-lg .logo-text {
+.logo--md .logo__mark {
+  width: 32px;
+  height: 32px;
+}
+.logo--md .logo__text {
   font-size: 1.25rem;
 }
 
-.logo-xl .logo-text {
+.logo--lg .logo__mark {
+  width: 48px;
+  height: 48px;
+}
+.logo--lg .logo__text {
   font-size: 1.5rem;
+}
+
+.logo--xl .logo__mark {
+  width: 72px;
+  height: 72px;
+}
+.logo--xl .logo__text {
+  font-size: 2rem;
 }
 </style>

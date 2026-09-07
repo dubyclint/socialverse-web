@@ -1,12 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-// NOTE: appId (Android applicationId / iOS bundle identifier) and the server
-// hostname are provisional placeholders pending the production domain and store
-// listing decision. Change both before the first store submission — the appId
-// cannot be changed after a listing is published.
 const config: CapacitorConfig = {
-  appId: process.env.CAPACITOR_APP_ID || 'com.socialverse.app',
-  appName: 'SocialVerse',
+  appId: process.env.CAPACITOR_APP_ID || 'com.viorp.app',
+  appName: 'Viorp',
   webDir: '.output/public',
   android: {
     allowMixedContent: false
@@ -18,13 +14,17 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     iosScheme: 'https',
     // API + realtime calls go to the deployed backend; the shell only bundles the SPA.
-    hostname: process.env.CAPACITOR_HOSTNAME || 'localhost'
+    hostname: process.env.CAPACITOR_HOSTNAME || 'viorp.com'
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: '#0f172a',
+      backgroundColor: '#0A0F1E',
       showSpinner: false
+    },
+    StatusBar: {
+      style: 'DARK',
+      backgroundColor: '#0A0F1E'
     }
   }
 }

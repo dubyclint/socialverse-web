@@ -1,13 +1,13 @@
 {
-  "name": "SocialVerse",
-  "short_name": "SocialVerse",
-  "description": "Connect, Share, and Grow Your Social Network",
+  "name": "Viorp",
+  "short_name": "Viorp",
+  "description": "Viorp - Connect, Share, and Grow Your Social Network",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#667eea",
-  "background_color": "#ffffff",
+  "theme_color": "#0A0F1E",
+  "background_color": "#121827",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

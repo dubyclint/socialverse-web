@@ -23,7 +23,7 @@ export default defineNuxtPlugin(() => {
     try {
       const url = new URL(event.url)
       const isOwnDomain = appDomain ? url.host === new URL(appDomain).host : false
-      const isCustomScheme = url.protocol.startsWith('socialverse')
+      const isCustomScheme = url.protocol.startsWith('viorp')
       if (!isOwnDomain && !isCustomScheme) return
 
       const target = `${url.pathname}${url.search}${url.hash}` || '/'

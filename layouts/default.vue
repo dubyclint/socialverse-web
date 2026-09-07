@@ -3,8 +3,7 @@
     <aside v-if="!isNative" class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="sidebar-header">
         <NuxtLink to="/feed" class="sidebar-logo">
-          <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
-          <span class="logo-text">SocialVerse</span>
+          <Logo size="md" text="Viorp" />
         </NuxtLink>
         <button @click="closeSidebar" class="sidebar-close md:hidden" aria-label="Close Navigation Menu">
           <Icon name="x" size="24" />
@@ -96,8 +95,7 @@
           </button>
           
           <NuxtLink to="/feed" class="logo hidden md:flex">
-            <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
-            <span class="logo-text">SocialVerse</span>
+            <Logo size="md" text="Viorp" />
           </NuxtLink>
         </div>
 

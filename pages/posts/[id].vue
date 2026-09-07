@@ -232,7 +232,7 @@ const sharePost = async () => {
   const url = window.location.href
   try {
     if (navigator.share) {
-      await navigator.share({ title: post.value?.title || 'SocialVerse post', url })
+      await navigator.share({ title: post.value?.title || 'Viorp post', url })
     } else {
       await navigator.clipboard.writeText(url)
     }

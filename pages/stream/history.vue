@@ -227,7 +227,7 @@ onMounted(() => {
 })
 
 useHead({
-  title: 'Stream History & Telemetry - SocialVerse'
+  title: 'Stream History & Telemetry - Viorp'
 })
 </script>
 

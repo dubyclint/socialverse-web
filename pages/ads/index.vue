@@ -179,9 +179,9 @@ interface Campaign {
 
 // Page meta
 useHead({
-  title: 'Ad Center - SocialVerse',
+  title: 'Ad Center - Viorp',
   meta: [
-    { name: 'description', content: 'Create and manage your advertising campaigns on SocialVerse' }
+    { name: 'description', content: 'Create and manage your advertising campaigns on Viorp' }
   ]
 })
 

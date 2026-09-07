@@ -1,11 +1,6 @@
 <template>
   <div id="app" class="app-container">
-    <div v-if="isHydrating" class="hydration-loader">
-      <div class="loader-content">
-        <div class="spinner"></div>
-        <p class="loader-text">Loading SocialVerse...</p>
-      </div>
-    </div>
+    <DotVLoader v-if="isHydrating" fullscreen :size="112" label="Viorp" />
 
     <div v-else class="app-content">
       <NuxtPage />

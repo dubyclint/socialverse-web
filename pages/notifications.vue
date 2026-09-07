@@ -50,7 +50,7 @@ definePageMeta({
 
 // SEO
 useHead({
-  title: 'Notifications - SocialVerse',
+  title: 'Notifications - Viorp',
   meta: [
     { name: 'description', content: 'View your notifications and updates' }
   ]

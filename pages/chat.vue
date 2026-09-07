@@ -19,9 +19,9 @@ import chatlayout from '@/components/chat/chat-layout.vue'
 
 // SEO
 useHead({
-  title: 'Chat - SocialVerse',
+  title: 'Chat - Viorp',
   meta: [
-    { name: 'description', content: 'Private messaging and group chats on SocialVerse' }
+    { name: 'description', content: 'Private messaging and group chats on Viorp' }
   ]
 })
 </script>

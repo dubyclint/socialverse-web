@@ -59,9 +59,9 @@ const adsDatabase = {
   'General': [
     {
       id: 3,
-      title: 'Join SocialVerse Pro',
+      title: 'Join Viorp Pro',
       description: 'Unlock exclusive features and enhanced privacy.',
-      image: 'https://via.placeholder.com/300x150/8b5cf6/ffffff?text=SocialVerse+Pro',
+      image: 'https://via.placeholder.com/300x150/8b5cf6/ffffff?text=Viorp+Pro',
       link: '#pro-upgrade',
       cta: 'Upgrade Now'
     }

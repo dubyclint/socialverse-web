@@ -96,7 +96,7 @@ export default defineNuxtConfig({
     cloudflareStreamToken: process.env.CLOUDFLARE_STREAM_TOKEN,
 
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
       apiUrl: process.env.NUXT_PUBLIC_API_URL,
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -104,11 +104,12 @@ export default defineNuxtConfig({
       enablePremium: true,
       enableAnalytics: true,
       isCapacitorBuild,
-      appDomain: process.env.NUXT_PUBLIC_APP_DOMAIN || process.env.NUXT_PUBLIC_SITE_URL || '',
+      appDomain: process.env.NUXT_PUBLIC_APP_DOMAIN || process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
     },
   },
 
   css: [
+    '~/assets/css/theme.css',
     '~/assets/css/app.css',
     '~/assets/css/main.css',
     '~/assets/css/transitions.css',
@@ -125,15 +126,16 @@ export default defineNuxtConfig({
   app: {
     baseURL: process.env.NUXT_APP_BASE_URL || '/',
     head: {
-      title: 'SocialVerse - Connect, Share, and Grow',
+      title: 'Viorp - Connect, Share, and Grow',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover' },
         { name: 'description', content: 'Next-Generation Social Commerce Network.' },
-        { name: 'theme-color', content: '#667eea' },
+        { name: 'theme-color', content: '#0A0F1E' },
       ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: '/icons/icon-512x512.png' },
         { rel: 'apple-touch-icon', href: '/icons/icon-192x192.png' },
         { rel: 'manifest', href: '/manifest.json' },
       ],

@@ -4,8 +4,7 @@
       <div class="footer-content">
         <div class="footer-section">
           <div class="footer-logo">
-            <img src="/logo.svg" alt="SocialVerse" />
-            <span>SocialVerse</span>
+            <Logo size="sm" text="Viorp" />
           </div>
           <p class="footer-description">
             Connect, share, and discover on the decentralized social web. 
@@ -60,7 +59,7 @@
 
       <div class="footer-bottom">
         <div class="footer-bottom-content">
-          <p>&copy; 2024 SocialVerse. All rights reserved.</p>
+          <p>&copy; {{ new Date().getFullYear() }} Viorp. All rights reserved.</p>
           
           <ClientOnly>
             <div class="user-actions">

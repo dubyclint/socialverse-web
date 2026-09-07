@@ -252,7 +252,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Status - SocialVerse',
+  title: 'Status - Viorp',
   meta: [
     { name: 'description', content: 'Share your status updates with your followers' }
   ]

@@ -2,7 +2,7 @@
   <div class="monetization">
     <div class="monetization-header">
       <h1 class="page-title">💰 Monetization</h1>
-      <p class="page-description">Every way to earn, spend and secure value on SocialVerse</p>
+      <p class="page-description">Every way to earn, spend and secure value on Viorp</p>
     </div>
 
     <div class="monetization-grid">

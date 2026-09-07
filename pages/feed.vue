@@ -10,8 +10,7 @@
             <Icon name="menu" size="20" />
           </button>
           <NuxtLink to="/feed" class="logo">
-            <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
-            <span class="logo-text">SocialVerse</span>
+            <Logo size="md" text="Viorp" />
           </NuxtLink>
         </div>
         <nav class="header-center">

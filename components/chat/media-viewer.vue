@@ -240,7 +240,7 @@ const shareMedia = async () => {
   if (navigator.share && props.media?.mediaUrl) {
     try {
       await navigator.share({
-        title: 'Shared from SocialVerse',
+        title: 'Shared from Viorp',
         text: props.media.content || 'Check out this media',
         url: props.media.mediaUrl
       })
