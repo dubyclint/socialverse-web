@@ -153,7 +153,7 @@
           <div class="create-post-section">
             <div class="create-post-header">
               <img :src="userAvatar" :alt="userName" class="create-post-avatar" />
-              <div class="create-post-input-wrapper"><input type="text" placeholder="What's on your mind?" class="create-post-input" @click="goToCreatePost" readonly /></div>
+              <div class="create-post-input-wrapper"><input type="text" placeholder="create post, What's on your mind?" class="create-post-input" @click="goToCreatePost" readonly /></div>
             </div>
             <div class="create-post-actions">
               <button class="action-btn" @click="goToCreatePost" title="Add Photo"><Icon name="image" size="18" /> <span class="action-label">Photo</span></button>
