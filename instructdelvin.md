@@ -2,14 +2,14 @@
 The desktop view have at the end of the screen the  search, suggested for you list , and trending list on the right , and profile box on left. This is very good for desktop but solve that puzzle to get this to mobile view without in any error spoiling this  view, else let it be . The sidebar or sidenav  styling of words of the  listed features along their arrangement is poor and not standard. many features at the sidebar  are not wired to all their use main feature home page file and importantly their other  connected use case files till they are functional which is the best approach  instead they are just wired to main parent file. All stub pages should be eliminated and replaced with real. At real pewgift should be in wallet not different icon all users pages for wallet features and pewgift be done be it deposit, withdrawal, and all others  the my pal system and all files studied to fix project friends system, the chat and all its features and services to function is a priority. The ad  pages for users use cases are missing or not wired well. The following should be addressed if necessary after the above is done ; universe chat , statuses, support,agent support, policy& TC, settings. The logout should be timed out. now read and relate some of the project PRD .   Product Requirements Document (PRD)
 1. Authentication & User Profile Module
  * *Features:* Phone number and  biometric login (FaceID/Fingerprint), multi-device state synchronization, and very important the  comprehensive profile customization (avatar, banner, bio, social links, privacy controls).
- * *Security: secured chat socket or * End-to-end style  key exchange for private chats, OAuth 2.0 / JWT session management, rate-limiting on sensitive endpoints.
+ * *Security: secured chat socket or/and* End-to-end style  key exchange for private chats, OAuth 2.0 / JWT session management, rate-limiting on sensitive endpoints.
 2. Messaging Engine 
  * *Features:*
    * Direct 1-on-1 and group chats (up to 1,024 participants) with admin permissions.
    * Rich media sharing: photos, videos, voice notes with waveform scrubbing, documents, location pins, and contact cards.
    * Interactive features: message replies, reactions (emoji bar), text formatting (bold, italic, strikethrough), disappearing messages, and message deletion ("Delete for Everyone").
    * Real-time indicators: typing status, recording status, delivery ticks (sent, delivered, read).
-   * Status/Stories module: 24-hour disappearing photo/video updates with viewer analytics.
+   * Statuses/Stories module: 24-hour disappearing photo/video updates with viewer analytics or list.
 #### 3. Social Feed System (Facebook & TikTok Hybrid)
  * *Features:*
    * Dual-tab feed architecture: *Following* (chronological/graph-based) and *For You* (algorithmic recommendation engine).
