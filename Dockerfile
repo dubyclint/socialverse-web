@@ -26,8 +26,10 @@ ENV HOST=0.0.0.0
 
 # Copy the entire .output directory (contains both server bundle and public assets)
 COPY --from=builder /src/.output ./.output
+# Entrypoint maps SUPABASE_* env aliases onto the NUXT_PUBLIC_* names Nitro reads
+COPY --from=builder /src/scripts/start-server.mjs ./scripts/start-server.mjs
 
 EXPOSE 8080
 
 ENTRYPOINT ["node"]
-CMD [".output/server/index.mjs"]
+CMD ["scripts/start-server.mjs"]

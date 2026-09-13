@@ -154,3 +154,50 @@ Ground rule: **the web build must not change**. Everything native is additive an
 
 F1–F6 (ranking real) → de-stub table → Capacitor Phases 1–4 → assets/deep links/legal (Phase 5) →
 re-test in the browser and on the Android emulator. Committing after each step.
+
+---
+
+## 4. Android emulator workflow (SDK + Android Studio now installed)
+
+Phases 1–5 are implemented and the `android/` project is generated, so the loop is:
+
+```bash
+npm run generate   # = CAPACITOR_BUILD=true nuxt generate -> static SPA in .output/public
+npx cap sync       # copies the bundle + plugins into android/
+npx cap open android
+```
+
+`npm run generate` is deliberately wired to the Capacitor static build: a plain SSR `nuxt generate`
+does not emit the `index.html` Capacitor requires. `npm run build:mobile` does generate + sync in one
+step; `npm run build:web` is the untouched SSR web build.
+
+In Android Studio: wait for Gradle sync, pick the AVD (Pixel, API 34/35), press Run.
+
+Optional live reload (never for a store build — it points the shell at a dev server):
+
+```bash
+npm run dev
+CAPACITOR_SERVER_URL=http://192.168.x.x:3000 npm run mobile:live
+```
+
+Emulators reach the host at `http://10.0.2.2:3000`; physical devices need the machine's LAN IP.
+`CAPACITOR_SERVER_URL` must be unset when building a release AAB.
+
+**Configured locally ≠ release-ready.** Still outstanding for the stores: release keystore and
+signing secrets, `ANDROID_CERT_SHA256` in `assetlinks.json`, `APPLE_TEAM_ID` in the AASA file,
+Sign in with Apple, the iOS IAP decision, screenshots/feature graphic, and store metadata.
+
+---
+
+## 5. Production 500 after build (fixed)
+
+Supabase credentials are inlined at **build** time and Nitro only overrides them at runtime from
+`NUXT_PUBLIC_SUPABASE_URL` / `NUXT_PUBLIC_SUPABASE_KEY`. A host that exposes `SUPABASE_URL` /
+`SUPABASE_ANON_KEY` instead boots with an empty key, so `@nuxtjs/supabase` throws
+`supabaseKey is required` on every SSR render → HTTP 500 on every page.
+
+`scripts/start-server.mjs` is now the production entrypoint (`npm start`, `Procfile`, Dockerfile
+`CMD`). It maps the aliases *before* importing Nitro — runtime config is readonly, so a Nitro plugin
+cannot patch it after boot — and exits with a clear message when nothing is configured instead of
+serving opaque 500s. Verified against an env-less build: `SUPABASE_URL`+`SUPABASE_ANON_KEY` → 200,
+`NUXT_PUBLIC_*` → 200, nothing → exit 1 with an actionable error.

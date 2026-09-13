@@ -85,6 +85,26 @@ verification. Custom scheme for OAuth callbacks: `viorp://`.
 | In-app account deletion | Settings → Delete account (`/settings/delete-account`) |
 | External deletion request | https://viorp.com/settings/delete-account, or privacy@viorp.com |
 
+## 6b. Android emulator / device workflow
+
+```bash
+npm run build:mobile        # CAPACITOR_BUILD=true nuxt generate + cap sync
+                            # (`npm run generate` is aliased to the same static SPA build)
+npx cap open android        # Android Studio → wait for Gradle sync → pick the AVD → Run ▶
+```
+
+Live reload against the dev server instead of a rebuild per change:
+
+```bash
+npm run dev                                        # terminal 1
+CAPACITOR_SERVER_URL=http://192.168.x.x:3000 \
+  npm run mobile:live                              # terminal 2 (cap copy + cap run android)
+```
+
+`CAPACITOR_SERVER_URL` injects `server.url` + `cleartext` into `capacitor.config.ts` only when
+set — leave it unset for any store build. Emulators reach the host dev server at
+`http://10.0.2.2:3000`; physical devices need the machine's LAN IP.
+
 ## 7. Desktop (Electron)
 
 The desktop shell lives in `electron/` and loads the same static bundle as the mobile builds.

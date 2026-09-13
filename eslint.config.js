@@ -62,7 +62,7 @@ export default [
   js.configs.recommended,
   ...vue.configs['flat/recommended'],
   {
-    files: ['**/*.{js,ts}'],
+    files: ['**/*.{js,mjs,cjs,ts}'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
