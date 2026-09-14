@@ -19,14 +19,11 @@
       </div>
 
       <div v-else class="posts-list">
-        <PostCard 
-          v-for="post in posts" 
-          :key="post.id" 
+        <PostCard
+          v-for="post in posts"
+          :key="post.id"
           :post="post"
-          @pewgift="handlePewgift"
-          @like="handleLike"
-          @comment="handleComment"
-          @share="handleShare"
+          @pewgift="openGift"
         />
       </div>
     </section>
@@ -53,9 +50,9 @@ definePageMeta({
 import { ref, onMounted } from 'vue'
 import CreatePost from '~/components/posts/create-post.vue'
 import PostCard from '~/components/posts/post-card.vue'
-import type { Post } from '~/types/post'
+import type { RankedPost } from '~/server/utils/feed-ranker'
 
-const posts = ref<Post[]>([])
+const posts = ref<RankedPost[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -67,7 +64,7 @@ const fetchPosts = async () => {
   error.value = null
   
   try {
-    const response = await $fetch<{ success: boolean, data: { posts: Post[] } }>('/api/posts/feed')
+    const response = await $fetch<{ success: boolean, data: { posts: RankedPost[] } }>('/api/posts/feed')
     posts.value = response.data?.posts ?? []
   } catch (err) {
     console.error('Error fetching posts:', err)
@@ -78,32 +75,10 @@ const fetchPosts = async () => {
 }
 
 /**
- * Handle pewgift action from post card
+ * Gifting lives on the dedicated pewgift surface, pre-targeted at the post author.
  */
-const handlePewgift = (postId: string) => {
-  console.log('Pewgift action triggered for post:', postId)
-  // This will be handled by the pewgift-button component in post-card
-}
-
-/**
- * Handle like action from post card
- */
-const handleLike = (postId: string) => {
-  console.log('Like action triggered for post:', postId)
-}
-
-/**
- * Handle comment action from post card
- */
-const handleComment = (postId: string) => {
-  console.log('Comment action triggered for post:', postId)
-}
-
-/**
- * Handle share action from post card
- */
-const handleShare = (postId: string) => {
-  console.log('Share action triggered for post:', postId)
+const openGift = (post: RankedPost) => {
+  navigateTo({ path: '/pewgift', query: { postId: post.id, recipientId: post.author?.id } })
 }
 
 /**
@@ -133,7 +108,7 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 600;
   margin-bottom: 20px;
-  color: #333;
+  color: var(--text-primary, #f0fffb);
 }
 
 .posts-list {

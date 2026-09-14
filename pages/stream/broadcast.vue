@@ -293,6 +293,7 @@ onUnmounted(() => {
   padding: 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
+  color: var(--text-primary, #f0fffb);
 }
 
 .stream-header {
@@ -301,7 +302,7 @@ onUnmounted(() => {
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-dark-grey, #1f2937);
 }
 
 .header-content h1 {
@@ -311,7 +312,7 @@ onUnmounted(() => {
 }
 
 .subtitle {
-  color: #6b7280;
+  color: rgba(240, 255, 251, 0.65);
   margin: 0.5rem 0 0 0;
 }
 
@@ -322,8 +323,9 @@ onUnmounted(() => {
 
 .btn-secondary {
   padding: 0.5rem 1rem;
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
+  color: var(--text-primary, #f0fffb);
+  background-color: var(--color-dark-grey, #1f2937);
+  border: 1px solid var(--color-dark-grey, #1f2937);
   border-radius: 0.375rem;
   cursor: pointer;
   font-size: 0.875rem;
@@ -331,7 +333,7 @@ onUnmounted(() => {
 }
 
 .btn-secondary:hover {
-  background-color: #e5e7eb;
+  background-color: #253044;
 }
 
 .stream-container {
@@ -342,7 +344,7 @@ onUnmounted(() => {
 }
 
 .stream-section {
-  background: white;
+  background: var(--bg-card, #0a0f1e);
   border-radius: 0.5rem;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -376,7 +378,7 @@ onUnmounted(() => {
 }
 
 .info-card {
-  background: white;
+  background: var(--bg-card, #0a0f1e);
   border-radius: 0.5rem;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -401,23 +403,23 @@ onUnmounted(() => {
 
 .stat-label {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: rgba(240, 255, 251, 0.65);
 }
 
 .stat-value {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary, #f0fffb);
 }
 
 .no-stream-info {
-  color: #6b7280;
+  color: rgba(240, 255, 251, 0.65);
   text-align: center;
   padding: 1rem;
 }
 
 .chat-section {
-  background: white;
+  background: var(--bg-card, #0a0f1e);
   border-radius: 0.5rem;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -443,7 +445,7 @@ onUnmounted(() => {
 .chat-message {
   margin-bottom: 0.75rem;
   padding: 0.5rem;
-  background-color: #f9fafb;
+  background-color: rgba(255, 255, 255, 0.03);
   border-radius: 0.375rem;
 }
 
@@ -459,13 +461,13 @@ onUnmounted(() => {
 
 .message-time {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: rgba(240, 255, 251, 0.5);
 }
 
 .message-content {
   margin: 0;
   font-size: 0.875rem;
-  color: #1f2937;
+  color: var(--text-primary, #f0fffb);
 }
 
 .chat-input {
@@ -476,15 +478,15 @@ onUnmounted(() => {
 .chat-input input {
   flex: 1;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-dark-grey, #1f2937);
   border-radius: 0.375rem;
   font-size: 0.875rem;
 }
 
 .btn-send {
   padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
+  background-color: var(--color-aurora-mint, #6fffd4);
+  color: var(--text-on-accent, #0a0f1e);
   border: none;
   border-radius: 0.375rem;
   cursor: pointer;
@@ -493,11 +495,11 @@ onUnmounted(() => {
 }
 
 .btn-send:hover {
-  background-color: #2563eb;
+  background-color: #5be6c0;
 }
 
 .viewers-section {
-  background: white;
+  background: var(--bg-card, #0a0f1e);
   border-radius: 0.5rem;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -537,15 +539,15 @@ onUnmounted(() => {
 
 .following-badge {
   display: inline-block;
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: rgba(111, 255, 212, 0.15);
+  color: var(--color-aurora-mint, #6fffd4);
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
 }
 
 .gifts-section {
-  background: white;
+  background: var(--bg-card, #0a0f1e);
   border-radius: 0.5rem;
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -567,7 +569,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 1rem;
   padding: 0.75rem;
-  background-color: #fef3c7;
+  background-color: rgba(255, 200, 87, 0.15);
   border-radius: 0.375rem;
 }
 
@@ -588,16 +590,16 @@ onUnmounted(() => {
 .gift-name {
   margin: 0.25rem 0 0 0;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: rgba(240, 255, 251, 0.65);
 }
 
 .gift-value {
   font-weight: 600;
-  color: #d97706;
+  color: var(--color-solar-gold, #ffc857);
 }
 
 .error-banner {
-  background-color: #fee2e2;
+  background-color: rgba(255, 46, 136, 0.15);
   border: 1px solid #fecaca;
   border-radius: 0.375rem;
   padding: 1rem;
@@ -609,7 +611,7 @@ onUnmounted(() => {
 
 .error-banner p {
   margin: 0;
-  color: #991b1b;
+  color: var(--color-error-pink, #ff2e88);
   font-size: 0.875rem;
 }
 
@@ -618,7 +620,7 @@ onUnmounted(() => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #991b1b;
+  color: var(--color-error-pink, #ff2e88);
 }
 
 @media (max-width: 768px) {

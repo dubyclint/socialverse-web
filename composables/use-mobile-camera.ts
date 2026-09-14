@@ -11,6 +11,22 @@ export interface CameraConstraints {
   video: boolean | MediaTrackConstraints
 }
 
+const CAMERA_TIMEOUT_MS = 15000
+
+const withTimeout = async <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms)
+      })
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export const useMobileCamera = () => {
   const cameraPreview: Ref<HTMLVideoElement | null> = ref(null)
   const mediaStream: Ref<MediaStream | null> = ref(null)
@@ -55,10 +71,23 @@ export const useMobileCamera = () => {
     error.value = null
 
     try {
-      // Check permissions first
-      const permissionStatus = await navigator.permissions.query({ name: 'camera' })
-      if (permissionStatus.state === 'denied') {
-        throw new Error('Camera permission denied. Please enable camera access in settings.')
+      // getUserMedia only exists in a secure context; without this check the
+      // caller hangs on "Preparing…" with no explanation.
+      if (!import.meta.client || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error(
+          'Camera access is unavailable in this browser. Live streaming needs a secure (https) context and a camera.'
+        )
+      }
+
+      // Permissions API is optional and the 'camera' name is unsupported in some
+      // browsers; a failed query must not block initialisation.
+      try {
+        const permissionStatus = await navigator.permissions?.query({ name: 'camera' as PermissionName })
+        if (permissionStatus?.state === 'denied') {
+          throw new Error('Camera permission denied. Please enable camera access in your browser settings.')
+        }
+      } catch (permissionError: any) {
+        if (permissionError?.message?.includes('permission denied')) throw permissionError
       }
 
       const constraints: CameraConstraints = {
@@ -74,7 +103,13 @@ export const useMobileCamera = () => {
         }
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      // A device with no camera (or an unanswered permission prompt) leaves
+      // getUserMedia pending forever, so surface a real error instead.
+      const stream = await withTimeout(
+        navigator.mediaDevices.getUserMedia(constraints),
+        CAMERA_TIMEOUT_MS,
+        'Camera did not respond. Check that a camera is connected and that you allowed access.'
+      )
       mediaStream.value = stream
       currentFacingMode.value = facingMode
 

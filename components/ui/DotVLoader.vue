@@ -2,8 +2,8 @@
   <div class="dotv" :class="{ 'dotv--fullscreen': fullscreen }" role="status" :aria-label="label">
     <svg
       class="dotv__svg"
-      :width="size"
-      :height="size"
+      :width.attr="size"
+      :height.attr="size"
       viewBox="0 0 120 120"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"

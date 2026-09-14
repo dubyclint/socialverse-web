@@ -237,11 +237,22 @@ export default defineNitroPlugin((nitroApp: any) => {
       socket.on('chat:delivered', handleReceipt('last_delivered_at', 'chat:delivered'))
       socket.on('chat:read', handleReceipt('last_read_at', 'chat:read'))
 
-      const handleTyping = (data: any) => {
+      // Typing fires per keystroke, so the sender's name is resolved once per
+      // connection rather than on every event.
+      let typingName: string | undefined
+      const typingSenderName = async () => {
+        if (!typingName && socket.userId) {
+          typingName = (await senderOf(socket.userId)).senderName
+        }
+        return typingName || 'Someone'
+      }
+
+      const handleTyping = async (data: any) => {
         if (!data?.chatId) return
         const isTyping = data?.isTyping !== false
         socket.to(roomOf(data.chatId)).emit(isTyping ? 'chat:typing' : 'chat:stop-typing', {
           userId: socket.userId,
+          username: await typingSenderName(),
           chatId: data.chatId
         })
       }
@@ -249,9 +260,13 @@ export default defineNitroPlugin((nitroApp: any) => {
       socket.on('chat:typing', handleTyping)
       socket.on('typing', handleTyping)
 
-      socket.on('chat:stop-typing', (data: any) => {
+      socket.on('chat:stop-typing', async (data: any) => {
         if (!data?.chatId) return
-        socket.to(roomOf(data.chatId)).emit('chat:stop-typing', { userId: socket.userId, chatId: data.chatId })
+        socket.to(roomOf(data.chatId)).emit('chat:stop-typing', {
+          userId: socket.userId,
+          username: await typingSenderName(),
+          chatId: data.chatId
+        })
       })
 
       // 1:1 calls: SDP/ICE are relayed between the two participants only, and

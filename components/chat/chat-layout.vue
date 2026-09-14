@@ -535,8 +535,7 @@ onMounted(async () => {
 
   onTyping((event, isTyping) => {
     if (event.userId === currentUserId.value) return
-    const chat = chatStore.chats.get(event.chatId)
-    chatStore.setTyping(event.chatId, event.userId, chat?.name || 'Someone', isTyping)
+    chatStore.setTyping(event.chatId, event.userId, event.username || 'Someone', isTyping)
   })
 
   onReceipt((receipt, kind) => {

@@ -37,6 +37,7 @@ export interface ChatReceipt {
 export interface ChatTypingEvent {
   chatId: string
   userId: string
+  username?: string
 }
 
 // Realtime chat glue over the Socket.IO orchestrator (`useSocket`).

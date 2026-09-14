@@ -1,390 +1,174 @@
 <template>
-  <article 
-    class="post-card" 
-    :class="[variant, { sponsored: post.sponsored, pinned: post.pinned, verified: post.verified }]"
-  >
-    <!-- Post Header -->
+  <article class="post-card" :class="{ sponsored: post.sponsored }">
     <header class="post-header">
-      <div class="author-info">
-        <img 
-          :src="post.userAvatar || post.avatar" 
-          :alt="post.username || post.author" 
-          class="author-avatar" 
-        />
-        <div class="author-details">
-          <h4 class="author-name">
-            {{ post.username || post.author }}
-            <span v-if="post.verified || post.isVerified" class="badge">✔️</span>
-          </h4>
-          <p class="post-timestamp">{{ post.timestamp || formatDate(post.createdAt) }}</p>
-        </div>
+      <img
+        :src="post.author?.avatar_url || '/default-avatar.svg'"
+        :alt="post.author?.full_name || 'User'"
+        class="author-avatar"
+        @click="openAuthor"
+      />
+      <div class="author-details">
+        <h4 class="author-name">
+          {{ post.author?.full_name || 'Unknown user' }}
+          <span v-if="post.author?.verified" class="badge" title="Verified">
+            <Icon name="check-circle" size="14" />
+          </span>
+        </h4>
+        <p class="author-handle">@{{ post.author?.username || 'unknown' }}</p>
       </div>
-      
-      <div class="post-actions">
-        <button v-if="post.pinned" class="pin-indicator" title="Pinned Post">
-          📍
-        </button>
-        <button v-if="post.sponsored" class="sponsored-indicator" title="Sponsored">
-          $$
-        </button>
-        <button class="more-btn" @click="showMoreOptions">
-          ⋮
-        </button>
-      </div>
+      <span class="post-timestamp">{{ formatTimeAgo(post.created_at) }}</span>
     </header>
 
-    <!-- Post Content -->
-    <div class="post-content">
-      <p class="post-text">{{ post.content }}</p>
-      <div v-if="post.mediaUrl || post.image" class="post-media">
-        <img 
-          :src="post.mediaUrl || post.image" 
-          :alt="post.content" 
-          @click="openMedia" 
+    <div class="post-content" @click="openPost">
+      <p v-if="post.content" class="post-text">{{ post.content }}</p>
+      <div v-if="post.media?.length" class="post-media">
+        <img
+          v-for="(url, index) in post.media"
+          :key="index"
+          :src="url"
+          :alt="`Post media ${index + 1}`"
+          loading="lazy"
         />
+      </div>
+      <div v-if="post.hashtags?.length" class="post-hashtags">
+        <NuxtLink
+          v-for="tag in post.hashtags"
+          :key="tag"
+          :to="`/explore?tag=${tag}`"
+          class="hashtag"
+          @click.stop
+        >#{{ tag }}</NuxtLink>
       </div>
     </div>
 
-    <!-- Post Footer -->
-    <footer class="post-footer">
-      <div class="engagement-stats">
-        <span class="stat">{{ formatNumber(post.likes?.length || post.likes) }} likes</span>
-        <span class="stat">{{ formatNumber(post.comments?.length || post.comments) }} comments</span>
-        <span class="stat">{{ formatNumber(post.shares || 0) }} shares</span>
-      </div>
-      
-      <div class="action-buttons">
-        <button 
-          class="action-btn like" 
-          :class="{ active: isLiked }" 
-          @click="toggleLike"
-        >
-          {{ isLiked ? '❤️' : '🤍' }} Like
-        </button>
-        <button class="action-btn comment" @click="openComments">
-          💬 Comment
-        </button>
-        <button class="action-btn share" @click="sharePost">
-          🔄 Share
-        </button>
-        <button class="action-btn pewgift" @click="sendPewgift">
-  🎁 Pewgift
-</button>
-      </div>
-    </footer>
+    <PostInteractionToolbar :post="post" @open-gift="$emit('pewgift', post)" />
   </article>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue'
+import type { RankedPost } from '~/server/utils/feed-ranker'
 
-const props = defineProps({
-  post: {
-    type: Object,
-    required: true
-  },
-  variant: {
-    type: String,
-    default: 'default'
-  }
-})
+const props = defineProps<{ post: RankedPost & { sponsored?: boolean } }>()
+defineEmits<{ pewgift: [post: RankedPost] }>()
 
-const isLiked = ref(false)
+const router = useRouter()
 
-const formatNumber = (num) => {
-  if (typeof num !== 'number') return num || 0
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
-  return num.toString()
+const openPost = () => router.push(`/posts/${props.post.id}`)
+
+const openAuthor = () => {
+  const author = props.post.author
+  if (author?.username) router.push(`/profile/${author.username}`)
 }
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const toggleLike = () => {
-  isLiked.value = !isLiked.value
-  // Implement like functionality
-}
-
-const openComments = () => {
-  // Open comments modal or navigate to post detail
-  console.log('Open comments for post:', props.post._id)
-}
-
-const sharePost = () => {
-  // Implement share functionality
-  if (navigator.share) {
-    navigator.share({
-      title: `Post by ${props.post.username || props.post.author}`,
-      text: props.post.content,
-      url: `${window.location.origin}/post/${props.post._id || props.post.id}`
-    }).catch(err => console.log('Error sharing:', err))
-  } else {
-    // Fallback: copy to clipboard
-    navigator.clipboard?.writeText(window.location.href)
-  }
-}
-
-const sendPewgift = () => {
-  // Trigger pewgift flow
-  console.log('Send pewgift to post:', props.post._id)
-}
-
-
-const openMedia = () => {
-  // Open media in fullscreen viewer
-  console.log('Open media:', props.post.mediaUrl || props.post.image)
-}
-
-const showMoreOptions = () => {
-  // Show more options menu
-  console.log('Show more options for post:', props.post._id)
+const formatTimeAgo = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 </script>
 
 <style scoped>
 .post-card {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-card, #0a0f1e);
+  border: 1px solid var(--color-dark-grey, #1f2937);
+  border-radius: var(--radius-lg, 24px);
   overflow: hidden;
-  transition: all 0.3s ease;
-  border: 1px solid #e1e5e9;
-  margin-bottom: 1.5rem;
-}
-
-.post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.post-card.trending {
-  border-left: 4px solid #ff6b6b;
-}
-
-.post-card.friends {
-  border-left: 4px solid #4ecdc4;
-}
-
-.post-card.local {
-  border-left: 4px solid #45b7d1;
+  color: var(--text-primary, #f0fffb);
 }
 
 .post-card.sponsored {
-  border: 2px solid #f39c12;
-  background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-}
-
-.post-card.verified {
-  border-left: 4px solid #2ecc71;
-}
-
-.post-card.news {
-  border-left: 4px solid #9b59b6;
-}
-
-.post-card.interests {
-  border-left: 4px solid #e74c3c;
-}
-
-.post-card.pinned {
-  border-top: 3px solid #f39c12;
+  border-color: var(--color-solar-gold, #ffc857);
 }
 
 .post-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid #f8f9fa;
-}
-
-.author-info {
-  display: flex;
-  align-items: center;
   gap: 0.75rem;
+  padding: 1rem;
 }
 
 .author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
   object-fit: cover;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.author-details {
+  flex: 1;
+  min-width: 0;
 }
 
 .author-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #2d3436;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .badge {
-  color: #0984e3;
-  font-size: 0.9rem;
+  color: var(--color-aurora-mint, #6fffd4);
+  display: inline-flex;
+}
+
+.author-handle {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
 .post-timestamp {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #636e72;
-}
-
-.post-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.pin-indicator,
-.sponsored-indicator,
-.more-btn {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  color: #636e72;
-  font-size: 1rem;
-}
-
-.pin-indicator:hover,
-.sponsored-indicator:hover,
-.more-btn:hover {
-  background: #f8f9fa;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  white-space: nowrap;
 }
 
 .post-content {
-  padding: 1rem;
+  padding: 0 1rem 0.75rem;
+  cursor: pointer;
 }
 
 .post-text {
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.75rem;
   line-height: 1.6;
-  color: #2d3436;
+  white-space: pre-wrap;
 }
 
 .post-media {
-  position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .post-media img {
   width: 100%;
-  height: auto;
-  max-height: 400px;
+  max-height: 420px;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  border-radius: var(--radius-sm, 8px);
 }
 
-.post-media:hover img {
-  transform: scale(1.02);
-}
-
-.post-footer {
-  padding: 1rem;
-  border-top: 1px solid #f8f9fa;
-}
-
-.engagement-stats {
+.post-hashtags {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: #636e72;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: space-around;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: none;
-  border: 1px solid #ddd;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #636e72;
-  font-weight: 500;
-  flex: 1;
-  min-width: 70px;
-  justify-content: center;
-}
-
-.action-btn:hover {
-  background: #f8f9fa;
-  transform: translateY(-1px);
-}
-
-.action-btn.like.active {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
-
-.action-btn.comment:hover {
-  color: #0984e3;
-  border-color: #0984e3;
-}
-
-.action-btn.share:hover {
-  color: #00b894;
-  border-color: #00b894;
-}
-
-.action-btn.gift:hover {
-  color: #fd79a8;
-  border-color: #fd79a8;
-}
-
-/* Responsive Design */
-@media (max-width: 480px) {
-  .post-header {
-    padding: 0.75rem;
-  }
-  
-  .author-avatar {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .author-name {
-    font-size: 0.9rem;
-  }
-  
-  .post-content {
-    padding: 0.75rem;
-  }
-  
-  .post-footer {
-    padding: 0.75rem;
-  }
-  
-  .action-buttons {
-    gap: 0.25rem;
-  }
-  
-  .action-btn {
-    padding: 0.5rem;
-    font-size: 0.85rem;
-  }
+.hashtag {
+  color: var(--color-aurora-mint, #6fffd4);
+  font-size: 0.85rem;
+  text-decoration: none;
 }
 </style>
