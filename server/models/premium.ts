@@ -17,6 +17,8 @@ async function getSupabase() {
   return supabaseInstance
 }
 
+// (compat shims moved below the class)
+
 // ============================================================================
 // INTERFACES
 // ============================================================================
@@ -202,4 +204,19 @@ export class PremiumModel {
     }
     return features[tier]
   }
+}
+
+// Compatibility shim for older controllers
+export async function getSubscriptionByUserId(userId: string) {
+  return PremiumModel.getSubscription(userId)
+}
+
+// Export runtime object for legacy imports
+export const PremiumModelRuntime: any = {
+  getSubscriptionByUserId,
+  getSubscription: PremiumModel.getSubscription,
+  createSubscription: PremiumModel.createSubscription,
+  upgradeTier: PremiumModel.upgradeTier,
+  cancelSubscription: PremiumModel.cancelSubscription,
+  renewSubscription: PremiumModel.renewSubscription
 }

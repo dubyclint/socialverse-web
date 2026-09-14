@@ -1,10 +1,9 @@
 <template>
-  <div class="app-layout">
-    <aside class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
+  <div class="app-layout" :class="{ 'is-native': isNative }">
+    <aside v-if="!isNative" class="sidebar" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="sidebar-header">
         <NuxtLink to="/feed" class="sidebar-logo">
-          <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
-          <span class="logo-text">SocialVerse</span>
+          <Logo size="md" text="Viorp" />
         </NuxtLink>
         <button @click="closeSidebar" class="sidebar-close md:hidden" aria-label="Close Navigation Menu">
           <Icon name="x" size="24" />
@@ -86,17 +85,17 @@
     <main class="main-content">
       <header class="app-header">
         <div class="header-left">
-          <button 
-            @click="toggleSidebar" 
-            class="sidebar-toggle md:hidden" 
+          <button
+            v-if="!isNative"
+            @click="toggleSidebar"
+            class="sidebar-toggle md:hidden"
             aria-label="Open Navigation Menu"
           >
             <Icon name="menu" size="24" />
           </button>
           
           <NuxtLink to="/feed" class="logo hidden md:flex">
-            <img src="/logo.svg" alt="SocialVerse" class="logo-img" />
-            <span class="logo-text">SocialVerse</span>
+            <Logo size="md" text="Viorp" />
           </NuxtLink>
         </div>
 
@@ -125,6 +124,8 @@
       <div class="page-content">
         <slot />
       </div>
+
+      <LayoutMobileTabBar v-if="isNative" />
     </main>
 
     <aside v-if="showRightSidebar" class="right-sidebar hidden lg:block">
@@ -136,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 // useRoute is auto-imported by Nuxt 3, but keeping explicit import is fine if preferred:
 import { useRoute } from 'vue-router'
 
@@ -144,9 +145,21 @@ import { useRoute } from 'vue-router'
 // SETUP & INITIALIZATION
 // ============================================================================
 const route = useRoute()
+const { isNative } = useDevicePlatform()
 const sidebarOpen = ref(false)
 const showRightSidebar = ref(false)
 const unreadCount = ref(0)
+
+const loadUnreadCount = async () => {
+  try {
+    const res = await $fetch<{ unread: number }>('/api/user/notifications', { query: { limit: 50 } })
+    unreadCount.value = res.unread
+  } catch {
+    unreadCount.value = 0
+  }
+}
+
+onMounted(loadUnreadCount)
 
 // ✅ SAFE: Centralized defensive fallback for path resolution context
 // This prevents SSR crashes if route.path is temporarily undefined during hydration
@@ -163,17 +176,13 @@ const closeSidebar = () => {
   sidebarOpen.value = false
 }
 
-const toggleSearch = () => {
-  // Handle search toggle
-}
+const router = useRouter()
 
-const toggleNotifications = () => {
-  // Handle notifications toggle
-}
+const toggleSearch = () => router.push('/explore')
 
-const toggleUserMenu = () => {
-  // Handle user menu toggle
-}
+const toggleNotifications = () => router.push('/notifications')
+
+const toggleUserMenu = () => router.push('/profile')
 
 // ✅ SAFE: Defensively evaluates the current route path
 const isActive = (path: string) => {
@@ -185,6 +194,7 @@ const isActive = (path: string) => {
 // ============================================================================
 watch(safelyResolvedPath, () => {
   sidebarOpen.value = false
+  loadUnreadCount()
 })
 </script>
 

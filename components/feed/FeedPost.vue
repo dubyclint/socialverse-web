@@ -3,7 +3,7 @@
     <div class="post-header">
       <div class="post-author" @click="navigateToProfile(post.author?.id || post.author?.username)">
         <img 
-          :src="post.author?.avatar_url || '/default-avatar.png'" 
+          :src="post.author?.avatar_url || '/default-avatar.svg'" 
           :alt="post.author?.full_name || 'User'"
           class="author-avatar"
         />

@@ -39,9 +39,8 @@ export default defineEventHandler(async (event): Promise<HealthResponse> => {
     // ============================================================================
     console.log('[Health Check] Checking environment variables...')
     
-    const supabaseUrl = process.env.SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_KEY
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_KEY
 
     if (supabaseUrl && supabaseKey) {
       checks.environment_variables = true
@@ -79,18 +78,17 @@ export default defineEventHandler(async (event): Promise<HealthResponse> => {
       console.log('[Health Check] Testing database connection...')
       
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('profiles')
-          .select('count(*)', { count: 'exact', head: true })
-          .limit(1)
+          .select('id', { head: true, count: 'exact' })
 
         if (!error) {
           checks.supabase_connection = true
           console.log('[Health Check] ✅ Database connection successful')
         } else {
           console.warn('[Health Check] ⚠️ Database query error:', error.message)
-          
-          if (error.message.includes('does not exist')) {
+
+          if (error.message?.includes('does not exist')) {
             details.message = 'Database tables not yet created'
             checks.supabase_connection = true
           } else {

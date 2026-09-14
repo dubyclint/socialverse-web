@@ -439,9 +439,9 @@ import { ref, computed, onMounted } from 'vue'
 
 // Page meta
 useHead({
-  title: 'Create Advertisement - SocialVerse',
+  title: 'Create Advertisement - Viorp',
   meta: [
-    { name: 'description', content: 'Create and launch your advertising campaign on SocialVerse' }
+    { name: 'description', content: 'Create and launch your advertising campaign on Viorp' }
   ]
 })
 

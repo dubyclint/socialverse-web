@@ -1,15 +1,4 @@
-// push-engine.ts - FIXED WITH LAZY LOADING
-
-// Lazy load axios
-let axios: any = null;
-
-async function getAxios() {
-  if (!axios) {
-    const module = await import('axios');
-    axios = module.default;
-  }
-  return axios;
-}
+// push-engine.ts
 
 interface PushNotificationPayload {
   to: string
@@ -32,9 +21,9 @@ export const sendPush = async (deviceToken: string, title: string, body: string)
   }
 
   try {
-    const axiosLib = await getAxios();
-    
-    await axiosLib.post('https://fcm.googleapis.com/fcm/send', payload, {
+    await $fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      body: payload,
       headers: {
         Authorization: `key=${FCM_SERVER_KEY}`,
         'Content-Type': 'application/json'

@@ -10,11 +10,11 @@ const RANK_THRESHOLDS = [
   { name: 'Elite', minPoints: 5000 }
 ];
 
-function calculateRank(points: number) {
-  const rank = RANK_THRESHOLDS
+function calculateRank(points: number): { name: string; minPoints: number } {
+  const rank = [...RANK_THRESHOLDS]
     .reverse()
     .find(r => points >= r.minPoints);
-  return rank || RANK_THRESHOLDS[0];
+  return rank ?? RANK_THRESHOLDS[0]!;
 }
 
 export default defineEventHandler(async (event) => {
@@ -33,9 +33,9 @@ export default defineEventHandler(async (event) => {
 
     // Get current user data
     const { data: user, error: fetchError } = await supabase
-      .from('users')
+      .from('user')
       .select('rank_points')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
       
     if (fetchError) throw fetchError;
@@ -46,13 +46,13 @@ export default defineEventHandler(async (event) => {
 
     // Update user's points and rank
     const { error: updateError } = await supabase
-      .from('users')
+      .from('user')
       .update({
         rank_points: newPoints,
         rank: newRank.name,
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId);
+      .eq('user_id', userId);
       
     if (updateError) throw updateError;
 

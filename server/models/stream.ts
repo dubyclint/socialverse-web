@@ -1,189 +1,120 @@
-// FILE: /server/models/stream.ts
-// REFACTORED: Lazy-loaded Supabase
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import type { Database } from '~/types/database.types'
 
-// ============================================================================
-// LAZY-LOADED SUPABASE CLIENT
-// ============================================================================
-let supabaseInstance: any = null
+export type StreamBroadcastState = Database['public']['Enums']['stream_broadcast_state']
+export type StreamRow = Database['public']['Tables']['streams']['Row']
 
-async function getSupabase() {
-  if (!supabaseInstance) {
-    const { createClient } = await import('@supabase/supabase-js')
-    supabaseInstance = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-  }
-  return supabaseInstance
-}
+const randomStreamKey = () =>
+  `sv_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
 
-// ============================================================================
-// INTERFACES
-// ============================================================================
-export interface Stream {
-  id: string
-  userId: string
-  title: string
-  description?: string
-  streamUrl: string
-  thumbnailUrl?: string
-  status: 'LIVE' | 'OFFLINE' | 'SCHEDULED'
-  viewerCount: number
-  startedAt?: string
-  endedAt?: string
-  scheduledAt?: string
-  createdAt: string
-}
-
-// ============================================================================
-// MODEL CLASS
-// ============================================================================
 export class StreamModel {
   static async createStream(
-    userId: string,
+    creatorId: string,
     title: string,
-    streamUrl: string,
-    description?: string,
-    thumbnailUrl?: string,
-    scheduledAt?: string
-  ): Promise<Stream> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('streams')
-        .insert({
-          userId,
-          title,
-          description,
-          streamUrl,
-          thumbnailUrl,
-          status: scheduledAt ? 'SCHEDULED' : 'OFFLINE',
-          viewerCount: 0,
-          scheduledAt,
-          createdAt: new Date().toISOString()
-        })
-        .select()
-        .single()
+    _streamUrl = '',
+    description?: string
+  ): Promise<StreamRow> {
+    const supabase = getServiceClient()
+    const { data, error } = await supabase
+      .from('streams')
+      .insert({
+        creator_id: creatorId,
+        title,
+        description: description ?? null,
+        stream_key: randomStreamKey(),
+        broadcast_status: 'PREPARING',
+        current_viewer_count: 0,
+        peak_viewer_count: 0
+      })
+      .select()
+      .single()
 
-      if (error) throw error
-      return data as Stream
-    } catch (error) {
-      console.error('[StreamModel] Error creating stream:', error)
-      throw error
-    }
+    if (error) throw error
+    return data
   }
 
-  static async getStream(id: string): Promise<Stream | null> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('streams')
-        .select('*')
-        .eq('id', id)
-        .single()
+  static async getStream(id: string): Promise<StreamRow | null> {
+    const supabase = getServiceClient()
+    const { data, error } = await supabase.from('streams').select('*').eq('id', id).maybeSingle()
 
-      if (error) {
-        console.warn('[StreamModel] Stream not found')
-        return null
-      }
-
-      return data as Stream
-    } catch (error) {
-      console.error('[StreamModel] Error fetching stream:', error)
-      throw error
-    }
+    if (error) throw error
+    return data
   }
 
-  static async getUserStreams(userId: string, limit = 50): Promise<Stream[]> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('streams')
-        .select('*')
-        .eq('userId', userId)
-        .order('createdAt', { ascending: false })
-        .limit(limit)
+  static async getUserStreams(creatorId: string, limit = 50): Promise<StreamRow[]> {
+    const supabase = getServiceClient()
+    const { data, error } = await supabase
+      .from('streams')
+      .select('*')
+      .eq('creator_id', creatorId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
 
-      if (error) throw error
-      return (data || []) as Stream[]
-    } catch (error) {
-      console.error('[StreamModel] Error fetching user streams:', error)
-      throw error
-    }
+    if (error) throw error
+    return data ?? []
   }
 
-  static async getLiveStreams(limit = 50): Promise<Stream[]> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('streams')
-        .select('*')
-        .eq('status', 'LIVE')
-        .order('viewerCount', { ascending: false })
-        .limit(limit)
+  static async getLiveStreams(limit = 50): Promise<StreamRow[]> {
+    const supabase = getServiceClient()
+    const { data, error } = await supabase
+      .from('streams')
+      .select('*')
+      .eq('broadcast_status', 'LIVE')
+      .order('current_viewer_count', { ascending: false })
+      .limit(limit)
 
-      if (error) throw error
-      return (data || []) as Stream[]
-    } catch (error) {
-      console.error('[StreamModel] Error fetching live streams:', error)
-      throw error
-    }
+    if (error) throw error
+    return data ?? []
   }
 
-  static async startStream(id: string): Promise<Stream> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('streams')
-        .update({
-          status: 'LIVE',
-          startedAt: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single()
+  static async startStream(id: string): Promise<StreamRow> {
+    const supabase = getServiceClient()
+    const { data, error } = await supabase
+      .from('streams')
+      .update({ broadcast_status: 'LIVE', started_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
 
-      if (error) throw error
-      return data as Stream
-    } catch (error) {
-      console.error('[StreamModel] Error starting stream:', error)
-      throw error
-    }
+    if (error) throw error
+    return data
   }
 
-  static async endStream(id: string): Promise<Stream> {
-    try {
-      const supabase = await getSupabase()
-      const { data, error } = await supabase
-        .from('streams')
-        .update({
-          status: 'OFFLINE',
-          endedAt: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single()
+  static async endStream(id: string): Promise<StreamRow> {
+    const supabase = getServiceClient()
+    const { data, error } = await supabase
+      .from('streams')
+      .update({
+        broadcast_status: 'ENDED',
+        ended_at: new Date().toISOString(),
+        current_viewer_count: 0
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
-      if (error) throw error
-      return data as Stream
-    } catch (error) {
-      console.error('[StreamModel] Error ending stream:', error)
-      throw error
-    }
+    if (error) throw error
+    return data
   }
 
   static async updateViewerCount(id: string, count: number): Promise<void> {
-    try {
-      const supabase = await getSupabase()
-      const { error } = await supabase
-        .from('streams')
-        .update({ viewerCount: count })
-        .eq('id', id)
+    const supabase = getServiceClient()
+    const { data: current, error: readError } = await supabase
+      .from('streams')
+      .select('peak_viewer_count')
+      .eq('id', id)
+      .maybeSingle()
 
-      if (error) throw error
-    } catch (error) {
-      console.error('[StreamModel] Error updating viewer count:', error)
-      throw error
-    }
+    if (readError) throw readError
+
+    const { error } = await supabase
+      .from('streams')
+      .update({
+        current_viewer_count: count,
+        peak_viewer_count: Math.max(count, current?.peak_viewer_count ?? 0)
+      })
+      .eq('id', id)
+
+    if (error) throw error
   }
 }

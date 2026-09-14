@@ -1,8 +1,8 @@
 // Service Worker for SocialVerse PWA
 // Handles caching, offline support, and background sync
 
-const CACHE_NAME = 'socialverse-v1';
-const RUNTIME_CACHE = 'socialverse-runtime-v1';
+const CACHE_NAME = 'socialverse-v2';
+const RUNTIME_CACHE = 'socialverse-runtime-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -72,6 +72,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip the dev server's module graph and HMR traffic. Vite serves the same
+  // URL with different content types depending on how it is requested (a
+  // stylesheet via <link> vs. a JS module via `import`), so caching it breaks
+  // module loading with a MIME type error.
+  if (isDevAsset(url)) {
+    return;
+  }
+
   // Handle API requests (network first, fallback to cache)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request));
@@ -102,8 +110,7 @@ self.addEventListener('fetch', (event) => {
 function cacheFirstStrategy(request) {
   return caches.match(request)
     .then((response) => {
-      if (response) {
-        console.log('[Service Worker] Cache hit:', request.url);
+      if (response && isCompatibleResponse(request, response)) {
         return response;
       }
 
@@ -208,6 +215,39 @@ function isStaticAsset(pathname) {
   ];
 
   return staticExtensions.some((ext) => pathname.endsWith(ext));
+}
+
+/**
+ * Check if the URL belongs to the dev server (Vite module graph / HMR)
+ */
+function isDevAsset(url) {
+  return (
+    url.pathname.startsWith('/_nuxt/') ||
+    url.pathname.startsWith('/@vite') ||
+    url.pathname.startsWith('/@id/') ||
+    url.pathname.startsWith('/@fs/') ||
+    url.searchParams.has('t') ||
+    url.searchParams.has('v')
+  );
+}
+
+/**
+ * Check that a cached response can satisfy the way the request is being made.
+ * The same URL can be requested both as a stylesheet and as a JS module, and
+ * replaying the wrong content type makes the browser reject the module.
+ */
+function isCompatibleResponse(request, response) {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (request.destination === 'script') {
+    return contentType.includes('javascript') || contentType.includes('ecmascript');
+  }
+
+  if (request.destination === 'style') {
+    return contentType.includes('css');
+  }
+
+  return true;
 }
 
 /**

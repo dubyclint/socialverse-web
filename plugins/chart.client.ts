@@ -40,45 +40,15 @@ export default defineNuxtPlugin({
 
     console.log('[Chart Plugin] Initializing Chart.js plugin')
 
-    try {
-      return {
-        provide: {
-          chart: {
-            async create(ctx: any, config: any) {
-              try {
-                console.log('[Chart Plugin] Creating new chart instance')
-                const ChartLib = await getChart()
-                return new ChartLib(ctx, config)
-              } catch (error) {
-                console.error('[Chart Plugin] ❌ Failed to create chart:', error)
-                throw error
-              }
-            },
-            async getChart() {
-              try {
-                console.log('[Chart Plugin] Retrieving Chart.js library')
-                return await getChart()
-              } catch (error) {
-                console.error('[Chart Plugin] ❌ Failed to get Chart.js:', error)
-                throw error
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[Chart Plugin] ❌ Plugin initialization failed:', error)
-      
-      // ✅ FIX: Provide fallback utilities
-      return {
-        provide: {
-          chart: {
-            async create() {
-              throw new Error('Chart.js plugin failed to initialize')
-            },
-            async getChart() {
-              throw new Error('Chart.js plugin failed to initialize')
-            }
+    return {
+      provide: {
+        chart: {
+          async create(ctx: any, config: any) {
+            const ChartLib = await getChart()
+            return new ChartLib(ctx, config)
+          },
+          async getChart() {
+            return await getChart()
           }
         }
       }

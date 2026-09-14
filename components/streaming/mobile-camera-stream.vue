@@ -28,8 +28,11 @@
               <span class="live-dot"></span>
               LIVE
             </div>
+            <div v-else-if="errorMessage" class="preparing-indicator preparing-indicator--failed">
+              Camera unavailable
+            </div>
             <div v-else class="preparing-indicator">
-              Preparing...
+              {{ isConnecting ? 'Preparing...' : 'Ready' }}
             </div>
           </div>
           
@@ -201,6 +204,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
         </svg>
         <p>{{ errorMessage }}</p>
+        <button @click="retryCamera" class="error-dismiss">Retry</button>
         <button @click="clearError" class="error-dismiss">Dismiss</button>
       </div>
     </div>
@@ -208,18 +212,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useMobileCamera } from '~/composables/use-mobile-camera'
-import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
+import { useStreamBroadcast, type StreamConfig } from '~/composables/use-stream-broadcast'
 
-const props = defineProps({
-  streamId: String
-})
+const props = defineProps<{ streamId?: string }>()
 
-const emit = defineEmits(['stream-started', 'stream-ended', 'error'])
+const emit = defineEmits<{
+  (e: 'stream-started', config: StreamConfig): void
+  (e: 'stream-ended'): void
+  (e: 'error', message: string): void
+}>()
 
 const {
-  cameraPreview,
   mediaStream,
   isConnecting,
   canSwitchCamera,
@@ -279,13 +284,18 @@ const startMobileStream = async () => {
     if (!mediaStream.value) {
       await initializeCamera()
     }
-    
-    const streamConfig = {
+
+    if (!mediaStream.value) {
+      handleError('Camera stream is not available')
+      return
+    }
+
+    const streamConfig: StreamConfig = {
       streamId: props.streamId,
       title: streamTitle.value,
       category: streamCategory.value,
-      privacy: streamPrivacy.value,
-      quality: selectedQuality.value,
+      privacy: streamPrivacy.value as StreamConfig['privacy'],
+      quality: selectedQuality.value as StreamConfig['quality'],
       enableRecording: enableRecording.value,
       mediaStream: mediaStream.value
     }
@@ -341,6 +351,15 @@ const handleError = (message: string) => {
 
 const clearError = () => {
   errorMessage.value = ''
+}
+
+const retryCamera = async () => {
+  clearError()
+  try {
+    await initializeCamera()
+  } catch (error: any) {
+    handleError(error.message)
+  }
 }
 
 onMounted(async () => {
@@ -471,6 +490,10 @@ onUnmounted(async () => {
   border-radius: 16px;
   font-size: 12px;
   backdrop-filter: blur(8px);
+}
+
+.preparing-indicator--failed {
+  background: rgba(255, 46, 136, 0.85);
 }
 
 .camera-center {

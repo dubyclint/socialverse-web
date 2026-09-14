@@ -13,7 +13,7 @@
         <div class="chat-avatar" @click="viewProfile">
           <img 
             v-if="chat.type === 'direct'"
-            :src="chat.avatar || '/default-avatar.png'" 
+            :src="chat.avatar || '/default-avatar.svg'" 
             :alt="chat.name"
           />
           <div v-else class="group-avatar">
@@ -102,13 +102,13 @@
             :key="message.id"
             class="message-wrapper"
             :class="{ 
-              'own-message': message.senderId === currentUser.id,
+              'own-message': message.senderId === currentUser?.id,
               'system-message': message.messageType === 'system'
             }"
           >
             <message-bubble
               :message="message"
-              :isOwn="message.senderId === currentUser.id"
+              :isOwn="message.senderId === currentUser?.id"
               :showAvatar="shouldShowAvatar(message, group)"
               :showName="shouldShowName(message, group)"
               @edit="editMessage"
@@ -253,6 +253,9 @@ const props = defineProps({
   chat: Object,
   currentUser: Object,
   messages: { type: Array, default: () => [] },
+  // Typing state is owned by the layout (it is the socket listener), so it
+  // arrives as a prop rather than being tracked twice.
+  typingUsers: { type: Array, default: () => [] },
   isLoading: Boolean
 })
 
@@ -277,7 +280,6 @@ const isRecording = ref(false)
 const recordingDuration = ref(0)
 const isSending = ref(false)
 const hasAttachment = ref(false)
-const typingUsers = ref([])
 const typingTimeout = ref(null)
 
 // Refs
@@ -292,7 +294,7 @@ const groupedMessages = computed(() => {
   const groups = {}
   
   props.messages.forEach(message => {
-    const date = format(new Date(message.createdAt), 'yyyy-MM-dd')
+    const date = format(new Date(message.timestamp), 'yyyy-MM-dd')
     if (!groups[date]) {
       groups[date] = []
     }
@@ -386,8 +388,10 @@ const handleKeyDown = (event) => {
 const handleInput = () => {
   // Auto-resize textarea
   const textarea = messageInput.value
-  textarea.style.height = 'auto'
-  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+  if (textarea) {
+    textarea.style.height = 'auto'
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+  }
   
   // Send typing indicator
   if (messageText.value.trim()) {
@@ -457,9 +461,8 @@ const sendMessage = async () => {
       // Clear input
       messageText.value = ''
       cancelReply()
-      
-      // Reset textarea height
-      messageInput.value.style.height = 'auto'
+
+      if (messageInput.value) messageInput.value.style.height = 'auto'
     }
     
     // Stop typing indicator
@@ -650,21 +653,6 @@ const handleClickOutside = (event) => {
 
 // Socket event handlers
 const setupSocketListeners = () => {
-  socket.on('user_typing', (data) => {
-    if (data.chatId === props.chat.id && data.userId !== props.currentUser.id) {
-      const existingUser = typingUsers.value.find(user => user.userId === data.userId)
-      
-      if (data.isTyping && !existingUser) {
-        typingUsers.value.push({
-          userId: data.userId,
-          username: data.username
-        })
-      } else if (!data.isTyping && existingUser) {
-        typingUsers.value = typingUsers.value.filter(user => user.userId !== data.userId)
-      }
-    }
-  })
-  
   socket.on('user_recording_voice', (data) => {
     if (data.chatId === props.chat.id) {
       console.log(`${data.username} is ${data.isRecording ? 'recording' : 'not recording'} voice`)
@@ -697,7 +685,8 @@ watch(() => props.messages, () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .session-header {
@@ -705,8 +694,8 @@ watch(() => props.messages, () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
   min-height: 64px;
 }
 
@@ -724,12 +713,12 @@ watch(() => props.messages, () => {
   padding: 8px;
   border-radius: 50%;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-muted);
   transition: background-color 0.2s;
 }
 
 .back-btn:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
 }
 
 .chat-avatar {
@@ -751,11 +740,11 @@ watch(() => props.messages, () => {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #e0e0e0;
+  background: var(--color-bg-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .online-indicator {
@@ -793,7 +782,7 @@ watch(() => props.messages, () => {
 
 .chat-status {
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .typing-text {
@@ -813,12 +802,12 @@ watch(() => props.messages, () => {
   padding: 8px;
   border-radius: 50%;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-muted);
   transition: background-color 0.2s;
 }
 
 .header-btn:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
 }
 
 .more-menu {
@@ -829,7 +818,7 @@ watch(() => props.messages, () => {
   position: absolute;
   top: 100%;
   right: 0;
-  background: white;
+  background: var(--color-bg-secondary);
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -852,7 +841,7 @@ watch(() => props.messages, () => {
 }
 
 .menu-item:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
 }
 
 .menu-item.danger {
@@ -875,11 +864,11 @@ watch(() => props.messages, () => {
 }
 
 .date-separator span {
-  background: white;
+  background: var(--color-bg-secondary);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-muted);
   border: 1px solid #e0e0e0;
 }
 
@@ -903,7 +892,7 @@ watch(() => props.messages, () => {
   justify-content: center;
   gap: 8px;
   padding: 20px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .loading-spinner {
@@ -926,7 +915,7 @@ watch(() => props.messages, () => {
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: #666;
+  color: var(--color-text-muted);
   text-align: center;
 }
 
@@ -938,8 +927,8 @@ watch(() => props.messages, () => {
 }
 
 .message-input-container {
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
   padding: 16px;
 }
 
@@ -948,7 +937,7 @@ watch(() => props.messages, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
   border-left: 3px solid #1976d2;
   padding: 8px 12px;
   margin-bottom: 8px;
@@ -973,7 +962,7 @@ watch(() => props.messages, () => {
 
 .reply-message {
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -985,14 +974,14 @@ watch(() => props.messages, () => {
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-muted);
   border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 .cancel-reply:hover,
 .cancel-edit:hover {
-  background: #e0e0e0;
+  background: var(--color-bg-tertiary);
 }
 
 .input-area {
@@ -1007,18 +996,18 @@ watch(() => props.messages, () => {
   padding: 8px;
   border-radius: 50%;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-muted);
   transition: background-color 0.2s;
   flex-shrink: 0;
 }
 
 .input-btn:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
 }
 
 .text-input-container {
   flex: 1;
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
   border-radius: 20px;
   padding: 8px 16px;
 }
@@ -1061,13 +1050,13 @@ watch(() => props.messages, () => {
   padding: 8px;
   border-radius: 50%;
   cursor: pointer;
-  color: #666;
+  color: var(--color-text-muted);
   transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .voice-btn:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
 }
 
 .voice-btn.recording {
@@ -1102,7 +1091,7 @@ watch(() => props.messages, () => {
 .recording-dot {
   width: 8px;
   height: 8px;
-  background: white;
+  background: var(--color-bg-secondary);
   border-radius: 50%;
   animation: blink 1s infinite;
 }

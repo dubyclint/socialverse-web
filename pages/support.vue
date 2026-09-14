@@ -55,22 +55,36 @@ definePageMeta({
   layout: 'default'
 })
 
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
 
-const contacts = ref([])
-const editContacts = ref([])
-const liveChats = ref([])
-const isAdmin = true // Replace with actual role check
+interface SupportContact {
+  label: string
+  value: string
+  type: string
+  region: string
+}
+
+interface LiveChat {
+  label: string
+  method: string
+  script?: string
+  url?: string
+}
+
+const contacts = ref<SupportContact[]>([])
+const editContacts = ref<SupportContact[]>([])
+const liveChats = ref<LiveChat[]>([])
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.user?.role === 'admin' || userStore.user?.role === 'manager')
 
 async function fetchContacts() {
-  const res = await fetch('/api/admin/support')
-  contacts.value = await res.json()
+  contacts.value = await $fetch<SupportContact[]>('/api/admin/support')
   editContacts.value = JSON.parse(JSON.stringify(contacts.value))
 }
 
 async function fetchLiveChats() {
-  const res = await fetch('/api/admin/liveChat')
-  liveChats.value = await res.json()
+  liveChats.value = await $fetch<LiveChat[]>('/api/admin/live-chat')
 }
 
 function addContact() {
@@ -83,15 +97,14 @@ function addContact() {
 }
 
 async function saveContacts() {
-  await fetch('/api/admin/support', {
+  await $fetch('/api/admin/support', {
     method: 'POST',
-    body: JSON.stringify(editContacts.value),
-    headers: { 'Content-Type': 'application/json' }
+    body: editContacts.value
   })
-  fetchContacts()
+  await fetchContacts()
 }
 
-function openNativeChat(label) {
+function openNativeChat(label: string) {
   // Trigger native chat logic (e.g. open GunDB room or WebRTC call)
   console.log('Opening native chat with', label)
 }

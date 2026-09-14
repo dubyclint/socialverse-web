@@ -18,9 +18,9 @@ export async function sendPushAlert(
     const supabase = await getSupabaseClient();
     
     const { data: user, error } = await supabase
-      .from('users')
+      .from('user')
       .select('push_token')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
       
     if (error) {

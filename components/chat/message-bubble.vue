@@ -5,7 +5,7 @@
   <div class="message-bubble" :class="messageClasses" @contextmenu="handleContextMenu">
     <!-- Sender Avatar (for group chats) -->
     <div v-if="showAvatar && !isOwn" class="message-avatar">
-      <img :src="message.senderAvatar || '/default-avatar.png'" :alt="message.senderName" />
+      <img :src="message.senderAvatar || '/default-avatar.svg'" :alt="message.senderName" />
     </div>
 
     <!-- Message Content -->
@@ -69,7 +69,15 @@
       </div>
 
       <!-- Timestamp -->
-      <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+      <div class="message-time">
+        <span>{{ formatTime(message.timestamp) }}</span>
+        <span v-if="isOwn && message.status" class="message-status" :class="message.status" :title="statusLabel">
+          <template v-if="message.status === 'sending'">🕘</template>
+          <template v-else-if="message.status === 'failed'">!</template>
+          <template v-else-if="message.status === 'sent'">✓</template>
+          <template v-else>✓✓</template>
+        </span>
+      </div>
     </div>
 
     <!-- Pewgift Modal -->
@@ -144,7 +152,8 @@ interface Message {
   senderName: string
   senderAvatar?: string
   content: string
-  timestamp?: string | Date
+  timestamp?: string | Date | number
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
   isEdited?: boolean
   isDeleted?: boolean
 }
@@ -198,7 +207,18 @@ const pewgiftAmount = computed(() => {
 })
 
 // Methods
-const formatTime = (timestamp?: string | Date): string => {
+const statusLabel = computed(() => {
+  switch (props.message.status) {
+    case 'sending': return 'Sending'
+    case 'failed': return 'Failed to send'
+    case 'sent': return 'Sent'
+    case 'delivered': return 'Delivered'
+    case 'read': return 'Read'
+    default: return ''
+  }
+})
+
+const formatTime = (timestamp?: string | Date | number): string => {
   if (!timestamp) return ''
   const date = new Date(timestamp)
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -304,11 +324,12 @@ const handleContextMenu = (event: MouseEvent) => {
 .sender-name {
   font-weight: 600;
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .message-text {
-  background: #f0f0f0;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   padding: 10px 12px;
   border-radius: 8px;
   word-wrap: break-word;
@@ -332,8 +353,8 @@ const handleContextMenu = (event: MouseEvent) => {
 }
 
 .own-message .message-text {
-  background: #007bff;
-  color: white;
+  background: var(--color-primary);
+  color: #ffffff;
 }
 
 .message-actions {
@@ -372,7 +393,13 @@ const handleContextMenu = (event: MouseEvent) => {
   font-size: 11px;
   color: #999;
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
+
+.message-status.read { color: #3b82f6; }
+.message-status.failed { color: #ef4444; font-weight: 700; }
 
 /* Modal Styles */
 .modal-overlay {

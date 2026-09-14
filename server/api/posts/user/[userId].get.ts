@@ -69,11 +69,10 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     } else if (currentUserId) {
       // Check if users are friends
       const { data: friendship } = await supabase
-        .from('friendships')
+        .from('follows')
         .select('id')
-        .or(`(user_id.eq.${currentUserId},friend_id.eq.${userId}),(user_id.eq.${userId},friend_id.eq.${currentUserId})`)
-        .eq('status', 'accepted')
-        .single()
+        .or(`(follower_id.eq.${currentUserId},following_id.eq.${userId}),(follower_id.eq.${userId},following_id.eq.${currentUserId})`)
+        .maybeSingle()
 
       if (friendship) {
         privacyFilter = ['public', 'friends']
@@ -87,7 +86,7 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     // ============================================================================
     console.log('[Posts User API] Fetching posts...')
 
-    const { data: posts, error: postsError, count } = await supabase
+    const { data: rows, error: postsError, count } = await supabase
       .from('posts')
       .select('*', { count: 'exact' })
       .eq('user_id', userId)
@@ -107,6 +106,48 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
 
     console.log('[Posts User API] ✅ Posts fetched successfully')
 
+    // Posts render with their author, so resolve it once for the whole page
+    // instead of leaving the client to show a raw id.
+    const { data: author } = await supabase
+      .from('user')
+      .select('user_id, username, full_name, display_name, avatar_url, is_verified')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const postIds = (rows || []).map((row: { id: string }) => row.id)
+    const { data: likes } = currentUserId && postIds.length
+      ? await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', currentUserId)
+          .in('post_id', postIds)
+      : { data: [] }
+
+    const likedPostIds = new Set(((likes ?? []) as { post_id: string }[]).map(row => row.post_id))
+
+    const posts = (rows || []).map((row: any) => ({
+      id: row.id,
+      content: row.content ?? '',
+      created_at: row.created_at,
+      media: row.media_urls ?? [],
+      hashtags: row.hashtags ?? [],
+      likes_count: row.likes_count ?? 0,
+      comments_count: row.comments_count ?? 0,
+      shares_count: row.shares_count ?? 0,
+      gifts_count: 0,
+      repost_of: null,
+      liked_by_me: likedPostIds.has(row.id),
+      author: author
+        ? {
+            id: author.user_id,
+            username: author.username || 'user',
+            full_name: author.full_name || author.display_name || author.username || 'User',
+            avatar_url: author.avatar_url,
+            verified: author.is_verified === true
+          }
+        : null
+    }))
+
     // ============================================================================
     // STEP 6: Return response
     // ============================================================================
@@ -116,7 +157,7 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     return {
       success: true,
       data: {
-        posts: posts || [],
+        posts,
         total,
         page,
         limit,

@@ -138,7 +138,7 @@ const icons: IconsMap = {
 const getIconName = (name: string): string => {
   if (name.includes(':')) {
     const parts = name.split(':')
-    return parts[parts.length - 1]
+    return parts[parts.length - 1] ?? name
   }
   return name
 }

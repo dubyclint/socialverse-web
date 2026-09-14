@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
         .from('user_overrides')
         .select('*')
         .eq('user_id', userId)
-        
+
       if (error) throw error
       return overrides
     } catch (err) {
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
         .upsert(overrideData, {
           onConflict: 'user_id,override_type,key'
         })
-        
+
       if (error) throw error
       return { success: true, message: 'Override saved.' }
     } catch (err) {
@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
         .delete()
         .eq('user_id', userId)
         .eq('key', key)
-        
+
       if (error) throw error
       return { success: true, message: 'Override deleted.' }
     } catch (err) {
@@ -76,6 +76,6 @@ export default defineEventHandler(async (event) => {
       })
     }
   }
+
+  throw createError({ statusCode: 405, statusMessage: 'Method not allowed' })
 })
-
-

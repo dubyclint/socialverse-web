@@ -30,9 +30,7 @@ export default defineNuxtPlugin({
   // ✅ FIX: Ensure Pinia is loaded before toast initialization
   dependsOn: ['pinia'],
 
-  setup(nuxtApp) {
-    if (!process.client) return
-
+  setup(_nuxtApp: any) {
     console.log('[Toast Plugin] Initializing toast notification system')
 
     try {
@@ -148,7 +146,7 @@ export default defineNuxtPlugin({
           warning: '#f59e0b',  // Amber
           info: '#3b82f6'      // Blue
         }
-        return colors[type] || colors.info
+        return (colors[type as keyof typeof colors] || colors.info) as string
       }
 
       // ============================================================================
@@ -217,11 +215,11 @@ export default defineNuxtPlugin({
       return {
         provide: {
           toast: {
-            success: (message: string) => console.log('[Toast Fallback] Success:', message),
-            error: (message: string) => console.error('[Toast Fallback] Error:', message),
-            warning: (message: string) => console.warn('[Toast Fallback] Warning:', message),
-            info: (message: string) => console.info('[Toast Fallback] Info:', message),
-            show: (message: string) => console.log('[Toast Fallback]', message),
+            success: (message: string, _options?: any) => { console.log('[Toast Fallback] Success:', message); return '' },
+            error: (message: string, _options?: any) => { console.error('[Toast Fallback] Error:', message); return '' },
+            warning: (message: string, _options?: any) => { console.warn('[Toast Fallback] Warning:', message); return '' },
+            info: (message: string, _options?: any) => { console.info('[Toast Fallback] Info:', message); return '' },
+            show: (message: string, _options?: any) => { console.log('[Toast Fallback]', message); return '' },
             remove: () => {},
             clear: () => {}
           }

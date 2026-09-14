@@ -6,7 +6,7 @@
       <div class="viewer-header">
         <div class="media-info">
           <div class="sender-info">
-            <img :src="media.sender?.avatar || '/default-avatar.png'" :alt="media.sender?.username" />
+            <img :src="media.sender?.avatar || '/default-avatar.svg'" :alt="media.sender?.username" />
             <div class="sender-details">
               <div class="sender-name">{{ media.sender?.username }}</div>
               <div class="media-date">{{ formatDate(media.createdAt) }}</div>
@@ -240,7 +240,7 @@ const shareMedia = async () => {
   if (navigator.share && props.media?.mediaUrl) {
     try {
       await navigator.share({
-        title: 'Shared from SocialVerse',
+        title: 'Shared from Viorp',
         text: props.media.content || 'Check out this media',
         url: props.media.mediaUrl
       })

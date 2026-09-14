@@ -95,7 +95,7 @@ function flattenLocalTranslations(obj: any, prefix: string = ''): Record<string,
   
   try {
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = obj[key]
         const fullKey = prefix ? `${prefix}.${key}` : key
         

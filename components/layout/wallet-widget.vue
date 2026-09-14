@@ -51,15 +51,15 @@
 
         <!-- Quick Actions -->
         <div class="quick-actions">
-          <button @click="showDepositModal = true" class="action-btn deposit">
+          <button @click="goTo('/wallet?action=deposit')" class="action-btn deposit">
             <Icon name="plus-circle" size="16" />
             <span>Deposit</span>
           </button>
-          <button @click="showWithdrawModal = true" class="action-btn withdraw">
+          <button @click="goTo('/wallet?action=withdraw')" class="action-btn withdraw">
             <Icon name="minus-circle" size="16" />
             <span>Withdraw</span>
           </button>
-          <button @click="showTransferModal = true" class="action-btn transfer">
+          <button @click="goTo('/wallet?action=transfer')" class="action-btn transfer">
             <Icon name="arrow-right-circle" size="16" />
             <span>Transfer</span>
           </button>
@@ -99,67 +99,97 @@
   </ClientOnly>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+
+interface LedgerEntry {
+  id: string
+  amount: number
+  transaction_type: string
+  created_at: string
+}
 
 const router = useRouter()
 
-// State
 const showWallet = ref(false)
 const refreshing = ref(false)
-const showDepositModal = ref(false)
-const showWithdrawModal = ref(false)
-const showTransferModal = ref(false)
+const totalBalance = ref(0)
+const availableBalance = ref(0)
+const pendingBalance = ref(0)
+const pendingTransactions = ref(0)
+const hasNotifications = ref(false)
+const recentTransactions = ref<Array<{
+  id: string
+  type: 'income' | 'expense'
+  description: string
+  amount: number
+  date: Date
+}>>([])
 
-// Wallet Data
-const totalBalance = ref(1.50)
-const availableBalance = ref(1100.50)
-const pendingBalance = ref(150.00)
-const pendingTransactions = ref(2)
-const hasNotifications = ref(true)
+const CREDIT_TYPES = new Set(['deposit', 'gift_received', 'refund', 'escrow_release', 'transfer_in'])
 
-// Recent Transactions
-const recentTransactions = ref([
-  { id: 1, type: 'income', description: 'Payment received', amount: 100, date: new Date() },
-  { id: 2, type: 'expense', description: 'Purchase', amount: 50, date: new Date(Date.now() - 86400000) },
-  { id: 3, type: 'income', description: 'Refund', amount: 25, date: new Date(Date.now() - 172800000) }
-])
-
-// Methods
-const formatNumber = (num) => {
+const formatNumber = (num: number) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toFixed(2)
 }
 
-const formatDate = (date) => {
-  const now = new Date()
-  const diff = now - date
+const formatDate = (date: Date) => {
+  const diff = Date.now() - date.getTime()
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  
   if (hours < 1) return 'Just now'
   if (hours < 24) return `${hours}h ago`
   if (days < 7) return `${days}d ago`
   return date.toLocaleDateString()
 }
 
-const getTransactionIcon = (type) => {
-  return type === 'income' ? 'arrow-down-left' : 'arrow-up-right'
-}
+const getTransactionIcon = (type: string) => (type === 'income' ? 'arrow-down-left' : 'arrow-up-right')
+
+const humanise = (type: string) => type.replace(/_/g, ' ').replace(/^./, char => char.toUpperCase())
 
 const refreshBalances = async () => {
   refreshing.value = true
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  refreshing.value = false
+  try {
+    const [wallet, ledger] = await Promise.all([
+      $fetch<{ balance: number, locked_balance?: number }>('/api/wallet/balance'),
+      $fetch<LedgerEntry[]>('/api/wallet/ledger')
+    ])
+
+    const locked = wallet.locked_balance ?? 0
+    totalBalance.value = wallet.balance ?? 0
+    availableBalance.value = Math.max(0, totalBalance.value - locked)
+    pendingBalance.value = locked
+
+    recentTransactions.value = (ledger ?? []).slice(0, 5).map(entry => ({
+      id: entry.id,
+      type: CREDIT_TYPES.has(entry.transaction_type) || entry.amount > 0 ? 'income' : 'expense',
+      description: humanise(entry.transaction_type),
+      amount: Math.abs(entry.amount),
+      date: new Date(entry.created_at)
+    }))
+
+    pendingTransactions.value = locked > 0 ? 1 : 0
+    hasNotifications.value = recentTransactions.value.length > 0
+  } catch {
+    // A signed-out or wallet-less user simply sees zeroes rather than an error.
+  } finally {
+    refreshing.value = false
+  }
 }
 
 const goToWallet = () => {
   router.push('/wallet')
   showWallet.value = false
 }
+
+const goTo = (path: string) => {
+  router.push(path)
+  showWallet.value = false
+}
+
+onMounted(refreshBalances)
 </script>
 
 <style scoped>

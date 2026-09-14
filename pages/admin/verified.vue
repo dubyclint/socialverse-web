@@ -18,6 +18,8 @@
       </div>
     </div>
 
+    <p v-if="loadError" class="load-error">{{ loadError }}</p>
+
     <!-- Bulk Actions Panel -->
     <div v-if="showBulkActions" class="bulk-actions-panel">
       <div class="bulk-actions-content">
@@ -71,7 +73,6 @@
         <div class="stat-content">
           <h3>Approval Rate</h3>
           <p class="stat-value">{{ approvalRate }}%</p>
-          <span class="stat-change positive">+2.3% from last month</span>
         </div>
       </div>
     </div>
@@ -147,7 +148,7 @@
             <td>
               <div class="user-info">
                 <img 
-                  :src="user.avatar || '/default-avatar.png'" 
+                  :src="user.avatar || '/default-avatar.svg'" 
                   :alt="user.username"
                   class="user-avatar"
                 />
@@ -298,7 +299,7 @@
           <div v-if="selectedUser" class="user-details-content">
             <div class="user-profile-section">
               <img 
-                :src="selectedUser.avatar || '/default-avatar.png'" 
+                :src="selectedUser.avatar || '/default-avatar.svg'" 
                 :alt="selectedUser.username"
                 class="profile-avatar"
               />
@@ -390,18 +391,49 @@
   
 import { ref, computed, onMounted } from 'vue'
 
+interface VerificationDocument {
+  name: string
+  type: string
+  url: string
+  description: string
+  uploadDate: string
+}
+
+interface VerificationUser {
+  id: string
+  userId: string
+  username: string
+  displayName?: string
+  email: string
+  avatar?: string
+  verificationStatus: 'verified' | 'pending' | 'rejected' | 'revoked'
+  verificationType?: string
+  requestDate: string
+  verificationDate?: string
+  rejectionDate?: string
+  revocationDate?: string
+  rejectionReason?: string
+  reason?: string
+  isVerified: boolean
+  postCount?: number
+  followerCount?: number
+  followingCount?: number
+  joinDate?: string
+  documents: VerificationDocument[]
+}
+
 // Reactive data
 const showBulkActions = ref(false)
 const showDocumentModal = ref(false)
 const showUserModal = ref(false)
-const selectedUser = ref(null)
-const selectedUsers = ref([])
+const selectedUser = ref<VerificationUser | null>(null)
+const selectedUsers = ref<string[]>([])
 const searchQuery = ref('')
-const filterStatus = ref('all')
+const filterStatus = ref<'all' | 'verified' | 'pending' | 'rejected'>('all')
 const currentPage = ref(1)
 const itemsPerPage = 20
 
-const users = ref([])
+const users = ref<VerificationUser[]>([])
 
 // Computed properties
 const verifiedUsers = computed(() => 
@@ -429,7 +461,7 @@ const newVerificationsThisMonth = computed(() => {
   const thisMonth = new Date()
   thisMonth.setDate(1)
   return verifiedUsers.value.filter(user => 
-    new Date(user.verificationDate) >= thisMonth
+    new Date(user.verificationDate ?? '') >= thisMonth
   ).length
 })
 
@@ -445,7 +477,7 @@ const rejectedThisWeek = computed(() => {
   const weekAgo = new Date()
   weekAgo.setDate(weekAgo.getDate() - 7)
   return rejectedUsers.value.filter(user => 
-    new Date(user.rejectionDate) >= weekAgo
+    new Date(user.rejectionDate ?? '') >= weekAgo
   ).length
 })
 
@@ -497,189 +529,85 @@ const allSelected = computed(() =>
 )
 
 // Methods
+const loadError = ref('')
+
+const messageOf = (err: unknown) => (err instanceof Error ? err.message : 'Request failed')
+
 const loadUsers = async () => {
+  loadError.value = ''
   try {
-    // Mock data - replace with actual API call
-    users.value = [
-      {
-        id: 1,
-        username: 'johndoe',
-        displayName: 'John Doe',
-        email: 'john@example.com',
-        avatar: '/avatars/john.jpg',
-        verificationStatus: 'verified',
-        verificationType: 'Creator',
-        requestDate: '2024-01-15T10:30:00Z',
-        verificationDate: '2024-01-16T14:20:00Z',
-        reason: 'Content creator with 50k+ followers',
-        isVerified: true,
-        postCount: 245,
-        followerCount: 52000,
-        followingCount: 1200,
-        joinDate: '2023-06-15T09:00:00Z',
-        documents: [
-          {
-            name: 'Government ID',
-            type: 'image',
-            url: '/documents/id1.jpg',
-            description: 'Driver\'s license',
-            uploadDate: '2024-01-15T10:30:00Z'
-          }
-        ]
-      },
-      {
-        id: 2,
-        username: 'janesmithofficial',
-        displayName: 'Jane Smith',
-        email: 'jane@example.com',
-        avatar: '/avatars/jane.jpg',
-        verificationStatus: 'pending',
-        verificationType: 'Business',
-        requestDate: '2024-01-20T16:45:00Z',
-        reason: 'CEO of TechCorp Inc.',
-        isVerified: false,
-        postCount: 89,
-        followerCount: 15000,
-        followingCount: 500,
-        joinDate: '2023-08-20T12:00:00Z',
-        documents: [
-          {
-            name: 'Business License',
-            type: 'image',
-            url: '/documents/business1.jpg',
-            description: 'Company registration',
-            uploadDate: '2024-01-20T16:45:00Z'
-          },
-          {
-            name: 'Tax Document',
-            type: 'pdf',
-            url: '/documents/tax1.pdf',
-            description: 'Business tax filing',
-            uploadDate: '2024-01-20T16:50:00Z'
-          }
-        ]
-      },
-      {
-        id: 3,
-        username: 'mikejohnson',
-        displayName: 'Mike Johnson',
-        email: 'mike@example.com',
-        avatar: '/avatars/mike.jpg',
-        verificationStatus: 'rejected',
-        verificationType: 'Standard',
-        requestDate: '2024-01-18T11:20:00Z',
-        rejectionDate: '2024-01-19T09:15:00Z',
-        reason: 'Public figure verification',
-        isVerified: false,
-        postCount: 34,
-        followerCount: 2500,
-        followingCount: 800,
-        joinDate: '2023-12-01T15:30:00Z',
-        documents: []
-      }
-    ]
-  } catch (error) {
-    console.error('Error loading users:', error)
+    users.value = await $fetch<VerificationUser[]>('/api/admin/verification-requests')
+  } catch (err) {
+    loadError.value = messageOf(err)
   }
 }
 
-const approveUser = async (user) => {
+const review = async (user: VerificationUser, action: 'approve' | 'reject' | 'revoke', reason?: string) => {
+  await $fetch('/api/admin/verification-requests', {
+    method: 'POST',
+    body: { requestId: user.id, userId: user.userId, action, reason }
+  })
+  selectedUsers.value = selectedUsers.value.filter(id => id !== user.id)
+}
+
+const approveUser = async (user: VerificationUser) => {
   try {
-    user.verificationStatus = 'verified'
-    user.isVerified = true
-    user.verificationDate = new Date().toISOString()
-    selectedUsers.value = selectedUsers.value.filter(id => id !== user.id)
-    // API call would go here
-  } catch (error) {
-    console.error('Error approving user:', error)
+    await review(user, 'approve')
+    await loadUsers()
+  } catch (err) {
+    loadError.value = messageOf(err)
   }
 }
 
-const rejectUser = async (user) => {
+const rejectUser = async (user: VerificationUser) => {
   const reason = prompt('Reason for rejection (optional):')
   try {
-    user.verificationStatus = 'rejected'
-    user.isVerified = false
-    user.rejectionDate = new Date().toISOString()
-    user.rejectionReason = reason
-    selectedUsers.value = selectedUsers.value.filter(id => id !== user.id)
-    // API call would go here
-  } catch (error) {
-    console.error('Error rejecting user:', error)
+    await review(user, 'reject', reason || undefined)
+    await loadUsers()
+  } catch (err) {
+    loadError.value = messageOf(err)
   }
 }
 
-const revokeVerification = async (user) => {
-  if (!confirm('Are you sure you want to revoke this user\'s verification?')) {
-    return
-  }
-  
+const revokeVerification = async (user: VerificationUser) => {
+  if (!confirm('Are you sure you want to revoke this user\'s verification?')) return
   try {
-    user.verificationStatus = 'revoked'
-    user.isVerified = false
-    user.revocationDate = new Date().toISOString()
-    // API call would go here
-  } catch (error) {
-    console.error('Error revoking verification:', error)
+    await review(user, 'revoke')
+    await loadUsers()
+  } catch (err) {
+    loadError.value = messageOf(err)
+  }
+}
+
+const bulkReview = async (
+  action: 'approve' | 'reject' | 'revoke',
+  eligible: (user: VerificationUser) => boolean,
+  reason?: string
+) => {
+  const targets = users.value.filter(user => selectedUsers.value.includes(user.id) && eligible(user))
+  try {
+    for (const user of targets) await review(user, action, reason)
+    selectedUsers.value = []
+    await loadUsers()
+  } catch (err) {
+    loadError.value = messageOf(err)
   }
 }
 
 const bulkVerify = async () => {
-  if (!confirm(`Verify ${selectedUsers.value.length} selected users?`)) {
-    return
-  }
-  
-  try {
-    for (const userId of selectedUsers.value) {
-      const user = users.value.find(u => u.id === userId)
-      if (user && user.verificationStatus === 'pending') {
-        await approveUser(user)
-      }
-    }
-    selectedUsers.value = []
-  } catch (error) {
-    console.error('Error bulk verifying users:', error)
-  }
+  if (!confirm(`Verify ${selectedUsers.value.length} selected users?`)) return
+  await bulkReview('approve', user => user.verificationStatus === 'pending')
 }
 
 const bulkUnverify = async () => {
-  if (!confirm(`Unverify ${selectedUsers.value.length} selected users?`)) {
-    return
-  }
-  
-  try {
-    for (const userId of selectedUsers.value) {
-      const user = users.value.find(u => u.id === userId)
-      if (user && user.verificationStatus === 'verified') {
-        await revokeVerification(user)
-      }
-    }
-    selectedUsers.value = []
-  } catch (error) {
-    console.error('Error bulk unverifying users:', error)
-  }
+  if (!confirm(`Unverify ${selectedUsers.value.length} selected users?`)) return
+  await bulkReview('revoke', user => user.verificationStatus === 'verified')
 }
 
 const bulkReject = async () => {
   const reason = prompt('Reason for bulk rejection:')
-  if (!confirm(`Reject ${selectedUsers.value.length} selected users?`)) {
-    return
-  }
-  
-  try {
-    for (const userId of selectedUsers.value) {
-      const user = users.value.find(u => u.id === userId)
-      if (user && user.verificationStatus === 'pending') {
-        user.verificationStatus = 'rejected'
-        user.isVerified = false
-        user.rejectionDate = new Date().toISOString()
-        user.rejectionReason = reason
-      }
-    }
-    selectedUsers.value = []
-  } catch (error) {
-    console.error('Error bulk rejecting users:', error)
-  }
+  if (!confirm(`Reject ${selectedUsers.value.length} selected users?`)) return
+  await bulkReview('reject', user => user.verificationStatus === 'pending', reason || undefined)
 }
 
 const toggleSelectAll = () => {
@@ -690,12 +618,12 @@ const toggleSelectAll = () => {
   }
 }
 
-const viewDocuments = (user) => {
+const viewDocuments = (user: VerificationUser) => {
   selectedUser.value = user
   showDocumentModal.value = true
 }
 
-const viewUserDetails = (user) => {
+const viewUserDetails = (user: VerificationUser) => {
   selectedUser.value = user
   showUserModal.value = true
 }
@@ -711,12 +639,23 @@ const closeUserModal = () => {
 }
 
 const exportVerifiedUsers = () => {
-  // Implement export functionality
-  console.log('Exporting verified users...')
+  const header = 'username,display_name,email,status,requested,followers'
+  const rows = users.value.map(user =>
+    [user.username, user.displayName ?? '', user.email, user.verificationStatus, user.requestDate, user.followerCount ?? 0]
+      .map(value => `"${String(value).replace(/"/g, '""')}"`)
+      .join(',')
+  )
+  const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'verification-requests.csv'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
-const formatStatus = (status) => {
-  const statusMap = {
+const formatStatus = (status: string) => {
+  const statusMap: Record<string, string> = {
     verified: 'Verified',
     pending: 'Pending',
     rejected: 'Rejected',
@@ -725,15 +664,17 @@ const formatStatus = (status) => {
   return statusMap[status] || status
 }
 
-const formatDate = (dateString) => {
+const formatDate = (dateString?: string) => {
+  if (!dateString) return ''
   return new Date(dateString).toLocaleDateString()
 }
 
-const getRelativeTime = (dateString) => {
+const getRelativeTime = (dateString?: string) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   const now = new Date()
-  const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
-  
+  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
   if (diffInHours < 1) return 'Just now'
   if (diffInHours < 24) return `${diffInHours}h ago`
   if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
@@ -747,6 +688,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.load-error {
+  color: #dc2626;
+  margin-bottom: 1rem;
+}
+
 .admin-verified {
   padding: 2rem;
   max-width: 1400px;

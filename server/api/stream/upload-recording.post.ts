@@ -1,58 +1,57 @@
 // server/api/stream/upload-recording.post.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { createError } from 'h3'
+import { readMultipartFormData } from 'h3'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 
 export default defineEventHandler(async (event) => {
-  try {
-    const user = await requireAuth(event)
-    const formData = await readMultipartFormData(event)
+  await requireAuth(event)
+  const formData = await readMultipartFormData(event) as any
 
-    if (!formData) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'No file provided'
-      })
-    }
+  if (!formData) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'No file provided'
+    })
+  }
 
-    const fileField = formData.find(f => f.name === 'file')
-    const streamIdField = formData.find(f => f.name === 'streamId')
+  const fileField = formData.find((f: any) => f.name === 'file')
+  const streamIdField = formData.find((f: any) => f.name === 'streamId')
 
-    if (!fileField || !streamIdField) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Missing file or streamId'
-      })
-    }
+  if (!fileField || !streamIdField) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Missing file or streamId'
+    })
+  }
 
-    const streamId = streamIdField.data?.toString()
-    const fileName = `${streamId}_${Date.now()}.webm`
-    const uploadDir = join(process.cwd(), 'public/recordings')
+  const streamId = streamIdField.data?.toString()
+  const fileName = `${streamId}_${Date.now()}.webm`
+  const uploadDir = join(process.cwd(), 'public/recordings')
 
-    // Create directory if it doesn't exist
-    await mkdir(uploadDir, { recursive: true })
+  // Create directory if it doesn't exist
+  await mkdir(uploadDir, { recursive: true })
 
-    // Save file
-    const filePath = join(uploadDir, fileName)
-    await writeFile(filePath, fileField.data)
+  // Save file
+  const filePath = join(uploadDir, fileName)
+  await writeFile(filePath, fileField.data)
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
-    // Update stream record with recording URL
-    const { error } = await supabase
-      .from('streams')
-      .update({
-        recording_url: `/recordings/${fileName}`
-      })
-      .eq('id', streamId)
+  // Update stream record with recording URL
+  const { error } = await _supabase
+    .from('streams')
+    .update({
+      recording_url: `/recordings/${fileName}`
+    })
+    .eq('id', streamId)
 
-    if (error) throw error
+  if (error) throw error
 
-    return {
-      success: true,
-      url: `/recordings/${fileName}`
-    }
-  } catch (error: any) {
-    throw error
+  return {
+    success: true,
+    url: `/recordings/${fileName}`
   }
 })

@@ -22,6 +22,12 @@ interface UploadedFile {
   uploadedAt: string
 }
 
+interface UploadResponse {
+  success: boolean
+  data?: UploadedFile
+  error?: string
+}
+
 export const useFileUpload = () => {
   const uploading = ref(false)
   const progress = ref<UploadProgress>({ loaded: 0, total: 0, percentage: 0 })
@@ -59,25 +65,48 @@ export const useFileUpload = () => {
       if (options.optimize) formData.append('optimize', 'true')
       if (options.generateThumbnail) formData.append('generateThumbnail', 'true')
 
-      // ✅ Upload with progress tracking
-      const response = await $fetch<any>('/api/upload', {
-        method: 'POST',
-        body: formData,
-        onUploadProgress: (event: ProgressEvent) => {
-          progress.value = {
-            loaded: event.loaded,
-            total: event.total,
-            percentage: Math.round((event.loaded / event.total) * 100)
+      // ✅ Upload with progress tracking (XHR provides upload progress events)
+      const response = await new Promise<UploadResponse>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', '/api/upload')
+
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            progress.value = {
+              loaded: event.loaded,
+              total: event.total,
+              percentage: Math.round((event.loaded / event.total) * 100)
+            }
           }
-        }
+        })
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText) as UploadResponse)
+            } catch {
+              reject(new Error('Invalid upload response'))
+            }
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`))
+          }
+        })
+
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload')))
+        xhr.send(formData)
       })
 
       if (!response.success) {
-        error.value = response.data?.error || 'Upload failed'
+        error.value = response.error || 'Upload failed'
         return null
       }
 
-      const uploadedFile = response.data as UploadedFile
+      if (!response.data) {
+        error.value = 'Upload failed'
+        return null
+      }
+
+      const uploadedFile = response.data
       uploadedFiles.value.push(uploadedFile)
 
       return uploadedFile

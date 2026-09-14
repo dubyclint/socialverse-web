@@ -4,29 +4,28 @@
     <form @submit.prevent="createGroup">
       <input v-model="groupName" placeholder="Group Name" required />
       <textarea v-model="groupDescription" placeholder="Group Description"></textarea>
-      <button type="submit">Create Group</button>
+      <div class="actions">
+        <button type="button" @click="emit('close')">Cancel</button>
+        <button type="submit">Create Group</button>
+      </div>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-// import { gun, sea, ensureUserPair } from '~/gundb/client'; // Commented out - may not exist
+
+const emit = defineEmits<{ close: []; create: [payload: { name: string; description: string }] }>();
 
 const groupName = ref('');
 const groupDescription = ref('');
 
-async function createGroup() {
-  // Implementation for creating group
-  const groupData = {
-    name: groupName.value,
-    description: groupDescription.value,
-    createdAt: new Date().toISOString()
-  };
-  
-  // gun.get('groups').set(groupData); // Commented out - gun not available
-  
-  // Reset form
+function createGroup() {
+  emit('create', {
+    name: groupName.value.trim(),
+    description: groupDescription.value.trim()
+  });
+
   groupName.value = '';
   groupDescription.value = '';
 }

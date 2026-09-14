@@ -5,7 +5,7 @@
         <NuxtLink to="/" class="logo-container">
           <div class="logo-box">
             <Icon name="sparkles" size="24" />
-            <span class="logo-text">SocialVerse</span>
+            <span class="logo-text">Viorp</span>
           </div>
         </NuxtLink>
 
@@ -61,7 +61,7 @@
       </div>
 
       <div class="footer-bottom">
-        <p>&copy; 2026 SocialVerse. All rights reserved.</p>
+        <p>&copy; 2026 Viorp. All rights reserved.</p>
       </div>
     </footer>
   </div>

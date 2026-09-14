@@ -2,7 +2,7 @@
 // FILE: /middleware/profile-completion.ts - PROFILE GATEKEEPER
 // ============================================================================
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to: any) => {
   // 1. Safety Guard for undefined route
   if (!to || !to.path) return
 
@@ -20,18 +20,28 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (publicRoutes.some((r) => startsWithSegment(path, r))) return
 
   const profileStore = useProfileStore()
-  const tokenCookie = useCookie('auth_token')
+  const user = useSupabaseUser()
 
   // 3. Auth Guard
-  if (!tokenCookie.value) {
+  if (!user.value) {
     return navigateTo('/signin', { replace: true })
   }
 
-  // 4. Redirect Logic (Non-blocking)
+  // 4. Redirect Logic
   const onCompletePage = startsWithSegment(path, '/profile/complete')
   const onCompleteSuccessPage = startsWithSegment(path, '/profile/complete-success')
 
-  // Rely on existing store state. Do not trigger blocking API calls.
+  // Hydrate the store once per session; without this the gate has no data to
+  // judge and would send every authenticated user to the completion flow.
+  if (!profileStore.profile) {
+    try {
+      await profileStore.fetchProfile()
+    } catch (err) {
+      console.error('[profile-completion] profile lookup failed:', err)
+      return
+    }
+  }
+
   const profile = profileStore.profile
   const isComplete = profile?.profile_completed === true
 
