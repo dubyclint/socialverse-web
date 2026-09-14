@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { getSupabaseAdmin } from '~/server/utils/supabase'
+import { POST_IMAGE_MAX_BYTES, POST_VIDEO_MAX_BYTES } from '~/utils/post-media'
 
 // Accounting runs with the service-role client: quota and cleanup read rows
 // across users, which RLS deliberately hides from a request-scoped client.
@@ -38,8 +39,12 @@ export const STORAGE_CONFIG: any = {
     },
     posts: {
       name: 'posts',
-      maxSize: 50 * 1024 * 1024,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'video/mp4', 'video/webm']
+      maxSize: POST_IMAGE_MAX_BYTES,
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
+      mimeMaxSize: {
+        'video/mp4': POST_VIDEO_MAX_BYTES,
+        'video/webm': POST_VIDEO_MAX_BYTES
+      }
     },
     'chat-media': {
       name: 'chat-media',
@@ -351,8 +356,9 @@ export function validateFile(
       }
     }
 
-    // Check size
-    const maxSize = bucketCfg.maxSize || STORAGE_CONFIG.maxFileSize
+    // Check size (a bucket may cap specific mime types lower than its default)
+    const maxSize: number =
+      bucketCfg.mimeMaxSize?.[mimeType] ?? bucketCfg.maxSize ?? STORAGE_CONFIG.maxFileSize
     if (fileBuffer.length > maxSize) {
       return {
         valid: false,

@@ -22,8 +22,47 @@ export interface FeedPost {
   likes_count: number
   comments_count: number
   shares_count: number
+  gifts_count: number
   liked_by_me: boolean
   author: FeedAuthor | null
+  repost_of: RepostSource | null
+}
+
+export interface RepostSource {
+  id: string
+  content: string
+  created_at: string
+  media: string[]
+  author: FeedAuthor | null
+}
+
+export interface PostComment {
+  id: string
+  postId: string
+  parentId: string | null
+  content: string
+  createdAt: string
+  author: {
+    id: string
+    username: string
+    name: string
+    avatar: string | null
+  }
+}
+
+export interface PostLiker {
+  id: string
+  username: string
+  name: string
+  avatar: string | null
+  likedAt: string
+}
+
+export type SharePlatform = 'twitter' | 'facebook' | 'whatsapp' | 'copy' | 'email'
+
+export interface LikeResult {
+  liked: boolean
+  likesCount: number
 }
 
 export interface FeedStatus {
@@ -432,44 +471,135 @@ export const useSocialFeed = () => {
     ])
   }
 
-  const likePost = async (postId: string): Promise<boolean> => {
-    if (!currentUserId.value) return false
+  /**
+   * Toggles the like server-side so the result is authoritative regardless of
+   * which component instance owns the post row.
+   */
+  const likePost = async (postId: string): Promise<LikeResult | null> => {
+    if (!currentUserId.value) return null
     tracking.track(postId, 'like')
 
-    const post = posts.value.find((p) => p.id === postId)
-
     try {
-      if (post?.liked_by_me) {
-        const { error } = await supabase
-          .from('post_likes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId.value)
-        if (error) throw new Error(error.message)
+      const response = await $fetch<{ success: boolean, data: LikeResult }>(
+        `/api/posts/${postId}/like`,
+        { method: 'POST' }
+      )
 
-        post.liked_by_me = false
-        post.likes_count = Math.max(0, post.likes_count - 1)
-      } else {
-        const { error } = await supabase
-          .from('post_likes')
-          .insert({ post_id: postId, user_id: currentUserId.value })
-        if (error) throw new Error(error.message)
-
-        if (post) {
-          post.liked_by_me = true
-          post.likes_count += 1
-        }
+      const post = posts.value.find(p => p.id === postId)
+      if (post) {
+        post.liked_by_me = response.data.liked
+        post.likes_count = response.data.likesCount
       }
-      return true
+      return response.data
     } catch (e) {
       console.error('[Feed] Like failed', e)
-      return false
+      return null
     }
   }
 
   const commentPost = (postId: string) => {
     tracking.track(postId, 'comment')
     router.push(`/posts/${postId}`)
+  }
+
+  const fetchComments = async (postId: string): Promise<PostComment[]> => {
+    const response = await $fetch<{ success: boolean, data: PostComment[] }>(
+      `/api/posts/${postId}/comments`
+    )
+    return response.data ?? []
+  }
+
+  const addComment = async (
+    postId: string,
+    content: string,
+    parentId?: string
+  ): Promise<PostComment> => {
+    const response = await $fetch<{ success: boolean, data: PostComment }>(
+      `/api/posts/${postId}/comments`,
+      { method: 'POST', body: { content, parentId } }
+    )
+    tracking.track(postId, 'comment')
+    const post = posts.value.find(p => p.id === postId)
+    if (post) post.comments_count += 1
+    return response.data
+  }
+
+  const fetchLikers = async (postId: string): Promise<PostLiker[]> => {
+    const response = await $fetch<{ success: boolean, data: PostLiker[] }>(
+      `/api/posts/${postId}/likes`
+    )
+    return response.data ?? []
+  }
+
+  const sharePost = async (postId: string, platform: SharePlatform): Promise<string | null> => {
+    try {
+      const response = await $fetch<{
+        success: boolean
+        data: { shareUrl: string, sharesCount: number }
+      }>(`/api/posts/${postId}/share`, { method: 'POST', body: { platform } })
+
+      tracking.track(postId, 'share')
+      const post = posts.value.find(p => p.id === postId)
+      if (post) post.shares_count = response.data.sharesCount
+      return response.data.shareUrl
+    } catch (e) {
+      console.error('[Feed] Share failed', e)
+      return null
+    }
+  }
+
+  const deletePost = async (postId: string): Promise<boolean> => {
+    try {
+      await $fetch(`/api/posts/${postId}/delete`, { method: 'POST' })
+      feedItems.value = feedItems.value.filter(
+        item => item.type !== 'post' || item.post.id !== postId
+      )
+      return true
+    } catch (e) {
+      console.error('[Feed] Delete failed', e)
+      return false
+    }
+  }
+
+  // Each caller gets its own feed state, so a card that deletes a post tells the
+  // page holding the list to drop it.
+  const removeFeedPost = (postId: string): void => {
+    feedItems.value = feedItems.value.filter(
+      item => item.type !== 'post' || item.post.id !== postId
+    )
+  }
+
+  const updatePost = async (
+    postId: string,
+    updates: { content?: string, media?: string[] }
+  ): Promise<boolean> => {
+    try {
+      await $fetch(`/api/posts/${postId}/update`, { method: 'POST', body: updates })
+      const post = posts.value.find(p => p.id === postId)
+      if (post) {
+        if (updates.content !== undefined) post.content = updates.content
+        if (updates.media !== undefined) post.media = updates.media
+      }
+      return true
+    } catch (e) {
+      console.error('[Feed] Update failed', e)
+      return false
+    }
+  }
+
+  const repostPost = async (postId: string, comment?: string): Promise<boolean> => {
+    try {
+      await $fetch(`/api/posts/${postId}/repost`, {
+        method: 'POST',
+        body: { comment: comment ?? '' }
+      })
+      tracking.track(postId, 'share')
+      await refreshFeed(activeTab.value)
+      return true
+    } catch (e) {
+      console.error('[Feed] Repost failed', e)
+      return false
+    }
   }
 
   /** Gift value is server-controlled; the client only names the catalog gift. */
@@ -504,6 +634,7 @@ export const useSocialFeed = () => {
   return {
     // posts
     posts,
+    currentUserId,
     feedItems,
     trackImpression: tracking.trackImpression,
     trackInteraction: tracking.track,
@@ -561,6 +692,14 @@ export const useSocialFeed = () => {
     // interactions
     likePost,
     commentPost,
+    fetchComments,
+    addComment,
+    fetchLikers,
+    sharePost,
+    deletePost,
+    removeFeedPost,
+    updatePost,
+    repostPost,
     sendPewGift,
   }
 }

@@ -1,10 +1,12 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { parseRepostRef } from '~/server/utils/repost'
 import type { Database } from '~/types/database.types'
 
 export interface PostDetailView {
   id: string
   title: string | null
+  repostOf: string | null
   content: string
   media: string[]
   tags: string[]
@@ -58,7 +60,8 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
     success: true,
     data: {
       id: post.id,
-      title: post.title,
+      title: parseRepostRef(post.title) ? null : post.title,
+      repostOf: parseRepostRef(post.title),
       content: post.content,
       media: post.media_urls ?? [],
       tags: post.hashtags ?? [],

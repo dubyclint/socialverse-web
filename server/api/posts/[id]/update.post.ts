@@ -9,6 +9,7 @@ interface UpdatePostRequest {
   content?: string
   privacy?: 'public' | 'friends' | 'private'
   tags?: string[]
+  media?: string[]
 }
 
 interface UpdatePostResponse {
@@ -56,6 +57,16 @@ export default defineEventHandler(async (event): Promise<UpdatePostResponse> => 
   }
 
   if (body.tags !== undefined) updates.hashtags = body.tags
+
+  if (body.media !== undefined) {
+    if (!Array.isArray(body.media) || body.media.some(url => typeof url !== 'string')) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid media payload' })
+    }
+    if (body.media.length > 4) {
+      throw createError({ statusCode: 400, statusMessage: 'A post can hold at most 4 media items' })
+    }
+    updates.media_urls = body.media
+  }
 
   const { data: updatedPost, error: updateError } = await client
     .from('posts')

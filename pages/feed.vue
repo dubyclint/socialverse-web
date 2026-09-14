@@ -170,34 +170,14 @@
           <div v-else-if="feedItems.length > 0" class="posts-list">
             <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
             <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
-            <article v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)" class="feed-post" :class="{ 'has-media': post.media && post.media.length > 0 }">
-              <div class="post-header">
-                <img :src="post.author?.avatar_url || '/default-avatar.svg'" :alt="post.author?.full_name" class="post-avatar" @click="goToUserProfile(post.author?.username, post.author?.id)" :style="{ cursor: post.author?.id ? 'pointer' : 'default' }" :title="post.author?.id ? 'View profile' : 'Profile unavailable'" />
-                <div class="post-author-info">
-                  <div class="author-name-row"><h4 class="post-author-name">{{ post.author?.full_name }}</h4><span v-if="post.author?.verified" class="verified-badge" title="Verified"><Icon name="check-circle" size="14" /></span></div>
-                  <p class="post-author-username">@{{ post.author?.username }}</p>
-                  <span class="post-timestamp">
-                    {{ formatTimeAgo(post.created_at) }}
-                  </span>
-                </div>
-                <button class="post-menu-btn" @click="togglePostMenu(post.id)" title="More options"><Icon name="more-vertical" size="20" /></button>
-                <div v-if="activePostMenu === post.id" class="post-menu">
-                  <button class="menu-item" @click="reportPost(post.id)"><Icon name="flag" size="16" /> Report Post</button>
-                  <button v-if="post.author?.id === currentUser?.id" class="menu-item" @click="deletePost(post.id)"><Icon name="trash-2" size="16" /> Delete Post</button>
-                  <button class="menu-item" @click="copyPostLink(post.id)"><Icon name="link" size="16" /> Copy Link</button>
-                </div>
-              </div>
-              <div class="post-content">
-                <p class="post-text">{{ post.content }}</p>
-                <div v-if="post.media && post.media.length > 0" class="post-media-gallery">
-                  <img v-for="(media, index) in post.media" :key="index" :src="media" :alt="`Post media ${index + 1}`" class="post-image" @click="openMediaViewer(media)" />
-                </div>
-                <div v-if="post.hashtags && post.hashtags.length > 0" class="post-hashtags">
-                  <NuxtLink v-for="tag in post.hashtags" :key="tag" :to="`/explore?tag=${tag}`" class="hashtag">#{{ tag }}</NuxtLink>
-                </div>
-              </div>
-              <PostInteractionToolbar :post="post" @open-gift="openGiftModal" />
-            </article>
+            <div v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)">
+              <PostsPostCard
+                :post="post"
+                :viewer-avatar="userAvatar"
+                @pewgift="openGiftModal"
+                @removed="removeFeedPost"
+              />
+            </div>
             </template>
             <div v-if="hasMorePosts" class="load-more">
               <button v-if="!loadingMore" @click="loadMorePosts" class="btn-load-more">Load More Posts</button>
@@ -270,7 +250,6 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, navigateTo } from '#app';
 import { useSocialFeed } from '~/composables/useSocialFeed';
-import PostInteractionToolbar from '~/components/posts/PostInteractionToolbar.vue';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
@@ -289,23 +268,8 @@ const {
   unreadMessages, unreadNotifications, authStore,
   profileLoading, profileError, retryProfileLoad, userFollowers, 
   userFollowing, userPosts, goToFollowers, goToFollowing, 
-  goToUserPosts, isLiveStreaming, feedItems, trackImpression
+  goToUserPosts, isLiveStreaming, feedItems, trackImpression, removeFeedPost
 } = socialFeed;
-
-// --- Relative time formatting ---
-const formatTimeAgo = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString();
-};
 
 // Ranked feed items include sponsored slots; posts render through this alias.
 const postOf = (item) => (item.type === 'post' ? [item.post] : []);
@@ -333,7 +297,6 @@ const feedTabs = [
 ];
 const activeTab = ref('for-you'); 
 const searchQuery = ref('');
-const activePostMenu = ref(null);
 
 // --- Navigation & Action Handlers ---
 const goToCreatePost = () => navigateTo('/posts/create');
@@ -341,13 +304,6 @@ const goToProfilePage = () => navigateTo('/profile');
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
 const goToSettingsProfile = () => navigateTo('/profile/edit');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
-
-const togglePostMenu = (id) => { activePostMenu.value = activePostMenu.value === id ? null : id; };
-
-const copyPostLink = (id) => {
-  navigator.clipboard.writeText(`${window.location.origin}/post/${id}`);
-  activePostMenu.value = null;
-};
 
 const performSearch = () => {
   if (searchQuery.value) navigateTo(`/search?q=${searchQuery.value}`);
@@ -363,17 +319,6 @@ const shareProfile = () => {
 const handleVerificationSent = () => { /* Logic from authStore */ };
 const handleBannerDismissed = () => { /* Logic from authStore */ };
 const handleEmailVerified = () => { /* Logic from authStore */ };
-
-const deletePost = async (id) => { /* Logic to call socialFeed delete method */ };
-const reportPost = (id) => { /* Logic to open report modal */ };
-const openMediaViewer = (media) => { /* Logic to open lightbox */ };
-const viewPostLikes = (id) => { /* Navigation to Likes page */ };
-const viewPostComments = (id) => { /* Navigation to Comments */ };
-const viewPostShares = (id) => { /* Navigation to Shares */ };
-const likePost = (id) => { /* Managed by PostInteractionToolbar */ };
-const commentPost = (id) => { /* Trigger comment modal */ };
-const sharePost = (id) => { /* Trigger share sheet */ };
-const savePost = (id) => { /* Trigger bookmark logic */ };
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -434,7 +379,7 @@ onMounted(async () => {
 /* ============================================================================
    COMPONENT CARDS (Standardized)
    ============================================================================ */
-.profile-card, .feed-post, .create-post-section, .recommendations-card, .trending-card {
+.profile-card, .create-post-section, .recommendations-card, .trending-card {
   background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.25rem;
 }
 
@@ -445,7 +390,7 @@ onMounted(async () => {
 /* ============================================================================
    TOOLBAR & INTERACTION RECONCILIATION
    ============================================================================ */
-.feed-post { display: flex; flex-direction: column; gap: 0.75rem; }
+.posts-list { display: flex; flex-direction: column; gap: 1rem; }
 
 /* The toolbar wrapper inside your component should use this class */
 .post-actions-wrapper {
@@ -493,7 +438,24 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .feed-main-wrapper { grid-template-columns: 1fr; padding: 1rem 0.5rem; }
-  .feed-sidebar-left, .header-center { display: none; }
+  /* Bottom padding clears the mobile tab bar below. */
+  .feed-main-wrapper { grid-template-columns: 1fr; padding: 1rem 0 5.5rem; }
+  .feed-sidebar-left { display: none; }
+
+  /* The desktop top navigation becomes a bottom tab bar on phones so Feed,
+     Status, Post, Live and Wallet stay reachable. */
+  .header-center {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    justify-content: space-around;
+    background-color: #1e293b;
+    border-top: 1px solid #334155;
+    padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  .nav-icon { padding: 0.35rem 0.5rem; flex: 1; }
+  .nav-label { font-size: 0.65rem; }
 }
 </style>

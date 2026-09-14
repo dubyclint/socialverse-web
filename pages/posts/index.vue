@@ -51,6 +51,7 @@ import { ref, onMounted } from 'vue'
 import CreatePost from '~/components/posts/create-post.vue'
 import PostCard from '~/components/posts/post-card.vue'
 import type { RankedPost } from '~/server/utils/feed-ranker'
+import type { FeedPost } from '~/composables/useSocialFeed'
 
 const posts = ref<RankedPost[]>([])
 const loading = ref(false)
@@ -77,7 +78,7 @@ const fetchPosts = async () => {
 /**
  * Gifting lives on the dedicated pewgift surface, pre-targeted at the post author.
  */
-const openGift = (post: RankedPost) => {
+const openGift = (post: FeedPost) => {
   navigateTo({ path: '/pewgift', query: { postId: post.id, recipientId: post.author?.id } })
 }
 

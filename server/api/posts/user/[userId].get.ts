@@ -114,6 +114,17 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
       .eq('user_id', userId)
       .maybeSingle()
 
+    const postIds = (rows || []).map((row: { id: string }) => row.id)
+    const { data: likes } = currentUserId && postIds.length
+      ? await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', currentUserId)
+          .in('post_id', postIds)
+      : { data: [] }
+
+    const likedPostIds = new Set(((likes ?? []) as { post_id: string }[]).map(row => row.post_id))
+
     const posts = (rows || []).map((row: any) => ({
       id: row.id,
       content: row.content ?? '',
@@ -123,7 +134,9 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
       likes_count: row.likes_count ?? 0,
       comments_count: row.comments_count ?? 0,
       shares_count: row.shares_count ?? 0,
-      liked_by_me: false,
+      gifts_count: 0,
+      repost_of: null,
+      liked_by_me: likedPostIds.has(row.id),
       author: author
         ? {
             id: author.user_id,

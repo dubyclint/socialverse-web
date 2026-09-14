@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
 import { CANDIDATE_COLUMNS, getAuthors, getCandidatePool } from '~/server/utils/feed-cache'
 import type { CandidatePost } from '~/server/utils/feed-cache'
+import { parseRepostRef } from '~/server/utils/repost'
 
 export interface FeedRankingWeights {
   like_weight: number
@@ -68,11 +69,21 @@ export interface RankedPost {
   likes_count: number
   comments_count: number
   shares_count: number
+  gifts_count: number
   liked_by_me: boolean
   author: FeedAuthor | null
+  repost_of: RepostSource | null
   score: number
   reason: 'following' | 'interest' | 'affinity' | 'popular'
   seen: boolean
+}
+
+export interface RepostSource {
+  id: string
+  content: string
+  created_at: string
+  media: string[]
+  author: FeedAuthor | null
 }
 
 export interface InAppAd {
@@ -260,7 +271,9 @@ export const rankPosts = async (
       likes_count: row.likes_count ?? 0,
       comments_count: row.comments_count ?? 0,
       shares_count: row.shares_count ?? 0,
+      gifts_count: 0,
       liked_by_me: likedPostIds.has(row.id),
+      repost_of: null,
       author: author
         ? {
             id: author.user_id,
@@ -276,7 +289,72 @@ export const rankPosts = async (
     }
   })
 
-  return scored.sort((a, b) => b.score - a.score).slice(offset, offset + limit)
+  const page = scored.sort((a, b) => b.score - a.score).slice(offset, offset + limit)
+
+  // Reposts carry the original post inline so the card can render it.
+  const repostRefs = new Map<string, string>()
+  for (const post of page) {
+    const ref = parseRepostRef(byId.get(post.id)?.title)
+    if (ref) repostRefs.set(post.id, ref)
+  }
+
+  if (repostRefs.size) {
+    const { data: originals } = await client
+      .from('posts')
+      .select('id, user_id, content, media_urls, created_at')
+      .in('id', Array.from(new Set(repostRefs.values())))
+
+    const originalAuthors = await getAuthors(
+      Array.from(new Set((originals ?? []).map(row => row.user_id)))
+    )
+    const originalAuthorById = new Map(originalAuthors.map(a => [a.user_id, a]))
+    const originalById = new Map((originals ?? []).map(row => [row.id, row]))
+
+    for (const post of page) {
+      const ref = repostRefs.get(post.id)
+      const original = ref ? originalById.get(ref) : undefined
+      if (!original) continue
+      const originalAuthor = originalAuthorById.get(original.user_id)
+      post.repost_of = {
+        id: original.id,
+        content: original.content ?? '',
+        created_at: original.created_at,
+        media: original.media_urls ?? [],
+        author: originalAuthor
+          ? {
+              id: originalAuthor.user_id,
+              username: originalAuthor.username || 'user',
+              full_name:
+                originalAuthor.full_name ||
+                originalAuthor.display_name ||
+                originalAuthor.username ||
+                'User',
+              avatar_url: originalAuthor.avatar_url,
+              verified: originalAuthor.is_verified === true
+            }
+          : null
+      }
+    }
+  }
+
+  // Gift counts are only needed for the page actually rendered.
+  if (page.length) {
+    const { data: gifts } = await client
+      .from('post_gifts')
+      .select('post_id')
+      .in('post_id', page.map(post => post.id))
+
+    const giftsByPost = new Map<string, number>()
+    for (const row of gifts ?? []) {
+      if (!row.post_id) continue
+      giftsByPost.set(row.post_id, (giftsByPost.get(row.post_id) ?? 0) + 1)
+    }
+    for (const post of page) {
+      post.gifts_count = giftsByPost.get(post.id) ?? 0
+    }
+  }
+
+  return page
 }
 
 /** Active, in-budget, in-window campaigns, highest bid first. */
