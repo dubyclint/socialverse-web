@@ -4,7 +4,7 @@ import { useUiStore } from '~/stores/ui'
 // Define the custom fetch instance
 const customFetch = $fetch.create({
   baseURL: '/api',
-  async onRequest({ options }) {
+  async onRequest({ options }: { options: any }) {
     // 1. Auth Header Injection via userStore
     const userStore = useUserStore()
     
@@ -15,7 +15,7 @@ const customFetch = $fetch.create({
       }
     }
   },
-  async onResponseError({ response }) {
+  async onResponseError({ response }: { response: any }) {
     // 2. Centralized Error Handling
     const uiStore = useUiStore()
     const message = response._data?.message || 'An unexpected error occurred'

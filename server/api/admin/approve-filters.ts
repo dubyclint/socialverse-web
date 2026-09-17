@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
 
     if (userError) throw userError
 
-    await sendNotification(userId, 'filter', 'Your match filters were approved.')
+    await sendNotification(event, userId, 'filter', 'Your match filters were approved.')
     await sendPushAlert(userId, 'Match Filters Approved', 'Your filters are now active.')
 
     return { success: true }

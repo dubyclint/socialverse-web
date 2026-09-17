@@ -5,26 +5,27 @@ const streamConnections = new Map<string, Set<WebSocket>>()
 
 export default defineWebSocketHandler({
   open(peer) {
-    const streamId = peer.url?.split('/').pop()
+    const streamId = (peer as any).url?.split('/').pop()
     if (!streamId) return
 
     if (!streamConnections.has(streamId)) {
       streamConnections.set(streamId, new Set())
     }
-    streamConnections.get(streamId)?.add(peer.websocket)
+    streamConnections.get(streamId)?.add((peer as any).websocket)
   },
 
   async message(peer, message) {
     try {
-      const data = JSON.parse(message.text())
-      const streamId = peer.url?.split('/').pop()
+      const text = typeof (message as any).text === 'function' ? (message as any).text() : String(message)
+      const data = JSON.parse(text)
+      const streamId = (peer as any).url?.split('/').pop()
 
       if (!streamId) return
 
       // Broadcast to all connected clients
       const connections = streamConnections.get(streamId)
       if (connections) {
-        connections.forEach(ws => {
+        connections.forEach((ws: any) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(data))
           }
@@ -36,12 +37,12 @@ export default defineWebSocketHandler({
   },
 
   close(peer) {
-    const streamId = peer.url?.split('/').pop()
+    const streamId = (peer as any).url?.split('/').pop()
     if (!streamId) return
 
     const connections = streamConnections.get(streamId)
     if (connections) {
-      connections.delete(peer.websocket)
+      connections.delete((peer as any).websocket)
       if (connections.size === 0) {
         streamConnections.delete(streamId)
       }

@@ -4,7 +4,7 @@
 import { evaluateTrust } from '~/server/utils/evaluate-trust'
 import { getSupabaseAdminClient } from '~/server/utils/database'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   try {
     const supabase = await getSupabaseAdminClient()
 
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
     if (error) throw error
 
-    const scored = (users || []).map(user => {
+    const scored = (users || []).map((user: any) => {
       const trust = evaluateTrust(user)
       return {
         id: user.id,
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    return scored.sort((a, b) => b.trust_score - a.trust_score)
+    return scored.sort((a: any, b: any) => b.trust_score - a.trust_score)
   } catch (err) {
     throw createError({
       statusCode: 500,

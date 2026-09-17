@@ -157,3 +157,26 @@ export class UserSessionModel {
     }
   }
 }
+
+// Compatibility shims for legacy controller usage
+export async function findUserSessions(userId: string, _includeExpired = false) {
+  // older callers used findUserSessions; map to getUserSessions
+  return UserSessionModel.getUserSessions(userId)
+}
+
+export async function terminate(sessionToken: string, _reason?: string, _userId?: string) {
+  // older callers used terminate to revoke a session token
+  return UserSessionModel.revokeSession(sessionToken)
+}
+
+// Export runtime object for legacy imports
+export const UserSession: any = {
+  findUserSessions,
+  terminate,
+  create: UserSessionModel.create,
+  getSession: UserSessionModel.getSession,
+  getUserSessions: UserSessionModel.getUserSessions,
+  updateActivity: UserSessionModel.updateActivity,
+  revokeSession: UserSessionModel.revokeSession,
+  revokeAllUserSessions: UserSessionModel.revokeAllUserSessions
+}

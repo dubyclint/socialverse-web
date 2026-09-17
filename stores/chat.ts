@@ -1,5 +1,6 @@
 // stores/chat.ts
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { chatService } from '~/services/chatService'
 import { chatCacheService } from '~/services/chatCacheService'
 import type { ChatMessage, Chat, User, Translation, Gift, TypingUser } from '~/types/chat'
@@ -74,8 +75,14 @@ export const useChatStore = defineStore('chat', {
 
     // --- State Mutations ---
     addMessage(message: ChatMessage) {
-      const msgs = this.messages.get(message.chatId) || []
-      this.messages.set(message.chatId, [...msgs, message].sort((a, b) => a.timestamp - b.timestamp))
+      // message.chatId can be undefined in some edge cases; guard it so TS and runtime are safe
+      const chatId = message.chatId as string | undefined
+      if (!chatId) {
+        // ignore malformed messages that lack a chatId
+        return
+      }
+      const msgs = this.messages.get(chatId) || []
+      this.messages.set(chatId, [...msgs, message].sort((a, b) => a.timestamp - b.timestamp))
       this.cacheChatState()
     },
 
@@ -91,15 +98,15 @@ export const useChatStore = defineStore('chat', {
   }
 })
 
-const recentEmojis = ref<string[]>(JSON.parse(localStorage.getItem('recentEmojis') || '[]'))
-const addRecentEmoji = (emoji: string) => {
+export const recentEmojis = ref<string[]>(JSON.parse(localStorage.getItem('recentEmojis') || '[]'))
+export const addRecentEmoji = (emoji: string) => {
   recentEmojis.value = [emoji, ...recentEmojis.value.filter(e => e !== emoji)].slice(0, 20)
   localStorage.setItem('recentEmojis', JSON.stringify(recentEmojis.value))
 }
 
 // Add a map for trade-specific drafts or history
-const tradeMessages = ref<Record<string, any[]>>({})
-const saveTradeMessages = (id: string, msgs: any[]) => {
+export const tradeMessages = ref<Record<string, any[]>>({})
+export const saveTradeMessages = (id: string, msgs: any[]) => {
   tradeMessages.value[id] = msgs
   localStorage.setItem(`trade_${id}`, JSON.stringify(msgs))
 }

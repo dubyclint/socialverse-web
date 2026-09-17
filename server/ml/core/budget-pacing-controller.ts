@@ -71,7 +71,7 @@ export class BudgetPacingController {
   }
 
   private updatePacing(): void {
-    for (const [campaignId, pacing] of this.pacingData.entries()) {
+    for (const [, pacing] of this.pacingData.entries()) {
       const timeElapsed = Date.now() - pacing.lastUpdate.getTime();
       const expectedSpend = (pacing.budget * timeElapsed) / (24 * 60 * 60 * 1000);
       const error = expectedSpend - pacing.spent;

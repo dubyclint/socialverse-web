@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '~/stores/user'
 
-export const useUser = () => {
+export const useUser = (_namespace?: string) => {
   const userStore = useUserStore()
   
   // Reactive state

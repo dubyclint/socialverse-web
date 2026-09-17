@@ -8,8 +8,6 @@ export const useSocialFeed = () => {
 
   // UI State (keep these)
   const sidebarOpen = ref(false)
-  const posts = ref<any[]>([])
-  const postsLoading = ref(true)
   const walletBalance = ref('$0.00')
 
   // COMPUTED PROPERTIES (Simplified)

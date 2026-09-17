@@ -238,7 +238,7 @@ export async function update(
 export async function findByUserId(
   userId: string,
   limit = 50,
-  offset = 0
+  _offset = 0
 ): Promise<Trade[]> {
   return TradeModel.getUserTrades(userId, 'buyer', limit)
 }

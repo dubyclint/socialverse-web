@@ -3,8 +3,8 @@
 
 import type { H3Event } from 'h3'
 import { ChatModel } from '../models/chat-models'
-import { NotificationModel } from '../models/notification'
-import { supabase } from '~/server/utils/database'
+const Chat: any = (ChatModel as any) || {}
+import { NotificationModelRuntime as NotificationModel } from '../models/notification'
 
 export interface ChatRequest {
   userId: string
@@ -32,8 +32,8 @@ export class ChatController {
         return { success: false, error: 'Authentication required' }
       }
 
-      // ✅ USE ChatModel
-      const chats = await ChatModel.getUserChats(userId)
+  // ✅ USE ChatModel (alias assigned at runtime)
+  const chats = await Chat.getUserChats(userId)
 
       return {
         success: true,
@@ -57,8 +57,8 @@ export class ChatController {
         return { success: false, error: 'Authentication required' }
       }
 
-      // ✅ USE ChatModel
-      const chat = await ChatModel.createChat(userId, participantId)
+  // ✅ USE ChatModel (alias assigned at runtime)
+  const chat = await Chat.createChat(userId, participantId)
 
       return {
         success: true,
@@ -87,9 +87,11 @@ export class ChatController {
       }
 
       // ✅ USE ChatModel
-      const message = await ChatModel.sendMessage(chatId, userId, content)
+  const message = await Chat.sendMessage(chatId, userId, content)
 
       // ✅ USE NotificationModel - Notify recipient
+      const { getAdminClient } = await import('~/server/utils/supabase-server')
+      const supabase = await getAdminClient()
       const { data: chat } = await supabase
         .from('chats')
         .select('participant1_id, participant2_id')
@@ -99,7 +101,7 @@ export class ChatController {
       const recipientId = chat?.participant1_id === userId ? chat?.participant2_id : chat?.participant1_id
 
       if (recipientId) {
-        await NotificationModel.create({
+  await (NotificationModel as any).create({
           userId: recipientId,
           actorId: userId,
           type: 'message',
@@ -136,7 +138,7 @@ export class ChatController {
       }
 
       // ✅ USE ChatModel
-      const messages = await ChatModel.getMessages(chatId, limit)
+  const messages = await Chat.getMessages(chatId, limit)
 
       return {
         success: true,
@@ -160,8 +162,8 @@ export class ChatController {
         return { success: false, error: 'Authentication required' }
       }
 
-      // ✅ USE ChatModel
-      await ChatModel.markAsRead(chatId, userId)
+  // ✅ USE ChatModel (alias assigned at runtime)
+  await Chat.markAsRead(chatId, userId)
 
       return {
         success: true,
@@ -184,8 +186,8 @@ export class ChatController {
         return { success: false, error: 'Authentication required' }
       }
 
-      // ✅ USE ChatModel
-      await ChatModel.deleteChat(chatId, userId)
+  // ✅ USE ChatModel (alias assigned at runtime)
+  await Chat.deleteChat(chatId, userId)
 
       return {
         success: true,

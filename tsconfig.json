@@ -28,27 +28,22 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "vitest/globals"],
-    "baseUrl": ".",
-    "paths": {
-      "~/*": ["./*"],
-      "@/*": ["./*"],
-      "@social/*": [
-        "./services/social/*",
-        "./stores/social/*",
-        "./components/social/*"
-      ],
-      "@financial/*": [
-        "./services/financial/*",
-        "./stores/financial/*",
-        "./components/financial/*"
-      ],
-      "@gateway/*": ["./server/gateway/*"],
-      "~": ["."],
-      "@": ["."]
-    }
+    "types": ["node", "vitest/globals"]
+    // Intentionally NOT overriding "baseUrl"/"paths" here.
+    // `.nuxt/tsconfig.json` (which this file extends) defines the full set of
+    // Nuxt aliases (#app, #imports, #build, #components, #server, #shared, ~, @, etc.)
+    // as paths relative to ITSELF with no baseUrl of its own. TypeScript's `extends`
+    // does NOT deep-merge `paths` - if a child re-declares `paths` at all, it fully
+    // replaces the parent's map. Custom domain aliases are injected into the
+    // generated `.nuxt/tsconfig.json` via `typescript.tsConfig` in nuxt.config.ts
+    // so they are inherited here without overriding Nuxt's paths.
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
+  "include": ["**/*.ts", "**/*.tsx", "**/*.vue", "**/*.d.ts"],
+  "files": [
+    "types/ambient.d.ts",
+    "types/vue-shims.d.ts",
+    ".nuxt/nuxt.d.ts"
+  ],
   "exclude": [
     "node_modules",
     ".nuxt",

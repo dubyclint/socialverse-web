@@ -14,16 +14,16 @@ interface GunInstance {
 // ✅ Safe dynamic mock schema container if plugin instance is absent
 const createSafeGunInstance = (): GunInstance => {
   return {
-    get: (key: string) => ({
-      on: (callback: Function) => {},
-      once: (callback: Function) => {},
-      put: (data: any) => ({ on: () => {}, once: () => {} }),
+    get: (_key: string) => ({
+      on: (_callback: Function) => {},
+      once: (_callback: Function) => {},
+      put: (_data: any) => ({ on: () => {}, once: () => {} }),
     }),
-    put: (data: any) => ({
-      on: (callback: Function) => {},
-      once: (callback: Function) => {},
+    put: (_data: any) => ({
+      on: (_callback: Function) => {},
+      once: (_callback: Function) => {},
     }),
-    on: (callback: Function) => {},
+    on: (_callback: Function) => {},
     off: () => {},
   }
 }

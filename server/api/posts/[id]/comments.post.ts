@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface AddCommentRequest {
   content: string

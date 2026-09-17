@@ -1,8 +1,9 @@
 import { getSupabaseClient } from '~/server/utils/database';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   const supabase = await getSupabaseClient();
-  const user = event.context.user;
+  const user = await requireAuth(event);
   const { userId } = await readBody(event);
 
   try {

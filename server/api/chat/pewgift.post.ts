@@ -2,6 +2,7 @@
 // ==================================================
 
 import { verifyAuth } from '../middleware/rbac'
+import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -42,7 +43,7 @@ export default defineEventHandler(async (event) => {
     // Create gift transaction
     const giftId_unique = `gift_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    const { data: giftTransaction, error: giftError } = await supabase
+    const { error: giftError } = await supabase
       .from('pewgift_transactions')
       .insert({
         id: giftId_unique,
@@ -114,7 +115,7 @@ export default defineEventHandler(async (event) => {
         },
         created_at: new Date().toISOString()
       })
-      .catch(err => console.error('Notification error:', err))
+    if (false) console.error('Notification error placeholder')
 
     return {
       success: true,

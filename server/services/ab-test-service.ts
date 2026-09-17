@@ -4,7 +4,6 @@
 // ============================================================================
 
 import { supabase } from '~/server/utils/database'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface ABTest {
   id: string
@@ -107,7 +106,7 @@ export class ABTestService {
   async getUserVariant(userId: string, test: ABTest): Promise<ABTestVariant | null> {
     try {
       // Check if user already has a variant assignment
-      const { data: assignment, error: assignmentError } = await supabase
+      const { data: assignment } = await supabase
         .from('ab_test_assignments')
         .select('variant_id')
         .eq('user_id', userId)
@@ -196,7 +195,7 @@ export class ABTestService {
       if (error) throw error
 
       const results: Record<string, number> = {}
-      ;(assignments || []).forEach(assignment => {
+      ;(assignments || []).forEach((assignment: any) => {
         results[assignment.variant_id] = (results[assignment.variant_id] || 0) + 1
       })
 

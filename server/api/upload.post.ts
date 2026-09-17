@@ -36,9 +36,9 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     // ============================================================================
     console.log('[Upload API] Step 1: Authenticating...')
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
     
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  const { data: { session }, error: sessionError } = await _supabase.auth.getSession()
 
     if (sessionError || !session?.user) {
       console.error('[Upload API] ❌ Unauthorized')
@@ -65,8 +65,8 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
       })
     }
 
-    const file = formData.find(part => part.name === 'file')
-    const bucketField = formData.find(part => part.name === 'bucket')
+  const file = formData.find((part: any) => part.name === 'file')
+  const bucketField = formData.find((part: any) => part.name === 'bucket')
     const bucket = bucketField?.data?.toString() || STORAGE_CONFIG.buckets.uploads
 
     if (!file || !file.data) {
@@ -88,14 +88,8 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     // ============================================================================
     console.log('[Upload API] Step 3: Validating file...')
 
-    const allowedTypes = [
-      ...STORAGE_CONFIG.allowedImageTypes,
-      ...STORAGE_CONFIG.allowedVideoTypes,
-      ...STORAGE_CONFIG.allowedAudioTypes,
-      ...STORAGE_CONFIG.allowedDocumentTypes
-    ]
-
-    const validation = validateFile(file, allowedTypes, STORAGE_CONFIG.maxFileSize)
+  // Validate using new signature: (buffer, filename, bucket, mimeType)
+  const validation = validateFile(file.data, file.filename || 'file', bucket, file.type || 'application/octet-stream')
 
     if (!validation.valid) {
       console.error('[Upload API] ❌ File validation failed:', validation.error)
@@ -139,7 +133,7 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
 
     const filename = generateUniqueFilename(userId, file.filename || 'file')
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+  const { error: uploadError } = await _supabase.storage
       .from(bucket)
       .upload(filename, file.data, { upsert: true })
 
@@ -158,7 +152,7 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     // ============================================================================
     console.log('[Upload API] Step 6: Getting public URL...')
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = _supabase.storage
       .from(bucket)
       .getPublicUrl(filename)
 

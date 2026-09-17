@@ -227,8 +227,8 @@ export const sendPasswordResetEmail = async (
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()
@@ -344,8 +344,8 @@ export const sendWelcomeEmail = async (
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()
@@ -411,8 +411,8 @@ export const sendEmail = async (
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()
@@ -475,8 +475,8 @@ export const sendBulkEmails = async (
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()

@@ -4,9 +4,10 @@
 // ============================================================================
 
 import { selectStreamServer, trackStreamLoad } from '../middleware/load-balance';
-import { uploadToCDN } from '../middleware/cdn-upload';
 import { logUserEvent } from '../middleware/ml-service';
 import { checkPremiumStatus } from '../middleware/premium-check';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { readBody, createError, getHeader } from 'h3'
 
 interface BroadcastRequest {
   streamId: string;
@@ -29,7 +30,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<BroadcastRequest>(event);
-    const { streamId, type, title, description } = body;
+    const { streamId, type, title } = body;
 
     if (!streamId || !type) {
       throw createError({
@@ -39,7 +40,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get user's region/location
-    const userLocation = event.headers.get('cf-ipcountry') || 'US';
+  const userLocation = getHeader(event, 'cf-ipcountry') || 'US';
 
     // Select best server using load balancer
     const serverSelection = await selectStreamServer(event, {

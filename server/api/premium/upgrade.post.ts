@@ -4,7 +4,8 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server';
-import { PremiumController } from '../../controllers/premium-controller';
+
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface UpgradeRequest {
   tier: 'BASIC' | 'PREMIUM' | 'VIP';
@@ -32,10 +33,10 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const supabase = await serverSupabaseClient(event);
+  const _supabase = await serverSupabaseClient(event);
 
     // Check if user already has active subscription
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscription } = await _supabase
       .from('premium_subscriptions')
       .select('*')
       .eq('user_id', user.id)
@@ -58,7 +59,7 @@ export default defineEventHandler(async (event) => {
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
     }
 
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await _supabase
       .from('premium_subscriptions')
       .insert({
         user_id: user.id,
@@ -78,7 +79,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Log event
-    await supabase
+    await _supabase
       .from('premium_events')
       .insert({
         user_id: user.id,

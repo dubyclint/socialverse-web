@@ -1,17 +1,27 @@
 // server/api/discovery/feed.get.ts
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { getDiscoveryContent } from '~/server/utils/ad-engine'
+
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  
+
   // 1. Determine Content Priority
   // We use our orchestrated helper function to decide what to show
   const content = await getDiscoveryContent(user.id)
-  
+
   // 2. Append Presence Metadata
-  // We check Redis to see if the content owners are currently "Online"
-  // to prioritize "Live" content in the feed
+  // Presence helper is optional — import it at runtime and fall back to undefined
+  let _checkPresence: any = undefined
+  try {
+    const mod = await import('~/server/utils/presence')
+    _checkPresence = (mod && (mod.checkPresence as any)) || undefined
+  } catch (e) {
+    _checkPresence = undefined
+  }
+
   const feedWithPresence = await Promise.all(
     content.data.map(async (item: any) => {
-      const isOnline = await checkPresence(item.id) 
+      const isOnline = typeof _checkPresence === 'function' ? await _checkPresence(item.id) : false
       return { ...item, isOnline }
     })
   )

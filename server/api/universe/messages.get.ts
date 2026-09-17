@@ -3,6 +3,8 @@
 
 import { verifyAuth } from '../middleware/rbac'
 
+import { serverSupabaseClient } from '#supabase/server'
+
 export default defineEventHandler(async (event) => {
   try {
     const user = await verifyAuth(event, { requireAuth: true })
@@ -16,10 +18,10 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const { country, interest, language = 'en', limit = 50, offset = 0 } = query
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Build query
-    let q = supabase
+    let q = _supabase
       .from('universe_messages')
       .select('*')
       .order('created_at', { ascending: false })

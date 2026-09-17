@@ -19,6 +19,14 @@ export const useUniverseStore = defineStore('universe', {
       })
     },
 
+    addMessages(messages: UniverseMessage[]) {
+      this.messages = [...this.messages, ...messages]
+    },
+
+    addMessage(message: UniverseMessage) {
+      this.messages.push(message)
+    },
+
     // UI-Specific actions (like local filters or reactions) remain here
     likeMessage(messageId: string) {
        const message = this.messages.find(m => m.id === messageId)

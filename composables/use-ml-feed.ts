@@ -34,11 +34,11 @@ interface InteractionData {
 
 interface MLFeedReturn {
   feedItems: Ref<readonly FeedItem[]>
-  isLoading: Ref<readonly boolean>
-  error: Ref<readonly any>
-  hasMore: Ref<readonly boolean>
-  nextCursor: Ref<readonly string | null>
-  refreshToken: Ref<readonly string | null>
+  isLoading: Ref<boolean>
+  error: Ref<any>
+  hasMore: Ref<boolean>
+  nextCursor: Ref<string | null>
+  refreshToken: Ref<string | null>
   generateFeed: (options?: FeedGenerationOptions) => Promise<any>
   loadMore: () => Promise<any>
   refresh: () => Promise<any>
@@ -72,7 +72,7 @@ export const useMLFeed = (): MLFeedReturn => {
   const getFallbackFeed = async (): Promise<FeedItem[]> => {
     try {
       const { $fetch } = useNuxtApp()
-      const result = await $fetch<any>('/api/feed/fallback')
+      const result = await $fetch('/api/feed/fallback')
       return result.data?.feed || []
     } catch (err) {
       console.error('[ML Feed] Error fetching fallback feed:', err)
@@ -89,7 +89,7 @@ export const useMLFeed = (): MLFeedReturn => {
 
     try {
       const { $fetch } = useNuxtApp()
-      const response = await $fetch<any>('/api/ml/feed', {
+      const response = await $fetch('/api/ml/feed', {
         method: 'POST',
         body: {
           feedType: options.feedType || 'home',

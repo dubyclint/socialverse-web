@@ -2,7 +2,7 @@
 // FILE: /middleware/profile-completion.ts - PROFILE GATEKEEPER
 // ============================================================================
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to: any) => {
   // 1. Safety Guard for undefined route
   if (!to || !to.path) return
 

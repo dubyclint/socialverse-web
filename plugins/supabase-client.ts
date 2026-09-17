@@ -14,7 +14,7 @@ export default defineNuxtPlugin({
   // ✅ FIX: Ensure Pinia is loaded before Supabase initialization
   dependsOn: ['pinia'],
 
-  setup(nuxtApp) {
+  setup(nuxtApp: any) {
     if (!process.client) return
 
     console.log('[Supabase Plugin] Initializing Supabase client...')

@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface FeedResponse {
   success: boolean
@@ -14,12 +15,8 @@ interface FeedResponse {
 
 export default defineEventHandler(async (event): Promise<FeedResponse> => {
   try {
-    const contextUser: any = event.context.user
+    const contextUser: any = await requireAuth(event)
     const userId = contextUser?.id || contextUser?.user_id || null
-
-    if (!userId) {
-      throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-    }
 
     const query = getQuery(event)
     const page = Math.max(1, Number.parseInt(String(query.page ?? '1'), 10) || 1)
@@ -48,8 +45,8 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
     const ids = Array.from(new Set([userId, ...friendIds]))
 
     // Primary query (full filter set)
-    let posts: any[] | null = null
-    let count: number | null = 0
+  let posts: any[] = []
+  let count: number = 0
 
     let result = await supabase
       .from('posts')
@@ -90,8 +87,8 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
       throw createError({ statusCode: 500, statusMessage: 'Failed to fetch feed posts' })
     }
 
-    posts = result.data ?? []
-    count = result.count ?? 0
+  posts = result.data ?? []
+  count = typeof result.count === 'number' ? result.count : 0
 
     const total = count ?? 0
     const hasMore = page * limit < total

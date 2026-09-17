@@ -126,3 +126,25 @@ export class SecurityRestrictionModel {
     }
   }
 }
+
+// Compatibility shim for older controllers that call `SecurityRestriction.create`
+export async function create(payload: any): Promise<SecurityRestriction> {
+  return SecurityRestrictionModel.createRestriction(
+    payload.restriction_type || payload.restrictionType,
+    payload.reason,
+    payload.severity || 'LOW',
+    payload.expiresAt || payload.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    payload.created_by || payload.createdBy || 'system',
+    payload.user_id || payload.userId,
+    payload.ipAddress || payload.ip_address
+  )
+}
+
+// Export runtime value matching legacy import shape
+export const SecurityRestriction: any = {
+  create,
+  createRestriction: SecurityRestrictionModel.createRestriction,
+  getActiveRestrictions: SecurityRestrictionModel.getActiveRestrictions,
+  removeRestriction: SecurityRestrictionModel.removeRestriction,
+  isUserRestricted: SecurityRestrictionModel.isUserRestricted
+}

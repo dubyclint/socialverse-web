@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,10 +17,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
     // Get user settings
-    const { data: settings, error } = await supabase
+    const { data: settings, error } = await _supabase
       .from('stream_settings')
       .select('*')
       .eq('user_id', user.id)

@@ -1,20 +1,46 @@
+<template>
+  <div class="mobile-stream-player">
+    <video
+      ref="videoPlayer"
+      :src="adaptiveStreamUrl"
+      :autoplay="props.autoplay"
+      class="stream-video"
+      @loadedmetadata="onVideoLoaded"
+      @timeupdate="onTimeUpdate"
+      @play="onPlay"
+      @pause="onPause"
+      @waiting="onBuffering"
+      @canplay="onCanPlay"
+    />
+    <div class="stream-overlay">
+      <div class="stream-info">
+        <h3>{{ streamTitle }}</h3>
+        <p>{{ streamerName }}</p>
+        <span class="viewer-count">{{ formatNumber(viewerCount) }} viewers</span>
+      </div>
+      <div class="stream-actions">
+        <button @click="togglePlayPause">{{ isPlaying ? 'Pause' : 'Play' }}</button>
+        <button @click="toggleMute">{{ isMuted ? 'Unmute' : 'Mute' }}</button>
+        <button @click="toggleFullscreen">Fullscreen</button>
+        <button @click="shareStream">Share</button>
+        <button @click="followStreamer">Follow</button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import StreamChat from './StreamChat.vue'
-import StreamControls from './stream-controls.vue'
-import StreamAnalytics from './stream-analytics.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 // NEW: Import composables with kebab-case naming
 import { useSocket } from '~/composables/use-socket'
 import { useUser } from '~/composables/use-user'
 import { useMobileDetection } from '~/composables/use-mobile-detection'
-import { useAdaptiveStreaming } from '~/composables/use-adaptive-streaming'
 
 // Initialize composables
-const { socket, connect, disconnect, emit, on } = useSocket()
-const { user, isAuthenticated, profile, fetchUserProfile } = useUser()
+const { socket, connect, disconnect, emit, on } = useSocket('/streaming')
+const { isAuthenticated, fetchUserProfile } = useUser()
 const { isMobile, screenSize, isTablet, deviceOrientation } = useMobileDetection()
-const { selectedQuality, availableQualities, initializeHLS, adaptiveEnabled } = useAdaptiveStreaming('')
 
 // Props
 const props = defineProps({
@@ -33,9 +59,8 @@ const props = defineProps({
 })
 
 // Refs
-const videoPlayer = ref(null)
+const videoPlayer = ref<HTMLVideoElement | null>(null)
 const isFullscreen = ref(false)
-const showControls = ref(true)
 const isMuted = ref(false)
 const isPlaying = ref(false)
 const currentTime = ref(0)
@@ -46,6 +71,12 @@ const followerCount = ref(0)
 const streamTitle = ref('')
 const streamerName = ref('')
 const adaptiveStreamUrl = ref('')
+const adaptiveEnabled = ref(false)
+
+const initializeHLS = (_video: HTMLVideoElement) => {
+  // TODO: implement HLS initialization when use-adaptive-streaming composable is available
+  console.log('[mobile-stream-player] HLS init requested')
+}
 
 // Methods
 const togglePlayPause = () => {
@@ -120,7 +151,7 @@ const shareStream = async () => {
     text: `Watch ${streamerName.value} live on SocialVerse!`,
     url: shareUrl
   }
-  
+
   try {
     if (navigator.share && navigator.canShare(shareData)) {
       await navigator.share(shareData)
@@ -138,7 +169,7 @@ const followStreamer = async () => {
       method: 'POST',
       body: { targetUserId: props.streamerId }
     })
-    
+
     if (response.success) {
       isFollowing.value = true
       followerCount.value += 1
@@ -148,13 +179,13 @@ const followStreamer = async () => {
   }
 }
 
-const formatNumber = (num) => {
+const formatNumber = (num: number) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
 }
 
-const onMessageSent = (message) => {
+const onMessageSent = (message: string) => {
   console.log('Message sent:', message)
   // Emit socket event for real-time chat
   if (socket) {
@@ -162,7 +193,7 @@ const onMessageSent = (message) => {
   }
 }
 
-const onUserJoined = (user) => {
+const onUserJoined = (user: any) => {
   console.log('User joined:', user)
   // Emit socket event
   if (socket) {
@@ -170,7 +201,7 @@ const onUserJoined = (user) => {
   }
 }
 
-const onUserLeft = (userId) => {
+const onUserLeft = (userId: string) => {
   console.log('User left:', userId)
   // Emit socket event
   if (socket) {
@@ -194,20 +225,20 @@ const loadStreamData = async () => {
 
 onMounted(() => {
   loadStreamData()
-  
+
   // Fetch user profile if authenticated
   if (isAuthenticated.value) {
     fetchUserProfile()
   }
-  
+
   // Initialize socket connection
   if (socket) {
     connect()
-    on('stream:viewerCount', (count) => {
+    on('stream:viewerCount', (count: number) => {
       viewerCount.value = count
     })
   }
-  
+
   // Log device info
   console.log('Device Info:', {
     isMobile: isMobile.value,

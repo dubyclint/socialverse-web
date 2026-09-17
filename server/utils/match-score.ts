@@ -39,7 +39,8 @@ export function computeMatchScore(userA: User, userB: User): number {
     BestFriend: 5,
     Elite: 6
   };
-  score += (rankMap[userB.rank || 'Homie']) * 10;
+  const rankValue = rankMap[userB.rank || 'Homie'] ?? 1
+  score += rankValue * 10;
 
   // Trust and verification bonuses
   if (userB.isVerified) score += 25;

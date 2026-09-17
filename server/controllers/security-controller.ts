@@ -3,7 +3,7 @@
 
 import type { H3Event } from 'h3'
 import { getRouterParam, getQuery, readBody } from 'h3'
-import { UserSession } from '../models/userSession'
+import { UserSession } from '../models/user-session'
 import { SecurityEvent } from '../models/security-event'
 import { SecurityRestriction } from '../models/security-restriction'
 

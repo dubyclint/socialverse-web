@@ -28,7 +28,7 @@ export default defineEventHandler(async (event): Promise<ComplianceCheckResponse
     }
 
     const body = await readBody<ComplianceCheckRequest>(event)
-    const { userId, feature, context } = body
+    const { userId, feature } = body
 
     if (!userId || !feature) {
       throw createError({

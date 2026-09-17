@@ -1,4 +1,3 @@
-import { serverSupabaseClient } from '#supabase/server';
 import { promises as fs } from 'fs';
 import { resolve } from 'path';
 
@@ -48,7 +47,6 @@ async function getEthClient() {
 
 export default defineEventHandler(async (event) => {
   // Use the official Supabase helper (removes dependency on local utils/database.ts)
-  const supabase = await serverSupabaseClient(event);
   const ethClient = await getEthClient();
 
   if (!ethClient) {

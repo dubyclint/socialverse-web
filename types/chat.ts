@@ -7,6 +7,8 @@ export interface ChatMessage {
   timestamp: number
   avatar?: string
   roomId?: string
+  // Some parts of the app expect `chatId` instead of `roomId`.
+  chatId?: string
 }
 
 export interface User {
@@ -20,4 +22,26 @@ export interface TypingUser {
   userId: string
   username: string
   isTyping: boolean
+}
+
+export interface Chat {
+  id: string
+  title?: string
+  lastMessageTime?: number
+  isPinned?: boolean
+}
+
+export interface Translation {
+  id: string
+  messageId: string
+  language: string
+  text: string
+}
+
+export interface Gift {
+  id: string
+  senderId: string
+  recipientId: string
+  amount: number
+  type?: string
 }

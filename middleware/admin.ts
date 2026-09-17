@@ -1,5 +1,5 @@
 // middleware/admin.ts
-export default defineNuxtRouteMiddleware(async (to, from) => {
+export default defineNuxtRouteMiddleware(async (_to: any, _from: any) => {
   const user = useSupabaseUser()
   const client = useSupabaseClient()
 

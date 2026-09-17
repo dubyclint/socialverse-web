@@ -43,7 +43,7 @@ export class SanctionsService {
       // Check cache first
       const cacheKey = `${name}:${country || 'any'}`
       if (this.cache.has(cacheKey)) {
-        return
+        return true
       }
 
       // Check database

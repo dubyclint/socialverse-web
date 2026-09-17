@@ -3,7 +3,7 @@
 // STREAM BROADCAST COMPOSABLE - HANDLES STREAMING & BROADCASTING
 // ============================================================================
 
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
 export interface StreamConfig {
@@ -300,7 +300,6 @@ export const useStreamBroadcast = () => {
         stats.forEach(report => {
           if (report.type === 'outbound-rtp' && report.kind === 'video') {
             const bytes = report.bytesSent
-            const packets = report.packetsSent
             bitrate = Math.round((bytes * 8) / 1000) // kbps
             frameRate = report.framesPerSecond || 0
             resolution = `${report.frameWidth}x${report.frameHeight}`

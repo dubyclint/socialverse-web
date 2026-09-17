@@ -3,7 +3,8 @@
 
 import type { H3Event } from 'h3'
 import { StatusModel } from '../models/status'
-import { NotificationModel } from '../models/notification'
+const Status: any = (StatusModel as any) || {}
+import { NotificationModelRuntime as NotificationModel } from '../models/notification'
 
 export class StatusController {
   /**
@@ -18,7 +19,7 @@ export class StatusController {
       }
 
       // ✅ USE StatusModel
-      const status = await StatusModel.create({
+  const status = await Status.create({
         userId,
         content: data.content,
         mediaType: data.mediaType,
@@ -42,10 +43,10 @@ export class StatusController {
   /**
    * Get user statuses
    */
-  static async getUserStatuses(event: H3Event, userId: string) {
+  static async getUserStatuses(_event: H3Event, userId: string) {
     try {
       // ✅ USE StatusModel
-      const statuses = await StatusModel.getUserStatuses(userId)
+  const statuses = await Status.getUserStatuses(userId)
 
       return {
         success: true,
@@ -70,7 +71,7 @@ export class StatusController {
       }
 
       // ✅ USE StatusModel
-      const statuses = await StatusModel.getFriendStatuses(userId)
+  const statuses = await Status.getFriendStatuses(userId)
 
       return {
         success: true,
@@ -95,11 +96,21 @@ export class StatusController {
       }
 
       // ✅ USE StatusModel
-      const status = await StatusModel.recordView(statusId, viewerId)
+  const status = await Status.recordView(statusId, viewerId)
+
+      // Handle nullable return and both snake_case/camelCase shapes
+      if (!status) {
+        return {
+          success: false,
+          error: 'Status not found'
+        }
+      }
+
+      const ownerId = (status as any).user_id || (status as any).userId
 
       // ✅ USE NotificationModel - Notify status owner
       await NotificationModel.create({
-        userId: status.user_id,
+        userId: ownerId,
         actorId: viewerId,
         type: 'system',
         title: 'Status Viewed',
@@ -130,7 +141,7 @@ export class StatusController {
       }
 
       // ✅ USE StatusModel
-      await StatusModel.delete(statusId, userId)
+  await Status.delete(statusId, userId)
 
       return {
         success: true,

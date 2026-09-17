@@ -5,7 +5,6 @@
 
 import { getSupabaseClient } from '~/server/utils/database'
 import { abTestService } from './ab-test-service'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface PolicyEvaluationContext {
   userId: string
@@ -239,9 +238,11 @@ export class PolicyEngine {
     const now = new Date()
     const currentHour = now.getHours()
     const [startHour, endHour] = value.split('-').map(Number)
+    const start = startHour ?? 0
+    const end = endHour ?? 24
 
     if (operator === 'between') {
-      return currentHour >= startHour && currentHour < endHour
+      return currentHour >= start && currentHour < end
     }
 
     return true

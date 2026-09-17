@@ -1,6 +1,9 @@
 // server/api/middleware/rbac.ts
 // Role-Based Access Control Middleware
 
+import { serverSupabaseClient } from '#supabase/server'
+import { getHeader, createError } from 'h3'
+
 export interface AuthenticatedUser {
   id: string
   email: string
@@ -46,7 +49,7 @@ export async function verifyAuth(event: any, options: RBACOptions = {}) {
       })
     }
 
-    // Verify JWT token
+  // Verify JWT token
     const user = await verifyJWT(token)
 
     if (!user) {
@@ -66,7 +69,7 @@ export async function verifyAuth(event: any, options: RBACOptions = {}) {
 
     return user
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode) {
       throw error
     }
@@ -102,7 +105,7 @@ async function verifyJWT(token: string): Promise<AuthenticatedUser | null> {
     }
 
     // Decode payload (base64)
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+    const payload = JSON.parse(Buffer.from(parts[1] ?? '', 'base64').toString())
 
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {

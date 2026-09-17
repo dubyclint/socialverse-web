@@ -1,6 +1,7 @@
 // server/api/posts/index.get.ts
 import { serverSupabaseClient } from '#supabase/server'
 import { defineEventHandler, getQuery, createError } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 interface Profile {
   user_id: string
@@ -36,17 +37,9 @@ export default defineEventHandler(async (event): Promise<ApiResponse> => {
   try {
     console.log('[Posts API] ============ FETCH POSTS START ============')
     
-    // Get user from context (set by auth middleware)
-    const user = event.context.user
-    if (!user || !user.id) {
-      console.error('[Posts API] ❌ Unauthorized')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
-
-    const userId = user.id
+    // Get user via canonical helper to ensure middleware consistency
+    const user = await requireAuth(event)
+    const userId = user?.id
     console.log('[Posts API] User ID:', userId)
 
     // Parse query parameters
@@ -96,7 +89,7 @@ export default defineEventHandler(async (event): Promise<ApiResponse> => {
         .or(`(user_id.eq.${userId}),(friend_id.eq.${userId})`)
         .eq('status', 'accepted')
 
-      const friendIds = friendships?.map(f => f.user_id === userId ? f.friend_id : f.user_id) || []
+  const friendIds = friendships?.map((f: any) => f.user_id === userId ? f.friend_id : f.user_id) || []
       const allUserIds = [userId, ...friendIds]
       
       postsQuery = postsQuery.in('user_id', allUserIds)

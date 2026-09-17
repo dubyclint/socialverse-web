@@ -37,29 +37,30 @@ export default defineEventHandler(async (event) => {
 
   const { data: allUsers } = await query
 
-  const scored = allUsers?.map(u => ({
+  const scored = allUsers?.map((u: any) => ({
     ...u,
     matchScore: computeMatchScore(user, u)
-  })).filter(u => u.matchScore > 30) || []
+  })).filter((u: any) => u.matchScore > 30) || []
 
-  let topCandidates = scored.sort((a, b) => b.matchScore - a.matchScore).slice(0, 30)
+  let topCandidates = scored.sort((a: any, b: any) => b.matchScore - a.matchScore).slice(0, 30)
 
   const groups = []
   while (topCandidates.length >= size - 1) {
-    const seed = topCandidates.shift()
-    const compatible = topCandidates.filter(u =>
+    const seed = topCandidates.shift() as any
+    const compatible = topCandidates.filter((u: any) =>
       computeMatchScore(seed, u) > 25 &&
       !user.pals?.includes(u.id)
     ).slice(0, size - 1)
 
     if (compatible.length >= size - 1) {
       groups.push([seed, ...compatible])
-      topCandidates = topCandidates.filter(u => !compatible.includes(u))
+      topCandidates = topCandidates.filter((u: any) => !compatible.includes(u))
     }
   }
 
   if (groups.length > 0) {
-    await sendNotification(user.id, 'group', `You've been matched for ${title}.`)
+    // sendNotification expects (event, userId, type, message)
+    await sendNotification(event, user.id, 'group', `You've been matched for ${title}.`)
     await sendPushAlert(user.id, 'Group Match Ready', `You're matched for ${title}.`)
   }
 

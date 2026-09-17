@@ -3,7 +3,7 @@
 // ============================================================================
 import { useUserStore } from '~/stores/user'
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to: any) => {
   // 1. Safety Guard and Server Check
   if (!to?.path || import.meta.server) return
 

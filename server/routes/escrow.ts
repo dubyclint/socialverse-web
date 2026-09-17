@@ -1,8 +1,6 @@
 // FILE: /server/routes/escrow.ts - FIXED
 // ============================================================================
 
-import { EscrowTradeModel } from '~/server/models/escrow-trade'
-import { AuditLogModel } from '~/server/models/audit-log'
 import { getSupabaseClient } from '~/server/utils/database'
 
 interface EscrowCreateRequest {

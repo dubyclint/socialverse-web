@@ -3,8 +3,8 @@
 // CDN upload middleware for media files
 // ============================================================================
 
-import { H3Event } from 'h3';
-import { CDNManager } from '../../utils/cdn-manager';
+import type { H3Event } from 'h3';
+
 
 export interface CDNUploadOptions {
   contentType: 'video' | 'thumbnail' | 'avatar' | 'static' | 'post';
@@ -18,7 +18,7 @@ export async function uploadToCDN(
   options: CDNUploadOptions
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
-    const cdnManager = event.context.cdnManager as CDNManager;
+    const cdnManager = event.context.cdnManager as any;
     
     if (!cdnManager) {
       throw new Error('CDN Manager not initialized');
@@ -37,15 +37,15 @@ export async function uploadToCDN(
 
     switch (options.contentType) {
       case 'video':
-        result = await cdnManager.uploadStreamSegment(
+        result = await (cdnManager as any).uploadStreamSegment(
           filename.split('/')[0],
           buffer,
-          parseInt(filename.split('_')[1]) || 0
+          parseInt(filename.split('_')[1] ?? '0') || 0
         );
         break;
 
       case 'thumbnail':
-        result = await cdnManager.uploadThumbnail(
+        result = await (cdnManager as any).uploadThumbnail(
           filename.split('/')[0],
           buffer,
           Date.now()
@@ -55,8 +55,7 @@ export async function uploadToCDN(
       case 'avatar':
       case 'static':
       case 'post':
-        const key = `${options.contentType}/${filename}`;
-        result = await cdnManager.uploadPlaylist(filename, buffer.toString(), false);
+  result = await (cdnManager as any).uploadPlaylist(filename, buffer.toString(), false);
         break;
 
       default:
@@ -81,13 +80,13 @@ export async function invalidateCDNCache(
   paths: string[]
 ): Promise<{ success: boolean; invalidationId?: string; error?: string }> {
   try {
-    const cdnManager = event.context.cdnManager as CDNManager;
+    const cdnManager = event.context.cdnManager as any;
     
     if (!cdnManager) {
       throw new Error('CDN Manager not initialized');
     }
 
-    return await cdnManager.invalidateCache(paths);
+    return await (cdnManager as any).invalidateCache(paths);
   } catch (error) {
     console.error('CDN invalidation error:', error);
     return {

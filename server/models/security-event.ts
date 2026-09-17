@@ -149,3 +149,31 @@ export class SecurityEventModel {
     }
   }
 }
+
+// Compatibility shims for legacy controller usage
+export async function create(payload: any): Promise<SecurityEvent> {
+  return SecurityEventModel.recordEvent(
+    payload.user_id || payload.userId,
+    (payload.event_type || payload.eventType) as SecurityEventType,
+    payload.ipAddress || payload.ip_address || '',
+    payload.userAgent || payload.user_agent || '',
+    (payload.severity || 'LOW') as any,
+    payload.description || '',
+    payload.location,
+    payload.deviceInfo || payload.device_info
+  )
+}
+
+export async function findByUserId(userId: string, limit = 50, offset = 0): Promise<SecurityEvent[]> {
+  return SecurityEventModel.getUserEvents(userId, limit, offset)
+}
+
+// Also export a value named `SecurityEvent` so controllers that import
+// it as a runtime value (not only the type) continue to work.
+export const SecurityEvent: any = {
+  create,
+  findByUserId,
+  recordEvent: SecurityEventModel.recordEvent,
+  getUserEvents: SecurityEventModel.getUserEvents,
+  acknowledgeEvent: SecurityEventModel.acknowledgeEvent
+}

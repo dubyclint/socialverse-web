@@ -390,18 +390,48 @@
   
 import { ref, computed, onMounted } from 'vue'
 
+interface VerificationDocument {
+  name: string
+  type: string
+  url: string
+  description: string
+  uploadDate: string
+}
+
+interface VerificationUser {
+  id: number
+  username: string
+  displayName?: string
+  email: string
+  avatar?: string
+  verificationStatus: 'verified' | 'pending' | 'rejected' | 'revoked'
+  verificationType?: string
+  requestDate: string
+  verificationDate?: string
+  rejectionDate?: string
+  revocationDate?: string
+  rejectionReason?: string
+  reason?: string
+  isVerified: boolean
+  postCount?: number
+  followerCount?: number
+  followingCount?: number
+  joinDate?: string
+  documents: VerificationDocument[]
+}
+
 // Reactive data
 const showBulkActions = ref(false)
 const showDocumentModal = ref(false)
 const showUserModal = ref(false)
-const selectedUser = ref(null)
-const selectedUsers = ref([])
+const selectedUser = ref<VerificationUser | null>(null)
+const selectedUsers = ref<number[]>([])
 const searchQuery = ref('')
-const filterStatus = ref('all')
+const filterStatus = ref<'all' | 'verified' | 'pending' | 'rejected'>('all')
 const currentPage = ref(1)
 const itemsPerPage = 20
 
-const users = ref([])
+const users = ref<VerificationUser[]>([])
 
 // Computed properties
 const verifiedUsers = computed(() => 
@@ -583,7 +613,7 @@ const loadUsers = async () => {
   }
 }
 
-const approveUser = async (user) => {
+const approveUser = async (user: VerificationUser) => {
   try {
     user.verificationStatus = 'verified'
     user.isVerified = true
@@ -595,13 +625,13 @@ const approveUser = async (user) => {
   }
 }
 
-const rejectUser = async (user) => {
+const rejectUser = async (user: VerificationUser) => {
   const reason = prompt('Reason for rejection (optional):')
   try {
     user.verificationStatus = 'rejected'
     user.isVerified = false
     user.rejectionDate = new Date().toISOString()
-    user.rejectionReason = reason
+    user.rejectionReason = reason || undefined
     selectedUsers.value = selectedUsers.value.filter(id => id !== user.id)
     // API call would go here
   } catch (error) {
@@ -609,11 +639,11 @@ const rejectUser = async (user) => {
   }
 }
 
-const revokeVerification = async (user) => {
+const revokeVerification = async (user: VerificationUser) => {
   if (!confirm('Are you sure you want to revoke this user\'s verification?')) {
     return
   }
-  
+
   try {
     user.verificationStatus = 'revoked'
     user.isVerified = false
@@ -690,12 +720,12 @@ const toggleSelectAll = () => {
   }
 }
 
-const viewDocuments = (user) => {
+const viewDocuments = (user: VerificationUser) => {
   selectedUser.value = user
   showDocumentModal.value = true
 }
 
-const viewUserDetails = (user) => {
+const viewUserDetails = (user: VerificationUser) => {
   selectedUser.value = user
   showUserModal.value = true
 }
@@ -715,8 +745,8 @@ const exportVerifiedUsers = () => {
   console.log('Exporting verified users...')
 }
 
-const formatStatus = (status) => {
-  const statusMap = {
+const formatStatus = (status: string) => {
+  const statusMap: Record<string, string> = {
     verified: 'Verified',
     pending: 'Pending',
     rejected: 'Rejected',
@@ -725,15 +755,17 @@ const formatStatus = (status) => {
   return statusMap[status] || status
 }
 
-const formatDate = (dateString) => {
+const formatDate = (dateString?: string) => {
+  if (!dateString) return ''
   return new Date(dateString).toLocaleDateString()
 }
 
-const getRelativeTime = (dateString) => {
+const getRelativeTime = (dateString?: string) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   const now = new Date()
-  const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
-  
+  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
   if (diffInHours < 1) return 'Just now'
   if (diffInHours < 24) return `${diffInHours}h ago`
   if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`

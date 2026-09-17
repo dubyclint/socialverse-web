@@ -1,10 +1,7 @@
 // composables/use-api.ts
-import { useNuxtApp } from '#app'
 import { computed } from 'vue'
 
 export const useApi = () => {
-  const { $fetch } = useNuxtApp()
-
   // 1. Unified Store Resolver
   let _cachedUserStore: any = null
 

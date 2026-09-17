@@ -1,5 +1,4 @@
 import { getSupabaseClient } from '~/server/utils/database'
-import { AuditLogModel } from '~/server/models/audit-log'
 
 interface DashboardStats {
   totalUsers: number
@@ -18,7 +17,7 @@ interface DashboardStats {
   }
 }
 
-export default defineEventHandler(async (event): Promise<DashboardStats> => {
+export default defineEventHandler(async (_event): Promise<DashboardStats> => {
   try {
     const supabase = await getSupabaseClient();
 
@@ -39,7 +38,7 @@ export default defineEventHandler(async (event): Promise<DashboardStats> => {
       .eq('is_released', false)
       .eq('is_refunded', false)
 
-    const totalEscrowValue = escrowData?.reduce((sum, trade) => sum + (trade.amount || 0), 0) || 0
+    const totalEscrowValue = escrowData?.reduce((sum: number, trade: any) => sum + (trade.amount || 0), 0) || 0
 
     // Get pending escrows count
     const { count: pendingEscrows } = await supabase

@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { ProfileAnalyticsModel } from '../models/profile-analytics'
 import { ProfileViewModel } from '../models/profile-view'
-import { RankModel } from '../models/rank'
+import { RankModelRuntime as RankModel } from '../models/rank'
 
 type ApiResponse<T> =
   | { success: true; data: T; message?: string }
