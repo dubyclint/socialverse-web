@@ -349,31 +349,56 @@ export type Database = {
         Row: {
           attachment_urls: string[]
           created_at: string
+          deleted_at: string | null
+          deleted_for_everyone: boolean
+          edited_at: string | null
+          expires_at: string | null
           id: string
           message_text: string | null
+          message_type: string
           metadata: Json
+          reply_to_id: string | null
           room_id: string
           sender_id: string
         }
         Insert: {
           attachment_urls?: string[]
           created_at?: string
+          deleted_at?: string | null
+          deleted_for_everyone?: boolean
+          edited_at?: string | null
+          expires_at?: string | null
           id?: string
           message_text?: string | null
+          message_type?: string
           metadata?: Json
+          reply_to_id?: string | null
           room_id: string
           sender_id: string
         }
         Update: {
           attachment_urls?: string[]
           created_at?: string
+          deleted_at?: string | null
+          deleted_for_everyone?: boolean
+          edited_at?: string | null
+          expires_at?: string | null
           id?: string
           message_text?: string | null
+          message_type?: string
           metadata?: Json
+          reply_to_id?: string | null
           room_id?: string
           sender_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_messages_reply_to_fk"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_messages_room_id_fkey"
             columns: ["room_id"]
@@ -439,25 +464,37 @@ export type Database = {
       chat_room_members: {
         Row: {
           id: string
+          is_archived: boolean
+          is_pinned: boolean
           joined_at: string
           last_delivered_at: string | null
           last_read_at: string | null
+          member_role: string
+          muted_until: string | null
           room_id: string
           user_id: string
         }
         Insert: {
           id?: string
+          is_archived?: boolean
+          is_pinned?: boolean
           joined_at?: string
           last_delivered_at?: string | null
           last_read_at?: string | null
+          member_role?: string
+          muted_until?: string | null
           room_id: string
           user_id: string
         }
         Update: {
           id?: string
+          is_archived?: boolean
+          is_pinned?: boolean
           joined_at?: string
           last_delivered_at?: string | null
           last_read_at?: string | null
+          member_role?: string
+          muted_until?: string | null
           room_id?: string
           user_id?: string
         }
@@ -482,8 +519,10 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          disappearing_seconds: number | null
           id: string
           is_group_chat: boolean
+          last_message_at: string | null
           room_avatar: string | null
           room_name: string | null
           updated_at: string
@@ -491,8 +530,10 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          disappearing_seconds?: number | null
           id?: string
           is_group_chat?: boolean
+          last_message_at?: string | null
           room_avatar?: string | null
           room_name?: string | null
           updated_at?: string
@@ -500,8 +541,10 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          disappearing_seconds?: number | null
           id?: string
           is_group_chat?: boolean
+          last_message_at?: string | null
           room_avatar?: string | null
           room_name?: string | null
           updated_at?: string
@@ -3104,7 +3147,11 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_favourite: boolean
+          is_registered: boolean
           phone_hash: string | null
+          source: string
+          synced_at: string
           user_id: string
         }
         Insert: {
@@ -3112,7 +3159,11 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_favourite?: boolean
+          is_registered?: boolean
           phone_hash?: string | null
+          source?: string
+          synced_at?: string
           user_id: string
         }
         Update: {
@@ -3120,7 +3171,11 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_favourite?: boolean
+          is_registered?: boolean
           phone_hash?: string | null
+          source?: string
+          synced_at?: string
           user_id?: string
         }
         Relationships: []
@@ -3282,6 +3337,61 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_settings: {
+        Row: {
+          account: Json
+          created_at: string
+          general: Json
+          notifications: Json
+          privacy: Json
+          storage_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account?: Json
+          created_at?: string
+          general?: Json
+          notifications?: Json
+          privacy?: Json
+          storage_data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account?: Json
+          created_at?: string
+          general?: Json
+          notifications?: Json
+          privacy?: Json
+          storage_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       user_statuses: {
         Row: {
@@ -3673,6 +3783,8 @@ export type Database = {
           target_user_id: string
         }[]
       }
+      hash_phone: { Args: { p_e164: string }; Returns: string }
+      hash_phones: { Args: { p_e164: string[] }; Returns: string[] }
       increment_status_views: {
         Args: { status_id: string }
         Returns: undefined
@@ -3853,6 +3965,8 @@ export type Database = {
         | "ESCROW_UPDATE"
         | "STREAM_LIVE"
         | "SYSTEM_ALERT"
+        | "PAL_REQUEST"
+        | "PAL_ACCEPTED"
       p2p_asset_kind: "FIAT" | "CRYPTO"
       p2p_trade_status:
         | "created"
@@ -3894,12 +4008,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3923,11 +4037,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3948,11 +4062,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3973,11 +4087,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3990,11 +4104,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4079,6 +4193,8 @@ export const Constants = {
         "ESCROW_UPDATE",
         "STREAM_LIVE",
         "SYSTEM_ALERT",
+        "PAL_REQUEST",
+        "PAL_ACCEPTED",
       ],
       p2p_asset_kind: ["FIAT", "CRYPTO"],
       p2p_trade_status: [
