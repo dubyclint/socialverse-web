@@ -45,36 +45,49 @@
           <button class="close-btn" @click="toggleSidebar"><Icon name="lucide:x" size="20" /></button>
         </div>
         <nav class="sidebar-nav">
+          <p class="sidebar-section">You</p>
           <div v-if="!currentUser?.id" class="sidebar-item disabled-info" title="Not authenticated">
             <Icon name="user" size="18" /> <span>Profile</span> <span class="warning-badge">!</span>
           </div>
           <button v-else class="sidebar-item" @click="goToProfilePage()" title="Go to your profile">
             <Icon name="user" size="18" /> <span>Profile</span>
           </button>
-          <NuxtLink to="/status" class="sidebar-item" @click="toggleSidebar"><Icon name="layers" size="18" /> <span>Statuses</span></NuxtLink>
-          <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar"><Icon name="message-circle" size="18" /> <span>Chat</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
-          <NuxtLink to="/universe" class="sidebar-item" @click="toggleSidebar"><Icon name="globe" size="18" /> <span>Universe Chat</span></NuxtLink>
+          <NuxtLink v-if="currentUser?.id" to="/profile/edit" class="sidebar-item sub" @click="toggleSidebar"><Icon name="edit-3" size="16" /> <span>Edit profile</span></NuxtLink>
           <NuxtLink to="/notifications" class="sidebar-item" @click="toggleSidebar"><Icon name="bell" size="18" /> <span>Notifications</span><span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span></NuxtLink>
-          <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar"><Icon name="compass" size="18" /> <span>Explore</span></NuxtLink>
-          <div class="sidebar-divider"></div>
-          <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create Post</span></NuxtLink>
-          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="video" size="18" /> <span>Live Streaming</span></NuxtLink>
-          <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar"><Icon name="heart" size="18" /> <span>Match</span></NuxtLink>
           <NuxtLink to="/pal" class="sidebar-item" @click="toggleSidebar"><Icon name="users" size="18" /> <span>My PALs</span></NuxtLink>
-          <div class="sidebar-divider"></div>
-          <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
+
+          <p class="sidebar-section">Social</p>
+          <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar"><Icon name="message-circle" size="18" /> <span>Chat</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
+          <NuxtLink to="/universe" class="sidebar-item sub" @click="toggleSidebar"><Icon name="globe" size="16" /> <span>Universe chat</span></NuxtLink>
+          <NuxtLink to="/status" class="sidebar-item" @click="toggleSidebar"><Icon name="layers" size="18" /> <span>Statuses</span></NuxtLink>
+          <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar"><Icon name="compass" size="18" /> <span>Explore</span></NuxtLink>
+          <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar"><Icon name="heart" size="18" /> <span>Match</span></NuxtLink>
+
+          <p class="sidebar-section">Create</p>
+          <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create post</span></NuxtLink>
+          <NuxtLink to="/posts" class="sidebar-item sub" @click="toggleSidebar"><Icon name="file-text" size="16" /> <span>My posts</span></NuxtLink>
+          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="video" size="18" /> <span>Live streaming</span></NuxtLink>
+          <NuxtLink to="/stream/broadcast" class="sidebar-item sub" @click="toggleSidebar"><Icon name="radio" size="16" /> <span>Go live</span></NuxtLink>
+          <NuxtLink to="/stream/history" class="sidebar-item sub" @click="toggleSidebar"><Icon name="clock" size="16" /> <span>Past streams</span></NuxtLink>
+
+          <p class="sidebar-section">Earn</p>
           <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="credit-card" size="18" /> <span>Wallet</span></NuxtLink>
-          <NuxtLink to="/pewgift" class="sidebar-item" @click="toggleSidebar"><Icon name="gift" size="18" /> <span>PewGift</span></NuxtLink>
-          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P Trading</span></NuxtLink>
-          <NuxtLink to="/p2p/sell" class="sidebar-item" @click="toggleSidebar"><Icon name="store" size="18" /> <span>Sell Pewgift</span></NuxtLink>
-          <NuxtLink to="/escrow" class="sidebar-item" @click="toggleSidebar"><Icon name="shield" size="18" /> <span>Escrow</span></NuxtLink>
+          <NuxtLink to="/wallet?tab=Pewgift" class="sidebar-item sub" @click="toggleSidebar"><Icon name="gift" size="16" /> <span>Pewgift</span></NuxtLink>
+          <NuxtLink to="/wallet?tab=Withdrawals" class="sidebar-item sub" @click="toggleSidebar"><Icon name="download" size="16" /> <span>Withdrawals</span></NuxtLink>
+          <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
+          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P trading</span></NuxtLink>
+          <NuxtLink to="/p2p/sell" class="sidebar-item sub" @click="toggleSidebar"><Icon name="store" size="16" /> <span>Sell Pewgift</span></NuxtLink>
+          <NuxtLink to="/escrow" class="sidebar-item sub" @click="toggleSidebar"><Icon name="shield" size="16" /> <span>Escrow</span></NuxtLink>
           <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar"><Icon name="megaphone" size="18" /> <span>Ads</span></NuxtLink>
-          <div class="sidebar-divider"></div>
+          <NuxtLink to="/ads/create" class="sidebar-item sub" @click="toggleSidebar"><Icon name="plus" size="16" /> <span>Create ad</span></NuxtLink>
+          <NuxtLink to="/ads/manage" class="sidebar-item sub" @click="toggleSidebar"><Icon name="sliders" size="16" /> <span>Manage ads</span></NuxtLink>
+
+          <p class="sidebar-section">Help &amp; account</p>
           <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar"><Icon name="life-buoy" size="18" /> <span>Support</span></NuxtLink>
-          <NuxtLink to="/support-chat" class="sidebar-item" @click="toggleSidebar"><Icon name="headphones" size="18" /> <span>Agent Support</span></NuxtLink>
-          <NuxtLink to="/terms-and-policy" class="sidebar-item" @click="toggleSidebar"><Icon name="file-text" size="18" /> <span>Policy & T&Cs</span></NuxtLink>
+          <NuxtLink to="/support-chat" class="sidebar-item sub" @click="toggleSidebar"><Icon name="headphones" size="16" /> <span>Agent support</span></NuxtLink>
           <NuxtLink to="/settings" class="sidebar-item" @click="toggleSidebar"><Icon name="settings" size="18" /> <span>Settings</span></NuxtLink>
-          <div class="sidebar-divider"></div>
+          <NuxtLink to="/terms-and-policy" class="sidebar-item sub" @click="toggleSidebar"><Icon name="file-text" size="16" /> <span>Policy &amp; terms</span></NuxtLink>
+          <NuxtLink to="/settings/delete-account" class="sidebar-item sub" @click="toggleSidebar"><Icon name="trash-2" size="16" /> <span>Delete account</span></NuxtLink>
           <button class="sidebar-item logout-btn" @click="handleLogout"><Icon name="log-out" size="18" /> <span>Logout</span></button>
         </nav>
       </aside>
