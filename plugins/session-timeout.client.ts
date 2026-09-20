@@ -1,13 +1,14 @@
 // ============================================================================
 // FILE: /plugins/session-timeout.client.ts
-// Signs the user out after 8 hours without activity. The last-activity stamp
-// is persisted so idle time keeps counting while the tab is closed.
+// Signs the user out after the idle window configured in the user's general
+// settings. The last-activity stamp is persisted so idle time keeps counting
+// while the tab is closed.
 // ============================================================================
 import { defineNuxtPlugin, useRouter } from '#app'
 import { watch } from 'vue'
 import { useSupabaseUser, useSupabaseClient } from '#imports'
 
-const SESSION_TIMEOUT = 8 * 60 * 60 * 1000
+const DEFAULT_TIMEOUT_MINUTES = 30
 const WARNING_BEFORE = 5 * 60 * 1000
 const ACTIVITY_KEY = 'socialverse:last-activity'
 
@@ -19,6 +20,10 @@ export default defineNuxtPlugin({
 
     const user = useSupabaseUser()
     const router = useRouter()
+    const { settings, load } = useUserSettings()
+
+    const timeoutMs = () =>
+      Math.max(settings.value.general.idleLogoutMinutes || DEFAULT_TIMEOUT_MINUTES, 1) * 60 * 1000
 
     let inactivityTimer: ReturnType<typeof setTimeout> | null = null
     let warningTimer: ReturnType<typeof setTimeout> | null = null
@@ -49,7 +54,7 @@ export default defineNuxtPlugin({
       if (!user.value) return
 
       const idleFor = Date.now() - readLastActivity()
-      const remaining = SESSION_TIMEOUT - idleFor
+      const remaining = timeoutMs() - idleFor
 
       if (remaining <= 0) {
         void expire()
@@ -98,6 +103,7 @@ export default defineNuxtPlugin({
         if (!window.localStorage.getItem(ACTIVITY_KEY)) {
           window.localStorage.setItem(ACTIVITY_KEY, String(Date.now()))
         }
+        void load().then(scheduleFromStamp)
         scheduleFromStamp()
       },
       { immediate: true }
