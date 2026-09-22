@@ -40,7 +40,19 @@
 
     <div v-if="post.repost_of" class="repost-source">
       <div class="repost-source-head">
+        <NuxtLink
+          v-if="post.repost_of.author?.username"
+          :to="`/profile/${post.repost_of.author.username}`"
+          class="repost-avatar-link"
+        >
+          <img
+            :src="post.repost_of.author?.avatar_url || '/default-avatar.svg'"
+            :alt="post.repost_of.author?.full_name || 'User'"
+            class="repost-avatar"
+          />
+        </NuxtLink>
         <img
+          v-else
           :src="post.repost_of.author?.avatar_url || '/default-avatar.svg'"
           alt=""
           class="repost-avatar"
@@ -74,7 +86,9 @@
     <ul v-if="likersOpen" class="likers">
       <li v-if="likersLoading" class="likers-state">Loading...</li>
       <li v-for="liker in likers" v-else :key="liker.id" class="liker">
-        <img :src="liker.avatar || '/default-avatar.svg'" alt="" class="liker-avatar" />
+        <NuxtLink :to="`/profile/${liker.username}`" class="liker-avatar-link">
+          <img :src="liker.avatar || '/default-avatar.svg'" :alt="liker.name" class="liker-avatar" />
+        </NuxtLink>
         <NuxtLink :to="`/profile/${liker.username}`">{{ liker.name }}</NuxtLink>
       </li>
     </ul>
@@ -477,6 +491,7 @@ const formatTimeAgo = (value: string) => {
 .liker { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
 .liker a { color: inherit; text-decoration: none; }
 .liker-avatar { width: 24px; height: 24px; border-radius: 9999px; object-fit: cover; }
+.liker-avatar-link, .repost-avatar-link { display: inline-flex; flex-shrink: 0; }
 .likers-state { font-size: 0.8rem; opacity: 0.7; }
 
 /* Compact action bar so the media keeps the space. */

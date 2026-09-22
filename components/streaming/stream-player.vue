@@ -192,13 +192,15 @@
       
       <div class="stream-meta">
         <div class="streamer-info">
-          <img 
-            :src="streamerAvatar || '/default-avatar.svg'" 
-            :alt="streamerName"
-            class="streamer-avatar"
-          >
+          <NuxtLink :to="`/profile/${streamerId}`" class="streamer-avatar-link">
+            <img 
+              :src="streamerAvatar || '/default-avatar.svg'" 
+              :alt="streamerName"
+              class="streamer-avatar"
+            >
+          </NuxtLink>
           <div class="streamer-details">
-            <span class="streamer-name">{{ streamerName }}</span>
+            <NuxtLink :to="`/profile/${streamerId}`" class="streamer-name">{{ streamerName }}</NuxtLink>
             <span class="follower-count">{{ formatNumber(followerCount) }} followers</span>
           </div>
         </div>
@@ -716,6 +718,13 @@ const followStreamer = async () => {
 .streamer-name {
   font-weight: bold;
   font-size: 1rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.streamer-avatar-link {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
 .follower-count {

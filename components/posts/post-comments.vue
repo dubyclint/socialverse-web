@@ -21,7 +21,9 @@
     <ul v-else class="comment-list">
       <li v-for="thread in threads" :key="thread.comment.id" class="comment-thread">
         <article class="comment">
-          <img :src="thread.comment.author.avatar || '/default-avatar.svg'" alt="" class="comment-avatar" />
+          <NuxtLink :to="`/profile/${thread.comment.author.username}`" class="comment-avatar-link">
+            <img :src="thread.comment.author.avatar || '/default-avatar.svg'" :alt="thread.comment.author.name" class="comment-avatar" />
+          </NuxtLink>
           <div class="comment-body">
             <NuxtLink :to="`/profile/${thread.comment.author.username}`" class="comment-author">
               {{ thread.comment.author.name }}
@@ -53,7 +55,9 @@
 
             <ul v-if="thread.replies.length" class="reply-list">
               <li v-for="reply in thread.replies" :key="reply.id" class="comment reply">
-                <img :src="reply.author.avatar || '/default-avatar.svg'" alt="" class="comment-avatar small" />
+                <NuxtLink :to="`/profile/${reply.author.username}`" class="comment-avatar-link">
+                  <img :src="reply.author.avatar || '/default-avatar.svg'" :alt="reply.author.name" class="comment-avatar small" />
+                </NuxtLink>
                 <div class="comment-body">
                   <NuxtLink :to="`/profile/${reply.author.username}`" class="comment-author">
                     {{ reply.author.name }}
@@ -228,6 +232,11 @@ onMounted(load)
 }
 
 .comment-avatar.small { width: 26px; height: 26px; }
+
+.comment-avatar-link {
+  display: inline-flex;
+  flex-shrink: 0;
+}
 
 .comment-body {
   flex: 1;
