@@ -7,6 +7,9 @@ interface ChatMessagePayload {
   recipientId?: string
   tempId?: string
   timestamp?: number
+  attachments?: string[]
+  replyToId?: string
+  messageType?: string
 }
 
 export interface IncomingChatMessage {
@@ -18,6 +21,31 @@ export interface IncomingChatMessage {
   senderAvatar?: string
   timestamp: string
   tempId?: string
+  attachments?: string[]
+  messageType?: string
+  replyToId?: string | null
+  expiresAt?: string | null
+}
+
+export interface ChatEditEvent {
+  chatId: string
+  messageId: string
+  content: string
+  editedAt: string
+}
+
+export interface ChatDeleteEvent {
+  chatId: string
+  messageId: string
+  forEveryone: boolean
+}
+
+export interface ChatReactionEvent {
+  chatId: string
+  messageId: string
+  emoji: string
+  userId: string
+  removed: boolean
 }
 
 export interface ChatSendAck {
@@ -110,8 +138,24 @@ export const useChat = () => {
     socket.emit('chat:edit', { chatId, messageId, content })
   }
 
-  const deleteMessage = (chatId: string, messageId: string) => {
-    socket.emit('chat:delete', { chatId, messageId })
+  const deleteMessage = (chatId: string, messageId: string, forEveryone = true) => {
+    socket.emit('chat:delete', { chatId, messageId, forEveryone })
+  }
+
+  const reactToMessage = (chatId: string, messageId: string, emoji: string) => {
+    socket.emit('chat:react', { chatId, messageId, emoji })
+  }
+
+  const onEdited = (handler: (event: ChatEditEvent) => void) => {
+    socket.on('chat:edited', handler)
+  }
+
+  const onDeleted = (handler: (event: ChatDeleteEvent) => void) => {
+    socket.on('chat:deleted', handler)
+  }
+
+  const onReaction = (handler: (event: ChatReactionEvent) => void) => {
+    socket.on('chat:reaction', handler)
   }
 
   const disconnect = () => {
@@ -132,6 +176,10 @@ export const useChat = () => {
     sendMessage,
     editMessage,
     deleteMessage,
+    reactToMessage,
+    onEdited,
+    onDeleted,
+    onReaction,
     disconnect
   }
 }

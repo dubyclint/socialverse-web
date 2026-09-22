@@ -1,6 +1,19 @@
 // types/chat.ts
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
 
+export interface MessageReaction {
+  emoji: string
+  count: number
+  /** Whether the viewer is one of the reactors. */
+  reacted: boolean
+}
+
+export interface QuotedMessage {
+  id: string
+  senderId: string
+  content: string
+}
+
 export interface ChatMessage {
   id: string
   chatId: string
@@ -9,10 +22,16 @@ export interface ChatMessage {
   senderAvatar?: string
   content: string
   timestamp: number
-  messageType?: 'text' | 'image' | 'file' | 'system'
+  messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system'
   status?: MessageStatus
   /** Client-side id of an optimistic message, echoed back by the server. */
   tempId?: string
+  attachments?: string[]
+  replyTo?: QuotedMessage
+  reactions?: MessageReaction[]
+  editedAt?: string
+  expiresAt?: string
+  deleted?: boolean
   isEdited?: boolean
   isDeleted?: boolean
   translatedText?: string

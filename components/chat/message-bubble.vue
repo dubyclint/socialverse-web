@@ -4,24 +4,94 @@
 <template>
   <div class="message-bubble" :class="messageClasses" @contextmenu="handleContextMenu">
     <!-- Sender Avatar (for group chats) -->
-    <div v-if="showAvatar && !isOwn" class="message-avatar">
+    <NuxtLink
+      v-if="showAvatar && !isOwn"
+      class="message-avatar"
+      :to="message.senderId ? `/profile/${message.senderId}` : '#'"
+    >
       <img :src="message.senderAvatar || '/default-avatar.svg'" :alt="message.senderName" />
-    </div>
+    </NuxtLink>
 
     <!-- Message Content -->
     <div class="message-content">
       <!-- Sender Name (for group chats) -->
       <div v-if="showSenderName && !isOwn" class="sender-name">{{ message.senderName }}</div>
 
+      <!-- Quoted message -->
+      <div v-if="message.replyTo" class="quoted-message">
+        <span class="quoted-bar"></span>
+        <span class="quoted-text">{{ message.replyTo.content || 'Attachment' }}</span>
+      </div>
+
+      <!-- Attachments -->
+      <div v-if="attachments.length" class="message-attachments">
+        <template v-for="url in attachments" :key="url">
+          <img v-if="message.messageType === 'image'" :src="url" alt="" class="attachment-image" />
+          <video
+            v-else-if="message.messageType === 'video'"
+            :src="url"
+            controls
+            playsinline
+            class="attachment-video"
+          ></video>
+          <audio
+            v-else-if="message.messageType === 'audio'"
+            :src="url"
+            controls
+            class="attachment-audio"
+          ></audio>
+          <a v-else :href="url" target="_blank" rel="noopener" class="attachment-file">
+            <Icon name="paperclip" size="16" />
+            {{ fileName(url) }}
+          </a>
+        </template>
+      </div>
+
       <!-- Main Message -->
-      <div class="message-text">
-        <p v-if="!isTranslated">{{ message.content }}</p>
+      <div v-if="message.content || isDeleted" class="message-text">
+        <p v-if="isDeleted" class="deleted-text">This message was deleted</p>
+        <p v-else-if="!isTranslated">{{ message.content }}</p>
         <p v-else class="translated-text">{{ translatedContent }}</p>
-        <span v-if="message.isEdited" class="edited-badge">(edited)</span>
+        <span v-if="isEdited" class="edited-badge">(edited)</span>
+      </div>
+
+      <!-- Reactions -->
+      <div v-if="message.reactions?.length" class="message-reactions">
+        <button
+          v-for="reaction in message.reactions"
+          :key="reaction.emoji"
+          class="reaction-chip"
+          :class="{ mine: reaction.reacted }"
+          @click="react(reaction.emoji)"
+        >
+          {{ reaction.emoji }} {{ reaction.count }}
+        </button>
       </div>
 
       <!-- Message Actions -->
       <div class="message-actions">
+        <!-- Quick reactions -->
+        <button
+          v-for="emoji in quickReactions"
+          :key="emoji"
+          class="action-btn reaction-btn"
+          :title="`React ${emoji}`"
+          @click="react(emoji)"
+        >
+          {{ emoji }}
+        </button>
+
+        <!-- Reply Button -->
+        <button
+          v-if="!isDeleted"
+          class="action-btn reply-btn"
+          title="Reply"
+          @click="$emit('reply', message)"
+        >
+          <Icon name="corner-up-left" size="16" />
+          Reply
+        </button>
+
         <!-- Translate Button -->
         <button 
           v-if="!isTranslated && !message.isDeleted"
@@ -37,7 +107,7 @@
         <!-- Pewgift Button -->
         <button 
           v-if="!isOwn && !message.isDeleted"
-          @click="showGiftModal = true"
+          @click="openGiftModal"
           class="action-btn pewgift-btn"
           title="Send pewgift to sender"
         >
@@ -48,7 +118,7 @@
         <!-- Edit Button -->
         <button 
           v-if="isOwn && !message.isDeleted"
-          @click="$emit('edit')"
+          @click="$emit('edit', message)"
           class="action-btn edit-btn"
           title="Edit message"
         >
@@ -59,7 +129,7 @@
         <!-- Delete Button -->
         <button 
           v-if="isOwn && !message.isDeleted"
-          @click="$emit('delete')"
+          @click="message.id && $emit('delete', message.id)"
           class="action-btn delete-btn"
           title="Delete message"
         >
@@ -100,22 +170,24 @@
               :class="{ selected: selectedGift?.id === gift.id }"
               @click="selectedGift = gift"
             >
-              <div class="gift-emoji">{{ gift.emoji }}</div>
+              <img v-if="gift.icon_url" :src="gift.icon_url" alt="" class="gift-icon" />
               <div class="gift-info">
                 <div class="gift-name">{{ gift.name }}</div>
-                <div class="gift-value">{{ gift.value }} PEW</div>
+                <div class="gift-value">{{ gift.cost_credits }} PEW</div>
               </div>
             </div>
           </div>
 
-          <!-- Custom Amount Input -->
+          <p v-if="!availableGifts.length" class="gift-empty">Loading gifts…</p>
+
+          <!-- Quantity -->
           <div class="custom-amount-section">
-            <label>Custom Pewgift Amount</label>
+            <label>Quantity</label>
             <input 
               v-model.number="customAmount" 
               type="number" 
               min="1" 
-              placeholder="Enter custom amount"
+              placeholder="1"
               class="amount-input"
             />
           </div>
@@ -124,7 +196,7 @@
           <button 
             @click="sendPewgift" 
             class="send-btn"
-            :disabled="!pewgiftAmount || loading"
+            :disabled="!selectedGift || loading"
           >
             <Icon v-if="!loading" name="send" size="16" />
             {{ loading ? 'Sending...' : 'Send Pewgift' }}
@@ -154,6 +226,12 @@ interface Message {
   content: string
   timestamp?: string | Date | number
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
+  messageType?: string
+  attachments?: string[]
+  replyTo?: { id: string, senderId: string, content: string }
+  reactions?: { emoji: string, count: number, reacted: boolean }[]
+  editedAt?: string
+  deleted?: boolean
   isEdited?: boolean
   isDeleted?: boolean
 }
@@ -161,21 +239,41 @@ interface Message {
 interface Gift {
   id: string
   name: string
-  emoji: string
-  value: number
+  cost_credits: number
+  icon_url: string | null
 }
 
 const props = defineProps<{
   message: Message
+  chatId?: string
   isOwn?: boolean
   showAvatar?: boolean
   showSenderName?: boolean
 }>()
 
 const emit = defineEmits<{
-  edit: []
-  delete: []
+  edit: [message: Message]
+  delete: [messageId: string]
+  reply: [message: Message]
+  react: [messageId: string, emoji: string]
+  gifted: []
 }>()
+
+const quickReactions = ['👍', '❤️', '😂']
+
+const attachments = computed(() => props.message.attachments ?? [])
+const isDeleted = computed(() => Boolean(props.message.deleted ?? props.message.isDeleted))
+const isEdited = computed(() => Boolean(props.message.editedAt ?? props.message.isEdited))
+
+const fileName = (url: string): string => {
+  const parts = url.split('/')
+  return decodeURIComponent(parts[parts.length - 1] ?? 'file')
+}
+
+const react = (emoji: string): void => {
+  if (!props.message.id) return
+  emit('react', props.message.id, emoji)
+}
 
 // State
 const isTranslated = ref(false)
@@ -188,13 +286,26 @@ const loading = ref(false)
 const giftError = ref('')
 const giftSuccess = ref(false)
 
-// Available gifts
-const availableGifts: Gift[] = [
-  { id: '1', name: 'Bronze Gift', emoji: '🥉', value: 10 },
-  { id: '2', name: 'Silver Gift', emoji: '🥈', value: 50 },
-  { id: '3', name: 'Gold Gift', emoji: '🥇', value: 100 },
-  { id: '4', name: 'Diamond Gift', emoji: '💎', value: 500 }
-]
+// Gift catalog, loaded from the server the first time the modal opens.
+const availableGifts = ref<Gift[]>([])
+const giftsLoaded = ref(false)
+
+const loadGifts = async (): Promise<void> => {
+  if (giftsLoaded.value) return
+  try {
+    const response = await $fetch<{ success: boolean, data: Gift[] }>('/api/pewgift/types')
+    availableGifts.value = response.data ?? []
+    giftsLoaded.value = true
+  } catch (error) {
+    console.error('Failed to load gift catalog:', error)
+    giftError.value = 'Could not load gifts'
+  }
+}
+
+const openGiftModal = async (): Promise<void> => {
+  showGiftModal.value = true
+  await loadGifts()
+}
 
 // Computed
 const messageClasses = computed(() => ({
@@ -202,9 +313,7 @@ const messageClasses = computed(() => ({
   'other-message': !props.isOwn
 }))
 
-const pewgiftAmount = computed(() => {
-  return customAmount.value > 0 ? customAmount.value : (selectedGift.value?.value || 0)
-})
+const pewgiftQuantity = computed(() => (customAmount.value > 0 ? customAmount.value : 1))
 
 // Methods
 const statusLabel = computed(() => {
@@ -227,9 +336,18 @@ const formatTime = (timestamp?: string | Date | number): string => {
 const translateMessage = async () => {
   isTranslating.value = true
   try {
-    // TODO: Implement translation API call
-    translatedContent.value = props.message.content
-    isTranslated.value = true
+    const response = await $fetch<{ success: boolean, data?: { translated: string } }>(
+      '/api/chat/translate',
+      {
+        method: 'POST',
+        body: {
+          text: props.message.content,
+          targetLanguage: navigator.language?.split('-')[0] || 'en'
+        }
+      }
+    )
+    translatedContent.value = response.data?.translated ?? props.message.content
+    isTranslated.value = Boolean(response.data?.translated)
   } catch (error) {
     console.error('Translation error:', error)
   } finally {
@@ -238,8 +356,12 @@ const translateMessage = async () => {
 }
 
 const sendPewgift = async () => {
-  if (!pewgiftAmount.value || pewgiftAmount.value <= 0) {
-    giftError.value = 'Please select a gift or enter a valid amount'
+  if (!selectedGift.value) {
+    giftError.value = 'Please select a gift'
+    return
+  }
+  if (!props.chatId || !props.message.senderId) {
+    giftError.value = 'This conversation cannot receive gifts'
     return
   }
 
@@ -248,31 +370,27 @@ const sendPewgift = async () => {
   giftSuccess.value = false
 
   try {
-    const response = await fetch('/api/pewgift/send', {
+    await $fetch('/api/pewgift/send-to-chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
+        chatId: props.chatId,
         recipientId: props.message.senderId,
-        amount: pewgiftAmount.value,
-        messageId: props.message.id,
-        giftType: selectedGift.value?.id
-      })
+        giftTypeId: selectedGift.value.id,
+        quantity: pewgiftQuantity.value
+      }
     })
 
-    if (response.ok) {
-      giftSuccess.value = true
-      setTimeout(() => {
-        showGiftModal.value = false
-        selectedGift.value = null
-        customAmount.value = 0
-        giftSuccess.value = false
-      }, 1500)
-    } else {
-      giftError.value = 'Failed to send pewgift. Please try again.'
-    }
-  } catch (error) {
-    console.error('Error sending pewgift:', error)
-    giftError.value = 'Error sending pewgift. Please try again.'
+    giftSuccess.value = true
+    emit('gifted')
+    setTimeout(() => {
+      showGiftModal.value = false
+      selectedGift.value = null
+      customAmount.value = 0
+      giftSuccess.value = false
+    }, 1500)
+  } catch (error: unknown) {
+    const detail = (error as { data?: { statusMessage?: string } })?.data?.statusMessage
+    giftError.value = detail || 'Failed to send pewgift. Please try again.'
   } finally {
     loading.value = false
   }
@@ -280,7 +398,7 @@ const sendPewgift = async () => {
 
 const handleContextMenu = (event: MouseEvent) => {
   event.preventDefault()
-  // TODO: Implement context menu
+  emit('reply', props.message)
 }
 </script>
 
@@ -585,5 +703,72 @@ const handleContextMenu = (event: MouseEvent) => {
   font-size: 13px;
   text-align: center;
 }
-</style>
 
+.quoted-message {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.quoted-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-aurora-mint, #6FFFD4);
+}
+
+.message-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.attachment-image,
+.attachment-video {
+  max-width: min(320px, 70vw);
+  border-radius: 12px;
+}
+
+.attachment-audio {
+  width: min(280px, 70vw);
+}
+
+.attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.reaction-chip {
+  border: 1px solid var(--color-border, #1F2937);
+  background: transparent;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reaction-chip.mine {
+  border-color: var(--color-aurora-mint, #6FFFD4);
+}
+
+.deleted-text {
+  font-style: italic;
+  opacity: 0.6;
+}
+</style>

@@ -183,18 +183,44 @@ export default defineNitroPlugin((nitroApp: any) => {
         const chatId: string | undefined = data?.chatId
         const text: string = (data?.message ?? data?.content ?? '').toString().trim()
         const tempId: string | undefined = data?.tempId ? String(data.tempId) : undefined
+        const attachments: string[] = Array.isArray(data?.attachments)
+          ? data.attachments.filter((url: unknown) => typeof url === 'string').slice(0, 10)
+          : []
+        const replyToId: string | null = data?.replyToId ? String(data.replyToId) : null
+        const messageType: string = typeof data?.messageType === 'string' ? data.messageType : 'text'
         const fail = (message: string) => {
           socket.emit('chat:error', { chatId, tempId, message })
           ack?.({ success: false, tempId, error: message })
         }
 
-        if (!chatId || !text || !socket.userId) return fail('Invalid message')
+        if (!chatId || !socket.userId) return fail('Invalid message')
+        if (!text && !attachments.length) return fail('Invalid message')
         if (text.length > 2000) return fail('Message too long')
         if (!(await isMember(chatId, socket.userId))) return fail('Not a member of this chat')
 
+        // Disappearing messages are a room-level setting, so the expiry is
+        // stamped on write and enforced when history is read.
+        const { data: room } = await admin
+          .from('chat_rooms')
+          .select('disappearing_seconds')
+          .eq('id', chatId)
+          .maybeSingle()
+
+        const expiresAt = room?.disappearing_seconds
+          ? new Date(Date.now() + room.disappearing_seconds * 1000).toISOString()
+          : null
+
         const { data: inserted, error } = await admin
           .from('chat_messages')
-          .insert({ room_id: chatId, sender_id: socket.userId, message_text: text })
+          .insert({
+            room_id: chatId,
+            sender_id: socket.userId,
+            message_text: text || null,
+            attachment_urls: attachments,
+            message_type: messageType,
+            reply_to_id: replyToId,
+            expires_at: expiresAt
+          })
           .select('id, created_at')
           .single()
 
@@ -208,6 +234,10 @@ export default defineNitroPlugin((nitroApp: any) => {
           id: inserted.id,
           chatId,
           content: text,
+          attachments,
+          messageType,
+          replyToId,
+          expiresAt,
           senderId: socket.userId,
           ...sender,
           timestamp: inserted.created_at,
@@ -217,6 +247,103 @@ export default defineNitroPlugin((nitroApp: any) => {
         io?.to(roomOf(chatId)).emit('chat:message', payload)
         ack?.({ success: true, ...payload })
       }
+
+      // Editing and deleting are owner-only; deletes are soft so the other
+      // members' history stays consistent.
+      socket.on('chat:edit', async (data: any, ack?: (result: any) => void) => {
+        const chatId: string | undefined = data?.chatId
+        const messageId: string | undefined = data?.messageId
+        const content: string = (data?.content ?? '').toString().trim()
+
+        if (!chatId || !messageId || !content || !socket.userId) {
+          return ack?.({ success: false, error: 'Invalid edit' })
+        }
+        if (content.length > 2000) return ack?.({ success: false, error: 'Message too long' })
+
+        const editedAt = new Date().toISOString()
+        const { data: updated, error } = await admin
+          .from('chat_messages')
+          .update({ message_text: content, edited_at: editedAt })
+          .eq('id', messageId)
+          .eq('room_id', chatId)
+          .eq('sender_id', socket.userId)
+          .is('deleted_at', null)
+          .select('id')
+          .maybeSingle()
+
+        if (error || !updated) return ack?.({ success: false, error: 'Could not edit message' })
+
+        io?.to(roomOf(chatId)).emit('chat:edited', { chatId, messageId, content, editedAt })
+        ack?.({ success: true })
+      })
+
+      socket.on('chat:delete', async (data: any, ack?: (result: any) => void) => {
+        const chatId: string | undefined = data?.chatId
+        const messageId: string | undefined = data?.messageId
+        const forEveryone = data?.forEveryone !== false
+
+        if (!chatId || !messageId || !socket.userId) {
+          return ack?.({ success: false, error: 'Invalid delete' })
+        }
+
+        const { data: deleted, error } = await admin
+          .from('chat_messages')
+          .update({
+            deleted_at: new Date().toISOString(),
+            deleted_for_everyone: forEveryone,
+            message_text: null,
+            attachment_urls: []
+          })
+          .eq('id', messageId)
+          .eq('room_id', chatId)
+          .eq('sender_id', socket.userId)
+          .select('id')
+          .maybeSingle()
+
+        if (error || !deleted) return ack?.({ success: false, error: 'Could not delete message' })
+
+        io?.to(roomOf(chatId)).emit('chat:deleted', { chatId, messageId, forEveryone })
+        ack?.({ success: true })
+      })
+
+      // Reactions toggle: sending the same emoji again removes it.
+      socket.on('chat:react', async (data: any, ack?: (result: any) => void) => {
+        const chatId: string | undefined = data?.chatId
+        const messageId: string | undefined = data?.messageId
+        const emoji: string = (data?.emoji ?? '').toString().slice(0, 16)
+
+        if (!chatId || !messageId || !emoji || !socket.userId) {
+          return ack?.({ success: false, error: 'Invalid reaction' })
+        }
+        if (!(await isMember(chatId, socket.userId))) {
+          return ack?.({ success: false, error: 'Not a member of this chat' })
+        }
+
+        const { data: existing } = await admin
+          .from('chat_message_reactions')
+          .select('id')
+          .eq('message_id', messageId)
+          .eq('user_id', socket.userId)
+          .eq('emoji_code', emoji)
+          .maybeSingle()
+
+        if (existing) {
+          await admin.from('chat_message_reactions').delete().eq('id', existing.id)
+        } else {
+          await admin
+            .from('chat_message_reactions')
+            .insert({ message_id: messageId, user_id: socket.userId, emoji_code: emoji })
+        }
+
+        io?.to(roomOf(chatId)).emit('chat:reaction', {
+          chatId,
+          messageId,
+          emoji,
+          userId: socket.userId,
+          removed: Boolean(existing)
+        })
+        ack?.({ success: true, removed: Boolean(existing) })
+      })
 
       socket.on('chat:message', handleMessage)
       socket.on('send_message', handleMessage)

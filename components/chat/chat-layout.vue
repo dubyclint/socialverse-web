@@ -107,9 +107,13 @@
           @typing="handleTyping"
           @edit-message="editMessage"
           @delete-message="deleteMessage"
+          @react-message="reactToMessage"
           @translate-message="translateMessage"
           @send-gift="sendGift"
           @start-call="handleStartCall"
+          @membership-changed="loadChats"
+          @blocked="handleBlocked"
+          @cleared="reloadMessages"
         />
       </div>
     </div>
@@ -194,7 +198,15 @@ import { useChat } from '~/composables/use-chat'
 import { useWebrtcCall } from '~/composables/use-webrtc-call'
 import CallInterface from '~/components/chat/call-interface.vue'
 import type { ApiResponse } from '~/types/api'
-import type { Chat, ChatMessage } from '~/types/chat'
+import type { Chat, ChatMessage, QuotedMessage } from '~/types/chat'
+
+interface SendMessagePayload {
+  content: string
+  recipientId?: string
+  attachments?: string[]
+  replyTo?: QuotedMessage
+  messageType?: ChatMessage['messageType']
+}
 
 interface DirectoryUser {
   user_id: string
@@ -232,6 +244,10 @@ const {
   sendMessage: emitMessage, 
   editMessage: emitEditMessage,
   deleteMessage: emitDeleteMessage,
+  reactToMessage: emitReaction,
+  onEdited,
+  onDeleted,
+  onReaction,
   disconnect 
 } = useChat()
 
@@ -315,6 +331,21 @@ const loadChats = async () => {
   }
 }
 
+/** Re-reads a room's history from the server (after clearing, for example). */
+const reloadMessages = async (chatId: string) => {
+  try {
+    const response = await $fetch<ApiResponse<ChatMessage[]>>(`/api/chat/${chatId}/messages`)
+    if (response.success && response.data) chatStore.addMessages(chatId, response.data)
+  } catch (error) {
+    console.error('Failed to reload messages:', error)
+  }
+}
+
+const handleBlocked = async () => {
+  chatStore.setCurrentChat(null)
+  await loadChats()
+}
+
 const selectChat = async (chatId: string) => {
   chatStore.setCurrentChat(chatId)
   joinChat(chatId)
@@ -336,11 +367,14 @@ const selectChat = async (chatId: string) => {
  * The bubble is rendered immediately as `sending` and reconciled with the
  * server's acknowledgement (or marked `failed`).
  */
-const sendMessage = async (payload: string | { content: string; recipientId?: string }) => {
+const sendMessage = async (payload: string | SendMessagePayload) => {
   const chatId = chatStore.currentChatId
-  const content = (typeof payload === 'string' ? payload : payload?.content ?? '').trim()
-  if (!chatId || !content) return
+  const object = typeof payload === 'string' ? { content: payload } : payload
+  const content = (object?.content ?? '').trim()
+  const attachments = object?.attachments ?? []
+  if (!chatId || (!content && !attachments.length)) return
 
+  const messageType = object?.messageType ?? (attachments.length ? 'file' : 'text')
   const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   chatStore.addMessage({
     id: tempId,
@@ -348,8 +382,10 @@ const sendMessage = async (payload: string | { content: string; recipientId?: st
     senderId: currentUserId.value ?? '',
     senderName: 'You',
     content,
+    attachments,
+    replyTo: object?.replyTo,
     timestamp: Date.now(),
-    messageType: 'text',
+    messageType,
     status: 'sending',
     tempId
   })
@@ -358,7 +394,10 @@ const sendMessage = async (payload: string | { content: string; recipientId?: st
 
   const ack = await emitMessage(chatId, {
     content,
-    recipientId: typeof payload === 'string' ? undefined : payload?.recipientId,
+    recipientId: object?.recipientId,
+    attachments,
+    replyToId: object?.replyTo?.id,
+    messageType,
     tempId
   })
 
@@ -386,6 +425,11 @@ const deleteMessage = async (messageId: string) => {
     console.error('Failed to delete message:', error)
     chatStore.setError('Failed to delete message')
   }
+}
+
+const reactToMessage = (messageId: string, emoji: string) => {
+  if (!chatStore.currentChatId) return
+  emitReaction(chatStore.currentChatId, messageId, emoji)
 }
 
 const translateMessage = async (messageId: string, text: string, targetLang: string) => {
@@ -520,7 +564,8 @@ onMounted(async () => {
       senderName: own ? 'You' : message.senderName || chat?.name || 'unknown',
       senderAvatar: message.senderAvatar,
       content: message.content,
-      messageType: 'text',
+      attachments: message.attachments ?? [],
+      messageType: (message.messageType ?? 'text') as ChatMessage['messageType'],
       timestamp: new Date(message.timestamp).getTime(),
       status: own ? 'sent' : undefined
     })
@@ -536,6 +581,50 @@ onMounted(async () => {
   onTyping((event, isTyping) => {
     if (event.userId === currentUserId.value) return
     chatStore.setTyping(event.chatId, event.userId, event.username || 'Someone', isTyping)
+  })
+
+  onEdited((event) => {
+    chatStore.updateMessage(event.chatId, event.messageId, {
+      content: event.content,
+      editedAt: event.editedAt,
+      isEdited: true
+    })
+  })
+
+  onDeleted((event) => {
+    chatStore.updateMessage(event.chatId, event.messageId, {
+      content: '',
+      attachments: [],
+      deleted: true,
+      isDeleted: true
+    })
+  })
+
+  onReaction((event) => {
+    const message = chatStore.messages.get(event.chatId)?.find(item => item.id === event.messageId)
+    if (!message) return
+
+    const reactions = [...(message.reactions ?? [])]
+    const mine = event.userId === currentUserId.value
+    const index = reactions.findIndex(item => item.emoji === event.emoji)
+    const existing = index >= 0 ? reactions[index] : undefined
+
+    if (event.removed) {
+      if (!existing) return
+      const count = existing.count - 1
+      if (count <= 0) reactions.splice(index, 1)
+      else reactions[index] = { ...existing, count, reacted: mine ? false : existing.reacted }
+    } else if (existing) {
+      reactions[index] = {
+        ...existing,
+        count: existing.count + 1,
+        reacted: existing.reacted || mine
+      }
+    } else {
+      reactions.push({ emoji: event.emoji, count: 1, reacted: mine })
+    }
+
+    chatStore.updateMessage(event.chatId, event.messageId, { reactions })
   })
 
   onReceipt((receipt, kind) => {

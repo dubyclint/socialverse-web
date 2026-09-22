@@ -108,9 +108,10 @@
           >
             <message-bubble
               :message="message"
+              :chat-id="chat.id"
               :isOwn="message.senderId === currentUser?.id"
               :showAvatar="shouldShowAvatar(message, group)"
-              :showName="shouldShowName(message, group)"
+              :showSenderName="shouldShowName(message, group)"
               @edit="editMessage"
               @delete="deleteMessage"
               @reply="replyToMessage"
@@ -163,6 +164,22 @@
         </button>
       </div>
       
+      <!-- Pending attachments -->
+      <div v-if="pendingAttachments.length || isUploading || uploadError" class="attachment-tray">
+        <span v-if="isUploading" class="attachment-chip">Uploading…</span>
+        <span v-if="uploadError" class="attachment-error">{{ uploadError }}</span>
+        <span
+          v-for="(attachment, index) in pendingAttachments"
+          :key="attachment.url"
+          class="attachment-chip"
+        >
+          {{ attachment.name }}
+          <button class="attachment-remove" @click="removeAttachment(index)">
+            <icon name="x" />
+          </button>
+        </span>
+      </div>
+
       <!-- Input area -->
       <div class="input-area">
         <button class="input-btn" @click="toggleEmojiPicker">
@@ -220,6 +237,40 @@
       </div>
     </div>
 
+    <input
+      ref="cameraInput"
+      type="file"
+      accept="image/*,video/*"
+      capture="environment"
+      class="hidden-input"
+      @change="handleCameraCapture"
+    />
+
+    <!-- Shared media -->
+    <div v-if="showSharedMedia" class="shared-media-overlay" @click.self="showSharedMedia = false">
+      <div class="shared-media-panel">
+        <div class="shared-media-header">
+          <h3>Media, links and docs</h3>
+          <button class="header-btn" @click="showSharedMedia = false"><icon name="x" /></button>
+        </div>
+        <p v-if="!sharedMedia.length" class="shared-media-empty">Nothing shared in this chat yet</p>
+        <div v-else class="shared-media-grid">
+          <a
+            v-for="item in sharedMedia"
+            :key="`${item.messageId}-${item.url}`"
+            :href="item.url"
+            target="_blank"
+            rel="noopener"
+            class="shared-media-item"
+          >
+            <img v-if="item.messageType === 'image'" :src="item.url" alt="" />
+            <video v-else-if="item.messageType === 'video'" :src="item.url" />
+            <span v-else class="shared-media-file"><icon name="file" /></span>
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Attachment Menu -->
     <attachment-menu
       v-if="showAttachmentMenu"
@@ -240,6 +291,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSocket } from '@/composables/use-socket'
 import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
@@ -261,11 +313,12 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits([
-  'sendMessage', 'editMessage', 'deleteMessage', 'markAsRead', 
-  'startCall', 'back'
+  'sendMessage', 'editMessage', 'deleteMessage', 'reactMessage', 'markAsRead',
+  'startCall', 'typing', 'membershipChanged', 'blocked', 'cleared', 'back'
 ])
 
 // Stores and composables
+const router = useRouter()
 const userStore = useUserStore()
 const { socket } = useSocket()
 
@@ -279,8 +332,18 @@ const showEmojiPicker = ref(false)
 const isRecording = ref(false)
 const recordingDuration = ref(0)
 const isSending = ref(false)
-const hasAttachment = ref(false)
 const typingTimeout = ref(null)
+const pendingAttachments = ref([])
+const isUploading = ref(false)
+const uploadError = ref('')
+const mediaRecorder = ref(null)
+const recordedChunks = ref([])
+const recordingTimer = ref(null)
+const cameraInput = ref(null)
+const showSharedMedia = ref(false)
+const sharedMedia = ref([])
+
+const hasAttachment = computed(() => pendingAttachments.value.length > 0)
 
 // Refs
 const messagesContainer = ref(null)
@@ -425,10 +488,7 @@ const handlePaste = (event) => {
 }
 
 const sendTypingIndicator = (isTyping) => {
-  socket.emit('typing', {
-    chatId: props.chat.id,
-    isTyping
-  })
+  emit('typing', isTyping)
 }
 
 const sendMessage = async () => {
@@ -437,19 +497,21 @@ const sendMessage = async () => {
   isSending.value = true
   
   try {
+    const attachments = pendingAttachments.value.map(item => item.url)
     const messageData = {
       chatId: props.chat.id,
       content: messageText.value.trim(),
-      messageType: 'text',
-      replyToId: replyingTo.value?.id || null,
-      quotedMessage: replyingTo.value ? {
-        id: replyingTo.value.id,
-        content: replyingTo.value.content,
-        senderName: replyingTo.value.senderName
-      } : null,
-      tempId: Date.now() // For optimistic updates
+      messageType: attachments.length ? pendingAttachments.value[0].type : 'text',
+      attachments,
+      replyTo: replyingTo.value
+        ? {
+            id: replyingTo.value.id,
+            senderId: replyingTo.value.senderId,
+            content: replyingTo.value.content
+          }
+        : undefined
     }
-    
+
     if (editingMessage.value) {
       // Edit existing message
       await emit('editMessage', editingMessage.value.id, messageText.value.trim())
@@ -460,6 +522,7 @@ const sendMessage = async () => {
       
       // Clear input
       messageText.value = ''
+      pendingAttachments.value = []
       cancelReply()
 
       if (messageInput.value) messageInput.value.style.height = 'auto'
@@ -498,10 +561,7 @@ const replyToMessage = (message) => {
 }
 
 const reactToMessage = (messageId, reaction) => {
-  socket.emit('add_reaction', {
-    messageId,
-    reaction
-  })
+  emit('reactMessage', messageId, reaction)
 }
 
 const cancelReply = () => {
@@ -530,43 +590,78 @@ const startVideoCall = () => {
   })
 }
 
-const startVoiceRecording = () => {
+const startVoiceRecording = async () => {
+  if (isRecording.value) return
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const recorder = new MediaRecorder(stream)
+    recordedChunks.value = []
+    recorder.ondataavailable = (recordEvent) => {
+      if (recordEvent.data.size > 0) recordedChunks.value.push(recordEvent.data)
+    }
+    recorder.start()
+    mediaRecorder.value = recorder
+  } catch (error) {
+    console.error('Microphone unavailable:', error)
+    uploadError.value = 'Microphone permission is required for voice notes'
+    return
+  }
+
   isRecording.value = true
   recordingDuration.value = 0
-  
-  // Start recording timer
-  const recordingInterval = setInterval(() => {
+  recordingTimer.value = setInterval(() => {
     recordingDuration.value++
-    if (recordingDuration.value >= 60) {
-      stopVoiceRecording()
-    }
+    if (recordingDuration.value >= 60) stopVoiceRecording()
   }, 1000)
-  
-  // Store interval for cleanup
-  window.recordingInterval = recordingInterval
-  
-  // Emit recording start
+
   socket.emit('voice_message_start', { chatId: props.chat.id })
 }
 
-const stopVoiceRecording = () => {
-  if (!isRecording.value) return
-  
+const releaseRecorder = () => {
+  if (recordingTimer.value) clearInterval(recordingTimer.value)
+  recordingTimer.value = null
+  mediaRecorder.value?.stream?.getTracks().forEach(track => track.stop())
+}
+
+const stopVoiceRecording = async () => {
+  if (!isRecording.value || !mediaRecorder.value) return
+
   isRecording.value = false
-  clearInterval(window.recordingInterval)
-  
-  // Emit recording stop
   socket.emit('voice_message_stop', { chatId: props.chat.id })
-  
-  // Process voice recording (implement actual recording logic)
-  console.log('Voice recording stopped, duration:', recordingDuration.value)
+
+  const recorder = mediaRecorder.value
+  const stopped = new Promise(resolve => { recorder.onstop = resolve })
+  recorder.stop()
+  await stopped
+  releaseRecorder()
+
+  const blob = new Blob(recordedChunks.value, { type: recorder.mimeType || 'audio/webm' })
+  mediaRecorder.value = null
+  recordedChunks.value = []
+  if (!blob.size) return
+
+  const uploaded = await uploadBlob(blob, `voice-note-${Date.now()}.webm`)
+  if (!uploaded) return
+
+  await emit('sendMessage', {
+    chatId: props.chat.id,
+    content: '',
+    messageType: 'audio',
+    attachments: [uploaded]
+  })
+  scrollToBottom()
 }
 
 const cancelVoiceRecording = () => {
+  if (!isRecording.value) return
   isRecording.value = false
   recordingDuration.value = 0
-  clearInterval(window.recordingInterval)
-  
+  mediaRecorder.value?.stop()
+  mediaRecorder.value = null
+  recordedChunks.value = []
+  releaseRecorder()
+
   socket.emit('voice_message_stop', { chatId: props.chat.id })
 }
 
@@ -582,23 +677,83 @@ const toggleEmojiPicker = () => {
   showEmojiPicker.value = !showEmojiPicker.value
 }
 
-const handleFileSelect = (fileData) => {
-  console.log('File selected:', fileData)
-  hasAttachment.value = true
+const attachmentKind = (file) => {
+  if (file.type.startsWith('image/')) return 'image'
+  if (file.type.startsWith('video/')) return 'video'
+  if (file.type.startsWith('audio/')) return 'audio'
+  return 'file'
+}
+
+/** Uploads through the shared storage endpoint and returns the public URL. */
+const uploadBlob = async (blob, filename) => {
+  uploadError.value = ''
+  isUploading.value = true
+  try {
+    const form = new FormData()
+    form.append('file', blob, filename)
+    form.append('bucket', 'chat-media')
+    const response = await $fetch('/api/upload', { method: 'POST', body: form })
+    const url = response?.url || response?.data?.url
+    if (!url) throw new Error('Upload returned no url')
+    return url
+  } catch (error) {
+    console.error('Attachment upload failed:', error)
+    uploadError.value = 'Could not upload that file'
+    return null
+  } finally {
+    isUploading.value = false
+  }
+}
+
+const handleFileSelect = async (fileData) => {
   showAttachmentMenu.value = false
-  
-  // Process file upload
-  // This would integrate with your file upload service
+  const file = fileData?.file ?? fileData
+  if (!file) return
+
+  const url = await uploadBlob(file, file.name || `upload-${Date.now()}`)
+  if (!url) return
+
+  pendingAttachments.value.push({
+    url,
+    name: file.name || 'attachment',
+    type: fileData?.type || attachmentKind(file)
+  })
 }
 
 const openCamera = () => {
-  console.log('Open camera')
   showAttachmentMenu.value = false
+  cameraInput.value?.click()
+}
+
+const handleCameraCapture = async (changeEvent) => {
+  const file = changeEvent.target.files?.[0]
+  changeEvent.target.value = ''
+  if (file) await handleFileSelect({ file, type: attachmentKind(file) })
+}
+
+const removeAttachment = (index) => {
+  pendingAttachments.value.splice(index, 1)
 }
 
 const shareLocation = () => {
-  console.log('Share location')
   showAttachmentMenu.value = false
+  if (!navigator.geolocation) {
+    uploadError.value = 'Location is not available on this device'
+    return
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords
+      emit('sendMessage', {
+        chatId: props.chat.id,
+        content: `https://www.google.com/maps?q=${latitude},${longitude}`,
+        messageType: 'text'
+      })
+      scrollToBottom()
+    },
+    () => { uploadError.value = 'Location permission denied' }
+  )
 }
 
 const insertEmoji = (emoji) => {
@@ -618,23 +773,61 @@ const insertEmoji = (emoji) => {
 }
 
 const viewProfile = () => {
-  console.log('View profile/group info')
+  showMoreMenu.value = false
+  if (props.chat.type === 'direct' && props.chat.userId) {
+    router.push(`/profile/${props.chat.userId}`)
+  } else {
+    router.push(`/groups/${props.chat.id}`)
+  }
 }
 
-const viewSharedMedia = () => {
-  console.log('View shared media')
+const viewSharedMedia = async () => {
+  showMoreMenu.value = false
+  showSharedMedia.value = true
+  try {
+    const response = await $fetch(`/api/chat/${props.chat.id}/media`)
+    sharedMedia.value = response.data ?? []
+  } catch (error) {
+    console.error('Failed to load shared media:', error)
+    sharedMedia.value = []
+  }
 }
 
-const toggleMute = () => {
-  console.log('Toggle mute')
+const toggleMute = async () => {
+  showMoreMenu.value = false
+  try {
+    const response = await $fetch(`/api/chat/${props.chat.id}/membership`, {
+      method: 'PATCH',
+      body: { muted: !props.chat.isMuted }
+    })
+    emit('membershipChanged', { chatId: props.chat.id, muted: response.muted })
+  } catch (error) {
+    console.error('Failed to update mute:', error)
+  }
 }
 
-const blockUser = () => {
-  console.log('Block user')
+const blockUser = async () => {
+  showMoreMenu.value = false
+  if (props.chat.type !== 'direct' || !props.chat.userId) return
+  try {
+    await $fetch('/api/pals/block', {
+      method: 'POST',
+      body: { userId: props.chat.userId, action: 'block' }
+    })
+    emit('blocked', props.chat.userId)
+  } catch (error) {
+    console.error('Failed to block user:', error)
+  }
 }
 
-const clearChat = () => {
-  console.log('Clear chat')
+const clearChat = async () => {
+  showMoreMenu.value = false
+  try {
+    await $fetch(`/api/chat/${props.chat.id}/clear`, { method: 'POST' })
+    emit('cleared', props.chat.id)
+  } catch (error) {
+    console.error('Failed to clear chat:', error)
+  }
 }
 
 const scrollToBottom = () => {
@@ -1126,5 +1319,92 @@ watch(() => props.messages, () => {
 
 .messages-container::-webkit-scrollbar-thumb:hover {
   background: #999;
+}
+
+.attachment-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px 0;
+}
+
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2f7;
+  font-size: 12px;
+}
+
+.attachment-remove {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.attachment-error {
+  color: #FF2E88;
+  font-size: 12px;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.shared-media-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.shared-media-panel {
+  width: min(520px, 94vw);
+  max-height: 80vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.shared-media-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shared-media-empty {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.shared-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.shared-media-item img,
+.shared-media-item video {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.shared-media-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 110px;
+  border-radius: 8px;
+  background: #f3f4f6;
 }
 </style>
