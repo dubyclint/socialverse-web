@@ -57,8 +57,8 @@
             <!-- Quality Selector -->
             <div class="quality-selector" v-if="isStreamer">
               <select v-model="selectedQuality" @change="changeStreamQuality">
-                <option v-for="quality in qualityPresets" :key="quality.label" :value="quality">
-                  {{ quality.label }}
+                <option v-for="quality in qualityPresets" :key="quality" :value="quality">
+                  {{ quality }}
                 </option>
               </select>
             </div>
@@ -101,7 +101,7 @@
           @click="selectPrimaryPeer(peer.peerId)"
         >
           <video
-            :ref="el => setPeerVideoRef(peer.peerId, el)"
+            :ref="el => setPeerVideoRef(peer.peerId, el as HTMLVideoElement | null)"
             class="secondary-video"
             autoplay
             playsinline
@@ -211,6 +211,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useWebRTC } from '~/composables/use-webrtc'
+import type { StreamQuality } from '~/lib/webrtc/WebRTCManager'
 
 interface Props {
   streamId: string
@@ -235,31 +236,18 @@ const {
   initializeWebRTC,
   connectSignaling,
   disconnect,
-  isSignalingConnected,
   connectionErrors,
   localStream,
-  isStreaming,
-  isScreenSharing,
   startLocalStream,
-  startScreenShare,
-  stopScreenShare,
-  isAudioEnabled,
-  isVideoEnabled,
-  toggleAudio,
-  toggleVideo,
   currentQuality,
   qualityPresets,
   changeQuality,
   peers,
   activePeers,
   streamers,
-  guests,
-  viewers,
   connectionStats,
-  inviteGuest,
   acceptGuestInvite,
-  rejectGuestInvite,
-  localPeerId
+  rejectGuestInvite
 } = useWebRTC(props.streamId)
 
 // Component state
@@ -272,7 +260,7 @@ const isConnecting = ref(false)
 const selectedPeerId = ref<string>('')
 const isPrimaryMuted = ref(false)
 const primaryVolume = ref(100)
-const selectedQuality = ref()
+const selectedQuality = ref<StreamQuality>()
 
 // Guest invitation state
 const showGuestInvitation = ref(false)
@@ -322,8 +310,8 @@ const updatePrimaryVideo = async () => {
   } else if (props.isStreamer && localStream.value) {
     targetStream = localStream.value
   } else if (streamers.value.length > 0) {
-    targetStream = streamers.value[0].stream || null
-    selectedPeerId.value = streamers.value[0].peerId
+    targetStream = streamers.value[0]?.stream || null
+    selectedPeerId.value = streamers.value[0]?.peerId ?? ''
   }
   
   if (primaryVideoRef.value && targetStream) {
@@ -507,7 +495,7 @@ onMounted(async () => {
   }
   
   // Add event listeners
-  window.addEventListener('guest-invitation-received', handleGuestInvitation)
+  window.addEventListener('guest-invitation-received', handleGuestInvitation as EventListener)
   document.addEventListener('mousemove', handleControlsVisibility)
   document.addEventListener('keydown', handleControlsVisibility)
   
@@ -521,7 +509,7 @@ onUnmounted(() => {
   disconnect()
   
   // Remove event listeners
-  window.removeEventListener('guest-invitation-received', handleGuestInvitation)
+  window.removeEventListener('guest-invitation-received', handleGuestInvitation as EventListener)
   document.removeEventListener('mousemove', handleControlsVisibility)
   document.removeEventListener('keydown', handleControlsVisibility)
 })

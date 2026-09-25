@@ -1,16 +1,18 @@
 // composables/use-emoji-picker.ts
 import { ref, shallowRef, computed, onMounted } from 'vue'
+import type { Emoji } from '~/utils/emojis'
 
 export const useEmojiPicker = () => {
   // Use shallowRef for the large dataset to boost performance
-  const allEmojis = shallowRef<any[]>([])
+  const allEmojis = shallowRef<Emoji[]>([])
   const recent = ref<string[]>([])
   const activeCategory = ref('smileys')
   const searchQuery = ref('')
+  const showPicker = ref(false)
 
   // Load data dynamically to keep the initial app bundle small
   const init = async () => {
-    const { EMOJIS } = await import('~/utils/emoji-data')
+    const { EMOJIS } = await import('~/utils/emojis')
     allEmojis.value = EMOJIS
     
     // Load recent emojis from storage
@@ -34,6 +36,11 @@ export const useEmojiPicker = () => {
     return allEmojis.value.filter(e => e.category === activeCategory.value)
   })
 
+  const categories = computed(() => {
+    const unique = Array.from(new Set(allEmojis.value.map(e => e.category)))
+    return ['recent', ...unique]
+  })
+
   const addRecent = (char: string) => {
     if (!recent.value.includes(char)) {
       recent.value = [char, ...recent.value].slice(0, 20)
@@ -41,12 +48,30 @@ export const useEmojiPicker = () => {
     }
   }
 
+  const togglePicker = () => {
+    showPicker.value = !showPicker.value
+  }
+
+  const selectCategory = (category: string) => {
+    activeCategory.value = category
+  }
+
+  const selectEmoji = (char: string) => {
+    addRecent(char)
+  }
+
   onMounted(init)
 
   return { 
     activeCategory, 
+    selectedCategory: activeCategory,
     searchQuery, 
+    showPicker,
+    categories,
     filteredEmojis, 
-    addRecent 
+    addRecent,
+    togglePicker,
+    selectCategory,
+    selectEmoji
   }
 }

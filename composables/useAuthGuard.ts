@@ -9,7 +9,7 @@ export const useAuthGuard = () => {
 
   const checkCompliance = async () => {
     // Logic to ensure T&C are met
-    const { accepted } = await $fetch('/api/auth/check-terms')
+    const { accepted } = await $fetch<{ accepted: boolean }>('/api/auth/check-terms')
     return accepted
   }
 

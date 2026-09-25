@@ -1,0 +1,64 @@
+/* ============================================================================
+   PLATFORM LAYER — native (Capacitor) adjustments only.
+   Web layout is untouched: every rule is scoped to a platform-* root class.
+   ============================================================================ */
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+.platform-ios body,
+.platform-android body {
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+
+/* Kill mobile-web artefacts that make a wrapped site feel non-native. */
+.platform-ios body,
+.platform-android body {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: none;
+}
+
+/* Text entry and content selection must still work. */
+.platform-ios input,
+.platform-ios textarea,
+.platform-ios [contenteditable='true'],
+.platform-ios .selectable,
+.platform-android input,
+.platform-android textarea,
+.platform-android [contenteditable='true'],
+.platform-android .selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Bottom tab bar clears the home indicator. */
+.platform-native .mobile-tab-bar {
+  padding-bottom: var(--sab);
+}
+
+.platform-native .page-content {
+  padding-bottom: calc(4rem + var(--sab));
+}
+
+/* Native shells have their own back gesture; hide web-only browser affordances. */
+.platform-native .web-only {
+  display: none !important;
+}
+
+.native-only {
+  display: none;
+}
+
+.platform-native .native-only {
+  display: revert;
+}

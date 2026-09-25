@@ -4,6 +4,7 @@ import { getSupabaseClient } from '~/lib/supabase-factory'
 export const rolesService = {
   async fetchAllRoles() {
     const supabase = getSupabaseClient()
+    if (!supabase) throw new Error('Supabase client not initialized')
     const { data, error } = await supabase
       .from('roles')
       .select('*')
@@ -14,6 +15,7 @@ export const rolesService = {
 
   async fetchAllPermissions() {
     const supabase = getSupabaseClient()
+    if (!supabase) throw new Error('Supabase client not initialized')
     const { data, error } = await supabase
       .from('permissions')
       .select('*')

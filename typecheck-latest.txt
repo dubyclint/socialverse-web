@@ -1,0 +1,455 @@
+
+> socialverse-web@1.0.0 typecheck
+> nuxi typecheck
+
+
+[@nuxt/supabase]  WARN  Missing supabase url, set it either in nuxt.config.ts or via env variable
+
+
+[@nuxt/supabase]  WARN  Missing supabase anon key, set it either in nuxt.config.ts or via env variable
+
+[90m[[90mnuxt:tailwindcss[90m][39m [36mΓä╣[39m Using default Tailwind CSS file
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/composables/~/services/financial/escrow/use-escrow-contract", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/composables/~/services/financial/gifts/use-pewgift", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/composables/~/services/financial/wallet/use-wallet", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/stores/~/stores/financial/ads/ads-store", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/stores/~/stores/financial/escrow/escrow-store", skip scanning
+
+
+ WARN  Duplicated imports "EMOJIS", the one from "C:/Users/user/socialverse/socialverse-web/utils/emoji-data.ts" has been ignored and "C:/Users/user/socialverse/socialverse-web/utils/emojis.ts" is used
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/composables/~/services/financial/escrow/use-escrow-contract", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/composables/~/services/financial/gifts/use-pewgift", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/composables/~/services/financial/wallet/use-wallet", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/stores/~/stores/financial/ads/ads-store", skip scanning
+
+
+ WARN  [unimport] failed to resolve "C:/Users/user/socialverse/socialverse-web/stores/~/stores/financial/escrow/escrow-store", skip scanning
+
+
+ WARN  Duplicated imports "EMOJIS", the one from "C:/Users/user/socialverse/socialverse-web/utils/emoji-data.ts" has been ignored and "C:/Users/user/socialverse/socialverse-web/utils/emojis.ts" is used
+
+[Vue] Resolve plugin path failed: vue-router/volar/sfc-route-blocks Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './volar/sfc-route-blocks' is not defined by "exports" in C:\Users\user\socialverse\socialverse-web\node_modules\vue-router\package.json
+    at exportsNotFound (node:internal/modules/esm/resolve:314:10)
+    at packageExportsResolve (node:internal/modules/esm/resolve:661:9)
+    at resolveExports (node:internal/modules/cjs/loader:664:36)
+    at Function._findPath (node:internal/modules/cjs/loader:731:31)
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1415:27)
+    at resolve (node:internal/modules/helpers:157:19)
+    at CompilerOptionsResolver.addConfig (C:\Users\user\socialverse\socialverse-web\node_modules\@vue\language-core\lib\compilerOptions.js:122:59)
+    at Object.createParsedCommandLine (C:\Users\user\socialverse\socialverse-web\node_modules\@vue\language-core\lib\compilerOptions.js:65:26)
+    at C:\Users\user\socialverse\socialverse-web\node_modules\vue-tsc\index.js:46:20
+    at Object.apply (C:\Users\user\socialverse\socialverse-web\node_modules\@volar\typescript\lib\node\proxyCreateProgram.js:51:33) {
+  code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+}
+components/admin/escrow-action-control.vue(107,9): error TS2339: Property 'releaseDeal' does not exist on type 'Promise<{ createDeal: (seller: string, amount: bigint) => Promise<any>; confirmDelivery: (dealId: bigint) => Promise<any>; refund: (dealId: bigint) => Promise<any>; getDeal: (dealId: bigint) => Promise<...>; contract: any; }>'.
+components/admin/escrow-action-control.vue(107,39): error TS2339: Property 'refundDeal' does not exist on type 'Promise<{ createDeal: (seller: string, amount: bigint) => Promise<any>; confirmDelivery: (dealId: bigint) => Promise<any>; refund: (dealId: bigint) => Promise<any>; getDeal: (dealId: bigint) => Promise<...>; contract: any; }>'.
+components/admin/panel.vue(328,36): error TS6133: 'nextTick' is declared but its value is never read.
+components/admin/panel.vue(543,13): error TS6133: 'data' is declared but its value is never read.
+components/admin/panel.vue(589,13): error TS6133: 'data' is declared but its value is never read.
+components/auth/email-verification.vue(88,45): error TS2304: Cannot find name 'useAuth'.
+components/auth/email-verification.vue(112,9): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/auth/signin-form.vue(84,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/auth/signup-form.vue(114,22): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/chat/chat-layout.vue(132,10): error TS2305: Module '"~/composables/use-chat"' has no exported member 'useChat'.
+components/chat/chat-layout.vue(156,39): error TS7006: Parameter 'chat' implicitly has an 'any' type.
+components/chat/group-chat.vue(309,15): error TS6133: 'reactive' is declared but its value is never read.
+components/chat/group-chat.vue(443,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/chat/group-chat.vue(544,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/chat/universe-chat-header.vue(131,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/chat/universe-chat-header.vue(135,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/chat/universe-chat-window.vue(161,15): error TS6133: 'computed' is declared but its value is never read.
+components/chat/universe-chat-window.vue(226,23): error TS6133: 'message' is declared but its value is never read.
+components/chat/universe-chat-window.vue(236,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/chat/universe-chat-window.vue(245,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/create-group.vue(21,9): error TS6133: 'groupData' is declared but its value is never read.
+components/EmailVerificationBanner.vue(113,19): error TS2304: Cannot find name 'useAuthStore'.
+components/EmailVerificationBanner.vue(203,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/EmailVerificationBanner.vue(234,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/EmailVerificationBanner.vue(247,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/emoji-picker.vue(82,3): error TS2339: Property 'showPicker' does not exist on type '{ activeCategory: Ref<string>; searchQuery: Ref<string>; filteredEmojis: { readonly value: any[]; }; addRecent: (char: string) => void; }'.
+components/emoji-picker.vue(83,3): error TS2339: Property 'selectedCategory' does not exist on type '{ activeCategory: Ref<string>; searchQuery: Ref<string>; filteredEmojis: { readonly value: any[]; }; addRecent: (char: string) => void; }'.
+components/emoji-picker.vue(85,3): error TS2339: Property 'categories' does not exist on type '{ activeCategory: Ref<string>; searchQuery: Ref<string>; filteredEmojis: { readonly value: any[]; }; addRecent: (char: string) => void; }'.
+components/emoji-picker.vue(87,3): error TS2339: Property 'togglePicker' does not exist on type '{ activeCategory: Ref<string>; searchQuery: Ref<string>; filteredEmojis: { readonly value: any[]; }; addRecent: (char: string) => void; }'.
+components/emoji-picker.vue(88,3): error TS2339: Property 'selectCategory' does not exist on type '{ activeCategory: Ref<string>; searchQuery: Ref<string>; filteredEmojis: { readonly value: any[]; }; addRecent: (char: string) => void; }'.
+components/emoji-picker.vue(89,3): error TS2339: Property 'selectEmoji' does not exist on type '{ activeCategory: Ref<string>; searchQuery: Ref<string>; filteredEmojis: { readonly value: any[]; }; addRecent: (char: string) => void; }'.
+components/emoji-picker.vue(89,3): error TS6133: 'selectEmoji' is declared but its value is never read.
+components/emoji-picker.vue(104,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/financial/gifts/pewgift-history.vue(102,38): error TS2339: Property 'sender_id' does not exist on type 'never'.
+components/financial/gifts/pewgift-history.vue(105,38): error TS2339: Property 'recipient_id' does not exist on type 'never'.
+components/financial/gifts/pewgift-history.vue(149,24): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+components/financial/gifts/pewgift-picker.vue(140,15): error TS6133: 'computed' is declared but its value is never read.
+components/financial/gifts/pewgift-picker.vue(163,3): error TS6133: 'giftTypes' is declared but its value is never read.
+components/financial/gifts/pewgift-picker.vue(194,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/financial/gifts/pewgift-picker.vue(267,7): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/financial/gifts/pewgift-picker.vue(276,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/group-chat.vue(189,24): error TS7016: Could not find a declaration file for module 'markdown-it'. 'C:/Users/user/socialverse/socialverse-web/node_modules/markdown-it/index.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/markdown-it` if it exists or add a new declaration (.d.ts) file containing `declare module 'markdown-it';`
+components/group-chat.vue(190,28): error TS2307: Cannot find module 'emoji-js' or its corresponding type declarations.
+components/group-chat.vue(208,7): error TS6133: 'isAdmin' is declared but its value is never read.
+components/group-chat.vue(312,9): error TS18048: 'file' is possibly 'undefined'.
+components/group-chat.vue(313,33): error TS18048: 'file' is possibly 'undefined'.
+components/group-chat.vue(316,42): error TS18048: 'file' is possibly 'undefined'.
+components/group-chat.vue(316,59): error TS18048: 'file' is possibly 'undefined'.
+components/group-chat.vue(316,76): error TS18048: 'file' is possibly 'undefined'.
+components/layout/footer.vue(88,19): error TS2304: Cannot find name 'useAuthStore'.
+components/layout/footer.vue(89,57): error TS2304: Cannot find name 'useAuth'.
+components/monetization/StreamAdOverlay.vue(67,3): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/monetization/StreamAdOverlay.vue(105,3): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/monetization/StreamAdOverlay.vue(112,3): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/posts/create-post.vue(258,5): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/posts/PostInteractionToolbar.vue(25,9): error TS2339: Property 'likePost' does not exist on type '{ currentUser: { readonly value: any; }; userName: { readonly value: any; }; handleLogout: () => Promise<void>; initPipeline: () => Promise<void>; }'.
+components/posts/PostInteractionToolbar.vue(25,19): error TS2339: Property 'commentPost' does not exist on type '{ currentUser: { readonly value: any; }; userName: { readonly value: any; }; handleLogout: () => Promise<void>; initPipeline: () => Promise<void>; }'.
+components/profile/avatar-upload.vue(54,7): error TS6133: 'userStore' is declared but its value is never read.
+components/profile/avatar-upload.vue(104,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/profile/edit-profile.vue(157,5): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/profile/interests-selector.vue(100,3): error TS2349: This expression is not callable.
+  Type '__VLS_Emit' has no call signatures.
+components/security-dashboard.vue(427,3): error TS6133: 'sessions' is declared but its value is never read.
+components/security-dashboard.vue(431,3): error TS6133: 'error' is declared but its value is never read.
+components/security-dashboard.vue(433,3): error TS6133: 'currentSession' is declared but its value is never read.
+components/security-dashboard.vue(438,3): error TS2339: Property 'loadStatistics' does not exist on type 'SecurityReturn'.
+components/security-dashboard.vue(463,25): error TS2339: Property 'events' does not exist on type 'SecurityStatistics'.
+components/security-dashboard.vue(464,25): error TS2339: Property 'events' does not exist on type 'SecurityStatistics'.
+components/security-dashboard.vue(486,25): error TS2339: Property 'events' does not exist on type 'SecurityStatistics'.
+components/security-dashboard.vue(549,26): error TS2554: Expected 0 arguments, but got 1.
+components/streaming/mobile-camera-stream.vue(211,39): error TS6133: 'computed' is declared but its value is never read.
+components/streaming/mobile-camera-stream.vue(222,3): error TS6133: 'cameraPreview' is declared but its value is never read.
+components/streaming/mobile-camera-stream.vue(293,23): error TS2345: Argument of type '{ streamId: StringConstructor; title: string; category: string; privacy: string; quality: string; enableRecording: boolean; mediaStream: MediaStream | null; }' is not assignable to parameter of type 'StreamConfig'.
+  Types of property 'streamId' are incompatible.
+    Type 'StringConstructor' is not assignable to type 'string'.
+components/streaming/mobile-camera-stream.vue(294,5): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/mobile-camera-stream.vue(303,5): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/mobile-camera-stream.vue(338,3): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/mobile-stream-player.vue(6,8): error TS2322: Type '{ type: BooleanConstructor; default: boolean; }' is not assignable to type 'Booleanish | undefined'.
+components/streaming/mobile-stream-player.vue(110,7): error TS6133: 'exitFullscreen' is declared but its value is never read.
+components/streaming/mobile-stream-player.vue(188,7): error TS6133: 'onMessageSent' is declared but its value is never read.
+components/streaming/mobile-stream-player.vue(196,7): error TS6133: 'onUserJoined' is declared but its value is never read.
+components/streaming/mobile-stream-player.vue(204,7): error TS6133: 'onUserLeft' is declared but its value is never read.
+components/streaming/stream-chat.vue(22,7): error TS6133: 'isLoading' is declared but its value is never read.
+components/streaming/stream-chat.vue(23,7): error TS6133: 'isChatVisible' is declared but its value is never read.
+components/streaming/stream-chat.vue(29,7): error TS6133: 'showChatSettings' is declared but its value is never read.
+components/streaming/stream-chat.vue(55,7): error TS6133: 'fontSizeClass' is declared but its value is never read.
+components/streaming/stream-chat.vue(123,7): error TS2365: Operator '>' cannot be applied to types 'number' and '{ type: NumberConstructor; default: number; }'.
+components/streaming/stream-chat.vue(140,3): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/stream-controls.vue(254,3): error TS2339: Property 'startStreamBroadcast' does not exist on type '{ messages: Ref<StreamMessage[]>; reactions: Ref<StreamReaction[]>; pewGifts: Ref<PewGift[]>; activeUsers: { readonly value: StreamUser[]; }; sendMessage: (message: string) => Promise<...>; sendReaction: (emoji: string) => void; sendPewGift: (giftId: string, quantity?: number, message?: string | undefined) => Promis...'.
+components/streaming/stream-controls.vue(255,3): error TS2339: Property 'endStreamBroadcast' does not exist on type '{ messages: Ref<StreamMessage[]>; reactions: Ref<StreamReaction[]>; pewGifts: Ref<PewGift[]>; activeUsers: { readonly value: StreamUser[]; }; sendMessage: (message: string) => Promise<...>; sendReaction: (emoji: string) => void; sendPewGift: (giftId: string, quantity?: number, message?: string | undefined) => Promis...'.
+components/streaming/stream-controls.vue(256,3): error TS2339: Property 'pauseStreamBroadcast' does not exist on type '{ messages: Ref<StreamMessage[]>; reactions: Ref<StreamReaction[]>; pewGifts: Ref<PewGift[]>; activeUsers: { readonly value: StreamUser[]; }; sendMessage: (message: string) => Promise<...>; sendReaction: (emoji: string) => void; sendPewGift: (giftId: string, quantity?: number, message?: string | undefined) => Promis...'.
+components/streaming/stream-controls.vue(257,3): error TS2339: Property 'updateStreamSettings' does not exist on type '{ messages: Ref<StreamMessage[]>; reactions: Ref<StreamReaction[]>; pewGifts: Ref<PewGift[]>; activeUsers: { readonly value: StreamUser[]; }; sendMessage: (message: string) => Promise<...>; sendReaction: (emoji: string) => void; sendPewGift: (giftId: string, quantity?: number, message?: string | undefined) => Promis...'.
+components/streaming/stream-controls.vue(258,5): error TS2554: Expected 1 arguments, but got 0.
+components/streaming/stream-controls.vue(329,5): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/stream-controls.vue(346,5): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/stream-controls.vue(400,7): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/streaming/stream-controls.vue(419,34): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/streaming/stream-controls.vue(420,35): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/streaming/stream-controls.vue(434,5): error TS2322: Type 'MediaDeviceInfo[]' is not assignable to type 'never[]'.
+  Type 'MediaDeviceInfo' is not assignable to type 'never'.
+components/streaming/stream-controls.vue(435,5): error TS2322: Type 'MediaDeviceInfo[]' is not assignable to type 'never[]'.
+  Type 'MediaDeviceInfo' is not assignable to type 'never'.
+components/streaming/stream-controls.vue(490,5): error TS2322: Type 'MediaDeviceInfo[]' is not assignable to type 'never[]'.
+  Type 'MediaDeviceInfo' is not assignable to type 'never'.
+components/streaming/stream-controls.vue(491,5): error TS2322: Type 'MediaDeviceInfo[]' is not assignable to type 'never[]'.
+  Type 'MediaDeviceInfo' is not assignable to type 'never'.
+components/streaming/webrtc-stream-player.vue(238,3): error TS6133: 'isSignalingConnected' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(241,3): error TS6133: 'isStreaming' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(242,3): error TS6133: 'isScreenSharing' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(244,3): error TS6133: 'startScreenShare' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(245,3): error TS6133: 'stopScreenShare' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(246,3): error TS6133: 'isAudioEnabled' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(247,3): error TS6133: 'isVideoEnabled' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(248,3): error TS6133: 'toggleAudio' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(249,3): error TS6133: 'toggleVideo' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(256,3): error TS6133: 'guests' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(257,3): error TS6133: 'viewers' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(259,3): error TS6133: 'inviteGuest' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(262,3): error TS6133: 'localPeerId' is declared but its value is never read.
+components/streaming/webrtc-stream-player.vue(325,20): error TS2532: Object is possibly 'undefined'.
+components/streaming/webrtc-stream-player.vue(326,28): error TS2532: Object is possibly 'undefined'.
+components/streaming/webrtc-stream-player.vue(510,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(type: keyof WindowEventMap, listener: (this: Window, ev: Event | PointerEvent | MouseEvent | UIEvent | SubmitEvent | InputEvent | ... 26 more ... | StorageEvent) => any, options?: boolean | ... 1 more ... | undefined): void', gave the following error.
+    Argument of type '"guest-invitation-received"' is not assignable to parameter of type 'keyof WindowEventMap'.
+  Overload 2 of 2, '(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(event: CustomEvent) => void' is not assignable to parameter of type 'EventListenerOrEventListenerObject'.
+      Type '(event: CustomEvent) => void' is not assignable to type 'EventListener'.
+        Types of parameters 'event' and 'evt' are incompatible.
+          Type 'Event' is missing the following properties from type 'CustomEvent<any>': detail, initCustomEvent
+components/streaming/webrtc-stream-player.vue(524,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(type: keyof WindowEventMap, listener: (this: Window, ev: Event | PointerEvent | MouseEvent | UIEvent | SubmitEvent | InputEvent | ... 26 more ... | StorageEvent) => any, options?: boolean | ... 1 more ... | undefined): void', gave the following error.
+    Argument of type '"guest-invitation-received"' is not assignable to parameter of type 'keyof WindowEventMap'.
+  Overload 2 of 2, '(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions | undefined): void', gave the following error.
+    Argument of type '(event: CustomEvent) => void' is not assignable to parameter of type 'EventListenerOrEventListenerObject'.
+      Type '(event: CustomEvent) => void' is not assignable to type 'EventListener'.
+        Types of parameters 'event' and 'evt' are incompatible.
+          Type 'Event' is missing the following properties from type 'CustomEvent<any>': detail, initCustomEvent
+components/ui/icon.vue(141,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/universe-chat.vue(236,35): error TS7006: Parameter 'message' implicitly has an 'any' type.
+components/universe-chat.vue(241,40): error TS7006: Parameter 'data' implicitly has an 'any' type.
+components/universe-chat.vue(246,41): error TS7006: Parameter 'data' implicitly has an 'any' type.
+components/universe-chat.vue(251,42): error TS7006: Parameter 'data' implicitly has an 'any' type.
+components/universe-chat.vue(256,41): error TS7006: Parameter 'data' implicitly has an 'any' type.
+components/user-inbox.vue(40,7): error TS6133: 'userStore' is declared but its value is never read.
+components/user-inbox.vue(74,20): error TS18046: 'response' is of type 'unknown'.
+components/user-inbox.vue(75,16): error TS18046: 'response' is of type 'unknown'.
+components/verification-application-modal.vue(483,30): error TS2307: Cannot find module '~/models/Verification' or its corresponding type declarations.
+components/verification-application-modal.vue(611,5): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+components/verification-application-modal.vue(623,26): error TS2349: This expression is not callable.
+  Type 'string[]' has no call signatures.
+composables/use-mobile-camera.ts(170,22): error TS2353: Object literal may only specify known properties, and 'torch' does not exist in type 'MediaTrackConstraintSet'.
+composables/use-mobile-camera.ts(188,33): error TS2532: Object is possibly 'undefined'.
+composables/use-mobile-camera.ts(208,31): error TS2532: Object is possibly 'undefined'.
+composables/use-mobile-performance.ts(3,20): error TS2724: '"vue"' has no exported member named 'ComputedRef'. Did you mean 'computed'?
+composables/use-premium.ts(6,20): error TS2724: '"vue"' has no exported member named 'ComputedRef'. Did you mean 'computed'?
+composables/use-security.ts(6,20): error TS2724: '"vue"' has no exported member named 'ComputedRef'. Did you mean 'computed'?
+composables/use-stream-broadcast.ts(366,9): error TS2532: Object is possibly 'undefined'.
+pages/admin/ad-analytics.vue(163,7): error TS2322: Type '{ id: number; campaign: string; advertiser: string; impressions: number; clicks: number; revenue: number; status: string; }' is not assignable to type 'never'.
+pages/admin/ad-analytics.vue(172,7): error TS2322: Type '{ id: number; campaign: string; advertiser: string; impressions: number; clicks: number; revenue: number; status: string; }' is not assignable to type 'never'.
+pages/admin/ad-analytics.vue(194,22): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/admin/ad-analytics.vue(198,30): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/admin/chat-monitor.vue(28,22): error TS7006: Parameter 's' implicitly has an 'any' type.
+pages/admin/index.vue(43,15): error TS2345: Argument of type 'HTMLElement | null' is not assignable to parameter of type 'ChartItem'.
+  Type 'null' is not assignable to type 'ChartItem'.
+pages/admin/index.vue(56,15): error TS2345: Argument of type 'HTMLElement | null' is not assignable to parameter of type 'ChartItem'.
+  Type 'null' is not assignable to type 'ChartItem'.
+pages/admin/inference.vue(9,7): error TS6133: 'supabase' is declared but its value is never read.
+pages/admin/matches.vue(175,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+pages/admin/matches.vue(175,26): error TS2339: Property 'userId' does not exist on type 'never'.
+pages/admin/matches.vue(176,29): error TS2339: Property 'filters' does not exist on type 'never'.
+pages/admin/matches.vue(177,9): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+pages/admin/matches.vue(177,28): error TS2339: Property 'userId' does not exist on type 'never'.
+pages/admin/matches.vue(179,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+pages/admin/matches.vue(179,25): error TS2339: Property 'userId' does not exist on type 'never'.
+pages/admin/matches.vue(186,24): error TS7006: Parameter 'userId' implicitly has an 'any' type.
+pages/admin/matches.vue(188,37): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+pages/admin/matches.vue(199,53): error TS2339: Property 'userId' does not exist on type 'never'.
+pages/admin/matches.vue(206,23): error TS7006: Parameter 'userId' implicitly has an 'any' type.
+pages/admin/matches.vue(212,17): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+pages/admin/matches.vue(218,53): error TS2339: Property 'userId' does not exist on type 'never'.
+pages/admin/monitoring/agents.vue(121,5): error TS7034: Variable 'refreshInterval' implicitly has type 'any' in some locations where its type cannot be determined.
+pages/admin/monitoring/agents.vue(124,30): error TS2339: Property 'online' does not exist on type 'never'.
+pages/admin/monitoring/agents.vue(128,31): error TS2339: Property 'online' does not exist on type 'never'.
+pages/admin/monitoring/agents.vue(132,43): error TS2339: Property 'currentSessions' does not exist on type 'never'.
+pages/admin/monitoring/agents.vue(144,21): error TS7006: Parameter 'timestamp' implicitly has an 'any' type.
+pages/admin/monitoring/agents.vue(150,27): error TS7006: Parameter 'agent' implicitly has an 'any' type.
+pages/admin/monitoring/agents.vue(154,28): error TS7006: Parameter 'agent' implicitly has an 'any' type.
+pages/admin/monitoring/agents.vue(177,7): error TS7005: Variable 'refreshInterval' implicitly has an 'any' type.
+pages/admin/support-agents.vue(56,63): error TS2339: Property 'split' does not exist on type 'never[]'.
+pages/admin/support-agents.vue(56,78): error TS7006: Parameter 'f' implicitly has an 'any' type.
+pages/admin/support-agents.vue(65,28): error TS7006: Parameter 'agentId' implicitly has an 'any' type.
+pages/admin/translations.vue(61,43): error TS2339: Property 'key' does not exist on type 'never'.
+pages/admin/translations.vue(62,49): error TS2339: Property 'language' does not exist on type 'never'.
+pages/admin/trust-dashboard.vue(62,68): error TS2339: Property 'isTrusted' does not exist on type 'never'.
+pages/admin/trust-dashboard.vue(63,71): error TS2339: Property 'isTrusted' does not exist on type 'never'.
+pages/admin/user-overrides.vue(74,31): error TS7006: Parameter 'o' implicitly has an 'any' type.
+pages/admin/users.vue(258,10): error TS2339: Property 'name' does not exist on type 'never'.
+pages/admin/users.vue(259,10): error TS2339: Property 'email' does not exist on type 'never'.
+pages/admin/users.vue(260,10): error TS2339: Property 'username' does not exist on type 'never'.
+pages/admin/users.vue(297,39): error TS7006: Parameter 'user' implicitly has an 'any' type.
+pages/admin/users.vue(298,47): error TS2339: Property 'id' does not exist on type 'never'.
+pages/admin/users.vue(305,21): error TS7006: Parameter 'user' implicitly has an 'any' type.
+pages/admin/users.vue(307,32): error TS2322: Type 'string' is not assignable to type 'never'.
+pages/admin/users.vue(307,48): error TS2322: Type 'string' is not assignable to type 'never'.
+pages/admin/users.vue(310,31): error TS7006: Parameter 'user' implicitly has an 'any' type.
+pages/admin/users.vue(312,32): error TS2322: Type 'string' is not assignable to type 'never'.
+pages/admin/users.vue(312,48): error TS2322: Type 'string' is not assignable to type 'never'.
+pages/admin/users.vue(321,17): error TS18047: 'selectedUser.value' is possibly 'null'.
+pages/admin/users.vue(333,30): error TS7006: Parameter 'manager' implicitly has an 'any' type.
+pages/admin/users.vue(346,36): error TS7006: Parameter 'manager' implicitly has an 'any' type.
+pages/admin/users.vue(371,26): error TS7006: Parameter 'type' implicitly has an 'any' type.
+pages/admin/users.vue(378,10): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ user_suspended: string; user_warned: string; content_removed: string; report_resolved: string; }'.
+pages/admin/users.vue(381,21): error TS7006: Parameter 'date' implicitly has an 'any' type.
+pages/admin/users.vue(385,25): error TS7006: Parameter 'date' implicitly has an 'any' type.
+pages/admin/verified.vue(462,14): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+pages/admin/verified.vue(478,14): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+pages/admin/verified.vue(706,9): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+pages/ads.vue(81,57): error TS2339: Property 'id' does not exist on type 'any[]'.
+pages/ads.vue(105,36): error TS7006: Parameter 'status' implicitly has an 'any' type.
+pages/ads/index.vue(156,42): error TS2322: Type '"premium-middleware"' is not assignable to type 'MiddlewareKey | NavigationGuard'.
+pages/ads/index.vue(215,23): error TS7006: Parameter 'num' implicitly has an 'any' type.
+pages/ads/index.vue(221,31): error TS7006: Parameter 'campaign' implicitly has an 'any' type.
+pages/error.vue(29,10): error TS2440: Import declaration conflicts with local declaration of 'defineProps'.
+pages/escrow.vue(329,21): error TS7006: Parameter 'date' implicitly has an 'any' type.
+pages/escrow.vue(337,24): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/escrow.vue(342,24): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/escrow.vue(347,22): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/escrow.vue(352,27): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/escrow.vue(357,29): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/manager/dashboard.vue(100,9): error TS2339: Property 'getUserPermissions' does not exist on type '{ getUserStore: () => Promise<any>; getRolesStore: () => Promise<any>; getUserRole: (user?: any) => string; requireAuthentication: () => void; requireRole: (role: string) => void; assignManagerRole: (userId: string, _permissions?: string[] | undefined) => Promise<...>; removeManagerRole: (userId: string) => Promise<...'.
+pages/manager/dashboard.vue(115,28): error TS18046: 'response' is of type 'unknown'.
+pages/manager/dashboard.vue(116,28): error TS18046: 'response' is of type 'unknown'.
+pages/manager/dashboard.vue(117,25): error TS18046: 'response' is of type 'unknown'.
+pages/manager/dashboard.vue(118,30): error TS18046: 'response' is of type 'unknown'.
+pages/manager/dashboard.vue(123,17): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/manager/user.vue(242,9): error TS2339: Property 'requirePermission' does not exist on type '{ getUserStore: () => Promise<any>; getRolesStore: () => Promise<any>; getUserRole: (user?: any) => string; requireAuthentication: () => void; requireRole: (role: string) => void; assignManagerRole: (userId: string, _permissions?: string[] | undefined) => Promise<...>; removeManagerRole: (userId: string) => Promise<...'.
+pages/manager/user.vue(276,19): error TS18046: 'response' is of type 'unknown'.
+pages/manager/user.vue(277,24): error TS18046: 'response' is of type 'unknown'.
+pages/notifications.vue(70,21): error TS7006: Parameter 'ts' implicitly has an 'any' type.
+pages/pal.vue(478,21): error TS7006: Parameter 'date' implicitly has an 'any' type.
+pages/pal.vue(486,21): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(491,19): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(496,22): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(501,20): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(507,24): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(512,24): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(518,25): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(523,20): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(528,20): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pal.vue(533,21): error TS7006: Parameter 'id' implicitly has an 'any' type.
+pages/pewgift.vue(14,1): error TS6133: 'pewgiftsummary' is declared but its value is never read.
+pages/pewgift.vue(15,1): error TS6133: 'pewgifthistory' is declared but its value is never read.
+pages/posts/[id].vue(32,33): error TS2365: Operator '+' cannot be applied to types 'string | number' and 'number'.
+pages/posts/[id].vue(114,24): error TS7016: Could not find a declaration file for module 'markdown-it'. 'C:/Users/user/socialverse/socialverse-web/node_modules/markdown-it/index.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/markdown-it` if it exists or add a new declaration (.d.ts) file containing `declare module 'markdown-it';`
+pages/posts/[id].vue(173,22): error TS2339: Property 'author' does not exist on type 'never'.
+pages/posts/[id].vue(191,5): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(191,25): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(193,5): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(193,37): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(198,26): error TS2339: Property 'scrollIntoView' does not exist on type 'never'.
+pages/posts/[id].vue(204,14): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(229,3): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(229,25): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(230,3): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(235,19): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(235,44): error TS7006: Parameter 'c' implicitly has an 'any' type.
+pages/posts/[id].vue(251,32): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(256,35): error TS18047: 'post.value' is possibly 'null'.
+pages/posts/[id].vue(273,5): error TS2322: Type '{ id: string | string[] | undefined; title: string; content: string; author: { name: string; avatar: string; }; createdAt: number; likes: number; images: string[]; tags: string[]; comments: { id: number; content: string; author: { ...; }; createdAt: number; likes: number; isLiked: boolean; }[]; }' is not assignable to type 'null'.
+pages/posts/[id]/analytics.vue(91,47): error TS2365: Operator '+' cannot be applied to types 'string | number' and 'number'.
+pages/posts/create.vue(103,40): error TS6133: 'uploadFile' is declared but its value is never read.
+pages/posts/create.vue(103,64): error TS6133: 'clearUploadError' is declared but its value is never read.
+pages/posts/create.vue(114,3): error TS2353: Object literal may only specify known properties, and 'get' does not exist in type '() => any'.
+pages/posts/create.vue(115,9): error TS7006: Parameter 'val' implicitly has an 'any' type.
+pages/posts/create.vue(119,3): error TS2353: Object literal may only specify known properties, and 'get' does not exist in type '() => any'.
+pages/posts/create.vue(120,9): error TS7006: Parameter 'val' implicitly has an 'any' type.
+pages/posts/create.vue(124,3): error TS2353: Object literal may only specify known properties, and 'get' does not exist in type '() => any'.
+pages/posts/create.vue(125,9): error TS7006: Parameter 'val' implicitly has an 'any' type.
+pages/posts/create.vue(129,3): error TS2353: Object literal may only specify known properties, and 'get' does not exist in type '() => any'.
+pages/posts/create.vue(130,9): error TS7006: Parameter 'val' implicitly has an 'any' type.
+pages/posts/create.vue(137,7): error TS6133: 'fileInputRef' is declared but its value is never read.
+pages/posts/index.vue(76,5): error TS2322: Type '"Failed to load posts. Please try again."' is not assignable to type 'null'.
+pages/posts/index.vue(85,7): error TS6133: 'handlePewgift' is declared but its value is never read.
+pages/posts/index.vue(85,24): error TS7006: Parameter 'postId' implicitly has an 'any' type.
+pages/posts/index.vue(93,21): error TS7006: Parameter 'postId' implicitly has an 'any' type.
+pages/posts/index.vue(100,24): error TS7006: Parameter 'postId' implicitly has an 'any' type.
+pages/posts/index.vue(107,22): error TS7006: Parameter 'postId' implicitly has an 'any' type.
+pages/profile/complete-success.vue(113,10): error TS6133: 'ref' is declared but its value is never read.
+pages/profile/complete-success.vue(122,7): error TS6133: 'displayName' is declared but its value is never read.
+pages/profile/complete-success.vue(123,7): error TS6133: 'userEmail' is declared but its value is never read.
+pages/profile/complete.vue(106,7): error TS6133: 'userStore' is declared but its value is never read.
+pages/profile/edit.vue(250,36): error TS6133: 'nextTick' is declared but its value is never read.
+pages/profile/edit.vue(262,54): error TS6133: 'storeError' is declared but its value is never read.
+pages/profile/edit.vue(313,28): error TS7030: Not all code paths return a value.
+pages/profile/index.vue(87,7): error TS6133: 'showGeneralSettings' is declared but its value is never read.
+pages/profile/index.vue(89,7): error TS6133: 'showCreatePost' is declared but its value is never read.
+pages/profile/index.vue(92,7): error TS6133: 'verificationBadges' is declared but its value is never read.
+pages/profile/index.vue(94,7): error TS6133: 'mediaPosts' is declared but its value is never read.
+pages/profile/index.vue(95,7): error TS6133: 'likedPosts' is declared but its value is never read.
+pages/profile/index.vue(108,7): error TS6133: 'formatDate' is declared but its value is never read.
+pages/profile/index.vue(109,7): error TS6133: 'getBadgeIcon' is declared but its value is never read.
+pages/profile/index.vue(109,23): error TS6133: 'type' is declared but its value is never read.
+pages/profile/index.vue(110,7): error TS6133: 'toggleFollow' is declared but its value is never read.
+pages/profile/index.vue(111,7): error TS6133: 'openVerificationDetails' is declared but its value is never read.
+pages/profile/index.vue(111,34): error TS6133: 'b' is declared but its value is never read.
+pages/profile/index.vue(112,7): error TS6133: 'openMediaModal' is declared but its value is never read.
+pages/profile/index.vue(112,25): error TS6133: 'p' is declared but its value is never read.
+pages/settings.vue(63,26): error TS6133: 'computed' is declared but its value is never read.
+pages/signup.vue(74,7): error TS6133: 'route' is declared but its value is never read.
+pages/signup.vue(98,9): error TS18046: 'response' is of type 'unknown'.
+pages/signup.vue(99,25): error TS18046: 'response' is of type 'unknown'.
+pages/status.vue(265,22): error TS6133: 'deleteStatus' is declared but its value is never read.
+pages/status.vue(334,35): error TS2339: Property 'length' does not exist on type '{ success: boolean; data: any; total: any; error?: undefined; } | { success: boolean; error: any; data?: undefined; total?: undefined; }'.
+  Property 'length' does not exist on type '{ success: boolean; data: any; total: any; error?: undefined; }'.
+pages/stream.vue(134,32): error TS2307: Cannot find module '~/components/streaming/mobile-camera-stream' or its corresponding type declarations.
+pages/stream.vue(178,9): error TS18046: 'response' is of type 'unknown'.
+pages/stream.vue(179,31): error TS18046: 'response' is of type 'unknown'.
+pages/stream.vue(180,25): error TS18046: 'response' is of type 'unknown'.
+pages/stream.vue(181,24): error TS18046: 'response' is of type 'unknown'.
+pages/stream/index.vue(6,15): error TS6133: 'onMounted' is declared but its value is never read.
+pages/stream/index.vue(15,7): error TS6133: 'supabase' is declared but its value is never read.
+pages/support-chat.vue(47,18): error TS18047: 'session.value' is possibly 'null'.
+pages/support-chat.vue(53,3): error TS18047: 'session.value' is possibly 'null'.
+pages/support-chat.vue(64,54): error TS18047: 'session.value' is possibly 'null'.
+pages/support-chat.vue(67,3): error TS18047: 'session.value' is possibly 'null'.
+pages/support-chat.vue(73,59): error TS18047: 'session.value' is possibly 'null'.
+pages/support-chat.vue(76,3): error TS18047: 'session.value' is possibly 'null'.
+pages/support.vue(77,27): error TS2345: Argument of type '{ label: string; value: string; type: string; region: string; }' is not assignable to parameter of type 'never'.
+pages/support.vue(94,25): error TS7006: Parameter 'label' implicitly has an 'any' type.
+pages/terms-and-policy.vue(36,24): error TS7006: Parameter 'f' implicitly has an 'any' type.
+pages/terms-and-policy.vue(40,21): error TS7006: Parameter 'd' implicitly has an 'any' type.
+pages/trade-listings.vue(171,21): error TS7006: Parameter 'timestamp' implicitly has an 'any' type.
+pages/trade-listings.vue(175,22): error TS7006: Parameter 'listing' implicitly has an 'any' type.
+stores/chat.ts(29,12): error TS7006: Parameter 'id' implicitly has an 'any' type.
+stores/chat.ts(30,16): error TS7006: Parameter 'c' implicitly has an 'any' type.
+stores/chat.ts(31,14): error TS7006: Parameter 'a' implicitly has an 'any' type.
+stores/chat.ts(31,17): error TS7006: Parameter 'b' implicitly has an 'any' type.
+stores/chat.ts(32,91): error TS18046: 'a' is of type 'unknown'.
+stores/chat.ts(32,95): error TS18046: 'b' is of type 'unknown'.
+stores/financial/ads/ads-store.ts(31,50): error TS7006: Parameter 'ad' implicitly has an 'any' type.
+stores/financial/ads/ads-store.ts(32,49): error TS7006: Parameter 'ad' implicitly has an 'any' type.
+stores/financial/ads/ads-store.ts(33,50): error TS7006: Parameter 'ad' implicitly has an 'any' type.
+stores/financial/escrow/escrow-store.ts(28,58): error TS7006: Parameter 'd' implicitly has an 'any' type.
+stores/universe.ts(32,43): error TS7006: Parameter 'm' implicitly has an 'any' type.
+stores/verified.ts(115,51): error TS7006: Parameter 'req' implicitly has an 'any' type.
+stores/verified.ts(118,62): error TS7006: Parameter 'req' implicitly has an 'any' type.

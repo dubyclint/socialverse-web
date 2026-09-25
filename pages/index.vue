@@ -5,7 +5,7 @@
         <NuxtLink to="/" class="logo-container">
           <div class="logo-box">
             <Icon name="sparkles" size="24" />
-            <span class="logo-text">SocialVerse</span>
+            <span class="logo-text">Viorp</span>
           </div>
         </NuxtLink>
 
@@ -18,7 +18,7 @@
 
     <main class="hero">
       <div class="hero-content">
-        <h1>Encrypted social messaging for modern communities</h1>
+        <h1> lets vibe orp in orbit,everything  is happening in viorp </h1>
         <p>
           Connect, share, and engage with privacy-first messaging, social feeds,
           and creator-driven experiences.
@@ -61,7 +61,7 @@
       </div>
 
       <div class="footer-bottom">
-        <p>&copy; 2026 SocialVerse. All rights reserved.</p>
+        <p>&copy; 2026 Viorp. All rights reserved.</p>
       </div>
     </footer>
   </div>

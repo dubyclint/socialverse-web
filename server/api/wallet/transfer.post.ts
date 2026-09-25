@@ -1,5 +1,7 @@
 // server/api/wallet/transfer.post.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)

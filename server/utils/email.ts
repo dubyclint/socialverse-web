@@ -41,7 +41,7 @@ export const sendVerificationEmail = async (
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to SocialVerse! 🌐</h1>
+              <h1>Welcome to Viorp! 🌐</h1>
             </div>
             <div class="content">
               <p>Hi <strong>${username}</strong>,</p>
@@ -55,8 +55,8 @@ export const sendVerificationEmail = async (
               </p>
               <p style="font-size: 12px; color: #999;">This link will expire in 24 hours.</p>
               <div class="footer">
-                <p>Best regards,<br><strong>The SocialVerse Team</strong></p>
-                <p>© 2024 SocialVerse. All rights reserved.</p>
+                <p>Best regards,<br><strong>The Viorp Team</strong></p>
+                <p>© 2024 Viorp. All rights reserved.</p>
               </div>
             </div>
           </div>
@@ -65,7 +65,7 @@ export const sendVerificationEmail = async (
     `
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
-    const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const senderName = process.env.SENDER_NAME || 'Viorp'
     const apiToken = process.env.MAILERSEND_API_TOKEN
 
     console.log('[Email] API Token available:', !!apiToken)
@@ -97,9 +97,9 @@ export const sendVerificationEmail = async (
             name: username
           }
         ],
-        subject: 'Verify Your SocialVerse Email Address',
+        subject: 'Verify Your Viorp Email Address',
         html: htmlContent,
-        text: `Hi ${username},\n\nPlease verify your email by clicking this link:\n${verificationLink}\n\nThis link will expire in 24 hours.\n\nBest regards,\nThe SocialVerse Team`
+        text: `Hi ${username},\n\nPlease verify your email by clicking this link:\n${verificationLink}\n\nThis link will expire in 24 hours.\n\nBest regards,\nThe Viorp Team`
       })
     })
 
@@ -187,7 +187,7 @@ export const sendPasswordResetEmail = async (
               </p>
               <p style="font-size: 12px; color: #999;">This link will expire in 1 hour.</p>
               <div class="footer">
-                <p>Best regards,<br><strong>The SocialVerse Team</strong></p>
+                <p>Best regards,<br><strong>The Viorp Team</strong></p>
               </div>
             </div>
           </div>
@@ -196,7 +196,7 @@ export const sendPasswordResetEmail = async (
     `
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
-    const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const senderName = process.env.SENDER_NAME || 'Viorp'
     const apiToken = process.env.MAILERSEND_API_TOKEN
 
     if (!apiToken) {
@@ -220,15 +220,15 @@ export const sendPasswordResetEmail = async (
             name: username
           }
         ],
-        subject: 'Reset Your SocialVerse Password',
+        subject: 'Reset Your Viorp Password',
         html: htmlContent,
-        text: `Hi ${username},\n\nReset your password by clicking this link:\n${resetLink}\n\nThis link will expire in 1 hour.\n\nBest regards,\nThe SocialVerse Team`
+        text: `Hi ${username},\n\nReset your password by clicking this link:\n${resetLink}\n\nThis link will expire in 1 hour.\n\nBest regards,\nThe Viorp Team`
       })
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()
@@ -279,7 +279,7 @@ export const sendWelcomeEmail = async (
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to SocialVerse! 🌐</h1>
+              <h1>Welcome to Viorp! 🌐</h1>
             </div>
             <div class="content">
               <p>Hi <strong>${username}</strong>,</p>
@@ -303,8 +303,8 @@ export const sendWelcomeEmail = async (
               <p>Get started by completing your profile and connecting with friends!</p>
               
               <div class="footer">
-                <p>Best regards,<br><strong>The SocialVerse Team</strong></p>
-                <p>© 2024 SocialVerse. All rights reserved.</p>
+                <p>Best regards,<br><strong>The Viorp Team</strong></p>
+                <p>© 2024 Viorp. All rights reserved.</p>
               </div>
             </div>
           </div>
@@ -313,7 +313,7 @@ export const sendWelcomeEmail = async (
     `
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
-    const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const senderName = process.env.SENDER_NAME || 'Viorp'
     const apiToken = process.env.MAILERSEND_API_TOKEN
 
     if (!apiToken) {
@@ -337,15 +337,15 @@ export const sendWelcomeEmail = async (
             name: username
           }
         ],
-        subject: 'Welcome to SocialVerse!',
+        subject: 'Welcome to Viorp!',
         html: htmlContent,
-        text: `Hi ${username},\n\nWelcome to SocialVerse! Your account is now active.\n\nStart exploring, connecting, and sharing with people around the world.\n\nBest regards,\nThe SocialVerse Team`
+        text: `Hi ${username},\n\nWelcome to Viorp! Your account is now active.\n\nStart exploring, connecting, and sharing with people around the world.\n\nBest regards,\nThe Viorp Team`
       })
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()
@@ -381,7 +381,7 @@ export const sendEmail = async (
     console.log('[Email] Subject:', subject)
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
-    const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const senderName = process.env.SENDER_NAME || 'Viorp'
     const apiToken = process.env.MAILERSEND_API_TOKEN
 
     if (!apiToken) {
@@ -411,8 +411,8 @@ export const sendEmail = async (
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()
@@ -447,7 +447,7 @@ export const sendBulkEmails = async (
     console.log('[Email] Subject:', subject)
 
     const senderEmail = process.env.SENDER_EMAIL || 'noreply@socialverse.com'
-    const senderName = process.env.SENDER_NAME || 'SocialVerse'
+    const senderName = process.env.SENDER_NAME || 'Viorp'
     const apiToken = process.env.MAILERSEND_API_TOKEN
 
     if (!apiToken) {
@@ -475,8 +475,8 @@ export const sendBulkEmails = async (
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`MailerSend API error: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`MailerSend API error: ${response.status} - ${errorData?.message || 'Unknown error'}`)
     }
 
     const result = await response.json()

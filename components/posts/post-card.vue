@@ -1,390 +1,520 @@
 <template>
-  <article 
-    class="post-card" 
-    :class="[variant, { sponsored: post.sponsored, pinned: post.pinned, verified: post.verified }]"
-  >
-    <!-- Post Header -->
+  <article class="post-card" :class="{ sponsored }">
+    <p v-if="post.repost_of" class="repost-banner">
+      <Icon name="refresh" size="14" />
+      <NuxtLink :to="authorLink" class="repost-author">{{ authorName }}</NuxtLink>
+      reposted
+    </p>
+
     <header class="post-header">
-      <div class="author-info">
-        <img 
-          :src="post.userAvatar || post.avatar" 
-          :alt="post.username || post.author" 
-          class="author-avatar" 
-        />
-        <div class="author-details">
-          <h4 class="author-name">
-            {{ post.username || post.author }}
-            <span v-if="post.verified || post.isVerified" class="badge">✔️</span>
-          </h4>
-          <p class="post-timestamp">{{ post.timestamp || formatDate(post.createdAt) }}</p>
-        </div>
+      <img :src="avatar" :alt="authorName" class="post-avatar" @click="openAuthor" />
+      <div class="post-identity">
+        <NuxtLink :to="authorLink" class="post-author">
+          {{ authorName }}
+          <Icon v-if="post.author?.verified" name="check-circle" size="13" class="verified" />
+        </NuxtLink>
+        <span class="post-meta">
+          <span class="handle">@{{ post.author?.username || 'unknown' }}</span>
+          <span class="dot">·</span>
+          <time :datetime="post.created_at">{{ formatTimeAgo(post.created_at) }}</time>
+        </span>
       </div>
-      
-      <div class="post-actions">
-        <button v-if="post.pinned" class="pin-indicator" title="Pinned Post">
-          📍
+      <div class="post-menu-wrap">
+        <button class="icon-btn" aria-label="Post options" @click="menuOpen = !menuOpen">
+          <Icon name="more-horizontal" size="18" />
         </button>
-        <button v-if="post.sponsored" class="sponsored-indicator" title="Sponsored">
-          $$
-        </button>
-        <button class="more-btn" @click="showMoreOptions">
-          ⋮
-        </button>
+        <ul v-if="menuOpen" class="post-menu" @click="menuOpen = false">
+          <li v-if="isMine"><button type="button" @click="editing = true"><Icon name="edit" size="14" /> Edit post</button></li>
+          <li v-if="isMine"><button type="button" @click="onDelete"><Icon name="trash" size="14" /> Delete post</button></li>
+          <li><button type="button" @click="copyLink"><Icon name="copy" size="14" /> Copy link</button></li>
+          <li v-if="!isMine"><button type="button" @click="report"><Icon name="flag" size="14" /> Report</button></li>
+        </ul>
       </div>
     </header>
 
-    <!-- Post Content -->
-    <div class="post-content">
-      <p class="post-text">{{ post.content }}</p>
-      <div v-if="post.mediaUrl || post.image" class="post-media">
-        <img 
-          :src="post.mediaUrl || post.image" 
-          :alt="post.content" 
-          @click="openMedia" 
-        />
-      </div>
+    <div v-if="content" class="post-body">
+      <p class="post-text">{{ content }}</p>
     </div>
 
-    <!-- Post Footer -->
-    <footer class="post-footer">
-      <div class="engagement-stats">
-        <span class="stat">{{ formatNumber(post.likes?.length || post.likes) }} likes</span>
-        <span class="stat">{{ formatNumber(post.comments?.length || post.comments) }} comments</span>
-        <span class="stat">{{ formatNumber(post.shares || 0) }} shares</span>
+    <PostsPostMedia v-if="media.length" :media="media" @open="openPost" />
+
+    <div v-if="post.repost_of" class="repost-source">
+      <div class="repost-source-head">
+        <img
+          :src="post.repost_of.author?.avatar_url || '/default-avatar.svg'"
+          alt=""
+          class="repost-avatar"
+        />
+        <span class="repost-source-name">
+          {{ post.repost_of.author?.full_name || 'Unknown user' }}
+        </span>
+        <span class="repost-source-time">{{ formatTimeAgo(post.repost_of.created_at) }}</span>
       </div>
-      
-      <div class="action-buttons">
-        <button 
-          class="action-btn like" 
-          :class="{ active: isLiked }" 
-          @click="toggleLike"
-        >
-          {{ isLiked ? '❤️' : '🤍' }} Like
-        </button>
-        <button class="action-btn comment" @click="openComments">
-          💬 Comment
-        </button>
-        <button class="action-btn share" @click="sharePost">
-          🔄 Share
-        </button>
-        <button class="action-btn pewgift" @click="sendPewgift">
-  🎁 Pewgift
-</button>
-      </div>
-    </footer>
+      <p v-if="post.repost_of.content" class="post-text">{{ post.repost_of.content }}</p>
+      <PostsPostMedia v-if="post.repost_of.media?.length" :media="post.repost_of.media" />
+    </div>
+
+    <div v-if="post.hashtags?.length" class="post-hashtags">
+      <NuxtLink v-for="tag in post.hashtags" :key="tag" :to="`/explore?tag=${tag}`" class="hashtag">
+        #{{ tag }}
+      </NuxtLink>
+    </div>
+
+    <div class="post-counts">
+      <button type="button" class="count-btn" :disabled="!likesCount" @click="toggleLikers">
+        <Icon name="heart" size="13" /> {{ likesCount }}
+      </button>
+      <button type="button" class="count-btn" @click="toggleComments">
+        {{ commentsCount }} comments
+      </button>
+      <span class="count-btn static">{{ sharesCount }} shares</span>
+      <span class="count-btn static"><Icon name="gift" size="13" /> {{ post.gifts_count }}</span>
+    </div>
+
+    <ul v-if="likersOpen" class="likers">
+      <li v-if="likersLoading" class="likers-state">Loading...</li>
+      <li v-for="liker in likers" v-else :key="liker.id" class="liker">
+        <img :src="liker.avatar || '/default-avatar.svg'" alt="" class="liker-avatar" />
+        <NuxtLink :to="`/profile/${liker.username}`">{{ liker.name }}</NuxtLink>
+      </li>
+    </ul>
+
+    <div class="post-actions">
+      <button
+        type="button"
+        class="action-btn"
+        :class="{ active: liked }"
+        @click="onLike"
+      >
+        <Icon name="heart" size="18" /> <span>Like</span>
+      </button>
+      <button type="button" class="action-btn" :class="{ active: commentsOpen }" @click="toggleComments">
+        <Icon name="message-square" size="18" /> <span>Comment</span>
+      </button>
+      <button type="button" class="action-btn" :disabled="reposting" @click="onRepost">
+        <Icon name="refresh" size="18" /> <span>Repost</span>
+      </button>
+      <button type="button" class="action-btn" @click="onShare">
+        <Icon name="share" size="18" /> <span>Share</span>
+      </button>
+      <button type="button" class="action-btn gift" @click="$emit('pewgift', post)">
+        <Icon name="gift" size="18" /> <span>Gift</span>
+      </button>
+    </div>
+
+    <p v-if="notice" class="post-notice">{{ notice }}</p>
+
+    <PostsPostComments
+      v-if="commentsOpen"
+      :post-id="post.id"
+      :viewer-avatar="viewerAvatar"
+      @added="commentsCount += 1"
+    />
+
+    <PostsPostEditModal
+      v-if="editing"
+      :post="post"
+      @close="editing = false"
+      @saved="onEdited"
+    />
   </article>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import type { FeedPost, PostLiker } from '~/composables/useSocialFeed'
 
-const props = defineProps({
-  post: {
-    type: Object,
-    required: true
-  },
-  variant: {
-    type: String,
-    default: 'default'
-  }
+const props = withDefaults(
+  defineProps<{ post: FeedPost, sponsored?: boolean, viewerAvatar?: string }>(),
+  { sponsored: false, viewerAvatar: '/default-avatar.svg' }
+)
+
+const emit = defineEmits<{ pewgift: [post: FeedPost], removed: [postId: string] }>()
+
+const router = useRouter()
+const {
+  currentUserId,
+  likePost,
+  sharePost,
+  deletePost,
+  repostPost,
+  fetchLikers
+} = useSocialFeed()
+
+// Counts and editable fields are mirrored locally: a card must not write back
+// into the feed's post objects.
+const liked = ref(props.post.liked_by_me)
+const likesCount = ref(props.post.likes_count)
+const commentsCount = ref(props.post.comments_count)
+const sharesCount = ref(props.post.shares_count)
+const content = ref(props.post.content)
+const media = ref<string[]>([...(props.post.media ?? [])])
+
+watch(() => props.post, (post) => {
+  liked.value = post.liked_by_me
+  likesCount.value = post.likes_count
+  commentsCount.value = post.comments_count
+  sharesCount.value = post.shares_count
+  content.value = post.content
+  media.value = [...(post.media ?? [])]
 })
 
-const isLiked = ref(false)
+const menuOpen = ref(false)
+const commentsOpen = ref(false)
+const likersOpen = ref(false)
+const likersLoading = ref(false)
+const likers = ref<PostLiker[]>([])
+const editing = ref(false)
+const reposting = ref(false)
+const notice = ref('')
 
-const formatNumber = (num) => {
-  if (typeof num !== 'number') return num || 0
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
-  return num.toString()
+const isMine = computed(() => Boolean(currentUserId.value) && props.post.author?.id === currentUserId.value)
+const authorName = computed(() => props.post.author?.full_name || 'Unknown user')
+const authorLink = computed(() => `/profile/${props.post.author?.username || ''}`)
+const avatar = computed(() => props.post.author?.avatar_url || '/default-avatar.svg')
+
+const flash = (message: string) => {
+  notice.value = message
+  setTimeout(() => { if (notice.value === message) notice.value = '' }, 3000)
 }
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const openPost = () => router.push(`/posts/${props.post.id}`)
+const openAuthor = () => {
+  if (props.post.author?.username) router.push(authorLink.value)
 }
 
-const toggleLike = () => {
-  isLiked.value = !isLiked.value
-  // Implement like functionality
+const onLike = async () => {
+  const result = await likePost(props.post.id)
+  if (!result) return flash('Could not update your like')
+
+  liked.value = result.liked
+  likesCount.value = result.likesCount
+  if (likersOpen.value) await loadLikers()
 }
 
-const openComments = () => {
-  // Open comments modal or navigate to post detail
-  console.log('Open comments for post:', props.post._id)
+const toggleComments = () => {
+  commentsOpen.value = !commentsOpen.value
 }
 
-const sharePost = () => {
-  // Implement share functionality
-  if (navigator.share) {
-    navigator.share({
-      title: `Post by ${props.post.username || props.post.author}`,
-      text: props.post.content,
-      url: `${window.location.origin}/post/${props.post._id || props.post.id}`
-    }).catch(err => console.log('Error sharing:', err))
-  } else {
-    // Fallback: copy to clipboard
-    navigator.clipboard?.writeText(window.location.href)
+const loadLikers = async () => {
+  likersLoading.value = true
+  try {
+    likers.value = await fetchLikers(props.post.id)
+  } finally {
+    likersLoading.value = false
   }
 }
 
-const sendPewgift = () => {
-  // Trigger pewgift flow
-  console.log('Send pewgift to post:', props.post._id)
+const toggleLikers = async () => {
+  likersOpen.value = !likersOpen.value
+  if (likersOpen.value) await loadLikers()
 }
 
-
-const openMedia = () => {
-  // Open media in fullscreen viewer
-  console.log('Open media:', props.post.mediaUrl || props.post.image)
+const onRepost = async () => {
+  reposting.value = true
+  const ok = await repostPost(props.post.id)
+  reposting.value = false
+  flash(ok ? 'Reposted to your feed' : 'Could not repost')
 }
 
-const showMoreOptions = () => {
-  // Show more options menu
-  console.log('Show more options for post:', props.post._id)
+const onShare = async () => {
+  const url = await sharePost(props.post.id, 'copy')
+  if (!url) return flash('Could not share this post')
+  sharesCount.value += 1
+
+  if (import.meta.client && navigator.share) {
+    try {
+      await navigator.share({ url, text: content.value.slice(0, 120) })
+      return
+    } catch {
+      // user dismissed the sheet; fall through to clipboard
+    }
+  }
+  if (import.meta.client) await navigator.clipboard?.writeText(url)
+  flash('Link copied')
+}
+
+const copyLink = async () => {
+  if (!import.meta.client) return
+  await navigator.clipboard?.writeText(`${window.location.origin}/posts/${props.post.id}`)
+  flash('Link copied')
+}
+
+const report = async () => {
+  try {
+    const result = await $fetch<{ success: boolean, message: string }>(
+      `/api/posts/${props.post.id}/report`,
+      { method: 'POST', body: { reason: 'other' } }
+    )
+    flash(result.message)
+  } catch {
+    flash('Could not submit report')
+  }
+}
+
+const onDelete = async () => {
+  if (import.meta.client && !window.confirm('Delete this post?')) return
+  const ok = await deletePost(props.post.id)
+  if (ok) emit('removed', props.post.id)
+  else flash('Could not delete this post')
+}
+
+const onEdited = (updated: { content: string, media: string[] }) => {
+  content.value = updated.content
+  media.value = updated.media
+  editing.value = false
+}
+
+const formatTimeAgo = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 </script>
 
 <style scoped>
 .post-card {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-card, #0a0f1e);
+  border: 1px solid var(--color-dark-grey, #1f2937);
+  border-radius: var(--radius-md, 16px);
   overflow: hidden;
-  transition: all 0.3s ease;
-  border: 1px solid #e1e5e9;
-  margin-bottom: 1.5rem;
+  color: var(--text-primary, #f0fffb);
 }
 
-.post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+.post-card.sponsored { border-color: var(--color-solar-gold, #ffc857); }
+
+.repost-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.5rem 0.85rem 0;
+  font-size: 0.78rem;
+  opacity: 0.75;
 }
 
-.post-card.trending {
-  border-left: 4px solid #ff6b6b;
-}
+.repost-author { color: inherit; font-weight: 600; text-decoration: none; }
 
-.post-card.friends {
-  border-left: 4px solid #4ecdc4;
-}
-
-.post-card.local {
-  border-left: 4px solid #45b7d1;
-}
-
-.post-card.sponsored {
-  border: 2px solid #f39c12;
-  background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-}
-
-.post-card.verified {
-  border-left: 4px solid #2ecc71;
-}
-
-.post-card.news {
-  border-left: 4px solid #9b59b6;
-}
-
-.post-card.interests {
-  border-left: 4px solid #e74c3c;
-}
-
-.post-card.pinned {
-  border-top: 3px solid #f39c12;
-}
-
+/* Header stays a single horizontal row on every breakpoint. */
 .post-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid #f8f9fa;
+  gap: 0.6rem;
+  padding: 0.6rem 0.85rem;
 }
 
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+.post-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
   object-fit: cover;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
-.author-name {
-  margin: 0;
-  font-size: 1rem;
+.post-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.post-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.92rem;
   font-weight: 600;
-  color: #2d3436;
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.verified { color: var(--color-aurora-mint, #6fffd4); }
+
+.post-meta {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.badge {
-  color: #0984e3;
-  font-size: 0.9rem;
-}
+.handle { overflow: hidden; text-overflow: ellipsis; }
 
-.post-timestamp {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #636e72;
-}
+.post-menu-wrap { position: relative; flex-shrink: 0; }
 
-.post-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.pin-indicator,
-.sponsored-indicator,
-.more-btn {
+.icon-btn {
   background: none;
   border: none;
-  padding: 0.5rem;
-  border-radius: 6px;
+  color: inherit;
+  padding: 0.3rem;
+  border-radius: 9999px;
   cursor: pointer;
-  transition: background-color 0.2s;
-  color: #636e72;
-  font-size: 1rem;
 }
 
-.pin-indicator:hover,
-.sponsored-indicator:hover,
-.more-btn:hover {
-  background: #f8f9fa;
+.post-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 30;
+  min-width: 170px;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  background: var(--color-charcoal, #121827);
+  border: 1px solid var(--color-dark-grey, #1f2937);
+  border-radius: var(--radius-sm, 8px);
+  box-shadow: 0 4px 20px rgba(10, 15, 30, 0.4);
 }
 
-.post-content {
-  padding: 1rem;
+.post-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
 }
+
+.post-menu button:hover { background: rgba(111, 255, 212, 0.08); }
+
+.post-body { padding: 0 0.85rem 0.6rem; }
 
 .post-text {
-  margin: 0 0 1rem 0;
-  line-height: 1.6;
-  color: #2d3436;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.post-media {
-  position: relative;
-  border-radius: 8px;
+.repost-source {
+  margin: 0 0.85rem 0.6rem;
+  border: 1px solid var(--color-dark-grey, #1f2937);
+  border-radius: var(--radius-sm, 8px);
   overflow: hidden;
+  padding-bottom: 0.5rem;
+}
+
+.repost-source-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.repost-avatar { width: 24px; height: 24px; border-radius: 9999px; object-fit: cover; }
+.repost-source-name { font-weight: 600; }
+.repost-source-time { opacity: 0.6; margin-left: auto; }
+.repost-source .post-text { padding: 0 0.6rem 0.4rem; }
+
+.post-hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem 0;
+}
+
+.hashtag { color: var(--color-aurora-mint, #6fffd4); font-size: 0.82rem; text-decoration: none; }
+
+.post-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.count-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 0.78rem;
+  padding: 0;
   cursor: pointer;
 }
 
-.post-media img {
-  width: 100%;
-  height: auto;
-  max-height: 400px;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
+.count-btn:disabled { cursor: default; opacity: 0.6; }
+.count-btn.static { cursor: default; }
 
-.post-media:hover img {
-  transform: scale(1.02);
-}
-
-.post-footer {
-  padding: 1rem;
-  border-top: 1px solid #f8f9fa;
-}
-
-.engagement-stats {
+.likers {
+  list-style: none;
+  margin: 0 0.85rem 0.5rem;
+  padding: 0.5rem;
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: #636e72;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: var(--color-charcoal, #121827);
+  border-radius: var(--radius-sm, 8px);
+  max-height: 180px;
+  overflow-y: auto;
 }
 
-.action-buttons {
+.liker { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.liker a { color: inherit; text-decoration: none; }
+.liker-avatar { width: 24px; height: 24px; border-radius: 9999px; object-fit: cover; }
+.likers-state { font-size: 0.8rem; opacity: 0.7; }
+
+/* Compact action bar so the media keeps the space. */
+.post-actions {
   display: flex;
-  justify-content: space-around;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  border-top: 1px solid var(--color-dark-grey, #1f2937);
 }
 
 .action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: none;
-  border: 1px solid #ddd;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #636e72;
-  font-weight: 500;
   flex: 1;
-  min-width: 70px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.2rem;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.8;
+  font-size: 0.82rem;
+  cursor: pointer;
 }
 
-.action-btn:hover {
-  background: #f8f9fa;
-  transform: translateY(-1px);
+.action-btn:hover { background: rgba(111, 255, 212, 0.07); }
+.action-btn.active { color: var(--color-aurora-mint, #6fffd4); opacity: 1; }
+.action-btn.gift { color: var(--color-solar-gold, #ffc857); }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.post-notice {
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--color-aurora-mint, #6fffd4);
 }
 
-.action-btn.like.active {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
-
-.action-btn.comment:hover {
-  color: #0984e3;
-  border-color: #0984e3;
-}
-
-.action-btn.share:hover {
-  color: #00b894;
-  border-color: #00b894;
-}
-
-.action-btn.gift:hover {
-  color: #fd79a8;
-  border-color: #fd79a8;
-}
-
-/* Responsive Design */
-@media (max-width: 480px) {
-  .post-header {
-    padding: 0.75rem;
-  }
-  
-  .author-avatar {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .author-name {
-    font-size: 0.9rem;
-  }
-  
-  .post-content {
-    padding: 0.75rem;
-  }
-  
-  .post-footer {
-    padding: 0.75rem;
-  }
-  
-  .action-buttons {
-    gap: 0.25rem;
-  }
-  
-  .action-btn {
-    padding: 0.5rem;
-    font-size: 0.85rem;
-  }
+@media (max-width: 768px) {
+  .post-card { border-radius: 0; border-left: none; border-right: none; }
+  .action-btn span { display: none; }
+  .action-btn { padding: 0.6rem 0.2rem; }
 }
 </style>

@@ -4,6 +4,9 @@
      ============================================================================ -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
+import PewgiftSummary from '~/components/financial/gifts/pewgift-summary.vue'
+import PewgiftHistory from '~/components/financial/gifts/pewgift-history.vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check'],
@@ -13,8 +16,13 @@ definePageMeta({
 const supabase = useSupabaseClient()
 
 // Active Panel Tabs
-const tabs = ['Transactions', 'Payment Methods', 'Withdrawals', 'Referrals']
-const activeTab = ref('Transactions')
+const tabs = ['Transactions', 'Pewgift', 'Payment Methods', 'Withdrawals', 'Referrals']
+const route = useRoute()
+const requestedTab = typeof route.query.tab === 'string' ? route.query.tab : ''
+const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : 'Transactions')
+
+const userStore = useUserStore()
+const pewgiftUserId = computed(() => userStore.user?.id ?? '')
 
 // Core Loading & UI Structural States
 const isLoading = ref(true)
@@ -373,6 +381,12 @@ onMounted(() => {
             <div v-else class="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-lg">
               No dynamic accounting row items logged under this workspace anchor.
             </div>
+          </div>
+
+          <!-- WORKSPACE A2: Pewgift balance, history and gifting -->
+          <div v-if="activeTab === 'Pewgift'" class="space-y-4">
+            <PewgiftSummary />
+            <PewgiftHistory v-if="pewgiftUserId" :user-id="pewgiftUserId" />
           </div>
 
           <!-- WORKSPACE B: Payment Profile Gateways Manager -->

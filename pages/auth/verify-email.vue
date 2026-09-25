@@ -3,7 +3,7 @@
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <NuxtLink to="/" class="inline-block">
-          <h1 class="text-4xl font-bold text-white mb-2">🌐 SocialVerse</h1>
+          <h1 class="text-4xl font-bold text-white mb-2">🌐 Viorp</h1>
         </NuxtLink>
         <p class="text-slate-300">Verify your email address</p>
       </div>

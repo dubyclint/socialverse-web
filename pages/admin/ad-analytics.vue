@@ -132,6 +132,7 @@ definePageMeta({
 })
   
 import { ref, onMounted } from 'vue'
+import type { AdAnalyticsResponse, AdCampaignActivity } from '~/server/api/admin/ad-analytics.get'
 
 // Reactive data
 const loading = ref(true)
@@ -142,62 +143,52 @@ const analytics = ref({
   activeCampaigns: 0
 })
 
-const recentActivity = ref([])
+const recentActivity = ref<AdCampaignActivity[]>([])
+const loadError = ref('')
 
-// Methods
+const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
+
 const refreshData = async () => {
   loading.value = true
+  loadError.value = ''
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Mock data - replace with actual API calls
-    analytics.value = {
-      totalImpressions: 1250000,
-      totalRevenue: 45600,
-      ctr: 3.2,
-      activeCampaigns: 24
-    }
-    
-    recentActivity.value = [
-      {
-        id: 1,
-        campaign: 'Summer Sale 2024',
-        advertiser: 'Fashion Brand Co.',
-        impressions: 1500,
-        clicks: 4200,
-        revenue: 1250,
-        status: 'Active'
-      },
-      {
-        id: 2,
-        campaign: 'Tech Product Launch',
-        advertiser: 'TechCorp Inc.',
-        impressions: 89000,
-        clicks: 2800,
-        revenue: 890,
-        status: 'Paused'
-      }
-    ]
-  } catch (error) {
-    console.error('Error fetching analytics data:', error)
+    const res = await $fetch<AdAnalyticsResponse>('/api/admin/ad-analytics')
+    analytics.value = res.analytics
+    recentActivity.value = res.recentActivity
+  } catch (err) {
+    loadError.value = err instanceof Error ? err.message : 'Failed to load analytics'
   } finally {
     loading.value = false
   }
 }
 
 const exportData = () => {
-  // Implement export functionality
-  console.log('Exporting analytics data...')
+  const header = 'campaign,advertiser,impressions,clicks,revenue,status'
+  const rows = recentActivity.value.map(row =>
+    [row.campaign, row.advertiser, row.impressions, row.clicks, row.revenue, row.status]
+      .map(value => `"${String(value).replace(/"/g, '""')}"`)
+      .join(',')
+  )
+  const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'ad-analytics.csv'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
-const viewDetails = (id) => {
-  navigateTo(`/admin/campaigns/${id}`)
+const viewDetails = (id: string) => {
+  navigateTo(`/admin/ad-slots?campaign=${id}`)
 }
 
-const pauseCampaign = async (id) => {
-  // Implement pause functionality
-  console.log('Pausing campaign:', id)
+const pauseCampaign = async (id: string) => {
+  try {
+    await $fetch('/api/admin/campaigns/status', { method: 'POST', body: { campaignId: id, status: 'PAUSED' } })
+    await refreshData()
+  } catch (err) {
+    loadError.value = err instanceof Error ? err.message : 'Failed to pause campaign'
+  }
 }
 
 onMounted(() => {

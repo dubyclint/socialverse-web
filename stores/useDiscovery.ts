@@ -2,10 +2,12 @@
 import { defineStore } from 'pinia'
 import { discoveryService } from '~/services/discovery'
 
+import type { DiscoveryItem as DiscoverySource } from '~/types/discovery'
+
 interface DiscoveryItem {
   id: string
-  type: 'match' | 'ad' | 'system'
-  content: any
+  type: 'stream' | 'user'
+  content: DiscoverySource
 }
 
 export const useDiscoveryStore = defineStore('discovery', {
@@ -22,13 +24,13 @@ export const useDiscoveryStore = defineStore('discovery', {
       this.loading = true
       try {
         // 1. Fetch data from our Layered Priority Pipeline
-        const rawData = await discoveryService.getFeed()
-        
+        const { items } = await discoveryService.getFeed()
+
         // 2. Map the data to a UI-friendly structure
         // This ensures the frontend feed loop is always consistent
-        this.feed = rawData.map((item: any) => ({
-          id: item.id || crypto.randomUUID(),
-          type: item.is_ad ? 'ad' : 'match',
+        this.feed = items.map(item => ({
+          id: item.stream_id || item.id,
+          type: item.kind,
           content: item
         }))
         

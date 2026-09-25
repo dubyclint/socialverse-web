@@ -10,10 +10,6 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Content-Type', 'application/json')
 
   try {
-    // 1. Extract Token Information for Context Tracing
-    const authHeader = getHeader(event, 'authorization')
-    const token = authHeader?.replace('Bearer ', '')
-
     // 2. Initialize Core Supabase Server Instances Explicitly
     const supabase = await serverSupabaseClient(event)
     const user = await serverSupabaseUser(event)
@@ -72,10 +68,8 @@ export default defineEventHandler(async (event) => {
       path: '/'
     }
 
-    setCookie(event, 'auth_token', '', cookieOptions)
-    setCookie(event, 'auth_refresh_token', '', cookieOptions)
     setCookie(event, 'auth_user', '', cookieOptions)
-    
+
     console.log('[Logout API] ✅ Storage response cookies purged.')
     console.log('[Logout API] ============ LOGOUT END ============')
 
@@ -106,7 +100,8 @@ export default defineEventHandler(async (event) => {
 function getClientIP(event: any): string {
   const forwarded = getHeader(event, 'x-forwarded-for')
   if (forwarded) {
-    return forwarded.split(',').trim()
+    const first = forwarded.split(',')[0]
+    if (first) return first.trim()
   }
   return getHeader(event, 'x-real-ip') || '127.0.0.1'
 }

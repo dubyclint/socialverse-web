@@ -1,0 +1,111 @@
+/* ============================================================================
+   VIORP — "Aurora Night" design tokens.
+   Single source of truth for brand colour, type, spacing, radius and shadow.
+   Loaded before the legacy sheets so components can migrate onto var() names.
+   ============================================================================ */
+
+:root {
+  /* Aurora Night palette */
+  --color-deep-aurora: #0a0f1e;
+  --color-charcoal: #121827;
+  --color-aurora-mint: #6fffd4;
+  --color-solar-gold: #ffc857;
+  --color-dark-grey: #1f2937;
+  --color-off-white: #f0fffb;
+  --color-error: #ff2e88;
+  --color-glow: rgba(111, 255, 212, 0.4);
+
+  /* Semantic usage */
+  --bg-app: var(--color-charcoal);
+  --bg-card: var(--color-deep-aurora);
+  --border-subtle: var(--color-dark-grey);
+  --text-primary: var(--color-off-white);
+  --text-muted: #9fb3ad;
+  --text-on-accent: var(--color-deep-aurora);
+  --accent: var(--color-aurora-mint);
+  --alert: var(--color-solar-gold);
+  --success: var(--color-aurora-mint);
+  --warning: var(--color-solar-gold);
+  --error: var(--color-error);
+
+  /* Chat bubbles */
+  --chat-you: var(--color-aurora-mint);
+  --chat-them: var(--color-dark-grey);
+  --chat-text-on-mint: var(--color-deep-aurora);
+  --chat-text-on-dark: var(--color-off-white);
+
+  /* Typography */
+  --font-heading: Satoshi, Inter, system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --weight-bold: 800;
+  --weight-semibold: 600;
+  --weight-regular: 400;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  /* Effects */
+  --shadow-glow: 0 0 8px var(--color-glow);
+  --shadow-card: 0 4px 20px rgba(10, 15, 30, 0.3);
+  --motion-duration: 300ms;
+  --motion-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html,
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-bold);
+}
+
+a {
+  color: var(--accent);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow: var(--shadow-glow);
+  border-radius: var(--radius-lg);
+  font-weight: var(--weight-semibold);
+  transition: box-shadow var(--motion-duration) var(--motion-easing);
+}
+
+.btn-primary:hover,
+.btn-primary:active {
+  box-shadow: 0 0 16px var(--color-glow);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}

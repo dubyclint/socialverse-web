@@ -3,7 +3,7 @@
   <div class="call-history-item">
     <div class="call-avatar">
       <img 
-        :src="call.contactAvatar || '/default-avatar.png'" 
+        :src="call.contactAvatar || '/default-avatar.svg'" 
         :alt="call.contactName"
       />
     </div>

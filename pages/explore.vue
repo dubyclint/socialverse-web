@@ -48,7 +48,7 @@ definePageMeta({
   
 import { ref, onMounted } from 'vue'
 useHead({
-  title: 'Explore - SocialVerse',
+  title: 'Explore - Viorp',
   meta: [
     { name: 'description', content: 'Discover trending content and topics' }
   ]

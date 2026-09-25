@@ -36,9 +36,9 @@ export default defineEventHandler(async (event) => {
 
       // Update user verification status
       const { error: userUpdateError } = await supabase
-        .from('users')
+        .from('user')
         .update({ is_verified: true })
-        .eq('id', request.user_id);
+        .eq('user_id', request.user_id);
         
       if (userUpdateError) throw userUpdateError;
     }

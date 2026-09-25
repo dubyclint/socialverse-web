@@ -46,8 +46,10 @@ const loading = ref(true)
 const error = ref('')
 const profile = ref<any>(null)
 
-const isUuid = (v: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+// Profiles are addressable by uuid or by username.
+const isAddressable = (v: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ||
+  /^[a-z0-9_.-]{2,40}$/i.test(v)
 
 const onAvatarError = (e: Event) => {
   const img = e.target as HTMLImageElement
@@ -63,8 +65,7 @@ onMounted(async () => {
       return
     }
 
-    // Optional strictness: enforce UUID-shaped ids
-    if (!isUuid(id)) {
+    if (!isAddressable(id)) {
       error.value = 'Invalid profile id format.'
       return
     }

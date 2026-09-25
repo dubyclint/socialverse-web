@@ -50,12 +50,23 @@ definePageMeta({
   
 import { ref, onMounted, computed } from 'vue'
 
-const users = ref([])
+interface TrustUser {
+  id: string | number
+  username: string
+  country: string
+  isVerified: boolean
+  isPremium: boolean
+  trustScore: number
+  criteriaMet: string[]
+  isTrusted: boolean
+}
+
+const users = ref<TrustUser[]>([])
 const filter = ref('')
 
 onMounted(async () => {
   const res = await fetch('/api/admin/trust-scores')
-  users.value = await res.json()
+  users.value = (await res.json()) as TrustUser[]
 })
 
 const filteredUsers = computed(() => {

@@ -3,7 +3,7 @@
   <div class="settings-overlay" @click="handleOverlayClick">
     <div class="settings-panel" @click.stop>
       <div class="settings-header">
-        <button class="back-btn" @click="goBack" v-if="currentSection !== 'main'">
+        <button v-if="currentSection !== 'main'" class="back-btn" @click="goBack">
           <Icon name="arrow-left" />
         </button>
         <h3>{{ sectionTitles[currentSection] }}</h3>
@@ -13,6 +13,8 @@
       </div>
 
       <div class="settings-content">
+        <p v-if="error" class="settings-error">{{ error }}</p>
+
         <!-- Main Settings Menu -->
         <div v-if="currentSection === 'main'" class="main-menu">
           <div class="settings-section">
@@ -20,28 +22,34 @@
             <settings-item
               icon="shield"
               title="Security Notice"
-              subtitle="Our app is a private chat messenger"
+              subtitle="How your chats are protected"
               @click="currentSection = 'security'"
             />
             <settings-item
               icon="mail"
               title="Email Address"
               :subtitle="userEmail"
-              badge="Verified"
+              :badge="emailVerified ? 'Verified' : 'Unverified'"
               @click="currentSection = 'email'"
+            />
+            <settings-item
+              icon="lock"
+              title="App Lock"
+              :subtitle="appLockLabel"
+              @click="currentSection = 'appLock'"
             />
             <settings-item
               icon="info"
               title="Request Account Info"
-              subtitle="Contact support"
-              @click="contactSupport"
+              subtitle="Download your chat history"
+              @click="downloadChatHistory"
             />
             <settings-item
               icon="trash-2"
               title="Delete Account"
               subtitle="Permanently delete your account"
               danger
-              @click="currentSection = 'deleteAccount'"
+              @click="goToDeleteAccount"
             />
           </div>
 
@@ -50,50 +58,44 @@
             <settings-item
               icon="eye"
               title="Status"
-              subtitle="Manage status privacy"
+              :subtitle="visibilityLabel(settings.privacy.status)"
               @click="currentSection = 'statusPrivacy'"
             />
             <settings-item
               icon="check-check"
               title="Read Receipts"
-              :subtitle="settings.readReceipts ? 'On' : 'Off'"
-              @click="toggleReadReceipts"
+              :subtitle="settings.privacy.readReceipts ? 'On' : 'Off'"
+              @click="update('privacy', { readReceipts: !settings.privacy.readReceipts })"
             />
             <settings-item
               icon="clock"
               title="Disappearing Messages"
-              :subtitle="getDisappearingMessagesText()"
+              :subtitle="disappearingLabel"
               @click="currentSection = 'disappearingMessages'"
             />
             <settings-item
               icon="users"
               title="Groups"
-              subtitle="Who can add you to groups"
+              :subtitle="visibilityLabel(settings.privacy.groups)"
               @click="currentSection = 'groupPrivacy'"
             />
             <settings-item
               icon="phone-off"
               title="Silence Unknown Callers"
-              :subtitle="settings.silenceUnknownCallers ? 'On' : 'Off'"
-              @click="toggleSilenceUnknownCallers"
+              :subtitle="settings.privacy.silenceUnknownCallers ? 'On' : 'Off'"
+              @click="update('privacy', { silenceUnknownCallers: !settings.privacy.silenceUnknownCallers })"
             />
             <settings-item
               icon="user-x"
               title="Blocked Contacts"
-              subtitle="Manage blocked users"
-              @click="currentSection = 'blockedContacts'"
+              :subtitle="`${blocked.length} blocked`"
+              @click="openBlockedContacts"
             />
             <settings-item
-              icon="lock"
-              title="App Lock"
-              subtitle="Pattern lock or fingerprint"
-              @click="currentSection = 'appLock'"
-            />
-            <settings-item
-              icon="palette"
-              title="Chat Theme"
-              subtitle="Customize appearance"
-              @click="currentSection = 'chatTheme'"
+              icon="refresh-cw"
+              title="Contact Sync"
+              :subtitle="settings.privacy.contactSyncEnabled ? 'On' : 'Off'"
+              @click="update('privacy', { contactSyncEnabled: !settings.privacy.contactSyncEnabled })"
             />
           </div>
 
@@ -102,20 +104,32 @@
             <settings-item
               icon="volume-2"
               title="Conversation Tones"
-              :subtitle="settings.conversationTones ? 'On' : 'Off'"
-              @click="toggleConversationTones"
+              :subtitle="settings.notifications.conversationTones ? 'On' : 'Off'"
+              @click="update('notifications', { conversationTones: !settings.notifications.conversationTones })"
             />
             <settings-item
               icon="bell"
-              title="Reminders"
-              :subtitle="settings.reminders ? 'On' : 'Off'"
-              @click="toggleReminders"
+              title="Push Notifications"
+              :subtitle="settings.notifications.pushEnabled ? 'On' : 'Off'"
+              @click="update('notifications', { pushEnabled: !settings.notifications.pushEnabled })"
             />
             <settings-item
-              icon="smartphone"
-              title="Device Tones"
-              subtitle="Use device default tones"
-              @click="currentSection = 'deviceTones'"
+              icon="message-square"
+              title="Message Preview"
+              :subtitle="settings.notifications.messagePreview ? 'On' : 'Off'"
+              @click="update('notifications', { messagePreview: !settings.notifications.messagePreview })"
+            />
+            <settings-item
+              icon="clock"
+              title="Reminders"
+              :subtitle="settings.notifications.reminders ? 'On' : 'Off'"
+              @click="update('notifications', { reminders: !settings.notifications.reminders })"
+            />
+            <settings-item
+              icon="mail"
+              title="Email Digest"
+              :subtitle="settings.notifications.emailDigest ? 'On' : 'Off'"
+              @click="update('notifications', { emailDigest: !settings.notifications.emailDigest })"
             />
           </div>
 
@@ -124,20 +138,26 @@
             <settings-item
               icon="hard-drive"
               title="Manage Storage"
-              subtitle="View and manage data usage"
-              @click="currentSection = 'storage'"
+              subtitle="View and clear your chat data"
+              @click="openStorage"
             />
             <settings-item
               icon="wifi"
-              title="Network Usage"
-              subtitle="Monitor data consumption"
+              title="Auto-Download"
+              :subtitle="autoDownloadLabel"
               @click="currentSection = 'networkUsage'"
             />
             <settings-item
               icon="image"
-              title="Media Quality"
-              :subtitle="settings.mediaQuality || 'Auto'"
+              title="Media Upload Quality"
+              :subtitle="settings.storage_data.mediaUploadQuality === 'hd' ? 'HD' : 'Standard'"
               @click="currentSection = 'mediaQuality'"
+            />
+            <settings-item
+              icon="zap"
+              title="Data Saver"
+              :subtitle="settings.storage_data.dataSaver ? 'On' : 'Off'"
+              @click="update('storage_data', { dataSaver: !settings.storage_data.dataSaver })"
             />
           </div>
 
@@ -146,8 +166,26 @@
             <settings-item
               icon="globe"
               title="App Language"
-              :subtitle="settings.language || 'Device Default'"
+              :subtitle="languageLabel"
               @click="currentSection = 'language'"
+            />
+            <settings-item
+              icon="palette"
+              title="Theme"
+              :subtitle="themeLabel"
+              @click="currentSection = 'chatTheme'"
+            />
+            <settings-item
+              icon="corner-down-left"
+              title="Enter Sends Message"
+              :subtitle="settings.general.enterToSend ? 'On' : 'Off'"
+              @click="update('general', { enterToSend: !settings.general.enterToSend })"
+            />
+            <settings-item
+              icon="log-out"
+              title="Auto Logout"
+              :subtitle="`${settings.general.idleLogoutMinutes} minutes idle`"
+              @click="currentSection = 'idleLogout'"
             />
             <settings-item
               icon="help-circle"
@@ -165,107 +203,254 @@
               icon="share"
               title="Invite a Friend"
               subtitle="Share via SMS"
-              @click="currentSection = 'inviteFriend'"
+              @click="openInvite"
             />
           </div>
         </div>
 
-        <!-- Status Privacy Settings -->
-        <div v-if="currentSection === 'statusPrivacy'" class="status-privacy">
-          <div class="setting-item">
-            <div class="setting-info">
-              <div class="setting-title">Allow people to share your status</div>
-              <div class="setting-description">Let others share your status updates</div>
-            </div>
-            <ToggleSwitch v-model="settings.allowStatusSharing" />
-          </div>
+        <!-- Security Notice -->
+        <div v-else-if="currentSection === 'security'" class="notice-block">
+          <p>
+            Direct and group chats are delivered over an authenticated connection and are
+            only readable by the members of the conversation and you on your devices.
+          </p>
+          <p>
+            Viorp never sells your messages, contacts or profile data. Contact sync only
+            uploads irreversible hashes of phone numbers, never the numbers themselves.
+          </p>
+        </div>
 
+        <!-- Email -->
+        <div v-else-if="currentSection === 'email'" class="notice-block">
           <div class="setting-item">
             <div class="setting-info">
-              <div class="setting-title">Who cannot see your status</div>
-              <div class="setting-description">Select contacts to hide status from</div>
+              <div class="setting-title">{{ userEmail }}</div>
+              <div class="setting-description">
+                {{ emailVerified ? 'Verified address' : 'Not verified yet' }}
+              </div>
             </div>
-            <button class="setting-action" @click="selectHiddenContacts">
-              {{ hiddenContactsCount }} contacts
-              <Icon name="chevron-right" />
-            </button>
+            <NuxtLink v-if="!emailVerified" class="setting-action" to="/verify-email">
+              Verify
+            </NuxtLink>
           </div>
         </div>
 
-        <!-- Disappearing Messages Settings -->
-        <div v-if="currentSection === 'disappearingMessages'" class="disappearing-messages">
+        <!-- Status Privacy -->
+        <div v-else-if="currentSection === 'statusPrivacy'" class="status-privacy">
           <div class="option-list">
-            <div 
-              v-for="option in disappearingOptions"
+            <div
+              v-for="option in visibilityOptions"
               :key="option.value"
               class="option-item"
-              :class="{ active: settings.disappearingMessages === option.value }"
-              @click="setDisappearingMessages(option.value)"
+              :class="{ active: settings.privacy.status === option.value }"
+              @click="update('privacy', { status: option.value })"
             >
               <div class="option-info">
                 <div class="option-title">{{ option.label }}</div>
                 <div class="option-description">{{ option.description }}</div>
               </div>
               <div class="option-radio">
-                <div class="radio-dot" v-if="settings.disappearingMessages === option.value"></div>
+                <div v-if="settings.privacy.status === option.value" class="radio-dot" />
               </div>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-title">Private Account</div>
+              <div class="setting-description">Only approved PALs can see your posts</div>
+            </div>
+            <ToggleSwitch
+              :model-value="settings.privacy.isPrivateAccount"
+              @update:model-value="update('privacy', { isPrivateAccount: $event })"
+            />
+          </div>
+        </div>
+
+        <!-- Group Privacy -->
+        <div v-else-if="currentSection === 'groupPrivacy'" class="option-list">
+          <div
+            v-for="option in visibilityOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.privacy.groups === option.value }"
+            @click="update('privacy', { groups: option.value })"
+          >
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+              <div class="option-description">Who can add you to groups</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.privacy.groups === option.value" class="radio-dot" />
             </div>
           </div>
         </div>
 
-        <!-- App Lock Settings -->
-        <div v-if="currentSection === 'appLock'" class="app-lock">
-          <div class="setting-item">
-            <div class="setting-info">
-              <div class="setting-title">Enable App Lock</div>
-              <div class="setting-description">Require authentication to open chat</div>
+        <!-- Disappearing Messages -->
+        <div v-else-if="currentSection === 'disappearingMessages'" class="option-list">
+          <div
+            v-for="option in disappearingOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.privacy.disappearingMessages === option.value }"
+            @click="update('privacy', { disappearingMessages: option.value })"
+          >
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+              <div class="option-description">{{ option.description }}</div>
             </div>
-            <ToggleSwitch v-model="settings.appLockEnabled" />
+            <div class="option-radio">
+              <div v-if="settings.privacy.disappearingMessages === option.value" class="radio-dot" />
+            </div>
           </div>
+        </div>
 
-          <div v-if="settings.appLockEnabled" class="lock-options">
-            <div class="option-list">
-              <div 
-                v-for="option in lockOptions"
-                :key="option.value"
-                class="option-item"
-                :class="{ active: settings.lockType === option.value }"
-                @click="setLockType(option.value)"
-              >
-                <Icon :name="option.icon" />
-                <div class="option-info">
-                  <div class="option-title">{{ option.label }}</div>
-                </div>
-                <div class="option-radio">
-                  <div class="radio-dot" v-if="settings.lockType === option.value"></div>
-                </div>
-              </div>
+        <!-- Blocked Contacts -->
+        <div v-else-if="currentSection === 'blockedContacts'" class="contacts-list">
+          <p v-if="!blocked.length" class="empty-note">You have not blocked anyone.</p>
+          <div v-for="person in blocked" :key="person.id" class="contact-item">
+            <div class="contact-info">
+              <div class="contact-name">{{ person.name }}</div>
+              <div class="contact-phone">@{{ person.username || 'user' }}</div>
+            </div>
+            <button class="invite-btn" @click="unblock(person.id)">Unblock</button>
+          </div>
+        </div>
+
+        <!-- App Lock -->
+        <div v-else-if="currentSection === 'appLock'" class="option-list">
+          <div
+            v-for="option in lockOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.account.appLockType === option.value }"
+            @click="update('account', { appLockType: option.value })"
+          >
+            <Icon :name="option.icon" />
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.account.appLockType === option.value" class="radio-dot" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Auto-download / network usage -->
+        <div v-else-if="currentSection === 'networkUsage'" class="option-list">
+          <div v-for="group in autoDownloadGroups" :key="group.key" class="setting-item">
+            <div class="setting-info">
+              <div class="setting-title">{{ group.label }}</div>
+              <div class="setting-description">When to download automatically</div>
+            </div>
+            <select
+              class="setting-select"
+              :value="settings.storage_data[group.key]"
+              @change="update('storage_data', { [group.key]: ($event.target as HTMLSelectElement).value })"
+            >
+              <option value="never">Never</option>
+              <option value="wifi">Wi-Fi only</option>
+              <option value="always">Wi-Fi and mobile data</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Media quality -->
+        <div v-else-if="currentSection === 'mediaQuality'" class="option-list">
+          <div
+            v-for="option in mediaQualityOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.storage_data.mediaUploadQuality === option.value }"
+            @click="update('storage_data', { mediaUploadQuality: option.value })"
+          >
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+              <div class="option-description">{{ option.description }}</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.storage_data.mediaUploadQuality === option.value" class="radio-dot" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Theme -->
+        <div v-else-if="currentSection === 'chatTheme'" class="option-list">
+          <div
+            v-for="option in themeOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.general.theme === option.value }"
+            @click="update('general', { theme: option.value })"
+          >
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.general.theme === option.value" class="radio-dot" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Language -->
+        <div v-else-if="currentSection === 'language'" class="option-list">
+          <div
+            v-for="option in languageOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.general.language === option.value }"
+            @click="update('general', { language: option.value })"
+          >
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.general.language === option.value" class="radio-dot" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Idle logout -->
+        <div v-else-if="currentSection === 'idleLogout'" class="option-list">
+          <div
+            v-for="minutes in idleLogoutOptions"
+            :key="minutes"
+            class="option-item"
+            :class="{ active: settings.general.idleLogoutMinutes === minutes }"
+            @click="update('general', { idleLogoutMinutes: minutes })"
+          >
+            <div class="option-info">
+              <div class="option-title">{{ minutes }} minutes</div>
+              <div class="option-description">Sign out after this much inactivity</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.general.idleLogoutMinutes === minutes" class="radio-dot" />
             </div>
           </div>
         </div>
 
         <!-- Storage Management -->
-        <div v-if="currentSection === 'storage'" class="storage-management">
+        <div v-else-if="currentSection === 'storage'" class="storage-management">
           <div class="storage-overview">
             <div class="storage-item">
               <Icon name="message-circle" />
               <div class="storage-info">
-                <div class="storage-label">Messages</div>
-                <div class="storage-size">{{ formatSize(storageData.messages) }}</div>
+                <div class="storage-label">Messages ({{ storage.messageCount }})</div>
+                <div class="storage-size">{{ formatSize(storage.messages) }}</div>
               </div>
             </div>
             <div class="storage-item">
               <Icon name="image" />
               <div class="storage-info">
-                <div class="storage-label">Media</div>
-                <div class="storage-size">{{ formatSize(storageData.media) }}</div>
+                <div class="storage-label">Media attachments</div>
+                <div class="storage-size">{{ storage.mediaCount }} files</div>
               </div>
             </div>
             <div class="storage-item">
               <Icon name="circle" />
               <div class="storage-info">
-                <div class="storage-label">Status</div>
-                <div class="storage-size">{{ formatSize(storageData.status) }}</div>
+                <div class="storage-label">Statuses</div>
+                <div class="storage-size">{{ storage.statusCount }} posted</div>
               </div>
             </div>
           </div>
@@ -277,31 +462,32 @@
             </button>
             <button class="action-btn danger" @click="clearChatHistory">
               <Icon name="trash-2" />
-              Clear Chat History
+              Delete My Messages
             </button>
           </div>
         </div>
 
         <!-- Invite Friend -->
-        <div v-if="currentSection === 'inviteFriend'" class="invite-friend">
+        <div v-else-if="currentSection === 'inviteFriend'" class="invite-friend">
           <div class="invite-message">
             <textarea
               v-model="inviteMessage"
-              placeholder="Hey! Join me on SocialVerse..."
+              placeholder="Hey! Join me on Viorp..."
               class="invite-textarea"
               rows="3"
-            ></textarea>
+            />
           </div>
 
           <div class="contacts-list">
-            <div class="contact-item" v-for="contact in deviceContacts" :key="contact.id">
+            <p v-if="!invitable.length" class="empty-note">
+              No contacts to invite yet. Sync your contacts from the chat list first.
+            </p>
+            <div v-for="contact in invitable" :key="contact.name + contact.phone" class="contact-item">
               <div class="contact-info">
                 <div class="contact-name">{{ contact.name }}</div>
                 <div class="contact-phone">{{ contact.phone }}</div>
               </div>
-              <button class="invite-btn" @click="sendInvite(contact)">
-                Invite
-              </button>
+              <button class="invite-btn" @click="sendInvite(contact)">Invite</button>
             </div>
           </div>
         </div>
@@ -310,161 +496,222 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import Icon from '@/components/ui/icon.vue'
 import settingsItem from './settings-item.vue'
-import toggleSwitch from '@/components/ui/toggle-switch.vue'
+import ToggleSwitch from '@/components/ui/toggle-switch.vue'
+import { useUserSettings } from '~/composables/use-user-settings'
+import { usePals } from '~/composables/use-pals'
+import type { Visibility } from '~/shared/user-settings'
 
-// Props
-const props = defineProps({
-  settings: { type: Object, default: () => ({}) }
-})
+interface StorageUsage {
+  messages: number
+  messageCount: number
+  mediaCount: number
+  statusCount: number
+}
 
-// Emits
-const emit = defineEmits(['close', 'updated'])
+interface InvitableContact {
+  name: string
+  phone: string
+}
 
-// Stores
+const emit = defineEmits<{ close: [] }>()
+
+const router = useRouter()
 const userStore = useUserStore()
+const { settings, error, load, update } = useUserSettings()
+const { blocked, loadAll, setBlocked } = usePals()
 
-// Reactive data
-const currentSection = ref('main')
-const inviteMessage = ref('Hey! Join me on SocialVerse - a private social platform. Download: [APP_LINK]')
-const hiddenContactsCount = ref(0)
-const deviceContacts = ref([])
-const storageData = ref({
-  messages: 125000000,
-  media: 890000000,
-  status: 45000000
-})
+const currentSection = ref<string>('main')
+const inviteMessage = ref('Hey! Join me on Viorp - a private social platform. Download: https://viorp.com/download')
+const invitable = ref<InvitableContact[]>([])
+const storage = ref<StorageUsage>({ messages: 0, messageCount: 0, mediaCount: 0, statusCount: 0 })
 
-// Computed properties
 const userEmail = computed(() => userStore.user?.email || 'Not set')
+const emailVerified = computed(() => Boolean(userStore.user?.email_confirmed_at))
 
-const sectionTitles = computed(() => ({
+const sectionTitles: Record<string, string> = {
   main: 'Settings',
   security: 'Security Notice',
   email: 'Email Address',
-  deleteAccount: 'Delete Account',
   statusPrivacy: 'Status Privacy',
   disappearingMessages: 'Disappearing Messages',
   groupPrivacy: 'Group Privacy',
   blockedContacts: 'Blocked Contacts',
   appLock: 'App Lock',
-  chatTheme: 'Chat Theme',
-  deviceTones: 'Device Tones',
+  chatTheme: 'Theme',
   storage: 'Storage Management',
-  networkUsage: 'Network Usage',
-  mediaQuality: 'Media Quality',
+  networkUsage: 'Auto-Download',
+  mediaQuality: 'Media Upload Quality',
   language: 'App Language',
+  idleLogout: 'Auto Logout',
   inviteFriend: 'Invite a Friend'
-}))
+}
 
-const disappearingOptions = computed(() => [
-  { value: 'off', label: 'Off', description: 'Messages will not disappear' },
-  { value: '24h', label: '24 hours', description: 'Messages disappear after 24 hours' },
-  { value: '7d', label: '7 days', description: 'Messages disappear after 7 days' },
-  { value: '60d', label: '60 days', description: 'Messages disappear after 60 days' }
-])
+const visibilityOptions = [
+  { value: 'everyone' as Visibility, label: 'Everyone', description: 'Any Viorp user' },
+  { value: 'contacts' as Visibility, label: 'My Contacts', description: 'Only synced contacts and PALs' },
+  { value: 'nobody' as Visibility, label: 'Nobody', description: 'Hidden from everyone' }
+]
 
-const lockOptions = computed(() => [
-  { value: 'pattern', label: 'Pattern Lock', icon: 'grid-3x3' },
-  { value: 'fingerprint', label: 'Fingerprint', icon: 'fingerprint' },
-  { value: 'pin', label: 'PIN Code', icon: 'hash' }
-])
+const disappearingOptions = [
+  { value: 'off' as const, label: 'Off', description: 'Messages will not disappear' },
+  { value: '24h' as const, label: '24 hours', description: 'Messages disappear after 24 hours' },
+  { value: '7d' as const, label: '7 days', description: 'Messages disappear after 7 days' },
+  { value: '60d' as const, label: '60 days', description: 'Messages disappear after 60 days' }
+]
 
-// Methods
-const handleOverlayClick = () => {
+const lockOptions = [
+  { value: 'none' as const, label: 'Off', icon: 'unlock' },
+  { value: 'pattern' as const, label: 'Pattern Lock', icon: 'grid-3x3' },
+  { value: 'fingerprint' as const, label: 'Fingerprint', icon: 'fingerprint' },
+  { value: 'pin' as const, label: 'PIN Code', icon: 'hash' }
+]
+
+const mediaQualityOptions = [
+  { value: 'standard' as const, label: 'Standard', description: 'Smaller uploads, faster on mobile data' },
+  { value: 'hd' as const, label: 'HD', description: 'Best quality, larger uploads' }
+]
+
+const themeOptions = [
+  { value: 'system' as const, label: 'System default' },
+  { value: 'dark' as const, label: 'Aurora Night (dark)' },
+  { value: 'light' as const, label: 'Light' }
+]
+
+const languageOptions = [
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'Français' },
+  { value: 'es', label: 'Español' },
+  { value: 'pt', label: 'Português' },
+  { value: 'ar', label: 'العربية' }
+]
+
+const idleLogoutOptions = [15, 30, 60, 120]
+
+const autoDownloadGroups = [
+  { key: 'autoDownloadPhotos' as const, label: 'Photos' },
+  { key: 'autoDownloadVideos' as const, label: 'Videos' },
+  { key: 'autoDownloadDocuments' as const, label: 'Documents' }
+]
+
+const visibilityLabel = (value: Visibility): string =>
+  visibilityOptions.find(option => option.value === value)?.label ?? 'Everyone'
+
+const disappearingLabel = computed(() =>
+  disappearingOptions.find(option => option.value === settings.value.privacy.disappearingMessages)?.label ?? 'Off'
+)
+
+const appLockLabel = computed(() =>
+  lockOptions.find(option => option.value === settings.value.account.appLockType)?.label ?? 'Off'
+)
+
+const languageLabel = computed(() =>
+  languageOptions.find(option => option.value === settings.value.general.language)?.label ?? 'English'
+)
+
+const themeLabel = computed(() =>
+  themeOptions.find(option => option.value === settings.value.general.theme)?.label ?? 'System default'
+)
+
+const autoDownloadLabel = computed(() => {
+  const active = autoDownloadGroups
+    .filter(group => settings.value.storage_data[group.key] !== 'never')
+    .map(group => group.label)
+  return active.length ? active.join(', ') : 'Off'
+})
+
+const handleOverlayClick = () => emit('close')
+const goBack = () => { currentSection.value = 'main' }
+
+const openBlockedContacts = async () => {
+  currentSection.value = 'blockedContacts'
+  await loadAll()
+}
+
+const unblock = async (userId: string) => {
+  await setBlocked(userId, false)
+}
+
+const openStorage = async () => {
+  currentSection.value = 'storage'
+  try {
+    storage.value = await $fetch<StorageUsage>('/api/chat/storage-usage')
+  } catch {
+    error.value = 'Could not read your storage usage'
+  }
+}
+
+const openInvite = async () => {
+  currentSection.value = 'inviteFriend'
+  try {
+    const response = await $fetch<{ invitable: InvitableContact[] }>('/api/contacts')
+    invitable.value = response.invitable ?? []
+  } catch {
+    invitable.value = []
+  }
+}
+
+const goToDeleteAccount = () => {
   emit('close')
-}
-
-const goBack = () => {
-  currentSection.value = 'main'
-}
-
-const getDisappearingMessagesText = () => {
-  const option = disappearingOptions.value.find(opt => opt.value === props.settings.disappearingMessages)
-  return option ? option.label : 'Off'
-}
-
-const toggleReadReceipts = () => {
-  updateSetting('readReceipts', !props.settings.readReceipts)
-}
-
-const toggleSilenceUnknownCallers = () => {
-  updateSetting('silenceUnknownCallers', !props.settings.silenceUnknownCallers)
-}
-
-const toggleConversationTones = () => {
-  updateSetting('conversationTones', !props.settings.conversationTones)
-}
-
-const toggleReminders = () => {
-  updateSetting('reminders', !props.settings.reminders)
-}
-
-const setDisappearingMessages = (value) => {
-  updateSetting('disappearingMessages', value)
-}
-
-const setLockType = (type) => {
-  updateSetting('lockType', type)
-}
-
-const updateSetting = (key, value) => {
-  const newSettings = { ...props.settings, [key]: value }
-  emit('updated', newSettings)
+  router.push('/settings/delete-account')
 }
 
 const contactSupport = () => {
-  window.open('https://support.socialverse.com', '_blank')
+  emit('close')
+  router.push('/support')
 }
 
 const openTerms = () => {
-  window.open('https://socialverse.com/terms', '_blank')
+  emit('close')
+  router.push('/terms')
 }
 
-const selectHiddenContacts = () => {
-  console.log('Select hidden contacts')
-}
-
-const downloadChatHistory = () => {
-  console.log('Download chat history')
-}
-
-const clearChatHistory = () => {
-  if (confirm('Are you sure you want to clear all chat history? This cannot be undone.')) {
-    console.log('Clear chat history')
+const downloadChatHistory = async () => {
+  try {
+    const blob = await $fetch<Blob>('/api/chat/history/export', { responseType: 'blob' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'viorp-chat-history.json'
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    error.value = 'Could not export your chat history'
   }
 }
 
-const sendInvite = (contact) => {
-  const message = inviteMessage.value.replace('[APP_LINK]', 'https://socialverse.com/download')
-  
+const clearChatHistory = async () => {
+  if (!confirm('Delete every message you have sent? This cannot be undone.')) return
+  try {
+    await $fetch('/api/chat/history/clear', { method: 'POST' })
+    storage.value = await $fetch<StorageUsage>('/api/chat/storage-usage')
+  } catch {
+    error.value = 'Could not delete your messages'
+  }
+}
+
+const sendInvite = (contact: InvitableContact) => {
+  const message = inviteMessage.value
   if (navigator.share) {
-    navigator.share({
-      text: message
-    })
-  } else {
-    window.open(`sms:${contact.phone}?body=${encodeURIComponent(message)}`)
+    void navigator.share({ text: message })
+    return
   }
+  window.open(`sms:${contact.phone}?body=${encodeURIComponent(message)}`)
 }
 
-const formatSize = (bytes) => {
+const formatSize = (bytes: number): string => {
   const sizes = ['B', 'KB', 'MB', 'GB']
-  if (bytes === 0) return '0 B'
+  if (!bytes) return '0 B'
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+  return `${Math.round((bytes / Math.pow(1024, i)) * 100) / 100} ${sizes[i]}`
 }
 
-// Lifecycle
 onMounted(() => {
-  deviceContacts.value = [
-    { id: 1, name: 'John Doe', phone: '+1234567890' },
-    { id: 2, name: 'Jane Smith', phone: '+1234567891' },
-    { id: 3, name: 'Bob Johnson', phone: '+1234567892' }
-  ]
+  void load()
 })
 </script>
 
@@ -784,5 +1031,27 @@ onMounted(() => {
   .settings-content {
     padding: 16px;
   }
+}
+</style>
+
+<style scoped>
+.settings-error {
+  margin: 0 0 12px;
+  color: var(--color-error, #FF2E88);
+  font-size: 13px;
+}
+
+.empty-note {
+  padding: 16px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.setting-select {
+  background: transparent;
+  border: 1px solid var(--color-dark-grey, #1F2937);
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: inherit;
 }
 </style>
