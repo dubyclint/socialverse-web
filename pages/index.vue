@@ -18,7 +18,7 @@
 
     <main class="hero">
       <div class="hero-content">
-        <h1>Encrypted social messaging for modern communities</h1>
+        <h1>vibe  me orp in my orbit , everything  is happening in viorp </h1>
         <p>
           Connect, share, and engage with privacy-first messaging, social feeds,
           and creator-driven experiences.
