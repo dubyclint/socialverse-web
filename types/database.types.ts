@@ -1643,33 +1643,51 @@ export type Database = {
           config: Json
           created_at: string
           display_name: string
+          fee_flat: number
+          fee_percent: number
           id: string
           is_enabled: boolean
+          max_amount: number | null
+          min_amount: number | null
           route: Database["public"]["Enums"]["deposit_route"]
+          sort_order: number
           supported_currencies: string[]
           updated_at: string
+          web_only: boolean
         }
         Insert: {
           code: string
           config?: Json
           created_at?: string
           display_name: string
+          fee_flat?: number
+          fee_percent?: number
           id?: string
           is_enabled?: boolean
+          max_amount?: number | null
+          min_amount?: number | null
           route: Database["public"]["Enums"]["deposit_route"]
+          sort_order?: number
           supported_currencies?: string[]
           updated_at?: string
+          web_only?: boolean
         }
         Update: {
           code?: string
           config?: Json
           created_at?: string
           display_name?: string
+          fee_flat?: number
+          fee_percent?: number
           id?: string
           is_enabled?: boolean
+          max_amount?: number | null
+          min_amount?: number | null
           route?: Database["public"]["Enums"]["deposit_route"]
+          sort_order?: number
           supported_currencies?: string[]
           updated_at?: string
+          web_only?: boolean
         }
         Relationships: []
       }

@@ -57,6 +57,10 @@ interface DepositProvider {
   display_name: string
   route: string
   supported_currencies: string[]
+  fee_percent: number
+  fee_flat: number
+  min_amount: number
+  max_amount: number
 }
 
 interface DepositSettings {
@@ -73,6 +77,24 @@ const selectedProvider = ref<string>('')
 const depositError = ref('')
 const depositNotice = ref('')
 const isLoadingProviders = ref(false)
+const topUpBlockedOnDevice = ref(false)
+const depositStatusNotice = ref('')
+
+const { platform, isNative } = useDevicePlatform()
+
+const activeProvider = computed(() =>
+  depositProviders.value.find(provider => provider.code === selectedProvider.value) || null
+)
+
+// Admin-set fees are charged on top of the top-up, so the user sees both numbers.
+const depositFee = computed(() => {
+  const provider = activeProvider.value
+  const amount = Number(depositAmount.value || 0)
+  if (!provider || amount <= 0) return 0
+  return Number(((amount * Number(provider.fee_percent || 0)) / 100 + Number(provider.fee_flat || 0)).toFixed(2))
+})
+
+const depositTotal = computed(() => Number((Number(depositAmount.value || 0) + depositFee.value).toFixed(2)))
 
 const loadDepositOptions = async () => {
   isLoadingProviders.value = true
@@ -80,10 +102,11 @@ const loadDepositOptions = async () => {
   try {
     const response = await $fetch<{
       success: boolean
-      data: { providers: DepositProvider[], settings: DepositSettings }
-    }>('/api/wallet/deposit/providers')
+      data: { providers: DepositProvider[], settings: DepositSettings, webOnlyBlocked: boolean }
+    }>('/api/wallet/deposit/providers', { query: { platform: platform.value } })
     depositProviders.value = response.data.providers
     depositSettings.value = response.data.settings
+    topUpBlockedOnDevice.value = response.data.webOnlyBlocked
     selectedProvider.value = response.data.providers[0]?.code ?? ''
   } catch {
     depositError.value = 'Could not load payment options'
@@ -198,7 +221,8 @@ const executeDirectDeposit = async () => {
       body: {
         providerCode: selectedProvider.value,
         amount: depositAmount.value,
-        currency: depositSettings.value?.currency
+        currency: depositSettings.value?.currency,
+        platform: platform.value
       }
     })
 
@@ -331,9 +355,26 @@ const formatDateLabel = (dateString: string) => {
   })
 }
 
+// Returning from a hosted checkout: report what the provider has settled so far.
+const reviewReturnedDeposit = async (depositId: string) => {
+  try {
+    const response = await $fetch<{
+      data: { status: string, credited_pewgift: number, source_currency: string }
+    }>(`/api/wallet/deposit/${depositId}`)
+
+    depositStatusNotice.value = response.data.status === 'SETTLED'
+      ? `Deposit settled — ${Number(response.data.credited_pewgift).toFixed(2)} PEW credited.`
+      : 'Payment received by the provider. Your balance updates as soon as it confirms.'
+    await fetchWalletInfrastructureData()
+  } catch {
+    depositStatusNotice.value = ''
+  }
+}
+
 onMounted(() => {
   fetchWalletInfrastructureData()
   if (route.query.action === 'deposit') openDepositModal()
+  if (typeof route.query.deposit === 'string') reviewReturnedDeposit(route.query.deposit)
 })
 </script>
 
@@ -346,6 +387,10 @@ onMounted(() => {
         <h1 class="text-2xl font-black text-white tracking-tight">💼 Decentralized Capital & Wallet Management</h1>
         <p class="text-xs text-slate-400 mt-1">Audit active row ledgers, check inbound revenue pools, and command multi-tier settlement gateways.</p>
       </div>
+
+      <p v-if="depositStatusNotice" class="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+        {{ depositStatusNotice }}
+      </p>
 
       <ClientOnly>
         <!-- Real-Time Metrics Ribbon Grid -->
@@ -517,6 +562,14 @@ onMounted(() => {
 
         <div v-if="isLoadingProviders" class="text-[11px] text-slate-400">Loading payment options…</div>
 
+        <div v-else-if="isNative && topUpBlockedOnDevice" class="space-y-3">
+          <p class="text-[11px] text-amber-400">
+            Top-ups are handled on the web. Open viorp.com/wallet in your browser to add funds —
+            your balance syncs straight back into the app.
+          </p>
+          <button type="button" class="w-full text-xs font-bold text-slate-400 hover:text-white py-1.5" @click="showDepositModal = false">Close</button>
+        </div>
+
         <div v-else-if="!depositProviders.length" class="space-y-3">
           <p class="text-[11px] text-amber-400">
             No payment gateway is enabled for this platform yet, so card/PSP deposits are unavailable.
@@ -535,6 +588,12 @@ onMounted(() => {
                 {{ provider.display_name }} ({{ provider.route }})
               </option>
             </select>
+            <p v-if="activeProvider" class="text-[10px] text-slate-500 mt-1">
+              Fee: {{ Number(activeProvider.fee_percent).toFixed(2) }}%
+              <span v-if="Number(activeProvider.fee_flat) > 0">
+                + {{ depositSettings?.currency || 'USD' }} {{ Number(activeProvider.fee_flat).toFixed(2) }}</span>
+              · limits {{ activeProvider.min_amount }}–{{ activeProvider.max_amount }}
+            </p>
           </div>
           <!-- Preset Chips Grid -->
           <div class="grid grid-cols-5 gap-1.5">
@@ -556,6 +615,27 @@ onMounted(() => {
             </label>
             <input v-model.number="depositAmount" type="number" min="1" step="1" required placeholder="0.00" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5 focus:outline-none font-mono" />
           </div>
+
+          <dl v-if="depositAmount && depositAmount > 0" class="text-[11px] text-slate-400 space-y-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
+            <div class="flex justify-between">
+              <dt>Top-up</dt>
+              <dd class="font-mono text-white">{{ depositSettings?.currency || 'USD' }} {{ Number(depositAmount).toFixed(2) }}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt>Processing fee</dt>
+              <dd class="font-mono text-amber-400">{{ depositSettings?.currency || 'USD' }} {{ depositFee.toFixed(2) }}</dd>
+            </div>
+            <div class="flex justify-between border-t border-slate-800 pt-1">
+              <dt>You pay</dt>
+              <dd class="font-mono text-white">{{ depositSettings?.currency || 'USD' }} {{ depositTotal.toFixed(2) }}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt>Credited</dt>
+              <dd class="font-mono text-emerald-400">
+                {{ (Number(depositAmount) * Number(depositSettings?.pewgift_per_unit || 1)).toFixed(2) }} PEW
+              </dd>
+            </div>
+          </dl>
 
           <p v-if="depositError" class="text-[11px] text-rose-400">{{ depositError }}</p>
           <p v-if="depositNotice" class="text-[11px] text-emerald-400">{{ depositNotice }}</p>

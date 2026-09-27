@@ -94,6 +94,13 @@ export default defineNuxtConfig({
     mailersendApiToken: process.env.MAILERSEND_API_TOKEN,
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
     cloudflareStreamToken: process.env.CLOUDFLARE_STREAM_TOKEN,
+    paystackSecretKey: process.env.PAYSTACK_SECRET_KEY,
+    flutterwaveSecretKey: process.env.FLUTTERWAVE_SECRET_KEY,
+    flutterwaveWebhookHash: process.env.FLUTTERWAVE_WEBHOOK_HASH,
+    nowpaymentsApiKey: process.env.NOWPAYMENTS_API_KEY,
+    nowpaymentsIpnSecret: process.env.NOWPAYMENTS_IPN_SECRET,
+    upstashRedisRestUrl: process.env.UPSTASH_REDIS_REST_URL,
+    upstashRedisRestToken: process.env.UPSTASH_REDIS_REST_TOKEN,
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
