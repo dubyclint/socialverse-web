@@ -35,7 +35,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # The runner image ships the SDK; setup-android only accepts the licences
+      # and skips its default `tools` package, which no longer exists.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - name: Install dependencies
         run: npm ci
