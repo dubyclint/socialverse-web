@@ -39,6 +39,13 @@ export default defineEventHandler(async (event) => {
     if (body.birth_date !== undefined) updateData.birth_date = nullIfBlank(body.birth_date)
     if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
     if (body.is_private !== undefined) updateData.is_private = body.is_private
+    // The database trigger canonicalises the number to E.164 with this country
+    // before hashing it, which is what makes the account discoverable through
+    // contact sync, so both fields travel together.
+    if (body.phone !== undefined) updateData.phone = nullIfBlank(body.phone)
+    if (body.phone_country !== undefined) {
+      updateData.phone_country = nullIfBlank(body.phone_country)?.toUpperCase() ?? null
+    }
 
     // The edit form calls it full_name; display_name is what the feed and
     // profile cards read, so keep the two in step.

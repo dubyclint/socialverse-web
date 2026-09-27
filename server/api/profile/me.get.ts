@@ -17,7 +17,7 @@ export default defineEventHandler(async (event: H3Event) => {
     // ✅ Query the 'user' table with correct column mapping
     const { data, error } = await supabase
       .from('user')
-      .select('user_id,username,email,display_name,full_name,bio,avatar_url,cover_url,website,location,birth_date,gender,phone,profile_completed,is_verified,is_private,rank,rank_points,rank_level,followers_count,following_count,posts_count,created_at,updated_at,last_seen')
+      .select('user_id,username,email,display_name,full_name,bio,avatar_url,cover_url,website,location,birth_date,gender,phone,phone_country,profile_completed,is_verified,is_private,rank,rank_points,rank_level,followers_count,following_count,posts_count,created_at,updated_at,last_seen')
       .eq('user_id', authUserId)
       .maybeSingle()
 

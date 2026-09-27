@@ -7,6 +7,7 @@ interface SignupRequest {
   username: string
   password: string
   phone?: string
+  phoneCountry?: string
   location?: string
 }
 
@@ -105,6 +106,7 @@ export default defineEventHandler(async (event) => {
           display_name: body.username.trim(),
           email: authData.user.email,
           phone: body.phone?.trim() || null,
+          phone_country: body.phoneCountry?.trim().toUpperCase() || null,
           location: body.location?.trim() || null,
           updated_at: new Date().toISOString()
         },

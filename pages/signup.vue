@@ -30,8 +30,17 @@
 
         <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Phone Number</label>
-          <input v-model="formData.phone" type="tel" required :disabled="isAuthLoading"
-            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+          <div class="flex gap-2">
+            <select v-model="formData.phoneCountry" :disabled="isAuthLoading"
+              class="bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-2 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+              <option v-for="country in callingCountries" :key="country.code" :value="country.code">
+                {{ country.code }} +{{ country.dial }}
+              </option>
+            </select>
+            <input v-model="formData.phone" type="tel" required :disabled="isAuthLoading" placeholder="803 123 4567"
+              class="flex-1 min-w-0 bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+          </div>
+          <p class="mt-1 text-[10px] text-slate-500">Used so people who have your number can find you. Never shown publicly.</p>
         </div>
 
         <div>
@@ -69,13 +78,23 @@ import { storeToRefs } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 import type { AuthUser } from '~/types/user'
+import { CALLING_COUNTRIES, DEFAULT_CALLING_COUNTRY } from '~/utils/calling-codes'
 
 definePageMeta({ layout: 'blank', middleware: 'guest' })
 
 const userStore = useUserStore()
 const { isLoading: isAuthLoading, error: authError } = storeToRefs(userStore)
 
-const formData = ref({ email: '', username: '', phone: '', location: '', password: '' })
+const callingCountries = CALLING_COUNTRIES
+
+const formData = ref({
+  email: '',
+  username: '',
+  phone: '',
+  phoneCountry: DEFAULT_CALLING_COUNTRY,
+  location: '',
+  password: ''
+})
 const localError = ref('')
 const success = ref('')
 
@@ -91,6 +110,7 @@ const handleSignup = async () => {
         password: formData.value.password,
         username: formData.value.username.trim().toLowerCase(),
         phone: formData.value.phone.trim(),
+        phoneCountry: formData.value.phoneCountry,
         location: formData.value.location.trim()
       }
     })

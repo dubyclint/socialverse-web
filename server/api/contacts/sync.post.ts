@@ -31,10 +31,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'No contacts supplied' })
   }
 
+  const service = getServiceClient()
+
+  // A number saved without a country code belongs to the owner's own country
+  // far more often than to the browser's locale region.
+  const { data: owner } = await service
+    .from('user')
+    .select('phone_country')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const defaultCountry = owner?.phone_country || body?.defaultCountry
+
   // Normalise first so the same number saved in different formats collapses.
   const byNumber = new Map<string, string>()
   for (const entry of entries) {
-    const e164 = normaliseE164(String(entry?.phone ?? ''), body?.defaultCountry)
+    const e164 = normaliseE164(String(entry?.phone ?? ''), defaultCountry ?? undefined)
     if (!e164) continue
     const name = (entry?.name ?? '').trim().slice(0, 120)
     if (!byNumber.has(e164) || (name && !byNumber.get(e164))) byNumber.set(e164, name)
@@ -46,7 +57,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const hashes = await hashPhones(numbers)
-  const service = getServiceClient()
 
   // Which of those hashes belong to real accounts?
   const { data: matches, error: matchError } = await service

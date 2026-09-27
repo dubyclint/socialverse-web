@@ -140,6 +140,29 @@
           </div>
 
           <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Phone number</label>
+            <div class="flex gap-2">
+              <select
+                v-model="formData.phone_country"
+                class="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              >
+                <option v-for="country in callingCountries" :key="country.code" :value="country.code">
+                  {{ country.code }} +{{ country.dial }}
+                </option>
+              </select>
+              <input
+                v-model="formData.phone"
+                type="tel"
+                placeholder="803 123 4567"
+                class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <p class="text-slate-500 text-sm mt-1">
+              Lets people who already have your number find you in Chat and PAL. Never shown on your profile.
+            </p>
+          </div>
+
+          <div>
             <label class="block text-sm font-medium text-slate-300 mb-2">Website</label>
             <input
               v-model="formData.website"
@@ -251,6 +274,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useProfileStore } from '~/stores/profile'
+import { CALLING_COUNTRIES, DEFAULT_CALLING_COUNTRY } from '~/utils/calling-codes'
 
 definePageMeta({
   middleware: 'auth',
@@ -259,6 +283,7 @@ definePageMeta({
 
 const router = useRouter()
 const profileStore = useProfileStore()
+const callingCountries = CALLING_COUNTRIES
 const { profile, isLoading: isLoadingProfile } = storeToRefs(profileStore)
 
 const formData = ref({
@@ -266,6 +291,8 @@ const formData = ref({
   username: '',
   bio: '',
   location: '',
+  phone: '',
+  phone_country: DEFAULT_CALLING_COUNTRY,
   website: '',
   birth_date: '',
   gender: '',
@@ -298,6 +325,8 @@ const loadProfile = async () => {
         username: p.username || '',
         bio: p.bio || '',
         location: p.location || '',
+        phone: p.phone || '',
+        phone_country: p.phone_country || DEFAULT_CALLING_COUNTRY,
         website: p.website || '',
         birth_date: p.birth_date ? (p.birth_date.split('T')[0] ?? '') : '',
         gender: p.gender || '',

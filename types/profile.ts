@@ -30,6 +30,8 @@ export interface Profile {
   avatar_url?: string | null
   location?: string | null
   website?: string | null
+  phone?: string | null
+  phone_country?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
@@ -72,6 +74,8 @@ export interface ProfileUpdateInput {
   avatar_url?: string | null
   location?: string | null
   website?: string | null
+  phone?: string | null
+  phone_country?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
@@ -90,6 +94,8 @@ export interface ProfileCompleteInput {
   avatar_url?: string | null
   location?: string | null
   website?: string | null
+  phone?: string | null
+  phone_country?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean

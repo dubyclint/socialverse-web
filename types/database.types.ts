@@ -3040,6 +3040,7 @@ export type Database = {
           last_seen: string | null
           location: string | null
           phone: string | null
+          phone_country: string | null
           phone_hash: string | null
           posts_count: number
           profile_completed: boolean
@@ -3080,6 +3081,7 @@ export type Database = {
           last_seen?: string | null
           location?: string | null
           phone?: string | null
+          phone_country?: string | null
           phone_hash?: string | null
           posts_count?: number
           profile_completed?: boolean
@@ -3120,6 +3122,7 @@ export type Database = {
           last_seen?: string | null
           location?: string | null
           phone?: string | null
+          phone_country?: string | null
           phone_hash?: string | null
           posts_count?: number
           profile_completed?: boolean
