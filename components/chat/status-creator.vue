@@ -173,7 +173,7 @@
           <div class="preview-container">
             <div class="status-preview-item">
               <div class="preview-avatar">
-                <img :src="currentUser.avatar || '/default-avatar.png'" :alt="currentUser.username" />
+                <img :src="currentUser.avatar || '/default-avatar.svg'" :alt="currentUser.username" />
               </div>
               <div class="preview-content">
                 <div class="preview-name">{{ currentUser.username }}</div>

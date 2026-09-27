@@ -3,8 +3,10 @@
 // Premium subscription verification middleware
 // ============================================================================
 
-import { H3Event } from 'h3';
+import type { H3Event } from 'h3';
+import { createError } from 'h3';
 import { serverSupabaseClient } from '#supabase/server';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer';
 
 export interface PremiumContext {
   isPremium: boolean;

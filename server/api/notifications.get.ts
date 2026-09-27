@@ -4,6 +4,8 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { getQuery, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -13,9 +15,9 @@ export default defineEventHandler(async (event) => {
     const offset = parseInt(query.offset as string) || 0
     const unreadOnly = query.unread === 'true'
 
-    const supabase = await serverSupabaseClient(event)
+  const _supabase = await serverSupabaseClient(event)
 
-    let queryBuilder = supabase
+    let queryBuilder = _supabase
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)

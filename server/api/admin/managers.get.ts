@@ -1,4 +1,4 @@
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   const { requireRole } = useRBAC()
   
   // Ensure only admins can access this endpoint
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      data: managers.map(manager => ({
+      data: managers.map((manager: any) => ({
         ...manager,
         assignedAt: manager.updated_at
       }))

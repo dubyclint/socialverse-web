@@ -3,7 +3,7 @@
   <div class="status-list-item" @click="handleViewStatus">
     <div class="status-avatar">
       <img 
-        :src="status.avatar || '/default-avatar.png'" 
+        :src="status.avatar || '/default-avatar.svg'" 
         :alt="status.username"
         :class="{ 'has-unviewed': status.hasUnviewed }"
       />

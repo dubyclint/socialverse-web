@@ -1,149 +1,86 @@
 <template>
-  <div class="trade-chat">
-    <h3>Trade Chat</h3>
-    <div class="messages">
-      <div v-for="msg in messages" :key="msg.id" class="message">
-        <strong>{{ msg.sender }}:</strong> {{ msg.text }}
-        <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
+  <section class="trade-chat">
+    <h3>Trade chat</h3>
+    <p v-if="!roomId" class="empty">Chat opens once a trade is active.</p>
+    <template v-else>
+      <div class="messages">
+        <div v-for="msg in messages" :key="msg.id" class="message">
+          <strong>{{ msg.senderName }}:</strong> {{ msg.content }}
+          <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
+        </div>
+        <p v-if="!messages.length" class="empty">No messages yet.</p>
       </div>
-    </div>
-    <div class="input-area">
-      <input 
-        v-model="newMessage" 
-        @keyup.enter="sendMessage" 
-        placeholder="Type a message..." 
-        class="message-input"
-      />
-      <button @click="sendMessage" class="send-btn">Send</button>
-    </div>
-  </div>
+      <div class="input-area">
+        <input
+          v-model="draft"
+          class="message-input"
+          placeholder="Type a message…"
+          @keyup.enter="send"
+        />
+        <button class="send-btn" :disabled="sending || !draft.trim()" @click="send">Send</button>
+      </div>
+      <p v-if="error" class="error">{{ error }}</p>
+    </template>
+  </section>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import type { ChatMessage } from '~/types/chat'
 
-const messages = ref([])
-const newMessage = ref('')
-const tradeId = 'trade123'
-const user = 'Paul'
+const props = defineProps<{ roomId?: string | null }>()
+
+const messages = ref<ChatMessage[]>([])
+const draft = ref('')
+const sending = ref(false)
+const error = ref<string | null>(null)
+let timer: ReturnType<typeof setInterval> | null = null
+
+async function load() {
+  if (!props.roomId) return
+  try {
+    const res = await $fetch<{ data: ChatMessage[] }>(`/api/chat/${props.roomId}/messages`)
+    messages.value = res.data
+  } catch {
+    error.value = 'Could not load messages'
+  }
+}
+
+async function send() {
+  if (!props.roomId || !draft.value.trim()) return
+  sending.value = true
+  error.value = null
+  try {
+    await $fetch(`/api/chat/${props.roomId}/messages`, { method: 'POST', body: { message: draft.value } })
+    draft.value = ''
+    await load()
+  } catch {
+    error.value = 'Message not sent'
+  } finally {
+    sending.value = false
+  }
+}
+
+function formatTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+watch(() => props.roomId, load, { immediate: true })
 
 onMounted(() => {
-  // Load initial messages from localStorage or API
-  const savedMessages = localStorage.getItem(`trade_${tradeId}`)
-  if (savedMessages) {
-    messages.value = JSON.parse(savedMessages)
-  }
+  timer = setInterval(load, 5000)
 })
 
-function sendMessage() {
-  if (!newMessage.value.trim()) return
-  
-  const msg = {
-    id: Date.now(),
-    sender: user,
-    text: newMessage.value,
-    timestamp: Date.now()
-  }
-  
-  messages.value.push(msg)
-  
-  // Save to localStorage
-  localStorage.setItem(`trade_${tradeId}`, JSON.stringify(messages.value))
-  
-  newMessage.value = ''
-}
-
-function formatTime(timestamp) {
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <style scoped>
-.trade-chat {
-  border: 1px solid #aaa;
-  padding: 1rem;
-  border-radius: 8px;
-  background: #f9f9f9;
-  display: flex;
-  flex-direction: column;
-  height: 400px;
-}
-
-.trade-chat h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-  color: #333;
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 1rem;
-  padding: 0.5rem;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-}
-
-.message {
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  background: #f0f0f0;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.message strong {
-  color: #333;
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.timestamp {
-  display: block;
-  font-size: 0.75rem;
-  color: #999;
-  margin-top: 0.25rem;
-}
-
-.input-area {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.message-input {
-  flex: 1;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  font-family: inherit;
-}
-
-.message-input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
-}
-
-.send-btn {
-  padding: 0.75rem 1.5rem;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.send-btn:hover {
-  background: #0056b3;
-}
-
-.send-btn:active {
-  background: #004085;
-}
+.trade-chat { border: 1px solid #e2e2e2; border-radius: 8px; padding: 1rem; }
+.messages { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.75rem; }
+.timestamp { color: #999; font-size: 0.75rem; margin-left: 0.4rem; }
+.input-area { display: flex; gap: 0.5rem; }
+.message-input { flex: 1; }
+.empty { color: #777; }
+.error { color: #b00020; }
 </style>

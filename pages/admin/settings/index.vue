@@ -431,17 +431,51 @@ definePageMeta({
   
 import { ref, computed, onMounted } from 'vue'
 
+interface Interest {
+  id: number
+  name: string
+  description?: string
+  category?: string
+  icon?: string
+  isActive: boolean
+  userCount?: number
+  postCount?: number
+}
+
+interface PremiumRule {
+  _id?: string
+  target: string
+  value: string
+  features: Record<string, boolean>
+  active: boolean
+}
+
+interface AlgorithmConfig {
+  matchingWeight: number
+  matchThreshold: number
+  diversityFactor: number
+  enableAI: boolean
+}
+
+interface CausalAnalysis {
+  treatmentEffect: number
+  confidenceInterval: string
+  pValue: number
+  sampleSize: number
+  insights: string[]
+}
+
 // Tab Management
 const activeTab = ref('interests')
 
 // ===== INTERESTS STATE =====
 const showAddForm = ref(false)
-const editingInterest = ref(null)
+const editingInterest = ref<Interest | null>(null)
 const saving = ref(false)
 const searchQuery = ref('')
-const filterStatus = ref('all')
+const filterStatus = ref<'all' | 'active' | 'inactive'>('all')
 
-const currentInterest = ref({
+const currentInterest = ref<Partial<Interest>>({
   name: '',
   description: '',
   category: '',
@@ -449,7 +483,7 @@ const currentInterest = ref({
   isActive: true
 })
 
-const interests = ref([])
+const interests = ref<Interest[]>([])
 
 const activeInterests = computed(() => 
   interests.value.filter(interest => interest.isActive)
@@ -481,17 +515,17 @@ const filteredInterests = computed(() => {
 })
 
 // ===== PREMIUM STATE =====
-const rule = ref({
+const rule = ref<PremiumRule>({
   target: 'country',
   value: '',
   features: { p2p: false, matching: false, rankHide: false },
   active: true
 })
 
-const rules = ref([])
+const rules = ref<PremiumRule[]>([])
 
 // ===== ALGORITHM STATE =====
-const algorithmConfig = ref({
+const algorithmConfig = ref<AlgorithmConfig>({
   matchingWeight: 75,
   matchThreshold: 0.6,
   diversityFactor: 0.3,
@@ -500,7 +534,7 @@ const algorithmConfig = ref({
 
 // ===== CAUSAL INFERENCE STATE =====
 const selectedMetric = ref('engagement')
-const causalAnalysis = ref(null)
+const causalAnalysis = ref<CausalAnalysis | null>(null)
 
 // ===== INTERESTS METHODS =====
 const loadInterests = async () => {
@@ -543,25 +577,26 @@ const loadInterests = async () => {
 }
 
 const saveInterest = async () => {
-  if (!currentInterest.value.name.trim()) return
+  if (!currentInterest.value.name?.trim()) return
 
   saving.value = true
   try {
     if (editingInterest.value) {
-      const index = interests.value.findIndex(i => i.id === editingInterest.value.id)
+      const index = interests.value.findIndex(i => i.id === editingInterest.value!.id)
       if (index !== -1) {
-        interests.value[index] = { ...editingInterest.value, ...currentInterest.value }
+        interests.value[index] = { ...editingInterest.value, ...currentInterest.value } as Interest
       }
     } else {
-      const newInterest = {
+      const newInterest: Interest = {
         id: Date.now(),
         ...currentInterest.value,
+        isActive: currentInterest.value.isActive ?? true,
         userCount: 0,
         postCount: 0
-      }
+      } as Interest
       interests.value.push(newInterest)
     }
-    
+
     closeForm()
   } catch (error) {
     console.error('Error saving interest:', error)
@@ -570,13 +605,13 @@ const saveInterest = async () => {
   }
 }
 
-const editInterest = (interest) => {
+const editInterest = (interest: Interest) => {
   editingInterest.value = interest
   currentInterest.value = { ...interest }
   showAddForm.value = true
 }
 
-const toggleInterestStatus = async (interest) => {
+const toggleInterestStatus = async (interest: Interest) => {
   try {
     interest.isActive = !interest.isActive
   } catch (error) {
@@ -585,7 +620,7 @@ const toggleInterestStatus = async (interest) => {
   }
 }
 
-const deleteInterest = async (id) => {
+const deleteInterest = async (id: number) => {
   if (!confirm('Are you sure you want to delete this interest? This action cannot be undone.')) {
     return
   }
@@ -638,7 +673,7 @@ const saveRule = async () => {
   }
 }
 
-const deleteRule = async (r) => {
+const deleteRule = async (r: PremiumRule) => {
   try {
     await fetch('/api/admin/premium-rules', {
       method: 'DELETE',

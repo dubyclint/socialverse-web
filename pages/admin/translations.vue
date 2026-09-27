@@ -36,8 +36,14 @@
   
 import { ref, computed, onMounted } from 'vue'
 
-const entry = ref({ key: '', language: 'en', value: '' })
-const translations = ref([])
+interface Translation {
+  key: string
+  language: string
+  value: string
+}
+
+const entry = ref<Translation>({ key: '', language: 'en', value: '' })
+const translations = ref<Translation[]>([])
 const languages = ['en', 'fr', 'ha', 'zh', 'pt', 'de', 'hi']
 const filter = ref({ key: '', language: '' })
 

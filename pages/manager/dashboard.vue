@@ -96,6 +96,21 @@ definePageMeta({
   layout: 'manager'
 })
 
+interface DashboardActivity {
+  id: string
+  type: string
+  description: string
+  created_at: string
+  status: string
+}
+
+interface DashboardStats {
+  pendingReports?: number
+  moderatedToday?: number
+  activeUsers?: number
+  recentActivities?: DashboardActivity[]
+}
+
 const userStore = useUserStore()
 const { getUserPermissions } = useRBAC()
 
@@ -103,14 +118,14 @@ const { getUserPermissions } = useRBAC()
 const pendingReports = ref(0)
 const moderatedToday = ref(0)
 const activeUsers = ref(0)
-const recentActivities = ref([])
-const managerPermissions = ref([])
+const recentActivities = ref<DashboardActivity[]>([])
+const managerPermissions = ref<string[]>([])
 
 // Fetch dashboard data using the unified API client
 const fetchDashboardData = async () => {
   try {
     // Calling central API endpoints instead of direct Supabase calls
-    const response = await api('/manager/dashboard-stats')
+    const response = await api<DashboardStats>('/manager/dashboard-stats')
     
     pendingReports.value = response.pendingReports || 0
     moderatedToday.value = response.moderatedToday || 0

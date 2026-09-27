@@ -62,7 +62,7 @@
             <!-- Chat Avatar -->
             <div class="chat-avatar">
               <img 
-                :src="chat.avatar || '/default-avatar.png'"
+                :src="chat.avatar || '/default-avatar.svg'"
                 :alt="chat.name"
               />
               <div v-if="isUserOnline(chat)" class="online-indicator"></div>
@@ -80,7 +80,7 @@
             </div>
 
             <!-- Unread Badge -->
-            <div v-if="chat.unreadCount > 0" class="unread-badge">
+            <div v-if="(chat.unreadCount ?? 0) > 0" class="unread-badge">
               {{ chat.unreadCount }}
             </div>
           </div>
@@ -98,6 +98,7 @@
         <ChatSession 
           v-else
           :chat="currentChat"
+          :current-user="{ id: currentUserId }"
           :messages="chatStore.currentChatMessages"
           :typingUsers="chatStore.currentChatTypingUsers"
           :translations="chatStore.currentChatTranslations"
@@ -106,14 +107,78 @@
           @typing="handleTyping"
           @edit-message="editMessage"
           @delete-message="deleteMessage"
+          @react-message="reactToMessage"
           @translate-message="translateMessage"
           @send-gift="sendGift"
+          @start-call="handleStartCall"
+          @membership-changed="loadChats"
+          @blocked="handleBlocked"
+          @cleared="reloadMessages"
         />
       </div>
     </div>
 
+    <CallInterface
+      v-if="activeCall"
+      :call="activeCall"
+      :local-stream="localStream"
+      :remote-stream="remoteStream"
+      :is-muted="isMuted"
+      :is-video-off="isVideoOff"
+      @accept-call="acceptCall"
+      @reject-call="rejectCall"
+      @end-call="hangUp"
+      @toggle-mute="toggleMute"
+      @toggle-video="toggleVideo"
+    />
+
     <!-- Modals -->
-    <GroupCreator 
+    <div v-if="showNewChat" class="new-chat-overlay" @click.self="closeNewChat">
+      <div class="new-chat-modal">
+        <div class="new-chat-header">
+          <h3>New chat</h3>
+          <button class="btn-icon" @click="closeNewChat"><Icon name="x" /></button>
+        </div>
+        <input
+          v-model="userSearch"
+          class="new-chat-search"
+          type="text"
+          placeholder="Search your contacts and conversations"
+          @input="searchUsers"
+        />
+        <p v-if="isSearching" class="new-chat-hint">Searching…</p>
+        <p v-else-if="userResults.length === 0" class="new-chat-hint">
+          No one in your contacts matches. Direct messages are limited to people you follow, your
+          contacts and existing conversations — use Find Friends to meet someone new.
+        </p>
+        <ul class="new-chat-results">
+          <li v-for="result in userResults" :key="result.user_id">
+            <button class="new-chat-result" :disabled="isStartingChat" @click="startDirectChat(result.user_id)">
+              <img :src="result.avatar_url || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
+              <span class="new-chat-name">{{ result.display_name || result.username }}</span>
+              <span class="new-chat-username">@{{ result.username }}</span>
+            </button>
+          </li>
+        </ul>
+
+        <div v-if="suggestions.length" class="new-chat-suggestions">
+          <h4>People you may know</h4>
+          <ul class="new-chat-results">
+            <li v-for="person in suggestions" :key="person.id">
+              <NuxtLink class="new-chat-result" :to="`/profile/${person.username}`" @click="closeNewChat">
+                <img :src="person.avatar_url" alt="" class="new-chat-avatar" />
+                <span class="new-chat-name">{{ person.full_name }}</span>
+                <span class="new-chat-username">
+                  {{ person.mutual_count ? `${person.mutual_count} mutual` : person.location || `@${person.username}` }}
+                </span>
+              </NuxtLink>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <CreateGroup 
       v-if="showGroupCreator"
       @close="showGroupCreator = false"
       @create="createGroup"
@@ -127,24 +192,105 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
+import { useWebrtcCall } from '~/composables/use-webrtc-call'
+import CallInterface from '~/components/chat/call-interface.vue'
+import type { ApiResponse } from '~/types/api'
+import type { Chat, ChatMessage, QuotedMessage } from '~/types/chat'
+
+interface SendMessagePayload {
+  content: string
+  recipientId?: string
+  attachments?: string[]
+  replyTo?: QuotedMessage
+  messageType?: ChatMessage['messageType']
+}
+
+interface DirectoryUser {
+  user_id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  is_verified: boolean
+}
+
+interface SuggestedUser {
+  id: string
+  username: string
+  full_name: string
+  avatar_url: string
+  location: string | null
+  mutual_count: number
+}
 
 // Chat store initialized
 const chatStore = useChatStore()
+const currentUser = useSupabaseUser()
+const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 // Chat composable for WebSocket/Realtime events
 const { 
+  isConnected,
   initialize, 
+  joinChat,
+  onMessage,
+  onTyping,
+  onReceipt,
+  sendTyping,
+  markDelivered,
+  markRead,
   sendMessage: emitMessage, 
   editMessage: emitEditMessage,
   deleteMessage: emitDeleteMessage,
+  reactToMessage: emitReaction,
+  onEdited,
+  onDeleted,
+  onReaction,
   disconnect 
 } = useChat()
 
+watch(isConnected, connected => chatStore.setConnected(connected), { immediate: true })
+
+const {
+  call: activeCall,
+  localStream,
+  remoteStream,
+  isMuted,
+  isVideoOff,
+  startCall,
+  acceptCall,
+  rejectCall,
+  hangUp,
+  toggleMute,
+  toggleVideo
+} = useWebrtcCall()
+
+const handleStartCall = async (payload: {
+  targetUserId: string | null
+  chatId: string
+  callType: 'audio' | 'video'
+}) => {
+  if (!payload.targetUserId) return
+  const chat = chatStore.chats.get(payload.chatId)
+  await startCall({
+    chatId: payload.chatId,
+    targetUserId: payload.targetUserId,
+    callType: payload.callType,
+    peerName: chat?.name,
+    peerAvatar: chat?.avatar
+  })
+}
+
 const searchQuery = ref('')
 const showGroupCreator = ref(false)
+const showNewChat = ref(false)
+const userSearch = ref('')
+const userResults = ref<DirectoryUser[]>([])
+const suggestions = ref<SuggestedUser[]>([])
+const isSearching = ref(false)
+const isStartingChat = ref(false)
 const showSettings = ref(false)
 const typingTimeout = ref<NodeJS.Timeout | null>(null)
 
@@ -154,22 +300,29 @@ const filteredChats = computed(() => {
   
   const query = searchQuery.value.toLowerCase()
   return chatStore.sortedChats.filter(chat =>
-    chat.name.toLowerCase().includes(query) ||
-    chat.lastMessage?.toLowerCase().includes(query)
+    (chat.name?.toLowerCase().includes(query) ?? false) ||
+    (chat.lastMessage?.toLowerCase().includes(query) ?? false)
   )
 })
 
 const currentChat = computed(() => {
-  if (!chatStore.currentChatId) return null
+  if (!chatStore.currentChatId) return undefined
   return chatStore.chats.get(chatStore.currentChatId)
 })
+
+const openGroupCreator = () => { showGroupCreator.value = true }
+const openSettings = () => { showSettings.value = true }
+const filterChats = () => { /* filtering handled reactively by `filteredChats` */ }
+const isUserOnline = (chat: Chat) => chatStore.onlineUsers.has(chat.id)
+const formatTime = (timestamp: number) =>
+  new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 // --- Methods ---
 const loadChats = async () => {
   try {
     chatStore.setLoading(true)
-    const response = await $fetch('/api/chat/list')
-    if (response.success) chatStore.addChats(response.data)
+    const response = await $fetch<ApiResponse<Chat[]>>('/api/chat/list')
+    if (response.success && response.data) chatStore.addChats(response.data)
   } catch (error) {
     console.error('Failed to load chats:', error)
     chatStore.setError('Failed to load chats')
@@ -178,28 +331,79 @@ const loadChats = async () => {
   }
 }
 
+/** Re-reads a room's history from the server (after clearing, for example). */
+const reloadMessages = async (chatId: string) => {
+  try {
+    const response = await $fetch<ApiResponse<ChatMessage[]>>(`/api/chat/${chatId}/messages`)
+    if (response.success && response.data) chatStore.addMessages(chatId, response.data)
+  } catch (error) {
+    console.error('Failed to reload messages:', error)
+  }
+}
+
+const handleBlocked = async () => {
+  chatStore.setCurrentChat(null)
+  await loadChats()
+}
+
 const selectChat = async (chatId: string) => {
   chatStore.setCurrentChat(chatId)
+  joinChat(chatId)
   try {
-    const response = await $fetch(`/api/chat/${chatId}/messages`)
-    if (response.success) chatStore.addMessages(chatId, response.data)
+    const response = await $fetch<ApiResponse<ChatMessage[]>>(`/api/chat/${chatId}/messages`)
+    if (response.success && response.data) chatStore.addMessages(chatId, response.data)
+    // Opening a chat is what marks it read, which also implies delivered.
+    markDelivered(chatId)
+    markRead(chatId)
+    chatStore.unreadCounts.set(chatId, 0)
   } catch (error) {
     console.error('Failed to load messages:', error)
     chatStore.setError('Failed to load messages')
   }
 }
 
-const sendMessage = async (content: string, recipientId?: string) => {
-  if (!chatStore.currentChatId || !content.trim()) return
-  try {
-    emitMessage(chatStore.currentChatId, {
-      content: content.trim(),
-      recipientId,
-      timestamp: Date.now()
-    })
-  } catch (error) {
-    console.error('Failed to send message:', error)
-    chatStore.setError('Failed to send message')
+/**
+ * Accepts either a plain string or the payload object emitted by ChatSession.
+ * The bubble is rendered immediately as `sending` and reconciled with the
+ * server's acknowledgement (or marked `failed`).
+ */
+const sendMessage = async (payload: string | SendMessagePayload) => {
+  const chatId = chatStore.currentChatId
+  const object = typeof payload === 'string' ? { content: payload } : payload
+  const content = (object?.content ?? '').trim()
+  const attachments = object?.attachments ?? []
+  if (!chatId || (!content && !attachments.length)) return
+
+  const messageType = object?.messageType ?? (attachments.length ? 'file' : 'text')
+  const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  chatStore.addMessage({
+    id: tempId,
+    chatId,
+    senderId: currentUserId.value ?? '',
+    senderName: 'You',
+    content,
+    attachments,
+    replyTo: object?.replyTo,
+    timestamp: Date.now(),
+    messageType,
+    status: 'sending',
+    tempId
+  })
+
+  sendTyping(chatId, false)
+
+  const ack = await emitMessage(chatId, {
+    content,
+    recipientId: object?.recipientId,
+    attachments,
+    replyToId: object?.replyTo?.id,
+    messageType,
+    tempId
+  })
+
+  if (!ack.success) {
+    chatStore.updateMessage(chatId, tempId, { status: 'failed' })
+    chatStore.setError(ack.error || 'Failed to send message')
   }
 }
 
@@ -223,14 +427,19 @@ const deleteMessage = async (messageId: string) => {
   }
 }
 
+const reactToMessage = (messageId: string, emoji: string) => {
+  if (!chatStore.currentChatId) return
+  emitReaction(chatStore.currentChatId, messageId, emoji)
+}
+
 const translateMessage = async (messageId: string, text: string, targetLang: string) => {
   if (!chatStore.currentChatId) return
   try {
-    const response = await $fetch('/api/chat/translate', {
+    const response = await $fetch<ApiResponse<{ translatedText: string }>>('/api/chat/translate', {
       method: 'POST',
       body: { text, targetLang, messageId, chatId: chatStore.currentChatId }
     })
-    if (response.success) {
+    if (response.success && response.data) {
       chatStore.updateMessage(chatStore.currentChatId, messageId, {
         translatedText: response.data.translatedText,
         translatedLang: targetLang
@@ -256,17 +465,21 @@ const sendGift = async (recipientId: string, giftAmount: number, message: string
 }
 
 const handleTyping = (isTyping: boolean) => {
-  if (!chatStore.currentChatId) return
+  const chatId = chatStore.currentChatId
+  if (!chatId) return
+
   if (typingTimeout.value) clearTimeout(typingTimeout.value)
+  sendTyping(chatId, isTyping)
+
   if (isTyping) {
-    typingTimeout.value = setTimeout(() => { /* Emit typing stopped */ }, 3000)
+    typingTimeout.value = setTimeout(() => sendTyping(chatId, false), 3000)
   }
 }
 
 const createGroup = async (groupData: any) => {
   try {
-    const response = await $fetch('/api/group-chat/create', { method: 'POST', body: groupData })
-    if (response.success) {
+    const response = await $fetch<ApiResponse<Chat>>('/api/group-chat/create', { method: 'POST', body: groupData })
+    if (response.success && response.data) {
       chatStore.addChat(response.data)
       showGroupCreator.value = false
     }
@@ -276,11 +489,149 @@ const createGroup = async (groupData: any) => {
   }
 }
 
-const openNewChat = () => { showGroupCreator.value = true }
+const openNewChat = async () => {
+  showNewChat.value = true
+  await Promise.all([loadNetwork(), loadSuggestions()])
+}
+const closeNewChat = () => {
+  showNewChat.value = false
+  userSearch.value = ''
+  userResults.value = []
+}
+
+const loadNetwork = async (term = '') => {
+  isSearching.value = true
+  try {
+    const response = await $fetch<ApiResponse<DirectoryUser[]>>('/api/chat/people', { query: { q: term } })
+    userResults.value = response.data ?? []
+  } catch {
+    userResults.value = []
+  } finally {
+    isSearching.value = false
+  }
+}
+
+const loadSuggestions = async () => {
+  try {
+    const response = await $fetch<ApiResponse<SuggestedUser[]>>('/api/users/suggested')
+    suggestions.value = response.data ?? []
+  } catch {
+    suggestions.value = []
+  }
+}
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+const searchUsers = () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  const term = userSearch.value.trim()
+  if (term.length > 0 && term.length < 2) return
+  searchTimer = setTimeout(() => loadNetwork(term), 250)
+}
+
+const startDirectChat = async (userId: string) => {
+  isStartingChat.value = true
+  try {
+    const response = await $fetch<ApiResponse<{ id: string }>>('/api/chat/direct', {
+      method: 'POST',
+      body: { userId }
+    })
+    const chatId = response.data?.id
+    if (!chatId) throw new Error('No chat returned')
+    closeNewChat()
+    await loadChats()
+    await selectChat(chatId)
+  } catch (error) {
+    console.error('Failed to start chat:', error)
+    chatStore.setError('Failed to start chat')
+  } finally {
+    isStartingChat.value = false
+  }
+}
 
 // --- Lifecycle ---
 onMounted(async () => {
   await initialize()
+
+  onMessage((message) => {
+    const own = message.senderId === currentUserId.value
+    const chat = chatStore.chats.get(message.chatId)
+
+    chatStore.addMessage({
+      id: message.id,
+      tempId: message.tempId,
+      chatId: message.chatId,
+      senderId: message.senderId,
+      senderName: own ? 'You' : message.senderName || chat?.name || 'unknown',
+      senderAvatar: message.senderAvatar,
+      content: message.content,
+      attachments: message.attachments ?? [],
+      messageType: (message.messageType ?? 'text') as ChatMessage['messageType'],
+      timestamp: new Date(message.timestamp).getTime(),
+      status: own ? 'sent' : undefined
+    })
+
+    if (own) return
+
+    // Received while the chat is open counts as read; otherwise only delivered.
+    markDelivered(message.chatId)
+    if (chatStore.currentChatId === message.chatId) markRead(message.chatId)
+    else chatStore.unreadCounts.set(message.chatId, (chatStore.unreadCounts.get(message.chatId) ?? 0) + 1)
+  })
+
+  onTyping((event, isTyping) => {
+    if (event.userId === currentUserId.value) return
+    chatStore.setTyping(event.chatId, event.userId, event.username || 'Someone', isTyping)
+  })
+
+  onEdited((event) => {
+    chatStore.updateMessage(event.chatId, event.messageId, {
+      content: event.content,
+      editedAt: event.editedAt,
+      isEdited: true
+    })
+  })
+
+  onDeleted((event) => {
+    chatStore.updateMessage(event.chatId, event.messageId, {
+      content: '',
+      attachments: [],
+      deleted: true,
+      isDeleted: true
+    })
+  })
+
+  onReaction((event) => {
+    const message = chatStore.messages.get(event.chatId)?.find(item => item.id === event.messageId)
+    if (!message) return
+
+    const reactions = [...(message.reactions ?? [])]
+    const mine = event.userId === currentUserId.value
+    const index = reactions.findIndex(item => item.emoji === event.emoji)
+    const existing = index >= 0 ? reactions[index] : undefined
+
+    if (event.removed) {
+      if (!existing) return
+      const count = existing.count - 1
+      if (count <= 0) reactions.splice(index, 1)
+      else reactions[index] = { ...existing, count, reacted: mine ? false : existing.reacted }
+    } else if (existing) {
+      reactions[index] = {
+        ...existing,
+        count: existing.count + 1,
+        reacted: existing.reacted || mine
+      }
+    } else {
+      reactions.push({ emoji: event.emoji, count: 1, reacted: mine })
+    }
+
+    chatStore.updateMessage(event.chatId, event.messageId, { reactions })
+  })
+
+  onReceipt((receipt, kind) => {
+    if (receipt.userId === currentUserId.value) return
+    chatStore.applyReceipt(receipt.chatId, receipt.at, kind, currentUserId.value ?? '')
+  })
+
   await loadChats()
 })
 
@@ -290,6 +641,30 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.new-chat-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; z-index: 1200;
+}
+.new-chat-modal {
+  width: min(420px, 94vw); background: #fff; border-radius: 12px; padding: 1rem;
+}
+.new-chat-header { display: flex; align-items: center; justify-content: space-between; }
+.new-chat-search {
+  width: 100%; margin-top: .75rem; padding: .6rem .75rem;
+  border: 1px solid #d1d5db; border-radius: 8px;
+}
+.new-chat-hint { color: #6b7280; font-size: .85rem; margin: .75rem 0 0; }
+.new-chat-suggestions { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: .75rem; }
+.new-chat-suggestions h4 { font-size: .85rem; color: var(--color-text-muted); margin: 0; }
+.new-chat-results { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 45vh; overflow: auto; }
+.new-chat-result {
+  display: flex; align-items: center; gap: .6rem; width: 100%;
+  padding: .5rem; background: none; border: 0; cursor: pointer; text-align: left;
+}
+.new-chat-result:hover { background: #f3f4f6; }
+.new-chat-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.new-chat-username { color: #6b7280; font-size: .8rem; }
+
 .chat-layout {
   display: flex;
   flex-direction: column;

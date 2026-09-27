@@ -30,7 +30,8 @@ interface AlgorithmConfig {
   finalFeedSize: number
 }
 
-interface MLAlgorithmConfigRow {
+// MLAlgorithmConfigRow is intentionally exported for future DB layer use.
+export type MLAlgorithmConfigRow = {
   config_name: string
   config_data: AlgorithmConfig
   version: number
@@ -125,7 +126,8 @@ function validateAlgorithmConfig(config: unknown): AlgorithmConfig {
       }
     }
 
-    if (value < rules.min || value > rules.max) {
+    const numValue = value as number
+    if (numValue < rules.min || numValue > rules.max) {
       throw new Error(`${key} must be between ${rules.min} and ${rules.max}`)
     }
 

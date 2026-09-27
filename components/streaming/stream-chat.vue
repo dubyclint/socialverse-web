@@ -19,14 +19,11 @@ const supabase = useSupabaseClient()
 const chatContainer = ref<HTMLElement | null>(null)
 const messageInput = ref('')
 const messages = ref<any[]>([])
-const isLoading = ref(false)
-const isChatVisible = ref(true)
 const isConnected = ref(false)
 const currentUser = ref<any>(null)
 const onlineUsers = ref<any[]>([])
 const isSending = ref(false)
 const showUserList = ref(false)
-const showChatSettings = ref(false)
 const messageFilter = ref('all')
 const searchQuery = ref('')
 const autoScroll = ref(true)
@@ -43,20 +40,6 @@ const isSendingPewgift = ref(false)
 
 // Real-time Presence Realignment Channels
 let liveChatChannel: any = null
-
-const settings = ref({
-  showTimestamps: true,
-  showAvatars: true,
-  moderationFilter: true,
-  fontSize: 'sm'
-})
-
-// UI Dynamic Display Styles Configuration Mapping
-const fontSizeClass = computed(() => {
-  if (settings.value.fontSize === 'xs') return 'text-[11px]'
-  if (settings.value.fontSize === 'lg') return 'text-sm'
-  return 'text-xs'
-})
 
 // Filtered chat arrays optimized for UI render timelines
 const filteredMessages = computed(() => {

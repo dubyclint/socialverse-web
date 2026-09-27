@@ -1,33 +1,19 @@
-import { useUserStore } from '~/stores/user'
 import { useUiStore } from '~/stores/ui'
 
-// Define the custom fetch instance
+// Same-origin `/api/*` requests carry the Supabase SSR cookie automatically,
+// so no Authorization header is injected here.
 const customFetch = $fetch.create({
   baseURL: '/api',
-  async onRequest({ options }) {
-    // 1. Auth Header Injection via userStore
-    const userStore = useUserStore()
-    
-    if (userStore.token) {
-      options.headers = {
-        ...options.headers,
-        Authorization: `Bearer ${userStore.token}`,
-      }
-    }
-  },
-  async onResponseError({ response }) {
-    // 2. Centralized Error Handling
+  credentials: 'same-origin',
+  async onResponseError({ response }: { response: any }) {
+    // Centralized Error Handling
     const uiStore = useUiStore()
     const message = response._data?.message || 'An unexpected error occurred'
     
     uiStore.notify(message, 'error')
     console.error(`[API Error] ${response.status}:`, message)
-    
-    // Optional: Handle 401s centrally here
-    if (response.status === 401) {
-        const userStore = useUserStore()
-        userStore.logout()
-    }
+    // A 401 is not signed out: route middleware owns session state, and tearing
+    // the session down here logs the user out on any single unauthorized call.
   }
 })
 

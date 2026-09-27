@@ -1,0 +1,36 @@
+{
+	"appId": "com.viorp.app",
+	"appName": "Viorp",
+	"webDir": ".output/public",
+	"android": {
+		"allowMixedContent": false
+	},
+	"ios": {
+		"contentInset": "always"
+	},
+	"server": {
+		"androidScheme": "https",
+		"iosScheme": "https",
+		"hostname": "viorp.com"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchAutoHide": true,
+			"backgroundColor": "#0A0F1E",
+			"showSpinner": false
+		},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#0A0F1E"
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"CAPCameraPlugin",
+		"HapticsPlugin",
+		"PreferencesPlugin",
+		"PushNotificationsPlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin"
+	]
+}

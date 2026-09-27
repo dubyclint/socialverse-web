@@ -91,7 +91,8 @@ export const useSignupErrorCatcher = () => {
   }
 
   const getLastError = (): CapturedError | null => {
-    return errors.value.length > 0 ? errors.value[errors.value.length - 1] : null
+    if (errors.value.length === 0) return null
+    return errors.value[errors.value.length - 1] ?? null
   }
 
   const getErrorsByType = (type: string): CapturedError[] => {

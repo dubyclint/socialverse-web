@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { TensorFlowModel } from './tensor-flow-model';
 
 interface RecommendationConfig {

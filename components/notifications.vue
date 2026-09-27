@@ -4,9 +4,9 @@
     <div>
       <h3>Notifications</h3>
       <ul>
-        <li v-for="note in notifications" :key="note._id">
-          <span>{{ note.message }}</span>
-          <small>{{ formatTime(note.timestamp) }}</small>
+        <li v-for="note in notifications" :key="note.id">
+          <span>{{ note.message_text }}</span>
+          <small>{{ formatTime(note.created_at) }}</small>
         </li>
       </ul>
     </div>
@@ -20,8 +20,8 @@ import { ref, onMounted } from 'vue'
 const notifications = ref([])
 
 onMounted(async () => {
-  const res = await fetch('/api/user/notifications')
-  notifications.value = await res.json()
+  const res = await $fetch('/api/user/notifications')
+  notifications.value = res.data ?? []
 })
 
 function formatTime(ts) {

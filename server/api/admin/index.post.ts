@@ -2,15 +2,16 @@
 // ✅ FIXED - Single unified admin handler
 import { 
   requireAdmin, 
-  supabase, 
   logAdminAction, 
   validateBody, 
   handleError 
-} from '../../utils/auth-utils';
+} from '../../gateway/auth/auth-utils';
+import { getSupabaseAdmin } from '../../utils/supabase';
 
 export default defineEventHandler(async (event) => {
   try {
     const admin = await requireAdmin(event);
+    const supabase = await getSupabaseAdmin();
     const body = await readBody(event);
     const { action, user_id, amount, reason } = body;
 
@@ -23,9 +24,9 @@ export default defineEventHandler(async (event) => {
       validateBody(body, ['user_id']);
       
       const { data, error } = await supabase
-        .from('users')
+        .from('user')
         .update({ is_banned: true, ban_reason: reason })
-        .eq('id', user_id)
+        .eq('user_id', user_id)
         .select()
         .single();
 
@@ -39,9 +40,9 @@ export default defineEventHandler(async (event) => {
       validateBody(body, ['user_id']);
       
       const { data, error } = await supabase
-        .from('users')
+        .from('user')
         .update({ is_verified: true, verified_at: new Date().toISOString() })
-        .eq('id', user_id)
+        .eq('user_id', user_id)
         .select()
         .single();
 
@@ -99,9 +100,9 @@ export default defineEventHandler(async (event) => {
       validateBody(body, ['user_id']);
       
       const { data, error } = await supabase
-        .from('users')
-        .update({ role: 'manager', assigned_by: admin.id })
-        .eq('id', user_id)
+        .from('user')
+        .update({ role: 'manager' })
+        .eq('user_id', user_id)
         .select()
         .single();
 

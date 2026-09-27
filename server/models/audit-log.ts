@@ -5,14 +5,11 @@
 // LAZY-LOADED SUPABASE CLIENT
 // ============================================================================
 let supabaseInstance: any = null
+import { getAdminClient } from '~/server/utils/supabase-server'
 
 async function getSupabase() {
   if (!supabaseInstance) {
-    const { createClient } = await import('@supabase/supabase-js')
-    supabaseInstance = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    supabaseInstance = await getAdminClient()
   }
   return supabaseInstance
 }
@@ -112,4 +109,22 @@ export class AuditLogModel {
       throw error
     }
   }
+}
+
+// Compatibility: alias `create` to `log` for older callers
+export async function create(log: Omit<AuditLog, 'id' | 'createdAt'>): Promise<AuditLog> {
+  return AuditLogModel.log(log)
+}
+
+// Ensure runtime shape matches older callers that expect AuditLogModel.create()
+;(AuditLogModel as any).create = async function (log: any) {
+  return AuditLogModel.log(log)
+}
+
+export const AuditLogModelRuntime: any = {
+  create: (log: any) => AuditLogModel.log(log),
+  log: AuditLogModel.log,
+  getUserLogs: AuditLogModel.getUserLogs,
+  getResourceLogs: AuditLogModel.getResourceLogs,
+  getFailedActions: AuditLogModel.getFailedActions
 }

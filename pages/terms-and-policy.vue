@@ -28,22 +28,29 @@
 // No middleware needed - public page
 import { ref, onMounted } from 'vue'
 
-const terms = ref([])
+interface Term {
+  feature: string
+  content: string
+  lastUpdated?: string
+}
+
+const terms = ref<Term[]>([])
 const edit = ref({ feature: '', content: '' })
 const featureList = ['p2p', 'gifting', 'monetization', 'match', 'rankHide', 'ads', 'chat', 'wallet']
 const isAdmin = true // Replace with actual role check
 
-function formatFeature(f) {
+function formatFeature(f: string) {
   return f.charAt(0).toUpperCase() + f.slice(1)
 }
 
-function formatDate(d) {
+function formatDate(d?: string) {
+  if (!d) return 'N/A'
   return new Date(d).toLocaleDateString()
 }
 
 async function fetchTerms() {
   const res = await fetch('/api/admin/terms')
-  terms.value = await res.json()
+  terms.value = (await res.json()) as Term[]
 }
 
 async function saveTerm() {

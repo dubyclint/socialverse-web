@@ -1,16 +1,17 @@
 import { getSupabaseClient } from '~/server/utils/database';
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 
 export default defineEventHandler(async (event) => {
   const supabase = await getSupabaseClient();
-  const user = event.context.user;
+  const user = await requireAuth(event);
   const { userId } = await readBody(event);
 
   try {
     // Get current user data
     const { data: currentUser, error: fetchError } = await supabase
-      .from('users')
+      .from('user')
       .select('recent_matches, accepted_matches')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
       
     if (fetchError) throw fetchError;
@@ -27,12 +28,12 @@ export default defineEventHandler(async (event) => {
     }
 
     const { error: updateError } = await supabase
-      .from('users')
+      .from('user')
       .update({
         recent_matches: recentMatches,
         accepted_matches: acceptedMatches
       })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
       
     if (updateError) throw updateError;
 

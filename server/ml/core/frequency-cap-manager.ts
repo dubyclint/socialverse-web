@@ -13,13 +13,11 @@ interface FrequencyInfo {
 
 export class FrequencyCapManager {
   private frequencyData: Map<string, FrequencyInfo>;
-  private capRules: Map<string, any>;
   private defaultCaps: DefaultCaps;
   private updateInterval: number;
 
   constructor() {
     this.frequencyData = new Map();
-    this.capRules = new Map();
 
     this.defaultCaps = {
       perHour: 5,
@@ -51,7 +49,7 @@ export class FrequencyCapManager {
     return eligibleCampaigns;
   }
 
-  private checkFrequencyCap(campaign: any, userId: string, frequency: FrequencyInfo): boolean {
+  private checkFrequencyCap(campaign: any, _userId: string, frequency: FrequencyInfo): boolean {
     const campaignImpressions = frequency.impressions.get(campaign.id) || 0;
     return campaignImpressions < this.defaultCaps.perCampaign;
   }

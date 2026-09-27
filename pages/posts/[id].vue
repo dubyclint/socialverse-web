@@ -1,102 +1,102 @@
 <template>
   <div class="post-detail">
-    <div v-if="loading" class="loading">
+    <div v-if="pending" class="loading">
       <p>Loading post...</p>
     </div>
-    
+
     <div v-else-if="post" class="post-container">
       <div class="post-header">
         <div class="author-info">
-          <img :src="post.author.avatar" :alt="post.author.name" class="author-avatar" />
+          <img :src="post.author.avatar || '/default-avatar.svg'" :alt="post.author.name" class="author-avatar" />
           <div class="author-details">
             <h3 class="author-name">{{ post.author.name }}</h3>
             <p class="post-date">{{ formatDate(post.createdAt) }}</p>
           </div>
         </div>
-        
-        <div class="post-actions">
-          <button v-if="canEdit" @click="editPost" class="edit-btn">✏️ Edit</button>
-          <button v-if="canDelete" @click="deletePost" class="delete-btn">🗑️ Delete</button>
+
+        <div v-if="post.isMine" class="post-actions">
+          <button class="edit-btn" @click="startEdit">{{ editing ? 'Cancel' : 'Edit' }}</button>
+          <button class="delete-btn" @click="removePost">Delete</button>
         </div>
       </div>
 
       <div class="post-content">
-        <h1 class="post-title">{{ post.title }}</h1>
-        <div class="post-body" v-html="renderContent(post.content)"></div>
-        
-        <div v-if="post.images && post.images.length" class="post-images">
-          <img 
-            v-for="(image, index) in post.images" 
+        <h1 v-if="post.title" class="post-title">{{ post.title }}</h1>
+
+        <form v-if="editing" class="comment-form" @submit.prevent="saveEdit">
+          <textarea v-model="draft" rows="5" maxlength="5000" required></textarea>
+          <button type="submit" :disabled="saving">{{ saving ? 'Saving…' : 'Save changes' }}</button>
+        </form>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div v-else class="post-body" v-html="renderContent(post.content)"></div>
+
+        <div v-if="post.media.length" class="post-images">
+          <img
+            v-for="(image, index) in post.media"
             :key="index"
-            :src="image" 
+            :src="image"
             :alt="`Post image ${index + 1}`"
             class="post-image"
             @click="openImageModal(image)"
           />
         </div>
-        
-        <div v-if="post.tags && post.tags.length" class="post-tags">
+
+        <div v-if="post.tags.length" class="post-tags">
           <span v-for="tag in post.tags" :key="tag" class="tag">#{{ tag }}</span>
         </div>
       </div>
 
       <div class="post-stats">
         <div class="engagement-stats">
-          <button @click="toggleLike" :class="['stat-btn', { liked: isLiked }]">
-            ❤️ {{ post.likes || 0 }}
+          <button :class="['stat-btn', { liked: post.likedByMe }]" @click="toggleLike">
+            ❤️ {{ post.likesCount }}
           </button>
-          <button @click="scrollToComments" class="stat-btn">
-            💬 {{ post.comments?.length || 0 }}
+          <button class="stat-btn" @click="scrollToComments">
+            💬 {{ comments.length }}
           </button>
-          <button @click="sharePost" class="stat-btn">
+          <button class="stat-btn" @click="sharePost">
             🔗 Share
           </button>
         </div>
       </div>
 
-      <div class="comments-section" ref="commentsSection">
-        <h3>Comments ({{ post.comments?.length || 0 }})</h3>
-        
-        <form @submit.prevent="addComment" class="comment-form">
-          <textarea 
-            v-model="newComment" 
-            placeholder="Add a comment...\" 
+      <div ref="commentsSection" class="comments-section">
+        <h3>Comments ({{ comments.length }})</h3>
+
+        <form class="comment-form" @submit.prevent="addComment">
+          <textarea
+            v-model="newComment"
+            placeholder="Add a comment..."
             rows="3"
+            maxlength="500"
             required
           ></textarea>
-          <button type="submit" :disabled="!newComment.trim()">Post Comment</button>
+          <button type="submit" :disabled="!newComment.trim() || posting">
+            {{ posting ? 'Posting…' : 'Post Comment' }}
+          </button>
         </form>
-        
+
+        <p v-if="commentError" class="post-error">{{ commentError }}</p>
+
         <div class="comments-list">
-          <div 
-            v-for="comment in post.comments" 
-            :key="comment.id"
-            class="comment"
-          >
+          <div v-for="comment in comments" :key="comment.id" class="comment">
             <div class="comment-header">
-              <img :src="comment.author.avatar" :alt="comment.author.name" class="comment-avatar" />
+              <img :src="comment.author.avatar || '/default-avatar.svg'" :alt="comment.author.name" class="comment-avatar" />
               <div class="comment-info">
                 <span class="comment-author">{{ comment.author.name }}</span>
                 <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
               </div>
             </div>
-            <div class="comment-content" v-html="renderContent(comment.content)"></div>
-            <div class="comment-actions">
-              <button @click="likeComment(comment.id)" :class="{ liked: comment.isLiked }">
-                ❤️ {{ comment.likes || 0 }}
-              </button>
-              <button @click="replyToComment(comment.id)">Reply</button>
-            </div>
+            <div class="comment-content">{{ comment.content }}</div>
           </div>
         </div>
       </div>
     </div>
-    
+
     <div v-else class="error">
-      <p>Post not found</p>
+      <p>{{ loadError || 'Post not found' }}</p>
     </div>
 
-    <!-- Image Modal -->
     <div v-if="showImageModal" class="image-modal" @click="closeImageModal">
       <img :src="selectedImage" alt="Enlarged post image" class="modal-image" />
     </div>
@@ -104,179 +104,155 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import MarkdownIt from 'markdown-it'
+import type { PostDetailView } from '~/server/api/posts/[id]/index.get'
+import type { PostCommentView } from '~/server/api/posts/[id]/comments.get'
+
 definePageMeta({
-  middleware: ['auth','profile-completion', 'language-check'],
+  middleware: ['auth', 'profile-completion', 'language-check'],
   layout: 'default'
 })
- 
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import MarkdownIt from 'markdown-it'
 
 const route = useRoute()
-const md = new MarkdownIt()
+const router = useRouter()
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
-const loading = ref(true)
-const post = ref(null)
+const postId = computed(() => String(route.params.id))
+
+const post = ref<PostDetailView | null>(null)
+const comments = ref<PostCommentView[]>([])
+const pending = ref(true)
+const posting = ref(false)
+const loadError = ref('')
+const commentError = ref('')
 const newComment = ref('')
-const isLiked = ref(false)
 const showImageModal = ref(false)
 const selectedImage = ref('')
-const commentsSection = ref(null)
+const commentsSection = ref<HTMLElement | null>(null)
 
-// Get post ID from route params
-const postId = computed(() => route.params.id)
+const messageOf = (err: unknown) => (err instanceof Error ? err.message : 'Request failed')
 
-// Mock post data
-const mockPost = {
-  id: postId.value,
-  title: 'Welcome to SocialVerse!',
-  content: 'This is a sample post showcasing the **post detail** component. You can add *markdown* formatting, images, and much more!\n\n## Features\n- Rich text content\n- Image galleries\n- Comments system\n- Like functionality',
-  author: {
-    name: 'John Doe',
-    avatar: 'https://via.placeholder.com/48'
-  },
-  createdAt: Date.now() - 3600000,
-  likes: 42,
-  images: [
-    'https://via.placeholder.com/600x300',
-    'https://via.placeholder.com/600x300/0066cc'
-  ],
-  tags: ['welcome', 'socialverse', 'introduction'],
-  comments: [
-    {
-      id: 1,
-      content: 'Great post! Looking forward to more content.',
-      author: {
-        name: 'Alice Smith',
-        avatar: 'https://via.placeholder.com/32'
-      },
-      createdAt: Date.now() - 1800000,
-      likes: 5,
-      isLiked: false
-    },
-    {
-      id: 2,
-      content: 'This platform looks amazing! Can\'t wait to explore more features.',
-      author: {
-        name: 'Bob Wilson',
-        avatar: 'https://via.placeholder.com/32'
-      },
-      createdAt: Date.now() - 900000,
-      likes: 3,
-      isLiked: true
-    }
-  ]
-}
+const renderContent = (content: string): string => md.render(content || '')
 
-const canEdit = computed(() => {
-  return post.value?.author?.name === 'John Doe'
-})
+const formatDate = (value: string): string => new Date(value).toLocaleString()
 
-const canDelete = computed(() => {
-  return canEdit.value || false
-})
-
-function renderContent(content: string): string {
-  return md.render(content || '')
-}
-
-function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleString()
-}
-
-function toggleLike(): void {
-  isLiked.value = !isLiked.value
-  if (isLiked.value) {
-    post.value.likes = (post.value.likes || 0) + 1
-  } else {
-    post.value.likes = Math.max(0, (post.value.likes || 0) - 1)
+const load = async () => {
+  pending.value = true
+  loadError.value = ''
+  try {
+    const [detail, commentList] = await Promise.all([
+      $fetch<{ data: PostDetailView }>(`/api/posts/${postId.value}`),
+      $fetch<{ data: PostCommentView[] }>(`/api/posts/${postId.value}/comments`)
+    ])
+    post.value = detail.data
+    comments.value = commentList.data
+  } catch (err) {
+    post.value = null
+    loadError.value = messageOf(err)
+  } finally {
+    pending.value = false
   }
 }
 
-function scrollToComments(): void {
-  commentsSection.value?.scrollIntoView({ behavior: 'smooth' })
+const toggleLike = async () => {
+  if (!post.value) return
+  try {
+    const res = await $fetch<{ data: { liked: boolean, likesCount: number } }>(
+      `/api/posts/${postId.value}/like`,
+      { method: 'POST' }
+    )
+    post.value.likedByMe = res.data.liked
+    post.value.likesCount = res.data.likesCount
+  } catch (err) {
+    loadError.value = messageOf(err)
+  }
 }
 
-function sharePost(): void {
-  if (navigator.share) {
-    navigator.share({
-      title: post.value.title,
-      text: 'Check out this post on SocialVerse',
-      url: window.location.href
+const addComment = async () => {
+  const content = newComment.value.trim()
+  if (!content) return
+  posting.value = true
+  commentError.value = ''
+  try {
+    const res = await $fetch<{ data: PostCommentView }>(`/api/posts/${postId.value}/comments`, {
+      method: 'POST',
+      body: { content }
     })
-  } else {
-    navigator.clipboard.writeText(window.location.href)
-    alert('Link copied to clipboard!')
+    comments.value.push(res.data)
+    if (post.value) post.value.commentsCount += 1
+    newComment.value = ''
+  } catch (err) {
+    commentError.value = messageOf(err)
+  } finally {
+    posting.value = false
   }
 }
 
-function addComment(): void {
-  if (!newComment.value.trim()) return
-  
-  const comment = {
-    id: Date.now(),
-    content: newComment.value,
-    author: {
-      name: 'Current User',
-      avatar: 'https://via.placeholder.com/32'
-    },
-    createdAt: Date.now(),
-    likes: 0,
-    isLiked: false
-  }
-  
-  post.value.comments = post.value.comments || []
-  post.value.comments.push(comment)
-  newComment.value = ''
+const editing = ref(false)
+const saving = ref(false)
+const draft = ref('')
+
+const startEdit = () => {
+  editing.value = !editing.value
+  draft.value = post.value?.content ?? ''
 }
 
-function likeComment(commentId: number): void {
-  const comment = post.value.comments.find(c => c.id === commentId)
-  if (comment) {
-    comment.isLiked = !comment.isLiked
-    if (comment.isLiked) {
-      comment.likes = (comment.likes || 0) + 1
+const saveEdit = async () => {
+  if (!post.value) return
+  saving.value = true
+  try {
+    await $fetch(`/api/posts/${postId.value}/update`, {
+      method: 'POST',
+      body: { content: draft.value }
+    })
+    post.value.content = draft.value.trim()
+    editing.value = false
+  } catch (err) {
+    loadError.value = messageOf(err)
+  } finally {
+    saving.value = false
+  }
+}
+
+const removePost = async () => {
+  if (!confirm('Delete this post?')) return
+  try {
+    await $fetch(`/api/posts/${postId.value}/delete`, { method: 'POST' })
+    await router.push('/posts')
+  } catch (err) {
+    loadError.value = messageOf(err)
+  }
+}
+
+const scrollToComments = () => commentsSection.value?.scrollIntoView({ behavior: 'smooth' })
+
+const sharePost = async () => {
+  const url = window.location.href
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: post.value?.title || 'Viorp post', url })
     } else {
-      comment.likes = Math.max(0, (comment.likes || 0) - 1)
+      await navigator.clipboard.writeText(url)
     }
+    await $fetch(`/api/posts/${postId.value}/share`, { method: 'POST' }).catch(() => undefined)
+  } catch {
+    // Sharing cancelled by the user is not an error worth surfacing.
   }
 }
 
-function replyToComment(commentId: number): void {
-  console.log('Replying to comment:', commentId)
-}
-
-function editPost(): void {
-  console.log('Editing post:', post.value.id)
-}
-
-function deletePost(): void {
-  if (confirm('Are you sure you want to delete this post?')) {
-    console.log('Deleting post:', post.value.id)
-  }
-}
-
-function openImageModal(image: string): void {
+const openImageModal = (image: string) => {
   selectedImage.value = image
   showImageModal.value = true
 }
 
-function closeImageModal(): void {
+const closeImageModal = () => {
   showImageModal.value = false
   selectedImage.value = ''
 }
 
-onMounted(async () => {
-  try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    post.value = mockPost
-  } catch (error) {
-    console.error('Failed to load post:', error)
-  } finally {
-    loading.value = false
-  }
-})
+onMounted(load)
 </script>
 
 <style scoped>
@@ -292,7 +268,7 @@ onMounted(async () => {
 }
 
 .post-container {
-  background: white;
+  background: #1e293b;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   overflow: hidden;

@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: /services/profileService.ts - BUSINESS LOGIC LAYER
 // ============================================================================
-import { api, unwrap } from './api'
+import { api, unwrap } from './http'
 import type { Profile, ProfileUpdateInput } from '~/types/profile'
 
 export const profileService = {
@@ -21,11 +21,11 @@ export const profileService = {
   // Upload user avatar
   async uploadAvatar(file: File): Promise<string> {
     const formData = new FormData()
-    formData.append('avatar', file)
+    formData.append('file', file)
 
     // Note: Do not manually set Content-Type; 
     // the browser will set it with the correct boundary for FormData.
-    const response = await api('/profile/avatar', {
+    const response = await api('/profile/avatar-upload', {
       method: 'POST',
       body: formData
     })
@@ -35,16 +35,19 @@ export const profileService = {
   },
 
   // Direct Supabase interaction for specific settings
-  async updateStreamConfig(userId: string, data: { title: string; quality: string }) {
+  async updateStreamConfig(
+    userId: string,
+    data: { title: string; quality: string }
+  ): Promise<{ default_stream_title: string | null; stream_quality: string | null }> {
     const client = useSupabaseClient()
     const { data: updated, error } = await client
-      .from('profiles')
+      .from('user')
       .update({
         default_stream_title: data.title,
         stream_quality: data.quality
       })
-      .eq('id', userId)
-      .select()
+      .eq('user_id', userId)
+      .select('default_stream_title, stream_quality')
       .single()
 
     if (error) throw error

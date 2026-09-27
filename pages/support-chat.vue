@@ -2,7 +2,7 @@
   <div>
     <h2>Live Support Chat</h2>
     <div v-if="session">
-      <div v-for="msg in session.messages" :key="msg.timestamp">
+      <div v-for="msg in session.messages" :key="String(msg.timestamp)">
         <strong>{{ msg.sender }}:</strong> {{ msg.content }}
       </div>
       <input v-model="message" @keyup.enter="sendMessage" placeholder="Type your message..." />
@@ -23,7 +23,19 @@ definePageMeta({
   
 import { ref } from 'vue'
 
-const session = ref(null)
+interface SupportMessage {
+  sender: string
+  content: string
+  timestamp: Date | string
+}
+
+interface SupportSession {
+  sessionId: string
+  status: string
+  messages: SupportMessage[]
+}
+
+const session = ref<SupportSession | null>(null)
 const message = ref('')
 const userId = 'user123'
 
@@ -36,10 +48,11 @@ async function startSession() {
     body: JSON.stringify({ action: 'start', userId, agentId: agent.agentId }),
     headers: { 'Content-Type': 'application/json' }
   })
-  session.value = await res.json()
+  session.value = await res.json() as SupportSession
 }
 
 async function sendMessage() {
+  if (!session.value) return
   await fetch('/api/support/chat', {
     method: 'POST',
     body: JSON.stringify({
@@ -59,6 +72,7 @@ async function sendMessage() {
 }
 
 async function endSession() {
+  if (!session.value) return
   await fetch('/api/support/chat', {
     method: 'POST',
     body: JSON.stringify({ action: 'end', sessionId: session.value.sessionId }),
@@ -68,6 +82,7 @@ async function endSession() {
 }
 
 async function escalateSession() {
+  if (!session.value) return
   await fetch('/api/support/chat', {
     method: 'POST',
     body: JSON.stringify({ action: 'escalate', sessionId: session.value.sessionId }),

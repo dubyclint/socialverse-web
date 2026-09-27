@@ -68,14 +68,16 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
     // ============================================================================
     // STEP 3: Validate content
     // ============================================================================
-    if (!body.content || body.content.trim().length === 0) {
+    // A post needs either text or media; media-only posts are valid.
+    const hasMedia = Array.isArray(body.media) && body.media.length > 0
+    if ((!body.content || body.content.trim().length === 0) && !hasMedia) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Post content is required'
+        statusMessage: 'Add something to post'
       })
     }
 
-    if (body.content.length > 5000) {
+    if ((body.content?.length ?? 0) > 5000) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Post content exceeds 5000 character limit'
@@ -121,11 +123,10 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
       .from('posts')
       .insert({
         user_id: userId,
-        content: body.content.trim(),
+        content: body.content?.trim() ?? '',
         privacy,
-        tags: body.tags || [],
-        mentions: body.mentions || [],
-        media: body.media || [],
+        hashtags: body.tags || [],
+        media_urls: (body.media || []).map(item => item.url).filter(Boolean),
         scheduled_at: scheduledAt,
         is_draft: body.saveAsDraft || false,
         created_at: new Date().toISOString(),

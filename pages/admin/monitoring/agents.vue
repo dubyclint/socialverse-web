@@ -116,42 +116,51 @@
   
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-const agents = ref([])
-const selectedAgent = ref(null)
-let refreshInterval = null
+interface Agent {
+  agentId: string
+  online: boolean
+  currentSessions: number
+  maxSessions: number
+  lastActive?: number | string
+  responseTime?: number
+}
+
+const agents = ref<Agent[]>([])
+const selectedAgent = ref<Agent | null>(null)
+let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 const onlineCount = computed(() => 
-  agents.value.filter(a => a.online).length
+  agents.value.filter((a: Agent) => a.online).length
 )
 
 const offlineCount = computed(() => 
-  agents.value.filter(a => !a.online).length
+  agents.value.filter((a: Agent) => !a.online).length
 )
 
 const totalSessions = computed(() => 
-  agents.value.reduce((sum, a) => sum + a.currentSessions, 0)
+  agents.value.reduce((sum: number, a: Agent) => sum + a.currentSessions, 0)
 )
 
 async function fetchAgents() {
   try {
     const res = await fetch('/api/support/agent-status')
-    agents.value = await res.json()
+    agents.value = await res.json() as Agent[]
   } catch (error) {
     console.error('Failed to fetch agents:', error)
   }
 }
 
-function formatTime(timestamp) {
+function formatTime(timestamp?: number | string) {
   if (!timestamp) return 'N/A'
   const date = new Date(timestamp)
   return date.toLocaleString()
 }
 
-function viewAgentDetails(agent) {
+function viewAgentDetails(agent: Agent) {
   selectedAgent.value = agent
 }
 
-async function sendMessage(agent) {
+async function sendMessage(agent: Agent) {
   const message = prompt(`Send message to ${agent.agentId}:`)
   if (message) {
     try {

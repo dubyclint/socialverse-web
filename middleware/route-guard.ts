@@ -1,34 +1,36 @@
 // ============================================================================
 // FILE: /middleware/route-guard.ts - ROLE-BASED ACCESS CONTROL
 // ============================================================================
-import { useUserStore } from '~/stores/user'
+import { defineNuxtRouteMiddleware, navigateTo, abortNavigation, createError } from '#app'
+import { useSupabaseUser, useSupabaseClient } from '#imports'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!to?.path) return
 
-  const userStore = useUserStore()
-  const tokenCookie = useCookie('auth_token')
+  const user = useSupabaseUser()
+  const client = useSupabaseClient()
 
-  // 1. Ensure user state is hydrated (handles page refresh)
-  if (tokenCookie.value && !userStore.user) {
-    try {
-      await userStore.fetchProfile()
-    } catch (e) {
-      userStore.logout()
-    }
-  }
-
-  const user = userStore.user
-
-  // 2. Auth Check: If no token or no user, redirect to signin
-  if (!tokenCookie.value || !user) {
+  if (!user.value) {
     console.warn(`[Route Guard] ✗ Unauthenticated access attempt: ${to.path}`)
     return navigateTo('/signin')
   }
 
-  const userRole = user.role || 'user'
+  // Fetch full user profile/metadata including roles if not present on user object
+  let userRole = 'user'
+  try {
+    const { data: profile } = await client
+      .from('profiles')
+      .select('role')
+      .eq('id', user.value.id)
+      .single()
+      
+    if (profile && 'role' in profile) {
+      userRole = (profile as { role?: string }).role || 'user'
+    }
+  } catch (e) {
+    console.error('[Route Guard] Failed to resolve user role profile:', e)
+  }
 
-  // 3. Admin Route Guard
   if (to.path.startsWith('/admin') && userRole !== 'admin') {
     console.warn(`[Route Guard] ✗ Non-admin blocked from: ${to.path}`)
     return abortNavigation(createError({
@@ -37,7 +39,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }))
   }
 
-  // 4. Manager Route Guard
   if (to.path.startsWith('/manager') && userRole !== 'manager' && userRole !== 'admin') {
     console.warn(`[Route Guard] ✗ Non-manager blocked from: ${to.path}`)
     return abortNavigation(createError({

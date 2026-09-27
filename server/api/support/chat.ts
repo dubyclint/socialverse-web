@@ -10,6 +10,7 @@
 
 import { serverSupabaseClient } from '#supabase/server'
 import type { H3Event } from 'h3'
+import { getMethod } from 'h3'
 
 interface ChatSessionRequest {
   action: 'start' | 'message' | 'end' | 'escalate'

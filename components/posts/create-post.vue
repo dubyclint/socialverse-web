@@ -25,7 +25,6 @@
         class="post-textarea"
         rows="4"
         maxlength="2000"
-        @input="updateCharCount"
       ></textarea>
       
       <!-- Character Counter -->
@@ -190,6 +189,10 @@ function triggerFileInput() {
   fileInputRef.value?.click()
 }
 
+function addGif() {
+  triggerFileInput()
+}
+
 async function handleMediaUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -245,26 +248,27 @@ async function publishPost() {
   try {
     publishing.value = true
     
-    const postData = {
-      content: postContent.value,
-      privacy: selectedPrivacy.value,
-      media_url: uploadedFileData.value?.url || null,
-      media_path: uploadedFileData.value?.path || null,
-      user_id: userStore.user?.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-    
+    const mediaUrl = uploadedFileData.value?.url || null
+    const hashtags = Array.from(
+      new Set((postContent.value.match(/#[\p{L}0-9_]+/gu) || []).map(tag => tag.slice(1).toLowerCase()))
+    )
+
+    const response = await $fetch<{ success: boolean; data?: Record<string, any> }>('/api/posts/create', {
+      method: 'POST',
+      body: {
+        content: postContent.value,
+        privacy: selectedPrivacy.value,
+        tags: hashtags,
+        media: mediaUrl ? [{ url: mediaUrl, type: mediaFile.value?.type || 'image' }] : []
+      }
+    })
+
+    const created = response?.data
+    if (!created) throw new Error('Post was not created')
+
     emit('postCreated', {
-      id: Date.now(),
-      content: postData.content,
-      user_id: postData.user_id,
-      created_at: postData.created_at,
-      privacy: postData.privacy,
-      media_url: postData.media_url,
-      likes_count: 0,
-      comments_count: 0,
-      shares_count: 0,
+      ...created,
+      media_url: mediaUrl,
       user_liked: false,
       user: {
         name: userName.value,

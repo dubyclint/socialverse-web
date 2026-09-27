@@ -13,7 +13,7 @@
               <img
                 v-if="displayProfile.avatar_url"
                 :src="displayProfile.avatar_url"
-                :alt="displayProfile.full_name"
+                :alt="displayProfile.full_name || ''"
                 class="profile-picture"
                 @error="handleAvatarError"
               />
@@ -55,22 +55,28 @@
         </div>
 
         <div class="tab-content">
-          <div v-if="activeTab === 'posts'" class="posts-grid">
-             <PostCard v-for="post in userPosts" :key="post.id" :post="post" />
+          <div v-if="postsLoading" class="tab-empty">Loading posts…</div>
+          <div v-else-if="visiblePosts.length === 0" class="tab-empty">
+            {{ activeTab === 'media' ? 'No media posts yet.' : 'No posts yet.' }}
+          </div>
+          <div v-else class="posts-grid">
+            <PostCard v-for="post in visiblePosts" :key="post.id" :post="post" />
           </div>
         </div>
 
-        <LazyEditProfileModal v-if="showEditProfile" @close="showEditProfile = false" />
-        <LazyAvatarUploadModal v-if="showAvatarUpload" @close="showAvatarUpload = false" />
+        <EditProfileModal v-if="showEditProfile" :is-open="showEditProfile" @close="showEditProfile = false" />
+        <AvatarUploadModal v-if="showAvatarUpload" :is-open="showAvatarUpload" @close="showAvatarUpload = false" />
       </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProfileStore } from '~/stores/profile'
+import PostCard from '~/components/posts/post-card.vue'
+import type { RankedPost } from '~/server/utils/feed-ranker'
 
 definePageMeta({
   middleware: ['auth'],
@@ -84,18 +90,34 @@ const { profile: displayProfile, isLoading: loading } = storeToRefs(profileStore
 const activeTab = ref('posts')
 const isOwnProfile = ref(true) // Should be derived from authStore in production
 const showEditProfile = ref(false)
-const showGeneralSettings = ref(false)
 const showAvatarUpload = ref(false)
-const showCreatePost = ref(false)
 
-// Placeholder data arrays - move these to profileStore actions when ready
-const verificationBadges = ref([])
-const userPosts = ref([])
-const mediaPosts = ref([])
-const likedPosts = ref([])
+const userPosts = ref<RankedPost[]>([])
+const postsLoading = ref(false)
+
+const visiblePosts = computed(() =>
+  activeTab.value === 'media'
+    ? userPosts.value.filter(post => post.media?.length)
+    : userPosts.value
+)
+
+const fetchUserPosts = async (userId: string) => {
+  postsLoading.value = true
+  try {
+    const response = await $fetch<{ data?: { posts: RankedPost[] } }>(`/api/posts/user/${userId}`)
+    userPosts.value = response.data?.posts ?? []
+  } catch (error) {
+    console.error('[profile] Failed to load posts:', error)
+    userPosts.value = []
+  } finally {
+    postsLoading.value = false
+  }
+}
 
 onMounted(async () => {
   await profileStore.fetchProfile()
+  const userId = displayProfile.value?.user_id || displayProfile.value?.id
+  if (userId) await fetchUserPosts(String(userId))
 })
 
 const handleAvatarError = (e: Event) => {
@@ -105,16 +127,10 @@ const handleAvatarError = (e: Event) => {
 
 // Helpers
 const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
-const formatDate = (date: string) => new Date(date).toLocaleDateString()
-const getBadgeIcon = (type: string) => 'check-circle'
-const toggleFollow = () => { /* Logic here */ }
-const openVerificationDetails = (b: any) => { /* Logic here */ }
-const openMediaModal = (p: any) => { /* Logic here */ }
 
 const tabs = [
   { id: 'posts', label: 'Posts', icon: 'file-text' },
-  { id: 'media', label: 'Media', icon: 'image' },
-  { id: 'likes', label: 'Likes', icon: 'heart' }
+  { id: 'media', label: 'Media', icon: 'image' }
 ]
 </script>
 
@@ -151,6 +167,7 @@ const tabs = [
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; text-align: center; color: #94a3b8; }
 .empty-state h3 { font-size: 1.25rem; color: #e2e8f0; margin-top: 1rem; }
 .posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+.tab-empty { padding: 2rem; text-align: center; color: #94a3b8; }
 .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
 .media-item { position: relative; overflow: hidden; border-radius: 8px; cursor: pointer; aspect-ratio: 1; }
 .media-thumbnail { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }

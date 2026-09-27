@@ -1,51 +1,46 @@
 # .nuxtignore - PREVENT SERVER CODE FROM PRERENDER BUNDLING
 # ============================================================================
-# ✅ FIXED: Only exclude prerender-specific files, NOT server/api
+# Patterns use .gitignore syntax and are matched against paths relative to the
+# project root. Keep every pattern anchored with a leading `/`: an unanchored
+# pattern such as `dist` matches *any* nested directory of that name, including
+# `node_modules/<pkg>/dist`, which silently strips module auto-imports
+# (e.g. `useSupabaseUser` from `@nuxtjs/supabase/dist/runtime/composables`).
 # ============================================================================
 
-# Build Cache Directories - SAFE TO EXCLUDE
-node_modules/.cache
-.nuxt
-.output
-.nitro
-.vite
-.turbo
-dist
+# Build Cache Directories
+/node_modules/.cache
+/.nuxt
+/.output
+/.nitro
+/.vite
+/.turbo
+/dist
 
-# Development & IDE - SAFE TO EXCLUDE
-.vscode
-.idea
-.git
-.github
+# Development & IDE
+/.vscode
+/.idea
+/.git
+/.github
 
-# Testing & Coverage - SAFE TO EXCLUDE
-coverage
-.nyc_output
-*.lcov
-tests
-__tests__
-*.test.ts
-*.spec.ts
+# Testing & Coverage
+/coverage
+/.nyc_output
+/tests
+/__tests__
+/*.lcov
+/**/*.test.ts
+/**/*.spec.ts
 
-# Documentation - SAFE TO EXCLUDE
-*.md
-docs
-README.md
-CHANGELOG.md
+# Documentation
+/docs
+/*.md
 
-# Logs - SAFE TO EXCLUDE
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# Logs
+/logs
+/*.log
 
-# CI/CD - SAFE TO EXCLUDE
-.gitlab-ci.yml
-.circleci
-.travis.yml
-azure-pipelines.yml
-.github/workflows
-
+# CI/CD
+/.gitlab-ci.yml
+/.circleci
+/.travis.yml
+/azure-pipelines.yml

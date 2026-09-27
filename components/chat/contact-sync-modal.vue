@@ -1,117 +1,126 @@
-<!-- components/chat/ContactSyncModal.vue -->
+<!-- components/chat/contact-sync-modal.vue -->
 <template>
   <div class="modal-overlay" @click="handleClose">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h3>Sync Contacts</h3>
-        <button class="close-btn" @click="handleClose">
+        <h3>Find PALs from contacts</h3>
+        <button class="close-btn" :disabled="syncing" @click="handleClose">
           <Icon name="x" size="20" />
         </button>
       </div>
 
       <div class="modal-body">
-        <div v-if="!syncing && !completed" class="sync-info">
-          <Icon name="users" size="48" class="info-icon" />
-          <p class="info-text">Sync your phone contacts to find friends on Socialverse</p>
-          <p class="info-subtext">Your contacts will be securely synced and stored</p>
-        </div>
+        <div v-if="!completed" class="sync-info">
+          <Icon name="users" size="40" class="info-icon" />
+          <p class="info-text">
+            We match your contacts against Viorp accounts so you can chat with people you
+            already know.
+          </p>
+          <p class="info-subtext">
+            Numbers are hashed on our server and the original numbers are never stored.
+          </p>
 
-        <div v-if="syncing" class="sync-progress">
-          <div class="spinner"></div>
-          <p>Syncing contacts...</p>
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: syncProgress + '%' }"></div>
+          <button
+            v-if="canPick"
+            class="btn btn-primary block"
+            :disabled="syncing"
+            @click="syncDevice"
+          >
+            {{ syncing ? 'Syncing…' : 'Use my phone contacts' }}
+          </button>
+
+          <div class="manual">
+            <button class="link-btn" @click="showManual = !showManual">
+              {{ showManual ? 'Hide manual entry' : (canPick ? 'Or enter numbers manually' : 'Enter numbers to check') }}
+            </button>
+            <template v-if="showManual || !canPick">
+              <textarea
+                v-model="manualInput"
+                class="manual-input"
+                rows="5"
+                placeholder="One per line, e.g.&#10;Ada, +2348012345678&#10;+447700900123"
+              ></textarea>
+              <button
+                class="btn btn-primary block"
+                :disabled="syncing || !manualInput.trim()"
+                @click="syncManual"
+              >
+                {{ syncing ? 'Syncing…' : 'Check these numbers' }}
+              </button>
+            </template>
           </div>
-          <p class="progress-text">{{ syncProgress }}%</p>
+
+          <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
         </div>
 
-        <div v-if="completed" class="sync-completed">
-          <Icon name="check-circle" size="48" class="success-icon" />
-          <p class="success-text">Contacts synced successfully!</p>
-          <p class="success-subtext">Found {{ foundContacts }} contacts on Socialverse</p>
+        <div v-else class="sync-completed">
+          <Icon name="check-circle" size="40" class="success-icon" />
+          <p class="success-text">{{ savedCount }} contacts synced</p>
+          <p class="success-subtext">
+            {{ matchedCount }} {{ matchedCount === 1 ? 'is' : 'are' }} already on Viorp
+          </p>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button 
-          v-if="!syncing && !completed"
-          class="btn btn-secondary"
-          @click="handleClose"
-        >
+        <button v-if="!completed" class="btn btn-secondary" :disabled="syncing" @click="handleClose">
           Cancel
         </button>
-        <button 
-          v-if="!syncing && !completed"
-          class="btn btn-primary"
-          @click="handleSync"
-        >
-          Sync Contacts
-        </button>
-        <button 
-          v-if="completed"
-          class="btn btn-primary"
-          @click="handleClose"
-        >
-          Done
-        </button>
+        <button v-else class="btn btn-primary" @click="handleClose">Done</button>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, defineEmits } from 'vue'
-import Icon from '@/components/ui/Icon.vue'
+<script setup lang="ts">
+import { ref } from 'vue'
+import Icon from '@/components/ui/icon.vue'
+import { useContacts } from '~/composables/use-contacts'
 
-const emit = defineEmits(['close', 'synced'])
+const emit = defineEmits<{
+  close: []
+  synced: [payload: { saved: number, matched: number }]
+}>()
 
-const syncing = ref(false)
+const { syncing, pickerAvailable, syncFromDevice, syncFromText } = useContacts()
+
+const canPick = pickerAvailable()
+const showManual = ref(false)
+const manualInput = ref('')
 const completed = ref(false)
-const syncProgress = ref(0)
-const foundContacts = ref(0)
+const savedCount = ref(0)
+const matchedCount = ref(0)
+const errorMessage = ref('')
 
-const handleSync = async () => {
-  syncing.value = true
-  syncProgress.value = 0
-
-  // Simulate sync progress
-  const interval = setInterval(() => {
-    syncProgress.value += Math.random() * 30
-    if (syncProgress.value >= 100) {
-      syncProgress.value = 100
-      clearInterval(interval)
-      
-      // Simulate finding contacts
-      foundContacts.value = Math.floor(Math.random() * 50) + 10
-      
-      setTimeout(() => {
-        syncing.value = false
-        completed.value = true
-        
-        // Emit synced event after a delay
-        setTimeout(() => {
-          emit('synced', { count: foundContacts.value })
-        }, 1000)
-      }, 500)
-    }
-  }, 300)
+const finish = (result: { saved: number, matched: number }): void => {
+  savedCount.value = result.saved
+  matchedCount.value = result.matched
+  completed.value = true
+  emit('synced', result)
 }
 
-const handleClose = () => {
-  if (!syncing.value) {
-    emit('close')
+const run = async (task: () => Promise<{ saved: number, matched: number }>): Promise<void> => {
+  errorMessage.value = ''
+  try {
+    finish(await task())
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Contact sync failed'
   }
+}
+
+const syncDevice = (): Promise<void> => run(syncFromDevice)
+const syncManual = (): Promise<void> => run(() => syncFromText(manualInput.value))
+
+const handleClose = (): void => {
+  if (!syncing.value) emit('close')
 }
 </script>
 
 <style scoped>
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -119,11 +128,13 @@ const handleClose = () => {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-card, #0A0F1E);
+  color: var(--text-primary, #F0FFFB);
+  border: 1px solid var(--color-dark-grey, #1F2937);
+  border-radius: 16px;
   width: 90%;
-  max-width: 400px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
 
@@ -131,108 +142,30 @@ const handleClose = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-dark-grey, #1F2937);
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  color: #333;
 }
 
 .close-btn {
   background: none;
   border: none;
   cursor: pointer;
-  color: #666;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.close-btn:hover {
-  background: #f5f5f5;
+  color: inherit;
+  opacity: 0.7;
 }
 
 .modal-body {
-  padding: 40px 20px;
+  padding: 24px 20px;
   text-align: center;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
 }
 
-.sync-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.info-icon {
-  color: #1976d2;
-}
-
-.info-text {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-}
-
-.info-subtext {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-}
-
-.sync-progress {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e0e0e0;
-  border-top-color: #1976d2;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: #e0e0e0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #1976d2;
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  margin: 0;
-  font-size: 12px;
-  color: #666;
-}
-
+.sync-info,
 .sync-completed {
   display: flex;
   flex-direction: column;
@@ -240,57 +173,89 @@ const handleClose = () => {
   gap: 12px;
 }
 
+.info-icon,
 .success-icon {
-  color: #4caf50;
+  color: var(--accent, #6FFFD4);
 }
 
-.success-text {
+.info-text {
   margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
+  font-size: 15px;
 }
 
+.info-subtext,
 .success-subtext {
   margin: 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.manual {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manual-input {
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--color-dark-grey, #1F2937);
+  background: var(--bg-app, #121827);
+  color: inherit;
   font-size: 14px;
-  color: #666;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent, #6FFFD4);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.error-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-error, #FF2E88);
 }
 
 .modal-footer {
   display: flex;
   gap: 12px;
-  padding: 20px;
-  border-top: 1px solid #e0e0e0;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-dark-grey, #1F2937);
   justify-content: flex-end;
 }
 
 .btn {
-  padding: 10px 20px;
+  padding: 10px 18px;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+}
+
+.btn.block {
+  width: 100%;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-primary {
-  background: #1976d2;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #1565c0;
+  background: var(--accent, #6FFFD4);
+  color: var(--text-on-accent, #0A0F1E);
 }
 
 .btn-secondary {
-  background: #f5f5f5;
-  color: #333;
-  border: 1px solid #e0e0e0;
-}
-
-.btn-secondary:hover {
-  background: #e0e0e0;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--color-dark-grey, #1F2937);
 }
 </style>

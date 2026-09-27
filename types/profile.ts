@@ -30,9 +30,12 @@ export interface Profile {
   avatar_url?: string | null
   location?: string | null
   website?: string | null
+  phone?: string | null
+  phone_country?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
+  email_notifications?: boolean
 
   // Verification & Status Properties
   profile_completed?: boolean
@@ -51,6 +54,7 @@ export interface Profile {
   followers_count?: number
   following_count?: number
   posts_count?: number
+  wallet_balance?: number
 
   // Core Collections
   interests?: Interest[]
@@ -70,6 +74,8 @@ export interface ProfileUpdateInput {
   avatar_url?: string | null
   location?: string | null
   website?: string | null
+  phone?: string | null
+  phone_country?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
@@ -88,6 +94,8 @@ export interface ProfileCompleteInput {
   avatar_url?: string | null
   location?: string | null
   website?: string | null
+  phone?: string | null
+  phone_country?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean

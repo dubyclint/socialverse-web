@@ -1,13 +1,10 @@
-// server/api/presence/ping.post.ts
-import { useRedis } from '#redis' // Assuming you have a Redis module installed
+import { defineEventHandler } from 'h3'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { markPresence } from '~/server/utils/presence'
 
+/** Heartbeat: refreshes the caller's online state (Redis when configured). */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  const redis = useRedis()
-  
-  // Set user presence in Redis with 60s TTL
-  // If no ping is received for 60s, the key disappears automatically
-  await redis.set(`presence:${user.id}`, 'online', 'EX', 60)
-  
+  await markPresence(user.id)
   return { success: true }
 })

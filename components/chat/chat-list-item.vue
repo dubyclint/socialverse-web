@@ -15,7 +15,7 @@
     <div class="chat-avatar">
       <img 
         v-if="chat.type === 'direct'"
-        :src="chat.avatar || '/default-avatar.png'" 
+        :src="chat.avatar || '/default-avatar.svg'" 
         :alt="chat.name"
       />
       <div v-else class="group-avatar">

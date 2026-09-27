@@ -1,7 +1,7 @@
 // server/plugins/gun-server.ts
 // FIXED: No type imports, simple mock
 
-export default defineNitroPlugin((nitroApp) => {
+export default defineNitroPlugin((_nitroApp: any) => {
   console.log('[Gun Server] GUN DISABLED - causes History error during build')
   
   const gunMock = {

@@ -24,7 +24,7 @@
 //   }
 // ============================================================================
 
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import type { H3Event } from 'h3'
 
 interface TranslateRequest {
@@ -49,8 +49,8 @@ export default defineEventHandler(async (event: H3Event): Promise<TranslateRespo
     // ========================================================================
     // 1. AUTHENTICATION
     // ========================================================================
-    const contextUser: any = event.context.user
-    const userId = contextUser?.id || contextUser?.user_id
+    const authUser = await serverSupabaseUser(event)
+    const userId = authUser?.id
 
     if (!userId) {
       throw createError({
@@ -131,12 +131,11 @@ export default defineEventHandler(async (event: H3Event): Promise<TranslateRespo
       await supabase
         .from('translation_logs')
         .insert({
-          userId,
-          originalText: text,
-          translatedText,
-          sourceLanguage: detectedSourceLanguage,
-          targetLanguage,
-          createdAt: new Date().toISOString()
+          user_id: userId,
+          original_text: text,
+          translated_text: translatedText,
+          source_language: detectedSourceLanguage,
+          target_language: targetLanguage
         })
     } catch (logError) {
       console.warn('[Translate API] Failed to log translation:', logError)

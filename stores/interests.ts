@@ -1,7 +1,9 @@
-// stores/interests.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { Interest } from '~/types/interests'
 import { interestsService } from '~/services/interestsService'
+
+const messageOf = (err: unknown) => (err instanceof Error ? err.message : 'Request failed')
 
 export const useInterestsStore = defineStore('interests', () => {
   const allInterests = ref<Interest[]>([])
@@ -9,7 +11,6 @@ export const useInterestsStore = defineStore('interests', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  // Getters remain in the store as they act on local reactive state
   const groupedInterests = computed(() => {
     return allInterests.value.reduce((acc, interest) => {
       const cat = interest.category || 'Other'
@@ -18,14 +19,20 @@ export const useInterestsStore = defineStore('interests', () => {
     }, {} as Record<string, Interest[]>)
   })
 
-  // Actions delegate to Service
+  const fetchUserInterests = async () => {
+    try {
+      userInterests.value = await interestsService.fetchUserInterests()
+    } catch (err) {
+      error.value = messageOf(err)
+    }
+  }
+
   const fetchAllInterests = async () => {
     isLoading.value = true
     try {
-      const res = await interestsService.fetchAll()
-      allInterests.value = res?.interests || []
-    } catch (err: any) {
-      error.value = err.message
+      allInterests.value = await interestsService.fetchAll()
+    } catch (err) {
+      error.value = messageOf(err)
     } finally {
       isLoading.value = false
     }
@@ -34,12 +41,30 @@ export const useInterestsStore = defineStore('interests', () => {
   const addInterest = async (interestId: string) => {
     try {
       await interestsService.add(interestId)
-      await fetchUserInterests() // Re-fetch or locally update
-    } catch (err: any) {
-      error.value = err.message
+      await fetchUserInterests()
+    } catch (err) {
+      error.value = messageOf(err)
     }
   }
 
-  // ... other methods follow the same pattern
-  return { allInterests, userInterests, isLoading, groupedInterests, fetchAllInterests, addInterest }
+  const removeInterest = async (interestId: string) => {
+    try {
+      await interestsService.remove(interestId)
+      userInterests.value = userInterests.value.filter(interest => interest.id !== interestId)
+    } catch (err) {
+      error.value = messageOf(err)
+    }
+  }
+
+  return {
+    allInterests,
+    userInterests,
+    isLoading,
+    error,
+    groupedInterests,
+    fetchAllInterests,
+    fetchUserInterests,
+    addInterest,
+    removeInterest
+  }
 })

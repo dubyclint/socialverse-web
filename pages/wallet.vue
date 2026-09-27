@@ -4,6 +4,9 @@
      ============================================================================ -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '~/stores/user'
+import PewgiftSummary from '~/components/financial/gifts/pewgift-summary.vue'
+import PewgiftHistory from '~/components/financial/gifts/pewgift-history.vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check'],
@@ -13,8 +16,13 @@ definePageMeta({
 const supabase = useSupabaseClient()
 
 // Active Panel Tabs
-const tabs = ['Transactions', 'Payment Methods', 'Withdrawals', 'Referrals']
-const activeTab = ref('Transactions')
+const tabs = ['Transactions', 'Pewgift', 'Payment Methods', 'Withdrawals', 'Referrals']
+const route = useRoute()
+const requestedTab = typeof route.query.tab === 'string' ? route.query.tab : ''
+const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : 'Transactions')
+
+const userStore = useUserStore()
+const pewgiftUserId = computed(() => userStore.user?.id ?? '')
 
 // Core Loading & UI Structural States
 const isLoading = ref(true)
@@ -43,6 +51,75 @@ const isSubmitting = ref(false)
 
 // Deposit Preset Chips
 const depositPresets = [5, 10, 25, 50, 100]
+
+interface DepositProvider {
+  code: string
+  display_name: string
+  route: string
+  supported_currencies: string[]
+  fee_percent: number
+  fee_flat: number
+  min_amount: number
+  max_amount: number
+}
+
+interface DepositSettings {
+  currency: string
+  pewgift_per_unit: number
+  platform_rate_pct: number
+  min_amount: number
+  max_amount: number
+}
+
+const depositProviders = ref<DepositProvider[]>([])
+const depositSettings = ref<DepositSettings | null>(null)
+const selectedProvider = ref<string>('')
+const depositError = ref('')
+const depositNotice = ref('')
+const isLoadingProviders = ref(false)
+const topUpBlockedOnDevice = ref(false)
+const depositStatusNotice = ref('')
+
+const { platform, isNative } = useDevicePlatform()
+
+const activeProvider = computed(() =>
+  depositProviders.value.find(provider => provider.code === selectedProvider.value) || null
+)
+
+// Admin-set fees are charged on top of the top-up, so the user sees both numbers.
+const depositFee = computed(() => {
+  const provider = activeProvider.value
+  const amount = Number(depositAmount.value || 0)
+  if (!provider || amount <= 0) return 0
+  return Number(((amount * Number(provider.fee_percent || 0)) / 100 + Number(provider.fee_flat || 0)).toFixed(2))
+})
+
+const depositTotal = computed(() => Number((Number(depositAmount.value || 0) + depositFee.value).toFixed(2)))
+
+const loadDepositOptions = async () => {
+  isLoadingProviders.value = true
+  depositError.value = ''
+  try {
+    const response = await $fetch<{
+      success: boolean
+      data: { providers: DepositProvider[], settings: DepositSettings, webOnlyBlocked: boolean }
+    }>('/api/wallet/deposit/providers', { query: { platform: platform.value } })
+    depositProviders.value = response.data.providers
+    depositSettings.value = response.data.settings
+    topUpBlockedOnDevice.value = response.data.webOnlyBlocked
+    selectedProvider.value = response.data.providers[0]?.code ?? ''
+  } catch {
+    depositError.value = 'Could not load payment options'
+  } finally {
+    isLoadingProviders.value = false
+  }
+}
+
+const openDepositModal = async () => {
+  showDepositModal.value = true
+  depositNotice.value = ''
+  await loadDepositOptions()
+}
 
 // Live Reactive Performance Metrics (Computed directly from real database states)
 const totalBalance = computed(() => userBalance.value)
@@ -126,49 +203,42 @@ const fetchWalletInfrastructureData = async () => {
   }
 }
 
-// Execute Instant Deposit Mutation Pipeline
+// Opens a deposit with the selected provider; the wallet is credited only once
+// the provider settles the payment.
 const executeDirectDeposit = async () => {
-  if (!depositAmount.value || depositAmount.value <= 0) return
-  
+  if (!depositAmount.value || depositAmount.value <= 0 || !selectedProvider.value) return
+
+  depositError.value = ''
+  depositNotice.value = ''
+  isSubmitting.value = true
+
   try {
-    isSubmitting.value = true
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const response = await $fetch<{
+      success: boolean
+      data: { checkoutUrl: string | null, instructions: string | null, deposit: { id: string } }
+    }>('/api/wallet/deposit/intent', {
+      method: 'POST',
+      body: {
+        providerCode: selectedProvider.value,
+        amount: depositAmount.value,
+        currency: depositSettings.value?.currency,
+        platform: platform.value
+      }
+    })
 
-    const incrementValue = depositAmount.value
-    const targetBalance = userBalance.value + incrementValue
+    if (response.data.checkoutUrl) {
+      window.location.href = response.data.checkoutUrl
+      return
+    }
 
-    // 1. Write deposit pipeline row to ledger matching transaction_category Enum
-    const { error: txError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: user.id,
-        amount: incrementValue,
-        type: 'credit',
-        description: 'Capital Pool Deposit via Verified Gateway Partner',
-        icon: '💳',
-        metadata: { gateway: 'stripe_mock', layer: 'web_app' }
-      })
-    if (txError) throw txError
-
-    // 2. Adjust physical wallets table balance pool safely
-    const { error: walletUpdateError } = await supabase
-      .from('wallets')
-      .upsert({ 
-        user_id: user.id, 
-        balance: targetBalance,
-        updated_at: new Date().toISOString()
-      })
-    if (walletUpdateError) throw walletUpdateError
-
-    // Complete transaction flow UI transitions
+    depositNotice.value =
+      response.data.instructions ||
+      'Deposit opened. Your balance updates as soon as the payment is confirmed.'
     depositAmount.value = null
-    showDepositModal.value = false
     await fetchWalletInfrastructureData()
-    alert('💳 Balance vault successfully funded!')
-  } catch (err) {
-    console.error('❌ Wallet Engine Deposit failure:', err)
-    alert('Transaction could not be synchronized to database ledger.')
+  } catch (err: unknown) {
+    const detail = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
+    depositError.value = detail || 'Could not start the deposit'
   } finally {
     isSubmitting.value = false
   }
@@ -285,8 +355,26 @@ const formatDateLabel = (dateString: string) => {
   })
 }
 
+// Returning from a hosted checkout: report what the provider has settled so far.
+const reviewReturnedDeposit = async (depositId: string) => {
+  try {
+    const response = await $fetch<{
+      data: { status: string, credited_pewgift: number, source_currency: string }
+    }>(`/api/wallet/deposit/${depositId}`)
+
+    depositStatusNotice.value = response.data.status === 'SETTLED'
+      ? `Deposit settled — ${Number(response.data.credited_pewgift).toFixed(2)} PEW credited.`
+      : 'Payment received by the provider. Your balance updates as soon as it confirms.'
+    await fetchWalletInfrastructureData()
+  } catch {
+    depositStatusNotice.value = ''
+  }
+}
+
 onMounted(() => {
   fetchWalletInfrastructureData()
+  if (route.query.action === 'deposit') openDepositModal()
+  if (typeof route.query.deposit === 'string') reviewReturnedDeposit(route.query.deposit)
 })
 </script>
 
@@ -299,6 +387,10 @@ onMounted(() => {
         <h1 class="text-2xl font-black text-white tracking-tight">💼 Decentralized Capital & Wallet Management</h1>
         <p class="text-xs text-slate-400 mt-1">Audit active row ledgers, check inbound revenue pools, and command multi-tier settlement gateways.</p>
       </div>
+
+      <p v-if="depositStatusNotice" class="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+        {{ depositStatusNotice }}
+      </p>
 
       <ClientOnly>
         <!-- Real-Time Metrics Ribbon Grid -->
@@ -323,7 +415,7 @@ onMounted(() => {
 
         <!-- Interactive Direct Dispatch Controls -->
         <div class="flex flex-wrap gap-3">
-          <button @click="showDepositModal = true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow">
+          <button @click="openDepositModal" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow">
             ➕ Add Funds
           </button>
           <button @click="showWithdrawModal = true" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-lg transition-colors">
@@ -373,6 +465,12 @@ onMounted(() => {
             <div v-else class="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-lg">
               No dynamic accounting row items logged under this workspace anchor.
             </div>
+          </div>
+
+          <!-- WORKSPACE A2: Pewgift balance, history and gifting -->
+          <div v-if="activeTab === 'Pewgift'" class="space-y-4">
+            <PewgiftSummary />
+            <PewgiftHistory v-if="pewgiftUserId" :user-id="pewgiftUserId" />
           </div>
 
           <!-- WORKSPACE B: Payment Profile Gateways Manager -->
@@ -459,10 +557,44 @@ onMounted(() => {
       <div class="bg-slate-900 border border-slate-800 w-full max-w-sm p-5 rounded-xl shadow-2xl space-y-4">
         <div>
           <h4 class="text-sm font-black text-white tracking-tight flex items-center gap-1.5">💳 Fund Available Asset Pool</h4>
-          <p class="text-[11px] text-slate-400 mt-0.5">Simulate payment validation flow to deposit into your secure application wallet.</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Fund your wallet through one of the platform's configured payment options.</p>
         </div>
-        
-        <form @submit.prevent="executeDirectDeposit" class="space-y-4">
+
+        <div v-if="isLoadingProviders" class="text-[11px] text-slate-400">Loading payment options…</div>
+
+        <div v-else-if="isNative && topUpBlockedOnDevice" class="space-y-3">
+          <p class="text-[11px] text-amber-400">
+            Top-ups are handled on the web. Open viorp.com/wallet in your browser to add funds —
+            your balance syncs straight back into the app.
+          </p>
+          <button type="button" class="w-full text-xs font-bold text-slate-400 hover:text-white py-1.5" @click="showDepositModal = false">Close</button>
+        </div>
+
+        <div v-else-if="!depositProviders.length" class="space-y-3">
+          <p class="text-[11px] text-amber-400">
+            No payment gateway is enabled for this platform yet, so card/PSP deposits are unavailable.
+          </p>
+          <NuxtLink to="/p2p" class="block text-center bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-4 py-2 rounded-lg">
+            Deposit via P2P
+          </NuxtLink>
+          <button type="button" @click="showDepositModal = false" class="w-full text-xs font-bold text-slate-400 hover:text-white py-1.5">Close</button>
+        </div>
+
+        <form v-else @submit.prevent="executeDirectDeposit" class="space-y-4">
+          <div>
+            <label class="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">Payment option</label>
+            <select v-model="selectedProvider" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5">
+              <option v-for="provider in depositProviders" :key="provider.code" :value="provider.code">
+                {{ provider.display_name }} ({{ provider.route }})
+              </option>
+            </select>
+            <p v-if="activeProvider" class="text-[10px] text-slate-500 mt-1">
+              Fee: {{ Number(activeProvider.fee_percent).toFixed(2) }}%
+              <span v-if="Number(activeProvider.fee_flat) > 0">
+                + {{ depositSettings?.currency || 'USD' }} {{ Number(activeProvider.fee_flat).toFixed(2) }}</span>
+              · limits {{ activeProvider.min_amount }}–{{ activeProvider.max_amount }}
+            </p>
+          </div>
           <!-- Preset Chips Grid -->
           <div class="grid grid-cols-5 gap-1.5">
             <button 
@@ -478,14 +610,40 @@ onMounted(() => {
 
           <!-- Direct Input Amount -->
           <div>
-            <label class="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">Custom Deposit Amount ($ USD)</label>
+            <label class="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">
+              Amount ({{ depositSettings?.currency || 'USD' }})
+            </label>
             <input v-model.number="depositAmount" type="number" min="1" step="1" required placeholder="0.00" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5 focus:outline-none font-mono" />
           </div>
 
+          <dl v-if="depositAmount && depositAmount > 0" class="text-[11px] text-slate-400 space-y-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
+            <div class="flex justify-between">
+              <dt>Top-up</dt>
+              <dd class="font-mono text-white">{{ depositSettings?.currency || 'USD' }} {{ Number(depositAmount).toFixed(2) }}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt>Processing fee</dt>
+              <dd class="font-mono text-amber-400">{{ depositSettings?.currency || 'USD' }} {{ depositFee.toFixed(2) }}</dd>
+            </div>
+            <div class="flex justify-between border-t border-slate-800 pt-1">
+              <dt>You pay</dt>
+              <dd class="font-mono text-white">{{ depositSettings?.currency || 'USD' }} {{ depositTotal.toFixed(2) }}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt>Credited</dt>
+              <dd class="font-mono text-emerald-400">
+                {{ (Number(depositAmount) * Number(depositSettings?.pewgift_per_unit || 1)).toFixed(2) }} PEW
+              </dd>
+            </div>
+          </dl>
+
+          <p v-if="depositError" class="text-[11px] text-rose-400">{{ depositError }}</p>
+          <p v-if="depositNotice" class="text-[11px] text-emerald-400">{{ depositNotice }}</p>
+
           <div class="flex items-center justify-end gap-2 pt-1">
             <button type="button" @click="showDepositModal = false" class="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 transition-colors">Cancel</button>
-            <button type="submit" :disabled="!depositAmount || depositAmount <= 0 || isSubmitting" class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg transition-colors shadow">
-              {{ isSubmitting ? 'Settling...' : 'Confirm Deposit' }}
+            <button type="submit" :disabled="!depositAmount || depositAmount <= 0 || !selectedProvider || isSubmitting" class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg transition-colors shadow">
+              {{ isSubmitting ? 'Opening…' : 'Continue to payment' }}
             </button>
           </div>
         </form>

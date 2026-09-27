@@ -2,6 +2,8 @@
 // Update user presence status
 
 import { PresenceModel } from '~/server/models/status'
+import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {

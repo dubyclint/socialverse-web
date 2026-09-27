@@ -30,8 +30,17 @@
 
         <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Phone Number</label>
-          <input v-model="formData.phone" type="tel" required :disabled="isAuthLoading"
-            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+          <div class="flex gap-2">
+            <select v-model="formData.phoneCountry" :disabled="isAuthLoading"
+              class="bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-2 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+              <option v-for="country in callingCountries" :key="country.code" :value="country.code">
+                {{ country.code }} +{{ country.dial }}
+              </option>
+            </select>
+            <input v-model="formData.phone" type="tel" required :disabled="isAuthLoading" placeholder="803 123 4567"
+              class="flex-1 min-w-0 bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+          </div>
+          <p class="mt-1 text-[10px] text-slate-500">Used so people who have your number can find you. Never shown publicly.</p>
         </div>
 
         <div>
@@ -64,18 +73,28 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { navigateTo, useRoute } from '#app'
+import { navigateTo } from '#app'
 import { storeToRefs } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
+import type { AuthUser } from '~/types/user'
+import { CALLING_COUNTRIES, DEFAULT_CALLING_COUNTRY } from '~/utils/calling-codes'
 
 definePageMeta({ layout: 'blank', middleware: 'guest' })
 
-const route = useRoute()
 const userStore = useUserStore()
 const { isLoading: isAuthLoading, error: authError } = storeToRefs(userStore)
 
-const formData = ref({ email: '', username: '', phone: '', location: '', password: '' })
+const callingCountries = CALLING_COUNTRIES
+
+const formData = ref({
+  email: '',
+  username: '',
+  phone: '',
+  phoneCountry: DEFAULT_CALLING_COUNTRY,
+  location: '',
+  password: ''
+})
 const localError = ref('')
 const success = ref('')
 
@@ -84,22 +103,35 @@ const handleSignup = async () => {
   success.value = ''
 
   try {
-    const response = await api('/auth/signup', {
+    const response = await api<{ success: boolean; error?: string; user: AuthUser | null }>('/auth/signup', {
       method: 'POST',
       body: {
         email: formData.value.email.trim(),
         password: formData.value.password,
         username: formData.value.username.trim().toLowerCase(),
         phone: formData.value.phone.trim(),
+        phoneCountry: formData.value.phoneCountry,
         location: formData.value.location.trim()
       }
     })
 
-    if (response.user) {
-      userStore.setUser(response.user)
-      success.value = 'Account created successfully! Redirecting...'
-      setTimeout(() => navigateTo('/profile/complete'), 1200)
+    if (!response.success || !response.user) {
+      localError.value = response.error || 'Registration failed'
+      return
     }
+
+    userStore.setUser(response.user)
+
+    // The signup route provisions the account with the service-role client, which
+    // cannot set the SSR cookie, so the browser session is established here.
+    const session = await userStore.signIn(formData.value.email.trim(), formData.value.password)
+    if (!session.success) {
+      localError.value = session.message || 'Account created, but sign-in failed. Please sign in.'
+      return
+    }
+
+    success.value = 'Account created successfully! Redirecting...'
+    setTimeout(() => navigateTo('/profile/complete'), 1200)
   } catch (err: any) {
     localError.value = err?.data?.message || 'Registration failed'
   }

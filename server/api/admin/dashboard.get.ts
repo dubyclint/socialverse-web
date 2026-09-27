@@ -1,0 +1,104 @@
+import { getSupabaseClient } from '~/server/utils/database'
+
+interface DashboardStats {
+  totalUsers: number
+  totalTrades: number
+  totalEscrowValue: number
+  pendingEscrows: number
+  recentAuditLogs: any[]
+  userStats: {
+    verified: number
+    unverified: number
+  }
+  tradeStats: {
+    pending: number
+    completed: number
+    failed: number
+  }
+}
+
+export default defineEventHandler(async (_event): Promise<DashboardStats> => {
+  try {
+    const supabase = await getSupabaseClient();
+
+    // Get total users
+    const { count: totalUsers } = await supabase
+      .from('user')
+      .select('*', { count: 'exact', head: true })
+
+    // Get total trades
+    const { count: totalTrades } = await supabase
+      .from('p2p_trades')
+      .select('*', { count: 'exact', head: true })
+
+    // Escrow is the open (unsettled) part of the P2P trade book.
+    const openStatuses = ['created', 'funded', 'disputed']
+
+    const { data: escrowData } = await supabase
+      .from('p2p_trades')
+      .select('amount')
+      .in('status', openStatuses)
+
+    const totalEscrowValue = escrowData?.reduce((sum: number, trade: any) => sum + Number(trade.amount || 0), 0) || 0
+
+    const { count: pendingEscrows } = await supabase
+      .from('p2p_trades')
+      .select('*', { count: 'exact', head: true })
+      .in('status', openStatuses)
+
+    // Get verified vs unverified users
+    const { count: verifiedUsers } = await supabase
+      .from('user')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_verified', true)
+
+    const unverifiedUsers = (totalUsers || 0) - (verifiedUsers || 0)
+
+    // Get trade stats
+    const { count: pendingTrades } = await supabase
+      .from('p2p_trades')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['created', 'funded', 'paid'])
+
+    const { count: completedTrades } = await supabase
+      .from('p2p_trades')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'released')
+
+    const { count: failedTrades } = await supabase
+      .from('p2p_trades')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['cancelled', 'disputed'])
+
+    // Get recent audit logs
+    const { data: auditLogs } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(10)
+
+    return {
+      totalUsers: totalUsers || 0,
+      totalTrades: totalTrades || 0,
+      totalEscrowValue,
+      pendingEscrows: pendingEscrows || 0,
+      recentAuditLogs: auditLogs || [],
+      userStats: {
+        verified: verifiedUsers || 0,
+        unverified: unverifiedUsers
+      },
+      tradeStats: {
+        pending: pendingTrades || 0,
+        completed: completedTrades || 0,
+        failed: failedTrades || 0
+      }
+    }
+  } catch (error: any) {
+    console.error('Dashboard error:', error)
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to fetch dashboard data'
+    })
+  }
+})
+

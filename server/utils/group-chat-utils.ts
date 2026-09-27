@@ -1,11 +1,12 @@
 // server/utils/group-chat-utils.ts
-import { supabase } from './auth-utils'
+import { getAdminClient } from '~/server/utils/supabase-server'
 
 export const groupChatOperations = {
   async createGroup(userId: string, data: any) {
     try {
       const { name, description } = data
       
+      const supabase = await getAdminClient()
       const { data: group, error } = await supabase
         .from('group_chats')
         .insert({
@@ -27,6 +28,7 @@ export const groupChatOperations = {
 
   async addMember(groupId: string, memberId: string) {
     try {
+      const supabase = await getAdminClient()
       const { data: member, error } = await supabase
         .from('group_chat_members')
         .insert({
@@ -47,6 +49,7 @@ export const groupChatOperations = {
 
   async removeMember(groupId: string, memberId: string) {
     try {
+      const supabase = await getAdminClient()
       const { error } = await supabase
         .from('group_chat_members')
         .delete()
@@ -63,6 +66,7 @@ export const groupChatOperations = {
 
   async getGroup(groupId: string) {
     try {
+      const supabase = await getAdminClient()
       const { data: group, error } = await supabase
         .from('group_chats')
         .select('*')
@@ -79,6 +83,7 @@ export const groupChatOperations = {
 
   async listGroups(userId: string) {
     try {
+      const supabase = await getAdminClient()
       const { data: groups, error } = await supabase
         .from('group_chats')
         .select('*')

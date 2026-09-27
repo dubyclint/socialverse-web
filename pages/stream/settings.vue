@@ -320,7 +320,7 @@ const regenerateSecondaryKey = () => {
 // SEO
 // ============================================================================
 useHead({
-  title: 'Stream Settings - SocialVerse',
+  title: 'Stream Settings - Viorp',
   meta: [
     { name: 'description', content: 'Configure your streaming settings and preferences' }
   ]

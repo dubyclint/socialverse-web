@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
     let result
     
     switch (body.action) {
-      case 'create':
+      case 'create': {
         if (!body.interest?.name) {
           throw createError({
             statusCode: 400,
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
           })
         }
         
-        const { data: newInterest, error: createError } = await supabase
+        const { data: newInterest, error: insertError } = await supabase
           .from('interests')
           .insert({
             name: body.interest.name,
@@ -66,18 +66,19 @@ export default defineEventHandler(async (event) => {
           .select()
           .single()
         
-        if (createError) {
+        if (insertError) {
           throw createError({
             statusCode: 500,
             statusMessage: 'Failed to create interest',
-            data: createError
+            data: insertError
           })
         }
         
         result = { interest: newInterest, message: 'Interest created successfully' }
         break
+      }
         
-      case 'update':
+      case 'update': {
         if (!body.interest?.id) {
           throw createError({
             statusCode: 400,
@@ -110,8 +111,9 @@ export default defineEventHandler(async (event) => {
         
         result = { interest: updatedInterest, message: 'Interest updated successfully' }
         break
+      }
         
-      case 'delete':
+      case 'delete': {
         if (!body.interest_id) {
           throw createError({
             statusCode: 400,
@@ -148,8 +150,9 @@ export default defineEventHandler(async (event) => {
         
         result = { message: 'Interest deleted successfully' }
         break
+      }
         
-      case 'toggle':
+      case 'toggle': {
         if (!body.interest_id) {
           throw createError({
             statusCode: 400,
@@ -194,6 +197,7 @@ export default defineEventHandler(async (event) => {
           message: `Interest ${toggledInterest.is_active ? 'activated' : 'deactivated'} successfully` 
         }
         break
+      }
         
       default:
         throw createError({
@@ -207,7 +211,7 @@ export default defineEventHandler(async (event) => {
       data: result
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin interests error:', error)
     
     if (error.statusCode) {

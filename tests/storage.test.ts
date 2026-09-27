@@ -3,17 +3,8 @@
 // STORAGE SYSTEM TESTS
 // ============================================================================
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import {
-  validateFile,
-  optimizeImage,
-  generateThumbnail,
-  uploadFile,
-  deleteFile,
-  STORAGE_CONFIG
-} from '~/server/utils/storage'
-import fs from 'fs'
-import path from 'path'
+import { describe, it, expect } from 'vitest'
+import { validateFile, STORAGE_CONFIG } from '~/server/utils/storage'
 
 describe('Storage System', () => {
   // ============================================================================

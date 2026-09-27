@@ -7,8 +7,8 @@
       key-field="emoji"
       v-slot="{ item }"
     >
-      <button @click="handleSelect(item.emoji)" class="emoji-btn">
-        {{ item.emoji }}
+      <button @click="handleSelect((item as EmojiItem).emoji)" class="emoji-btn">
+        {{ (item as EmojiItem).emoji }}
       </button>
     </RecycleScroller>
   </div>
@@ -17,7 +17,24 @@
 <script setup lang="ts">
 import { RecycleScroller } from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
-// ... rest of your script
+import { useEmojiPicker } from '~/composables/use-emoji-picker'
+
+interface EmojiItem {
+  emoji: string
+  name?: string
+  category?: string
+}
+
+const { filteredEmojis, selectEmoji } = useEmojiPicker()
+
+const emit = defineEmits<{
+  select: [emoji: string]
+}>()
+
+const handleSelect = (emoji: string) => {
+  selectEmoji(emoji)
+  emit('select', emoji)
+}
 </script>
 
 <style scoped>

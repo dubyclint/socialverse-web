@@ -1,5 +1,5 @@
 // composables/useSharedState.ts
-import { ref, computed, reactive } from 'vue'
+import { computed, reactive } from 'vue'
 
 // ============================================
 // Shared State Objects
@@ -66,7 +66,7 @@ export const useSharedState = () => {
   const getProfile = () => profileState
 
   const updateProfileField = (key: keyof typeof profileState, value: any) => {
-    profileState[key] = value
+    ;(profileState as any)[key] = value
   }
 
   const clearProfile = () => {
@@ -96,7 +96,7 @@ export const useSharedState = () => {
   const getRank = () => rankState
 
   const updateRankField = (key: keyof typeof rankState, value: any) => {
-    rankState[key] = value
+    ;(rankState as any)[key] = value
   }
 
   const incrementRankPoints = (points: number) => {
@@ -187,7 +187,7 @@ export const useSharedState = () => {
   const getSettings = () => settingsState
 
   const updateSetting = (key: keyof typeof settingsState, value: any) => {
-    settingsState[key] = value
+    ;(settingsState as any)[key] = value
   }
 
   const toggleTheme = () => {

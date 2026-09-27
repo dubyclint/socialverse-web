@@ -15,17 +15,14 @@
 
     <!-- Chat Window -->
     <universe-chat-window 
-      :messages="filteredMessages"
+      :messages="windowMessages"
       :online-count="onlineCount"
-      :matched-users="matchedUsers"
+      :current-user-id="currentUserId"
+      :has-more="hasMore"
       :loading="loading"
       :error="error"
-      @send-message="sendMessage"
-      @like-message="likeMessage"
-      @add-reaction="addReaction"
-      @translate-message="translateMessage"
-      @send-gift="sendGift"
       @load-more="loadMoreMessages"
+      @close-error="error = null"
     />
 
     <!-- Message Input -->
@@ -87,19 +84,39 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useUniverseStore } from '~/stores/universe'
 import { useSocket } from '~/composables/use-socket'
 import UniverseChatHeader from '@/components/chat/universe-chat-header.vue'
 import UniverseChatWindow from '@/components/chat/universe-chat-window.vue'
 
-// Stores & Composables
-const universeStore = useUniverseStore()
-const { socket, isConnected } = useSocket()
+interface UniverseRow {
+  id: string
+  user_id: string
+  content: string
+  created_at: string
+  username?: string
+  avatar?: string
+  fileUrl?: string
+  fileType?: string
+  fileName?: string
+}
 
-// State
+interface UniverseResponse {
+  success: boolean
+  data: UniverseRow[]
+  hasMore: boolean
+}
+
+const { socket } = useSocket()
+const supabaseUser = useSupabaseUser()
+
+const messages = ref<UniverseRow[]>([])
+const searchQuery = ref('')
+const hasMore = ref(false)
 const messageContent = ref('')
 const sending = ref(false)
 const loading = ref(false)
+const onlineCount = ref(0)
+const unreadCount = ref(0)
 const error = ref<string | null>(null)
 const showEmojiPicker = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -112,77 +129,87 @@ const filters = ref({
 
 const commonEmojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥', '💯', '🎉', '😎', '🤗']
 
-// Computed
-const onlineCount = computed(() => universeStore.onlineCount)
-const unreadCount = computed(() => universeStore.unreadCount)
-const matchedUsers = computed(() => universeStore.matchedUsers)
-const filteredMessages = computed(() => universeStore.filteredMessages)
+const currentUserId = computed(() => supabaseUser.value?.id)
 
-// Methods
-const handleSearch = (query: string): void => {
-  universeStore.searchMessages(query)
+const windowMessages = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return messages.value
+    .filter(m => !q || m.content.toLowerCase().includes(q))
+    .map(m => ({
+      id: m.id,
+      user: { id: m.user_id, name: m.username || 'unknown', avatar: m.avatar },
+      content: m.content,
+      timestamp: m.created_at,
+      fileUrl: m.fileUrl,
+      fileType: m.fileType,
+      fileName: m.fileName
+    }))
+})
+
+const fetchMessages = async (offset = 0): Promise<void> => {
+  loading.value = true
+  try {
+    const response = await $fetch<UniverseResponse>('/api/universe/messages', {
+      query: {
+        offset,
+        limit: 50,
+        country: filters.value.country || undefined,
+        interest: filters.value.interest || undefined,
+        language: filters.value.language || undefined
+      }
+    })
+    messages.value = offset === 0 ? response.data : [...response.data, ...messages.value]
+    hasMore.value = response.hasMore
+  } catch (err: any) {
+    error.value = err?.data?.statusMessage || 'Failed to load messages'
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleFilterChange = (newFilters: any): void => {
+const handleSearch = (query: string): void => {
+  searchQuery.value = query
+}
+
+const handleFilterChange = async (newFilters: Partial<typeof filters.value>): Promise<void> => {
   filters.value = { ...filters.value, ...newFilters }
-  socket?.emit('universe:filter-messages', filters.value)
+  await fetchMessages(0)
 }
 
 const sendMessage = async (): Promise<void> => {
-  if (!messageContent.value.trim() || sending.value) return
+  const content = messageContent.value.trim()
+  if (!content || sending.value) return
 
   sending.value = true
   error.value = null
 
-  try {
-    socket?.emit('universe:send-message', {
-      content: messageContent.value,
-      ...filters.value,
-      timestamp: new Date().toISOString()
-    })
+  // The server broadcasts the persisted row back to this socket too, so the
+  // message is only rendered once it exists in the database.
+  socket?.emit(
+    'universe:send-message',
+    { content, ...filters.value },
+    (result: { success: boolean; error?: string }) => {
+      sending.value = false
+      if (result?.success) messageContent.value = ''
+      else error.value = result?.error || 'Failed to send message'
+    }
+  )
 
-    messageContent.value = ''
-  } catch (err: any) {
-    error.value = err.message || 'Failed to send message'
-    console.error('Send message error:', err)
-  } finally {
-    sending.value = false
+  if (!socket) {
+    try {
+      await $fetch('/api/universe/send', { method: 'POST', body: { content, ...filters.value } })
+      messageContent.value = ''
+      await fetchMessages(0)
+    } catch (err: any) {
+      error.value = err?.data?.statusMessage || 'Failed to send message'
+    } finally {
+      sending.value = false
+    }
   }
-}
-
-const likeMessage = (messageId: string): void => {
-  socket?.emit('universe:like-message', { messageId })
-  universeStore.likeMessage(messageId)
-}
-
-const addReaction = (messageId: string, emoji: string): void => {
-  socket?.emit('universe:add-reaction', { messageId, emoji })
-  universeStore.addReaction(messageId, emoji)
-}
-
-const translateMessage = (messageId: string, text: string, targetLang: string): void => {
-  socket?.emit('universe:translate-message', { messageId, text, targetLang })
-}
-
-const sendGift = (recipientId: string, giftId: string, amount: number, message: string, messageId: string): void => {
-  socket?.emit('universe:send-gift', { 
-    recipientId, 
-    giftId, 
-    giftAmount: amount, 
-    message, 
-    messageId 
-  })
 }
 
 const loadMoreMessages = async (): Promise<void> => {
-  loading.value = true
-  try {
-    await universeStore.loadMoreMessages()
-  } catch (err) {
-    console.error('Load more error:', err)
-  } finally {
-    loading.value = false
-  }
+  await fetchMessages(messages.value.length)
 }
 
 const attachFile = (): void => {
@@ -199,18 +226,15 @@ const handleFileUpload = async (event: Event): Promise<void> => {
     const formData = new FormData()
     formData.append('file', file)
     
-    const response = await $fetch('/api/upload', {
+    const response = await $fetch<{ success: boolean; data: { url: string } }>('/api/upload', {
       method: 'POST',
       body: formData
     })
 
     if (response.success) {
       socket?.emit('universe:send-message', {
-        content: `[File: ${file.name}]`,
-        fileUrl: response.data.url,
-        fileType: file.type,
-        ...filters.value,
-        timestamp: new Date().toISOString()
+        content: response.data.url,
+        ...filters.value
       })
     }
   } catch (err) {
@@ -223,42 +247,29 @@ const insertEmoji = (emoji: string): void => {
 }
 
 // Lifecycle
-onMounted(() => {
-  if (!isConnected.value) {
-    error.value = 'Not connected to chat server'
-    return
-  }
+onMounted(async () => {
+  await fetchMessages(0)
 
-  // Join universe chat
   socket?.emit('universe:join', filters.value)
 
-  // Listen for messages
-  socket?.on('universe:message', (message) => {
-    universeStore.addMessage(message)
+  socket?.on('universe:message', (message: UniverseRow) => {
+    if (messages.value.some(m => m.id === message.id)) return
+    messages.value = [...messages.value, message]
   })
 
-  // Listen for online count
-  socket?.on('universe:online-count', (data) => {
-    universeStore.setOnlineCount(data.count)
+  socket?.on('universe:online-count', (data: { count: number }) => {
+    onlineCount.value = data.count
   })
 
-  // Listen for matched users
-  socket?.on('universe:matched-users', (data) => {
-    universeStore.setMatchedUsers(data.users)
-  })
-
-  // Listen for reactions
-  socket?.on('universe:reaction-added', (data) => {
-    universeStore.addReaction(data.messageId, data.emoji)
-  })
-
-  // Listen for likes
-  socket?.on('universe:message-liked', (data) => {
-    universeStore.likeMessage(data.messageId)
+  socket?.on('universe:error', (data: { message: string }) => {
+    error.value = data.message
   })
 })
 
 onUnmounted(() => {
+  socket?.off('universe:message')
+  socket?.off('universe:online-count')
+  socket?.off('universe:error')
   socket?.emit('universe:leave', {})
 })
 </script>

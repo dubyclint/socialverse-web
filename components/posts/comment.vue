@@ -7,13 +7,17 @@
   <div class="comment">
     <!-- Comment Header -->
     <div class="comment-header">
-      <img
-        :src="comment.profiles.avatar_url"
-        :alt="comment.profiles.username"
-        class="comment-avatar"
-      />
+      <NuxtLink :to="`/profile/${comment.profiles.username}`" class="comment-avatar-link">
+        <img
+          :src="comment.profiles.avatar_url"
+          :alt="comment.profiles.username"
+          class="comment-avatar"
+        />
+      </NuxtLink>
       <div class="comment-info">
-        <div class="comment-author">{{ comment.profiles.username }}</div>
+        <NuxtLink :to="`/profile/${comment.profiles.username}`" class="comment-author">
+          {{ comment.profiles.username }}
+        </NuxtLink>
         <div class="comment-time">{{ formatTime(comment.created_at) }}</div>
       </div>
     </div>
@@ -269,9 +273,16 @@ const sendPewgift = async () => {
 }
 
 .comment-author {
+  display: inline-block;
   font-weight: 600;
   font-size: 14px;
   color: #333;
+  text-decoration: none;
+}
+
+.comment-avatar-link {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
 .comment-time {

@@ -1,5 +1,3 @@
-import type { Ref } from 'vue'
-
 /**
  * Storage Manager Configuration
  */
