@@ -1,7 +1,7 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { hashPhones, normaliseE164 } from '~/server/utils/phone'
+import { requireUser } from '~/server/utils/auth'
 
 interface SyncEntry {
   phone: string
@@ -21,9 +21,7 @@ const MAX_CONTACTS = 2000
  * belong to registered accounts.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const body = await readBody<SyncBody>(event)
   const entries = Array.isArray(body?.contacts) ? body.contacts.slice(0, MAX_CONTACTS) : []
 

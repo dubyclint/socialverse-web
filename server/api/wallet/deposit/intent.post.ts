@@ -1,5 +1,4 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { useRuntimeConfig } from '#imports'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { calculateFees, resolveLimits } from '~/server/utils/payments/fees'
@@ -7,6 +6,7 @@ import { resolveGateway } from '~/server/utils/payments/gateways'
 import { DEFAULT_DEPOSIT_SETTINGS } from '~/server/utils/payments/settings'
 import type { DepositSettings, PaymentProviderRow } from '~/server/utils/payments/types'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 type DepositRoute = Database['public']['Enums']['deposit_route']
 
@@ -23,9 +23,7 @@ interface DepositIntentBody {
  * the provider confirms payment — nothing credits the wallet from here.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const body = await readBody<DepositIntentBody>(event)
   const amount = Number(body?.amount)
 

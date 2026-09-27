@@ -1,6 +1,6 @@
 import { createError, defineEventHandler } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 interface UsageRow {
   message_text: string | null
@@ -13,9 +13,7 @@ interface UsageRow {
  * counts for every room the user belongs to.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const service = getServiceClient()
   const { data: memberships, error: memberError } = await service
     .from('chat_room_members')

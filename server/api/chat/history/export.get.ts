@@ -1,12 +1,10 @@
 import { createError, defineEventHandler, setHeader } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 /** Account-info export: every message the user sent, as a JSON download. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const service = getServiceClient()
   const { data, error } = await service
     .from('chat_messages')

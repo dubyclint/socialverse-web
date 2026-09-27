@@ -1,15 +1,14 @@
 import { createError, defineEventHandler, getQuery } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import { DEFAULT_DEPOSIT_SETTINGS } from '~/server/utils/payments/settings'
 import { resolveLimits } from '~/server/utils/payments/fees'
 import type { DepositSettings, PaymentProviderRow } from '~/server/utils/payments/types'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 /** Deposit options actually configured for this platform, plus the conversion terms. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  await requireUser(event)
   const client = await serverSupabaseClient<Database>(event)
   const isNative = String(getQuery(event).platform ?? 'web') !== 'web'
 

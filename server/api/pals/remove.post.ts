@@ -1,12 +1,10 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 /** Removes an accepted PAL relationship in either direction. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const { userId } = await readBody<{ userId?: string }>(event)
   if (!userId) throw createError({ statusCode: 400, statusMessage: 'Invalid request' })
 

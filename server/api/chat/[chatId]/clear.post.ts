@@ -1,12 +1,10 @@
 import { createError, defineEventHandler, getRouterParam } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 /** Clears the caller's own messages in a room; other members keep theirs. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const chatId = getRouterParam(event, 'chatId')
   if (!chatId) throw createError({ statusCode: 400, statusMessage: 'Missing chat id' })
 

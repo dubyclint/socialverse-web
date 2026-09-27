@@ -1,6 +1,7 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 const LIMIT = 20
 
@@ -11,9 +12,7 @@ const LIMIT = 20
  * lives in Find Friends / group invites (`/api/users/search`).
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const term = String(getQuery(event).q ?? '').trim()
   const client = await serverSupabaseClient<Database>(event)
 

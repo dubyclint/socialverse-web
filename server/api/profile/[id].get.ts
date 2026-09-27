@@ -1,7 +1,8 @@
 // FILE: /server/api/profile/[id].get.ts
 import { defineEventHandler, getRouterParam, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -10,9 +11,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * uuid everywhere the id is already known, so accept both.
  */
 export default defineEventHandler(async (event) => {
-  const caller = await serverSupabaseUser(event)
-  if (!caller) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  await requireUser(event)
   const identifier = getRouterParam(event, 'id')
   if (!identifier) throw createError({ statusCode: 400, statusMessage: 'User ID is required' })
 

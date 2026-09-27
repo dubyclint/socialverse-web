@@ -1,13 +1,11 @@
 import { createError, defineEventHandler } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { DEFAULT_USER_SETTINGS, mergeSettings } from '~/shared/user-settings'
+import { requireUser } from '~/server/utils/auth'
 
 /** Private per-user settings, merged over the documented defaults. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const service = getServiceClient()
   const { data, error } = await service
     .from('user_settings')

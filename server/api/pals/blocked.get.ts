@@ -1,13 +1,11 @@
-import { createError, defineEventHandler } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
+import { defineEventHandler } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadProfiles } from '~/server/utils/pals'
+import { requireUser } from '~/server/utils/auth'
 
 /** Users the signed-in account has blocked. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const service = getServiceClient()
   const { data } = await service
     .from('user_blocks')

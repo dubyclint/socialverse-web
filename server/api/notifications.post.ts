@@ -1,11 +1,10 @@
 // server/api/notifications.post.ts
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireUser } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   // 1. Authenticate the request
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
-
+  const user = await requireUser(event)
   // 2. Read body
   const body = await readBody(event)
   const client = await serverSupabaseClient(event)

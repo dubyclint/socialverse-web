@@ -1,6 +1,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 interface DirectChatBody {
   userId?: string
@@ -11,9 +12,7 @@ interface DirectChatBody {
  * the pair already has one so a conversation never forks.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const body = await readBody<DirectChatBody>(event)
   const otherId = body?.userId?.trim()
   if (!otherId) throw createError({ statusCode: 400, statusMessage: 'userId is required' })

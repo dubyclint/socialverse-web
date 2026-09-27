@@ -1,6 +1,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 interface BadgeRequestBody {
   name?: string
@@ -9,9 +10,7 @@ interface BadgeRequestBody {
 }
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const { name, socialLink, docUrl } = await readBody<BadgeRequestBody>(event)
 
   if (!name?.trim() || !socialLink?.trim()) {
