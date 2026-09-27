@@ -1,6 +1,6 @@
 import { createError, defineEventHandler } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 export interface ContactEntry {
   id: string | null
@@ -17,9 +17,7 @@ export interface ContactEntry {
  * have an account and those who can only be invited.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const service = getServiceClient()
 
   const { data: contacts, error } = await service

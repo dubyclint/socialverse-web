@@ -1,15 +1,13 @@
 import { createError, defineEventHandler } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 /**
  * Soft-deletes every message the user sent, for everyone, so the conversation
  * history stays consistent for the other participants.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const service = getServiceClient()
   const { data, error } = await service
     .from('chat_messages')

@@ -1,12 +1,10 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 /** Block or unblock a user; blocking also removes any PAL relationship. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const { userId, action } = await readBody<{ userId?: string, action?: 'block' | 'unblock' }>(event)
   if (!userId || userId === user.id || !action) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid request' })

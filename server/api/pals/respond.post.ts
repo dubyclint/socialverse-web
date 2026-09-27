@@ -1,14 +1,12 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 type Action = 'accept' | 'decline' | 'cancel'
 
 /** Accept or decline an incoming request, or cancel an outgoing one. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const { requestId, action } = await readBody<{ requestId?: string, action?: Action }>(event)
   if (!requestId || !action || !['accept', 'decline', 'cancel'].includes(action)) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid request' })

@@ -1,12 +1,11 @@
 import { createError, defineEventHandler, getRouterParam } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 /** Media, links and documents shared in a room, newest first. */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const chatId = getRouterParam(event, 'chatId')
   if (!chatId) throw createError({ statusCode: 400, statusMessage: 'Missing chat id' })
 

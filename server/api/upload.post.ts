@@ -7,7 +7,8 @@
 // ✅ FIXED: Comprehensive error handling
 // ============================================================================
 
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireUser } from '~/server/utils/auth'
 import {
   STORAGE_CONFIG,
   validateFile,
@@ -38,7 +39,7 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
 
   const _supabase = await serverSupabaseClient(event)
 
-  const user = await serverSupabaseUser(event)
+  const user = await requireUser(event)
 
     if (!user) {
       console.error('[Upload API] ❌ Unauthorized')

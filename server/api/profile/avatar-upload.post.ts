@@ -1,17 +1,16 @@
 import { defineEventHandler, readMultipartFormData, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { H3Event } from 'h3'
 import type { Database } from '~/types/database.types'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
+import { requireUser } from '~/server/utils/auth'
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 const MAX_BYTES = 5 * 1024 * 1024
 const BUCKET = 'avatars'
 
 export default defineEventHandler(async (event: H3Event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   await enforceRateLimit(event, 'profile:avatar', { limit: 10, windowMs: 60_000 }, user.id)
 
   const supabase = await serverSupabaseClient<Database>(event)

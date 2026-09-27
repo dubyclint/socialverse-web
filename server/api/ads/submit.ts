@@ -1,6 +1,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 interface AdSubmission {
   title?: string
@@ -21,9 +22,7 @@ interface AdSubmission {
 }
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const body = await readBody<AdSubmission>(event)
   const title = body.title?.trim()
   if (!title) throw createError({ statusCode: 400, statusMessage: 'Title is required' })

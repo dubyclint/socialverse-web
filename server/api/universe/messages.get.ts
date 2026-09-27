@@ -1,10 +1,9 @@
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  await requireUser(event)
   const query = getQuery(event)
   const limit = Math.min(Number(query.limit) || 50, 100)
   const offset = Number(query.offset) || 0

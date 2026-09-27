@@ -1,10 +1,9 @@
 // /server/api/posts/[id]/pewgift.post.ts
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireUser } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, message: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const postId = getRouterParam(event, 'id')
   const { amount } = await readBody(event)
   const client = await serverSupabaseClient(event)

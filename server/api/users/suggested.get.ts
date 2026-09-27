@@ -1,6 +1,7 @@
-import { defineEventHandler, getQuery, createError } from 'h3'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { defineEventHandler, getQuery } from 'h3'
+import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
 
 /** Recommendations stay on while a user is still building a network. */
 const RECOMMEND_BELOW_FOLLOWING = 100
@@ -25,9 +26,7 @@ const continentOf = (location: string | null): string | null => {
 }
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const limit = Math.min(
     Math.max(Number(getQuery(event).limit) || MAX_SUGGESTIONS, MIN_SUGGESTIONS),
     MAX_SUGGESTIONS

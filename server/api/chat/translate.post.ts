@@ -24,8 +24,9 @@
 //   }
 // ============================================================================
 
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import type { H3Event } from 'h3'
+import { requireUser } from '~/server/utils/auth'
 
 interface TranslateRequest {
   text: string
@@ -49,7 +50,7 @@ export default defineEventHandler(async (event: H3Event): Promise<TranslateRespo
     // ========================================================================
     // 1. AUTHENTICATION
     // ========================================================================
-    const authUser = await serverSupabaseUser(event)
+    const authUser = await requireUser(event)
     const userId = authUser?.id
 
     if (!userId) {

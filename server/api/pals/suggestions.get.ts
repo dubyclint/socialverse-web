@@ -1,7 +1,7 @@
-import { createError, defineEventHandler, getQuery } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
+import { defineEventHandler, getQuery } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadBlockedIds, loadFriendIds, loadProfiles } from '~/server/utils/pals'
+import { requireUser } from '~/server/utils/auth'
 
 interface Candidate {
   score: number
@@ -19,9 +19,7 @@ const INTEREST_WEIGHT = 5
  * address book, then friends-of-friends, then shared interests.
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const limit = Math.min(Number(getQuery(event).limit ?? 20) || 20, 50)
   const service = getServiceClient()
 

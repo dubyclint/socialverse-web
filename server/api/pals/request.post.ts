@@ -1,15 +1,13 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { serverSupabaseUser } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { requireUser } from '~/server/utils/auth'
 
 /**
  * Sends a friend request. If the other side already requested us, the pair is
  * accepted immediately (the WhatsApp-style "you both added each other" case).
  */
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
-  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
+  const user = await requireUser(event)
   const { userId } = await readBody<{ userId?: string }>(event)
   if (!userId || userId === user.id) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid recipient' })

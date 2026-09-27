@@ -25,6 +25,7 @@
 		}
 	},
 	"packageClassList": [
+		"ContactsPlugin",
 		"AppPlugin",
 		"CAPCameraPlugin",
 		"HapticsPlugin",
