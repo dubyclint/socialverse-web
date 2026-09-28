@@ -12,10 +12,18 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Readable crash/ANR stack traces via the uploaded mapping file.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Capacitor resolves plugins and their @PluginMethod entry points reflectively
+# from the JavaScript bridge, so their names must survive shrinking.
+-keep class com.getcapacitor.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * extends com.getcapacitor.Plugin {
+    @com.getcapacitor.PluginMethod <methods>;
+}
+-keep class org.apache.cordova.** { *; }
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
