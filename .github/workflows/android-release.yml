@@ -84,7 +84,8 @@ jobs:
           VIORP_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           VIORP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           # Play rejects a re-used versionCode, so it tracks the run number.
-          VIORP_VERSION_CODE: ${{ github.run_number }}
+          # Offset past the version codes Play already consumed from earlier runs.
+          VIORP_VERSION_CODE: ${{ 1000 + github.run_number }}
         run: |
           chmod +x ./gradlew
           ./gradlew bundleRelease --no-daemon
