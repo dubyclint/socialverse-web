@@ -83,10 +83,13 @@ jobs:
           VIORP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           VIORP_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           VIORP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          # Play rejects a re-used versionCode, so it tracks the run number.
-          # Offset past the version codes Play already consumed from earlier runs.
-          VIORP_VERSION_CODE: ${{ 1000 + github.run_number }}
+          # Play rejects a re-used versionCode, so it tracks the run number,
+          # offset past the codes Play already consumed from earlier runs.
+          # (GitHub expressions have no arithmetic, so the offset is applied here.)
+          VIORP_VERSION_CODE_OFFSET: 1000
         run: |
+          export VIORP_VERSION_CODE=$((VIORP_VERSION_CODE_OFFSET + GITHUB_RUN_NUMBER))
+          echo "versionCode=$VIORP_VERSION_CODE"
           chmod +x ./gradlew
           ./gradlew bundleRelease --no-daemon
 
