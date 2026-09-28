@@ -188,7 +188,9 @@ export default defineNuxtConfig({
     preset: isCapacitorBuild ? 'static' : (process.env.NITRO_PRESET || 'node-server'),
     minify: true,
     sourceMap: false,
-    compressPublicAssets: true,
+    // Pre-compressed twins (.gz/.br) collide in the Android asset packager, which
+    // strips those extensions, so native bundles ship the plain files only.
+    compressPublicAssets: !isCapacitorBuild,
     // Required for the Socket.IO bridge in server/gateway/socket/plugin.ts.
     experimental: {
       websocket: true,
