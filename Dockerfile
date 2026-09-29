@@ -7,7 +7,9 @@ WORKDIR /src
 
 COPY package.json package-lock.json* ./
 
-RUN npm install
+# npm ci installs the locked tree; npm install would float dependencies such as
+# nuxt to versions the build has never been verified against.
+RUN npm ci
 
 COPY . .
 

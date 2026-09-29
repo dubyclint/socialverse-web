@@ -6,6 +6,11 @@
       <span class="aurora__grain" />
     </div>
 
+    <header class="brandbar">
+      <img src="/logo.svg" alt="Viorp" class="brandbar__mark" width="36" height="36" >
+      <span class="brandbar__name">Viorp</span>
+    </header>
+
     <main class="stage">
       <div class="orbit" aria-hidden="true">
         <span class="orbit__ring orbit__ring--outer" />
@@ -63,6 +68,30 @@ const goToSignup = () => navigateTo('/signup')
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.brandbar {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 18px);
+  left: max(env(safe-area-inset-left), 20px);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  animation: rise 700ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.brandbar__mark {
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 0 14px rgba(111, 255, 212, 0.35));
+}
+
+.brandbar__name {
+  font-family: var(--font-heading, 'Satoshi', Inter, sans-serif);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  color: rgba(240, 255, 251, 0.92);
 }
 
 .aurora__band {
@@ -279,6 +308,7 @@ const goToSignup = () => navigateTo('/signup')
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .brandbar,
   .mark,
   .wordmark,
   .tagline,
