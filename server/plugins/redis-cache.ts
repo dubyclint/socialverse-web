@@ -3,6 +3,7 @@ import type { Driver } from 'unstorage'
 
 interface MountableStorage {
   mount: (base: string, driver: Driver) => void
+  unmount: (base: string, dispose?: boolean) => Promise<void>
 }
 
 /**
@@ -11,12 +12,19 @@ interface MountableStorage {
  * cached reads are shared across instances instead of living in each process's
  * memory. Supabase stays the source of truth; this only holds derived values.
  */
-export default defineNitroPlugin(() => {
+export default defineNitroPlugin(async () => {
+  // The prerenderer boots the server inside the build; routing its cache to
+  // Upstash would both fail the build and pollute the shared cache.
+  if (import.meta.prerender) return
+
   const config = useRuntimeConfig()
   const url = config.upstashRedisRestUrl
   const token = config.upstashRedisRestToken
   if (!url || !token) return
 
   const storage = useStorage() as unknown as MountableStorage
+  // Nitro already mounts its in-memory `cache:`; unstorage throws on a
+  // duplicate mount, so the built-in one is released first.
+  await storage.unmount('cache', false)
   storage.mount('cache', upstashDriver({ base: 'viorp:cache', url, token }))
 })
