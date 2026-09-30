@@ -1,6 +1,6 @@
 <!-- ============================================================================
      FILE: /pages/add-funds.vue
-     New Dedicated Funding Route managing all Providers & P2P 
+     Dedicated Funding Page for Paystack, Flutterwave, NowPayments, and P2P
      ============================================================================ -->
 <script setup lang="ts">
 import { ref } from 'vue'
@@ -21,10 +21,10 @@ const isProcessing = ref(false)
 const errorMessage = ref('')
 
 const paymentGateways = [
-  { id: 'paystack', name: 'Paystack', description: 'Credit Card, Bank Transfer', icon: '💳' },
-  { id: 'flutterwave', name: 'Flutterwave', description: 'Mobile Money, Card', icon: '🌊' },
-  { id: 'nowpayments', name: 'NowPayments', description: 'Deposit via Cryptocurrency', icon: '🪙' },
-  { id: 'p2p', name: 'P2P Network', description: 'Direct Peer-to-Peer Settlement', icon: '🤝' }
+  { id: 'paystack', name: 'Paystack', description: 'Cards, Bank Transfers, USSD', icon: '💳' },
+  { id: 'flutterwave', name: 'Flutterwave', description: 'Cards, Mobile Money, Bank Transfer', icon: '🌊' },
+  { id: 'nowpayments', name: 'NowPayments', description: 'Crypto (BTC, ETH, USDT, SOL)', icon: '🪙' },
+  { id: 'p2p', name: 'P2P Network', description: 'Direct Peer-to-Peer Escrow', icon: '🤝' }
 ]
 
 const processFunding = async () => {
@@ -43,27 +43,24 @@ const processFunding = async () => {
   isProcessing.value = true
 
   try {
-    if (selectedGateway.value === 'paystack') {
-      // Calls our secure Nuxt backend route with the exact test keys
-      const response = await $fetch<{ authorization_url: string }>('/api/payment/paystack/initialize', {
-        method: 'POST',
-        body: {
-          amount: amount.value,
-          email: userStore.user?.email || 'user@example.com'
-        }
-      })
-      window.location.href = response.authorization_url
-    } else if (selectedGateway.value === 'flutterwave') {
-      // Placeholder for Flutterwave routing 
-      alert('Flutterwave integration requested. Awaiting keys.')
-      isProcessing.value = false
-    } else if (selectedGateway.value === 'nowpayments') {
-      // Placeholder for Nowpayments routing
-      alert('NowPayments integration requested. Awaiting keys.')
-      isProcessing.value = false
+    const response = await $fetch<{ success: boolean; checkoutUrl: string }>('/api/payment/initialize', {
+      method: 'POST',
+      body: {
+        gateway: selectedGateway.value,
+        amount: amount.value,
+        currency: 'USD',
+        email: userStore.user?.email || 'user@example.com'
+      }
+    })
+
+    if (response?.checkoutUrl) {
+      window.location.href = response.checkoutUrl
+    } else {
+      throw new Error('No checkout URL returned from payment provider.')
     }
   } catch (error: any) {
-    errorMessage.value = error.message || 'Failed to initialize payment gateway.'
+    errorMessage.value = error.data?.statusMessage || error.message || 'Failed to initialize payment.'
+  } finally {
     isProcessing.value = false
   }
 }
@@ -74,18 +71,18 @@ const processFunding = async () => {
     <div class="max-w-2xl mx-auto space-y-6">
       
       <div class="flex items-center space-x-4 border-b border-slate-800 pb-6">
-        <NuxtLink to="/wallet" class="text-slate-400 hover:text-white transition-colors">
+        <NuxtLink to="/wallet" class="text-slate-400 hover:text-white transition-colors text-xs font-bold">
           ← Back to Wallet
         </NuxtLink>
         <div>
           <h1 class="text-2xl font-black text-white tracking-tight">➕ Add Funds</h1>
-          <p class="text-xs text-slate-400 mt-1">Select your preferred payment gateway or P2P network to top up your wallet.</p>
+          <p class="text-xs text-slate-400 mt-1">Select your preferred payment gateway or P2P network to top up your wallet balance.</p>
         </div>
       </div>
 
       <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">
         
-        <!-- Gateway Selection -->
+        <!-- Payment Options Grid -->
         <div>
           <label class="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-3">Select Gateway</label>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -107,7 +104,7 @@ const processFunding = async () => {
           </div>
         </div>
 
-        <!-- Amount Input (Hidden for P2P routing) -->
+        <!-- Amount Input Field -->
         <div v-if="selectedGateway !== 'p2p'" class="space-y-4">
           <div>
             <label class="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Deposit Amount (USD)</label>
@@ -121,7 +118,7 @@ const processFunding = async () => {
           </div>
         </div>
 
-        <p v-if="errorMessage" class="text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/30 p-2 rounded-lg">
+        <p v-if="errorMessage" class="text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/30 p-2.5 rounded-lg">
           {{ errorMessage }}
         </p>
 
