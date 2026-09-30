@@ -1,3 +1,4 @@
+<!-- components/gift-history.vue - COMPLETE FIXED VERSION -->
 <template>
   <div class="pewgift-history">
     <div class="history-header">
