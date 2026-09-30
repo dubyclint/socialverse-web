@@ -48,8 +48,6 @@ const paymentNotes = ref('')
 const isSubmitting = ref(false)
 const depositStatusNotice = ref('')
 
-const { platform, isNative } = useDevicePlatform()
-
 // Live Reactive Performance Metrics
 const totalBalance = computed(() => userBalance.value)
 
