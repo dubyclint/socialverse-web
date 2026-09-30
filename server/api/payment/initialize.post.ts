@@ -1,7 +1,6 @@
 // ============================================================================
 // FILE: /server/api/payment/initialize.post.ts
 // Multi-Gateway Unified Payment Initialization Endpoint
-// Supports: Paystack, Flutterwave, NowPayments
 // ============================================================================
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +14,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Configured Keys & Fallbacks
+  // Configured Keys
   const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || 'sk_test_878fff9952f8f0ab21299f87b76034acb8c5e8ff'
   const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY || 'FLWSECK_TEST-sandbox-key-placeholder'
   const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY || 'NOWPAYMENTS_API_KEY_PLACEHOLDER'
@@ -25,10 +24,14 @@ export default defineEventHandler(async (event) => {
 
   try {
     // ------------------------------------------------------------------------
-    // 1. Paystack Integration
+    // 1. Paystack Integration (Forced to NGN)
     // ------------------------------------------------------------------------
     if (gateway === 'paystack') {
-      const amountInKobo = Math.round(amount * 100)
+      // Paystack merchant doesn't support USD. Convert USD to NGN using a baseline rate.
+      const EXCHANGE_RATE = 1600; // Modify this to your preferred platform USD-to-NGN rate
+      const amountInNGN = currency === 'USD' ? amount * EXCHANGE_RATE : amount;
+      const amountInKobo = Math.round(amountInNGN * 100);
+
       const response = await $fetch<{ status: boolean; data: { authorization_url: string; reference: string } }>(
         'https://api.paystack.co/transaction/initialize',
         {
@@ -40,7 +43,7 @@ export default defineEventHandler(async (event) => {
           body: {
             email,
             amount: amountInKobo,
-            currency: currency === 'USD' ? 'USD' : 'NGN',
+            currency: 'NGN', // Explicitly fixed to Naira to resolve merchant error
             callback_url: callbackUrl
           }
         }
