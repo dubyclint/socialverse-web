@@ -1,5 +1,3 @@
-<!-- components/gift-history.vue - COMPLETE FIXED VERSION -->
-
 <template>
   <div class="pewgift-history">
     <div class="history-header">
@@ -12,7 +10,7 @@
           class="filter-tab"
           :class="{ active: activeTab === tab }"
         >
-          {{ tab }}
+          <span class="capitalize">{{ tab }}</span>
         </button>
       </div>
     </div>
@@ -155,7 +153,7 @@ const formatDate = (dateStr?: string) => {
 </script>
 
 <style scoped>
-.gift-history {
+.pewgift-history {
   background: white;
   border-radius: 12px;
   padding: 20px;
@@ -185,15 +183,22 @@ const formatDate = (dateStr?: string) => {
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
+  color: #4a5568; /* FIX: Explicitly set dark grey text for inactive tabs so it isn't white on white */
+  font-weight: 600;
+}
+
+.filter-tab .capitalize {
+  text-transform: capitalize;
 }
 
 .filter-tab:hover {
   border-color: #ff6b6b;
+  color: #ff6b6b;
 }
 
 .filter-tab.active {
   background: #ff6b6b;
-  color: white;
+  color: white; /* FIX: Text becomes white only when the tab background is red */
   border-color: #ff6b6b;
 }
 
@@ -363,4 +368,3 @@ const formatDate = (dateStr?: string) => {
   cursor: not-allowed;
 }
 </style>
-
