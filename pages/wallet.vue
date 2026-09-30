@@ -1,6 +1,6 @@
 <!-- ============================================================================
      FILE: /pages/wallet.vue
-     Decentralized Capital, Wallet Management & Real-Time Micro-Donation Infrastructure
+     closed looped Capital, Wallet Management & pewgift 
      ============================================================================ -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
