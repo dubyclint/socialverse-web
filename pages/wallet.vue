@@ -26,7 +26,6 @@ const pewgiftUserId = computed(() => userStore.user?.id ?? '')
 
 // Core Loading & UI Structural States
 const isLoading = ref(true)
-const showDepositModal = ref(false)
 const showWithdrawModal = ref(false)
 const showTransferModal = ref(false)
 const showAddPaymentModal = ref(false)
@@ -35,93 +34,23 @@ const showAddPaymentModal = ref(false)
 const transactions = ref<any[]>([])
 const paymentMethods = ref<any[]>([])
 const withdrawals = ref<any[]>([])
-const userBalance = ref<number>(0.00) // Fluid Single-Source-of-Truth Balance linked to physical wallets table
+const userBalance = ref<number>(0.00) 
 const referralStats = ref({
   total_referrals: 0,
   referral_earnings: 0.00,
   referral_code: 'SOCIALVERSE024'
 })
 
-// Deposit / Transfer Form Payload Aggregates
-const depositAmount = ref<number | null>(null)
+// Transfer Form Payload Aggregates
 const transferAmount = ref<number | null>(null)
 const targetRecipient = ref('')
 const paymentNotes = ref('')
 const isSubmitting = ref(false)
-
-// Deposit Preset Chips
-const depositPresets = [5, 10, 25, 50, 100]
-
-interface DepositProvider {
-  code: string
-  display_name: string
-  route: string
-  supported_currencies: string[]
-  fee_percent: number
-  fee_flat: number
-  min_amount: number
-  max_amount: number
-}
-
-interface DepositSettings {
-  currency: string
-  pewgift_per_unit: number
-  platform_rate_pct: number
-  min_amount: number
-  max_amount: number
-}
-
-const depositProviders = ref<DepositProvider[]>([])
-const depositSettings = ref<DepositSettings | null>(null)
-const selectedProvider = ref<string>('')
-const depositError = ref('')
-const depositNotice = ref('')
-const isLoadingProviders = ref(false)
-const topUpBlockedOnDevice = ref(false)
 const depositStatusNotice = ref('')
 
 const { platform, isNative } = useDevicePlatform()
 
-const activeProvider = computed(() =>
-  depositProviders.value.find(provider => provider.code === selectedProvider.value) || null
-)
-
-// Admin-set fees are charged on top of the top-up, so the user sees both numbers.
-const depositFee = computed(() => {
-  const provider = activeProvider.value
-  const amount = Number(depositAmount.value || 0)
-  if (!provider || amount <= 0) return 0
-  return Number(((amount * Number(provider.fee_percent || 0)) / 100 + Number(provider.fee_flat || 0)).toFixed(2))
-})
-
-const depositTotal = computed(() => Number((Number(depositAmount.value || 0) + depositFee.value).toFixed(2)))
-
-const loadDepositOptions = async () => {
-  isLoadingProviders.value = true
-  depositError.value = ''
-  try {
-    const response = await $fetch<{
-      success: boolean
-      data: { providers: DepositProvider[], settings: DepositSettings, webOnlyBlocked: boolean }
-    }>('/api/wallet/deposit/providers', { query: { platform: platform.value } })
-    depositProviders.value = response.data.providers
-    depositSettings.value = response.data.settings
-    topUpBlockedOnDevice.value = response.data.webOnlyBlocked
-    selectedProvider.value = response.data.providers[0]?.code ?? ''
-  } catch {
-    depositError.value = 'Could not load payment options'
-  } finally {
-    isLoadingProviders.value = false
-  }
-}
-
-const openDepositModal = async () => {
-  showDepositModal.value = true
-  depositNotice.value = ''
-  await loadDepositOptions()
-}
-
-// Live Reactive Performance Metrics (Computed directly from real database states)
+// Live Reactive Performance Metrics
 const totalBalance = computed(() => userBalance.value)
 
 const totalIncome = computed(() => {
@@ -149,7 +78,6 @@ const fetchWalletInfrastructureData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // 1. Fetch Fluid Balance Target from the physical wallets base table
     const { data: wallet, error: walletError } = await supabase
       .from('wallets')
       .select('balance')
@@ -160,7 +88,6 @@ const fetchWalletInfrastructureData = async () => {
       userBalance.value = Number(wallet.balance) || 0.00
     }
     
-    // 2. Map Active Transactions Row Stack for the authenticated user
     const { data: txData } = await supabase
       .from('transactions')
       .select('*')
@@ -168,21 +95,18 @@ const fetchWalletInfrastructureData = async () => {
       .order('created_at', { ascending: false })
     transactions.value = txData || []
 
-    // 3. Map Payment Token Profiles
     const { data: payData } = await supabase
       .from('payment_methods')
       .select('*')
       .order('created_at', { ascending: false })
     paymentMethods.value = payData || []
 
-    // 4. Map Disbursal Verification Rows
     const { data: withdrawData } = await supabase
       .from('withdrawals')
       .select('*')
       .order('created_at', { ascending: false })
     withdrawals.value = withdrawData || []
 
-    // 5. Populate Core Network Affiliate Aggregates
     const { data: refData } = await supabase
       .from('referrals')
       .select('total_referrals, referral_earnings, referral_code')
@@ -203,47 +127,6 @@ const fetchWalletInfrastructureData = async () => {
   }
 }
 
-// Opens a deposit with the selected provider; the wallet is credited only once
-// the provider settles the payment.
-const executeDirectDeposit = async () => {
-  if (!depositAmount.value || depositAmount.value <= 0 || !selectedProvider.value) return
-
-  depositError.value = ''
-  depositNotice.value = ''
-  isSubmitting.value = true
-
-  try {
-    const response = await $fetch<{
-      success: boolean
-      data: { checkoutUrl: string | null, instructions: string | null, deposit: { id: string } }
-    }>('/api/wallet/deposit/intent', {
-      method: 'POST',
-      body: {
-        providerCode: selectedProvider.value,
-        amount: depositAmount.value,
-        currency: depositSettings.value?.currency,
-        platform: platform.value
-      }
-    })
-
-    if (response.data.checkoutUrl) {
-      window.location.href = response.data.checkoutUrl
-      return
-    }
-
-    depositNotice.value =
-      response.data.instructions ||
-      'Deposit opened. Your balance updates as soon as the payment is confirmed.'
-    depositAmount.value = null
-    await fetchWalletInfrastructureData()
-  } catch (err: unknown) {
-    const detail = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
-    depositError.value = detail || 'Could not start the deposit'
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
 // Transaction Pipeline Submissions: Cross-Node Internal Transfers
 const executeDirectNodeTransfer = async () => {
   if (!transferAmount.value || transferAmount.value <= 0 || !targetRecipient.value) return
@@ -257,10 +140,8 @@ const executeDirectNodeTransfer = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Calculate updated balance states
     const updatedSenderBalance = userBalance.value - transferAmount.value
 
-    // Fetch the receiver's current wallet balance safely to execute mutation logic
     const { data: receiverWallet, error: rxFetchError } = await supabase
       .from('wallets')
       .select('balance')
@@ -274,7 +155,6 @@ const executeDirectNodeTransfer = async () => {
 
     const updatedReceiverBalance = (Number(receiverWallet.balance) || 0) + transferAmount.value
 
-    // 1. Commit debit ledger item row for the sender
     const { error: txError } = await supabase
       .from('transactions')
       .insert({
@@ -287,7 +167,6 @@ const executeDirectNodeTransfer = async () => {
       })
     if (txError) throw txError
 
-    // 2. Commit credit ledger item row for the recipient
     const { error: rxTxError } = await supabase
       .from('transactions')
       .insert({
@@ -300,21 +179,18 @@ const executeDirectNodeTransfer = async () => {
       })
     if (rxTxError) throw rxTxError
 
-    // 3. Update Sender Balance Node
     const { error: senderUpdateError } = await supabase
       .from('wallets')
       .update({ balance: updatedSenderBalance, updated_at: new Date().toISOString() })
       .eq('user_id', user.id)
     if (senderUpdateError) throw senderUpdateError
 
-    // 4. Update Recipient Balance Node
     const { error: receiverUpdateError } = await supabase
       .from('wallets')
       .update({ balance: updatedReceiverBalance, updated_at: new Date().toISOString() })
       .eq('user_id', targetRecipient.value)
     if (receiverUpdateError) throw receiverUpdateError
     
-    // Clear fields, step out of modal block, and sync metrics
     transferAmount.value = null
     targetRecipient.value = ''
     paymentNotes.value = ''
@@ -355,7 +231,6 @@ const formatDateLabel = (dateString: string) => {
   })
 }
 
-// Returning from a hosted checkout: report what the provider has settled so far.
 const reviewReturnedDeposit = async (depositId: string) => {
   try {
     const response = await $fetch<{
@@ -373,7 +248,6 @@ const reviewReturnedDeposit = async (depositId: string) => {
 
 onMounted(() => {
   fetchWalletInfrastructureData()
-  if (route.query.action === 'deposit') openDepositModal()
   if (typeof route.query.deposit === 'string') reviewReturnedDeposit(route.query.deposit)
 })
 </script>
@@ -382,7 +256,6 @@ onMounted(() => {
   <main class="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
     <div class="max-w-6xl mx-auto space-y-8">
       
-      <!-- Top Title Grid Block -->
       <div class="border-b border-slate-800 pb-6">
         <h1 class="text-2xl font-black text-white tracking-tight">💼 Decentralized Capital & Wallet Management</h1>
         <p class="text-xs text-slate-400 mt-1">Audit active row ledgers, check inbound revenue pools, and command multi-tier settlement gateways.</p>
@@ -393,7 +266,6 @@ onMounted(() => {
       </p>
 
       <ClientOnly>
-        <!-- Real-Time Metrics Ribbon Grid -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
             <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Fluid Balance</span>
@@ -415,9 +287,9 @@ onMounted(() => {
 
         <!-- Interactive Direct Dispatch Controls -->
         <div class="flex flex-wrap gap-3">
-          <button @click="openDepositModal" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow">
+          <NuxtLink to="/add-funds" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow">
             ➕ Add Funds
-          </button>
+          </NuxtLink>
           <button @click="showWithdrawModal = true" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-lg transition-colors">
             ➖ Withdraw Assets
           </button>
@@ -426,7 +298,6 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- Segment Filter Tab Bar Routing Component -->
         <div class="flex border-b border-slate-800 overflow-x-auto scrollbar-none">
           <button 
             v-for="tab in tabs" 
@@ -438,14 +309,12 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- ACTIVE DISPLAY TAB HUB COMPARTMENT -->
         <div v-if="isLoading" class="space-y-4">
           <div v-for="n in 3" :key="n" class="h-16 bg-slate-900 rounded-xl border border-slate-800 animate-pulse"></div>
         </div>
 
         <div v-else class="space-y-6">
           
-          <!-- WORKSPACE A: Transaction Log History Table Frame -->
           <div v-if="activeTab === 'Transactions'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">📋 Ledger Log Register</h3>
             <div v-if="transactions.length > 0" class="divide-y divide-slate-800/60">
@@ -467,13 +336,11 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- WORKSPACE A2: Pewgift balance, history and gifting -->
           <div v-if="activeTab === 'Pewgift'" class="space-y-4">
             <PewgiftSummary />
             <PewgiftHistory v-if="pewgiftUserId" :user-id="pewgiftUserId" />
           </div>
 
-          <!-- WORKSPACE B: Payment Profile Gateways Manager -->
           <div v-if="activeTab === 'Payment Methods'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">💳 Active Settlement Links</h3>
@@ -500,7 +367,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- WORKSPACE C: Withdrawal Clearance Ledgers -->
           <div v-if="activeTab === 'Withdrawals'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">🏦 Asset Disbursal Processing Records</h3>
             <div v-if="withdrawals.length > 0" class="divide-y divide-slate-800/60">
@@ -522,7 +388,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- WORKSPACE D: Affiliate Incentives & Revenue Share -->
           <div v-if="activeTab === 'Referrals'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-6">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">🎁 Node Network Affiliate Program</h3>
             
@@ -550,104 +415,6 @@ onMounted(() => {
 
         </div>
       </ClientOnly>
-    </div>
-
-    <!-- BALANCE TOP UP LEDGER MODAL OVERLAY -->
-    <div v-if="showDepositModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div class="bg-slate-900 border border-slate-800 w-full max-w-sm p-5 rounded-xl shadow-2xl space-y-4">
-        <div>
-          <h4 class="text-sm font-black text-white tracking-tight flex items-center gap-1.5">💳 Fund Available Asset Pool</h4>
-          <p class="text-[11px] text-slate-400 mt-0.5">Fund your wallet through one of the platform's configured payment options.</p>
-        </div>
-
-        <div v-if="isLoadingProviders" class="text-[11px] text-slate-400">Loading payment options…</div>
-
-        <div v-else-if="isNative && topUpBlockedOnDevice" class="space-y-3">
-          <p class="text-[11px] text-amber-400">
-            Top-ups are handled on the web. Open viorp.com/wallet in your browser to add funds —
-            your balance syncs straight back into the app.
-          </p>
-          <button type="button" class="w-full text-xs font-bold text-slate-400 hover:text-white py-1.5" @click="showDepositModal = false">Close</button>
-        </div>
-
-        <div v-else-if="!depositProviders.length" class="space-y-3">
-          <p class="text-[11px] text-amber-400">
-            No payment gateway is enabled for this platform yet, so card/PSP deposits are unavailable.
-          </p>
-          <NuxtLink to="/p2p" class="block text-center bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-4 py-2 rounded-lg">
-            Deposit via P2P
-          </NuxtLink>
-          <button type="button" @click="showDepositModal = false" class="w-full text-xs font-bold text-slate-400 hover:text-white py-1.5">Close</button>
-        </div>
-
-        <form v-else @submit.prevent="executeDirectDeposit" class="space-y-4">
-          <div>
-            <label class="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">Payment option</label>
-            <select v-model="selectedProvider" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5">
-              <option v-for="provider in depositProviders" :key="provider.code" :value="provider.code">
-                {{ provider.display_name }} ({{ provider.route }})
-              </option>
-            </select>
-            <p v-if="activeProvider" class="text-[10px] text-slate-500 mt-1">
-              Fee: {{ Number(activeProvider.fee_percent).toFixed(2) }}%
-              <span v-if="Number(activeProvider.fee_flat) > 0">
-                + {{ depositSettings?.currency || 'USD' }} {{ Number(activeProvider.fee_flat).toFixed(2) }}</span>
-              · limits {{ activeProvider.min_amount }}–{{ activeProvider.max_amount }}
-            </p>
-          </div>
-          <!-- Preset Chips Grid -->
-          <div class="grid grid-cols-5 gap-1.5">
-            <button 
-              v-for="preset in depositPresets" 
-              :key="preset"
-              type="button"
-              @click="depositAmount = preset"
-              :class="['py-2 rounded-lg font-mono text-xs font-bold border transition-all', depositAmount === preset ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700']"
-            >
-              +${{ preset }}
-            </button>
-          </div>
-
-          <!-- Direct Input Amount -->
-          <div>
-            <label class="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">
-              Amount ({{ depositSettings?.currency || 'USD' }})
-            </label>
-            <input v-model.number="depositAmount" type="number" min="1" step="1" required placeholder="0.00" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5 focus:outline-none font-mono" />
-          </div>
-
-          <dl v-if="depositAmount && depositAmount > 0" class="text-[11px] text-slate-400 space-y-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
-            <div class="flex justify-between">
-              <dt>Top-up</dt>
-              <dd class="font-mono text-white">{{ depositSettings?.currency || 'USD' }} {{ Number(depositAmount).toFixed(2) }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>Processing fee</dt>
-              <dd class="font-mono text-amber-400">{{ depositSettings?.currency || 'USD' }} {{ depositFee.toFixed(2) }}</dd>
-            </div>
-            <div class="flex justify-between border-t border-slate-800 pt-1">
-              <dt>You pay</dt>
-              <dd class="font-mono text-white">{{ depositSettings?.currency || 'USD' }} {{ depositTotal.toFixed(2) }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt>Credited</dt>
-              <dd class="font-mono text-emerald-400">
-                {{ (Number(depositAmount) * Number(depositSettings?.pewgift_per_unit || 1)).toFixed(2) }} PEW
-              </dd>
-            </div>
-          </dl>
-
-          <p v-if="depositError" class="text-[11px] text-rose-400">{{ depositError }}</p>
-          <p v-if="depositNotice" class="text-[11px] text-emerald-400">{{ depositNotice }}</p>
-
-          <div class="flex items-center justify-end gap-2 pt-1">
-            <button type="button" @click="showDepositModal = false" class="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 transition-colors">Cancel</button>
-            <button type="submit" :disabled="!depositAmount || depositAmount <= 0 || !selectedProvider || isSubmitting" class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg transition-colors shadow">
-              {{ isSubmitting ? 'Opening…' : 'Continue to payment' }}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
 
     <!-- SAFEKEEPING MODAL GATEWAY: OUTBOUND NODE TRANSFERS -->
@@ -685,6 +452,5 @@ onMounted(() => {
         </form>
       </div>
     </div>
-
   </main>
 </template>
