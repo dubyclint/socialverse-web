@@ -17,11 +17,11 @@
           <NuxtLink to="/feed" class="nav-icon" :class="{ active: route.path === '/feed' }" aria-label="Feed">
             <Icon name="home" size="24" /> <span class="nav-label">Feed</span>
           </NuxtLink>
-          <NuxtLink to="/status" class="nav-icon" :class="{ active: route.path === '/status' }" aria-label="Statuses Ecosystem">
-            <Icon name="layers" size="24" /> <span class="nav-label">Status</span>
+          <NuxtLink to="/notifications" class="nav-icon" :class="{ active: route.path === '/notifications' }" aria-label="Notifications">
+            <Icon name="bell" size="24" /> <span class="nav-label">Notifications</span>
           </NuxtLink>
-          <NuxtLink to="/posts/create" class="nav-icon" :class="{ active: route.path === '/posts/create' }" aria-label="Create Post">
-            <Icon name="plus-square" size="24" /> <span class="nav-label">Post</span>
+          <NuxtLink to="/chat" class="nav-icon" :class="{ active: route.path === '/chat' }" aria-label="Chat">
+            <Icon name="message-circle" size="24" /> <span class="nav-label">Chat</span>
           </NuxtLink>
           <NuxtLink to="/stream" class="nav-icon" :class="{ active: route.path === '/stream' }" aria-label="Live Stream">
             <Icon name="radio" size="24" /> <span class="nav-label">Live</span>
@@ -72,15 +72,10 @@
 
           <p class="sidebar-section">Earn</p>
           <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="credit-card" size="18" /> <span>Wallet</span></NuxtLink>
-          <NuxtLink to="/wallet?tab=Pewgift" class="sidebar-item sub" @click="toggleSidebar"><Icon name="gift" size="16" /> <span>Pewgift</span></NuxtLink>
-          <NuxtLink to="/wallet?tab=Withdrawals" class="sidebar-item sub" @click="toggleSidebar"><Icon name="download" size="16" /> <span>Withdrawals</span></NuxtLink>
           <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
           <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P trading</span></NuxtLink>
-          <NuxtLink to="/p2p/sell" class="sidebar-item sub" @click="toggleSidebar"><Icon name="store" size="16" /> <span>Sell Pewgift</span></NuxtLink>
           <NuxtLink to="/escrow" class="sidebar-item sub" @click="toggleSidebar"><Icon name="shield" size="16" /> <span>Escrow</span></NuxtLink>
           <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar"><Icon name="megaphone" size="18" /> <span>Ads</span></NuxtLink>
-          <NuxtLink to="/ads/create" class="sidebar-item sub" @click="toggleSidebar"><Icon name="plus" size="16" /> <span>Create ad</span></NuxtLink>
-          <NuxtLink to="/ads/manage" class="sidebar-item sub" @click="toggleSidebar"><Icon name="sliders" size="16" /> <span>Manage ads</span></NuxtLink>
 
           <p class="sidebar-section">Help &amp; account</p>
           <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar"><Icon name="life-buoy" size="18" /> <span>Support</span></NuxtLink>
