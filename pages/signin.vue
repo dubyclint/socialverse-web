@@ -1,3 +1,6 @@
+<!-- ============================================================================ -->
+<!-- FILE: /pages/signin.vue -->
+<!-- ============================================================================ -->
 <template>
   <div class="min-h-screen bg-slate-950 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
@@ -19,8 +22,24 @@
 
         <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Password</label>
-          <input v-model="password" type="password" required :disabled="userStore.isLoading"
-            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+          <div class="relative">
+            <input 
+              v-model="password" 
+              :type="showPassword ? 'text' : 'password'" 
+              required 
+              :disabled="userStore.isLoading"
+              class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition" 
+            />
+            <button 
+              type="button" 
+              @click="showPassword = !showPassword" 
+              class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white transition-colors"
+              tabindex="-1"
+              aria-label="Toggle password visibility"
+            >
+              <Icon :name="showPassword ? 'eye-off' : 'eye'" size="16" />
+            </button>
+          </div>
         </div>
 
         <button type="submit" :disabled="userStore.isLoading"
@@ -49,11 +68,10 @@ definePageMeta({ layout: 'blank', middleware: 'guest' })
 const userStore = useUserStore()
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const localError = ref('')
 
 onMounted(async () => {
-  // If your new user store needs hydration logic, keep it here.
-  // Otherwise, if initializeSession handles it, call that instead.
   if (userStore.isAuthenticated) await navigateTo('/feed', { replace: true })
 })
 
@@ -65,7 +83,6 @@ const handleSignin = async () => {
     return
   }
 
-  // Delegate entirely to the unified userStore
   const result = await userStore.signIn(email.value.trim(), password.value)
 
   if (result.success) {
