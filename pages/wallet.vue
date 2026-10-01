@@ -296,26 +296,28 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- FIXED TAB BAR: Responsive gaps and text sizing to prevent clustering -->
-        <div class="flex gap-2 sm:gap-6 border-b border-slate-800 overflow-x-auto scrollbar-none">
+        <!-- NEW FIXED TAB BAR: Uses the Add Funds button style to fully contain text -->
+        <div class="flex gap-3 overflow-x-auto scrollbar-none pb-2">
           <button 
             v-for="tab in tabs" 
             :key="tab"
             @click="activeTab = tab"
             :class="[
-              'px-2 py-3 text-[11px] sm:text-xs font-bold tracking-wide border-b-2 whitespace-nowrap transition-colors', 
-              activeTab === tab ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+              'px-4 py-2.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap', 
+              activeTab === tab 
+                ? 'bg-indigo-600 text-white shadow hover:bg-indigo-500' 
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
             ]"
           >
             {{ tab }}
           </button>
         </div>
 
-        <div v-if="isLoading" class="space-y-4">
+        <div v-if="isLoading" class="space-y-4 pt-2">
           <div v-for="n in 3" :key="n" class="h-16 bg-slate-900 rounded-xl border border-slate-800 animate-pulse"></div>
         </div>
 
-        <div v-else class="space-y-6 pt-4">
+        <div v-else class="space-y-6 pt-2">
           
           <div v-if="activeTab === 'Transactions'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">📋 Ledger Log Register</h3>
