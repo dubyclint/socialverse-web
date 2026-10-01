@@ -1,3 +1,6 @@
+<!-- ============================================================================ -->
+<!-- FILE: /pages/signup.vue -->
+<!-- ============================================================================ -->
 <template>
   <div class="min-h-screen bg-slate-950 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
@@ -51,8 +54,25 @@
 
         <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Password</label>
-          <input v-model="formData.password" type="password" required minlength="6" :disabled="isAuthLoading"
-            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+          <div class="relative">
+            <input 
+              v-model="formData.password" 
+              :type="showPassword ? 'text' : 'password'" 
+              required 
+              minlength="6" 
+              :disabled="isAuthLoading"
+              class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition" 
+            />
+            <button 
+              type="button" 
+              @click="showPassword = !showPassword" 
+              class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-white transition-colors"
+              tabindex="-1"
+              aria-label="Toggle password visibility"
+            >
+              <Icon :name="showPassword ? 'eye-off' : 'eye'" size="16" />
+            </button>
+          </div>
         </div>
 
         <button type="submit" :disabled="isAuthLoading"
@@ -86,6 +106,7 @@ const userStore = useUserStore()
 const { isLoading: isAuthLoading, error: authError } = storeToRefs(userStore)
 
 const callingCountries = CALLING_COUNTRIES
+const showPassword = ref(false)
 
 const formData = ref({
   email: '',
@@ -122,8 +143,6 @@ const handleSignup = async () => {
 
     userStore.setUser(response.user)
 
-    // The signup route provisions the account with the service-role client, which
-    // cannot set the SSR cookie, so the browser session is established here.
     const session = await userStore.signIn(formData.value.email.trim(), formData.value.password)
     if (!session.success) {
       localError.value = session.message || 'Account created, but sign-in failed. Please sign in.'
@@ -139,12 +158,10 @@ const handleSignup = async () => {
 </script>
 
 <style scoped>
-/* Ensure smooth transitions for all interactive elements */
 input, button {
   transition: all 0.2s ease-in-out;
 }
 
-/* Custom styling for the form container to match your other cards */
 .auth-card {
   background: white;
   border-radius: 12px;
@@ -152,12 +169,10 @@ input, button {
   border: 1px solid #e2e8f0;
 }
 
-/* Enhancing the focus state for accessibility */
 input:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* Styling for the error/success boxes */
 .alert-box {
   padding: 1rem;
   border-radius: 8px;
@@ -165,13 +180,11 @@ input:focus {
   margin-bottom: 1rem;
 }
 
-/* Subtle animation for the signup button when loading */
 button:disabled {
   cursor: not-allowed;
   filter: grayscale(0.4);
 }
 
-/* Mobile-responsive padding adjustment */
 @media (max-width: 640px) {
   .auth-card {
     padding: 1.5rem;
