@@ -16,7 +16,7 @@ definePageMeta({
 const supabase = useSupabaseClient()
 
 // Active Panel Tabs
-const tabs = ['Transactions', 'Pewgift', 'Payment Methods', 'Withdrawals', 'Referrals']
+const tabs = ['Transacts', 'gifts', 'Pay Methods', 'Withdraws', 'Refers']
 const route = useRoute()
 const requestedTab = typeof route.query.tab === 'string' ? route.query.tab : ''
 const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : 'Transactions')
