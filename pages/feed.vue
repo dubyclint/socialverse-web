@@ -24,7 +24,7 @@
             <Icon name="message-circle" size="24" /> <span class="nav-label">Chat</span>
           </NuxtLink>
           <NuxtLink to="/stream" class="nav-icon" :class="{ active: route.path === '/stream' }" aria-label="Live Stream">
-            <Icon name="radio" size="24" /> <span class="nav-label">Live</span>
+            <Icon name="aperture" size="24" /> <span class="nav-label">Live</span>
             <span v-if="isLiveStreaming" class="notification-badge live">LIVE</span>
           </NuxtLink>
           <NuxtLink to="/wallet" class="nav-icon" :class="{ active: route.path === '/wallet' }" aria-label="Wallet">
@@ -66,12 +66,12 @@
           <p class="sidebar-section">Create</p>
           <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create post</span></NuxtLink>
           <NuxtLink to="/posts" class="sidebar-item sub" @click="toggleSidebar"><Icon name="file-text" size="16" /> <span>My posts</span></NuxtLink>
-          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="video" size="18" /> <span>Live streaming</span></NuxtLink>
+          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="aperture" size="18" /> <span>Live streaming</span></NuxtLink>
           <NuxtLink to="/stream/broadcast" class="sidebar-item sub" @click="toggleSidebar"><Icon name="radio" size="16" /> <span>Go live</span></NuxtLink>
           <NuxtLink to="/stream/history" class="sidebar-item sub" @click="toggleSidebar"><Icon name="clock" size="16" /> <span>Past streams</span></NuxtLink>
 
           <p class="sidebar-section">Earn</p>
-          <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="credit-card" size="18" /> <span>Wallet</span></NuxtLink>
+          <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="wallet" size="18" /> <span>Wallet</span></NuxtLink>
           <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
           <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P trading</span></NuxtLink>
           <NuxtLink to="/escrow" class="sidebar-item sub" @click="toggleSidebar"><Icon name="shield" size="16" /> <span>Escrow</span></NuxtLink>
@@ -263,6 +263,15 @@ import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
 import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
 
+// Top Navigation Configuration with updated Lucide icon mappings
+const topNavItems = [
+  { id: 'feed', label: 'Feed', icon: 'home', path: '/feed' },
+  { id: 'notifications', label: 'Notifications', icon: 'bell', path: '/notifications' },
+  { id: 'chat', label: 'Chat', icon: 'message-circle', path: '/chat' },
+  { id: 'live', label: 'Live', icon: 'aperture', path: '/stream' },
+  { id: 'wallet', label: 'Wallet', icon: 'wallet', path: '/wallet' }
+];
+
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
 const { 
@@ -349,8 +358,6 @@ onMounted(async () => {
 
 /* ============================================================================
    AVATARS
-   Sized explicitly: an uploaded photo otherwise renders at its natural size
-   and blows the layout apart.
    ============================================================================ */
 .user-avatar-wrapper, .profile-avatar-wrapper, .node-avatar-wrapper { position: relative; display: inline-flex; flex: 0 0 auto; }
 .user-avatar, .profile-avatar, .node-avatar, .create-post-avatar,
@@ -373,7 +380,7 @@ onMounted(async () => {
 .logo-img { width: 32px; height: 32px; flex-shrink: 0; }
 .menu-btn { background: none; border: none; color: #94a3b8; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s; }
 .menu-btn:hover { color: #f8fafc; background-color: #334155; }
-.nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; }
+.nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; position: relative; }
 .nav-icon.active { color: #3b82f6; background-color: rgba(59, 130, 246, 0.1); }
 
 /* ============================================================================
@@ -385,7 +392,7 @@ onMounted(async () => {
 .feed-sidebar-left { position: sticky; top: 5rem; display: flex; flex-direction: column; gap: 1rem; }
 
 /* ============================================================================
-   COMPONENT CARDS (Standardized)
+   COMPONENT CARDS
    ============================================================================ */
 .profile-card, .create-post-section, .recommendations-card, .trending-card {
   background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.25rem;
@@ -400,7 +407,6 @@ onMounted(async () => {
    ============================================================================ */
 .posts-list { display: flex; flex-direction: column; gap: 1rem; }
 
-/* The toolbar wrapper inside your component should use this class */
 .post-actions-wrapper {
   display: flex;
   justify-content: space-between;
@@ -433,7 +439,6 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-/* PewGift Specific Styling */
 .pew-gift-btn { color: #f59e0b; }
 .pew-gift-btn:hover:not(:disabled) { background-color: rgba(245, 158, 11, 0.1); }
 
@@ -446,12 +451,9 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  /* Bottom padding clears the mobile tab bar below. */
   .feed-main-wrapper { grid-template-columns: 1fr; padding: 1rem 0 5.5rem; }
   .feed-sidebar-left { display: none; }
 
-  /* The desktop top navigation becomes a bottom tab bar on phones so Feed,
-     Status, Post, Live and Wallet stay reachable. */
   .header-center {
     position: fixed;
     left: 0;
