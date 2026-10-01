@@ -319,7 +319,7 @@ onMounted(() => {
 
         <div v-else class="space-y-6 pt-2">
           
-          <div v-if="activeTab === 'Transactions'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
+          <div v-if="activeTab === 'Transacts'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">📋 Ledger Log Register</h3>
             <div v-if="transactions.length > 0" class="divide-y divide-slate-800/60">
               <div v-for="tx in transactions" :key="tx.id" class="py-3.5 flex items-center justify-between text-xs first:pt-0 last:pb-0">
@@ -340,12 +340,12 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="activeTab === 'Pewgift'" class="space-y-4">
+          <div v-if="activeTab === 'gifts'" class="space-y-4">
             <PewgiftSummary />
             <PewgiftHistory v-if="pewgiftUserId" :user-id="pewgiftUserId" />
           </div>
 
-          <div v-if="activeTab === 'Payment Methods'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
+          <div v-if="activeTab === 'Pay Methods'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">💳 Active Settlement Links</h3>
               <button @click="showAddPaymentModal = true" class="text-[11px] text-indigo-400 font-bold hover:underline">
@@ -371,7 +371,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="activeTab === 'Withdrawals'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
+          <div v-if="activeTab === 'Withdraws'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">🏦 Asset Disbursal Processing Records</h3>
             <div v-if="withdrawals.length > 0" class="divide-y divide-slate-800/60">
               <div v-for="withdrawal in withdrawals" :key="withdrawal.id" class="py-3.5 flex items-center justify-between text-xs first:pt-0 last:pb-0">
@@ -392,7 +392,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div v-if="activeTab === 'Referrals'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-6">
+          <div v-if="activeTab === 'Refers'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-6">
             <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">🎁 Node Network Affiliate Program</h3>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
