@@ -349,7 +349,9 @@ const translateMessage = async () => {
     translatedContent.value = response.data?.translated ?? props.message.content
     isTranslated.value = Boolean(response.data?.translated)
   } catch (error) {
-    console.error('Translation error:', error)
+    const data = (error as { data?: { statusMessage?: string } })?.data
+    translatedContent.value = data?.statusMessage || 'Translation failed'
+    isTranslated.value = true
   } finally {
     isTranslating.value = false
   }

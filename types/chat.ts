@@ -61,6 +61,7 @@ export interface Chat {
   lastMessageTime?: number
   unreadCount?: number
   isPinned?: boolean
+  isGroup?: boolean
 }
 
 export interface Translation {

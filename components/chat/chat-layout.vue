@@ -80,8 +80,8 @@
             </div>
 
             <!-- Unread Badge -->
-            <div v-if="(chat.unreadCount ?? 0) > 0" class="unread-badge">
-              {{ chat.unreadCount }}
+            <div v-if="(chatStore.unreadCounts.get(chat.id) ?? 0) > 0" class="unread-badge">
+              {{ (chatStore.unreadCounts.get(chat.id) ?? 0) > 99 ? '99+' : chatStore.unreadCounts.get(chat.id) }}
             </div>
           </div>
         </div>
@@ -117,20 +117,6 @@
         />
       </div>
     </div>
-
-    <CallInterface
-      v-if="activeCall"
-      :call="activeCall"
-      :local-stream="localStream"
-      :remote-stream="remoteStream"
-      :is-muted="isMuted"
-      :is-video-off="isVideoOff"
-      @accept-call="acceptCall"
-      @reject-call="rejectCall"
-      @end-call="hangUp"
-      @toggle-mute="toggleMute"
-      @toggle-video="toggleVideo"
-    />
 
     <!-- Modals -->
     <div v-if="showNewChat" class="new-chat-overlay" @click.self="closeNewChat">
@@ -196,7 +182,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
 import { useWebrtcCall } from '~/composables/use-webrtc-call'
-import CallInterface from '~/components/chat/call-interface.vue'
 import type { ApiResponse } from '~/types/api'
 import type { Chat, ChatMessage, QuotedMessage } from '~/types/chat'
 
@@ -253,19 +238,7 @@ const {
 
 watch(isConnected, connected => chatStore.setConnected(connected), { immediate: true })
 
-const {
-  call: activeCall,
-  localStream,
-  remoteStream,
-  isMuted,
-  isVideoOff,
-  startCall,
-  acceptCall,
-  rejectCall,
-  hangUp,
-  toggleMute,
-  toggleVideo
-} = useWebrtcCall()
+const { startCall } = useWebrtcCall()
 
 const handleStartCall = async (payload: {
   targetUserId: string | null
@@ -435,19 +408,19 @@ const reactToMessage = (messageId: string, emoji: string) => {
 const translateMessage = async (messageId: string, text: string, targetLang: string) => {
   if (!chatStore.currentChatId) return
   try {
-    const response = await $fetch<ApiResponse<{ translatedText: string }>>('/api/chat/translate', {
+    const response = await $fetch<ApiResponse<{ translated: string }>>('/api/chat/translate', {
       method: 'POST',
-      body: { text, targetLang, messageId, chatId: chatStore.currentChatId }
+      body: { text, targetLanguage: targetLang }
     })
     if (response.success && response.data) {
       chatStore.updateMessage(chatStore.currentChatId, messageId, {
-        translatedText: response.data.translatedText,
+        translatedText: response.data.translated,
         translatedLang: targetLang
       })
     }
   } catch (error) {
-    console.error('Failed to translate message:', error)
-    chatStore.setError('Failed to translate message')
+    const data = (error as { data?: { statusMessage?: string } })?.data
+    chatStore.setError(data?.statusMessage || 'Failed to translate message')
   }
 }
 
@@ -476,16 +449,17 @@ const handleTyping = (isTyping: boolean) => {
   }
 }
 
-const createGroup = async (groupData: any) => {
+const createGroup = async (groupData: { name: string; memberIds: string[] }) => {
   try {
-    const response = await $fetch<ApiResponse<Chat>>('/api/group-chat/create', { method: 'POST', body: groupData })
+    const response = await $fetch<ApiResponse<Chat>>('/api/chat/group', { method: 'POST', body: groupData })
     if (response.success && response.data) {
-      chatStore.addChat(response.data)
       showGroupCreator.value = false
+      await loadChats()
+      await selectChat(response.data.id)
     }
   } catch (error) {
-    console.error('Failed to create group:', error)
-    chatStore.setError('Failed to create group')
+    const data = (error as { data?: { statusMessage?: string } })?.data
+    chatStore.setError(data?.statusMessage || 'Failed to create group')
   }
 }
 

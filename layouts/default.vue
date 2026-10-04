@@ -51,6 +51,9 @@
             >
               <Icon name="message-circle" size="20" />
               <span>Chat</span>
+              <ClientOnly>
+                <span v-if="unreadChat > 0" class="badge">{{ unreadChat > 99 ? '99+' : unreadChat }}</span>
+              </ClientOnly>
             </NuxtLink>
             
             <NuxtLink 
@@ -137,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 // useRoute is auto-imported by Nuxt 3, but keeping explicit import is fine if preferred:
 import { useRoute } from 'vue-router'
 
@@ -149,17 +152,26 @@ const { isNative } = useDevicePlatform()
 const sidebarOpen = ref(false)
 const showRightSidebar = ref(false)
 const unreadCount = ref(0)
+const unreadChat = ref(0)
 
 const loadUnreadCount = async () => {
-  try {
-    const res = await $fetch<{ unread: number }>('/api/user/notifications', { query: { limit: 50 } })
-    unreadCount.value = res.unread
-  } catch {
-    unreadCount.value = 0
-  }
+  const [notifications, chat] = await Promise.allSettled([
+    $fetch<{ unread: number }>('/api/user/notifications', { query: { limit: 50 } }),
+    $fetch<{ total: number }>('/api/chat/unread')
+  ])
+  unreadCount.value = notifications.status === 'fulfilled' ? notifications.value.unread : 0
+  unreadChat.value = chat.status === 'fulfilled' ? chat.value.total : 0
 }
 
-onMounted(loadUnreadCount)
+let unreadTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  loadUnreadCount()
+  unreadTimer = setInterval(loadUnreadCount, 30_000)
+})
+onBeforeUnmount(() => {
+  if (unreadTimer) clearInterval(unreadTimer)
+})
+watch(() => route.path, loadUnreadCount)
 
 // ✅ SAFE: Centralized defensive fallback for path resolution context
 // This prevents SSR crashes if route.path is temporarily undefined during hydration

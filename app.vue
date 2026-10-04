@@ -8,6 +8,7 @@
 
     <ClientOnly>
       <Sonner />
+      <CallHost v-if="supabaseUser" />
     </ClientOnly>
   </div>
 </template>
@@ -18,6 +19,7 @@ import { useSupabaseUser } from '#imports'
 import { useUserStore } from '~/stores/user'
 import { usePresence } from '~/composables/usePresence'
 import { useDiscoveryStore } from '~/stores/useDiscovery'
+import CallHost from '~/components/chat/call-host.vue'
 
 const isHydrating = ref(true)
 const supabaseUser = useSupabaseUser()

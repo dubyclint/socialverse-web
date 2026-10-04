@@ -3952,6 +3952,17 @@ export type Database = {
       }
     }
     Functions: {
+      chat_unread_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          room_id: string
+          unread: number
+        }[]
+      }
+      create_group_chat: {
+        Args: { p_avatar: string; p_members: string[]; p_name: string }
+        Returns: string
+      }
       admin_list_users: {
         Args: {
           p_limit?: number

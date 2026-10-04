@@ -103,6 +103,13 @@ export default defineNuxtConfig({
     upstashRedisRestToken: process.env.UPSTASH_REDIS_REST_TOKEN,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET,
+    turnUrls: process.env.TURN_URLS,
+    turnUsername: process.env.TURN_USERNAME,
+    turnCredential: process.env.TURN_CREDENTIAL,
+    googleTranslateApiKey: process.env.GOOGLE_TRANSLATE_API_KEY,
+    deeplApiKey: process.env.DEEPL_API_KEY,
+    libretranslateUrl: process.env.LIBRETRANSLATE_URL,
+    libretranslateApiKey: process.env.LIBRETRANSLATE_API_KEY,
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',

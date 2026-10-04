@@ -1,4 +1,4 @@
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useSocket } from '~/composables/use-socket'
 
 export interface ActiveCall {
@@ -12,30 +12,43 @@ export interface ActiveCall {
   isActive: boolean
 }
 
-const ICE_SERVERS: RTCConfiguration = {
+const FALLBACK_ICE: RTCConfiguration = {
   iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
 }
+
+let iceConfig: RTCConfiguration | null = null
+const loadIceConfig = async (): Promise<RTCConfiguration> => {
+  if (iceConfig) return iceConfig
+  try {
+    const res = await $fetch<{ iceServers: RTCIceServer[] }>('/api/calls/ice')
+    iceConfig = { iceServers: res.iceServers }
+  } catch {
+    iceConfig = FALLBACK_ICE
+  }
+  return iceConfig
+}
+
+const call = ref<ActiveCall | null>(null)
+const localStream = ref<MediaStream | null>(null)
+const remoteStream = ref<MediaStream | null>(null)
+const error = ref<string | null>(null)
+const isMuted = ref(false)
+const isVideoOff = ref(false)
+const isInCall = computed(() => call.value !== null)
+
+let pc: RTCPeerConnection | null = null
+// ICE can arrive before the remote description is set; queue until it is.
+let pendingCandidates: RTCIceCandidateInit[] = []
+let listenersBound = false
 
 /**
  * 1:1 audio/video calling. Signalling is relayed by the socket server, which
  * authorises every message against the `call_sessions` row, so peers can only
- * exchange SDP/ICE for a call they actually belong to.
+ * exchange SDP/ICE for a call they actually belong to. Call state is shared
+ * app-wide so an incoming call rings on any page.
  */
 export const useWebrtcCall = () => {
   const { socket } = useSocket()
-
-  const call = ref<ActiveCall | null>(null)
-  const localStream = ref<MediaStream | null>(null)
-  const remoteStream = ref<MediaStream | null>(null)
-  const error = ref<string | null>(null)
-  const isMuted = ref(false)
-  const isVideoOff = ref(false)
-
-  let pc: RTCPeerConnection | null = null
-  // ICE can arrive before the remote description is set; queue until it is.
-  let pendingCandidates: RTCIceCandidateInit[] = []
-
-  const isInCall = computed(() => call.value !== null)
 
   const signal = (payloadType: string, payload: unknown) => {
     if (!call.value) return
@@ -43,7 +56,7 @@ export const useWebrtcCall = () => {
   }
 
   const createPeer = async (callType: 'audio' | 'video') => {
-    pc = new RTCPeerConnection(ICE_SERVERS)
+    pc = new RTCPeerConnection(await loadIceConfig())
     remoteStream.value = new MediaStream()
 
     localStream.value = await navigator.mediaDevices.getUserMedia({
@@ -209,20 +222,14 @@ export const useWebrtcCall = () => {
     if (call.value) call.value = { ...call.value, isActive: true }
   }
 
-  socket?.on('call:incoming', onIncoming)
-  socket?.on('call:signal', onSignal)
-  socket?.on('call:accepted', onAccepted)
-  socket?.on('call:rejected', cleanup)
-  socket?.on('call:ended', cleanup)
-
-  onUnmounted(() => {
-    socket?.off('call:incoming', onIncoming)
-    socket?.off('call:signal', onSignal)
-    socket?.off('call:accepted', onAccepted)
-    socket?.off('call:rejected', cleanup)
-    socket?.off('call:ended', cleanup)
-    cleanup()
-  })
+  if (socket && !listenersBound) {
+    listenersBound = true
+    socket.on('call:incoming', onIncoming)
+    socket.on('call:signal', onSignal)
+    socket.on('call:accepted', onAccepted)
+    socket.on('call:rejected', cleanup)
+    socket.on('call:ended', cleanup)
+  }
 
   return {
     call,

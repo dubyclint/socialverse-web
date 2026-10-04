@@ -410,6 +410,13 @@ export const useSocialFeed = () => {
     }
 
     try {
+      const unread = await $fetch<{ total: number }>('/api/chat/unread')
+      unreadMessages.value = unread.total
+    } catch (e) {
+      console.error('[Feed] Chat unread count failed', e)
+    }
+
+    try {
       const { data: liveStreams } = await supabase
         .from('streams')
         .select('id')

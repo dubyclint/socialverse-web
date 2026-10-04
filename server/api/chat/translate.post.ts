@@ -98,26 +98,15 @@ export default defineEventHandler(async (event: H3Event): Promise<TranslateRespo
     // ========================================================================
     // 4. CALL TRANSLATION SERVICE
     // ========================================================================
-    // This uses Supabase's built-in translation functions or an external API
-    // Example: Google Translate API, DeepL API, or custom translation service
-    
     let translatedText = ''
     let detectedSourceLanguage = sourceLanguage
 
     try {
-      // Option 1: Use Supabase Edge Functions (if configured)
-      // const { data, error } = await supabase.functions.invoke('translate', {
-      //   body: { text, sourceLanguage, targetLanguage }
-      // })
-
-      // Option 2: Use external translation API (Google Translate, DeepL, etc.)
-      // For now, we'll use a placeholder that calls an external service
       const translationResult = await translateText(text, sourceLanguage, targetLanguage)
-      
       translatedText = translationResult.translated
       detectedSourceLanguage = translationResult.sourceLanguage
-
-    } catch (translationError: any) {
+    } catch (translationError: unknown) {
+      if ((translationError as { statusCode?: number })?.statusCode === 503) throw translationError
       console.error('[Translate API] Translation service error:', translationError)
       throw createError({
         statusCode: 503,
@@ -173,76 +162,3 @@ export default defineEventHandler(async (event: H3Event): Promise<TranslateRespo
     })
   }
 })
-
-// ============================================================================
-// HELPER FUNCTION: translateText
-// ============================================================================
-// Replace this with your actual translation service implementation
-// Examples: Google Translate API, DeepL API, LibreTranslate, etc.
-// ============================================================================
-
-async function translateText(
-  text: string,
-  sourceLanguage: string,
-  targetLanguage: string
-): Promise<{ translated: string; sourceLanguage: string }> {
-  // ========================================================================
-  // IMPLEMENTATION OPTIONS:
-  // ========================================================================
-  
-  // Option 1: Google Translate API
-  // const response = await fetch('https://translation.googleapis.com/language/translate/v2', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({
-  //     q: text,
-  //     target: targetLanguage,
-  //     source: sourceLanguage === 'auto' ? undefined : sourceLanguage,
-  //     key: process.env.GOOGLE_TRANSLATE_API_KEY
-  //   })
-  // })
-  // const data = await response.json()
-  // return {
-  //   translated: data.data.translations[0].translatedText,
-  //   sourceLanguage: sourceLanguage === 'auto' ? 'en' : sourceLanguage
-  // }
-
-  // Option 2: DeepL API
-  // const response = await fetch('https://api-free.deepl.com/v1/translate', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({
-  //     text: [text],
-  //     target_lang: targetLanguage.toUpperCase(),
-  //     source_lang: sourceLanguage === 'auto' ? undefined : sourceLanguage.toUpperCase(),
-  //     auth_key: process.env.DEEPL_API_KEY
-  //   })
-  // })
-  // const data = await response.json()
-  // return {
-  //   translated: data.translations[0].text,
-  //   sourceLanguage: data.translations[0].detected_source_language?.toLowerCase() || sourceLanguage
-  // }
-
-  // Option 3: LibreTranslate (self-hosted or public instance)
-  const response = await fetch('https://libretranslate.de/translate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      q: text,
-      source: sourceLanguage === 'auto' ? 'auto' : sourceLanguage,
-      target: targetLanguage
-    })
-  })
-
-  if (!response.ok) {
-    throw new Error(`Translation API error: ${response.statusText}`)
-  }
-
-  const data = await response.json()
-  
-  return {
-    translated: data.translatedText,
-    sourceLanguage: sourceLanguage === 'auto' ? 'en' : sourceLanguage
-  }
-}

@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const roomIds = (memberships || []).map(m => m.room_id)
   if (roomIds.length === 0) return { success: true, data: [] as Chat[] }
 
-  const [{ data: rooms }, { data: messages }] = await Promise.all([
+  const [{ data: rooms }, { data: messages }, { data: unread }] = await Promise.all([
     client
       .from('chat_rooms')
       .select('id, room_name, room_avatar, is_group_chat, updated_at')
@@ -29,8 +29,11 @@ export default defineEventHandler(async (event) => {
       .from('chat_messages')
       .select('room_id, message_text, created_at')
       .in('room_id', roomIds)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }),
+    client.rpc('chat_unread_counts')
   ])
+
+  const unreadByRoom = new Map((unread ?? []).map(row => [row.room_id, Number(row.unread)]))
 
   const latestByRoom = new Map<string, { message_text: string | null, created_at: string }>()
   for (const message of messages || []) {
@@ -45,7 +48,9 @@ export default defineEventHandler(async (event) => {
       title: room.room_name || 'Direct message',
       avatar: room.room_avatar || undefined,
       lastMessage: latest?.message_text || undefined,
-      lastMessageTime: latest ? new Date(latest.created_at).getTime() : undefined
+      lastMessageTime: latest ? new Date(latest.created_at).getTime() : undefined,
+      unreadCount: unreadByRoom.get(room.id) ?? 0,
+      isGroup: room.is_group_chat ?? false
     }
   })
 

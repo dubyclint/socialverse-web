@@ -12,9 +12,9 @@ export const API_ENDPOINTS = {
   STREAM_USER: '/api/stream/user',
   
   // Group Chat Operations
-  GROUP_CHAT: '/api/group-chat',
-  GROUP_CHAT_USER: '/api/group-chat/user',
-  
+  GROUP_CHAT: '/api/chat/group',
+  CHAT_UNREAD: '/api/chat/unread',
+
   // Wallet Lock Operations
   WALLET_LOCK: '/api/wallet-lock',
   
@@ -47,12 +47,6 @@ export const STREAM_ACTIONS = {
   CREATE: 'create',
   UPDATE: 'update',
   DELETE: 'delete'
-};
-
-export const GROUP_CHAT_ACTIONS = {
-  CREATE: 'create',
-  ADD_MEMBER: 'add_member',
-  REMOVE_MEMBER: 'remove_member'
 };
 
 export const WALLET_LOCK_ACTIONS = {

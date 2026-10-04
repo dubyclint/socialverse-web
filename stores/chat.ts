@@ -163,6 +163,7 @@ export const useChatStore = defineStore('chat', {
     addChats(chats: Chat[]) {
       for (const chat of chats) {
         this.chats.set(chat.id, chat)
+        if (chat.unreadCount !== undefined) this.unreadCounts.set(chat.id, chat.unreadCount)
         if (!this.chatList.includes(chat.id)) this.chatList.push(chat.id)
       }
       this.cacheChatState()
