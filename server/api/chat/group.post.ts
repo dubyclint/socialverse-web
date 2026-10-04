@@ -31,6 +31,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     success: true,
-    data: { id: roomId, name, title: name, isGroup: true, lastMessageTime: Date.now(), unreadCount: 0 }
+    data: { id: roomId, name, title: name, isGroup: true, type: 'group' as const, lastMessageTime: Date.now(), unreadCount: 0 }
   }
 })

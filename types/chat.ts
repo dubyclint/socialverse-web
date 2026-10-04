@@ -50,6 +50,7 @@ export interface TypingUser {
   username: string
   isTyping: boolean
   chatId: string
+  activity?: 'typing' | 'recording'
 }
 
 export interface Chat {
@@ -62,6 +63,11 @@ export interface Chat {
   unreadCount?: number
   isPinned?: boolean
   isGroup?: boolean
+  type?: 'direct' | 'group'
+  /** The other participant of a direct chat. */
+  userId?: string
+  username?: string
+  participantCount?: number
 }
 
 export interface Translation {

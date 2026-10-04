@@ -3,6 +3,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { mapGiftError } from '~/server/utils/pewgift-errors'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
+import { getSocketServer, chatAudience } from '~/server/utils/socket-hub'
 
 interface SendGiftToChatRequest {
   chatId: string
@@ -56,10 +57,11 @@ export default defineEventHandler(async (event) => {
 
   const receipt = result as { transaction_id: string, total_cost: number, new_sender_balance: number }
 
-  await supabase.from('chat_messages').insert({
+  const content = body.message || `Sent a ${gift.name}!`
+  const { data: inserted } = await supabase.from('chat_messages').insert({
     room_id: body.chatId,
     sender_id: user.id,
-    message_text: body.message || `Sent a ${gift.name}!`,
+    message_text: content,
     metadata: {
       kind: 'gift',
       gift_id: gift.id,
@@ -68,7 +70,25 @@ export default defineEventHandler(async (event) => {
       anonymous: body.isAnonymous ?? false,
       transaction_id: receipt.transaction_id
     }
-  })
+  }).select('id, created_at').single()
+
+  if (inserted) {
+    const [{ data: members }, { data: sender }] = await Promise.all([
+      supabase.from('chat_room_members').select('user_id').eq('room_id', body.chatId),
+      supabase.from('user').select('username, display_name, avatar_url').eq('user_id', user.id).maybeSingle()
+    ])
+    getSocketServer()?.to(chatAudience(body.chatId, (members ?? []).map(member => member.user_id))).emit('chat:message', {
+      id: inserted.id,
+      chatId: body.chatId,
+      content,
+      attachments: [],
+      messageType: 'text',
+      senderId: user.id,
+      senderName: sender?.display_name || sender?.username || 'unknown',
+      senderAvatar: sender?.avatar_url || undefined,
+      timestamp: inserted.created_at
+    })
+  }
 
   return {
     success: true,

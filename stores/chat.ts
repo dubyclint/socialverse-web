@@ -102,9 +102,15 @@ export const useChatStore = defineStore('chat', {
       this.cacheChatState()
     },
 
-    setTyping(chatId: string, userId: string, username: string, isTyping: boolean) {
+    setTyping(
+      chatId: string,
+      userId: string,
+      username: string,
+      isTyping: boolean,
+      activity: 'typing' | 'recording' = 'typing'
+    ) {
       const key = `${chatId}:${userId}`
-      if (isTyping) this.typingUsers.set(key, { userId, username, isTyping, chatId })
+      if (isTyping) this.typingUsers.set(key, { userId, username, isTyping, chatId, activity })
       else this.typingUsers.delete(key)
     },
 

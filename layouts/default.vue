@@ -124,7 +124,7 @@
         </div>
       </header>
 
-      <div class="page-content">
+      <div class="page-content" :class="{ 'page-content--flush': route.path.startsWith('/chat') }">
         <slot />
       </div>
 
@@ -558,5 +558,15 @@ a:focus-visible {
   .icon-btn {
     transition: none;
   }
+}
+
+/* Full-bleed pages (chat) manage their own scrolling and spacing. */
+.page-content.page-content--flush {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  max-width: none;
+  min-height: 0;
 }
 </style>

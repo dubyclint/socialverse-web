@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, shallowRef, computed } from 'vue'
 import { useSocket } from '~/composables/use-socket'
 
 export interface ActiveCall {
@@ -29,8 +29,10 @@ const loadIceConfig = async (): Promise<RTCConfiguration> => {
 }
 
 const call = ref<ActiveCall | null>(null)
-const localStream = ref<MediaStream | null>(null)
-const remoteStream = ref<MediaStream | null>(null)
+// Shallow: a reactive proxy around a MediaStream is rejected by `srcObject`
+// and breaks its native methods.
+const localStream = shallowRef<MediaStream | null>(null)
+const remoteStream = shallowRef<MediaStream | null>(null)
 const error = ref<string | null>(null)
 const isMuted = ref(false)
 const isVideoOff = ref(false)
@@ -40,6 +42,11 @@ let pc: RTCPeerConnection | null = null
 // ICE can arrive before the remote description is set; queue until it is.
 let pendingCandidates: RTCIceCandidateInit[] = []
 let listenersBound = false
+// The caller sends its offer only once the callee has accepted and is ready
+// to answer; this is set when acceptance arrives before local media is.
+let offerPending = false
+let ringTimer: ReturnType<typeof setTimeout> | null = null
+const RING_TIMEOUT_MS = 45_000
 
 /**
  * 1:1 audio/video calling. Signalling is relayed by the socket server, which
@@ -73,7 +80,37 @@ export const useWebrtcCall = () => {
       if (event.candidate) signal('ice', event.candidate.toJSON())
     }
 
+    pc.onconnectionstatechange = () => {
+      if (pc?.connectionState === 'failed') {
+        error.value = 'The call could not connect on this network'
+        hangUp()
+      }
+    }
+
     return pc
+  }
+
+  const sendOffer = async () => {
+    if (!pc) {
+      offerPending = true
+      return
+    }
+    offerPending = false
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    signal('offer', offer)
+  }
+
+  const clearRing = () => {
+    if (ringTimer) clearTimeout(ringTimer)
+    ringTimer = null
+  }
+
+  const startRing = (onTimeout: () => void) => {
+    clearRing()
+    ringTimer = setTimeout(() => {
+      if (call.value && !call.value.isActive) onTimeout()
+    }, RING_TIMEOUT_MS)
   }
 
   const drainCandidates = async () => {
@@ -84,6 +121,8 @@ export const useWebrtcCall = () => {
   }
 
   const cleanup = () => {
+    clearRing()
+    offerPending = false
     localStream.value?.getTracks().forEach(track => track.stop())
     pc?.close()
     pc = null
@@ -103,10 +142,12 @@ export const useWebrtcCall = () => {
     peerAvatar?: string
   }) => {
     error.value = null
+    if (call.value) return
+    const callType = params.callType === 'video' ? 'video' : 'audio'
 
     socket?.emit(
       'call:invite',
-      { chatId: params.chatId, targetUserId: params.targetUserId, callType: params.callType },
+      { chatId: params.chatId, targetUserId: params.targetUserId, callType },
       async (result: { success: boolean; call?: { id: string }; error?: string }) => {
         if (!result?.success || !result.call) {
           error.value = result?.error || 'Failed to start call'
@@ -119,16 +160,18 @@ export const useWebrtcCall = () => {
           peerId: params.targetUserId,
           peerName: params.peerName,
           peerAvatar: params.peerAvatar,
-          callType: params.callType,
+          callType,
           isIncoming: false,
           isActive: false
         }
+        startRing(() => {
+          error.value = 'No answer'
+          hangUp()
+        })
 
         try {
-          const peer = await createPeer(params.callType)
-          const offer = await peer.createOffer()
-          await peer.setLocalDescription(offer)
-          signal('offer', offer)
+          await createPeer(callType)
+          if (offerPending) await sendOffer()
         } catch (err) {
           error.value = err instanceof Error ? err.message : 'Could not access microphone/camera'
           hangUp()
@@ -140,6 +183,7 @@ export const useWebrtcCall = () => {
   const acceptCall = async () => {
     if (!call.value) return
     try {
+      clearRing()
       await createPeer(call.value.callType)
       socket?.emit('call:accept', { callId: call.value.id })
       call.value = { ...call.value, isActive: true }
@@ -192,6 +236,7 @@ export const useWebrtcCall = () => {
       isIncoming: true,
       isActive: false
     }
+    startRing(rejectCall)
   }
 
   const onSignal = async (data: { callId: string; payloadType: string; payload: any }) => {
@@ -218,8 +263,18 @@ export const useWebrtcCall = () => {
     }
   }
 
-  const onAccepted = () => {
-    if (call.value) call.value = { ...call.value, isActive: true }
+  const onAccepted = async (data?: { id?: string }) => {
+    if (!call.value || (data?.id && data.id !== call.value.id)) return
+    clearRing()
+    const isCaller = !call.value.isIncoming
+    call.value = { ...call.value, isActive: true }
+    if (!isCaller) return
+    try {
+      await sendOffer()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to connect the call'
+      hangUp()
+    }
   }
 
   if (socket && !listenersBound) {

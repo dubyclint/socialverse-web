@@ -68,9 +68,40 @@ export interface ChatTypingEvent {
   username?: string
 }
 
+export interface ChatRecordingEvent {
+  chatId: string
+  userId: string
+  username?: string
+  isRecording: boolean
+}
+
+// Rooms are per connection on the server, so joined chats are re-joined
+// after every reconnect.
+const joinedChats = new Set<string>()
+let rejoinBound = false
+
 // Realtime chat glue over the Socket.IO orchestrator (`useSocket`).
 export const useChat = () => {
   const socket = useSocket()
+  const subscriptions: Array<[string, (data: any) => void]> = []
+
+  const listen = <T>(event: string, handler: (data: T) => void) => {
+    socket.on(event, handler)
+    subscriptions.push([event, handler])
+  }
+
+  /** Removes every listener registered through this instance. */
+  const dispose = () => {
+    for (const [event, handler] of subscriptions) socket.off(event, handler)
+    subscriptions.length = 0
+  }
+
+  if (!rejoinBound) {
+    rejoinBound = true
+    socket.on('connect', () => {
+      for (const chatId of joinedChats) socket.emit('chat:join', { chatId })
+    })
+  }
 
   const initialize = async () => {
     await socket.connect()
@@ -101,25 +132,31 @@ export const useChat = () => {
     })
 
   const joinChat = (chatId: string) => {
+    joinedChats.add(chatId)
     socket.emit('chat:join', { chatId })
   }
 
   const leaveChat = (chatId: string) => {
+    joinedChats.delete(chatId)
     socket.emit('chat:leave', { chatId })
   }
 
   const onMessage = (handler: (message: IncomingChatMessage) => void) => {
-    socket.on('chat:message', handler)
+    listen('chat:message', handler)
   }
 
   const onTyping = (handler: (event: ChatTypingEvent, isTyping: boolean) => void) => {
-    socket.on('chat:typing', (event: ChatTypingEvent) => handler(event, true))
-    socket.on('chat:stop-typing', (event: ChatTypingEvent) => handler(event, false))
+    listen('chat:typing', (event: ChatTypingEvent) => handler(event, true))
+    listen('chat:stop-typing', (event: ChatTypingEvent) => handler(event, false))
+  }
+
+  const onRecording = (handler: (event: ChatRecordingEvent, isRecording: boolean) => void) => {
+    listen('chat:recording', (event: ChatRecordingEvent) => handler(event, event.isRecording))
   }
 
   const onReceipt = (handler: (receipt: ChatReceipt, kind: 'delivered' | 'read') => void) => {
-    socket.on('chat:delivered', (receipt: ChatReceipt) => handler(receipt, 'delivered'))
-    socket.on('chat:read', (receipt: ChatReceipt) => handler(receipt, 'read'))
+    listen('chat:delivered', (receipt: ChatReceipt) => handler(receipt, 'delivered'))
+    listen('chat:read', (receipt: ChatReceipt) => handler(receipt, 'read'))
   }
 
   const sendTyping = (chatId: string, isTyping: boolean) => {
@@ -147,15 +184,15 @@ export const useChat = () => {
   }
 
   const onEdited = (handler: (event: ChatEditEvent) => void) => {
-    socket.on('chat:edited', handler)
+    listen('chat:edited', handler)
   }
 
   const onDeleted = (handler: (event: ChatDeleteEvent) => void) => {
-    socket.on('chat:deleted', handler)
+    listen('chat:deleted', handler)
   }
 
   const onReaction = (handler: (event: ChatReactionEvent) => void) => {
-    socket.on('chat:reaction', handler)
+    listen('chat:reaction', handler)
   }
 
   const disconnect = () => {
@@ -169,7 +206,9 @@ export const useChat = () => {
     leaveChat,
     onMessage,
     onTyping,
+    onRecording,
     onReceipt,
+    dispose,
     sendTyping,
     markDelivered,
     markRead,

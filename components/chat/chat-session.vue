@@ -46,10 +46,18 @@
       </div>
       
       <div class="header-right">
-        <button class="header-btn" @click="startVideoCall" v-if="chat.type === 'direct'">
+        <button
+          v-if="chat.type === 'direct' && chat.userId"
+          class="header-btn"
+          title="Send a gift"
+          @click="showGiftSheet = true"
+        >
+          <icon name="gift" />
+        </button>
+        <button class="header-btn" title="Video call" @click="startVideoCall" v-if="chat.type === 'direct'">
           <icon name="video" />
         </button>
-        <button class="header-btn" @click="startVoiceCall">
+        <button class="header-btn" title="Voice call" @click="startVoiceCall" v-if="chat.type === 'direct'">
           <icon name="phone" />
         </button>
         <div class="more-menu" ref="moreMenu">
@@ -247,6 +255,14 @@
     />
 
     <!-- Shared media -->
+    <ChatGiftSheet
+      v-if="showGiftSheet"
+      :chat-id="chat.id"
+      :recipient-id="chat.userId"
+      :recipient-name="chat.name"
+      @close="showGiftSheet = false"
+    />
+
     <div v-if="showSharedMedia" class="shared-media-overlay" @click.self="showSharedMedia = false">
       <div class="shared-media-panel">
         <div class="shared-media-header">
@@ -299,6 +315,7 @@ import Icon from '@/components/ui/icon.vue'
 import MessageBubble from './message-bubble.vue'
 import AttachmentMenu from './attachment-menu.vue'
 import EmojiPicker from './emoji-picker.vue'
+import ChatGiftSheet from './chat-gift-sheet.vue'
 
 // Props
 const props = defineProps({
@@ -327,6 +344,7 @@ const messageText = ref('')
 const replyingTo = ref(null)
 const editingMessage = ref(null)
 const showMoreMenu = ref(false)
+const showGiftSheet = ref(false)
 const showAttachmentMenu = ref(false)
 const showEmojiPicker = ref(false)
 const isRecording = ref(false)
@@ -374,9 +392,11 @@ const getInputPlaceholder = () => {
   return `Message ${props.chat.name}`
 }
 
+const activityText = (user) => (user.activity === 'recording' ? 'recording audio' : 'typing')
+
 const getTypingText = (users) => {
   if (users.length === 1) {
-    return `${users[0].username} is typing...`
+    return `${users[0].username} is ${activityText(users[0])}...`
   } else if (users.length === 2) {
     return `${users[0].username} and ${users[1].username} are typing...`
   } else {
@@ -578,7 +598,7 @@ const startVoiceCall = () => {
   emit('startCall', {
     targetUserId: props.chat.type === 'direct' ? props.chat.userId : null,
     chatId: props.chat.id,
-    callType: 'voice'
+    callType: 'audio'
   })
 }
 
@@ -844,18 +864,8 @@ const handleClickOutside = (event) => {
   }
 }
 
-// Socket event handlers
-const setupSocketListeners = () => {
-  socket.on('user_recording_voice', (data) => {
-    if (data.chatId === props.chat.id) {
-      console.log(`${data.username} is ${data.isRecording ? 'recording' : 'not recording'} voice`)
-    }
-  })
-}
-
 // Lifecycle
 onMounted(() => {
-  setupSocketListeners()
   document.addEventListener('click', handleClickOutside)
   scrollToBottom()
 })

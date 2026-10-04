@@ -7,8 +7,6 @@ import { useNuxtApp } from '#app'
 
 export const useSocket = (_namespace?: string) => {
   // State initialization 
-  const isConnected = ref(false)
-  const isAuthenticated = ref(false)
   const connectionError = ref<string | null>(null)
   const activeChats = ref<Set<string>>(new Set())
   const activeStreams = ref<Set<string>>(new Set())
@@ -36,6 +34,10 @@ export const useSocket = (_namespace?: string) => {
   // shape expected by components/universe-chat.vue, components/chat/chat-session.vue
   // and components/streaming/mobile-stream-player.vue.
   const socket = getSocketInstance()
+
+  // Connection state is owned by the plugin so every consumer sees the same value.
+  const isConnected = computed(() => socket?.state.value ?? false)
+  const isAuthenticated = isConnected
 
   /**
    * Generic passthrough emit, for callers that want to emit a raw event
@@ -67,8 +69,6 @@ export const useSocket = (_namespace?: string) => {
       const result = await socket.connect()
       
       if (result) {
-        isConnected.value = true
-        isAuthenticated.value = true
         connectionError.value = null
         console.log('[useSocket] ✅ Connected successfully')
       } else {
@@ -90,8 +90,6 @@ export const useSocket = (_namespace?: string) => {
       if (!socket) return
 
       await socket.disconnect()
-      isConnected.value = false
-      isAuthenticated.value = false
       activeChats.value.clear()
       activeStreams.value.clear()
       console.log('[useSocket] ✅ Disconnected')
@@ -110,10 +108,7 @@ export const useSocket = (_namespace?: string) => {
     // The plugin only exposes `isConnected()` (no `getState()`/authenticated/error
     // breakdown), so mirror the same "connected implies authenticated" convention
     // already used in `connect()` above rather than reading nonexistent fields.
-    const connected = socket.isConnected()
-    isConnected.value = connected
-    isAuthenticated.value = connected
-    if (connected) connectionError.value = null
+    if (socket.isConnected()) connectionError.value = null
   }
 
   // ============================================================================

@@ -8,6 +8,7 @@ import type { Socket } from 'socket.io'
 import { createClient } from '@supabase/supabase-js'
 import { Server as Engine } from 'engine.io'
 import { defineEventHandler } from 'h3'
+import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -44,6 +45,7 @@ export default defineNitroPlugin((nitroApp: any) => {
     })
 
     io.bind(engine)
+    setSocketServer(io)
 
     // Mount handler on Nitro router to handle requests cleanly on port 8080
     nitroApp.router.use('/socket.io/', defineEventHandler({
@@ -107,6 +109,11 @@ export default defineNitroPlugin((nitroApp: any) => {
         .update({ [column]: at })
         .eq('room_id', chatId)
         .eq('user_id', userId)
+    }
+
+    const memberRooms = async (chatId: string): Promise<string[]> => {
+      const { data } = await admin.from('chat_room_members').select('user_id').eq('room_id', chatId)
+      return chatAudience(chatId, (data ?? []).map(member => member.user_id))
     }
 
     const isMember = async (chatId: string, userId: string): Promise<boolean> => {
@@ -244,7 +251,7 @@ export default defineNitroPlugin((nitroApp: any) => {
           tempId
         }
 
-        io?.to(roomOf(chatId)).emit('chat:message', payload)
+        io?.to(await memberRooms(chatId)).emit('chat:message', payload)
         ack?.({ success: true, ...payload })
       }
 
@@ -358,7 +365,7 @@ export default defineNitroPlugin((nitroApp: any) => {
 
           const at = data?.at ? new Date(data.at).toISOString() : new Date().toISOString()
           await markWatermark(chatId, socket.userId, column, at)
-          io?.to(roomOf(chatId)).emit(event, { chatId, userId: socket.userId, at })
+          io?.to(await memberRooms(chatId)).emit(event, { chatId, userId: socket.userId, at })
         }
 
       socket.on('chat:delivered', handleReceipt('last_delivered_at', 'chat:delivered'))
@@ -395,6 +402,19 @@ export default defineNitroPlugin((nitroApp: any) => {
           chatId: data.chatId
         })
       })
+
+      const handleRecording = (isRecording: boolean) => async (data: any) => {
+        if (!data?.chatId || !socket.userId) return
+        socket.to(roomOf(data.chatId)).emit('chat:recording', {
+          userId: socket.userId,
+          username: await typingSenderName(),
+          chatId: data.chatId,
+          isRecording
+        })
+      }
+
+      socket.on('voice_message_start', handleRecording(true))
+      socket.on('voice_message_stop', handleRecording(false))
 
       // 1:1 calls: SDP/ICE are relayed between the two participants only, and
       // the session row is the source of truth for who may signal on a call.

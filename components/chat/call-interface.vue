@@ -22,12 +22,13 @@
 
         <!-- Video Container -->
         <div class="video-container" v-if="call.callType === 'video'">
-          <video ref="remoteVideo" class="remote-video" autoplay></video>
-          <video ref="localVideo" class="local-video" autoplay muted></video>
+          <video ref="remoteVideo" class="remote-video" autoplay playsinline></video>
+          <video ref="localVideo" class="local-video" autoplay playsinline muted></video>
         </div>
 
         <!-- Audio Visualization -->
         <div class="audio-visualization" v-else>
+          <audio ref="remoteAudio" autoplay></audio>
           <div class="audio-waves">
             <div 
               v-for="n in 5" 
@@ -81,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, watchEffect, onMounted, onUnmounted } from 'vue'
 import Icon from '@/components/ui/icon.vue'
 import type { ActiveCall } from '~/composables/use-webrtc-call'
 
@@ -102,22 +103,14 @@ const audioTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
 const remoteVideo = ref<HTMLVideoElement | null>(null)
 const localVideo = ref<HTMLVideoElement | null>(null)
+const remoteAudio = ref<HTMLAudioElement | null>(null)
 
-watch(
-  () => props.remoteStream,
-  stream => {
-    if (remoteVideo.value) remoteVideo.value.srcObject = stream ?? null
-  },
-  { immediate: true }
-)
-
-watch(
-  () => props.localStream,
-  stream => {
-    if (localVideo.value) localVideo.value.srcObject = stream ?? null
-  },
-  { immediate: true }
-)
+watchEffect(() => {
+  const remote = props.remoteStream ?? null
+  if (remoteVideo.value) remoteVideo.value.srcObject = remote
+  if (remoteAudio.value) remoteAudio.value.srcObject = remote
+  if (localVideo.value) localVideo.value.srcObject = props.localStream ?? null
+})
 
 watch(
   () => props.call?.isActive,
@@ -162,8 +155,6 @@ const stopCallTimer = () => {
 
 onMounted(() => {
   if (props.call?.isActive) startCallTimer()
-  if (remoteVideo.value) remoteVideo.value.srcObject = props.remoteStream ?? null
-  if (localVideo.value) localVideo.value.srcObject = props.localStream ?? null
 
   audioTimer.value = setInterval(() => {
     isAudioActive.value = Boolean(props.call?.isActive)

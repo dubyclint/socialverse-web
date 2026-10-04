@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-layout">
+  <div class="chat-layout" :class="{ 'in-chat': chatStore.currentChatId }">
     <!-- Connection Status Indicator -->
     <div v-if="!chatStore.isConnected" class="connection-banner">
       <Icon name="alert-circle" />
@@ -32,7 +32,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="chat-content">
+    <div class="chat-content" :class="{ 'has-active': chatStore.currentChatId }">
       <!-- Chat List Sidebar -->
       <div class="chat-sidebar">
         <!-- Search Bar -->
@@ -109,11 +109,11 @@
           @delete-message="deleteMessage"
           @react-message="reactToMessage"
           @translate-message="translateMessage"
-          @send-gift="sendGift"
           @start-call="handleStartCall"
           @membership-changed="loadChats"
           @blocked="handleBlocked"
           @cleared="reloadMessages"
+          @back="closeChat"
         />
       </div>
     </div>
@@ -220,8 +220,11 @@ const {
   isConnected,
   initialize, 
   joinChat,
+  leaveChat,
   onMessage,
   onTyping,
+  onRecording,
+  dispose,
   onReceipt,
   sendTyping,
   markDelivered,
@@ -232,8 +235,7 @@ const {
   reactToMessage: emitReaction,
   onEdited,
   onDeleted,
-  onReaction,
-  disconnect 
+  onReaction
 } = useChat()
 
 watch(isConnected, connected => chatStore.setConnected(connected), { immediate: true })
@@ -319,7 +321,14 @@ const handleBlocked = async () => {
   await loadChats()
 }
 
+const closeChat = () => {
+  if (chatStore.currentChatId) leaveChat(chatStore.currentChatId)
+  chatStore.setCurrentChat(null)
+}
+
 const selectChat = async (chatId: string) => {
+  const previous = chatStore.currentChatId
+  if (previous && previous !== chatId) leaveChat(previous)
   chatStore.setCurrentChat(chatId)
   joinChat(chatId)
   try {
@@ -421,19 +430,6 @@ const translateMessage = async (messageId: string, text: string, targetLang: str
   } catch (error) {
     const data = (error as { data?: { statusMessage?: string } })?.data
     chatStore.setError(data?.statusMessage || 'Failed to translate message')
-  }
-}
-
-const sendGift = async (recipientId: string, giftAmount: number, message: string, messageId: string) => {
-  try {
-    await $fetch('/api/pewgift/send', {
-      method: 'POST',
-      body: { recipientId: recipientId || '', amount: giftAmount, message, messageId, timestamp: Date.now() }
-    })
-    chatStore.updateUserBalance(-giftAmount)
-  } catch (error) {
-    console.error('Failed to send gift:', error)
-    chatStore.setError('Failed to send gift')
   }
 }
 
@@ -544,6 +540,16 @@ onMounted(async () => {
       status: own ? 'sent' : undefined
     })
 
+    if (chat) {
+      chatStore.addChat({
+        ...chat,
+        lastMessage: message.content || (message.messageType === 'audio' ? 'Voice message' : 'Attachment'),
+        lastMessageTime: new Date(message.timestamp).getTime()
+      })
+    } else {
+      void loadChats()
+    }
+
     if (own) return
 
     // Received while the chat is open counts as read; otherwise only delivered.
@@ -555,6 +561,11 @@ onMounted(async () => {
   onTyping((event, isTyping) => {
     if (event.userId === currentUserId.value) return
     chatStore.setTyping(event.chatId, event.userId, event.username || 'Someone', isTyping)
+  })
+
+  onRecording((event, isRecording) => {
+    if (event.userId === currentUserId.value) return
+    chatStore.setTyping(event.chatId, event.userId, event.username || 'Someone', isRecording, 'recording')
   })
 
   onEdited((event) => {
@@ -610,7 +621,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  disconnect()
+  dispose()
+  closeChat()
 })
 </script>
 
@@ -642,7 +654,9 @@ onUnmounted(() => {
 .chat-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
   background: #f5f5f5;
 }
 
@@ -881,5 +895,15 @@ onUnmounted(() => {
 .empty-chat p {
   margin: 0;
   font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .chat-header { padding: 10px 12px; }
+  .header-left h1 { font-size: 20px; }
+  .header-right { gap: 8px; }
+  .chat-sidebar { width: 100%; border-right: 0; }
+  .chat-layout.in-chat .chat-header { display: none; }
+  .chat-content.has-active .chat-sidebar { display: none; }
+  .chat-content:not(.has-active) .chat-session { display: none; }
 }
 </style>

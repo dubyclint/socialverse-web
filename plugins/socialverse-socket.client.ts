@@ -7,9 +7,17 @@
 // ============================================================================
 import { defineNuxtPlugin, useRuntimeConfig } from '#app'
 import { io, Socket } from 'socket.io-client'
+import { ref, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 let socketInstance: Socket | null = null
+let connecting: Promise<Socket | null> | null = null
+let supabaseClient: SupabaseClient | null = null
+let socketUrl = ''
+let authRetries = 0
 const MAX_CONNECTION_ATTEMPTS = 5
+const connected = ref(false)
 
 // Listeners registered before the socket exists (or surviving a reconnect that
 // replaced the instance) are kept here and re-attached to every new instance.
@@ -36,6 +44,19 @@ export default defineNuxtPlugin({
     // (TS2322). Every other call site in the setup body always falls through
     // to the final `return`, so removing the guard is behavior-neutral.
     console.log('[Socket.IO] Initializing lifecycle sequence...')
+    supabaseClient = useSupabaseClient()
+    const config = useRuntimeConfig()
+    // Inside the native shell the page origin is local, so the socket must
+    // target the deployed site explicitly.
+    socketUrl = String(
+      config.public.socketUrl ||
+      (Capacitor.isNativePlatform() ? config.public.siteUrl : window.location.origin)
+    )
+    const supabaseUser = useSupabaseUser()
+    watch(supabaseUser, (current, previous) => {
+      if (current && !previous) void autoConnect()
+      if (!current && previous) disconnectSocket()
+    })
 
     try {
       if (useSupabaseUser().value) {
@@ -60,20 +81,16 @@ export default defineNuxtPlugin({
       getInstance(): Socket | null { return socketInstance },
       isConnected(): boolean { return socketInstance?.connected || false },
 
-      disconnect(): void {
-        if (socketInstance) {
-          socketInstance.disconnect()
-          socketInstance = null
-          console.log('[Socket.IO] ✅ Connection severed cleanly.')
-        }
-      },
+      state: connected,
+      disconnect(): void { disconnectSocket() },
 
       emit(event: string, data?: any, ack?: (response: any) => void): void {
-        if (socketInstance?.connected) {
+        // Socket.IO buffers emits while (re)connecting, so only a missing
+        // instance (signed out) drops the event.
+        if (socketInstance) {
           if (ack) socketInstance.emit(event, data, ack)
           else socketInstance.emit(event, data)
         } else {
-          console.warn('[Socket.IO] ⚠️ Transmission dropped. Socket offline:', event)
           ack?.({ success: false, error: 'Socket offline' })
         }
       },
@@ -117,37 +134,65 @@ export default defineNuxtPlugin({
 // ============================================================================
 // DRIVER FACTORY METHOD
 // ============================================================================
-async function autoConnect(): Promise<Socket | null> {
-  try {
-    if (socketInstance?.connected) return socketInstance
+function disconnectSocket(): void {
+  if (!socketInstance) return
+  socketInstance.disconnect()
+  socketInstance = null
+  connected.value = false
+}
 
-    // The socket server may be cross-origin, so it is authenticated with an
-    // explicit access token taken from the Supabase session rather than a cookie.
-    const { data: { session } } = await useSupabaseClient().auth.getSession()
+function autoConnect(): Promise<Socket | null> {
+  if (socketInstance) {
+    if (!socketInstance.connected) socketInstance.connect()
+    return Promise.resolve(socketInstance)
+  }
+  connecting ??= createSocket().finally(() => { connecting = null })
+  return connecting
+}
+
+async function createSocket(): Promise<Socket | null> {
+  const client = supabaseClient
+  if (!client) return null
+  try {
+    const { data: { session } } = await client.auth.getSession()
     if (!session) return null
 
-    const config = useRuntimeConfig()
-    const socketUrl = config.public.socketUrl || window.location.origin
-
-    socketInstance = io(socketUrl, {
-      auth: { token: session.access_token, userId: session.user.id },
+    const instance = io(socketUrl, {
+      // Read on every (re)connect so a reconnect never presents an expired
+      // access token; the server validates it against Supabase.
+      auth: (cb) => {
+        void client.auth.getSession().then(({ data }) =>
+          cb({ token: data.session?.access_token, userId: data.session?.user.id })
+        )
+      },
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: MAX_CONNECTION_ATTEMPTS,
+      reconnectionDelayMax: 10000,
       // Polling first, upgrading to websocket: a websocket-only client cannot
-      // connect through proxies (or the dev server) that do not upgrade.
+      // connect through proxies that do not upgrade.
       transports: ['polling', 'websocket']
     })
 
-    attachListeners(socketInstance)
+    socketInstance = instance
+    attachListeners(instance)
 
-    socketInstance.on('connect_error', (error: Error) => {
-      // A failed realtime connection never invalidates the HTTP session.
+    instance.on('connect', () => {
+      connected.value = true
+      authRetries = 0
+    })
+    instance.on('disconnect', () => { connected.value = false })
+    instance.on('connect_error', (error: Error) => {
+      connected.value = false
       console.warn('[Socket.IO] ⚠️ Connection error:', error.message)
+      // Rejections by the auth middleware are not retried by Socket.IO itself.
+      if (!instance.active && authRetries < MAX_CONNECTION_ATTEMPTS) {
+        authRetries++
+        setTimeout(() => { if (socketInstance === instance) instance.connect() }, 2000 * authRetries)
+      }
     })
 
-    return socketInstance
-  } catch (error: any) {
+    return instance
+  } catch {
     return null
   }
 }

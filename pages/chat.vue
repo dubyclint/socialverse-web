@@ -28,7 +28,9 @@ useHead({
 
 <style scoped>
 .chat-page {
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
