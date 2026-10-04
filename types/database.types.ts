@@ -1715,6 +1715,116 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_history: {
+        Row: {
+          changed_at: string
+          id: number
+          new_phone: string | null
+          old_phone: string | null
+          reason: string
+          revert_until: string | null
+          reverted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          id?: number
+          new_phone?: string | null
+          old_phone?: string | null
+          reason: string
+          revert_until?: string | null
+          reverted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          id?: number
+          new_phone?: string | null
+          old_phone?: string | null
+          reason?: string
+          revert_until?: string | null
+          reverted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "phone_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      phone_verifications: {
+        Row: {
+          chat_id: string | null
+          created_at: string
+          phone: string
+          phone_country: string | null
+          token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_id?: string | null
+          created_at?: string
+          phone: string
+          phone_country?: string | null
+          token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string | null
+          created_at?: string
+          phone?: string
+          phone_country?: string | null
+          token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "phone_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       platform_configurations: {
         Row: {
           config_key: string
@@ -3042,6 +3152,8 @@ export type Database = {
           phone: string | null
           phone_country: string | null
           phone_hash: string | null
+          phone_verified: boolean
+          phone_verified_at: string | null
           posts_count: number
           profile_completed: boolean
           push_token: string | null
@@ -3054,6 +3166,7 @@ export type Database = {
           updated_at: string | null
           user_id: string
           username: string
+          username_changed_at: string | null
           verified_at: string | null
           website: string | null
         }
@@ -3083,6 +3196,8 @@ export type Database = {
           phone?: string | null
           phone_country?: string | null
           phone_hash?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           posts_count?: number
           profile_completed?: boolean
           push_token?: string | null
@@ -3095,6 +3210,7 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           username: string
+          username_changed_at?: string | null
           verified_at?: string | null
           website?: string | null
         }
@@ -3124,6 +3240,8 @@ export type Database = {
           phone?: string | null
           phone_country?: string | null
           phone_hash?: string | null
+          phone_verified?: boolean
+          phone_verified_at?: string | null
           posts_count?: number
           profile_completed?: boolean
           push_token?: string | null
@@ -3136,6 +3254,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           username?: string
+          username_changed_at?: string | null
           verified_at?: string | null
           website?: string | null
         }
@@ -3459,6 +3578,98 @@ export type Database = {
         }
         Relationships: []
       }
+      user_telegram_links: {
+        Row: {
+          chat_id: string
+          linked_at: string
+          telegram_user_id: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          linked_at?: string
+          telegram_user_id?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          linked_at?: string
+          telegram_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_telegram_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_telegram_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_telegram_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      username_history: {
+        Row: {
+          changed_at: string
+          id: number
+          new_username: string
+          old_username: string
+          reserved_until: string
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          id?: number
+          new_username: string
+          old_username: string
+          reserved_until?: string
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          id?: number
+          new_username?: string
+          old_username?: string
+          reserved_until?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "username_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "username_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "username_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       wallet_ledger: {
         Row: {
           amount: number
@@ -3741,6 +3952,26 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_users: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_role?: string
+          p_search?: string
+        }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          is_banned: boolean
+          is_master: boolean
+          role: string
+          total: number
+          username: string
+        }[]
+      }
       atomic_transfer: {
         Args: {
           p_amount: number
@@ -3749,6 +3980,10 @@ export type Database = {
           p_type: string
         }
         Returns: boolean
+      }
+      bind_phone_verification_chat: {
+        Args: { p_chat_id: string; p_token: string }
+        Returns: string
       }
       calculate_author_reputation: {
         Args: { p_user_id: string }
@@ -3760,6 +3995,10 @@ export type Database = {
         Args: { p_actor_id: string; p_reason?: string; p_trade_id: string }
         Returns: number
       }
+      change_username: {
+        Args: { p_new: string; p_user: string }
+        Returns: string
+      }
       check_email_available: {
         Args: { p_email: string }
         Returns: {
@@ -3770,20 +4009,20 @@ export type Database = {
         Args: { gift_amount: number; recipient_id: string; sender_id: string }
         Returns: Json
       }
-      check_username_available:
-        | {
-            Args: { p_username: string }
-            Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: public.check_username_available(p_username => text), public.check_username_available(p_username => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
-          }
-        | {
-            Args: { p_username: string }
-            Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: public.check_username_available(p_username => text), public.check_username_available(p_username => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"[]
-          }
-      cleanup_old_data: { Args: never; Returns: undefined }
+      check_username_available: {
+        Args: { p_username: string } | { p_username: string }
+        Returns: {
+          available: boolean
+        }[]
+      }
+      claim_verified_phone: {
+        Args: { p_chat_id: string; p_phone: string; p_telegram_user_id: string }
+        Returns: Json
+      }
+      cleanup_old_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       declare_p2p_paid: {
         Args: { p_actor_id: string; p_trade_id: string }
         Returns: string
@@ -3796,7 +4035,10 @@ export type Database = {
         Args: { p_currency?: string; p_user_id: string }
         Returns: undefined
       }
-      finalize_stream_match: { Args: { p_match_id: string }; Returns: number }
+      finalize_stream_match: {
+        Args: { p_match_id: string }
+        Returns: number
+      }
       get_suggested_friends: {
         Args: { p_user_id: string }
         Returns: {
@@ -3804,13 +4046,26 @@ export type Database = {
           target_user_id: string
         }[]
       }
-      hash_phone: { Args: { p_e164: string }; Returns: string }
-      hash_phones: { Args: { p_e164: string[] }; Returns: string[] }
+      hash_phone: {
+        Args: { p_e164: string }
+        Returns: string
+      }
+      hash_phones: {
+        Args: { p_e164: string[] }
+        Returns: string[]
+      }
       increment_status_views: {
         Args: { status_id: string }
         Returns: undefined
       }
-      is_chat_room_member: { Args: { p_room_id: string }; Returns: boolean }
+      is_admin: {
+        Args: { p_user?: string }
+        Returns: boolean
+      }
+      is_chat_room_member: {
+        Args: { p_room_id: string }
+        Returns: boolean
+      }
       match_p2p_sellers: {
         Args: { p_amount: number; p_asset_code: string; p_limit?: number }
         Returns: {
@@ -3828,33 +4083,38 @@ export type Database = {
           username: string
         }[]
       }
+      normalise_e164: {
+        Args: { p_country?: string; p_raw: string }
+        Returns: string
+      }
       open_p2p_trade: {
         Args: { p_amount: number; p_buyer_id: string; p_listing_id: string }
+        Returns: string
+      }
+      phone_calling_code: {
+        Args: { p_country: string }
         Returns: string
       }
       process_live_pewgift: {
         Args: { gift_amount: number; target_streamer_id: string }
         Returns: boolean
       }
-      process_pewgift:
-        | {
-            Args: {
+      process_pewgift: {
+        Args:
+          | {
               p_amount: number
               p_post_id: string
               p_receiver_id: string
               p_sender_id: string
             }
-            Returns: undefined
-          }
-        | {
-            Args: {
+          | {
               p_amount: number
               p_post_id: string
               p_receiver_id: string
               p_sender_id: string
             }
-            Returns: undefined
-          }
+        Returns: undefined
+      }
       record_ad_interaction: {
         Args: {
           p_campaign_id: string
@@ -3875,15 +4135,23 @@ export type Database = {
         Returns: number
       }
       refresh_trending_hashtags: {
-        Args: { p_window?: string }
+        Args: { p_window?: unknown }
         Returns: number
       }
       release_p2p_trade: {
         Args: { p_actor_id: string; p_trade_id: string }
         Returns: number
       }
+      revert_phone_change: {
+        Args: { p_user: string }
+        Returns: Json
+      }
+      revoke_other_sessions: {
+        Args: { p_keep_session: string; p_user: string }
+        Returns: undefined
+      }
       seller_is_frozen: {
-        Args: { p_seller_id: string; p_window?: string }
+        Args: { p_seller_id: string; p_window?: unknown }
         Returns: boolean
       }
       send_pewgift: {
@@ -3897,7 +4165,27 @@ export type Database = {
         }
         Returns: Json
       }
-      settle_deposit: { Args: { p_deposit_id: string }; Returns: number }
+      set_user_phone: {
+        Args: {
+          p_country: string
+          p_keep_session?: string
+          p_raw: string
+          p_user: string
+        }
+        Returns: Json
+      }
+      settle_deposit: {
+        Args: { p_deposit_id: string }
+        Returns: number
+      }
+      slugify_username: {
+        Args: { p: string }
+        Returns: string
+      }
+      start_phone_verification: {
+        Args: { p_token: string; p_user: string }
+        Returns: Json
+      }
       start_stream_match: {
         Args: { p_actor_id: string; p_match_id: string }
         Returns: string
@@ -3918,7 +4206,22 @@ export type Database = {
         }
         Returns: number
       }
-      user_storage_used: { Args: { p_user_id: string }; Returns: number }
+      unique_username: {
+        Args: { p_base: string; p_user: string }
+        Returns: string
+      }
+      update_user_role: {
+        Args: { new_role: string; target_user_id: string }
+        Returns: undefined
+      }
+      user_storage_used: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      username_is_free: {
+        Args: { p_user: string; p_username: string }
+        Returns: boolean
+      }
     }
     Enums: {
       ad_action_type: "IMPRESSION" | "CLICK"
@@ -4029,12 +4332,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4058,11 +4361,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4083,11 +4386,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4108,11 +4411,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4125,11 +4428,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

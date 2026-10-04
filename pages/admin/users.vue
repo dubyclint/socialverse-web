@@ -1,917 +1,174 @@
 <template>
-  <div class="admin-users">
-    <div class="page-header">
-      <h1>👥 User Management</h1>
-      <div class="header-actions">
-        <button @click="showAssignModal = true" class="btn btn-primary">
-          Assign Manager Role
-        </button>
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="tabs-navigation">
-      <button 
-        @click="activeTab = 'managers'" 
-        :class="['tab-btn', { active: activeTab === 'managers' }]"
-      >
-        🔑 Managers
-      </button>
-      <button 
-        @click="activeTab = 'users'" 
-        :class="['tab-btn', { active: activeTab === 'users' }]"
-      >
-        👤 All Users
-      </button>
-    </div>
-
-    <!-- Managers Section -->
-    <div v-show="activeTab === 'managers'" class="managers-section">
-      <h2>Current Managers</h2>
-      <div class="managers-grid">
-        <div v-for="manager in managers" :key="manager.id" class="manager-card">
-          <img :src="manager.avatar" :alt="manager.name" class="manager-avatar" />
-          <div class="manager-info">
-            <h3>{{ manager.name }}</h3>
-            <p>@{{ manager.username }}</p>
-            <p class="manager-email">{{ manager.email }}</p>
-            <p class="assignment-date">Assigned: {{ formatDate(manager.assignedAt) }}</p>
-          </div>
-          <div class="manager-actions">
-            <button @click="viewManagerActivity(manager)" class="btn btn-sm btn-outline">
-              View Activity
-            </button>
-            <button @click="removeManager(manager)" class="btn btn-sm btn-danger">
-              Remove
-            </button>
-          </div>
+  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
+    <div class="max-w-5xl mx-auto">
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-white">User roles</h1>
+          <p class="text-slate-400 mt-1">Promote or demote users. Only admins can change roles; the master admin cannot be demoted.</p>
         </div>
+        <span class="text-slate-400 text-sm">{{ total }} users</span>
       </div>
 
-      <div v-if="managers.length === 0" class="empty-state">
-        <p>No managers assigned yet</p>
-      </div>
-    </div>
-
-    <!-- Users Section -->
-    <div v-show="activeTab === 'users'" class="users-section">
-      <h2>All Users</h2>
-      <div class="users-controls">
-        <input 
-          v-model="userSearchQuery" 
-          type="text" 
-          placeholder="Search users..."
-          class="search-input"
+      <div class="flex flex-wrap gap-3 mb-4">
+        <input
+          v-model="search"
+          type="search"
+          placeholder="Search by username, name or email"
+          class="flex-1 min-w-[220px] px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+          @input="onSearch"
         />
+        <div class="flex rounded-lg overflow-hidden border border-slate-700">
+          <button
+            v-for="option in FILTERS"
+            :key="option.value"
+            type="button"
+            :class="['px-3 py-2 text-sm', roleFilter === option.value ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700']"
+            @click="setFilter(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
-      
-      <div class="users-list">
-        <div v-for="user in filteredUsers" :key="user.id" class="user-row">
-          <img :src="user.avatar" :alt="user.name" class="user-avatar-small" />
-          <div class="user-details">
-            <p class="user-name">{{ user.name }}</p>
-            <p class="user-email">{{ user.email }}</p>
-          </div>
-          <div class="user-actions">
-            <button @click="selectUserForManager(user)" class="btn btn-sm btn-primary">
-              Make Manager
+
+      <p v-if="error" class="mb-4 text-red-400 text-sm">{{ error }}</p>
+
+      <div class="bg-slate-800 border border-slate-700 rounded-lg divide-y divide-slate-700">
+        <div v-if="loading" class="p-6 text-center text-slate-400">Loading…</div>
+        <div v-else-if="!users.length" class="p-6 text-center text-slate-400">No users found.</div>
+        <div v-for="user in users" :key="user.id" class="flex flex-wrap items-center gap-3 p-4">
+          <NuxtLink :to="`/profile/${user.id}`" class="flex items-center gap-3 flex-1 min-w-[200px]">
+            <img :src="user.avatar_url || '/default-avatar.svg'" alt="" class="w-10 h-10 rounded-full object-cover bg-slate-700" />
+            <div class="min-w-0">
+              <p class="text-white font-medium truncate">
+                {{ user.display_name || user.username }}
+                <span v-if="user.is_master" class="ml-1 text-xs text-amber-400">master admin</span>
+                <span v-if="user.is_banned" class="ml-1 text-xs text-red-400">banned</span>
+              </p>
+              <p class="text-slate-400 text-sm truncate">@{{ user.username }} · {{ user.email }}</p>
+            </div>
+          </NuxtLink>
+          <div class="flex rounded-lg overflow-hidden border border-slate-700">
+            <button
+              v-for="role in ROLES"
+              :key="role"
+              type="button"
+              :disabled="savingId === user.id || (user.is_master && role !== 'admin')"
+              :class="[
+                'px-3 py-1.5 text-sm capitalize disabled:opacity-40 disabled:cursor-not-allowed',
+                user.role === role ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-300 hover:bg-slate-700'
+              ]"
+              @click="changeRole(user, role)"
+            >
+              {{ role }}
             </button>
           </div>
         </div>
       </div>
 
-      <div v-if="filteredUsers.length === 0" class="empty-state">
-        <p>No users found</p>
-      </div>
-    </div>
-
-    <!-- Assign Manager Modal -->
-    <div v-if="showAssignModal" class="modal-overlay" @click="closeAssignModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Assign Manager Role</h2>
-          <button @click="closeAssignModal" class="close-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="search-section">
-            <input
-              v-model="userSearchQuery"
-              type="text"
-              placeholder="Search users by name, username, or email..."
-              class="search-input"
-              @input="searchUsers"
-            />
-          </div>
-          
-          <div v-if="searchResults.length > 0" class="search-results">
-            <div
-              v-for="user in searchResults"
-              :key="user.id"
-              class="user-result"
-              @click="selectUser(user)"
-              :class="{ selected: selectedUser?.id === user.id }"
-            >
-              <img :src="user.avatar" :alt="user.name" class="user-avatar" />
-              <div class="user-info">
-                <p class="user-name">{{ user.name }}</p>
-                <p class="user-username">@{{ user.username }}</p>
-                <p class="user-email">{{ user.email }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="selectedUser" class="selected-user-section">
-            <h3>Selected User</h3>
-            <div class="selected-user">
-              <img :src="selectedUser.avatar" :alt="selectedUser.name" class="user-avatar" />
-              <div class="user-info">
-                <p class="user-name">{{ selectedUser.name }}</p>
-                <p class="user-username">@{{ selectedUser.username }}</p>
-                <p class="user-email">{{ selectedUser.email }}</p>
-              </div>
-            </div>
-            
-            <div class="permissions-section">
-              <h4>Manager Permissions</h4>
-              <div class="permission-checkboxes">
-                <label v-for="permission in availablePermissions" :key="permission.key">
-                  <input
-                    type="checkbox"
-                    v-model="selectedPermissions"
-                    :value="permission.key"
-                  />
-                  {{ permission.label }}
-                  <span class="permission-description">{{ permission.description }}</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="modal-actions">
-              <button @click="assignManager" class="btn btn-primary" :disabled="selectedPermissions.length === 0">
-                Assign Manager Role
-              </button>
-              <button @click="closeAssignModal" class="btn btn-outline">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Manager Activity Modal -->
-    <div v-if="showActivityModal" class="modal-overlay" @click="closeActivityModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>{{ selectedManager?.name }} - Activity Log</h2>
-          <button @click="closeActivityModal" class="close-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="activity-stats">
-            <div class="stat-card">
-              <h4>Actions This Month</h4>
-              <p class="stat-number">{{ managerActivity.actionsThisMonth }}</p>
-            </div>
-            <div class="stat-card">
-              <h4>Users Managed</h4>
-              <p class="stat-number">{{ managerActivity.usersManaged }}</p>
-            </div>
-            <div class="stat-card">
-              <h4>Reports Resolved</h4>
-              <p class="stat-number">{{ managerActivity.reportsResolved }}</p>
-            </div>
-          </div>
-
-          <div class="activity-log">
-            <h4>Recent Actions</h4>
-            <div v-for="action in managerActivity.recentActions" :key="action.id" class="activity-item">
-              <div class="activity-icon">
-                {{ getActivityIcon(action.type) }}
-              </div>
-              <div class="activity-details">
-                <p class="activity-description">{{ action.description }}</p>
-                <p class="activity-target">Target: {{ action.targetUser }}</p>
-                <p class="activity-time">{{ formatDateTime(action.timestamp) }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div v-if="total > users.length + offset || offset > 0" class="flex justify-between mt-4">
+        <button type="button" :disabled="offset === 0" class="px-4 py-2 text-sm text-slate-300 disabled:opacity-40" @click="page(-1)">Previous</button>
+        <button type="button" :disabled="offset + PAGE_SIZE >= total" class="px-4 py-2 text-sm text-slate-300 disabled:opacity-40" @click="page(1)">Next</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
- definePageMeta({
+import { ref, onMounted } from 'vue'
+import { api } from '~/services/http'
+
+definePageMeta({
   middleware: ['auth', 'profile-completion', 'route-guard'],
   layout: 'default'
-})  
-  
-import { ref, computed, onMounted } from 'vue'
-import { debounce } from 'lodash-es'
+})
 
-interface User {
-  id: string | number
-  name: string
-  email: string
-  username?: string
-  avatar?: string
+type Role = 'user' | 'manager' | 'admin'
+
+interface AdminUser {
+  id: string
+  email: string | null
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  role: string
+  is_banned: boolean
+  created_at: string
+  is_master: boolean
 }
 
-interface Manager extends User {
-  assignedAt?: string
-}
-
-interface ManagerActivity {
-  actionsThisMonth: number
-  usersManaged: number
-  reportsResolved: number
-  recentActions: ActivityAction[]
-}
-
-interface ActivityAction {
-  id: string | number
-  type: string
-  description: string
-  targetUser: string
-  timestamp: string
-}
-
-// Tab Management
-const activeTab = ref('managers')
-
-// Managers State
-const managers = ref<Manager[]>([])
-const showAssignModal = ref(false)
-const showActivityModal = ref(false)
-const userSearchQuery = ref('')
-const searchResults = ref<User[]>([])
-const selectedUser = ref<User | null>(null)
-const selectedManager = ref<Manager | null>(null)
-const managerActivity = ref<Partial<ManagerActivity>>({})
-const selectedPermissions = ref<string[]>([])
-
-// Users State
-const allUsers = ref<User[]>([])
-
-const availablePermissions = [
-  {
-    key: 'manage_users',
-    label: 'Manage Users',
-    description: 'Suspend, warn, and manage user accounts'
-  },
-  {
-    key: 'moderate_content',
-    label: 'Moderate Content',
-    description: 'Remove posts, comments, and other content'
-  },
-  {
-    key: 'handle_reports',
-    label: 'Handle Reports',
-    description: 'Review and resolve user reports'
-  },
-  {
-    key: 'view_analytics',
-    label: 'View Analytics',
-    description: 'Access platform analytics and insights'
-  }
+const ROLES: Role[] = ['user', 'manager', 'admin']
+const FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'admin', label: 'Admins' },
+  { value: 'manager', label: 'Managers' },
+  { value: 'user', label: 'Users' }
 ]
+const PAGE_SIZE = 50
 
-const filteredUsers = computed(() => {
-  if (!userSearchQuery.value) return allUsers.value
+const users = ref<AdminUser[]>([])
+const total = ref(0)
+const offset = ref(0)
+const search = ref('')
+const roleFilter = ref('')
+const loading = ref(false)
+const savingId = ref<string | null>(null)
+const error = ref('')
 
-  const query = userSearchQuery.value.toLowerCase()
-  return allUsers.value.filter(user =>
-    user.name.toLowerCase().includes(query) ||
-    user.email.toLowerCase().includes(query) ||
-    user.username?.toLowerCase().includes(query)
-  )
-})
-
-onMounted(async () => {
-  await loadManagers()
-  await loadAllUsers()
-})
-
-const loadManagers = async () => {
-  try {
-    const { data } = await $fetch<{ data: Manager[] }>('/api/admin/managers')
-    managers.value = data
-  } catch (error) {
-    console.error('Failed to load managers:', error)
-  }
+const errorMessage = (err: unknown, fallback: string): string => {
+  const data = (err as { data?: { statusMessage?: string; message?: string } })?.data
+  return data?.statusMessage || data?.message || fallback
 }
 
-const loadAllUsers = async () => {
+const load = async () => {
+  loading.value = true
+  error.value = ''
   try {
-    const { data } = await $fetch<{ data: User[] }>('/api/admin/users')
-    allUsers.value = data
-  } catch (error) {
-    console.error('Failed to load users:', error)
-  }
-}
-
-const searchUsers = debounce(async () => {
-  if (userSearchQuery.value.length < 2) {
-    searchResults.value = []
-    return
-  }
-
-  try {
-    const { data } = await $fetch<{ data: User[] }>('/api/admin/users/search', {
-      query: { q: userSearchQuery.value }
+    const res = await api<{ users: AdminUser[]; total: number }>('/admin/roles', {
+      query: { search: search.value || undefined, role: roleFilter.value || undefined, limit: PAGE_SIZE, offset: offset.value }
     })
-    searchResults.value = data.filter(user =>
-      !managers.value.some(manager => manager.id === user.id)
-    )
-  } catch (error) {
-    console.error('Failed to search users:', error)
+    users.value = res.users
+    total.value = res.total
+  } catch (err: unknown) {
+    error.value = errorMessage(err, 'Failed to load users')
+  } finally {
+    loading.value = false
   }
-}, 300)
-
-const selectUser = (user: User) => {
-  selectedUser.value = user
-  selectedPermissions.value = ['manage_users', 'handle_reports']
 }
 
-const selectUserForManager = (user: User) => {
-  selectedUser.value = user
-  selectedPermissions.value = ['manage_users', 'handle_reports']
-  showAssignModal.value = true
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+const onSearch = () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    offset.value = 0
+    load()
+  }, 300)
 }
 
-const assignManager = async () => {
+const setFilter = (value: string) => {
+  roleFilter.value = value
+  offset.value = 0
+  load()
+}
+
+const page = (direction: number) => {
+  offset.value = Math.max(0, offset.value + direction * PAGE_SIZE)
+  load()
+}
+
+const changeRole = async (user: AdminUser, role: Role) => {
+  if (user.role === role) return
+  if (!confirm(`Change @${user.username} from ${user.role} to ${role}?`)) return
+  savingId.value = user.id
+  error.value = ''
   try {
-    await $fetch('/api/admin/managers', {
-      method: 'POST',
-      body: {
-        userId: selectedUser.value!.id,
-        permissions: selectedPermissions.value
-      }
-    })
-
-    await loadManagers()
-    closeAssignModal()
-  } catch (error) {
-    console.error('Failed to assign manager:', error)
+    await api('/admin/roles', { method: 'POST', body: { userId: user.id, role } })
+    user.role = role
+  } catch (err: unknown) {
+    error.value = errorMessage(err, 'Failed to change role')
+  } finally {
+    savingId.value = null
   }
 }
 
-const removeManager = async (manager: Manager) => {
-  if (confirm(`Are you sure you want to remove ${manager.name} as a manager?`)) {
-    try {
-      await $fetch(`/api/admin/managers/${manager.id}`, {
-        method: 'DELETE'
-      })
-      await loadManagers()
-    } catch (error) {
-      console.error('Failed to remove manager:', error)
-    }
-  }
-}
-
-const viewManagerActivity = async (manager: Manager) => {
-  try {
-    const { data } = await $fetch<{ data: ManagerActivity }>(`/api/admin/managers/${manager.id}/activity`)
-    selectedManager.value = manager
-    managerActivity.value = data
-    showActivityModal.value = true
-  } catch (error) {
-    console.error('Failed to load manager activity:', error)
-  }
-}
-
-const closeAssignModal = () => {
-  showAssignModal.value = false
-  selectedUser.value = null
-  selectedPermissions.value = []
-  searchResults.value = []
-  userSearchQuery.value = ''
-}
-
-const closeActivityModal = () => {
-  showActivityModal.value = false
-  selectedManager.value = null
-  managerActivity.value = {}
-}
-
-const getActivityIcon = (type: string) => {
-  const icons: Record<string, string> = {
-    'user_suspended': '🚫',
-    'user_warned': '⚠️',
-    'content_removed': '🗑️',
-    'report_resolved': '✅'
-  }
-  return icons[type] || '📋'
-}
-
-const formatDate = (date: string | undefined) => {
-  if (!date) return 'N/A'
-  return new Date(date).toLocaleDateString()
-}
-
-const formatDateTime = (date: string) => {
-  return new Date(date).toLocaleString()
-}
+onMounted(load)
 </script>
-
-<style scoped>
-.admin-users {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  margin: 0;
-  color: #1f2937;
-  font-size: 1.75rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-/* Tabs */
-.tabs-navigation {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid #e5e7eb;
-}
-
-.tab-btn {
-  padding: 1rem 1.5rem;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-weight: 500;
-  color: #6b7280;
-  transition: all 0.2s;
-  font-size: 1rem;
-}
-
-.tab-btn:hover {
-  color: #1f2937;
-}
-
-.tab-btn.active {
-  color: #3b82f6;
-  border-bottom-color: #3b82f6;
-}
-
-/* Managers Section */
-.managers-section {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.managers-section h2 {
-  margin: 0 0 1.5rem 0;
-  color: #1f2937;
-}
-
-.managers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.manager-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.manager-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  align-self: center;
-  object-fit: cover;
-}
-
-.manager-info {
-  text-align: center;
-}
-
-.manager-info h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
-  color: #1f2937;
-}
-
-.manager-info p {
-  margin: 0.25rem 0;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-.manager-email {
-  color: #666;
-}
-
-.assignment-date {
-  color: #888;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-}
-
-.manager-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-/* Users Section */
-.users-section {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.users-section h2 {
-  margin: 0 0 1.5rem 0;
-  color: #1f2937;
-}
-
-.users-controls {
-  margin-bottom: 1.5rem;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.users-list {
-  display: grid;
-  gap: 1rem;
-}
-
-.user-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f9fafb;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
-}
-
-.user-avatar-small {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.user-details {
-  flex: 1;
-}
-
-.user-name {
-  margin: 0;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.user-email {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-  color: #6b7280;
-}
-
-.user-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #eee;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: #1f2937;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #6b7280;
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.search-section {
-  margin-bottom: 1.5rem;
-}
-
-.search-results {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-}
-
-.user-result {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  cursor: pointer;
-  border-bottom: 1px solid #f5f5f5;
-  transition: background 0.2s;
-}
-
-.user-result:hover {
-  background: #f8f9fa;
-}
-
-.user-result.selected {
-  background: #e3f2fd;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.user-info {
-  flex: 1;
-}
-
-.user-username {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-
-.selected-user-section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #eee;
-}
-
-.selected-user-section h3 {
-  margin: 0 0 1rem 0;
-  color: #1f2937;
-}
-
-.selected-user {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-}
-
-.permissions-section {
-  margin-bottom: 2rem;
-}
-
-.permissions-section h4 {
-  margin: 0 0 1rem 0;
-  color: #1f2937;
-}
-
-.permission-checkboxes {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.permission-checkboxes label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  cursor: pointer;
-}
-
-.permission-checkboxes input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.permission-description {
-  font-size: 0.8rem;
-  color: #666;
-  margin-left: 1.5rem;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-/* Buttons */
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #0056b3;
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-outline {
-  background: transparent;
-  border: 1px solid #ddd;
-  color: #333;
-}
-
-.btn-outline:hover {
-  background: #f8f9fa;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #c82333;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
-}
-
-/* Activity Stats */
-.activity-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  text-align: center;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.stat-card h4 {
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #333;
-  margin: 0;
-}
-
-.activity-log {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.activity-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.activity-icon {
-  font-size: 1.5rem;
-  margin-top: 0.25rem;
-}
-
-.activity-details {
-  flex: 1;
-}
-
-.activity-description {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  color: #1f2937;
-}
-
-.activity-target {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-
-.activity-time {
-  color: #888;
-  font-size: 0.8rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem 2rem;
-  color: #6b7280;
-}
-
-@media (max-width: 768px) {
-  .admin-users {
-    padding: 1rem;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .managers-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .modal-actions {
-    flex-direction: column;
-  }
-
-  .btn {
-    width: 100%;
-  }
-
-  .activity-stats {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

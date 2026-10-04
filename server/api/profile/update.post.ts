@@ -1,10 +1,26 @@
 // FILE: /server/api/profile/update.post.ts
-// CORRECTED VERSION
-
 import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { requireUser } from '~/server/utils/auth'
+import { loadOwnProfile } from '~/server/utils/own-profile'
+import { changeUsername, normaliseUsername, verifyPassword } from '~/server/utils/username-change'
 
 type UserUpdate = Database['public']['Tables']['user']['Update']
+
+interface UpdateBody {
+  username?: string
+  current_password?: string
+  full_name?: string
+  display_name?: string
+  bio?: string
+  avatar_url?: string | null
+  cover_url?: string | null
+  website?: string | null
+  location?: string | null
+  birth_date?: string | null
+  gender?: string | null
+  is_private?: boolean
+}
 
 // Postgres rejects '' for date/uuid columns; the edit form sends it for cleared fields.
 const nullIfBlank = (value: unknown): string | null => {
@@ -13,73 +29,52 @@ const nullIfBlank = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null
 }
 
+/**
+ * Profile fields the owner may edit freely. The username goes through
+ * change_username (re-authentication, rate limit, history) and the phone
+ * number through /api/profile/phone.
+ */
 export default defineEventHandler(async (event) => {
-  try {
-    const supabase = await serverSupabaseClient<Database>(event)
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const user = await requireUser(event)
+  const body = (await readBody<UpdateBody>(event)) ?? {}
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    if (authError || !user?.id) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
+  if (body.username !== undefined && body.username !== null) {
+    const next = normaliseUsername(body.username)
+    const current = await loadOwnProfile(user.id)
+    if (current && next !== current.username) {
+      await verifyPassword(user.email, body.current_password)
+      await changeUsername(user.id, next)
     }
+  }
 
-    const body = await readBody(event)
-    const updateData: UserUpdate = {}
+  const updateData: UserUpdate = {}
+  if (body.bio !== undefined) updateData.bio = body.bio
+  if (body.avatar_url !== undefined) updateData.avatar_url = body.avatar_url
+  if (body.cover_url !== undefined) updateData.cover_url = body.cover_url
+  if (body.website !== undefined) updateData.website = body.website
+  if (body.location !== undefined) updateData.location = body.location
+  if (body.birth_date !== undefined) updateData.birth_date = nullIfBlank(body.birth_date)
+  if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
+  if (body.is_private !== undefined) updateData.is_private = body.is_private
 
-    // Only include fields that are provided
-    if (body.username !== undefined) updateData.username = body.username
-    if (body.bio !== undefined) updateData.bio = body.bio
-    if (body.avatar_url !== undefined) updateData.avatar_url = body.avatar_url
-    if (body.cover_url !== undefined) updateData.cover_url = body.cover_url
-    if (body.website !== undefined) updateData.website = body.website
-    if (body.location !== undefined) updateData.location = body.location
-    if (body.birth_date !== undefined) updateData.birth_date = nullIfBlank(body.birth_date)
-    if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
-    if (body.is_private !== undefined) updateData.is_private = body.is_private
-    // The database trigger canonicalises the number to E.164 with this country
-    // before hashing it, which is what makes the account discoverable through
-    // contact sync, so both fields travel together.
-    if (body.phone !== undefined) updateData.phone = nullIfBlank(body.phone)
-    if (body.phone_country !== undefined) {
-      updateData.phone_country = nullIfBlank(body.phone_country)?.toUpperCase() ?? null
-    }
+  // The edit form calls it full_name; display_name is what the feed and
+  // profile cards read, so keep the two in step.
+  const name = body.full_name ?? body.display_name
+  if (name !== undefined) {
+    const trimmed = nullIfBlank(name)
+    updateData.full_name = trimmed
+    updateData.display_name = trimmed
+  }
 
-    // The edit form calls it full_name; display_name is what the feed and
-    // profile cards read, so keep the two in step.
-    const name = body.full_name ?? body.display_name
-    if (name !== undefined) {
-      updateData.full_name = name
-      updateData.display_name = name
-    }
-
+  if (Object.keys(updateData).length) {
     updateData.updated_at = new Date().toISOString()
-
-    // ✅ FIXED: Changed from 'profiles' to 'user'
-    const { data, error } = await supabase
-      .from('user')
-      .update(updateData)
-      .eq('user_id', user.id)
-      .select()
-      .single()
-
+    const { error } = await supabase.from('user').update(updateData).eq('user_id', user.id)
     if (error) {
       console.error('Profile update error:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to update profile: ' + error.message
-      })
+      throw createError({ statusCode: 500, statusMessage: 'Failed to update profile: ' + error.message })
     }
-
-    return {
-      success: true,
-      profile: data
-    }
-
-  } catch (error: any) {
-    console.error('Profile update API error:', error)
-    throw error
   }
+
+  return { success: true, profile: await loadOwnProfile(user.id) }
 })

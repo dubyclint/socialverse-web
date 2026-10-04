@@ -1,6 +1,9 @@
 // File: /server/api/auth/signup.post.ts
 import { defineEventHandler, readBody } from 'h3'
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '~/types/database.types'
+
+const NIL_UUID = '00000000-0000-0000-0000-000000000000'
 
 interface SignupRequest {
   email: string
@@ -30,107 +33,99 @@ export default defineEventHandler(async (event) => {
       return { success: false, error: 'Email, username, and password are required.' }
     }
 
+    const username = body.username.trim().replace(/^@/, '').toLowerCase()
+    if (!/^[a-z0-9_.]{3,30}$/.test(username)) {
+      return { success: false, error: 'Username must be 3-30 characters: letters, numbers, underscore or dot.' }
+    }
+
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('[Signup API] ❌ CRITICAL: Configuration variables missing on host system.')
       return { success: false, error: 'Server configuration error.' }
     }
 
-    // Using service role to securely verify and write data across RLS barriers
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
-    console.log('[Signup API] Step 2: Client built. Launching availability check...')
 
-    // === BREAKPOINT 1: USERNAME AVAILABILITY CHECK ===
-    let existingUsers: any[] | null = null
+    // Usernames released by another account stay reserved for 90 days.
+    let available: boolean | null = null
     try {
-      const queryPromise = supabase.from('user').select('username').eq('username', body.username).limit(1)
-      const response = await withTimeout(queryPromise, 4000, 'DATABASE_QUERY_TIMEOUT_HANG') as any
-      existingUsers = response.data
-      
+      const response = await withTimeout(
+        supabase.rpc('username_is_free', { p_username: username, p_user: NIL_UUID }),
+        4000,
+        'DATABASE_QUERY_TIMEOUT_HANG'
+      )
       if (response.error) {
-        console.error('[Signup API] ❌ Breakpoint 1 Failed: user table lookup ->', response.error)
+        console.error('[Signup API] ❌ Username lookup failed ->', response.error)
         return { success: false, error: 'Database verification failed' }
       }
-    } catch (timeoutErr: any) {
+      available = response.data
+    } catch (timeoutErr: unknown) {
       console.error('[Signup API] Username check error:', timeoutErr)
       return { success: false, error: 'Database connection timeout.' }
     }
 
-    if (existingUsers && existingUsers.length > 0) {
-      console.error('[Signup API] ❌ Username already taken:', body.username)
+    if (!available) {
       return { success: false, error: 'Username already taken' }
     }
-    console.log('[Signup API] Step 3: Username is available.')
 
-    // === BREAKPOINT 2: AUTH ACCOUNT CREATION ===
-    console.log('[Signup API] Step 4: Dispatching standard auth.signUp...')
+    // The on-insert trigger on auth.users (handle_new_user_signup) creates the
+    // profile row keyed by the auth UUID from this metadata: username,
+    // display name = username, E.164 phone (or a pending claim when another
+    // account holds it), country, location and the wallet.
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: body.email,
       password: body.password,
       options: {
         data: {
-          username: body.username
+          username,
+          phone: body.phone?.trim() || null,
+          phone_country: body.phoneCountry?.trim().toUpperCase() || null,
+          location: body.location?.trim() || null
         }
       }
     })
 
     if (authError) {
-      console.error('[Signup API] ❌ Breakpoint 2 Failed: Auth Engine Rejected ->', authError)
+      console.error('[Signup API] ❌ Auth rejected ->', authError)
       return { success: false, error: authError.message }
     }
-    
+
     if (!authData.user || !authData.session) {
-      console.error('[Signup API] ❌ Breakpoint 2 Failed: Null user or session instance.')
+      console.error('[Signup API] ❌ Null user or session instance.')
       return { success: false, error: 'Account setup failed.' }
     }
-    
+
     const userId = authData.user.id
-    const freshToken = authData.session.access_token
-    console.log('[Signup API] Step 5: Auth instance created safely. ID:', userId)
+    const [{ data: row, error: rowError }, { data: pending }] = await Promise.all([
+      supabase.from('user').select('user_id, username, phone').eq('user_id', userId).maybeSingle(),
+      supabase.from('phone_verifications').select('phone').eq('user_id', userId).maybeSingle()
+    ])
 
-    // === BREAKPOINT 3: SCHEMA-PERFECT "user" TABLE ROW UPSERT ===
-    // auth.users has an on-insert trigger (handle_new_user_signup) that already
-    // creates the profile row and its PEW wallet, so this completes that row
-    // rather than inserting a second one.
-    console.log('[Signup API] Step 6: Completing profile row for verified "user" columns...')
-    const { error: insertError } = await supabase
-      .from('user')
-      .upsert(
-        {
-          user_id: userId,
-          username: body.username.toLowerCase().trim(),
-          display_name: body.username.trim(),
-          email: authData.user.email,
-          phone: body.phone?.trim() || null,
-          phone_country: body.phoneCountry?.trim().toUpperCase() || null,
-          location: body.location?.trim() || null,
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'user_id' }
-      )
-
-    if (insertError) {
-      console.error('[Signup API] ❌ Breakpoint 3 Failed: "user" table insertion error ->', insertError)
-      await supabase.auth.admin.deleteUser(userId) // Rollback
-      return { success: false, error: `Database initialization fault: ${insertError.message}` }
+    if (rowError || !row) {
+      console.error('[Signup API] ❌ Profile row missing after signup ->', rowError)
+      await supabase.auth.admin.deleteUser(userId)
+      return { success: false, error: 'Account setup failed. Please try again.' }
     }
 
-    console.log('[Signup API] ✅ User table row successfully committed.')
-    console.log('[Signup API] ============ SIGNUP PIPELINE END ============')
+    const phoneStatus = row.phone ? 'linked' : pending?.phone ? 'pending_verification' : 'none'
+    console.log('[Signup API] ✅ Account linked:', userId, phoneStatus)
 
-    return { 
-      success: true, 
-      message: 'Account created successfully',
-      token: freshToken,
+    return {
+      success: true,
+      message: phoneStatus === 'pending_verification'
+        ? 'Account created. Your phone number is linked to another account; verify it from Edit profile to move it here.'
+        : 'Account created successfully',
+      token: authData.session.access_token,
       user: {
         id: userId,
         email: authData.user.email!,
-        username: body.username
+        username: row.username
       },
+      phoneStatus,
       redirectTo: '/feed'
     }
 

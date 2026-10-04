@@ -81,35 +81,16 @@ export const useRBAC = () => {
     }
   }
 
-  const assignManagerRole = async (userId: string, _permissions?: string[]) => {
-    try {
-      const supabase = useSupabaseClient()
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: 'manager' })
-        .eq('id', userId)
-
-      if (error) throw error
-      return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Failed to assign manager role' }
-    }
+  // Role changes go through the update_user_role RPC, which checks the caller is an admin.
+  const setUserRole = async (userId: string, role: 'user' | 'manager' | 'admin') => {
+    const supabase = useSupabaseClient()
+    const { error } = await supabase.rpc('update_user_role', { target_user_id: userId, new_role: role })
+    return error ? { success: false, error: error.message } : { success: true }
   }
 
-  const removeManagerRole = async (userId: string) => {
-    try {
-      const supabase = useSupabaseClient()
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: 'user' })
-        .eq('id', userId)
+  const assignManagerRole = (userId: string) => setUserRole(userId, 'manager')
 
-      if (error) throw error
-      return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Failed to remove manager role' }
-    }
-  }
+  const removeManagerRole = (userId: string) => setUserRole(userId, 'user')
 
-  return { getUserStore, getRolesStore, getUserRole, getUserPermissions, requireAuthentication, requireRole, requirePermission, assignManagerRole, removeManagerRole }
+  return { getUserStore, getRolesStore, getUserRole, getUserPermissions, requireAuthentication, requireRole, requirePermission, setUserRole, assignManagerRole, removeManagerRole }
 }

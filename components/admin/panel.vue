@@ -561,7 +561,7 @@ const processBalanceAdjustment = async () => {
 
 // Manager Methods
 const viewAllManagers = () => {
-  navigateTo('/admin/managers');
+  navigateTo('/admin/users');
 };
 
 const viewManagerActivity = () => {
@@ -574,13 +574,9 @@ const configurePermissions = () => {
 
 const assignManager = async () => {
   try {
-    await $fetch('/api/admin/managers', {
+    await $fetch('/api/admin/roles', {
       method: 'POST',
-      body: {
-        userId: managerUserId.value,
-        scope: managerRole.value,
-        permissions: selectedPermissions.value
-      }
+      body: { userId: managerUserId.value, role: 'manager' }
     });
 
     showManagerModal.value = false;

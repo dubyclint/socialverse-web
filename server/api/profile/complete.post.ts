@@ -9,6 +9,9 @@
 
 import { serverSupabaseClient } from '#supabase/server'
 import type { H3Event } from 'h3'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { loadOwnProfile } from '~/server/utils/own-profile'
+import { changeUsername, normaliseUsername } from '~/server/utils/username-change'
 
 interface CompleteProfileRequest {
   username?: string
@@ -22,6 +25,7 @@ interface CompleteProfileRequest {
   birth_date?: string
   gender?: string
   phone?: string
+  phone_country?: string
 }
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -85,7 +89,24 @@ export default defineEventHandler(async (event: H3Event) => {
     const trimmed = (value: string | null | undefined): string | null =>
       typeof value === 'string' ? value.trim() : null
 
-    if (body.username !== undefined) updatePayload.username = trimmed(body.username)
+    // Username and phone keep their own rules (history, uniqueness, verification).
+    const existing = await loadOwnProfile(userId)
+    if (body.username && existing && normaliseUsername(body.username) !== existing.username) {
+      if (existing.profile_completed) {
+        throw createError({ statusCode: 409, statusMessage: 'Change your username from Edit profile' })
+      }
+      await changeUsername(userId, normaliseUsername(body.username))
+    }
+    const phoneCountry = body.phone_country?.trim().toUpperCase() || existing?.phone_country
+    if (body.phone?.trim()) {
+      if (!phoneCountry) throw createError({ statusCode: 400, statusMessage: 'Select your country code' })
+      const { error: phoneError } = await getServiceClient().rpc('set_user_phone', {
+        p_user: userId,
+        p_raw: body.phone.trim(),
+        p_country: phoneCountry
+      })
+      if (phoneError) throw createError({ statusCode: 500, statusMessage: phoneError.message })
+    }
     if (displayName !== null) updatePayload.display_name = trimmed(displayName)
     if (body.bio !== undefined) updatePayload.bio = trimmed(body.bio)
     if (body.avatar_url !== undefined) updatePayload.avatar_url = body.avatar_url
@@ -94,7 +115,6 @@ export default defineEventHandler(async (event: H3Event) => {
     if (body.location !== undefined) updatePayload.location = trimmed(body.location)
     if (body.birth_date !== undefined) updatePayload.birth_date = body.birth_date
     if (body.gender !== undefined) updatePayload.gender = body.gender
-    if (body.phone !== undefined) updatePayload.phone = body.phone
     
     updatePayload.profile_completed = true
     updatePayload.updated_at = new Date().toISOString()
@@ -113,7 +133,7 @@ export default defineEventHandler(async (event: H3Event) => {
       .from('user')
       .update(updatePayload)
       .eq('user_id', userId)
-      .select('*')
+      .select('user_id')
       .single()
 
     if (upsertError) {
@@ -124,7 +144,8 @@ export default defineEventHandler(async (event: H3Event) => {
       })
     }
 
-    if (!profile) {
+    const completed = profile ? await loadOwnProfile(userId) : null
+    if (!completed) {
       console.error('[Profile Complete API] ❌ No profile returned after upsert')
       throw createError({
         statusCode: 500,
@@ -139,11 +160,7 @@ export default defineEventHandler(async (event: H3Event) => {
     // ============================================================================
     return {
       success: true,
-      profile: {
-        ...profile,
-        id: profile.user_id,  // Alias for frontend compatibility
-        full_name: profile.display_name  // Map display_name to full_name
-      },
+      profile: completed,
       message: 'Profile completed successfully'
     }
 

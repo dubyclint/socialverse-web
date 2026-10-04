@@ -2,7 +2,12 @@ import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 
-type UserRow = Database['public']['Tables']['user']['Row']
+const MATCH_COLUMNS = 'user_id, username, display_name, full_name, avatar_url, rank, is_verified, interest_tags, location, followers_count'
+
+type UserRow = Pick<
+  Database['public']['Tables']['user']['Row'],
+  'user_id' | 'username' | 'display_name' | 'full_name' | 'avatar_url' | 'rank' | 'is_verified' | 'interest_tags' | 'location' | 'followers_count'
+>
 
 interface GroupMember {
   id: string
@@ -67,7 +72,7 @@ export default defineEventHandler(async (event): Promise<MatchGroup[]> => {
   const category = typeof query.category === 'string' ? query.category : ''
 
   const [{ data: viewer }, { data: pals }, { data: blocks }] = await Promise.all([
-    client.from('user').select('*').eq('user_id', user.id).maybeSingle(),
+    client.from('user').select(MATCH_COLUMNS).eq('user_id', user.id).maybeSingle(),
     client.from('pals').select('pal_id, user_id').or(`user_id.eq.${user.id},pal_id.eq.${user.id}`),
     client.from('user_blocks').select('blocked_id').eq('blocker_id', user.id)
   ])
@@ -84,7 +89,7 @@ export default defineEventHandler(async (event): Promise<MatchGroup[]> => {
 
   let candidateQuery = client
     .from('user')
-    .select('*')
+    .select(MATCH_COLUMNS)
     .neq('user_id', user.id)
     .eq('is_banned', false)
     .limit(200)

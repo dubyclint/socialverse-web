@@ -32,6 +32,8 @@ export interface Profile {
   website?: string | null
   phone?: string | null
   phone_country?: string | null
+  phone_verified?: boolean
+  pending_phone?: string | null
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
@@ -82,6 +84,7 @@ export interface ProfileUpdateInput {
 
   // Extended mutations
   username?: string | null
+  current_password?: string
   interests?: string[] | Interest[]
   colors?: Record<string, any>
   items?: string[]

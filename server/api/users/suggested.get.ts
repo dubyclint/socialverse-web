@@ -17,7 +17,13 @@ const SCORE = {
   verified: 5
 } as const
 
-type Candidate = Database['public']['Tables']['user']['Row']
+const CANDIDATE_COLUMNS =
+  'user_id, username, display_name, avatar_url, bio, location, interest_tags, followers_count, is_verified'
+
+type Candidate = Pick<
+  Database['public']['Tables']['user']['Row'],
+  'user_id' | 'username' | 'display_name' | 'avatar_url' | 'bio' | 'location' | 'interest_tags' | 'followers_count' | 'is_verified'
+>
 
 const continentOf = (location: string | null): string | null => {
   if (!location) return null
@@ -74,14 +80,14 @@ export default defineEventHandler(async (event) => {
     candidateIds.length
       ? client
           .from('user')
-          .select('*')
+          .select(CANDIDATE_COLUMNS)
           .in('user_id', candidateIds)
           .eq('is_banned', false)
           .limit(50)
       : Promise.resolve({ data: [] as Candidate[] }),
     client
       .from('user')
-      .select('*')
+      .select(CANDIDATE_COLUMNS)
       .eq('is_banned', false)
       .eq('is_private', false)
       .order('followers_count', { ascending: false })

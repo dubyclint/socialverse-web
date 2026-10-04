@@ -101,6 +101,8 @@ export default defineNuxtConfig({
     nowpaymentsIpnSecret: process.env.NOWPAYMENTS_IPN_SECRET,
     upstashRedisRestUrl: process.env.UPSTASH_REDIS_REST_URL,
     upstashRedisRestToken: process.env.UPSTASH_REDIS_REST_TOKEN,
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+    telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET,
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
@@ -111,6 +113,7 @@ export default defineNuxtConfig({
       enablePremium: true,
       enableAnalytics: true,
       isCapacitorBuild,
+      telegramBotUsername: process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'Viorp_verification_bot',
       appDomain: process.env.NUXT_PUBLIC_APP_DOMAIN || process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
     },
   },

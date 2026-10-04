@@ -97,7 +97,19 @@
                 class="w-full pl-8 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <p class="text-slate-500 text-xs mt-1">Optional (only if your backend supports username update)</p>
+            <p class="text-slate-500 text-xs mt-1">
+              Up to 6 changes a month. Your previous username stays reserved for you for 90 days.
+            </p>
+            <div v-if="usernameChanged" class="mt-3">
+              <label class="block text-sm font-medium text-slate-300 mb-2">Current password</label>
+              <input
+                v-model="currentPassword"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Confirm it's you"
+                class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
           <div>
@@ -155,8 +167,48 @@
                 type="tel"
                 placeholder="803 123 4567"
                 class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                @input="phoneState = 'idle'"
               />
             </div>
+            <div class="flex gap-2 mt-2">
+              <button
+                type="button"
+                :disabled="!formData.phone.trim() || phoneState === 'saving' || phoneState === 'saved'"
+                :class="['px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed', phoneButtonClass]"
+                @click="updatePhone"
+              >
+                {{ phoneState === 'saving' ? 'Updating…' : phoneState === 'saved' ? 'Updated' : 'Update' }}
+              </button>
+              <button
+                v-if="needsVerification"
+                type="button"
+                :disabled="isVerifying"
+                class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
+                @click="startVerification"
+              >
+                {{ isVerifying ? 'Waiting…' : 'Verify' }}
+              </button>
+              <span v-else-if="phoneStatus?.phone_verified" class="self-center text-emerald-400 text-sm inline-flex items-center gap-1">
+                <Icon name="mdi:check-decagram" class="w-4 h-4" /> Verified
+              </span>
+              <button
+                v-if="phoneStatus?.revert_until"
+                type="button"
+                class="px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white"
+                @click="revertPhone"
+              >
+                Undo change
+              </button>
+            </div>
+            <p v-if="phoneMessage" :class="['text-xs mt-1', phoneState === 'error' ? 'text-red-400' : 'text-slate-400']">
+              {{ phoneMessage }}
+            </p>
+            <p v-if="phoneStatus?.pending_phone" class="text-amber-400 text-xs mt-1">
+              {{ phoneStatus.pending_phone }} is waiting for verification.
+            </p>
+            <p v-if="!profile?.phone && !phoneStatus?.pending_phone" class="text-amber-400 text-xs mt-1">
+              Add your phone number so friends who have it can find you.
+            </p>
             <p class="text-slate-500 text-sm mt-1">
               Lets people who already have your number find you in Chat and PAL. Never shown on your profile.
             </p>
@@ -246,6 +298,8 @@
           </div>
         </div>
 
+        <p v-if="submitError" class="text-red-400 text-sm">{{ submitError }}</p>
+
         <div class="flex gap-4 pt-4">
           <button
             type="submit"
@@ -270,11 +324,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useProfileStore } from '~/stores/profile'
 import { CALLING_COUNTRIES, DEFAULT_CALLING_COUNTRY } from '~/utils/calling-codes'
+import { api } from '~/services/http'
+
+interface PhoneStatus {
+  phone: string | null
+  phone_country: string | null
+  phone_verified: boolean
+  pending_phone: string | null
+  verifying: boolean
+  awaiting_contact: boolean
+  revert_until: string | null
+}
+
+type PhoneState = 'idle' | 'saving' | 'saved' | 'error'
 
 definePageMeta({
   middleware: 'auth',
@@ -310,6 +377,113 @@ const avatarPreview = ref<string | null>(null)
 const avatarFile = ref<File | null>(null)
 const avatarError = ref<string | null>(null)
 const isUploadingAvatar = ref(false)
+
+const currentPassword = ref('')
+const usernameChanged = computed(() =>
+  formData.value.username.trim().toLowerCase() !== originalFormData.value.username.trim().toLowerCase()
+)
+
+const phoneStatus = ref<PhoneStatus | null>(null)
+const phoneState = ref<PhoneState>('idle')
+const phoneMessage = ref('')
+const isVerifying = ref(false)
+let verifyPoll: ReturnType<typeof setInterval> | null = null
+
+const errorMessage = (err: unknown, fallback: string): string => {
+  const data = (err as { data?: { statusMessage?: string; message?: string } })?.data
+  return data?.statusMessage || data?.message || fallback
+}
+
+const phoneButtonClass = computed(() => {
+  if (phoneState.value === 'saved') return 'bg-slate-500'
+  if (phoneState.value === 'error') return 'bg-red-600 hover:bg-red-700'
+  return 'bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600'
+})
+
+const needsVerification = computed(() =>
+  Boolean(phoneStatus.value?.pending_phone || (phoneStatus.value?.phone && !phoneStatus.value.phone_verified))
+)
+
+const loadPhoneStatus = async () => {
+  phoneStatus.value = await api<PhoneStatus>('/profile/phone/status')
+}
+
+const updatePhone = async () => {
+  phoneState.value = 'saving'
+  phoneMessage.value = ''
+  try {
+    const res = await api<{ status: string; phone: string | null; message: string }>('/profile/phone', {
+      method: 'POST',
+      body: { phone: formData.value.phone, phone_country: formData.value.phone_country }
+    })
+    phoneMessage.value = res.message
+    phoneState.value = res.status === 'updated' || res.status === 'unchanged' ? 'saved' : 'error'
+    if (res.phone && phoneState.value === 'saved') formData.value.phone = res.phone
+    originalFormData.value.phone = formData.value.phone
+    originalFormData.value.phone_country = formData.value.phone_country
+    await loadPhoneStatus()
+  } catch (err: unknown) {
+    phoneState.value = 'error'
+    phoneMessage.value = errorMessage(err, 'Could not update your phone number')
+  }
+}
+
+const stopVerifyPoll = () => {
+  if (verifyPoll) clearInterval(verifyPoll)
+  verifyPoll = null
+  isVerifying.value = false
+}
+
+const startVerification = async () => {
+  phoneMessage.value = ''
+  try {
+    const res = await api<{ status: string; link: string | null; expiresInMinutes: number; message: string }>(
+      '/profile/phone/verify',
+      { method: 'POST' }
+    )
+    phoneMessage.value = res.message
+    if (!res.link) {
+      await loadPhoneStatus()
+      return
+    }
+    window.open(res.link, '_blank', 'noopener')
+    isVerifying.value = true
+    const deadline = Date.now() + res.expiresInMinutes * 60_000
+    stopVerifyPoll()
+    isVerifying.value = true
+    verifyPoll = setInterval(async () => {
+      await loadPhoneStatus()
+      const status = phoneStatus.value
+      if (status?.phone_verified && !status.pending_phone) {
+        stopVerifyPoll()
+        phoneState.value = 'saved'
+        phoneMessage.value = 'Phone number verified and linked to your account.'
+        if (status.phone) formData.value.phone = status.phone
+        originalFormData.value.phone = formData.value.phone
+      } else if (Date.now() > deadline) {
+        stopVerifyPoll()
+        phoneMessage.value = 'Verification link expired. Tap Verify to try again.'
+      }
+    }, 3000)
+  } catch (err: unknown) {
+    phoneState.value = 'error'
+    phoneMessage.value = errorMessage(err, 'Could not start verification')
+  }
+}
+
+const revertPhone = async () => {
+  try {
+    const res = await api<{ phone: string | null }>('/profile/phone/revert', { method: 'POST' })
+    formData.value.phone = res.phone ?? ''
+    originalFormData.value.phone = formData.value.phone
+    phoneState.value = 'idle'
+    phoneMessage.value = 'Your previous phone number was restored.'
+    await loadPhoneStatus()
+  } catch (err: unknown) {
+    phoneState.value = 'error'
+    phoneMessage.value = errorMessage(err, 'Could not revert the change')
+  }
+}
 
 const isFormDirty = computed(() =>
   JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value) || avatarFile.value !== null
@@ -352,8 +526,10 @@ const handleAvatarChange = (event: Event) => {
   avatarPreview.value = URL.createObjectURL(file)
 }
 
+const submitError = ref<string | null>(null)
+
 const handleSubmit = async () => {
-  formError.value = null
+  submitError.value = null
   isSubmitting.value = true
   
   try {
@@ -363,20 +539,30 @@ const handleSubmit = async () => {
       avatar_url = await profileStore.uploadAvatar(avatarFile.value)
     }
 
-    // 2. Update profile
-    await profileStore.updateProfile({ ...formData.value, avatar_url })
+    // 2. Update profile (the phone number is saved by its own Update button)
+    const { phone: _phone, phone_country: _country, ...fields } = formData.value
+    await profileStore.updateProfile({
+      ...fields,
+      avatar_url,
+      current_password: usernameChanged.value ? currentPassword.value : undefined
+    })
+    currentPassword.value = ''
     
     originalFormData.value = { ...formData.value }
     formSuccess.value = true
     setTimeout(() => router.push('/profile'), 1000)
-  } catch (err: any) {
-    formError.value = err.message || 'Update failed'
+  } catch (err: unknown) {
+    submitError.value = errorMessage(err, 'Update failed')
   } finally {
     isSubmitting.value = false
   }
 }
 
-onMounted(loadProfile)
+onMounted(() => {
+  loadProfile()
+  loadPhoneStatus().catch(() => { phoneStatus.value = null })
+})
+onBeforeUnmount(stopVerifyPoll)
 </script>
               
 <style scoped>

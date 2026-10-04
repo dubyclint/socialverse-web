@@ -69,7 +69,7 @@ export async function getUserFromSession(event: H3Event) {
   const client = await serverSupabaseClient<Database>(event)
   const { data: profile } = await client
     .from('user')
-    .select('*')
+    .select('user_id, username, display_name, avatar_url, role, is_banned, is_verified')
     .eq('user_id', sessionUser.id)
     .maybeSingle()
 

@@ -3,6 +3,19 @@ name: Android release (Play Internal Testing)
 on:
   push:
     branches: [main]
+    # The store app bundles the web build, so web-only changes reach native
+    # users on the next native-relevant push or a manual run (workflow_dispatch).
+    paths:
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'plugins/capacitor-hardware.client.ts'
+      - 'plugins/platform.client.ts'
+      - 'composables/use-device-platform.ts'
+      - 'composables/use-native-bridge.ts'
+      - 'nuxt.config.ts'
+      - '.github/workflows/android-release.yml'
   workflow_dispatch:
 
 concurrency:

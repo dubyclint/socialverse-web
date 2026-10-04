@@ -1,5 +1,6 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 import type { Database } from '~/types/database.types'
 
 type Action = 'approve' | 'reject' | 'revoke'
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
   if (requestError) throw createError({ statusCode: 500, statusMessage: requestError.message })
 
   const verified = action === 'approve'
-  const { error: userError } = await client
+  const { error: userError } = await getServiceClient()
     .from('user')
     .update({
       is_verified: verified,
