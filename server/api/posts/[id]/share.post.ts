@@ -33,7 +33,7 @@ export default defineEventHandler(async (event): Promise<SharePostResponse> => {
 
   const { data: post, error: postError } = await client
     .from('posts')
-    .select('user_id, content, shares_count')
+    .select('user_id, content')
     .eq('id', postId)
     .maybeSingle()
 
@@ -46,8 +46,8 @@ export default defineEventHandler(async (event): Promise<SharePostResponse> => {
 
   if (shareError) throw createError({ statusCode: 500, statusMessage: shareError.message })
 
-  const sharesCount = (post.shares_count ?? 0) + 1
-  await client.from('posts').update({ shares_count: sharesCount }).eq('id', postId)
+  const { data: counted } = await client.from('posts').select('shares_count').eq('id', postId).maybeSingle()
+  const sharesCount = counted?.shares_count ?? 0
 
   const { data: author } = await client
     .from('user')

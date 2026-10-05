@@ -1886,6 +1886,7 @@ export type Database = {
         Row: {
           comment_text: string
           created_at: string
+          edited_at: string | null
           id: string
           parent_id: string | null
           post_id: string
@@ -1894,6 +1895,7 @@ export type Database = {
         Insert: {
           comment_text: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           parent_id?: string | null
           post_id: string
@@ -1902,6 +1904,7 @@ export type Database = {
         Update: {
           comment_text?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           parent_id?: string | null
           post_id?: string
@@ -4164,6 +4167,10 @@ export type Database = {
       seller_is_frozen: {
         Args: { p_seller_id: string; p_window?: unknown }
         Returns: boolean
+      }
+      set_post_like: {
+        Args: { p_post_id: string, p_liked: boolean }
+        Returns: { liked: boolean, likes_count: number, changed: boolean }[]
       }
       send_pewgift: {
         Args: {

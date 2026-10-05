@@ -2,6 +2,8 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { useUserStore } from '~/stores/user' // Unified store
+import { useEngagementSync } from '~/composables/use-engagement-sync'
+import type { PerformResult } from '~/composables/use-engagement-sync'
 
 const PAGE_SIZE = 12
 
@@ -42,6 +44,9 @@ export interface PostComment {
   parentId: string | null
   content: string
   createdAt: string
+  editedAt?: string | null
+  /** Saved on this device, waiting for a connection. */
+  pending?: boolean
   author: {
     id: string
     username: string
@@ -136,6 +141,7 @@ const guessMediaType = (url: string | null): 'image' | 'video' | 'text' => {
 export const useSocialFeed = () => {
   const router = useRouter()
   const tracking = useFeedTracking()
+  const engagement = useEngagementSync()
   const userStore = useUserStore()
   const supabase = useSupabaseClient()
   const supabaseUser = useSupabaseUser()
@@ -479,29 +485,23 @@ export const useSocialFeed = () => {
   }
 
   /**
-   * Toggles the like server-side so the result is authoritative regardless of
-   * which component instance owns the post row.
+   * Sets the like to an explicit state so retries are idempotent; failures that
+   * look like connectivity are queued for replay instead of dropped.
    */
-  const likePost = async (postId: string): Promise<LikeResult | null> => {
-    if (!currentUserId.value) return null
+  const likePost = async (postId: string, liked: boolean): Promise<PerformResult<LikeResult>> => {
+    if (!currentUserId.value) return { status: 'failed', message: 'Sign in to like posts' }
     tracking.track(postId, 'like')
 
-    try {
-      const response = await $fetch<{ success: boolean, data: LikeResult }>(
-        `/api/posts/${postId}/like`,
-        { method: 'POST' }
-      )
-
-      const post = posts.value.find(p => p.id === postId)
+    const result = await engagement.perform<{ success: boolean, data: LikeResult }>({ kind: 'like', postId, liked })
+    const post = posts.value.find(p => p.id === postId)
+    if (result.status === 'synced') {
       if (post) {
-        post.liked_by_me = response.data.liked
-        post.likes_count = response.data.likesCount
+        post.liked_by_me = result.data.data.liked
+        post.likes_count = result.data.data.likesCount
       }
-      return response.data
-    } catch (e) {
-      console.error('[Feed] Like failed', e)
-      return null
+      return { status: 'synced', data: result.data.data }
     }
+    return result
   }
 
   const commentPost = (postId: string) => {
@@ -519,16 +519,41 @@ export const useSocialFeed = () => {
   const addComment = async (
     postId: string,
     content: string,
-    parentId?: string
-  ): Promise<PostComment> => {
-    const response = await $fetch<{ success: boolean, data: PostComment }>(
-      `/api/posts/${postId}/comments`,
-      { method: 'POST', body: { content, parentId } }
-    )
+    parentId: string | null,
+    clientId: string
+  ): Promise<PerformResult<{ comment: PostComment, commentsCount: number }>> => {
+    const result = await engagement.perform<{ success: boolean, data: PostComment, commentsCount: number }>({
+      kind: 'comment',
+      postId,
+      clientId,
+      content,
+      parentId,
+      createdAt: new Date().toISOString()
+    })
     tracking.track(postId, 'comment')
+    if (result.status !== 'synced') return result
+
     const post = posts.value.find(p => p.id === postId)
-    if (post) post.comments_count += 1
+    if (post) post.comments_count = result.data.commentsCount
+    return { status: 'synced', data: { comment: result.data.data, commentsCount: result.data.commentsCount } }
+  }
+
+  const editComment = async (postId: string, commentId: string, content: string) => {
+    const response = await $fetch<{ success: boolean, data: { id: string, content: string, editedAt: string | null } }>(
+      `/api/posts/${postId}/comments/${commentId}`,
+      { method: 'PATCH', body: { content } }
+    )
     return response.data
+  }
+
+  const deleteComment = async (postId: string, commentId: string) => {
+    const response = await $fetch<{ success: boolean, data: { commentsCount: number } }>(
+      `/api/posts/${postId}/comments/${commentId}`,
+      { method: 'DELETE' }
+    )
+    const post = posts.value.find(p => p.id === postId)
+    if (post) post.comments_count = response.data.commentsCount
+    return response.data.commentsCount
   }
 
   const fetchLikers = async (postId: string): Promise<PostLiker[]> => {
@@ -538,21 +563,36 @@ export const useSocialFeed = () => {
     return response.data ?? []
   }
 
-  const sharePost = async (postId: string, platform: SharePlatform): Promise<string | null> => {
-    try {
-      const response = await $fetch<{
-        success: boolean
-        data: { shareUrl: string, sharesCount: number }
-      }>(`/api/posts/${postId}/share`, { method: 'POST', body: { platform } })
-
-      tracking.track(postId, 'share')
-      const post = posts.value.find(p => p.id === postId)
-      if (post) post.shares_count = response.data.sharesCount
-      return response.data.shareUrl
-    } catch (e) {
-      console.error('[Feed] Share failed', e)
-      return null
+  /** Records a share and returns the link; offline shares are queued and still return a link. */
+  const sharePost = async (postId: string, platform: SharePlatform): Promise<{ url: string, queued: boolean } | null> => {
+    tracking.track(postId, 'share')
+    if (platform !== 'copy') {
+      try {
+        const response = await $fetch<{ success: boolean, data: { shareUrl: string, sharesCount: number } }>(
+          `/api/posts/${postId}/share`,
+          { method: 'POST', body: { platform } }
+        )
+        const post = posts.value.find(p => p.id === postId)
+        if (post) post.shares_count = response.data.sharesCount
+        return { url: response.data.shareUrl, queued: false }
+      } catch (e) {
+        console.error('[Feed] Share failed', e)
+        return null
+      }
     }
+
+    const result = await engagement.perform<{ success: boolean, data: { shareUrl: string, sharesCount: number } }>({
+      kind: 'share',
+      postId,
+      shareId: crypto.randomUUID()
+    })
+    if (result.status === 'failed') return null
+    if (result.status === 'queued') {
+      return { url: `${window.location.origin}/posts/${postId}`, queued: true }
+    }
+    const post = posts.value.find(p => p.id === postId)
+    if (post) post.shares_count = result.data.data.sharesCount
+    return { url: result.data.data.shareUrl, queued: false }
   }
 
   const deletePost = async (postId: string): Promise<boolean> => {
@@ -700,6 +740,8 @@ export const useSocialFeed = () => {
     likePost,
     commentPost,
     fetchComments,
+    editComment,
+    deleteComment,
     addComment,
     fetchLikers,
     sharePost,

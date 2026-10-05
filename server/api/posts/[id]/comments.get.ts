@@ -7,6 +7,7 @@ export interface PostCommentView {
   parentId: string | null
   content: string
   createdAt: string
+  editedAt: string | null
   author: {
     id: string
     username: string
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
 
   const { data: comments, error } = await client
     .from('post_comments')
-    .select('id, post_id, parent_id, comment_text, created_at, user_id')
+    .select('id, post_id, parent_id, comment_text, created_at, edited_at, user_id')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
     .range(offset, offset + limit - 1)
@@ -54,6 +55,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
         parentId: row.parent_id,
         content: row.comment_text,
         createdAt: row.created_at,
+        editedAt: row.edited_at,
         author: {
           id: row.user_id,
           username: author?.username ?? 'unknown',

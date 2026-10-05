@@ -9,18 +9,18 @@
         maxlength="500"
         placeholder="Write a comment..."
       />
-      <button class="composer-send" type="submit" :disabled="!draft.trim() || sending">
+      <button class="composer-send" type="submit" :disabled="!draft.trim()">
         <Icon name="send" size="16" />
       </button>
     </form>
 
     <p v-if="error" class="comments-error">{{ error }}</p>
-    <p v-if="loading" class="comments-state">Loading comments...</p>
+    <p v-if="loading && !comments.length" class="comments-state">Loading comments...</p>
     <p v-else-if="!threads.length" class="comments-state">No comments yet.</p>
 
     <ul v-else class="comment-list">
       <li v-for="thread in threads" :key="thread.comment.id" class="comment-thread">
-        <article class="comment">
+        <article class="comment" :class="{ pending: thread.comment.pending }">
           <NuxtLink :to="`/profile/${thread.comment.author.username}`" class="comment-avatar-link">
             <img :src="thread.comment.author.avatar || '/default-avatar.svg'" :alt="thread.comment.author.name" class="comment-avatar" />
           </NuxtLink>
@@ -28,12 +28,23 @@
             <NuxtLink :to="`/profile/${thread.comment.author.username}`" class="comment-author">
               {{ thread.comment.author.name }}
             </NuxtLink>
-            <p class="comment-text">{{ thread.comment.content }}</p>
+            <form v-if="editingId === thread.comment.id" class="edit-form" @submit.prevent="saveEdit(thread.comment)">
+              <input v-model="editDraft" class="composer-input" type="text" maxlength="500" aria-label="Edit comment" />
+              <button type="submit" class="meta-btn" :disabled="!editDraft.trim() || busyId === thread.comment.id">Save</button>
+              <button type="button" class="meta-btn" @click="editingId = null">Cancel</button>
+            </form>
+            <p v-else class="comment-text">{{ thread.comment.content }}</p>
             <div class="comment-meta">
-              <span>{{ formatTimeAgo(thread.comment.createdAt) }}</span>
-              <button type="button" @click="replyingTo = replyingTo === thread.comment.id ? null : thread.comment.id">
+              <span v-if="thread.comment.pending">Waiting for connection...</span>
+              <span v-else>{{ formatTimeAgo(thread.comment.createdAt) }}</span>
+              <span v-if="thread.comment.editedAt">Edited</span>
+              <button v-if="!thread.comment.pending" type="button" class="meta-btn" @click="replyingTo = replyingTo === thread.comment.id ? null : thread.comment.id">
                 Reply
               </button>
+              <template v-if="isOwn(thread.comment)">
+                <button type="button" class="meta-btn" @click="startEdit(thread.comment)">Edit</button>
+                <button type="button" class="meta-btn danger" :disabled="busyId === thread.comment.id" @click="remove(thread.comment)">Delete</button>
+              </template>
             </div>
 
             <form
@@ -48,13 +59,13 @@
                 maxlength="500"
                 :placeholder="`Reply to ${thread.comment.author.name}`"
               />
-              <button class="composer-send" type="submit" :disabled="!replyDraft.trim() || sending">
+              <button class="composer-send" type="submit" :disabled="!replyDraft.trim()">
                 <Icon name="send" size="14" />
               </button>
             </form>
 
             <ul v-if="thread.replies.length" class="reply-list">
-              <li v-for="reply in thread.replies" :key="reply.id" class="comment reply">
+              <li v-for="reply in thread.replies" :key="reply.id" class="comment reply" :class="{ pending: reply.pending }">
                 <NuxtLink :to="`/profile/${reply.author.username}`" class="comment-avatar-link">
                   <img :src="reply.author.avatar || '/default-avatar.svg'" :alt="reply.author.name" class="comment-avatar small" />
                 </NuxtLink>
@@ -62,8 +73,21 @@
                   <NuxtLink :to="`/profile/${reply.author.username}`" class="comment-author">
                     {{ reply.author.name }}
                   </NuxtLink>
-                  <p class="comment-text">{{ reply.content }}</p>
-                  <div class="comment-meta"><span>{{ formatTimeAgo(reply.createdAt) }}</span></div>
+                  <form v-if="editingId === reply.id" class="edit-form" @submit.prevent="saveEdit(reply)">
+                    <input v-model="editDraft" class="composer-input" type="text" maxlength="500" aria-label="Edit reply" />
+                    <button type="submit" class="meta-btn" :disabled="!editDraft.trim() || busyId === reply.id">Save</button>
+                    <button type="button" class="meta-btn" @click="editingId = null">Cancel</button>
+                  </form>
+                  <p v-else class="comment-text">{{ reply.content }}</p>
+                  <div class="comment-meta">
+                    <span v-if="reply.pending">Waiting for connection...</span>
+                    <span v-else>{{ formatTimeAgo(reply.createdAt) }}</span>
+                    <span v-if="reply.editedAt">Edited</span>
+                    <template v-if="isOwn(reply)">
+                      <button type="button" class="meta-btn" @click="startEdit(reply)">Edit</button>
+                      <button type="button" class="meta-btn danger" :disabled="busyId === reply.id" @click="remove(reply)">Delete</button>
+                    </template>
+                  </div>
                 </div>
               </li>
             </ul>
@@ -75,21 +99,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { PostComment } from '~/composables/useSocialFeed'
+import { useEngagementSync } from '~/composables/use-engagement-sync'
+import { useUserStore } from '~/stores/user'
 
 const props = defineProps<{ postId: string, viewerAvatar: string }>()
-const emit = defineEmits<{ added: [comment: PostComment] }>()
+const emit = defineEmits<{
+  /** Optimistic change to the post's comment count. */
+  delta: [change: number]
+  /** Authoritative server count after a write. */
+  synced: [count: number]
+}>()
 
-const { fetchComments, addComment } = useSocialFeed()
+const { fetchComments, addComment, editComment, deleteComment, currentUserId } = useSocialFeed()
+const engagement = useEngagementSync()
+const userStore = useUserStore()
 
 const comments = ref<PostComment[]>([])
 const loading = ref(true)
-const sending = ref(false)
 const error = ref('')
 const draft = ref('')
 const replyDraft = ref('')
 const replyingTo = ref<string | null>(null)
+const editingId = ref<string | null>(null)
+const editDraft = ref('')
+const busyId = ref<string | null>(null)
+
+const viewer = computed(() => ({
+  id: currentUserId.value ?? '',
+  username: userStore.profile?.username ?? '',
+  name: userStore.profile?.full_name || userStore.profile?.username || 'You',
+  avatar: props.viewerAvatar || null
+}))
+
+const isOwn = (comment: PostComment) => !comment.pending && Boolean(viewer.value.id) && comment.author.id === viewer.value.id
 
 const threads = computed(() =>
   comments.value
@@ -100,12 +144,31 @@ const threads = computed(() =>
     }))
 )
 
+/** Comments queued on this device are shown until the server has them. */
+const mergePending = (server: PostComment[]) => {
+  const known = new Set(server.map(comment => comment.id))
+  const pending = engagement.pendingFor(props.postId).comments
+    .filter(item => !known.has(item.clientId))
+    .map((item): PostComment => ({
+      id: item.clientId,
+      postId: props.postId,
+      parentId: item.parentId,
+      content: item.content,
+      createdAt: item.createdAt,
+      pending: true,
+      author: viewer.value
+    }))
+  return [...server, ...pending]
+}
+
 const load = async () => {
   loading.value = true
   try {
-    comments.value = await fetchComments(props.postId)
+    comments.value = mergePending(await fetchComments(props.postId))
+    error.value = ''
   } catch {
-    error.value = 'Comments could not be loaded'
+    comments.value = mergePending(comments.value.filter(comment => !comment.pending))
+    if (!comments.value.length) error.value = 'Comments could not be loaded'
   } finally {
     loading.value = false
   }
@@ -113,24 +176,85 @@ const load = async () => {
 
 const submit = async (parentId?: string) => {
   const content = (parentId ? replyDraft.value : draft.value).trim()
-  if (!content || sending.value) return
+  if (!content) return
 
-  sending.value = true
+  const clientId = crypto.randomUUID()
+  const optimistic: PostComment = {
+    id: clientId,
+    postId: props.postId,
+    parentId: parentId ?? null,
+    content,
+    createdAt: new Date().toISOString(),
+    pending: true,
+    author: viewer.value
+  }
+  comments.value.push(optimistic)
+  emit('delta', 1)
+  if (parentId) {
+    replyDraft.value = ''
+    replyingTo.value = null
+  } else {
+    draft.value = ''
+  }
   error.value = ''
+
+  const result = await addComment(props.postId, content, parentId ?? null, clientId)
+  if (result.status === 'queued') return
+  if (result.status === 'failed') {
+    comments.value = comments.value.filter(comment => comment.id !== clientId)
+    emit('delta', -1)
+    error.value = result.message || 'Comment could not be posted'
+    return
+  }
+  comments.value = comments.value.map(comment => comment.id === clientId ? result.data.comment : comment)
+  emit('synced', result.data.commentsCount)
+}
+
+const startEdit = (comment: PostComment) => {
+  editingId.value = comment.id
+  editDraft.value = comment.content
+}
+
+const saveEdit = async (comment: PostComment) => {
+  const content = editDraft.value.trim()
+  if (!content) return
+  if (content === comment.content) {
+    editingId.value = null
+    return
+  }
+
+  const previous = { content: comment.content, editedAt: comment.editedAt }
+  busyId.value = comment.id
+  comment.content = content
+  editingId.value = null
   try {
-    const comment = await addComment(props.postId, content, parentId)
-    comments.value.push(comment)
-    emit('added', comment)
-    if (parentId) {
-      replyDraft.value = ''
-      replyingTo.value = null
-    } else {
-      draft.value = ''
-    }
+    const saved = await editComment(props.postId, comment.id, content)
+    comment.content = saved.content
+    comment.editedAt = saved.editedAt
   } catch {
-    error.value = 'Comment could not be posted'
+    comment.content = previous.content
+    comment.editedAt = previous.editedAt
+    error.value = 'Comment could not be updated'
   } finally {
-    sending.value = false
+    busyId.value = null
+  }
+}
+
+const remove = async (comment: PostComment) => {
+  if (import.meta.client && !window.confirm('Delete this comment?')) return
+
+  const removed = comments.value.filter(item => item.id === comment.id || item.parentId === comment.id)
+  busyId.value = comment.id
+  comments.value = comments.value.filter(item => !removed.includes(item))
+  emit('delta', -removed.length)
+  try {
+    emit('synced', await deleteComment(props.postId, comment.id))
+  } catch {
+    comments.value = [...comments.value, ...removed]
+    emit('delta', removed.length)
+    error.value = 'Comment could not be deleted'
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -144,6 +268,14 @@ const formatTimeAgo = (value: string) => {
   if (hours < 24) return `${hours}h`
   return `${Math.floor(hours / 24)}d`
 }
+
+// When the retry queue drains, swap pending placeholders for the saved rows.
+watch(
+  () => engagement.pendingFor(props.postId).comments.length,
+  (now, before) => {
+    if (now < before) void load()
+  }
+)
 
 onMounted(load)
 </script>
@@ -274,4 +406,25 @@ onMounted(load)
   cursor: pointer;
   font-size: 0.75rem;
 }
+
+.comment.pending { opacity: 0.6; }
+
+.edit-form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.meta-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.meta-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.meta-btn.danger { color: var(--color-error, #ff2e88); }
 </style>

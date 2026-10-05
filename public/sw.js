@@ -1,8 +1,8 @@
 // Service Worker for SocialVerse PWA
 // Handles caching, offline support, and background sync
 
-const CACHE_NAME = 'socialverse-v2';
-const RUNTIME_CACHE = 'socialverse-runtime-v2';
+const CACHE_NAME = 'socialverse-v3';
+const RUNTIME_CACHE = 'socialverse-runtime-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -286,6 +286,15 @@ self.addEventListener('sync', (event) => {
 
   if (event.tag === 'sync-messages') {
     event.waitUntil(syncMessages());
+  }
+
+  // The page owns the engagement queue (it holds the auth session); wake it up.
+  if (event.tag === 'engagement-sync') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'engagement-sync' }));
+      })
+    );
   }
 });
 

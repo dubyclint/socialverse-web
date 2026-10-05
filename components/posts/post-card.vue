@@ -122,7 +122,8 @@
       v-if="commentsOpen"
       :post-id="post.id"
       :viewer-avatar="viewerAvatar"
-      @added="commentsCount += 1"
+      @delta="commentsCount = Math.max(0, commentsCount + $event)"
+      @synced="onCommentsSynced"
     />
 
     <PostsPostEditModal
@@ -137,6 +138,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { FeedPost, PostLiker } from '~/composables/useSocialFeed'
+import { useEngagementSync } from '~/composables/use-engagement-sync'
 
 const props = withDefaults(
   defineProps<{ post: FeedPost, sponsored?: boolean, viewerAvatar?: string }>(),
@@ -155,23 +157,58 @@ const {
   fetchLikers
 } = useSocialFeed()
 
+const engagement = useEngagementSync()
+
+/**
+ * Server counts plus whatever this device has done that hasn't synced yet, so
+ * a queued like/comment/share stays visible across refreshes and bad networks.
+ */
+const countsFor = (post: FeedPost) => {
+  const cached = engagement.readMetrics(post.id)
+  const pending = engagement.pendingFor(post.id)
+  const serverLiked = post.liked_by_me ?? cached?.liked ?? false
+  const liked = pending.liked ?? serverLiked
+  const likeDelta = liked === serverLiked ? 0 : liked ? 1 : -1
+  return {
+    liked,
+    likes: Math.max(0, (post.likes_count ?? cached?.likes ?? 0) + likeDelta),
+    comments: (post.comments_count ?? cached?.comments ?? 0) + pending.comments.length,
+    shares: (post.shares_count ?? cached?.shares ?? 0) + pending.shares
+  }
+}
+
 // Counts and editable fields are mirrored locally: a card must not write back
 // into the feed's post objects.
-const liked = ref(props.post.liked_by_me)
-const likesCount = ref(props.post.likes_count)
-const commentsCount = ref(props.post.comments_count)
-const sharesCount = ref(props.post.shares_count)
+const initial = countsFor(props.post)
+const liked = ref(initial.liked)
+const likesCount = ref(initial.likes)
+const commentsCount = ref(initial.comments)
+const sharesCount = ref(initial.shares)
 const content = ref(props.post.content)
 const media = ref<string[]>([...(props.post.media ?? [])])
 
 watch(() => props.post, (post) => {
-  liked.value = post.liked_by_me
-  likesCount.value = post.likes_count
-  commentsCount.value = post.comments_count
-  sharesCount.value = post.shares_count
+  const counts = countsFor(post)
+  liked.value = counts.liked
+  likesCount.value = counts.likes
+  commentsCount.value = counts.comments
+  sharesCount.value = counts.shares
   content.value = post.content
   media.value = [...(post.media ?? [])]
 })
+
+watch([liked, likesCount, commentsCount, sharesCount], () => {
+  engagement.saveMetrics(props.post.id, {
+    liked: liked.value,
+    likes: likesCount.value,
+    comments: commentsCount.value,
+    shares: sharesCount.value
+  })
+}, { immediate: true })
+
+const onCommentsSynced = (serverCount: number) => {
+  commentsCount.value = serverCount + engagement.pendingFor(props.post.id).comments.length
+}
 
 const menuOpen = ref(false)
 const commentsOpen = ref(false)
@@ -198,11 +235,21 @@ const openAuthor = () => {
 }
 
 const onLike = async () => {
-  const result = await likePost(props.post.id)
-  if (!result) return flash('Could not update your like')
+  const previous = { liked: liked.value, likes: likesCount.value }
+  const next = !liked.value
+  liked.value = next
+  likesCount.value = Math.max(0, likesCount.value + (next ? 1 : -1))
 
-  liked.value = result.liked
-  likesCount.value = result.likesCount
+  const result = await likePost(props.post.id, next)
+  if (result.status === 'failed') {
+    liked.value = previous.liked
+    likesCount.value = previous.likes
+    return flash(result.message || 'Could not update your like')
+  }
+  if (result.status === 'queued') return
+
+  liked.value = result.data.liked
+  likesCount.value = result.data.likesCount
   if (likersOpen.value) await loadLikers()
 }
 
@@ -232,8 +279,9 @@ const onRepost = async () => {
 }
 
 const onShare = async () => {
-  const url = await sharePost(props.post.id, 'copy')
-  if (!url) return flash('Could not share this post')
+  const shared = await sharePost(props.post.id, 'copy')
+  if (!shared) return flash('Could not share this post')
+  const { url } = shared
   sharesCount.value += 1
 
   if (import.meta.client && navigator.share) {

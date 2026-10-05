@@ -236,7 +236,7 @@ const sharePost = async () => {
     } else {
       await navigator.clipboard.writeText(url)
     }
-    await $fetch(`/api/posts/${postId.value}/share`, { method: 'POST' }).catch(() => undefined)
+    await $fetch(`/api/posts/${postId.value}/share`, { method: 'POST', body: { platform: 'copy' } }).catch(() => undefined)
   } catch {
     // Sharing cancelled by the user is not an error worth surfacing.
   }

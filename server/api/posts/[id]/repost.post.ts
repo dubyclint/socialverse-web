@@ -56,15 +56,13 @@ export default defineEventHandler(async (event): Promise<RepostResponse> => {
 
   if (repostError) throw createError({ statusCode: 500, statusMessage: repostError.message })
 
-  const sharesCount = (original.shares_count ?? 0) + 1
-  await Promise.all([
-    client.from('posts').update({ shares_count: sharesCount }).eq('id', original.id),
-    client.from('post_shares').insert({
-      post_id: original.id,
-      user_id: user.id,
-      shared_to: 'repost'
-    })
-  ])
+  await client.from('post_shares').insert({
+    post_id: original.id,
+    user_id: user.id,
+    shared_to: 'repost'
+  })
+  const { data: counted } = await client.from('posts').select('shares_count').eq('id', original.id).maybeSingle()
+  const sharesCount = counted?.shares_count ?? 0
 
   if (original.user_id !== user.id) {
     await client.from('notifications').insert({
