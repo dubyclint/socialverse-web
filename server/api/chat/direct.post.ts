@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { defineEventHandler, readBody, createError } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
@@ -50,18 +51,20 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const { data: room, error: roomError } = await client
+  // The id is generated here because the creator cannot read the room back
+  // (RETURNING) until their membership row exists.
+  const room = { id: randomUUID() }
+  const { error: roomError } = await client
     .from('chat_rooms')
     .insert({
+      id: room.id,
       is_group_chat: false,
       room_name: counterparty.display_name || counterparty.username,
       created_by: user.id
     })
-    .select('id')
-    .single()
 
-  if (roomError || !room) {
-    throw createError({ statusCode: 500, statusMessage: roomError?.message || 'Failed to create chat' })
+  if (roomError) {
+    throw createError({ statusCode: 500, statusMessage: roomError.message })
   }
 
   // Inserted separately: the policy for adding somebody else requires the
