@@ -179,6 +179,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useChat } from '~/composables/use-chat'
 import { useWebrtcCall } from '~/composables/use-webrtc-call'
@@ -212,6 +213,8 @@ interface SuggestedUser {
 
 // Chat store initialized
 const chatStore = useChatStore()
+const route = useRoute()
+const router = useRouter()
 const currentUser = useSupabaseUser()
 const currentUserId = computed(() => currentUser.value?.id ?? null)
 
@@ -518,6 +521,17 @@ const startDirectChat = async (userId: string) => {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** `/chat?user=<uuid>` (from PALs, contacts, profiles, search) opens that direct chat. */
+const openChatFromRoute = async () => {
+  const target = typeof route.query.user === 'string' ? route.query.user.trim() : ''
+  if (!UUID_RE.test(target) || target === currentUserId.value || isStartingChat.value) return
+  await startDirectChat(target)
+  const { user: _user, ...rest } = route.query
+  await router.replace({ query: rest })
+}
+
 // --- Lifecycle ---
 onMounted(async () => {
   await initialize()
@@ -618,7 +632,10 @@ onMounted(async () => {
   })
 
   await loadChats()
+  await openChatFromRoute()
 })
+
+watch(() => route.query.user, () => { void openChatFromRoute() })
 
 onUnmounted(() => {
   dispose()

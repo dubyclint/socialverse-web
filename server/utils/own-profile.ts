@@ -2,7 +2,7 @@ import { createError } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 
 const OWN_PROFILE_COLUMNS =
-  'user_id,username,email,display_name,full_name,bio,avatar_url,cover_url,website,location,birth_date,gender,phone,phone_country,phone_verified,phone_verified_at,profile_completed,is_verified,is_private,role,rank,rank_points,rank_level,followers_count,following_count,posts_count,created_at,updated_at,last_seen'
+  'user_id,username,email,display_name,full_name,bio,avatar_url,cover_url,website,location,birth_date,gender,phone,phone_country,phone_verified,phone_verified_at,profile_completed,is_verified,is_private,role,rank,rank_points,rank_level,followers_count,following_count,posts_count,hide_following,full_name_changed_at,username_changed_at,created_at,updated_at,last_seen'
 
 /**
  * The caller's own row including private columns (email, phone) that other

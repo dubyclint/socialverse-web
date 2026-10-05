@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { createError, defineEventHandler, getHeader, readRawBody, setResponseStatus } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { failDeposit, settleDeposit } from '~/server/utils/payments/settle'
+import { runtimeSecret } from '~/server/utils/runtime-secret'
 
 interface PaystackEvent {
   event?: string
@@ -15,7 +16,7 @@ interface PaystackEvent {
 
 /** Paystack signs the raw body with HMAC-SHA512 using the secret key. */
 export default defineEventHandler(async (event) => {
-  const secret = useRuntimeConfig().paystackSecretKey
+  const secret = runtimeSecret(useRuntimeConfig().paystackSecretKey, 'PAYSTACK_SECRET_KEY')
   if (!secret) throw createError({ statusCode: 503, statusMessage: 'Paystack not configured' })
 
   const signature = getHeader(event, 'x-paystack-signature')

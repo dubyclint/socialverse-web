@@ -37,6 +37,8 @@ export interface Profile {
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
+  hide_following?: boolean
+  full_name_changed_at?: string | null
   email_notifications?: boolean
 
   // Verification & Status Properties
@@ -81,6 +83,8 @@ export interface ProfileUpdateInput {
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
+  hide_following?: boolean
+  full_name_changed_at?: string | null
 
   // Extended mutations
   username?: string | null
@@ -102,6 +106,8 @@ export interface ProfileCompleteInput {
   birth_date?: string | null
   gender?: Gender | null
   is_private?: boolean
+  hide_following?: boolean
+  full_name_changed_at?: string | null
 
   // Canonical onboarding payload
   interests?: string[]

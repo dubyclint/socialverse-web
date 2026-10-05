@@ -81,8 +81,13 @@
               v-model="formData.full_name"
               type="text"
               placeholder="Enter your full name"
+              :disabled="!!nextNameChange"
               class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
+            <p v-if="nextNameChange" class="text-slate-400 text-sm mt-1">
+              You can change your full name again on {{ nextNameChange.toDateString() }}.
+            </p>
+            <p v-else class="text-slate-500 text-sm mt-1">After a change, your full name is locked for 4 months.</p>
             <p v-if="fieldErrors.full_name" class="text-red-400 text-sm mt-1">{{ fieldErrors.full_name }}</p>
           </div>
 
@@ -269,6 +274,19 @@
 
           <label class="flex items-center gap-3 cursor-pointer">
             <input
+              v-model="formData.hide_following"
+              type="checkbox"
+              class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              :disabled="isSubmitting"
+            />
+            <span class="text-slate-300">
+              Hide the accounts I follow
+              <p class="text-slate-500 text-sm">Others still see your following count, but not the list. Your followers stay public.</p>
+            </span>
+          </label>
+
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input
               v-model="formData.email_notifications"
               type="checkbox"
               class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -367,6 +385,7 @@ const formData = ref({
   birth_date: '',
   gender: '',
   is_private: false,
+  hide_following: false,
   email_notifications: true
 })
 
@@ -488,6 +507,14 @@ const revertPhone = async () => {
   }
 }
 
+const FULL_NAME_LOCK_DAYS = 120
+const nextNameChange = computed(() => {
+  const changedAt = profile.value?.full_name_changed_at
+  if (!changedAt) return null
+  const next = new Date(new Date(changedAt).getTime() + FULL_NAME_LOCK_DAYS * 86_400_000)
+  return next > new Date() ? next : null
+})
+
 const isFormDirty = computed(() =>
   JSON.stringify(formData.value) !== JSON.stringify(originalFormData.value) || avatarFile.value !== null
 )
@@ -508,6 +535,7 @@ const loadProfile = async () => {
         birth_date: p.birth_date ? (p.birth_date.split('T')[0] ?? '') : '',
         gender: p.gender || '',
         is_private: !!p.is_private,
+        hide_following: !!p.hide_following,
         email_notifications: p.email_notifications !== false
       }
       originalFormData.value = { ...formData.value }

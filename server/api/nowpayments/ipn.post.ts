@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { createError, defineEventHandler, getHeader, readRawBody, setResponseStatus } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { failDeposit, settleDeposit } from '~/server/utils/payments/settle'
+import { runtimeSecret } from '~/server/utils/runtime-secret'
 
 interface NowPaymentsIpn {
   payment_id?: number | string
@@ -20,7 +21,7 @@ const FAILED = new Set(['failed', 'refunded', 'expired'])
  * its keys sorted, so the raw body has to be re-stringified the same way.
  */
 export default defineEventHandler(async (event) => {
-  const secret = useRuntimeConfig().nowpaymentsIpnSecret
+  const secret = runtimeSecret(useRuntimeConfig().nowpaymentsIpnSecret, 'NOWPAYMENTS_IPN_SECRET', 'NOWPAYMENT_IPN_SECRET')
   if (!secret) throw createError({ statusCode: 503, statusMessage: 'IPN secret not configured' })
 
   const signature = getHeader(event, 'x-nowpayments-sig')

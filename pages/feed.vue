@@ -32,6 +32,9 @@
           </NuxtLink>
         </nav>
         <div class="header-right">
+          <NuxtLink to="/search" class="header-search" aria-label="Search people">
+            <Icon name="search" size="22" />
+          </NuxtLink>
           <div class="user-avatar-wrapper">
             <img :src="userAvatar" :alt="userName" class="user-avatar" @click="goToProfilePage()" :style="{ cursor: currentUser?.id ? 'pointer' : 'default' }" />
             <span class="status-indicator" :class="userStatus"></span>
@@ -323,7 +326,7 @@ const goToSettingsProfile = () => navigateTo('/profile/edit');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
 
 const performSearch = () => {
-  if (searchQuery.value) navigateTo(`/search?q=${searchQuery.value}`);
+  if (searchQuery.value) navigateTo({ path: '/search', query: { q: searchQuery.value } });
 };
 
 const shareProfile = () => {
@@ -380,6 +383,8 @@ onMounted(async () => {
 .logo-img { width: 32px; height: 32px; flex-shrink: 0; }
 .menu-btn { background: none; border: none; color: #94a3b8; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s; }
 .menu-btn:hover { color: #f8fafc; background-color: #334155; }
+.header-search { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; margin-right: 0.5rem; border-radius: 999px; color: #cbd5e1; }
+.header-search:hover { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
 .nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; position: relative; }
 .nav-icon.active { color: #3b82f6; background-color: rgba(59, 130, 246, 0.1); }
 

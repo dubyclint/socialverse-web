@@ -20,7 +20,10 @@ interface UpdateBody {
   birth_date?: string | null
   gender?: string | null
   is_private?: boolean
+  hide_following?: boolean
 }
+
+const FULL_NAME_LOCK_DAYS = 120
 
 // Postgres rejects '' for date/uuid columns; the edit form sends it for cleared fields.
 const nullIfBlank = (value: unknown): string | null => {
@@ -57,14 +60,36 @@ export default defineEventHandler(async (event) => {
   if (body.birth_date !== undefined) updateData.birth_date = nullIfBlank(body.birth_date)
   if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
   if (body.is_private !== undefined) updateData.is_private = body.is_private
+  if (typeof body.hide_following === 'boolean') updateData.hide_following = body.hide_following
 
   // The edit form calls it full_name; display_name is what the feed and
   // profile cards read, so keep the two in step.
   const name = body.full_name ?? body.display_name
   if (name !== undefined) {
     const trimmed = nullIfBlank(name)
-    updateData.full_name = trimmed
-    updateData.display_name = trimmed
+    const { data: current } = await supabase
+      .from('user')
+      .select('display_name, full_name, full_name_changed_at')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    const currentName = current?.display_name || current?.full_name || null
+
+    if (trimmed !== currentName) {
+      if (!trimmed) throw createError({ statusCode: 400, statusMessage: 'Full name is required' })
+      const lastChange = current?.full_name_changed_at ? new Date(current.full_name_changed_at) : null
+      if (lastChange) {
+        const nextAllowed = new Date(lastChange.getTime() + FULL_NAME_LOCK_DAYS * 86_400_000)
+        if (nextAllowed > new Date()) {
+          throw createError({
+            statusCode: 429,
+            statusMessage: `You can change your full name again on ${nextAllowed.toDateString()}`,
+            data: { next_allowed_at: nextAllowed.toISOString() }
+          })
+        }
+      }
+      updateData.full_name = trimmed
+      updateData.display_name = trimmed
+    }
   }
 
   if (Object.keys(updateData).length) {
@@ -72,6 +97,7 @@ export default defineEventHandler(async (event) => {
     const { error } = await supabase.from('user').update(updateData).eq('user_id', user.id)
     if (error) {
       console.error('Profile update error:', error)
+      if (error.code === 'P0001') throw createError({ statusCode: 429, statusMessage: error.message })
       throw createError({ statusCode: 500, statusMessage: 'Failed to update profile: ' + error.message })
     }
   }

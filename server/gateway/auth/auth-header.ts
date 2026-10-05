@@ -1,58 +1,59 @@
 // ============================================================================
 // FILE: /server/gateway/auth/auth-header.ts
 // ============================================================================
+import { createClient } from '@supabase/supabase-js'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { useRuntimeConfig } from '#imports'
 
-export default defineEventHandler(async (_event: any) => {
-  const path = _event.path || ''
+const publicApiPrefixes = [
+  '/api/auth/signup',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/health',
+  '/api/public/'
+]
+
+/**
+ * Resolves the caller for every `/api/**` request from the SSR cookie session
+ * or, for native and scripted clients, an `Authorization: Bearer` token. A
+ * bearer caller also gets a token-bound Supabase client so RLS sees them.
+ */
+export default defineEventHandler(async (event) => {
+  const path = event.path || ''
   if (!path.startsWith('/api/')) return
-
-  const publicApiPrefixes = [
-    '/api/auth/signup',
-    '/api/auth/forgot-password',
-    '/api/auth/reset-password',
-    '/api/health',
-    '/api/public/'
-  ]
-  if (publicApiPrefixes.some((p) => path.startsWith(p))) return
+  if (publicApiPrefixes.some(p => path.startsWith(p))) return
 
   try {
-    let user: any = await serverSupabaseUser(_event)
+    let user = await serverSupabaseUser(event).catch(() => null)
 
     if (!user) {
-      const authHeader = getHeader(_event, 'authorization') || ''
-      if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.slice(7).trim()
-        if (token) {
-          const supabase = await serverSupabaseClient(_event)
-          const { data, error } = await supabase.auth.getUser(token)
-          if (!error && data?.user) {
-            user = data.user
-          }
-        }
-      }
+      const authHeader = getHeader(event, 'authorization') || ''
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+      if (!token) return
+
+      const { url, key } = useRuntimeConfig(event).public.supabase
+      const tokenClient = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      })
+      const { data, error } = await tokenClient.auth.getUser(token)
+      if (error || !data?.user) return
+
+      user = data.user
+      event.context._supabaseClient = tokenClient
+    } else {
+      await serverSupabaseClient(event)
     }
 
-    if (!user) return
-
-    const rawIdVal = (user as any)?.id ?? (user as any)?.user_id ?? ''
-    let resolvedIdStr = String(rawIdVal || '')
-    if (!resolvedIdStr) return
-    const parts = resolvedIdStr.split(':')
-    const resolvedId = (parts && parts[0]) ? String(parts[0]).trim() : ''
-    if (!resolvedId) return
-
-    _event.context = _event.context || {}
-    _event.context.user = {
-      id: resolvedId,
-      user_id: resolvedId,
-      sub: resolvedId,
-      email: (user as any).email || null,
-      role: (user as any).role || 'user',
+    event.context.user = {
+      id: user.id,
+      user_id: user.id,
+      sub: user.id,
+      email: user.email || null,
+      role: user.role || 'user',
       raw: user
     }
-  } catch (err: any) {
-    console.warn('[Auth Middleware] Unable to populate context user:', err?.message || err)
-    return
+  } catch (err: unknown) {
+    console.warn('[Auth Middleware] Unable to populate context user:', err instanceof Error ? err.message : err)
   }
 })

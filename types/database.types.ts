@@ -3170,6 +3170,8 @@ export type Database = {
           user_id: string
           username: string
           username_changed_at: string | null
+          hide_following: boolean
+          full_name_changed_at: string | null
           verified_at: string | null
           website: string | null
         }
@@ -3214,6 +3216,8 @@ export type Database = {
           user_id: string
           username: string
           username_changed_at?: string | null
+          hide_following?: boolean
+          full_name_changed_at?: string | null
           verified_at?: string | null
           website?: string | null
         }
@@ -3258,6 +3262,8 @@ export type Database = {
           user_id?: string
           username?: string
           username_changed_at?: string | null
+          hide_following?: boolean
+          full_name_changed_at?: string | null
           verified_at?: string | null
           website?: string | null
         }

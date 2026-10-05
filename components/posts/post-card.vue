@@ -9,10 +9,13 @@
     <header class="post-header">
       <img :src="avatar" :alt="authorName" class="post-avatar" @click="openAuthor" />
       <div class="post-identity">
-        <NuxtLink :to="authorLink" class="post-author">
-          {{ authorName }}
-          <Icon v-if="post.author?.verified" name="check-circle" size="13" class="verified" />
-        </NuxtLink>
+        <span class="author-row">
+          <NuxtLink :to="authorLink" class="post-author">
+            {{ authorName }}
+            <Icon v-if="post.author?.verified" name="check-circle" size="13" class="verified" />
+          </NuxtLink>
+          <SocialFollowButton v-if="!isMine && post.author?.id" :user-id="post.author.id" compact />
+        </span>
         <span class="post-meta">
           <span class="handle">@{{ post.author?.username || 'unknown' }}</span>
           <span class="dot">·</span>
@@ -388,6 +391,8 @@ const formatTimeAgo = (value: string) => {
   flex-direction: column;
   line-height: 1.2;
 }
+
+.author-row { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
 
 .post-author {
   display: inline-flex;

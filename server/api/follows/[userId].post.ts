@@ -1,317 +1,65 @@
 // FILE: /server/api/follows/[userId].post.ts
-// ============================================================================
-// FOLLOW/UNFOLLOW USER - PRODUCTION READY
-// ============================================================================
-// This endpoint handles follow/unfollow actions with:
-// - User authentication
-// - Follow status checking
-// - Follow/unfollow toggle functionality
-// - Comprehensive error handling
-// - Detailed logging
-//
-// Features:
-// - Toggle follow status (follow if not following, unfollow if following)
-// - Explicit follow/unfollow actions
-// - Prevents self-following
-// - Returns current follow status
-// - Detailed error messages
-// - Optimized database queries
-// ============================================================================
+import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
+import { requireUser } from '~/server/utils/auth'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { enforceRateLimit } from '~/server/utils/rate-limit'
+import { loadBlockedIds } from '~/server/utils/pals'
 
-import { serverSupabaseClient } from '#supabase/server'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-interface FollowResponse {
-  success: boolean
-  following: boolean
-  action: 'followed' | 'unfollowed' | 'no_change'
-  message?: string
+interface FollowBody {
+  /** Desired final state; omitted toggles. Explicit state makes retries idempotent. */
+  follow?: boolean
+  /** Legacy shape: 'follow' | 'unfollow' | 'toggle'. */
+  action?: 'follow' | 'unfollow' | 'toggle'
 }
 
-export default defineEventHandler(async (event): Promise<FollowResponse> => {
-  try {
-    console.log('[Follows API] ========================================')
-    console.log('[Follows API] Follow/Unfollow request received')
-    console.log('[Follows API] ========================================')
+/** Follows or unfollows a user; counters and the notification come from a DB trigger. */
+export default defineEventHandler(async (event) => {
+  const user = await requireUser(event)
+  const targetId = getRouterParam(event, 'userId')?.trim() ?? ''
+  if (!UUID_RE.test(targetId)) throw createError({ statusCode: 400, statusMessage: 'Invalid user ID' })
+  if (targetId === user.id) throw createError({ statusCode: 400, statusMessage: 'You cannot follow yourself' })
 
-    // ============================================================================
-    // STEP 1: Initialize Supabase client
-    // ============================================================================
-    console.log('[Follows API] Step 1: Initializing Supabase client...')
+  await enforceRateLimit(event, 'follows:toggle', { limit: 60, windowMs: 60_000 }, user.id)
 
-    const supabase = await serverSupabaseClient(event)
+  const body = await readBody<FollowBody>(event).catch(() => null)
+  const service = getServiceClient()
 
-    if (!supabase) {
-      console.error('[Follows API] ❌ Supabase client not available')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Database connection failed'
-      })
-    }
+  const [{ data: target }, { data: existing }, blocked] = await Promise.all([
+    service.from('user').select('user_id').eq('user_id', targetId).maybeSingle(),
+    service.from('follows').select('id').eq('follower_id', user.id).eq('following_id', targetId).maybeSingle(),
+    loadBlockedIds(service, user.id)
+  ])
+  if (!target) throw createError({ statusCode: 404, statusMessage: 'User not found' })
 
-    console.log('[Follows API] ✅ Supabase client initialized')
+  const isFollowing = Boolean(existing)
+  let desired = !isFollowing
+  if (typeof body?.follow === 'boolean') desired = body.follow
+  else if (body?.action === 'follow') desired = true
+  else if (body?.action === 'unfollow') desired = false
 
-    // ============================================================================
-    // STEP 2: Authenticate user
-    // ============================================================================
-    console.log('[Follows API] Step 2: Authenticating user...')
+  if (desired && blocked.has(targetId)) {
+    throw createError({ statusCode: 403, statusMessage: 'You cannot follow this user' })
+  }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (desired && !isFollowing) {
+    const { error } = await service.from('follows').insert({ follower_id: user.id, following_id: targetId })
+    if (error && error.code !== '23505') throw createError({ statusCode: 500, statusMessage: 'Could not follow user' })
+  } else if (!desired && isFollowing) {
+    const { error } = await service.from('follows').delete().eq('follower_id', user.id).eq('following_id', targetId)
+    if (error) throw createError({ statusCode: 500, statusMessage: 'Could not unfollow user' })
+  }
 
-    if (authError || !user?.id) {
-      console.error('[Follows API] ❌ Authentication failed:', authError?.message)
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized - Please login first'
-      })
-    }
+  const { count } = await service
+    .from('follows')
+    .select('id', { count: 'exact', head: true })
+    .eq('following_id', targetId)
 
-    console.log('[Follows API] ✅ User authenticated:', user.email)
-    console.log('[Follows API] Current user ID:', user.id)
-
-    // ============================================================================
-    // STEP 3: Get target user ID from route parameter
-    // ============================================================================
-    console.log('[Follows API] Step 3: Extracting target user ID...')
-
-    const targetUserId = getRouterParam(event, 'userId')
-
-    if (!targetUserId || targetUserId.trim() === '') {
-      console.error('[Follows API] ❌ No target user ID provided')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Target user ID is required'
-      })
-    }
-
-    console.log('[Follows API] ✅ Target user ID:', targetUserId)
-
-    // ============================================================================
-    // STEP 4: Validate user ID format (UUID)
-    // ============================================================================
-    console.log('[Follows API] Step 4: Validating user ID format...')
-
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-    if (!uuidRegex.test(targetUserId)) {
-      console.error('[Follows API] ❌ Invalid target user ID format:', targetUserId)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid user ID format'
-      })
-    }
-
-    console.log('[Follows API] ✅ Target user ID format is valid')
-
-    // ============================================================================
-    // STEP 5: Prevent self-following
-    // ============================================================================
-    console.log('[Follows API] Step 5: Checking for self-follow...')
-
-    if (targetUserId === user.id) {
-      console.error('[Follows API] ❌ User cannot follow themselves')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'You cannot follow yourself'
-      })
-    }
-
-    console.log('[Follows API] ✅ Not a self-follow')
-
-    // ============================================================================
-    // STEP 6: Verify target user exists
-    // ============================================================================
-    console.log('[Follows API] Step 6: Verifying target user exists...')
-
-    try {
-      const { data: targetUser, error: userCheckError } = await supabase.auth.admin.getUserById(targetUserId)
-
-      if (userCheckError || !targetUser?.user) {
-        console.error('[Follows API] ❌ Target user not found:', userCheckError?.message)
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Target user not found'
-        })
-      }
-
-      console.log('[Follows API] ✅ Target user exists:', targetUser.user.email)
-    } catch (err: any) {
-      console.warn('[Follows API] ⚠️ User verification failed:', err.message)
-      // Continue anyway - user might exist but we can't verify
-      console.log('[Follows API] ℹ️ Continuing without user verification')
-    }
-
-    // ============================================================================
-    // STEP 7: Get request body
-    // ============================================================================
-    console.log('[Follows API] Step 7: Parsing request body...')
-
-    let body = {}
-    try {
-      body = await readBody(event)
-    } catch (err) {
-      console.warn('[Follows API] ⚠️ Could not parse body:', err)
-    }
-
-    const action = (body as any)?.action || 'toggle' // 'follow', 'unfollow', or 'toggle'
-
-    console.log('[Follows API] ✅ Action:', action)
-
-    if (!['follow', 'unfollow', 'toggle'].includes(action)) {
-      console.error('[Follows API] ❌ Invalid action:', action)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid action. Must be: follow, unfollow, or toggle'
-      })
-    }
-
-    // ============================================================================
-    // STEP 8: Check current follow status
-    // ============================================================================
-    console.log('[Follows API] Step 8: Checking current follow status...')
-
-    let isFollowing = false
-
-    try {
-      const { data: existingFollow, error: checkError } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('following_id', targetUserId)
-        .single()
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116 = no rows returned (not found)
-        console.warn('[Follows API] ⚠️ Follow status check error:', checkError.message)
-      } else if (existingFollow) {
-        isFollowing = true
-        console.log('[Follows API] ✅ User is currently following')
-      } else {
-        console.log('[Follows API] ✅ User is not currently following')
-      }
-    } catch (err: any) {
-      console.warn('[Follows API] ⚠️ Could not check follow status:', err.message)
-      // Continue anyway
-    }
-
-    console.log('[Follows API] Currently following:', isFollowing)
-
-    // ============================================================================
-    // STEP 9: Determine action to perform
-    // ============================================================================
-    console.log('[Follows API] Step 9: Determining action to perform...')
-
-    let shouldFollow = false
-    let actionPerformed = 'no_change'
-
-    if (action === 'follow') {
-      shouldFollow = true
-      actionPerformed = isFollowing ? 'no_change' : 'followed'
-    } else if (action === 'unfollow') {
-      shouldFollow = false
-      actionPerformed = isFollowing ? 'unfollowed' : 'no_change'
-    } else if (action === 'toggle') {
-      shouldFollow = !isFollowing
-      actionPerformed = shouldFollow ? 'followed' : 'unfollowed'
-    }
-
-    console.log('[Follows API] Should follow:', shouldFollow)
-    console.log('[Follows API] Action to perform:', actionPerformed)
-
-    // ============================================================================
-    // STEP 10: Perform follow action
-    // ============================================================================
-    if (actionPerformed === 'followed') {
-      console.log('[Follows API] Step 10: Following user...')
-
-      const { error: insertError } = await supabase
-        .from('follows')
-        .insert([{
-          follower_id: user.id,
-          following_id: targetUserId,
-          created_at: new Date().toISOString()
-        }])
-
-      if (insertError) {
-        console.error('[Follows API] ❌ Follow failed:', insertError.message)
-
-        // Check for specific errors
-        if (insertError.message.includes('duplicate key')) {
-          console.log('[Follows API] ℹ️ Already following this user')
-          return {
-            success: true,
-            following: true,
-            action: 'no_change',
-            message: 'Already following this user'
-          }
-        }
-
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Failed to follow user: ' + insertError.message
-        })
-      }
-
-      console.log('[Follows API] ✅ User followed successfully')
-
-    } else if (actionPerformed === 'unfollowed') {
-      console.log('[Follows API] Step 10: Unfollowing user...')
-
-      const { error: deleteError } = await supabase
-        .from('follows')
-        .delete()
-        .eq('follower_id', user.id)
-        .eq('following_id', targetUserId)
-
-      if (deleteError) {
-        console.error('[Follows API] ❌ Unfollow failed:', deleteError.message)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Failed to unfollow user: ' + deleteError.message
-        })
-      }
-
-      console.log('[Follows API] ✅ User unfollowed successfully')
-
-    } else {
-      console.log('[Follows API] Step 10: No action needed (already in desired state)')
-    }
-
-    // ============================================================================
-    // STEP 11: Build and return response
-    // ============================================================================
-    console.log('[Follows API] Step 11: Building response...')
-
-    const newFollowingStatus = actionPerformed === 'followed' ? true : (actionPerformed === 'unfollowed' ? false : isFollowing)
-
-    const response: FollowResponse = {
-      success: true,
-      following: newFollowingStatus,
-      action: actionPerformed as 'followed' | 'unfollowed' | 'no_change'
-    }
-
-    console.log('[Follows API] ========================================')
-    console.log('[Follows API] ✅ Follow action completed successfully')
-    console.log('[Follows API] Following:', response.following)
-    console.log('[Follows API] Action:', response.action)
-    console.log('[Follows API] ========================================')
-
-    return response
-
-  } catch (error: any) {
-    console.error('[Follows API] ========================================')
-    console.error('[Follows API] ❌ ERROR:', error.message)
-    console.error('[Follows API] Status Code:', error.statusCode)
-    console.error('[Follows API] ========================================')
-
-    // If it's already a proper error, throw it
-    if (error.statusCode) {
-      throw error
-    }
-
-    // Otherwise, wrap it
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Failed to update follow status'
-    })
+  return {
+    success: true,
+    following: desired,
+    action: desired === isFollowing ? 'no_change' : desired ? 'followed' : 'unfollowed',
+    followers_count: count ?? 0
   }
 })

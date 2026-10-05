@@ -65,11 +65,5 @@ export default defineEventHandler(async (event: H3Event) => {
     metadata: { originalFilename: file.filename ?? null }
   })
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id,user_id,username,full_name,avatar_url,bio,created_at,updated_at,location,is_verified')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  return { success: true, data: profile, message: 'Avatar uploaded successfully' }
+  return { success: true, data: { user_id: user.id, avatar_url: avatarUrl }, avatar_url: avatarUrl, message: 'Avatar uploaded successfully' }
 })

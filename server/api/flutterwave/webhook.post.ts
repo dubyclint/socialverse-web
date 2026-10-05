@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { createError, defineEventHandler, getHeader, readRawBody, setResponseStatus } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { failDeposit, settleDeposit } from '~/server/utils/payments/settle'
+import { runtimeSecret } from '~/server/utils/runtime-secret'
 
 interface FlutterwaveEvent {
   event?: string
@@ -19,7 +20,7 @@ interface FlutterwaveEvent {
  * secret hash verbatim (legacy) or an HMAC-SHA256 of the raw body with it.
  */
 export default defineEventHandler(async (event) => {
-  const secretHash = useRuntimeConfig().flutterwaveWebhookHash
+  const secretHash = runtimeSecret(useRuntimeConfig().flutterwaveWebhookHash, 'FLUTTERWAVE_WEBHOOK_HASH')
   if (!secretHash) throw createError({ statusCode: 503, statusMessage: 'Flutterwave not configured' })
 
   const signature = getHeader(event, 'flutterwave-signature') || getHeader(event, 'verif-hash')

@@ -1,5 +1,6 @@
 import { createError } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { runtimeSecret } from '~/server/utils/runtime-secret'
 import type { CheckoutRequest, CheckoutResult, PaymentGateway, PaymentProviderRow } from './types'
 
 const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'VND'])
@@ -12,7 +13,7 @@ function toSubunit(amount: number, currency: string) {
 const paystack: PaymentGateway = {
   code: 'paystack',
   async createCheckout(provider: PaymentProviderRow, request: CheckoutRequest): Promise<CheckoutResult> {
-    const secret = useRuntimeConfig().paystackSecretKey
+    const secret = runtimeSecret(useRuntimeConfig().paystackSecretKey, 'PAYSTACK_SECRET_KEY')
     if (!secret) throw createError({ statusCode: 503, statusMessage: 'Paystack is not configured' })
 
     // Merchant accounts that only settle in one currency (e.g. NGN) charge the
@@ -68,7 +69,7 @@ const flutterwave: PaymentGateway = {
       payment_links?: string[]
       bank_slots?: { currency: string, bank_name: string, account_name: string, account_number: string }[]
     }
-    const secret = useRuntimeConfig().flutterwaveSecretKey
+    const secret = runtimeSecret(useRuntimeConfig().flutterwaveSecretKey, 'FLUTTERWAVE_SECRET_KEY')
 
     // Without API keys the admin can still run Flutterwave on custom payment
     // links plus manual bank transfer, which is how the account is set up today.
@@ -118,7 +119,7 @@ const flutterwave: PaymentGateway = {
 const nowpayments: PaymentGateway = {
   code: 'nowpayments',
   async createCheckout(_provider: PaymentProviderRow, request: CheckoutRequest): Promise<CheckoutResult> {
-    const apiKey = useRuntimeConfig().nowpaymentsApiKey
+    const apiKey = runtimeSecret(useRuntimeConfig().nowpaymentsApiKey, 'NOWPAYMENTS_API_KEY', 'NOWPAYMENT_API_KEY', 'NOWPAYMENTS_KEY')
     if (!apiKey) throw createError({ statusCode: 503, statusMessage: 'Crypto payments are not configured' })
 
     const response = await $fetch<{ id: string, invoice_url: string }>(
