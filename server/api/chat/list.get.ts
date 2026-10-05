@@ -1,7 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
-import type { Chat } from '~/types/chat'
+import type { Chat, ChatMember } from '~/types/chat'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -74,6 +74,16 @@ export default defineEventHandler(async (event) => {
       userId: peer?.user_id,
       username: peer?.username,
       participantCount: members.length,
+      members: isGroup
+        ? members.filter(id => id !== user.id).map((id): ChatMember => {
+            const person = personById.get(id)
+            return {
+              userId: id,
+              name: person?.display_name || person?.username || 'Member',
+              avatar: person?.avatar_url || undefined
+            }
+          })
+        : undefined,
       lastMessage: preview,
       lastMessageTime: latest ? new Date(latest.created_at).getTime() : undefined,
       unreadCount: unreadByRoom.get(room.id) ?? 0,

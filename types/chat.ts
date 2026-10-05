@@ -68,6 +68,14 @@ export interface Chat {
   userId?: string
   username?: string
   participantCount?: number
+  /** Other members of a group chat (excludes the viewer). */
+  members?: ChatMember[]
+}
+
+export interface ChatMember {
+  userId: string
+  name: string
+  avatar?: string
 }
 
 export interface Translation {

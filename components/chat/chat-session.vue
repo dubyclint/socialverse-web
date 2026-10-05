@@ -47,7 +47,7 @@
       
       <div class="header-right">
         <button
-          v-if="chat.type === 'direct' && chat.userId"
+          v-if="(chat.type === 'direct' && chat.userId) || (chat.type === 'group' && chat.members?.length)"
           class="header-btn"
           title="Send a gift"
           @click="showGiftSheet = true"
@@ -258,8 +258,9 @@
     <ChatGiftSheet
       v-if="showGiftSheet"
       :chat-id="chat.id"
-      :recipient-id="chat.userId"
-      :recipient-name="chat.name"
+      :recipient-id="chat.type === 'direct' ? chat.userId : undefined"
+      :recipient-name="chat.type === 'direct' ? chat.name : undefined"
+      :members="chat.type === 'group' ? chat.members : undefined"
       @close="showGiftSheet = false"
     />
 

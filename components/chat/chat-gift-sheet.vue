@@ -2,9 +2,26 @@
   <div class="gift-overlay" @click.self="$emit('close')">
     <div class="gift-sheet" role="dialog" aria-label="Send a gift">
       <header class="gift-header">
-        <h3>Send {{ recipientName || 'them' }} a gift</h3>
+        <h3>Send {{ recipientLabel }} a gift</h3>
         <button class="gift-close" aria-label="Close" @click="$emit('close')"><Icon name="x" /></button>
       </header>
+
+      <div v-if="members?.length" class="gift-recipients" role="radiogroup" aria-label="Recipient">
+        <button
+          v-for="member in members"
+          :key="member.userId"
+          type="button"
+          role="radio"
+          :aria-checked="recipient === member.userId"
+          class="gift-recipient"
+          :class="{ selected: recipient === member.userId }"
+          @click="recipient = member.userId"
+        >
+          <img v-if="member.avatar" :src="member.avatar" alt="" class="gift-recipient-avatar" />
+          <span v-else class="gift-recipient-avatar gift-recipient-initial">{{ member.name.charAt(0).toUpperCase() }}</span>
+          <span class="gift-recipient-name">{{ member.name }}</span>
+        </button>
+      </div>
 
       <p v-if="loading" class="gift-hint">Loading gifts…</p>
       <p v-else-if="!gifts.length && !error" class="gift-hint">No gifts are available right now.</p>
@@ -31,8 +48,8 @@
       <p v-if="error" class="gift-error" role="alert">{{ error }}</p>
       <p v-if="sent" class="gift-ok">Gift sent</p>
 
-      <button class="gift-send" :disabled="!selected || sending || sent" @click="send">
-        {{ sending ? 'Sending…' : selected ? `Send for ${total} PEW` : 'Pick a gift' }}
+      <button class="gift-send" :disabled="!selected || !recipient || sending || sent" @click="send">
+        {{ sending ? 'Sending…' : !recipient ? 'Pick who to gift' : selected ? `Send for ${total} PEW` : 'Pick a gift' }}
       </button>
     </div>
   </div>
@@ -41,6 +58,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import Icon from '@/components/ui/icon.vue'
+import type { ChatMember } from '~/types/chat'
 
 interface CatalogGift {
   id: string
@@ -51,11 +69,20 @@ interface CatalogGift {
 
 const props = defineProps<{
   chatId: string
-  recipientId: string
+  /** Fixed recipient (direct chats). */
+  recipientId?: string
   recipientName?: string
+  /** Pickable recipients (group chats). */
+  members?: ChatMember[]
 }>()
 
 const emit = defineEmits<{ close: [], sent: [] }>()
+
+const recipient = ref(props.recipientId ?? (props.members?.length === 1 ? props.members[0]!.userId : ''))
+const recipientLabel = computed(() =>
+  props.recipientName
+  || props.members?.find(member => member.userId === recipient.value)?.name
+  || 'someone')
 
 const gifts = ref<CatalogGift[]>([])
 const selected = ref<CatalogGift | null>(null)
@@ -80,7 +107,7 @@ onMounted(async () => {
 })
 
 const send = async () => {
-  if (!selected.value) return
+  if (!selected.value || !recipient.value) return
   sending.value = true
   error.value = ''
   try {
@@ -88,7 +115,7 @@ const send = async () => {
       method: 'POST',
       body: {
         chatId: props.chatId,
-        recipientId: props.recipientId,
+        recipientId: recipient.value,
         giftTypeId: selected.value.id,
         quantity: safeQuantity.value
       }
@@ -131,6 +158,19 @@ const send = async () => {
 .gift-header { display: flex; align-items: center; justify-content: space-between; }
 .gift-header h3 { margin: 0; font-size: 1rem; }
 .gift-close { border: 0; background: none; cursor: pointer; color: inherit; }
+.gift-recipients { display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.75rem 0 0.25rem; }
+.gift-recipient {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  min-width: 64px; padding: 0.4rem; border: 2px solid transparent; border-radius: 12px;
+  background: none; color: inherit; cursor: pointer;
+}
+.gift-recipient.selected { border-color: var(--color-primary, #6366f1); }
+.gift-recipient-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.gift-recipient-initial {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg-secondary, #e5e7eb); font-weight: 700;
+}
+.gift-recipient-name { font-size: 0.7rem; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gift-hint { color: var(--color-text-muted, #6b7280); font-size: 0.875rem; }
 .gift-grid {
   display: grid;

@@ -35,6 +35,20 @@ export default defineEventHandler(async (event) => {
   if (!membership) {
     throw createError({ statusCode: 403, statusMessage: 'You are not a member of this chat' })
   }
+  if (body.recipientId === user.id) {
+    throw createError({ statusCode: 400, statusMessage: 'You cannot gift yourself' })
+  }
+
+  const { data: recipientMembership } = await supabase
+    .from('chat_room_members')
+    .select('room_id')
+    .eq('room_id', body.chatId)
+    .eq('user_id', body.recipientId)
+    .maybeSingle()
+
+  if (!recipientMembership) {
+    throw createError({ statusCode: 400, statusMessage: 'The recipient is not in this chat' })
+  }
 
   const { data: gift, error: giftError } = await supabase
     .from('gift_catalog')
