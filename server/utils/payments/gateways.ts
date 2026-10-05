@@ -11,9 +11,25 @@ function toSubunit(amount: number, currency: string) {
 
 const paystack: PaymentGateway = {
   code: 'paystack',
-  async createCheckout(_provider: PaymentProviderRow, request: CheckoutRequest): Promise<CheckoutResult> {
+  async createCheckout(provider: PaymentProviderRow, request: CheckoutRequest): Promise<CheckoutResult> {
     const secret = useRuntimeConfig().paystackSecretKey
     if (!secret) throw createError({ statusCode: 503, statusMessage: 'Paystack is not configured' })
+
+    // Merchant accounts that only settle in one currency (e.g. NGN) charge the
+    // wallet-currency amount converted at the admin-set rate.
+    const config = provider.config as { charge_currency?: string, fx_rate?: number }
+    const chargeCurrency = config.charge_currency?.toUpperCase() || request.currency
+    let chargeAmount = request.amount
+    if (chargeCurrency !== request.currency) {
+      const rate = Number(config.fx_rate)
+      if (!(rate > 0)) {
+        throw createError({
+          statusCode: 503,
+          statusMessage: `Paystack charges in ${chargeCurrency}; set its exchange rate in Admin → Deposit methods`
+        })
+      }
+      chargeAmount = Number((request.amount * rate).toFixed(2))
+    }
 
     const response = await $fetch<{
       status: boolean
@@ -24,8 +40,8 @@ const paystack: PaymentGateway = {
       headers: { authorization: `Bearer ${secret}` },
       body: {
         email: request.email,
-        amount: String(toSubunit(request.amount, request.currency)),
-        currency: request.currency,
+        amount: String(toSubunit(chargeAmount, chargeCurrency)),
+        currency: chargeCurrency,
         reference: request.depositId,
         callback_url: request.callbackUrl,
         metadata: { deposit_id: request.depositId, user_id: request.userId }
@@ -39,7 +55,8 @@ const paystack: PaymentGateway = {
     return {
       checkoutUrl: response.data.authorization_url,
       instructions: null,
-      externalRef: response.data.reference
+      externalRef: response.data.reference,
+      metadata: { charge_currency: chargeCurrency, charge_amount: chargeAmount }
     }
   }
 }

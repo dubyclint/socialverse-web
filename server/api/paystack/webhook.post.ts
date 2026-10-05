@@ -37,6 +37,7 @@ export default defineEventHandler(async (event) => {
         depositId: reference,
         externalRef: reference,
         paidAmount: payload.data.amount != null ? Number(payload.data.amount) / 100 : null,
+        paidCurrency: payload.data.currency ?? null,
         providerPayload: payload as unknown as Record<string, unknown>
       })
     } else if (payload.event === 'charge.failed') {

@@ -10,6 +10,8 @@ interface SettleInput {
   externalRef?: string | null
   /** Amount the provider confirms it collected, in the deposit's source currency. */
   paidAmount?: number | null
+  /** Currency of paidAmount when the provider charged in a converted currency. */
+  paidCurrency?: string | null
   providerPayload: Record<string, unknown>
 }
 
@@ -17,7 +19,7 @@ interface SettleInput {
  * Credits a deposit exactly once. `settle_deposit` is idempotent on the DB
  * side, so a replayed webhook cannot double-credit a wallet.
  */
-export async function settleDeposit({ depositId, externalRef, paidAmount, providerPayload }: SettleInput) {
+export async function settleDeposit({ depositId, externalRef, paidAmount, paidCurrency, providerPayload }: SettleInput) {
   const service = getServiceClient()
 
   const { data: deposit, error } = await service
@@ -30,8 +32,13 @@ export async function settleDeposit({ depositId, externalRef, paidAmount, provid
   if (!deposit) return { settled: false, reason: 'unknown_deposit' as const }
   if (deposit.status === 'SETTLED') return { settled: true, reason: 'already_settled' as const }
 
+  const charged = deposit.metadata as { charge_currency?: string, charge_amount?: number } | null
+  const expected = paidCurrency && charged?.charge_currency === paidCurrency.toUpperCase() && charged.charge_amount != null
+    ? Number(charged.charge_amount)
+    : Number(deposit.source_amount)
+
   // Under-payment is held for manual review rather than silently credited.
-  if (paidAmount != null && Number(paidAmount) + 0.01 < Number(deposit.source_amount)) {
+  if (paidAmount != null && Number(paidAmount) + 0.01 < expected) {
     await service
       .from('deposits')
       .update({

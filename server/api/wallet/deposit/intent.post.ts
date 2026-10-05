@@ -5,7 +5,7 @@ import { calculateFees, resolveLimits } from '~/server/utils/payments/fees'
 import { resolveGateway } from '~/server/utils/payments/gateways'
 import { DEFAULT_DEPOSIT_SETTINGS } from '~/server/utils/payments/settings'
 import type { DepositSettings, PaymentProviderRow } from '~/server/utils/payments/types'
-import type { Database } from '~/types/database.types'
+import type { Database, Json } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
 
 type DepositRoute = Database['public']['Enums']['deposit_route']
@@ -126,8 +126,20 @@ export default defineEventHandler(async (event) => {
     throw gatewayError
   }
 
-  if (checkout.externalRef) {
-    await service.from('deposits').update({ external_ref: checkout.externalRef }).eq('id', deposit.id)
+  if (checkout.externalRef || checkout.metadata) {
+    await service
+      .from('deposits')
+      .update({
+        external_ref: checkout.externalRef ?? undefined,
+        metadata: {
+          initiated_from: isNative ? 'native' : 'wallet',
+          fee_percent: provider.fee_percent,
+          fee_flat: provider.fee_flat,
+          net_amount: fees.amount,
+          ...checkout.metadata
+        } as Json
+      })
+      .eq('id', deposit.id)
   }
 
   return {

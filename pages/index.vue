@@ -7,7 +7,7 @@
     </div>
 
     <header class="brandbar">
-      <img src="/logo.svg" alt="Viorp" class="brandbar__mark" width="36" height="36" >
+      <img :src="logoSrc" alt="Viorp" class="brandbar__mark" width="36" height="36" >
       <span class="brandbar__name">Viorp</span>
     </header>
 
@@ -19,7 +19,7 @@
         <span class="orbit__dot orbit__dot--b" />
       </div>
 
-      <img src="/logo.svg" alt="Viorp" class="mark" width="112" height="112" >
+      <img :src="logoSrc" alt="Viorp" class="mark" width="112" height="112" >
 
       <h1 class="wordmark">Viorp</h1>
       <p class="tagline">Vibe in orbit.</p>
@@ -43,6 +43,10 @@ definePageMeta({
   layout: 'blank',
   middleware: []
 })
+
+// Bound rather than literal: Vite would resolve a literal /logo.svg against the
+// project root, which holds an unrelated upload, instead of public/.
+const logoSrc = '/logo.svg'
 
 const goToSignin = () => navigateTo('/signin')
 const goToSignup = () => navigateTo('/signup')

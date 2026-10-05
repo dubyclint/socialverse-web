@@ -19,7 +19,7 @@ const supabase = useSupabaseClient()
 const tabs = ['Transacts', 'gifts', 'Pay Methods', 'Withdraws', 'Refers']
 const route = useRoute()
 const requestedTab = typeof route.query.tab === 'string' ? route.query.tab : ''
-const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : 'Transactions')
+const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : tabs[0])
 
 const userStore = useUserStore()
 const pewgiftUserId = computed(() => userStore.user?.id ?? '')

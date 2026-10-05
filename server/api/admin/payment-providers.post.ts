@@ -25,6 +25,9 @@ interface ProviderPayload {
   bankSlots?: BankSlot[]
   paymentLinks?: string[]
   instructions?: string
+  /** Paystack: settlement currency and wallet-currency → charge-currency rate. */
+  chargeCurrency?: string | null
+  fxRate?: number | null
 }
 
 const MAX_BANK_SLOTS = 6
@@ -62,6 +65,18 @@ export default defineEventHandler(async (event) => {
   if (body.bankSlots) config.bank_slots = body.bankSlots.filter(slot => slot.currency && slot.account_number)
   if (body.paymentLinks) config.payment_links = body.paymentLinks.filter(Boolean)
   if (body.instructions !== undefined) config.instructions = body.instructions
+  if (body.fxRate != null && !(Number(body.fxRate) > 0)) {
+    throw createError({ statusCode: 400, statusMessage: 'Exchange rate must be greater than 0' })
+  }
+  if (body.chargeCurrency !== undefined) {
+    const currency = body.chargeCurrency?.trim().toUpperCase()
+    if (currency) config.charge_currency = currency
+    else delete config.charge_currency
+  }
+  if (body.fxRate !== undefined) {
+    if (body.fxRate) config.fx_rate = Number(body.fxRate)
+    else delete config.fx_rate
+  }
 
   const update: ProviderUpdate = { config: config as Json, updated_at: new Date().toISOString() }
   if (body.isEnabled !== undefined) update.is_enabled = body.isEnabled

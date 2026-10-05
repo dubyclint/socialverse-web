@@ -52,6 +52,17 @@
         {{ settings.currency }} {{ preview(provider) }} and credits 100 PEW.
       </p>
 
+      <div v-if="provider.code === 'paystack'" class="grid">
+        <label>
+          <span>Charge currency (blank = wallet currency)</span>
+          <input v-model="provider.config.charge_currency" placeholder="NGN" maxlength="3">
+        </label>
+        <label>
+          <span>Rate: 1 {{ settings.currency }} =</span>
+          <input v-model.number="provider.config.fx_rate" type="number" min="0" step="0.0001" placeholder="1600">
+        </label>
+      </div>
+
       <div v-if="provider.code === 'flutterwave'" class="flutterwave">
         <h3>Currency / bank accounts (max 6)</h3>
         <div v-for="(slot, index) in bankSlots(provider)" :key="index" class="bank-row">
@@ -115,6 +126,8 @@ interface ProviderConfig {
   bank_slots?: BankSlot[]
   payment_links?: string[]
   instructions?: string
+  charge_currency?: string
+  fx_rate?: number
 }
 
 interface ProviderRow {
@@ -198,7 +211,9 @@ const save = async (provider: ProviderRow) => {
         maxAmount: provider.max_amount,
         webOnly: provider.web_only,
         bankSlots: provider.config.bank_slots,
-        paymentLinks: provider.config.payment_links
+        paymentLinks: provider.config.payment_links,
+        chargeCurrency: provider.config.charge_currency ?? null,
+        fxRate: provider.config.fx_rate ?? null
       }
     })
     notice.value = `${provider.display_name} saved.`

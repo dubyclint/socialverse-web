@@ -51,7 +51,9 @@ export default defineEventHandler(async (event) => {
           fee_flat: Number(row.fee_flat),
           min_amount: limits.min,
           max_amount: limits.max,
-          currencies: (row.config as { bank_slots?: { currency: string }[] })?.bank_slots?.map(slot => slot.currency) ?? []
+          currencies: (row.config as { bank_slots?: { currency: string }[] })?.bank_slots?.map(slot => slot.currency) ?? [],
+          charge_currency: (row.config as { charge_currency?: string })?.charge_currency ?? null,
+          fx_rate: (row.config as { fx_rate?: number })?.fx_rate ?? null
         }
       })
     }

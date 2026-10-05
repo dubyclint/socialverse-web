@@ -156,7 +156,8 @@
             <div class="flex gap-2">
               <select
                 v-model="formData.phone_country"
-                class="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                aria-label="Country code"
+                class="w-28 shrink-0 px-2 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
               >
                 <option v-for="country in callingCountries" :key="country.code" :value="country.code">
                   {{ country.code }} +{{ country.dial }}
@@ -165,8 +166,10 @@
               <input
                 v-model="formData.phone"
                 type="tel"
+                inputmode="tel"
+                autocomplete="tel-national"
                 placeholder="803 123 4567"
-                class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                class="flex-1 min-w-0 w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 @input="phoneState = 'idle'"
               />
             </div>

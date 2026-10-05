@@ -46,9 +46,11 @@ export default defineEventHandler(async (event) => {
       return { success: false, error: 'Server configuration error.' }
     }
 
-    const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    })
+    const clientOptions = { auth: { autoRefreshToken: false, persistSession: false } }
+    const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, clientOptions)
+    // signUp stores the new user's session on the client it runs on, which would
+    // downgrade every later query from service role to that user, so it gets its own.
+    const authClient = createClient<Database>(supabaseUrl, supabaseServiceKey, clientOptions)
 
     // Usernames released by another account stay reserved for 90 days.
     let available: boolean | null = null
@@ -76,7 +78,7 @@ export default defineEventHandler(async (event) => {
     // profile row keyed by the auth UUID from this metadata: username,
     // display name = username, E.164 phone (or a pending claim when another
     // account holds it), country, location and the wallet.
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await authClient.auth.signUp({
       email: body.email,
       password: body.password,
       options: {

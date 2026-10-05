@@ -34,14 +34,14 @@
         <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Phone Number</label>
           <div class="flex gap-2">
-            <select v-model="formData.phoneCountry" :disabled="isAuthLoading"
-              class="bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-2 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition">
+            <select v-model="formData.phoneCountry" :disabled="isAuthLoading" aria-label="Country code"
+              class="w-28 shrink-0 bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-2 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition">
               <option v-for="country in callingCountries" :key="country.code" :value="country.code">
                 {{ country.code }} +{{ country.dial }}
               </option>
             </select>
-            <input v-model="formData.phone" type="tel" required :disabled="isAuthLoading" placeholder="803 123 4567"
-              class="flex-1 min-w-0 bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
+            <input v-model="formData.phone" type="tel" inputmode="tel" autocomplete="tel-national" required :disabled="isAuthLoading" placeholder="803 123 4567"
+              class="flex-1 min-w-0 w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
           </div>
           <p class="mt-1 text-[10px] text-slate-500">Used so people who have your number can find you. Never shown publicly.</p>
         </div>
