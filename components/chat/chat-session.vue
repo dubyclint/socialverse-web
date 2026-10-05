@@ -54,10 +54,10 @@
         >
           <icon name="gift" />
         </button>
-        <button class="header-btn" title="Video call" @click="startVideoCall" v-if="chat.type === 'direct'">
+        <button class="header-btn" title="Video call" @click="startVideoCall" v-if="chat.type === 'group' || chat.userId">
           <icon name="video" />
         </button>
-        <button class="header-btn" title="Voice call" @click="startVoiceCall" v-if="chat.type === 'direct'">
+        <button class="header-btn" title="Voice call" @click="startVoiceCall" v-if="chat.type === 'group' || chat.userId">
           <icon name="phone" />
         </button>
         <div class="more-menu" ref="moreMenu">

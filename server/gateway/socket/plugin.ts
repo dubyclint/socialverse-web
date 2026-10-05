@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Server as Engine } from 'engine.io'
 import { defineEventHandler } from 'h3'
 import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
+import { registerCallHandlers } from './calls'
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -416,113 +417,9 @@ export default defineNitroPlugin((nitroApp: any) => {
       socket.on('voice_message_start', handleRecording(true))
       socket.on('voice_message_stop', handleRecording(false))
 
-      // 1:1 calls: SDP/ICE are relayed between the two participants only, and
-      // the session row is the source of truth for who may signal on a call.
       if (socket.userId) void socket.join(`user:${socket.userId}`)
 
-      const callParticipants = async (callId: string) => {
-        const { data } = await admin
-          .from('call_sessions')
-          .select('id, room_id, host_id, recipient_id, status')
-          .eq('id', callId)
-          .maybeSingle()
-        return data
-      }
-
-      const peerOf = (
-        call: { host_id: string; recipient_id: string | null },
-        userId: string
-      ) => (call.host_id === userId ? call.recipient_id : call.host_id)
-
-      socket.on('call:invite', async (data: any, ack?: (result: any) => void) => {
-        const chatId: string | undefined = data?.chatId
-        const targetUserId: string | undefined = data?.targetUserId
-        const callMode = data?.callType === 'video' ? 'VIDEO' : 'AUDIO'
-
-        if (!socket.userId || !chatId || !targetUserId) {
-          return ack?.({ success: false, error: 'Invalid call request' })
-        }
-        if (!(await isMember(chatId, socket.userId))) {
-          return ack?.({ success: false, error: 'Not a member of this chat' })
-        }
-
-        const { data: call, error } = await admin
-          .from('call_sessions')
-          .insert({
-            room_id: chatId,
-            host_id: socket.userId,
-            recipient_id: targetUserId,
-            call_mode: callMode,
-            status: 'RINGING'
-          })
-          .select('id, room_id, host_id, recipient_id, call_mode, status')
-          .single()
-
-        if (error) return ack?.({ success: false, error: 'Failed to start call' })
-
-        const caller = await senderOf(socket.userId)
-        io?.to(`user:${targetUserId}`).emit('call:incoming', {
-          ...call,
-          callerName: caller.senderName,
-          callerAvatar: caller.senderAvatar
-        })
-        ack?.({ success: true, call })
-      })
-
-      const endCall = (status: 'REJECTED' | 'DISCONNECTED' | 'MISSED', event: string) =>
-        async (data: any) => {
-          const callId: string | undefined = data?.callId
-          if (!callId || !socket.userId) return
-
-          const call = await callParticipants(callId)
-          if (!call || (call.host_id !== socket.userId && call.recipient_id !== socket.userId)) return
-
-          await admin
-            .from('call_sessions')
-            .update({ status, ended_at: new Date().toISOString() })
-            .eq('id', callId)
-
-          const peer = peerOf(call, socket.userId)
-          if (peer) io?.to(`user:${peer}`).emit(event, { callId })
-          socket.emit(event, { callId })
-        }
-
-      socket.on('call:reject', endCall('REJECTED', 'call:rejected'))
-      socket.on('call:end', endCall('DISCONNECTED', 'call:ended'))
-
-      socket.on('call:accept', async (data: any) => {
-        const callId: string | undefined = data?.callId
-        if (!callId || !socket.userId) return
-
-        const call = await callParticipants(callId)
-        if (!call || call.recipient_id !== socket.userId) return
-
-        await admin
-          .from('call_sessions')
-          .update({ status: 'CONNECTED', started_at: new Date().toISOString() })
-          .eq('id', callId)
-
-        io?.to(`user:${call.host_id}`).emit('call:accepted', { callId })
-        socket.emit('call:accepted', { callId })
-      })
-
-      socket.on('call:signal', async (data: any) => {
-        const callId: string | undefined = data?.callId
-        if (!callId || !socket.userId || !data?.payload) return
-
-        const call = await callParticipants(callId)
-        if (!call || (call.host_id !== socket.userId && call.recipient_id !== socket.userId)) return
-
-        const peer = peerOf(call, socket.userId)
-        if (!peer) return
-
-        io?.to(`user:${peer}`).emit('call:signal', {
-          callId,
-          senderId: socket.userId,
-          payloadType: data.payloadType,
-          payload: data.payload
-        })
-      })
+      registerCallHandlers({ io: io!, admin, socket, isMember })
 
       // Universe is a single global room; membership is open to any
       // authenticated user, so only the message itself is validated.

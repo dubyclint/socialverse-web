@@ -1,37 +1,56 @@
-<!-- components/chat/CallInterface.vue -->
 <template>
   <div class="call-interface" v-if="call">
     <div class="call-overlay">
       <div class="call-content">
-        <!-- Call Header -->
         <div class="call-header">
           <div class="call-info">
-            <div class="caller-avatar">
+            <div v-if="!isGroupCall" class="caller-avatar">
               <img :src="call.peerAvatar || '/default-avatar.svg'" :alt="call.peerName" />
             </div>
             <div class="caller-details">
-              <div class="caller-name">{{ call.peerName || 'Unknown' }}</div>
+              <div class="caller-name">{{ headline }}</div>
               <div class="call-status">{{ getCallStatus() }}</div>
             </div>
           </div>
-          
+
           <div class="call-timer" v-if="call.isActive">
             {{ formatCallDuration(callDuration) }}
           </div>
         </div>
 
-        <!-- Video Container -->
-        <div class="video-container" v-if="call.callType === 'video'">
-          <video ref="remoteVideo" class="remote-video" autoplay playsinline></video>
-          <video ref="localVideo" class="local-video" autoplay playsinline muted></video>
+        <div v-if="call.callType === 'video'" class="video-grid" :data-count="Math.min(participants.length + 1, 8)">
+          <div v-for="person in participants" :key="person.userId" class="video-tile">
+            <video
+              v-if="person.stream"
+              :ref="el => bindMedia(el, person.stream)"
+              autoplay
+              playsinline
+            ></video>
+            <img v-else :src="person.avatar || '/default-avatar.svg'" alt="" class="tile-avatar" />
+            <span class="tile-name">{{ person.name }}<template v-if="person.state === 'ringing'"> · ringing</template></span>
+          </div>
+          <div class="video-tile self-tile">
+            <video :ref="el => bindMedia(el, localStream ?? null)" autoplay playsinline muted></video>
+            <span class="tile-name">You</span>
+          </div>
         </div>
 
-        <!-- Audio Visualization -->
-        <div class="audio-visualization" v-else>
-          <audio ref="remoteAudio" autoplay></audio>
-          <div class="audio-waves">
-            <div 
-              v-for="n in 5" 
+        <div v-else class="audio-visualization">
+          <audio
+            v-for="person in participants"
+            :key="person.userId"
+            :ref="el => bindMedia(el, person.stream)"
+            autoplay
+          ></audio>
+          <div v-if="isGroupCall" class="audio-roster">
+            <div v-for="person in participants" :key="person.userId" class="roster-person" :class="{ ringing: person.state === 'ringing' }">
+              <img :src="person.avatar || '/default-avatar.svg'" alt="" />
+              <span>{{ person.name }}</span>
+            </div>
+          </div>
+          <div v-else class="audio-waves">
+            <div
+              v-for="n in 5"
               :key="n"
               class="wave-bar"
               :class="{ active: isAudioActive }"
@@ -40,9 +59,27 @@
           </div>
         </div>
 
-        <!-- Call Controls -->
+        <div v-if="showPicker" class="add-picker" role="dialog" aria-label="Add people to the call">
+          <p class="add-picker-title">Add people ({{ participants.length + 1 }}/{{ maxParticipants }})</p>
+          <p v-if="!availableCandidates.length" class="add-picker-empty">No one else to add.</p>
+          <label v-for="person in availableCandidates" :key="person.userId" class="add-picker-row">
+            <input
+              v-model="picked"
+              type="checkbox"
+              :value="person.userId"
+              :disabled="!picked.includes(person.userId) && participants.length + 1 + picked.length >= maxParticipants"
+            >
+            <img :src="person.avatar || '/default-avatar.svg'" alt="" />
+            <span>{{ person.name }}</span>
+          </label>
+          <div class="add-picker-actions">
+            <button type="button" @click="closePicker">Cancel</button>
+            <button type="button" :disabled="!picked.length" @click="submitPicker">Ring {{ picked.length || '' }}</button>
+          </div>
+        </div>
+
         <div class="call-controls">
-          <button 
+          <button
             class="control-btn mute-btn"
             :class="{ active: isMuted }"
             @click="$emit('toggleMute')"
@@ -50,7 +87,7 @@
             <Icon :name="isMuted ? 'mic-off' : 'mic'" />
           </button>
 
-          <button 
+          <button
             v-if="call.callType === 'video'"
             class="control-btn video-btn"
             :class="{ active: isVideoOff }"
@@ -59,7 +96,17 @@
             <Icon :name="isVideoOff ? 'video-off' : 'video'" />
           </button>
 
-          <button 
+          <button
+            v-if="call.isActive || !call.isIncoming"
+            class="control-btn add-btn"
+            title="Add people"
+            :disabled="participants.length + 1 >= maxParticipants"
+            @click="showPicker = true"
+          >
+            <Icon name="users" />
+          </button>
+
+          <button
             class="control-btn end-btn"
             @click="$emit('endCall')"
           >
@@ -67,7 +114,6 @@
           </button>
         </div>
 
-        <!-- Incoming Call Actions -->
         <div class="incoming-actions" v-if="call.isIncoming && !call.isActive">
           <button class="action-btn decline-btn" @click="$emit('rejectCall')">
             <Icon name="phone-off" />
@@ -82,35 +128,65 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, watchEffect, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import Icon from '@/components/ui/icon.vue'
-import type { ActiveCall } from '~/composables/use-webrtc-call'
+import { MAX_CALL_PARTICIPANTS } from '~/composables/use-webrtc-call'
+import type { ActiveCall, CallParticipant, CallPerson } from '~/composables/use-webrtc-call'
 
 const props = defineProps<{
   call: ActiveCall | null
   localStream?: MediaStream | null
-  remoteStream?: MediaStream | null
+  participants: CallParticipant[]
+  /** People who can be added to the call. */
+  candidates?: CallPerson[]
   isMuted?: boolean
   isVideoOff?: boolean
 }>()
 
-defineEmits(['endCall', 'acceptCall', 'rejectCall', 'toggleMute', 'toggleVideo'])
+const emit = defineEmits<{
+  endCall: []
+  acceptCall: []
+  rejectCall: []
+  toggleMute: []
+  toggleVideo: []
+  addParticipants: [userIds: string[]]
+}>()
 
+const maxParticipants = MAX_CALL_PARTICIPANTS
 const callDuration = ref(0)
 const isAudioActive = ref(false)
 const callTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const audioTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const showPicker = ref(false)
+const picked = ref<string[]>([])
 
-const remoteVideo = ref<HTMLVideoElement | null>(null)
-const localVideo = ref<HTMLVideoElement | null>(null)
-const remoteAudio = ref<HTMLAudioElement | null>(null)
-
-watchEffect(() => {
-  const remote = props.remoteStream ?? null
-  if (remoteVideo.value) remoteVideo.value.srcObject = remote
-  if (remoteAudio.value) remoteAudio.value.srcObject = remote
-  if (localVideo.value) localVideo.value.srcObject = props.localStream ?? null
+const isGroupCall = computed(() => props.participants.length > 1)
+const headline = computed(() => {
+  if (!isGroupCall.value) return props.call?.peerName || props.participants[0]?.name || 'Unknown'
+  const names = props.participants.map(p => p.name)
+  return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3}` : names.join(', ')
 })
+
+const availableCandidates = computed(() => {
+  const present = new Set(props.participants.map(p => p.userId))
+  return (props.candidates ?? []).filter(person => !present.has(person.userId))
+})
+
+const bindMedia = (el: Element | ComponentPublicInstance | null, stream: MediaStream | null) => {
+  if (!(el instanceof HTMLMediaElement)) return
+  if (el.srcObject !== stream) el.srcObject = stream
+}
+
+const closePicker = () => {
+  showPicker.value = false
+  picked.value = []
+}
+
+const submitPicker = () => {
+  emit('addParticipants', [...picked.value])
+  closePicker()
+}
 
 watch(
   () => props.call?.isActive,
@@ -120,20 +196,18 @@ watch(
   }
 )
 
-// Computed
 const getCallStatus = () => {
   if (!props.call) return ''
-  
   if (props.call.isIncoming && !props.call.isActive) {
-    return 'Incoming call...'
-  } else if (props.call.isActive) {
-    return 'Connected'
-  } else {
-    return 'Calling...'
+    return isGroupCall.value ? `${props.call.peerName || 'Someone'} is calling the group…` : 'Incoming call...'
   }
+  if (props.call.isActive) {
+    const connected = props.participants.filter(p => p.state === 'connected').length
+    return isGroupCall.value ? `${connected + 1} on the call` : 'Connected'
+  }
+  return 'Calling...'
 }
 
-// Methods
 const formatCallDuration = (seconds: number) => {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
@@ -141,6 +215,7 @@ const formatCallDuration = (seconds: number) => {
 }
 
 const startCallTimer = () => {
+  if (callTimer.value) return
   callTimer.value = setInterval(() => {
     callDuration.value++
   }, 1000)
@@ -445,4 +520,88 @@ onUnmounted(() => {
     height: 28px;
   }
 }
+
+.video-grid {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  margin: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-auto-rows: minmax(120px, 1fr);
+  min-height: 0;
+}
+.video-grid[data-count="2"] { grid-template-columns: 1fr; }
+@media (min-width: 640px) {
+  .video-grid[data-count="2"] { grid-template-columns: 1fr 1fr; }
+}
+.video-tile {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-tile video { width: 100%; height: 100%; object-fit: cover; }
+.self-tile video { transform: scaleX(-1); }
+.tile-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
+.tile-name {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+.audio-roster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  max-width: 520px;
+}
+.roster-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 88px;
+  font-size: 12px;
+  text-align: center;
+}
+.roster-person img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255, 255, 255, 0.4); }
+.roster-person.ringing { opacity: 0.55; }
+.add-picker {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 32px));
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #fff;
+  z-index: 2;
+}
+.add-picker-title { font-weight: 600; margin: 0 0 8px; }
+.add-picker-empty { opacity: 0.7; font-size: 13px; }
+.add-picker-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
+.add-picker-row input { width: auto; min-height: 0; }
+.add-picker-row img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.add-picker-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.add-picker-actions button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 0;
+  background: #334155;
+  color: #fff;
+  cursor: pointer;
+}
+.add-picker-actions button:last-child { background: #4f46e5; }
+.add-picker-actions button:disabled { opacity: 0.5; cursor: default; }
+.control-btn:disabled { opacity: 0.4; cursor: default; }
 </style>

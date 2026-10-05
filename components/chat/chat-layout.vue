@@ -247,14 +247,14 @@ const handleStartCall = async (payload: {
   chatId: string
   callType: 'audio' | 'video'
 }) => {
-  if (!payload.targetUserId) return
   const chat = chatStore.chats.get(payload.chatId)
+  const isGroup = chat?.type === 'group'
   await startCall({
     chatId: payload.chatId,
-    targetUserId: payload.targetUserId,
+    targetUserIds: payload.targetUserId ? [payload.targetUserId] : undefined,
     callType: payload.callType,
-    peerName: chat?.name,
-    peerAvatar: chat?.avatar
+    peerName: isGroup ? undefined : chat?.name,
+    peerAvatar: isGroup ? undefined : chat?.avatar
   })
 }
 
