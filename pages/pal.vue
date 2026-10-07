@@ -177,7 +177,8 @@ definePageMeta({
   layout: 'default'
 })
 
-const tabs = ['Friends', 'friend Requests', 'Suggestiions', 'Invite', 'Blocked'] as const
+// Tab names matched with v-else-if section conditionals
+const tabs = ['My PALs', 'Requests', 'Suggestions', 'Invite', 'Blocked'] as const
 const activeTab = ref<typeof tabs[number]>('My PALs')
 const search = ref('')
 const showSync = ref(false)
@@ -276,16 +277,26 @@ onMounted(async () => {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.pal-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-button {
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid var(--color-dark-grey, #1F2937);
   background: transparent;
   color: inherit;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .tab-button.active {
