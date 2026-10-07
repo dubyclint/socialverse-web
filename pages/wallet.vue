@@ -255,8 +255,8 @@ onMounted(() => {
     <div class="max-w-6xl mx-auto space-y-8">
       
       <div class="border-b border-slate-800 pb-6">
-        <h1 class="text-2xl font-black text-white tracking-tight">💼 Decentralized Capital & Wallet Management</h1>
-        <p class="text-xs text-slate-400 mt-1">Audit active row ledgers, check inbound revenue pools, and command multi-tier settlement gateways.</p>
+        <h1 class="text-2xl font-black text-white tracking-tight">💼 Account & Wallet/Gift Management</h1>
+        <p class="text-xs text-slate-400 mt-1"> Gift history, deposits , Transaction History/Statement </p>
       </div>
 
       <p v-if="depositStatusNotice" class="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
