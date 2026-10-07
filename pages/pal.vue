@@ -177,7 +177,7 @@ definePageMeta({
   layout: 'default'
 })
 
-const tabs = ['PALs', 'Requests', 'Suggested', 'Invite', 'Blocked'] as const
+const tabs = ['Friends', 'friend Requests', 'Suggestiions', 'Invite', 'Blocked'] as const
 const activeTab = ref<typeof tabs[number]>('My PALs')
 const search = ref('')
 const showSync = ref(false)
