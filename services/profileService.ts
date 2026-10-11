@@ -12,10 +12,11 @@ export const profileService = {
 
   // Update profile via centralized API
   async update(payload: ProfileUpdateInput): Promise<Profile> {
-    return unwrap<Profile>(await api('/profile/update', { 
-      method: 'POST', 
-      body: payload 
-    }))
+    const res = await api<{ profile?: Profile, data?: Profile }>('/profile/update', {
+      method: 'POST',
+      body: payload
+    })
+    return res.profile ?? unwrap<Profile>(res)
   },
 
   // Upload user avatar

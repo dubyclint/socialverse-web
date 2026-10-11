@@ -238,7 +238,10 @@ const publishPost = async () => {
 
     postsStore.clearDraft()
     clearMedia()
-    await router.push('/feed')
+    postContent.value = ''
+    publishing.value = false
+    // Navigation can wait on the feed's data; the composer must not keep spinning meanwhile.
+    void router.push({ path: '/feed', query: { posted: response.data.id } })
   } catch (e) {
     // Server/database details never reach the composer; the user gets a plain message.
     errorMessage.value =
