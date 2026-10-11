@@ -2212,3 +2212,54 @@ html {
     color: #e9ecef;
   }
 }
+
+/* Tab strips scroll sideways on narrow screens instead of squashing or bleeding out of their box. */
+.feed-tabs,
+.profile-tabs,
+.pal-tabs,
+.header-tabs,
+.escrow-tabs,
+.filter-tabs,
+.category-tabs,
+.settings-tabs,
+.wallet-tabs,
+[role='tablist'] {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.feed-tabs::-webkit-scrollbar,
+.profile-tabs::-webkit-scrollbar,
+.pal-tabs::-webkit-scrollbar,
+.header-tabs::-webkit-scrollbar,
+.escrow-tabs::-webkit-scrollbar,
+.filter-tabs::-webkit-scrollbar,
+.category-tabs::-webkit-scrollbar,
+.settings-tabs::-webkit-scrollbar,
+.wallet-tabs::-webkit-scrollbar,
+[role='tablist']::-webkit-scrollbar {
+  display: none;
+}
+
+.feed-tabs > *,
+.profile-tabs > *,
+.pal-tabs > *,
+.header-tabs > *,
+.escrow-tabs > *,
+.filter-tabs > *,
+.category-tabs > *,
+.settings-tabs > *,
+.wallet-tabs > *,
+[role='tablist'] > * {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .profile-tabs { gap: 1.25rem; }
+}

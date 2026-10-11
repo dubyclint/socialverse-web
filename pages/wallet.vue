@@ -297,13 +297,13 @@ onMounted(() => {
         </div>
 
         <!-- NEW FIXED TAB BAR: Uses the Add Funds button style to fully contain text -->
-        <div class="flex gap-3 overflow-x-auto scrollbar-none pb-2">
+        <div class="wallet-tabs flex gap-3 overflow-x-auto scrollbar-none pb-2">
           <button 
             v-for="tab in tabs" 
             :key="tab"
             @click="activeTab = tab"
             :class="[
-              'px-4 py-2.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap', 
+              'shrink-0 px-4 py-2.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap', 
               activeTab === tab 
                 ? 'bg-indigo-600 text-white shadow hover:bg-indigo-500' 
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
