@@ -11,6 +11,7 @@ interface SignupRequest {
   password: string
   phone?: string
   phoneCountry?: string
+  bio?: string
   location?: string
 }
 
@@ -31,6 +32,11 @@ export default defineEventHandler(async (event) => {
     if (!body.email || !body.username || !body.password) {
       console.error('[Signup API] Missing required core fields')
       return { success: false, error: 'Email, username, and password are required.' }
+    }
+
+    const bio = typeof body.bio === 'string' ? body.bio.trim() : ''
+    if (bio.length < 2 || bio.length > 300) {
+      return { success: false, error: 'Bio is required (2-300 characters).' }
     }
 
     const username = body.username.trim().replace(/^@/, '').toLowerCase()
@@ -112,6 +118,13 @@ export default defineEventHandler(async (event) => {
       await supabase.auth.admin.deleteUser(userId)
       return { success: false, error: 'Account setup failed. Please try again.' }
     }
+
+    // Signup collects everything the profile needs, so there is no separate completion step.
+    const { error: bioError } = await supabase
+      .from('user')
+      .update({ bio, profile_completed: true })
+      .eq('user_id', userId)
+    if (bioError) console.error('[Signup API] ⚠️ Could not save bio ->', bioError.message)
 
     const phoneStatus = row.phone ? 'linked' : pending?.phone ? 'pending_verification' : 'none'
     console.log('[Signup API] ✅ Account linked:', userId, phoneStatus)

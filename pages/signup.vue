@@ -47,6 +47,13 @@
         </div>
 
         <div>
+          <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Bio</label>
+          <textarea v-model="formData.bio" required minlength="2" maxlength="300" rows="2" :disabled="isAuthLoading" placeholder="Tell people a little about yourself"
+            class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition resize-none" />
+          <p class="mt-1 text-[10px] text-slate-500 text-right">{{ formData.bio.length }}/300</p>
+        </div>
+
+        <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Location</label>
           <input v-model="formData.location" type="text" required :disabled="isAuthLoading"
             class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition" />
@@ -114,6 +121,7 @@ const formData = ref({
   phone: '',
   phoneCountry: DEFAULT_CALLING_COUNTRY,
   location: '',
+  bio: '',
   password: ''
 })
 const localError = ref('')
@@ -122,6 +130,10 @@ const success = ref('')
 const handleSignup = async () => {
   localError.value = ''
   success.value = ''
+  if (formData.value.bio.trim().length < 2) {
+    localError.value = 'Please add a short bio'
+    return
+  }
 
   try {
     const response = await api<{ success: boolean; error?: string; user: AuthUser | null }>('/auth/signup', {
@@ -132,7 +144,8 @@ const handleSignup = async () => {
         username: formData.value.username.trim().toLowerCase(),
         phone: formData.value.phone.trim(),
         phoneCountry: formData.value.phoneCountry,
-        location: formData.value.location.trim()
+        location: formData.value.location.trim(),
+        bio: formData.value.bio.trim()
       }
     })
 
@@ -150,7 +163,7 @@ const handleSignup = async () => {
     }
 
     success.value = 'Account created successfully! Redirecting...'
-    setTimeout(() => navigateTo('/profile/complete'), 1200)
+    setTimeout(() => navigateTo('/feed'), 800)
   } catch (err: any) {
     localError.value = err?.data?.message || 'Registration failed'
   }

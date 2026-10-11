@@ -45,14 +45,8 @@ export default defineNuxtRouteMiddleware(async (to: any) => {
   const profile = profileStore.profile
   const isComplete = profile?.profile_completed === true
 
-  // If user is missing profile data (or explicitly marked incomplete)
-  // We force them to the completion flow.
-  if (!profile || !isComplete) {
-    if (!onCompletePage && !onCompleteSuccessPage) {
-      return navigateTo('/profile/complete', { replace: true })
-    }
-    return
-  }
+  // Profile details are optional after signup and edited from /profile/edit.
+  if (!profile || !isComplete) return
 
   // 5. If already complete, prevent access to the completion flow
   if (onCompletePage || onCompleteSuccessPage) {
