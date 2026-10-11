@@ -7,9 +7,14 @@ import { Server as SocketIOServer } from 'socket.io'
 import type { Socket } from 'socket.io'
 import { createClient } from '@supabase/supabase-js'
 import { Server as Engine } from 'engine.io'
+import type { IncomingMessage, Server as HttpServer } from 'node:http'
+import type { Socket as NetSocket } from 'node:net'
+import type { Duplex } from 'node:stream'
 import { defineEventHandler } from 'h3'
 import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
 import { registerCallHandlers } from './calls'
+
+type UpgradeListener = (req: IncomingMessage, socket: Duplex, head: Buffer) => void
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -48,20 +53,32 @@ export default defineNitroPlugin((nitroApp: any) => {
     io.bind(engine)
     setSocketServer(io)
 
-    // Mount handler on Nitro router to handle requests cleanly on port 8080
-    nitroApp.router.use('/socket.io/', defineEventHandler({
-      handler(event) {
-        engine.handleRequest(event.node.req, event.node.res)
-        event._handled = true
-      },
-      websocket: {
-        open(peer) {
-          // @ts-expect-error private method bridge for engine.io
-          engine.prepare(peer.nodeReq)
-          // @ts-expect-error private method bridge for engine.io
-          engine.onWebSocket(peer.nodeReq, peer.nodeReq.socket, peer)
+    // Engine.io performs its own websocket handshake on the raw HTTP server.
+    // Nitro's crossws listener stays in charge of every other upgrade path.
+    const attachedServers = new WeakSet<HttpServer>()
+    const attachUpgrade = (server: HttpServer | undefined) => {
+      if (!server || attachedServers.has(server)) return
+      attachedServers.add(server)
+      const others = server.listeners('upgrade') as UpgradeListener[]
+      server.removeAllListeners('upgrade')
+      server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+        if (req.url?.startsWith('/socket.io/')) {
+          engine.handleUpgrade(req, socket, head)
+          return
         }
-      }
+        for (const listener of others) listener.call(server, req, socket, head)
+      })
+    }
+
+    const serverOf = (req: IncomingMessage) => (req.socket as NetSocket & { server?: HttpServer }).server
+    nitroApp.hooks.hook('request', (event) => {
+      attachUpgrade(serverOf(event.node.req))
+    })
+
+    nitroApp.router.use('/socket.io/', defineEventHandler((event) => {
+      attachUpgrade(serverOf(event.node.req))
+      engine.handleRequest(event.node.req, event.node.res)
+      event._handled = true
     }))
 
     // ============================================================================
