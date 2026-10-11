@@ -970,7 +970,7 @@ watch(() => props.messages, () => {
   width: 12px;
   height: 12px;
   background: #4caf50;
-  border: 2px solid white;
+  border: 2px solid var(--color-bg-secondary, #1e293b);
   border-radius: 50%;
 }
 
@@ -985,7 +985,7 @@ watch(() => props.messages, () => {
   gap: 4px;
   font-weight: 600;
   font-size: 16px;
-  color: #333;
+  color: var(--color-text-primary, #e2e8f0);
   margin-bottom: 2px;
 }
 
@@ -1428,9 +1428,10 @@ watch(() => props.messages, () => {
   width: min(520px, 94vw);
   max-height: 80vh;
   overflow: auto;
-  background: #fff;
+  background: var(--color-bg-secondary, #1e293b);
   border-radius: 12px;
   padding: 16px;
+  color: var(--color-text-primary, #e2e8f0);
 }
 
 .shared-media-header {

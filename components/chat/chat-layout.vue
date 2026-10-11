@@ -658,7 +658,7 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; z-index: 1200;
 }
 .new-chat-modal {
-  width: min(420px, 94vw); background: #fff; border-radius: 12px; padding: 1rem;
+  width: min(420px, 94vw); background: var(--color-bg-secondary, #1e293b); color: var(--color-text-primary, #e2e8f0); border-radius: 12px; padding: 1rem;
 }
 .new-chat-header { display: flex; align-items: center; justify-content: space-between; }
 .new-chat-search {
@@ -683,7 +683,8 @@ onUnmounted(() => {
   flex: 1;
   height: 100%;
   min-height: 0;
-  background: #f5f5f5;
+  background: var(--color-bg-primary, #0f172a);
+  color: var(--color-text-primary, #e2e8f0);
 }
 
 .connection-banner {
@@ -701,8 +702,9 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--color-bg-secondary, #1e293b);
+  border-bottom: 1px solid var(--color-border, #334155);
+  color: var(--color-text-primary, #e2e8f0);
 }
 
 .header-left {
@@ -719,7 +721,7 @@ onUnmounted(() => {
 
 .online-count {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-muted, #94a3b8);
 }
 
 .header-right {
@@ -733,7 +735,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: #f0f0f0;
+  background: var(--color-bg-tertiary, #334155);
   border-radius: 20px;
   font-size: 14px;
   font-weight: 600;
@@ -744,17 +746,18 @@ onUnmounted(() => {
   width: 40px;
   height: 40px;
   border: none;
-  background: #f0f0f0;
+  background: var(--color-bg-tertiary, #334155);
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+  color: var(--color-text-primary, #e2e8f0);
 }
 
 .btn-icon:hover {
-  background: #e0e0e0;
+  background: var(--color-border, #475569);
 }
 
 .chat-content {
@@ -765,11 +768,12 @@ onUnmounted(() => {
 
 .chat-sidebar {
   width: 320px;
-  background: white;
-  border-right: 1px solid #e0e0e0;
+  background: var(--color-bg-secondary, #1e293b);
+  border-right: 1px solid var(--color-border, #334155);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  color: var(--color-text-primary, #e2e8f0);
 }
 
 .search-bar {
@@ -777,7 +781,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border, #334155);
 }
 
 .search-bar input {
@@ -797,7 +801,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #999;
+  color: var(--color-text-muted, #94a3b8);
   text-align: center;
   padding: 20px;
 }
@@ -809,15 +813,15 @@ onUnmounted(() => {
   padding: 12px 16px;
   cursor: pointer;
   transition: background 0.2s;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border, #334155);
 }
 
 .chat-item:hover {
-  background: #f9f9f9;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .chat-item.active {
-  background: #e3f2fd;
+  background: rgba(59, 130, 246, 0.18);
 }
 
 .chat-avatar {
@@ -841,7 +845,7 @@ onUnmounted(() => {
   width: 12px;
   height: 12px;
   background: #4caf50;
-  border: 2px solid white;
+  border: 2px solid var(--color-bg-secondary, #1e293b);
   border-radius: 50%;
 }
 
@@ -864,11 +868,12 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--color-text-primary, #e2e8f0);
 }
 
 .time {
   font-size: 12px;
-  color: #999;
+  color: var(--color-text-muted, #94a3b8);
   flex-shrink: 0;
   margin-left: 8px;
 }
@@ -876,7 +881,7 @@ onUnmounted(() => {
 .last-message {
   margin: 0;
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-secondary, #cbd5e1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -909,7 +914,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #999;
+  color: var(--color-text-muted, #94a3b8);
   text-align: center;
 }
 

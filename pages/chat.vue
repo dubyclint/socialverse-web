@@ -30,10 +30,11 @@ useHead({
 .chat-page {
   flex: 1;
   min-height: 0;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--color-bg-primary, #0f172a);
 }
 </style>
