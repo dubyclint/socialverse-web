@@ -2,7 +2,7 @@
 <!-- UPDATED MESSAGE BUBBLE COMPONENT WITH PEWGIFT INTEGRATION -->
 
 <template>
-  <div class="message-bubble" :class="messageClasses" @contextmenu="handleContextMenu">
+  <div class="message-bubble" :class="messageClasses" :style="senderStyle" @contextmenu="handleContextMenu" @click="toggleActions">
     <!-- Sender Avatar (for group chats) -->
     <NuxtLink
       v-if="showAvatar && !isOwn"
@@ -20,7 +20,10 @@
       <!-- Quoted message -->
       <div v-if="message.replyTo" class="quoted-message">
         <span class="quoted-bar"></span>
-        <span class="quoted-text">{{ message.replyTo.content || 'Attachment' }}</span>
+        <span class="quoted-body">
+          <strong v-if="message.replyTo.senderName" class="quoted-sender">{{ message.replyTo.senderName }}</strong>
+          <span class="quoted-text">{{ message.replyTo.content || 'Attachment' }}</span>
+        </span>
       </div>
 
       <!-- Attachments -->
@@ -69,7 +72,7 @@
       </div>
 
       <!-- Message Actions -->
-      <div class="message-actions">
+      <div v-if="showActions" class="message-actions" @click.stop="closeActions">
         <!-- Quick reactions -->
         <button
           v-for="emoji in quickReactions"
@@ -259,7 +262,28 @@ const emit = defineEmits<{
   gifted: []
 }>()
 
-const quickReactions = ['👍', '❤️', '😂']
+const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏']
+
+// Only one message shows its action strip at a time, chat-wide.
+const openActionsId = useState<string | null>('chat-open-actions', () => null)
+const showActions = computed(() => Boolean(props.message.id) && openActionsId.value === props.message.id)
+const closeActions = (): void => {
+  openActionsId.value = null
+}
+const toggleActions = (event: MouseEvent): void => {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('a, button, audio, video, input, .modal-overlay')) return
+  if (!props.message.id || isDeleted.value) return
+  openActionsId.value = showActions.value ? null : props.message.id
+}
+
+const SENDER_HUES = [200, 280, 330, 25, 140, 45, 175, 255]
+const senderStyle = computed(() => {
+  if (props.isOwn || !props.message.senderId) return undefined
+  let hash = 0
+  for (const ch of props.message.senderId) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
+  return { '--sender-hue': String(SENDER_HUES[hash % SENDER_HUES.length]) }
+})
 
 const attachments = computed(() => props.message.attachments ?? [])
 const isDeleted = computed(() => Boolean(props.message.deleted ?? props.message.isDeleted))
@@ -400,16 +424,30 @@ const sendPewgift = async () => {
 
 const handleContextMenu = (event: MouseEvent) => {
   event.preventDefault()
-  emit('reply', props.message)
+  if (props.message.id && !isDeleted.value) openActionsId.value = props.message.id
 }
 </script>
 
 <style scoped>
 .message-bubble {
   display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  animation: fadeIn 0.3s ease;
+  gap: 8px;
+  margin-bottom: 3px;
+  animation: fadeIn 0.2s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.own-message {
+  flex-direction: row-reverse;
+}
+
+.own-message .message-content {
+  align-items: flex-end;
+}
+
+.other-message .message-content {
+  align-items: flex-start;
 }
 
 @keyframes fadeIn {
@@ -436,23 +474,26 @@ const handleContextMenu = (event: MouseEvent) => {
 
 .message-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .sender-name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: hsl(var(--sender-hue, 200) 85% 70%);
 }
 
 .message-text {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  padding: 10px 12px;
-  border-radius: 8px;
+  max-width: min(520px, 78vw);
+  background: var(--chat-bubble-other, hsl(var(--sender-hue, 220) 18% 20%));
+  color: var(--color-text-primary, #f3f4f6);
+  padding: 7px 11px;
+  border-radius: 14px 14px 14px 4px;
   word-wrap: break-word;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
 }
 
 .message-text p {
@@ -473,15 +514,37 @@ const handleContextMenu = (event: MouseEvent) => {
 }
 
 .own-message .message-text {
-  background: var(--color-primary);
+  background: var(--chat-bubble-own, linear-gradient(135deg, #2563eb, #7c3aed));
   color: #ffffff;
+  border-radius: 14px 14px 4px 14px;
 }
 
 .message-actions {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 4px;
+  gap: 6px;
+  max-width: min(520px, 86vw);
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 2px 0 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.96);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  animation: fadeIn 0.15s ease;
+}
+
+.message-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.message-actions .action-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .action-btn {
@@ -712,10 +775,30 @@ const handleContextMenu = (event: MouseEvent) => {
   align-items: stretch;
   margin-bottom: 4px;
   padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 13px;
-  opacity: 0.85;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 12.5px;
+}
+
+.quoted-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.quoted-sender {
+  color: var(--color-aurora-mint, #6FFFD4);
+  font-size: 12px;
+}
+
+.quoted-text {
+  color: rgba(255, 255, 255, 0.72);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .quoted-bar {

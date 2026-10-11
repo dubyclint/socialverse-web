@@ -176,6 +176,12 @@
               @click="currentSection = 'chatTheme'"
             />
             <settings-item
+              icon="image"
+              title="Chat Background"
+              :subtitle="wallpaperLabel"
+              @click="currentSection = 'chatWallpaper'"
+            />
+            <settings-item
               icon="corner-down-left"
               title="Enter Sends Message"
               :subtitle="settings.general.enterToSend ? 'On' : 'Off'"
@@ -374,6 +380,33 @@
           </div>
         </div>
 
+        <div v-else-if="currentSection === 'chatWallpaper'" class="option-list">
+          <div
+            v-for="option in CHAT_WALLPAPERS"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.general.chatWallpaper === option.value }"
+            @click="update('general', { chatWallpaper: option.value })"
+          >
+            <span class="wallpaper-swatch" :style="{ background: option.css }" />
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.general.chatWallpaper === option.value" class="radio-dot" />
+            </div>
+          </div>
+          <label class="option-item" :class="{ active: customWallpaper }">
+            <span class="wallpaper-swatch" :style="customWallpaper ? { backgroundImage: `url(${settings.general.chatWallpaper})`, backgroundSize: 'cover' } : {}" />
+            <div class="option-info">
+              <div class="option-title">{{ wallpaperUploading ? 'Uploading…' : 'Your photo' }}</div>
+              <div class="option-description">JPG, PNG or WebP, up to 5 MB</div>
+            </div>
+            <input type="file" accept="image/jpeg,image/png,image/webp" hidden :disabled="wallpaperUploading" @change="uploadWallpaper">
+          </label>
+          <p v-if="wallpaperError" class="wallpaper-error">{{ wallpaperError }}</p>
+        </div>
+
         <!-- Theme -->
         <div v-else-if="currentSection === 'chatTheme'" class="option-list">
           <div
@@ -505,6 +538,7 @@ import ToggleSwitch from '@/components/ui/toggle-switch.vue'
 import { useUserSettings } from '~/composables/use-user-settings'
 import { usePals } from '~/composables/use-pals'
 import type { Visibility } from '~/shared/user-settings'
+import { CHAT_WALLPAPERS, CHAT_WALLPAPER_MAX_BYTES } from '~/shared/chat-wallpapers'
 
 interface StorageUsage {
   messages: number
@@ -543,6 +577,7 @@ const sectionTitles: Record<string, string> = {
   blockedContacts: 'Blocked Contacts',
   appLock: 'App Lock',
   chatTheme: 'Theme',
+  chatWallpaper: 'Chat Background',
   storage: 'Storage Management',
   networkUsage: 'Auto-Download',
   mediaQuality: 'Media Upload Quality',
@@ -575,6 +610,39 @@ const mediaQualityOptions = [
   { value: 'standard' as const, label: 'Standard', description: 'Smaller uploads, faster on mobile data' },
   { value: 'hd' as const, label: 'HD', description: 'Best quality, larger uploads' }
 ]
+
+const customWallpaper = computed(() => /^https?:\/\//.test(settings.value.general.chatWallpaper))
+const wallpaperLabel = computed(() =>
+  customWallpaper.value
+    ? 'Your photo'
+    : CHAT_WALLPAPERS.find(option => option.value === settings.value.general.chatWallpaper)?.label ?? 'Default'
+)
+const wallpaperUploading = ref(false)
+const wallpaperError = ref('')
+
+const uploadWallpaper = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  wallpaperError.value = ''
+  if (file.size > CHAT_WALLPAPER_MAX_BYTES) {
+    wallpaperError.value = 'That photo is larger than 5 MB'
+    return
+  }
+  wallpaperUploading.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('bucket', 'chat-media')
+    const res = await $fetch<{ url: string }>('/api/upload', { method: 'POST', body: form })
+    await update('general', { chatWallpaper: res.url })
+  } catch (err) {
+    wallpaperError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Could not upload that photo'
+  } finally {
+    wallpaperUploading.value = false
+  }
+}
 
 const themeOptions = [
   { value: 'system' as const, label: 'System default' },
@@ -828,6 +896,22 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 14px;
+}
+
+.wallpaper-swatch {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #1f2937;
+}
+
+.wallpaper-error {
+  color: #f87171;
+  font-size: 13px;
+  padding: 0 16px;
 }
 
 .option-list {

@@ -238,8 +238,22 @@ export default defineNitroPlugin((nitroApp: any) => {
         await markWatermark(chatId, socket.userId, 'last_read_at', inserted.created_at)
 
         const sender = await senderOf(socket.userId)
+        let replyTo: { id: string, senderId: string, senderName?: string, content: string | null } | undefined
+        if (replyToId) {
+          const { data: quoted } = await admin
+            .from('chat_messages')
+            .select('id, sender_id, message_text')
+            .eq('id', replyToId)
+            .eq('room_id', chatId)
+            .maybeSingle()
+          if (quoted) {
+            const quotedSender = await senderOf(quoted.sender_id)
+            replyTo = { id: quoted.id, senderId: quoted.sender_id, senderName: quotedSender.senderName, content: quoted.message_text }
+          }
+        }
         const payload = {
           id: inserted.id,
+          replyTo,
           chatId,
           content: text,
           attachments,

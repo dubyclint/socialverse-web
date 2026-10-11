@@ -92,7 +92,7 @@
     </div>
 
     <!-- Messages Container -->
-    <div class="messages-container" ref="messagesContainer">
+    <div class="messages-container" ref="messagesContainer" :style="wallpaperStyle">
       <div class="messages-list">
         <!-- Date separator -->
         <div 
@@ -128,6 +128,13 @@
           </div>
         </div>
         
+        <div v-if="typingUsers.length > 0" class="typing-bubble-row">
+          <div class="typing-bubble">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <span class="typing-bubble-text">{{ getTypingText(typingUsers) }}</span>
+        </div>
+
         <!-- Loading indicator -->
         <div v-if="isLoading" class="loading-messages">
           <div class="loading-spinner"></div>
@@ -314,6 +321,12 @@ import Icon from '@/components/ui/icon.vue'
 import MessageBubble from './message-bubble.vue'
 import AttachmentMenu from './attachment-menu.vue'
 import EmojiPicker from './emoji-picker.vue'
+import { useUserSettings } from '@/composables/use-user-settings'
+import { chatWallpaperStyle } from '~/shared/chat-wallpapers'
+
+const { settings: userSettings, load: loadUserSettings } = useUserSettings()
+const wallpaperStyle = computed(() => chatWallpaperStyle(userSettings.value.general.chatWallpaper))
+onMounted(() => { void loadUserSettings() })
 import ChatGiftSheet from './chat-gift-sheet.vue'
 
 // Props
@@ -1051,6 +1064,43 @@ watch(() => props.messages, () => {
   color: #f44336;
 }
 
+.typing-bubble-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+.typing-bubble {
+  display: inline-flex;
+  gap: 4px;
+  padding: 9px 12px;
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.typing-bubble .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: typingDot 1.2s infinite ease-in-out;
+}
+
+.typing-bubble .dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-bubble .dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.typing-bubble-text {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -1076,7 +1126,7 @@ watch(() => props.messages, () => {
 }
 
 .message-wrapper {
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 
 .message-wrapper.own-message {
