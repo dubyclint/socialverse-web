@@ -59,6 +59,9 @@
 import { ref, computed, onMounted } from 'vue'
 import Icon from '@/components/ui/icon.vue'
 import type { ChatMember } from '~/types/chat'
+import { useCelebrate } from '~/composables/use-celebrate'
+
+const { cashRain } = useCelebrate()
 
 interface CatalogGift {
   id: string
@@ -121,6 +124,7 @@ const send = async () => {
       }
     })
     sent.value = true
+    cashRain(24)
     emit('sent')
     setTimeout(() => emit('close'), 1200)
   } catch (err: unknown) {

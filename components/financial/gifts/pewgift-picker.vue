@@ -140,6 +140,9 @@
 import { ref, onMounted } from 'vue'
 import { usePewGift } from '~/services/financial/gifts/use-pewgift'
 import type { GiftTier, PewGiftType } from '~/services/financial/gifts/use-pewgift'
+import { useCelebrate } from '~/composables/use-celebrate'
+
+const { cashRain } = useCelebrate()
 
 interface Props {
   recipientId?: string
@@ -259,6 +262,7 @@ const sendGift = async () => {
     }
 
     if (success) {
+      cashRain(24)
       emit('gift-sent', {
         giftId: selectedGift.value.id,
         quantity: quantity.value,

@@ -22,6 +22,7 @@ const requestedTab = typeof route.query.tab === 'string' ? route.query.tab : ''
 const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : tabs[0])
 
 const userStore = useUserStore()
+const { cashRain } = useCelebrate()
 const pewgiftUserId = computed(() => userStore.user?.id ?? '')
 
 // Core Loading & UI Structural States
@@ -235,6 +236,7 @@ const reviewReturnedDeposit = async (depositId: string) => {
       data: { status: string, credited_pewgift: number, source_currency: string }
     }>(`/api/wallet/deposit/${depositId}`)
 
+    if (response.data.status === 'SETTLED') cashRain()
     depositStatusNotice.value = response.data.status === 'SETTLED'
       ? `Deposit settled — ${Number(response.data.credited_pewgift).toFixed(2)} PEW credited.`
       : 'Payment received by the provider. Your balance updates as soon as it confirms.'

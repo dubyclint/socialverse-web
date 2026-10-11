@@ -101,7 +101,7 @@
         type="button"
         class="action-btn"
         :class="{ active: liked }"
-        @click="onLike"
+        @click="onLike($event)"
       >
         <Icon name="heart" size="18" /> <span>Like</span>
       </button>
@@ -237,9 +237,12 @@ const openAuthor = () => {
   if (props.post.author?.username) router.push(authorLink.value)
 }
 
-const onLike = async () => {
+const { heartPop } = useCelebrate()
+
+const onLike = async (event?: MouseEvent) => {
   const previous = { liked: liked.value, likes: likesCount.value }
   const next = !liked.value
+  if (next && event) heartPop(event.clientX, event.clientY)
   liked.value = next
   likesCount.value = Math.max(0, likesCount.value + (next ? 1 : -1))
 
