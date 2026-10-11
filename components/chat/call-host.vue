@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useWebrtcCall } from '~/composables/use-webrtc-call'
 import type { CallPerson } from '~/composables/use-webrtc-call'
 import CallInterface from '~/components/chat/call-interface.vue'
@@ -58,6 +58,12 @@ const candidates = computed<CallPerson[]>(() => {
     }
   }
   return [...people.values()]
+})
+
+let errorTimer: ReturnType<typeof setTimeout> | undefined
+watch(error, (message) => {
+  clearTimeout(errorTimer)
+  if (message) errorTimer = setTimeout(() => { error.value = null }, 8000)
 })
 </script>
 

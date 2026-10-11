@@ -599,6 +599,13 @@ onMounted(async () => {
       deleted: true,
       isDeleted: true
     })
+    for (const message of chatStore.messages.get(event.chatId) ?? []) {
+      if (message.replyTo?.id === event.messageId) {
+        chatStore.updateMessage(event.chatId, message.id, {
+          replyTo: { ...message.replyTo, content: '', deleted: true }
+        })
+      }
+    }
   })
 
   onReaction((event) => {

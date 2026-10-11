@@ -12,6 +12,8 @@ export interface QuotedMessage {
   id: string
   senderId: string
   content: string
+  senderName?: string
+  deleted?: boolean
 }
 
 export interface ChatMessage {

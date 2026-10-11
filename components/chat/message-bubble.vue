@@ -17,15 +17,6 @@
       <!-- Sender Name (for group chats) -->
       <div v-if="showSenderName && !isOwn" class="sender-name">{{ message.senderName }}</div>
 
-      <!-- Quoted message -->
-      <div v-if="message.replyTo" class="quoted-message">
-        <span class="quoted-bar"></span>
-        <span class="quoted-body">
-          <strong v-if="message.replyTo.senderName" class="quoted-sender">{{ message.replyTo.senderName }}</strong>
-          <span class="quoted-text">{{ message.replyTo.content || 'Attachment' }}</span>
-        </span>
-      </div>
-
       <!-- Attachments -->
       <div v-if="attachments.length" class="message-attachments">
         <template v-for="url in attachments" :key="url">
@@ -51,7 +42,14 @@
       </div>
 
       <!-- Main Message -->
-      <div v-if="message.content || isDeleted" class="message-text">
+      <div v-if="message.content || isDeleted || message.replyTo" class="message-text">
+        <div v-if="message.replyTo && !isDeleted" class="quoted-message">
+          <span class="quoted-bar"></span>
+          <span class="quoted-body">
+            <strong v-if="message.replyTo.senderName" class="quoted-sender">{{ message.replyTo.senderName }}</strong>
+            <span class="quoted-text">{{ quotedText }}</span>
+          </span>
+        </div>
         <p v-if="isDeleted" class="deleted-text">This message was deleted</p>
         <p v-else-if="!isTranslated">{{ message.content }}</p>
         <p v-else class="translated-text">{{ translatedContent }}</p>
@@ -231,7 +229,7 @@ interface Message {
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
   messageType?: string
   attachments?: string[]
-  replyTo?: { id: string, senderId: string, content: string }
+  replyTo?: { id: string, senderId: string, content: string, senderName?: string, deleted?: boolean }
   reactions?: { emoji: string, count: number, reacted: boolean }[]
   editedAt?: string
   deleted?: boolean
@@ -287,6 +285,12 @@ const senderStyle = computed(() => {
 
 const attachments = computed(() => props.message.attachments ?? [])
 const isDeleted = computed(() => Boolean(props.message.deleted ?? props.message.isDeleted))
+const quotedText = computed(() => {
+  const quoted = props.message.replyTo
+  if (!quoted) return ''
+  if (quoted.deleted) return 'Message deleted'
+  return quoted.content || 'Attachment'
+})
 const isEdited = computed(() => Boolean(props.message.editedAt ?? props.message.isEdited))
 
 const fileName = (url: string): string => {

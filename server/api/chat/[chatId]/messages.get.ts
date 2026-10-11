@@ -49,7 +49,8 @@ export default defineEventHandler(async (event) => {
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  const visible = (rows || []).filter(row => !row.deleted_at || !row.deleted_for_everyone)
+  // Messages a member cleared for themselves disappear; deletions for everyone stay as tombstones.
+  const visible = (rows || []).filter(row => !row.deleted_at || row.deleted_for_everyone)
 
   const senderIds = Array.from(new Set(visible.map(row => row.sender_id)))
   const { data: senders } = senderIds.length
@@ -86,7 +87,7 @@ export default defineEventHandler(async (event) => {
   const { data: replyRows } = replyIds.length
     ? await client
       .from('chat_messages')
-      .select('id, sender_id, message_text')
+      .select('id, sender_id, message_text, deleted_at')
       .in('id', replyIds)
     : { data: [] }
 
@@ -111,7 +112,9 @@ export default defineEventHandler(async (event) => {
         ? {
             id: quoted.id,
             senderId: quoted.sender_id,
-            content: quoted.message_text || ''
+            content: quoted.deleted_at ? '' : quoted.message_text || '',
+            senderName: senderById.get(quoted.sender_id)?.display_name || senderById.get(quoted.sender_id)?.username || undefined,
+            deleted: Boolean(quoted.deleted_at)
           }
         : undefined,
       reactions: reactionsByMessage.get(row.id) ?? [],
