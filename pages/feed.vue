@@ -37,6 +37,10 @@
           <NuxtLink to="/search" class="header-search" aria-label="Search people">
             <Icon name="search" size="22" />
           </NuxtLink>
+          <NuxtLink to="/pal" class="header-search header-pals" aria-label="My PALs">
+            <Icon name="users" size="22" />
+            <ClientOnly><span v-if="pendingPalRequests > 0" class="dot-indicator" aria-label="New PAL requests"></span></ClientOnly>
+          </NuxtLink>
           <div class="user-avatar-wrapper">
             <img :src="userAvatar" :alt="userName" class="user-avatar" @click="goToProfilePage()" :style="{ cursor: currentUser?.id ? 'pointer' : 'default' }" />
             <span class="status-indicator" :class="userStatus"></span>
@@ -296,6 +300,7 @@ const {
 const {
   notifications: unreadNotifications,
   chat: unreadMessages,
+  palRequests: pendingPalRequests,
   label: unreadLabel,
   track: trackUnread
 } = useUnreadCounts();
@@ -395,6 +400,8 @@ onMounted(async () => {
 .menu-btn:hover { color: #f8fafc; background-color: #334155; }
 .header-search { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; margin-right: 0.5rem; border-radius: 999px; color: #cbd5e1; }
 .header-search:hover { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+.header-pals { position: relative; }
+.dot-indicator { position: absolute; top: 0.4rem; right: 0.4rem; width: 0.6rem; height: 0.6rem; border-radius: 999px; background: #ef4444; box-shadow: 0 0 0 2px #1e293b; pointer-events: none; }
 .nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; position: relative; }
 .sidebar-item .badge { margin-left: auto; min-width: 1.25rem; height: 1.25rem; padding: 0 0.35rem; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.7rem; font-weight: 700; line-height: 1.25rem; text-align: center; }
 .count-badge { position: absolute; top: 0.1rem; right: 0.45rem; min-width: 1.15rem; height: 1.15rem; padding: 0 0.3rem; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.68rem; font-weight: 700; line-height: 1.15rem; text-align: center; box-shadow: 0 0 0 2px #1e293b; pointer-events: none; }

@@ -33,6 +33,7 @@ if (typeof window !== 'undefined' && typeof Notification !== 'undefined' && Noti
 export const useUnreadCounts = () => {
   const notifications = useState<number>('unread-notifications', () => 0)
   const chat = useState<number>('unread-chat', () => 0)
+  const palRequests = useState<number>('pending-pal-requests', () => 0)
   const supabase = useSupabaseClient()
   const user = useSupabaseUser()
   const { socket } = useSocket()
@@ -40,12 +41,14 @@ export const useUnreadCounts = () => {
   const route = useRoute()
 
   const refresh = async (): Promise<void> => {
-    const [n, c] = await Promise.allSettled([
+    const [n, c, p] = await Promise.allSettled([
       $fetch<{ unread: number }>('/api/user/notifications', { query: { limit: 1 } }),
-      $fetch<{ total: number }>('/api/chat/unread')
+      $fetch<{ total: number }>('/api/chat/unread'),
+      $fetch<{ incoming?: unknown[] }>('/api/pals/requests')
     ])
     if (n.status === 'fulfilled') notifications.value = n.value.unread ?? 0
     if (c.status === 'fulfilled') chat.value = c.value.total ?? 0
+    if (p.status === 'fulfilled') palRequests.value = p.value.incoming?.length ?? 0
   }
 
   const markNotificationsRead = async (): Promise<void> => {
@@ -112,5 +115,5 @@ export const useUnreadCounts = () => {
 
   const label = (count: number) => (count > 99 ? '99+' : String(count))
 
-  return { notifications, chat, refresh, markNotificationsRead, track, label }
+  return { notifications, chat, palRequests, refresh, markNotificationsRead, track, label }
 }
