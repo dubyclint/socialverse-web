@@ -41,6 +41,14 @@
         </template>
       </div>
 
+      <div v-if="message.gift && !isDeleted" class="gift-card">
+        <span class="gift-card-icon">🎁</span>
+        <span class="gift-card-body">
+          <strong>{{ message.gift.name }}<template v-if="message.gift.quantity > 1"> ×{{ message.gift.quantity }}</template></strong>
+          <span class="gift-card-label">{{ isOwn ? 'Gift sent' : 'Gift received' }}</span>
+        </span>
+      </div>
+
       <!-- Main Message -->
       <div v-if="message.content || isDeleted || message.replyTo" class="message-text">
         <div v-if="message.replyTo && !isDeleted" class="quoted-message">
@@ -228,6 +236,7 @@ interface Message {
   timestamp?: string | Date | number
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
   messageType?: string
+  gift?: { name: string, quantity: number }
   attachments?: string[]
   replyTo?: { id: string, senderId: string, content: string, senderName?: string, deleted?: boolean }
   reactions?: { emoji: string, count: number, reacted: boolean }[]
@@ -488,6 +497,33 @@ const handleContextMenu = (event: MouseEvent) => {
   font-weight: 700;
   font-size: 12px;
   color: hsl(var(--sender-hue, 200) 85% 70%);
+}
+
+.gift-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f59e0b, #db2777);
+  color: #fff;
+}
+
+.gift-card-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.gift-card-body {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.gift-card-label {
+  font-size: 11.5px;
+  opacity: 0.85;
 }
 
 .message-text {

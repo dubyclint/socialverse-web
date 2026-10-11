@@ -24,7 +24,8 @@ export interface ChatMessage {
   senderAvatar?: string
   content: string
   timestamp: number
-  messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system'
+  messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system' | 'gift'
+  gift?: { name: string, quantity: number }
   status?: MessageStatus
   /** Client-side id of an optimistic message, echoed back by the server. */
   tempId?: string

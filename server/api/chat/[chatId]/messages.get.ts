@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
   const { data: rows, error } = await client
     .from('chat_messages')
     .select(
-      'id, sender_id, message_text, created_at, room_id, attachment_urls, message_type, reply_to_id, edited_at, deleted_at, deleted_for_everyone, expires_at'
+      'id, sender_id, message_text, created_at, room_id, attachment_urls, message_type, reply_to_id, edited_at, deleted_at, deleted_for_everyone, expires_at, metadata'
     )
     .eq('room_id', chatId)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
@@ -93,6 +93,11 @@ export default defineEventHandler(async (event) => {
 
   const replyById = new Map((replyRows || []).map(row => [row.id, row]))
 
+  const giftOf = (metadata: unknown): ChatMessage['gift'] => {
+    const meta = metadata as { kind?: string, gift_name?: string, quantity?: number } | null
+    return meta?.kind === 'gift' ? { name: meta.gift_name || 'Gift', quantity: Number(meta.quantity) || 1 } : undefined
+  }
+
   const data: ChatMessage[] = visible.reverse().map((row) => {
     const sender = senderById.get(row.sender_id)
     const timestamp = new Date(row.created_at).getTime()
@@ -107,7 +112,8 @@ export default defineEventHandler(async (event) => {
       senderAvatar: sender?.avatar_url || undefined,
       content: row.deleted_at ? '' : row.message_text || '',
       attachments: row.deleted_at ? [] : row.attachment_urls ?? [],
-      messageType: (row.message_type || 'text') as ChatMessage['messageType'],
+      messageType: (giftOf(row.metadata) ? 'gift' : row.message_type || 'text') as ChatMessage['messageType'],
+      gift: row.deleted_at ? undefined : giftOf(row.metadata),
       replyTo: quoted
         ? {
             id: quoted.id,

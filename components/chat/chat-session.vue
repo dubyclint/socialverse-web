@@ -217,6 +217,15 @@
         <button class="input-btn" @click="toggleAttachmentMenu">
           <icon name="paperclip" />
         </button>
+
+        <button
+          v-if="(chat.type === 'direct' && chat.userId) || (chat.type === 'group' && chat.members?.length)"
+          class="input-btn"
+          title="Send a gift"
+          @click="showGiftSheet = true"
+        >
+          <icon name="gift" />
+        </button>
         
         <button 
           v-if="messageText.trim() || hasAttachment"
