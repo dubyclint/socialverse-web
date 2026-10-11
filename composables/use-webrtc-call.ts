@@ -73,6 +73,8 @@ const mediaErrorMessage = (err: unknown, callType: 'audio' | 'video') => {
 }
 
 const peers = new Map<string, Peer>()
+const creatingPeers = new Map<string, Promise<Peer>>()
+const signalQueues = new Map<string, Promise<void>>()
 let listenersBound = false
 let ringTimer: ReturnType<typeof setTimeout> | null = null
 const RING_TIMEOUT_MS = 45_000
@@ -149,12 +151,21 @@ export const useWebrtcCall = () => {
   const closePeer = (userId: string) => {
     peers.get(userId)?.pc.close()
     peers.delete(userId)
+    signalQueues.delete(userId)
   }
 
-  const peerFor = async (userId: string): Promise<Peer> => {
+  // Offer and ICE candidates arrive back to back; they must share one connection.
+  const peerFor = (userId: string): Promise<Peer> => {
     const existing = peers.get(userId)
-    if (existing) return existing
+    if (existing) return Promise.resolve(existing)
+    const creating = creatingPeers.get(userId)
+    if (creating) return creating
+    const promise = createPeer(userId).finally(() => creatingPeers.delete(userId))
+    creatingPeers.set(userId, promise)
+    return promise
+  }
 
+  const createPeer = async (userId: string): Promise<Peer> => {
     const pc = new RTCPeerConnection(await loadIceConfig())
     const peer: Peer = { pc, pending: [] }
     peers.set(userId, peer)
@@ -381,7 +392,17 @@ export const useWebrtcCall = () => {
     dropParticipant(data.userId)
   }
 
-  const onSignal = async (data: { callId: string, senderId: string, payloadType: string, payload: any }) => {
+  // Signals from one sender are applied strictly in order.
+  const onSignal = (data: { callId: string, senderId: string, payloadType: string, payload: any }) => {
+    if (!data?.senderId) return
+    const previous = signalQueues.get(data.senderId) ?? Promise.resolve()
+    const next = previous
+      .then(() => applySignal(data))
+      .catch((err) => console.warn('[call] signal failed', data.payloadType, err))
+    signalQueues.set(data.senderId, next)
+  }
+
+  const applySignal = async (data: { callId: string, senderId: string, payloadType: string, payload: any }) => {
     if (!call.value || data.callId !== call.value.id || !call.value.isActive || !data.senderId) return
     const peer = await peerFor(data.senderId)
 
