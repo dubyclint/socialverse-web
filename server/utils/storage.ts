@@ -54,10 +54,17 @@ export const STORAGE_CONFIG: any = {
         'image/png',
         'image/webp',
         'image/gif',
+        'image/heic',
         'video/mp4',
+        'video/webm',
+        'video/quicktime',
         'audio/mpeg',
         'audio/ogg',
         'audio/webm',
+        'audio/mp4',
+        'audio/aac',
+        'audio/wav',
+        'audio/x-m4a',
         'application/pdf'
       ]
     },

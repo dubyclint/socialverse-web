@@ -3,6 +3,7 @@
     <CallInterface
       v-if="call"
       :call="call"
+      :connected-at="connectedAt"
       :local-stream="localStream"
       :participants="participants"
       :candidates="candidates"
@@ -28,6 +29,7 @@ import { useChatStore } from '~/stores/chat'
 
 const {
   call,
+  connectedAt,
   localStream,
   participants,
   isMuted,

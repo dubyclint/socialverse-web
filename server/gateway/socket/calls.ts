@@ -99,6 +99,16 @@ const removeParticipant = async (
   if (!wasInvited && !wasJoined) return
 
   ctx.io.to(userRoom(userId)).emit('call:ended', { callId: call.id })
+  if (reason === 'missed' && wasInvited) {
+    const [host] = await lookupPeople(ctx.admin, [call.hostId])
+    await ctx.admin.from('notifications').insert({
+      recipient_id: userId,
+      notifier_id: call.hostId,
+      event_type: 'MISSED_CALL',
+      source_id: call.chatId,
+      message_text: `Missed ${call.mode === 'VIDEO' ? 'video' : 'voice'} call from ${host?.name ?? 'someone'}`
+    })
+  }
   for (const other of call.joined) {
     ctx.io.to(userRoom(other)).emit('call:participant-left', { callId: call.id, userId, reason })
   }

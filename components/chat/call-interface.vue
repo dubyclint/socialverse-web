@@ -13,7 +13,7 @@
             </div>
           </div>
 
-          <div class="call-timer" v-if="call.isActive">
+          <div class="call-timer" v-if="connectedAt">
             {{ formatCallDuration(callDuration) }}
           </div>
         </div>
@@ -41,6 +41,7 @@
             :key="person.userId"
             :ref="el => bindMedia(el, person.stream)"
             autoplay
+            playsinline
           ></audio>
           <div v-if="isGroupCall" class="audio-roster">
             <div v-for="person in participants" :key="person.userId" class="roster-person" :class="{ ringing: person.state === 'ringing' }">
@@ -136,6 +137,7 @@ import type { ActiveCall, CallParticipant, CallPerson } from '~/composables/use-
 
 const props = defineProps<{
   call: ActiveCall | null
+  connectedAt?: number | null
   localStream?: MediaStream | null
   participants: CallParticipant[]
   /** People who can be added to the call. */
@@ -175,7 +177,10 @@ const availableCandidates = computed(() => {
 
 const bindMedia = (el: Element | ComponentPublicInstance | null, stream: MediaStream | null) => {
   if (!(el instanceof HTMLMediaElement)) return
-  if (el.srcObject !== stream) el.srcObject = stream
+  if (el.srcObject !== stream) {
+    el.srcObject = stream
+    if (stream) void el.play().catch(() => undefined)
+  }
 }
 
 const closePicker = () => {
@@ -189,9 +194,9 @@ const submitPicker = () => {
 }
 
 watch(
-  () => props.call?.isActive,
-  active => {
-    if (active) startCallTimer()
+  () => props.connectedAt,
+  at => {
+    if (at) startCallTimer()
     else stopCallTimer()
   }
 )
@@ -202,10 +207,11 @@ const getCallStatus = () => {
     return isGroupCall.value ? `${props.call.peerName || 'Someone'} is calling the group…` : 'Incoming call...'
   }
   if (props.call.isActive) {
+    if (!props.connectedAt) return 'Connecting…'
     const connected = props.participants.filter(p => p.state === 'connected').length
     return isGroupCall.value ? `${connected + 1} on the call` : 'Connected'
   }
-  return 'Calling...'
+  return 'Ringing…'
 }
 
 const formatCallDuration = (seconds: number) => {
@@ -216,9 +222,11 @@ const formatCallDuration = (seconds: number) => {
 
 const startCallTimer = () => {
   if (callTimer.value) return
-  callTimer.value = setInterval(() => {
-    callDuration.value++
-  }, 1000)
+  const tick = () => {
+    callDuration.value = props.connectedAt ? Math.floor((Date.now() - props.connectedAt) / 1000) : 0
+  }
+  tick()
+  callTimer.value = setInterval(tick, 1000)
 }
 
 const stopCallTimer = () => {
@@ -226,10 +234,11 @@ const stopCallTimer = () => {
     clearInterval(callTimer.value)
     callTimer.value = null
   }
+  callDuration.value = 0
 }
 
 onMounted(() => {
-  if (props.call?.isActive) startCallTimer()
+  if (props.connectedAt) startCallTimer()
 
   audioTimer.value = setInterval(() => {
     isAudioActive.value = Boolean(props.call?.isActive)

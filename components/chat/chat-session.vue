@@ -223,10 +223,8 @@
         <button 
           v-else
           class="voice-btn"
-          @mousedown="startVoiceRecording"
-          @mouseup="stopVoiceRecording"
-          @touchstart="startVoiceRecording"
-          @touchend="stopVoiceRecording"
+          :title="isRecording ? 'Stop and send voice note' : 'Record voice note'"
+          @click="isRecording ? stopVoiceRecording() : startVoiceRecording()"
           :class="{ 'recording': isRecording }"
         >
           <icon name="mic" />
@@ -612,7 +610,7 @@ const startVideoCall = () => {
 }
 
 const startVoiceRecording = async () => {
-  if (isRecording.value) return
+  if (isRecording.value || mediaRecorder.value) return
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -662,7 +660,8 @@ const stopVoiceRecording = async () => {
   recordedChunks.value = []
   if (!blob.size) return
 
-  const uploaded = await uploadBlob(blob, `voice-note-${Date.now()}.webm`)
+  const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+  const uploaded = await uploadBlob(blob, `voice-note-${Date.now()}.${ext}`)
   if (!uploaded) return
 
   await emit('sendMessage', {
@@ -719,7 +718,7 @@ const uploadBlob = async (blob, filename) => {
     return url
   } catch (error) {
     console.error('Attachment upload failed:', error)
-    uploadError.value = 'Could not upload that file'
+    uploadError.value = error?.data?.statusMessage || error?.statusMessage || 'Could not upload that file'
     return null
   } finally {
     isUploading.value = false

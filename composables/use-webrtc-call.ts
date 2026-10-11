@@ -1,5 +1,6 @@
 import { ref, shallowRef, computed, markRaw } from 'vue'
 import { useSocket } from '~/composables/use-socket'
+import { useRingtone } from '~/composables/use-ringtone'
 
 /** Everyone on a call, caller included. Mirrors the server cap. */
 export const MAX_CALL_PARTICIPANTS = 8
@@ -57,6 +58,19 @@ const error = ref<string | null>(null)
 const isMuted = ref(false)
 const isVideoOff = ref(false)
 const isInCall = computed(() => call.value !== null)
+/** Epoch ms when the first peer connection came up; drives the call timer. */
+const connectedAt = ref<number | null>(null)
+
+const mediaErrorMessage = (err: unknown, callType: 'audio' | 'video') => {
+  const name = err instanceof DOMException ? err.name : ''
+  const device = callType === 'video' ? 'camera and microphone' : 'microphone'
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    return `Viorp can't use your ${device}. Allow it from the lock icon in the address bar (or app settings), then try again. You can still hear the other side.`
+  }
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return `No ${device} was found on this device. You can still hear the other side.`
+  if (name === 'NotReadableError') return `Your ${device} is being used by another app. You can still hear the other side.`
+  return `Could not access your ${device}. You can still hear the other side.`
+}
 
 const peers = new Map<string, Peer>()
 let listenersBound = false
@@ -96,13 +110,40 @@ export const useWebrtcCall = () => {
     ringTimer = null
   }
 
-  const acquireMedia = async (callType: 'audio' | 'video') => {
+  const ringtone = useRingtone()
+
+  // Falls back from camera+mic to mic only, then to listen-only, so a denied
+  // permission degrades the call instead of killing it.
+  const acquireMedia = async (callType: 'audio' | 'video'): Promise<MediaStream | null> => {
     if (localStream.value) return localStream.value
-    localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: callType === 'video'
-    }))
-    return localStream.value
+    if (!navigator.mediaDevices?.getUserMedia) {
+      error.value = 'Calls need a secure (https) page and a browser with microphone support.'
+      return null
+    }
+    try {
+      localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' }))
+      return localStream.value
+    } catch (err) {
+      if (callType === 'video') {
+        try {
+          localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({ audio: true }))
+          isVideoOff.value = true
+          error.value = mediaErrorMessage(err, 'video').replace(' You can still hear the other side.', ' Continuing with audio only.')
+          return localStream.value
+        } catch (audioErr) {
+          error.value = mediaErrorMessage(audioErr, 'video')
+          return null
+        }
+      }
+      error.value = mediaErrorMessage(err, callType)
+      return null
+    }
+  }
+
+  const markConnected = () => {
+    if (connectedAt.value) return
+    connectedAt.value = Date.now()
+    ringtone.stop()
   }
 
   const closePeer = (userId: string) => {
@@ -119,7 +160,13 @@ export const useWebrtcCall = () => {
     peers.set(userId, peer)
 
     const stream = localStream.value
-    stream?.getTracks().forEach(track => pc.addTrack(track, stream))
+    if (stream) {
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+      if (call.value?.callType === 'video' && !stream.getVideoTracks().length) pc.addTransceiver('video', { direction: 'recvonly' })
+    } else {
+      pc.addTransceiver('audio', { direction: 'recvonly' })
+      if (call.value?.callType === 'video') pc.addTransceiver('video', { direction: 'recvonly' })
+    }
 
     const remote = markRaw(new MediaStream())
     setParticipant(userId, { stream: remote })
@@ -129,6 +176,7 @@ export const useWebrtcCall = () => {
         if (!remote.getTracks().includes(track)) remote.addTrack(track)
       })
       setParticipant(userId, { stream: remote, state: 'connected' })
+      markConnected()
     }
 
     pc.onicecandidate = event => {
@@ -136,7 +184,10 @@ export const useWebrtcCall = () => {
     }
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'connected') setParticipant(userId, { state: 'connected' })
+      if (pc.connectionState === 'connected') {
+        setParticipant(userId, { state: 'connected' })
+        markConnected()
+      }
       if (pc.connectionState === 'failed') {
         closePeer(userId)
         dropParticipant(userId)
@@ -164,6 +215,8 @@ export const useWebrtcCall = () => {
 
   const cleanup = () => {
     clearRing()
+    ringtone.stop()
+    connectedAt.value = null
     localStream.value?.getTracks().forEach(track => track.stop())
     for (const userId of [...peers.keys()]) closePeer(userId)
     localStream.value = null
@@ -185,13 +238,7 @@ export const useWebrtcCall = () => {
     if (call.value) return
     const callType = params.callType === 'video' ? 'video' : 'audio'
 
-    try {
-      await acquireMedia(callType)
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Could not access microphone/camera'
-      cleanup()
-      return
-    }
+    await acquireMedia(callType)
 
     socket?.emit(
       'call:invite',
@@ -215,6 +262,7 @@ export const useWebrtcCall = () => {
           isActive: false
         }
         participants.value = invited.map(person => ({ ...person, state: 'ringing', stream: null }))
+        ringtone.ring('outgoing')
         ringTimer = setTimeout(() => {
           if (call.value && !call.value.isActive) {
             error.value = 'No answer'
@@ -237,15 +285,12 @@ export const useWebrtcCall = () => {
 
   const acceptCall = async () => {
     if (!call.value) return
-    try {
-      clearRing()
-      await acquireMedia(call.value.callType)
-      socket?.emit('call:accept', { callId: call.value.id })
-      call.value = { ...call.value, isActive: true }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Could not access microphone/camera'
-      rejectCall()
-    }
+    clearRing()
+    ringtone.stop()
+    await acquireMedia(call.value.callType)
+    if (!call.value) return
+    socket?.emit('call:accept', { callId: call.value.id })
+    call.value = { ...call.value, isActive: true }
   }
 
   const rejectCall = () => {
@@ -294,6 +339,7 @@ export const useWebrtcCall = () => {
     }
     participants.value = (data.participants ?? []).map(person => ({ ...person, state: 'connected', stream: null }))
     clearRing()
+    ringtone.ring('incoming')
     ringTimer = setTimeout(() => {
       if (call.value && !call.value.isActive) rejectCall()
     }, RING_TIMEOUT_MS)
@@ -319,6 +365,7 @@ export const useWebrtcCall = () => {
   const onParticipantJoined = (data: { callId: string, person: CallPerson }) => {
     if (!call.value || data.callId !== call.value.id) return
     clearRing()
+    ringtone.stop()
     call.value = { ...call.value, isActive: true }
     setParticipant(data.person.userId, { ...data.person, state: 'ringing' })
   }
@@ -378,6 +425,7 @@ export const useWebrtcCall = () => {
   return {
     call,
     isInCall,
+    connectedAt,
     localStream,
     participants,
     error,

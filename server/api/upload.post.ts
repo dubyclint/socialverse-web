@@ -67,6 +67,8 @@ export default defineEventHandler(async (event): Promise<UploadResponse> => {
     }
 
   const file = formData.find((part: any) => part.name === 'file')
+  // Recorders report e.g. `audio/webm;codecs=opus`; buckets match the bare type.
+  if (file?.type) file.type = file.type.split(';')[0]!.trim().toLowerCase()
   const bucketField = formData.find((part: any) => part.name === 'bucket')
     // STORAGE_CONFIG.buckets[x] is a descriptor object, so the bucket *name* is
     // what belongs here; passing the descriptor made every default upload fail.
