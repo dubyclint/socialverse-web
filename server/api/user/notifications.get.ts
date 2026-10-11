@@ -26,11 +26,15 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  const rows = data ?? []
+  const { count } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('recipient_id', user.id)
+    .eq('is_read', false)
 
   return {
     success: true,
-    data: rows,
-    unread: rows.filter(row => !row.is_read).length
+    data: data ?? [],
+    unread: count ?? 0
   }
 })

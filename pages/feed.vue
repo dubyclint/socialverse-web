@@ -19,9 +19,11 @@
           </NuxtLink>
           <NuxtLink to="/notifications" class="nav-icon" :class="{ active: route.path === '/notifications' }" aria-label="Notifications">
             <Icon name="bell" size="24" /> <span class="nav-label">Notifications</span>
+            <ClientOnly><span v-if="unreadNotifications > 0" class="count-badge">{{ unreadLabel(unreadNotifications) }}</span></ClientOnly>
           </NuxtLink>
           <NuxtLink to="/chat" class="nav-icon" :class="{ active: route.path === '/chat' }" aria-label="Chat">
             <Icon name="message-circle" size="24" /> <span class="nav-label">Chat</span>
+            <ClientOnly><span v-if="unreadMessages > 0" class="count-badge">{{ unreadLabel(unreadMessages) }}</span></ClientOnly>
           </NuxtLink>
           <NuxtLink to="/stream" class="nav-icon" :class="{ active: route.path === '/stream' }" aria-label="Live Stream">
             <Icon name="aperture" size="24" /> <span class="nav-label">Live</span>
@@ -285,11 +287,19 @@ const {
   suggestedUsers, suggestedUsersLoading, refreshSuggestedUsers, followUser,
   trendingTopics, trendingLoading, refreshTrending,
   sidebarOpen, toggleSidebar, handleLogout, currentUser, 
-  unreadMessages, unreadNotifications, authStore,
+  authStore,
   profileLoading, profileError, retryProfileLoad, userFollowers, 
   userFollowing, userPosts, goToFollowers, goToFollowing, 
   goToUserPosts, isLiveStreaming, feedItems, trackImpression, removeFeedPost
 } = socialFeed;
+
+const {
+  notifications: unreadNotifications,
+  chat: unreadMessages,
+  label: unreadLabel,
+  track: trackUnread
+} = useUnreadCounts();
+trackUnread();
 
 // Ranked feed items include sponsored slots; posts render through this alias.
 const postOf = (item) => (item.type === 'post' ? [item.post] : []);
@@ -386,6 +396,8 @@ onMounted(async () => {
 .header-search { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; margin-right: 0.5rem; border-radius: 999px; color: #cbd5e1; }
 .header-search:hover { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
 .nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; position: relative; }
+.sidebar-item .badge { margin-left: auto; min-width: 1.25rem; height: 1.25rem; padding: 0 0.35rem; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.7rem; font-weight: 700; line-height: 1.25rem; text-align: center; }
+.count-badge { position: absolute; top: 0.1rem; right: 0.45rem; min-width: 1.15rem; height: 1.15rem; padding: 0 0.3rem; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.68rem; font-weight: 700; line-height: 1.15rem; text-align: center; box-shadow: 0 0 0 2px #1e293b; pointer-events: none; }
 .nav-icon.active { color: #3b82f6; background-color: rgba(59, 130, 246, 0.1); }
 
 /* ============================================================================

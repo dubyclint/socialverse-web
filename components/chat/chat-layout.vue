@@ -214,6 +214,7 @@ interface SuggestedUser {
 // Chat store initialized
 const chatStore = useChatStore()
 const route = useRoute()
+const { refresh: refreshUnread } = useUnreadCounts()
 const router = useRouter()
 const currentUser = useSupabaseUser()
 const currentUserId = computed(() => currentUser.value?.id ?? null)
@@ -341,6 +342,7 @@ const selectChat = async (chatId: string) => {
     markDelivered(chatId)
     markRead(chatId)
     chatStore.unreadCounts.set(chatId, 0)
+    setTimeout(() => void refreshUnread(), 1500)
   } catch (error) {
     console.error('Failed to load messages:', error)
     chatStore.setError('Failed to load messages')

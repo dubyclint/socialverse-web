@@ -1,39 +1,17 @@
-// ============================================================================
-// MARK NOTIFICATION AS READ
-// ============================================================================
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
-import { getRouterParam } from 'h3'
+import type { Database } from '~/types/database.types'
 
 export default defineEventHandler(async (event) => {
-  try {
-    // 1. Authenticate (Assumes requireAuth handles session check)
-    const user = await requireAuth(event)
-    const notificationId = getRouterParam(event, 'id')
+  const user = await requireAuth(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
-    const supabase = await serverSupabaseClient(event)
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('recipient_id', user.id)
+    .eq('is_read', false)
 
-    // 2. Update with schema-specific columns: is_read and recipient_id
-    const { error } = await supabase
-      .from('notifications')
-      .update({
-        is_read: true,
-        // Optional: Add a read_at column if you want to track when it was read
-        // read_at: new Date().toISOString() 
-      })
-      .eq('id', notificationId)
-      .eq('recipient_id', user.id) // Correct column name based on your schema
-
-    if (error) throw error
-
-    return {
-      success: true,
-      message: 'Notification marked as read'
-    }
-  } catch (error: any) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Failed to mark notification as read'
-    })
-  }
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return { success: true }
 })

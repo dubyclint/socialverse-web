@@ -15,7 +15,7 @@
     <ClientOnly>
       <div class="notifications-container">
         <ul v-if="notifications.length" class="notifications-list">
-          <li v-for="note in notifications" :key="note.id" class="notification-item">
+          <li v-for="note in notifications" :key="note.id" class="notification-item" :class="{ unread: !note.is_read }">
             <div class="notification-content">
               <strong class="notification-type">{{ note.event_type }}:</strong>
               <span class="notification-message">{{ note.message_text }}</span>
@@ -65,11 +65,13 @@ interface NotificationItem {
 }
 
 const notifications = ref<NotificationItem[]>([])
+const { markNotificationsRead } = useUnreadCounts()
 
 onMounted(async () => {
   try {
-    const res = await $fetch<{ data: NotificationItem[] }>('/api/user/notifications')
+    const res = await $fetch<{ data: NotificationItem[] }>('/api/user/notifications', { query: { limit: 50 } })
     notifications.value = res.data ?? []
+    if (notifications.value.some(note => !note.is_read)) await markNotificationsRead()
   } catch (error) {
     console.error('Error loading notifications:', error)
   }
@@ -81,6 +83,11 @@ function formatTime(ts: string) {
 </script>
 
 <style scoped>
+.notification-item.unread {
+  border-left: 3px solid #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
 .notifications-page {
   max-width: 800px;
   margin: 0 auto;
