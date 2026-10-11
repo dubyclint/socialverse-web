@@ -2,6 +2,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import type { PostCommentView } from './comments.get'
+import { notifyMentions } from '~/server/utils/mention-notify'
 
 interface AddCommentRequest {
   content: string
@@ -63,15 +64,40 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   ])
 
   if (post && !replayed) {
+    const actorName = author?.username ?? 'Someone'
+    const notified = new Set<string>()
     if (post.user_id !== user.id) {
+      notified.add(post.user_id)
       await client.from('notifications').insert({
         recipient_id: post.user_id,
         notifier_id: user.id,
-        event_type: body.parentId ? 'COMMENT_REPLY' : 'COMMENT_ADDED',
-        message_text: `${author?.username ?? 'Someone'} commented: ${content.slice(0, 80)}`,
+        event_type: 'COMMENT_ADDED',
+        message_text: `${actorName} commented: ${content.slice(0, 80)}`,
         source_id: postId
       })
     }
+    if (body.parentId) {
+      const { data: parent } = await client.from('post_comments').select('user_id').eq('id', body.parentId).maybeSingle()
+      if (parent && parent.user_id !== user.id && !notified.has(parent.user_id)) {
+        notified.add(parent.user_id)
+        await client.from('notifications').insert({
+          recipient_id: parent.user_id,
+          notifier_id: user.id,
+          event_type: 'COMMENT_REPLY',
+          message_text: `${actorName} replied to your comment: ${content.slice(0, 80)}`,
+          source_id: postId
+        })
+      }
+    }
+    await notifyMentions({
+      text: content,
+      actorId: user.id,
+      actorName,
+      sourceId: postId,
+      eventType: 'MENTION',
+      where: 'a comment',
+      skip: [...notified]
+    })
   }
 
   return {

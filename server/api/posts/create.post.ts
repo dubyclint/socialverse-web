@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { notifyMentions } from '~/server/utils/mention-notify'
 
 interface CreatePostRequest {
   content: string
@@ -144,6 +145,18 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
     }
 
     console.log('[Posts Create API] ✅ Post created successfully')
+
+    if (!body.saveAsDraft && post.content) {
+      const { data: actor } = await supabase.from('user').select('username').eq('user_id', userId).maybeSingle()
+      await notifyMentions({
+        text: post.content,
+        actorId: userId,
+        actorName: actor?.username ?? 'Someone',
+        sourceId: post.id,
+        eventType: 'TAG',
+        where: 'a post'
+      })
+    }
 
     // ============================================================================
     // STEP 7: Return response

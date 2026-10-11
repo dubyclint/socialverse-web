@@ -29,6 +29,17 @@ export default defineEventHandler(async (event) => {
 
     if (rpcError) throw rpcError
 
+    if (post.user_id !== user.id) {
+      const { data: sender } = await client.from('user').select('username').eq('user_id', user.id).maybeSingle()
+      await client.from('notifications').insert({
+        recipient_id: post.user_id,
+        notifier_id: user.id,
+        event_type: 'GIFT_RECEIVED',
+        source_id: postId,
+        message_text: `${sender?.username ?? 'Someone'} sent you ${amount} PEW on your post`
+      })
+    }
+
     return { success: true, message: 'Gift sent successfully' }
   } catch (err: any) {
     throw createError({ statusCode: 400, message: err.message || 'Transaction failed' })

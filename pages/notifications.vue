@@ -16,10 +16,13 @@
       <div class="notifications-container">
         <ul v-if="notifications.length" class="notifications-list">
           <li v-for="note in notifications" :key="note.id" class="notification-item" :class="{ unread: !note.is_read }">
-            <div class="notification-content">
-              <strong class="notification-type">{{ note.event_type }}:</strong>
-              <span class="notification-message">{{ note.message_text }}</span>
-            </div>
+            <NuxtLink :to="linkFor(note)" class="notification-link">
+              <span class="notification-icon"><Icon :name="metaFor(note).icon" size="18" /></span>
+              <div class="notification-content">
+                <strong class="notification-type">{{ metaFor(note).label }}</strong>
+                <span class="notification-message">{{ note.message_text }}</span>
+              </div>
+            </NuxtLink>
             <small class="notification-time">{{ formatTime(note.created_at) }}</small>
           </li>
         </ul>
@@ -59,6 +62,8 @@ useHead({
 interface NotificationItem {
   id: string
   event_type: string
+  notifier_id?: string | null
+  source_id?: string | null
   message_text: string | null
   is_read: boolean | null
   created_at: string
@@ -77,12 +82,42 @@ onMounted(async () => {
   }
 })
 
+const EVENT_META: Record<string, { label: string, icon: string }> = {
+  COMMENT_ADDED: { label: 'Comment', icon: 'message-circle' },
+  COMMENT_REPLY: { label: 'Reply', icon: 'message-circle' },
+  MENTION: { label: 'Mention', icon: 'message-circle' },
+  TAG: { label: 'Tagged', icon: 'message-circle' },
+  POST_LIKE: { label: 'Like', icon: 'heart' },
+  GIFT_RECEIVED: { label: 'Gift', icon: 'gift' },
+  MISSED_CALL: { label: 'Missed call', icon: 'phone-missed' },
+  PAL_REQUEST: { label: 'PAL request', icon: 'user-plus' },
+  PAL_ACCEPTED: { label: 'New PAL', icon: 'users' },
+  FOLLOW_RECEIVED: { label: 'New follower', icon: 'user-plus' },
+  STREAM_LIVE: { label: 'Live', icon: 'radio' },
+  ESCROW_UPDATE: { label: 'Escrow', icon: 'alert-circle' }
+}
+
+const metaFor = (note: NotificationItem) => EVENT_META[note.event_type] ?? { label: 'Update', icon: 'bell' }
+
+const POST_EVENTS = new Set(['COMMENT_ADDED', 'COMMENT_REPLY', 'MENTION', 'TAG', 'POST_LIKE', 'GIFT_RECEIVED'])
+
+const linkFor = (note: NotificationItem): string => {
+  if (POST_EVENTS.has(note.event_type) && note.source_id) return `/posts/${note.source_id}`
+  if (note.event_type === 'MISSED_CALL' && note.notifier_id) return `/chat?user=${note.notifier_id}`
+  if (note.event_type.startsWith('PAL_')) return '/pal'
+  return '/notifications'
+}
+
 function formatTime(ts: string) {
   return new Date(ts).toLocaleString()
 }
 </script>
 
 <style scoped>
+.notification-link { display: flex; align-items: flex-start; gap: 0.75rem; color: inherit; text-decoration: none; flex: 1; min-width: 0; }
+.notification-icon { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 999px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.notification-content { min-width: 0; overflow-wrap: anywhere; }
+.notification-type { margin-right: 0.35rem; color: #93c5fd; }
 .notification-item.unread {
   border-left: 3px solid #ef4444;
   background: rgba(239, 68, 68, 0.08);
