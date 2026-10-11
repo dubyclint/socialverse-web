@@ -552,6 +552,8 @@ onMounted(async () => {
       content: message.content,
       attachments: message.attachments ?? [],
       messageType: (message.messageType ?? 'text') as ChatMessage['messageType'],
+      gift: message.gift,
+      replyTo: message.replyTo ? { ...message.replyTo, content: message.replyTo.content ?? '' } : undefined,
       timestamp: new Date(message.timestamp).getTime(),
       status: own ? 'sent' : undefined
     })

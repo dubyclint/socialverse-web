@@ -24,6 +24,8 @@ export interface IncomingChatMessage {
   attachments?: string[]
   messageType?: string
   replyToId?: string | null
+  replyTo?: { id: string, senderId: string, senderName?: string, content: string | null }
+  gift?: { name: string, quantity: number }
   expiresAt?: string | null
 }
 
