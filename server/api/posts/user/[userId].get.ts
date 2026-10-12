@@ -10,6 +10,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadRelationships } from '~/server/utils/social-graph'
+import { actingPageId, getLikedPostIds } from '~/server/utils/actor'
 
 interface PostsResponse {
   success: boolean
@@ -133,15 +134,7 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
       .maybeSingle()
 
     const postIds = (rows || []).map((row: { id: string }) => row.id)
-    const { data: likes } = currentUserId && postIds.length
-      ? await supabase
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', currentUserId)
-          .in('post_id', postIds)
-      : { data: [] }
-
-    const likedPostIds = new Set(((likes ?? []) as { post_id: string }[]).map(row => row.post_id))
+    const likedPostIds = await getLikedPostIds(currentUserId ?? null, actingPageId(event), postIds)
 
     const posts = (rows || []).map((row: any) => ({
       id: row.id,

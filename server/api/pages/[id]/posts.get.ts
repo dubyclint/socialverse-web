@@ -1,6 +1,7 @@
 import { getOptionalUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadPage } from '~/server/utils/pages'
+import { actingPageId, getLikedPostIds } from '~/server/utils/actor'
 
 export default defineEventHandler(async (event) => {
   const page = await loadPage(getRouterParam(event, 'id') ?? '')
@@ -23,10 +24,7 @@ export default defineEventHandler(async (event) => {
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
   const ids = (rows ?? []).map(r => r.id)
-  const { data: likes } = viewer && ids.length
-    ? await service.from('post_likes').select('post_id').eq('user_id', viewer.id).in('post_id', ids)
-    : { data: [] as { post_id: string }[] }
-  const liked = new Set((likes ?? []).map(l => l.post_id))
+  const liked = await getLikedPostIds(viewer?.id ?? null, actingPageId(event), ids)
 
   const author = {
     id: page.id,

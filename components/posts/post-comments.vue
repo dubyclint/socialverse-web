@@ -21,11 +21,11 @@
     <ul v-else class="comment-list">
       <li v-for="thread in threads" :key="thread.comment.id" class="comment-thread">
         <article class="comment" :class="{ pending: thread.comment.pending }">
-          <NuxtLink :to="`/profile/${thread.comment.author.username}`" class="comment-avatar-link">
+          <NuxtLink :to="authorLink(thread.comment.author)" class="comment-avatar-link">
             <img :src="thread.comment.author.avatar || '/default-avatar.svg'" :alt="thread.comment.author.name" class="comment-avatar" />
           </NuxtLink>
           <div class="comment-body">
-            <NuxtLink :to="`/profile/${thread.comment.author.username}`" class="comment-author">
+            <NuxtLink :to="authorLink(thread.comment.author)" class="comment-author">
               {{ thread.comment.author.name }}
             </NuxtLink>
             <form v-if="editingId === thread.comment.id" class="edit-form" @submit.prevent="saveEdit(thread.comment)">
@@ -66,11 +66,11 @@
 
             <ul v-if="thread.replies.length" class="reply-list">
               <li v-for="reply in thread.replies" :key="reply.id" class="comment reply" :class="{ pending: reply.pending }">
-                <NuxtLink :to="`/profile/${reply.author.username}`" class="comment-avatar-link">
+                <NuxtLink :to="authorLink(reply.author)" class="comment-avatar-link">
                   <img :src="reply.author.avatar || '/default-avatar.svg'" :alt="reply.author.name" class="comment-avatar small" />
                 </NuxtLink>
                 <div class="comment-body">
-                  <NuxtLink :to="`/profile/${reply.author.username}`" class="comment-author">
+                  <NuxtLink :to="authorLink(reply.author)" class="comment-author">
                     {{ reply.author.name }}
                   </NuxtLink>
                   <form v-if="editingId === reply.id" class="edit-form" @submit.prevent="saveEdit(reply)">
@@ -133,6 +133,8 @@ const viewer = computed(() => ({
   avatar: props.viewerAvatar || null
 }))
 
+const authorLink = (author: { username: string, type?: 'USER' | 'PAGE' }) =>
+  author.type === 'PAGE' ? `/pages/${author.username}` : `/profile/${author.username}`
 const isOwn = (comment: PostComment) => !comment.pending && Boolean(viewer.value.id) && comment.author.id === viewer.value.id
 
 const threads = computed(() =>

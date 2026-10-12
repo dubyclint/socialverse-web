@@ -89,10 +89,10 @@
     <ul v-if="likersOpen" class="likers">
       <li v-if="likersLoading" class="likers-state">Loading...</li>
       <li v-for="liker in likers" v-else :key="liker.id" class="liker">
-        <NuxtLink :to="`/profile/${liker.username}`" class="liker-avatar-link">
+        <NuxtLink :to="liker.type === 'PAGE' ? `/pages/${liker.username}` : `/profile/${liker.username}`" class="liker-avatar-link">
           <img :src="liker.avatar || '/default-avatar.svg'" :alt="liker.name" class="liker-avatar" />
         </NuxtLink>
-        <NuxtLink :to="`/profile/${liker.username}`">{{ liker.name }}</NuxtLink>
+        <NuxtLink :to="liker.type === 'PAGE' ? `/pages/${liker.username}` : `/profile/${liker.username}`">{{ liker.name }}</NuxtLink>
       </li>
     </ul>
 

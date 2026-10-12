@@ -13,6 +13,7 @@ export interface PostCommentView {
     username: string
     name: string
     avatar: string | null
+    type: 'USER' | 'PAGE'
   }
 }
 
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
 
   const { data: comments, error } = await client
     .from('post_comments')
-    .select('id, post_id, parent_id, comment_text, created_at, edited_at, user_id')
+    .select('id, post_id, parent_id, comment_text, created_at, edited_at, user_id, page_id')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
     .range(offset, offset + limit - 1)
@@ -44,11 +45,17 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
     : { data: [] }
 
   const authorById = new Map((authors ?? []).map(row => [row.user_id, row]))
+  const pageIds = Array.from(new Set((comments ?? []).map(row => row.page_id).filter((id): id is string => Boolean(id))))
+  const { data: pages } = pageIds.length
+    ? await client.from('pages').select('id, handle, name, avatar_url').in('id', pageIds)
+    : { data: [] }
+  const pageById = new Map((pages ?? []).map(row => [row.id, row]))
 
   return {
     success: true,
     data: (comments ?? []).map((row) => {
       const author = authorById.get(row.user_id)
+      const page = row.page_id ? pageById.get(row.page_id) : undefined
       return {
         id: row.id,
         postId: row.post_id,
@@ -56,12 +63,15 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
         content: row.comment_text,
         createdAt: row.created_at,
         editedAt: row.edited_at,
-        author: {
-          id: row.user_id,
-          username: author?.username ?? 'unknown',
-          name: author?.full_name || author?.display_name || author?.username || 'Unknown user',
-          avatar: author?.avatar_url ?? null
-        }
+        author: page
+          ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, type: 'PAGE' as const }
+          : {
+              id: row.user_id,
+              username: author?.username ?? 'unknown',
+              name: author?.full_name || author?.display_name || author?.username || 'Unknown user',
+              avatar: author?.avatar_url ?? null,
+              type: 'USER' as const
+            }
       }
     })
   }

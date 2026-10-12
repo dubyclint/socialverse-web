@@ -1,6 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { parseRepostRef } from '~/server/utils/repost'
+import { actingPageId, getLikedPostIds } from '~/server/utils/actor'
 import type { Database } from '~/types/database.types'
 
 export interface PostDetailView {
@@ -43,7 +44,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   if (!post) throw createError({ statusCode: 404, statusMessage: 'Post not found' })
 
-  const [{ data: author }, { data: page }, { data: like }] = await Promise.all([
+  const [{ data: author }, { data: page }, liked] = await Promise.all([
     client
       .from('user')
       .select('user_id, username, display_name, full_name, avatar_url, is_verified')
@@ -52,12 +53,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
     post.page_id
       ? client.from('pages').select('id, handle, name, avatar_url').eq('id', post.page_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    client
-      .from('post_likes')
-      .select('id')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .maybeSingle()
+    getLikedPostIds(user.id, actingPageId(event), [postId])
   ])
 
   return {
@@ -74,7 +70,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
       likesCount: post.likes_count,
       commentsCount: post.comments_count,
       sharesCount: post.shares_count,
-      likedByMe: Boolean(like),
+      likedByMe: liked.has(postId),
       isMine: post.user_id === user.id,
       author: page
         ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, isVerified: false, type: 'PAGE' as const }

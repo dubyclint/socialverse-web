@@ -32,6 +32,20 @@ export const getPageRole = async (pageId: string, userId: string): Promise<PageR
 }
 
 /** True when the request carries a PAGE acting-as header. */
+/** Page id when the request was already validated as acting for a Page. */
+export const actingPageId = (event: H3Event): string | null => {
+  const actor = (event.context as { actor?: Actor }).actor
+  return actor?.type === 'PAGE' ? actor.id : null
+}
+
+/** Post ids liked by the person (pageId null) or by the Page they act as. */
+export const getLikedPostIds = async (userId: string | null, pageId: string | null, postIds: string[]): Promise<Set<string>> => {
+  if (!userId || !postIds.length) return new Set()
+  const query = getServiceClient().from('post_likes').select('post_id').in('post_id', postIds)
+  const { data } = pageId ? await query.eq('page_id', pageId) : await query.eq('user_id', userId).is('page_id', null)
+  return new Set((data ?? []).map(row => row.post_id))
+}
+
 export const isActingAsPage = (event: H3Event): boolean =>
   (getHeader(event, ACTOR_TYPE_HEADER) ?? '').toUpperCase() === 'PAGE'
 

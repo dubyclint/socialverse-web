@@ -3,6 +3,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import type { PostCommentView } from './comments.get'
 import { notifyMentions } from '~/server/utils/mention-notify'
+import { resolveActor } from '~/server/utils/actor'
 
 interface AddCommentRequest {
   content: string
@@ -25,6 +26,8 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   if (content.length > 500) throw createError({ statusCode: 400, statusMessage: 'Comment exceeds 500 character limit' })
 
   const client = await serverSupabaseClient<Database>(event)
+  const actor = await resolveActor(event)
+  const pageId = actor.type === 'PAGE' ? actor.id : null
 
   const clientId = body.clientId && UUID.test(body.clientId) ? body.clientId : undefined
   const columns = 'id, post_id, parent_id, comment_text, created_at, edited_at, user_id' as const
@@ -35,6 +38,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
       ...(clientId ? { id: clientId } : {}),
       post_id: postId,
       user_id: user.id,
+      page_id: pageId,
       comment_text: content,
       parent_id: body.parentId ?? null
     })
@@ -54,19 +58,22 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
 
   if (error || !comment) throw createError({ statusCode: 500, statusMessage: error?.message || 'Comment could not be saved' })
 
-  const [{ data: post }, { data: author }] = await Promise.all([
-    client.from('posts').select('user_id, comments_count').eq('id', postId).maybeSingle(),
+  const [{ data: post }, { data: author }, { data: page }] = await Promise.all([
+    client.from('posts').select('user_id, page_id, comments_count').eq('id', postId).maybeSingle(),
     client
       .from('user')
       .select('user_id, username, display_name, full_name, avatar_url')
       .eq('user_id', user.id)
-      .maybeSingle()
+      .maybeSingle(),
+    pageId
+      ? client.from('pages').select('id, handle, name, avatar_url').eq('id', pageId).maybeSingle()
+      : Promise.resolve({ data: null })
   ])
 
   if (post && !replayed) {
-    const actorName = author?.username ?? 'Someone'
+    const actorName = page?.name ?? author?.username ?? 'Someone'
     const notified = new Set<string>()
-    if (post.user_id !== user.id) {
+    if (post.user_id !== user.id && post.page_id !== pageId) {
       notified.add(post.user_id)
       await client.from('notifications').insert({
         recipient_id: post.user_id,
@@ -109,12 +116,15 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
       content: comment.comment_text,
       createdAt: comment.created_at,
       editedAt: comment.edited_at,
-      author: {
-        id: user.id,
-        username: author?.username ?? 'unknown',
-        name: author?.full_name || author?.display_name || author?.username || 'You',
-        avatar: author?.avatar_url ?? null
-      }
+      author: page
+        ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, type: 'PAGE' }
+        : {
+            id: user.id,
+            username: author?.username ?? 'unknown',
+            name: author?.full_name || author?.display_name || author?.username || 'You',
+            avatar: author?.avatar_url ?? null,
+            type: 'USER'
+          }
     },
     commentsCount: post?.comments_count ?? 0
   }

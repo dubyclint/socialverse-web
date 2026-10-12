@@ -53,6 +53,7 @@ export interface PostComment {
     username: string
     name: string
     avatar: string | null
+    type?: 'USER' | 'PAGE'
   }
 }
 
@@ -62,6 +63,7 @@ export interface PostLiker {
   name: string
   avatar: string | null
   likedAt: string
+  type?: 'USER' | 'PAGE'
 }
 
 export type SharePlatform = 'twitter' | 'facebook' | 'whatsapp' | 'copy' | 'email'

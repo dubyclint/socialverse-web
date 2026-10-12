@@ -1,10 +1,10 @@
 import { getRequestURL } from 'h3'
 import { isActingAsPage, resolveActor } from '~/server/utils/actor'
 
-// Public engagement that is still recorded against the personal account; a
-// Page identity is refused so it can never surface as the person instead.
+// Engagement that is not Page-aware yet (gifts spend the personal wallet);
+// a Page identity is refused so it can never surface as the person instead.
 const PERSONAL_ONLY = [
-  /^\/api\/posts\/[^/]+\/(like|pewgift|share|repost|comments|report)(\/|$)/,
+  /^\/api\/posts\/[^/]+\/(pewgift|share|repost|report)(\/|$)/,
   /^\/api\/follows(\/|$)/,
   /^\/api\/pals(\/|$)/,
   /^\/api\/pewgift(\/|$)/,

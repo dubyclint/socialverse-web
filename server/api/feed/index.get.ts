@@ -1,6 +1,7 @@
 import { loadConfig } from '~/server/utils/platform-config'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { actingPageId } from '~/server/utils/actor'
 import {
   DEFAULT_ADS,
   DEFAULT_RANKING,
@@ -43,7 +44,7 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
   const tabParam = String(query.tab || 'for-you')
   const tab: FeedTab = tabParam === 'following' || tabParam === 'trending' ? tabParam : 'for-you'
 
-  const posts = await rankPosts(supabase, user.id, limit, page * limit, weights, tab)
+  const posts = await rankPosts(supabase, user.id, limit, page * limit, weights, tab, actingPageId(event))
   const [inAppAds, externalSlots] = await Promise.all([
     ads.enabled ? loadInAppAds(supabase, ads.max_in_app_ads) : Promise.resolve([]),
     ads.enabled && ads.external_fallback

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
 import { CANDIDATE_COLUMNS, getAuthors, getCandidatePool, getPageAuthors } from '~/server/utils/feed-cache'
 import type { CandidatePost } from '~/server/utils/feed-cache'
+import { getLikedPostIds } from '~/server/utils/actor'
 import { parseRepostRef } from '~/server/utils/repost'
 
 export interface FeedRankingWeights {
@@ -123,7 +124,8 @@ export const rankPosts = async (
   limit: number,
   offset: number,
   weights: FeedRankingWeights,
-  tab: FeedTab = 'for-you'
+  tab: FeedTab = 'for-you',
+  likerPageId: string | null = null
 ): Promise<RankedPost[]> => {
   const [{ data: following }, { data: interestLinks }, { data: interactions }] = await Promise.all([
     client.from('follows').select('following_id').eq('follower_id', userId),
@@ -215,19 +217,14 @@ export const rankPosts = async (
   if (!rows.length) return []
 
   const pageIds = Array.from(new Set(rows.map(row => row.page_id).filter((id): id is string => Boolean(id))))
-  const [authors, pageAuthors, { data: likes }] = await Promise.all([
+  const [authors, pageAuthors, likedPostIds] = await Promise.all([
     getAuthors(Array.from(new Set(rows.filter(row => !row.page_id).map(row => row.user_id)))),
     getPageAuthors(pageIds),
-    client
-      .from('post_likes')
-      .select('post_id')
-      .eq('user_id', userId)
-      .in('post_id', rows.map(row => row.id))
+    getLikedPostIds(userId, likerPageId, rows.map(row => row.id))
   ])
 
   const authorById = new Map(authors.map(author => [author.user_id, author]))
   const pageAuthorById = new Map(pageAuthors.map(page => [page.id, page]))
-  const likedPostIds = new Set((likes ?? []).map(like => like.post_id))
   const now = Date.now()
 
   const scored: RankedPost[] = rows.map((row) => {

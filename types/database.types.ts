@@ -1978,6 +1978,7 @@ export type Database = {
           created_at: string
           edited_at: string | null
           id: string
+          page_id: string | null
           parent_id: string | null
           post_id: string
           user_id: string
@@ -1987,6 +1988,7 @@ export type Database = {
           created_at?: string
           edited_at?: string | null
           id?: string
+          page_id?: string | null
           parent_id?: string | null
           post_id: string
           user_id: string
@@ -1996,6 +1998,7 @@ export type Database = {
           created_at?: string
           edited_at?: string | null
           id?: string
+          page_id?: string | null
           parent_id?: string | null
           post_id?: string
           user_id?: string
@@ -2112,18 +2115,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          page_id: string | null
           post_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          page_id?: string | null
           post_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          page_id?: string | null
           post_id?: string
           user_id?: string
         }
@@ -4304,7 +4310,7 @@ export type Database = {
         Returns: boolean
       }
       set_post_like: {
-        Args: { p_post_id: string, p_liked: boolean }
+        Args: { p_post_id: string, p_liked: boolean, p_page_id?: string | null }
         Returns: { liked: boolean, likes_count: number, changed: boolean }[]
       }
       send_pewgift: {
