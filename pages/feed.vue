@@ -41,6 +41,7 @@
             <Icon name="users" size="22" />
             <ClientOnly><span v-if="pendingPalRequests > 0" class="dot-indicator" aria-label="New PAL requests"></span></ClientOnly>
           </NuxtLink>
+          <ClientOnly><ContextSwitcher /></ClientOnly>
           <div class="user-avatar-wrapper">
             <img :src="userAvatar" :alt="userName" class="user-avatar" @click="goToProfilePage()" :style="{ cursor: currentUser?.id ? 'pointer' : 'default' }" />
             <span class="status-indicator" :class="userStatus"></span>

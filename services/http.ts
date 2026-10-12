@@ -6,10 +6,14 @@
 // token is injected here — the cookie is the single source of truth.
 // ============================================================================
 import { ofetch } from 'ofetch'
+import { applyActingAs } from '~/utils/acting-as'
 
 export const api = ofetch.create({
   baseURL: '/api',
   credentials: 'same-origin',
+  onRequest({ options }) {
+    applyActingAs(options as { headers?: HeadersInit })
+  },
   onResponseError({ response }) {
     // A 401 is left to route middleware; signing out here would drop the
     // session on any single unauthorized response.

@@ -14,7 +14,7 @@
             {{ authorName }}
             <Icon v-if="post.author?.verified" name="check-circle" size="13" class="verified" />
           </NuxtLink>
-          <SocialFollowButton v-if="!isMine && post.author?.id" :user-id="post.author.id" compact />
+          <SocialFollowButton v-if="!isMine && post.author?.id && post.author?.type !== 'PAGE'" :user-id="post.author.id" compact />
         </span>
         <span class="post-meta">
           <span class="handle">@{{ post.author?.username || 'unknown' }}</span>
@@ -224,7 +224,9 @@ const notice = ref('')
 
 const isMine = computed(() => Boolean(currentUserId.value) && props.post.author?.id === currentUserId.value)
 const authorName = computed(() => props.post.author?.full_name || 'Unknown user')
-const authorLink = computed(() => `/profile/${props.post.author?.username || ''}`)
+const authorLink = computed(() => props.post.author?.type === 'PAGE'
+  ? `/pages/${props.post.author.username}`
+  : `/profile/${props.post.author?.username || ''}`)
 const avatar = computed(() => props.post.author?.avatar_url || '/default-avatar.svg')
 
 const flash = (message: string) => {
