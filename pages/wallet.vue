@@ -1,462 +1,348 @@
 <!-- ============================================================================
      FILE: /pages/wallet.vue
-     closed looped Capital, Wallet Management & pewgift 
+     PEW wallet: balance, withdrawable (earned) balance, incoming/outgoing
+     history from the ledger, gift history, and withdrawal requests.
      ============================================================================ -->
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useUserStore } from '~/stores/user'
-import PewgiftSummary from '~/components/financial/gifts/pewgift-summary.vue'
-import PewgiftHistory from '~/components/financial/gifts/pewgift-history.vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check'],
   layout: 'default'
 })
 
-const supabase = useSupabaseClient()
+useHead({ title: 'Wallet' })
 
-// Active Panel Tabs
-const tabs = ['Transacts', 'gifts', 'Pay Methods', 'Withdraws', 'Refers']
+interface FeeSettings {
+  deposit_fee_pct: number
+  gift_fee_pct: number
+  withdrawal_fee_pct: number
+  withdrawal_tax_pct: number
+  pew_usd_rate: number
+  min_withdrawal_pew: number
+}
+
+interface WalletSummary {
+  balance: number
+  withdrawable_pew: number
+  withdrawable_usd: number
+  is_locked: boolean
+  totals: { added_funds: number, gifts_received: number, other_incoming: number, outgoing: number, fees: number }
+  fees: FeeSettings
+}
+
+interface HistoryItem {
+  id: string
+  label: string
+  kind: string
+  direction: 'in' | 'out'
+  amount: number
+  state: 'successful' | 'pending' | 'processing' | 'failed'
+  counterpart: string | null
+  detail: string | null
+  created_at: string
+}
+
+const TABS = ['History', 'Gifts', 'Withdraw'] as const
+type Tab = typeof TABS[number]
+
 const route = useRoute()
-const requestedTab = typeof route.query.tab === 'string' ? route.query.tab : ''
-const activeTab = ref(tabs.includes(requestedTab) ? requestedTab : tabs[0])
-
-const userStore = useUserStore()
 const { cashRain } = useCelebrate()
-const pewgiftUserId = computed(() => userStore.user?.id ?? '')
 
-// Core Loading & UI Structural States
+const requestedTab = TABS.find(t => t.toLowerCase() === String(route.query.tab ?? '').toLowerCase())
+const activeTab = ref<Tab>(requestedTab ?? 'History')
+
+const summary = ref<WalletSummary | null>(null)
+const history = ref<HistoryItem[]>([])
+const gifts = ref<HistoryItem[]>([])
 const isLoading = ref(true)
-const showWithdrawModal = ref(false)
-const showTransferModal = ref(false)
-const showAddPaymentModal = ref(false)
+const loadError = ref('')
+const depositNotice = ref('')
 
-// Data Storage Repositories
-const transactions = ref<any[]>([])
-const paymentMethods = ref<any[]>([])
-const withdrawals = ref<any[]>([])
-const userBalance = ref<number>(0.00) 
-const referralStats = ref({
-  total_referrals: 0,
-  referral_earnings: 0.00,
-  referral_code: 'SOCIALVERSE024'
+const withdrawForm = reactive({
+  method: 'bank' as 'bank' | 'crypto',
+  amount: null as number | null,
+  bank_name: '',
+  account_number: '',
+  account_name: '',
+  network: '',
+  address: '',
+  country: ''
+})
+const withdrawError = ref('')
+const withdrawNotice = ref('')
+const isWithdrawing = ref(false)
+
+const fmt = (value: number, dp = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
+const formatDate = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+const STATE_CLASS: Record<HistoryItem['state'], string> = {
+  successful: 'bg-emerald-500/15 text-emerald-400',
+  pending: 'bg-amber-500/15 text-amber-400',
+  processing: 'bg-sky-500/15 text-sky-400',
+  failed: 'bg-red-500/15 text-red-400'
+}
+
+const withdrawPreview = computed(() => {
+  const fees = summary.value?.fees
+  const amount = Number(withdrawForm.amount) || 0
+  if (!fees) return { fee: 0, tax: 0, usd: 0 }
+  const fee = amount * fees.withdrawal_fee_pct / 100
+  const tax = amount * fees.withdrawal_tax_pct / 100
+  return { fee, tax, usd: (amount - fee - tax) * fees.pew_usd_rate }
 })
 
-// Transfer Form Payload Aggregates
-const transferAmount = ref<number | null>(null)
-const targetRecipient = ref('')
-const paymentNotes = ref('')
-const isSubmitting = ref(false)
-const depositStatusNotice = ref('')
-
-// Live Reactive Performance Metrics
-const totalBalance = computed(() => userBalance.value)
-
-const totalIncome = computed(() => {
-  return transactions.value
-    .filter(tx => tx.type === 'credit')
-    .reduce((acc, tx) => acc + (Number(tx.amount) || 0), 0)
-})
-
-const totalSpent = computed(() => {
-  return transactions.value
-    .filter(tx => tx.type === 'debit')
-    .reduce((acc, tx) => acc + (Number(tx.amount) || 0), 0)
-})
-
-const pendingAmount = computed(() => {
-  return withdrawals.value
-    .filter(w => w.status === 'pending')
-    .reduce((acc, w) => acc + (Number(w.amount) || 0), 0)
-})
-
-// Core Ledger Multi-Fetch Initialization 
-const fetchWalletInfrastructureData = async () => {
+const loadWallet = async () => {
+  loadError.value = ''
   try {
-    isLoading.value = true
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      
-    if (!walletError && wallet) {
-      userBalance.value = Number(wallet.balance) || 0.00
-    }
-    
-    const { data: txData } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    transactions.value = txData || []
-
-    const { data: payData } = await supabase
-      .from('payment_methods')
-      .select('*')
-      .order('created_at', { ascending: false })
-    paymentMethods.value = payData || []
-
-    const { data: withdrawData } = await supabase
-      .from('withdrawals')
-      .select('*')
-      .order('created_at', { ascending: false })
-    withdrawals.value = withdrawData || []
-
-    const { data: refData } = await supabase
-      .from('referrals')
-      .select('total_referrals, referral_earnings, referral_code')
-      .maybeSingle()
-      
-    if (refData) {
-      referralStats.value = {
-        total_referrals: refData.total_referrals || 0,
-        referral_earnings: Number(refData.referral_earnings) || 0,
-        referral_code: refData.referral_code || 'SOCIALVERSE024'
-      }
-    }
-
+    const [s, h, g] = await Promise.all([
+      $fetch<WalletSummary>('/api/wallet/summary'),
+      $fetch<{ items: HistoryItem[] }>('/api/wallet/history'),
+      $fetch<{ items: HistoryItem[] }>('/api/wallet/history', { query: { filter: 'gifts' } })
+    ])
+    summary.value = s
+    history.value = h.items
+    gifts.value = g.items
   } catch (err) {
-    console.error('❌ [Wallet Engine] Failed to compile structural accounting logs:', err)
+    loadError.value = (err as { statusMessage?: string })?.statusMessage || 'Could not load your wallet. Pull to refresh or try again.'
   } finally {
     isLoading.value = false
   }
 }
 
-// Transaction Pipeline Submissions: Cross-Node Internal Transfers
-const executeDirectNodeTransfer = async () => {
-  if (!transferAmount.value || transferAmount.value <= 0 || !targetRecipient.value) return
-  if (transferAmount.value > totalBalance.value) {
-    alert('Execution halted: Insufficient capital pool remaining in this node link.')
+const submitWithdrawal = async () => {
+  withdrawError.value = ''
+  withdrawNotice.value = ''
+  const amount = Number(withdrawForm.amount)
+  if (!amount || amount <= 0) {
+    withdrawError.value = 'Enter an amount'
     return
   }
+  if (summary.value && amount > summary.value.withdrawable_pew) {
+    withdrawError.value = 'Amount is more than your withdrawable balance'
+    return
+  }
+  const details = withdrawForm.method === 'bank'
+    ? { bank_name: withdrawForm.bank_name, account_number: withdrawForm.account_number, account_name: withdrawForm.account_name, country: withdrawForm.country }
+    : { network: withdrawForm.network, address: withdrawForm.address }
 
+  isWithdrawing.value = true
   try {
-    isSubmitting.value = true
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const updatedSenderBalance = userBalance.value - transferAmount.value
-
-    const { data: receiverWallet, error: rxFetchError } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', targetRecipient.value)
-      .maybeSingle()
-
-    if (rxFetchError || !receiverWallet) {
-      alert('Execution aborted: Destination node reference hash identifier is invalid.')
-      return
-    }
-
-    const updatedReceiverBalance = (Number(receiverWallet.balance) || 0) + transferAmount.value
-
-    const { error: txError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: user.id,
-        amount: transferAmount.value,
-        type: 'debit',
-        description: paymentNotes.value || `Transfer to tracking handle: ${targetRecipient.value.slice(0, 8)}...`,
-        icon: '🔄',
-        metadata: { recipient_node: targetRecipient.value }
-      })
-    if (txError) throw txError
-
-    const { error: rxTxError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: targetRecipient.value,
-        amount: transferAmount.value,
-        type: 'credit',
-        description: `Internal cross-node inbound settlement receipt`,
-        icon: '📥',
-        metadata: { sender_node: user.id }
-      })
-    if (rxTxError) throw rxTxError
-
-    const { error: senderUpdateError } = await supabase
-      .from('wallets')
-      .update({ balance: updatedSenderBalance, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id)
-    if (senderUpdateError) throw senderUpdateError
-
-    const { error: receiverUpdateError } = await supabase
-      .from('wallets')
-      .update({ balance: updatedReceiverBalance, updated_at: new Date().toISOString() })
-      .eq('user_id', targetRecipient.value)
-    if (receiverUpdateError) throw receiverUpdateError
-    
-    transferAmount.value = null
-    targetRecipient.value = ''
-    paymentNotes.value = ''
-    showTransferModal.value = false
-    await fetchWalletInfrastructureData()
-    alert('🔄 Multi-tier node settlement completed!')
+    await $fetch('/api/wallet/withdraw', { method: 'POST', body: { amount, method: withdrawForm.method, details } })
+    withdrawNotice.value = 'Withdrawal sent for admin approval. You can follow its status in History.'
+    withdrawForm.amount = null
+    await loadWallet()
   } catch (err) {
-    console.error('❌ Direct network transfer mutation failure:', err)
-    alert('Failed to execute internal ledger modification safely.')
+    withdrawError.value = (err as { statusMessage?: string, data?: { statusMessage?: string } })?.data?.statusMessage
+      || (err as { statusMessage?: string })?.statusMessage
+      || 'Withdrawal failed'
   } finally {
-    isSubmitting.value = false
+    isWithdrawing.value = false
   }
-}
-
-const removePaymentMethodItem = async (id: string) => {
-  if (!confirm('Drop this verification asset from your billing profile?')) return
-  const { error } = await supabase
-    .from('payment_methods')
-    .delete()
-    .eq('id', id)
-
-  if (!error) {
-    paymentMethods.value = paymentMethods.value.filter(m => m.id !== id)
-  }
-}
-
-const copyReferralLinkCode = () => {
-  navigator.clipboard.writeText(referralStats.value.referral_code)
-  alert('Crypto node referral identifier copied to memory pipeline.')
-}
-
-const formatDateLabel = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
 }
 
 const reviewReturnedDeposit = async (depositId: string) => {
   try {
-    const response = await $fetch<{
-      data: { status: string, credited_pewgift: number, source_currency: string }
-    }>(`/api/wallet/deposit/${depositId}`)
-
-    if (response.data.status === 'SETTLED') cashRain()
-    depositStatusNotice.value = response.data.status === 'SETTLED'
-      ? `Deposit settled — ${Number(response.data.credited_pewgift).toFixed(2)} PEW credited.`
-      : 'Payment received by the provider. Your balance updates as soon as it confirms.'
-    await fetchWalletInfrastructureData()
+    const response = await $fetch<{ data: { status: string, credited_pewgift: number } }>(`/api/wallet/deposit/${depositId}`)
+    if (response.data.status === 'SETTLED') {
+      cashRain()
+      depositNotice.value = `Payment successful — ${fmt(response.data.credited_pewgift)} PEW added to your wallet.`
+    } else if (response.data.status === 'FAILED') {
+      depositNotice.value = 'The payment failed. No money was taken from your wallet.'
+    } else {
+      depositNotice.value = 'Payment is processing. Your balance updates as soon as the provider confirms it.'
+    }
+    await loadWallet()
   } catch {
-    depositStatusNotice.value = ''
+    depositNotice.value = ''
   }
 }
 
 onMounted(() => {
-  fetchWalletInfrastructureData()
+  loadWallet()
   if (typeof route.query.deposit === 'string') reviewReturnedDeposit(route.query.deposit)
 })
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
-    <div class="max-w-6xl mx-auto space-y-8">
-      
-      <div class="border-b border-slate-800 pb-6">
-        <h1 class="text-2xl font-black text-white tracking-tight">💼 Account & Wallet/Gift Management</h1>
-        <p class="text-xs text-slate-400 mt-1"> Gift history, deposits , Transaction History/Statement </p>
-      </div>
+  <div class="min-h-screen bg-slate-950 text-slate-100 px-4 py-6 sm:px-6">
+    <div class="max-w-3xl mx-auto space-y-5">
+      <header class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h1 class="text-xl font-bold">Wallet</h1>
+          <p class="text-xs text-slate-400 mt-1">Balance, incoming and outgoing history, gifts and withdrawals</p>
+        </div>
+        <NuxtLink to="/add-funds" class="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg">
+          + Add funds
+        </NuxtLink>
+      </header>
 
-      <p v-if="depositStatusNotice" class="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
-        {{ depositStatusNotice }}
+      <p v-if="depositNotice" class="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+        {{ depositNotice }}
+      </p>
+      <p v-if="loadError" class="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+        {{ loadError }}
+      </p>
+      <p v-if="summary?.is_locked" class="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+        Your wallet is locked by an administrator. Sending and withdrawing are paused.
       </p>
 
-      <ClientOnly>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Fluid Balance</span>
-            <h3 class="text-xl font-black text-white mt-1">${{ totalBalance.toFixed(2) }}</h3>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Income Accumulation</span>
-            <h3 class="text-xl font-black text-emerald-400 mt-1">${{ totalIncome.toFixed(2) }}</h3>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Outbound Expense Sheet</span>
-            <h3 class="text-xl font-black text-rose-500 mt-1">${{ totalSpent.toFixed(2) }}</h3>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pending Disbursals</span>
-            <h3 class="text-xl font-black text-amber-400 mt-1">${{ pendingAmount.toFixed(2) }}</h3>
-          </div>
-        </div>
+      <div v-if="isLoading" class="text-sm text-slate-400 py-10 text-center">Loading wallet…</div>
 
-        <!-- Interactive Direct Dispatch Controls -->
-        <div class="flex flex-wrap gap-3">
-          <NuxtLink to="/add-funds" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow">
-            ➕ Add Funds
-          </NuxtLink>
-          <button @click="showWithdrawModal = true" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-lg transition-colors">
-            ➖ Withdraw Assets
-          </button>
-          <button @click="showTransferModal = true" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors shadow">
-            🔄 Node Transfer
-          </button>
-        </div>
+      <template v-else-if="summary">
+        <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-gradient-to-br from-indigo-600/30 to-slate-900 border border-indigo-500/30 rounded-xl p-4">
+            <span class="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">Total balance</span>
+            <p class="text-2xl font-bold mt-1 font-mono">{{ fmt(summary.balance) }} <span class="text-sm text-slate-300">PEW</span></p>
+          </div>
+          <div class="bg-gradient-to-br from-emerald-600/25 to-slate-900 border border-emerald-500/30 rounded-xl p-4">
+            <span class="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">Withdrawable balance</span>
+            <p class="text-2xl font-bold mt-1 font-mono">${{ fmt(summary.withdrawable_usd) }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">
+              From {{ fmt(summary.withdrawable_pew) }} PEW earned, after the {{ summary.fees.withdrawal_fee_pct }}% withdrawal fee<span v-if="summary.fees.withdrawal_tax_pct"> and {{ summary.fees.withdrawal_tax_pct }}% tax</span>
+            </p>
+          </div>
+        </section>
 
-        <!-- NEW FIXED TAB BAR: Uses the Add Funds button style to fully contain text -->
-        <div class="wallet-tabs flex gap-3 overflow-x-auto scrollbar-none pb-2">
-          <button 
-            v-for="tab in tabs" 
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wide">Funds added</span>
+            <p class="text-sm font-bold font-mono text-emerald-400">+{{ fmt(summary.totals.added_funds) }}</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wide">Gifts received</span>
+            <p class="text-sm font-bold font-mono text-emerald-400">+{{ fmt(summary.totals.gifts_received) }}</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wide">Other incoming</span>
+            <p class="text-sm font-bold font-mono text-emerald-400">+{{ fmt(summary.totals.other_incoming) }}</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wide">Outgoing</span>
+            <p class="text-sm font-bold font-mono text-rose-400">-{{ fmt(summary.totals.outgoing) }}</p>
+          </div>
+        </section>
+        <p class="text-[11px] text-slate-500">
+          Fees paid: {{ fmt(summary.totals.fees) }} PEW · Add funds {{ summary.fees.deposit_fee_pct }}% · Gifts {{ summary.fees.gift_fee_pct }}% · Withdrawal {{ summary.fees.withdrawal_fee_pct }}%.
+          Funds added by card, bank or crypto can be spent but not withdrawn; gifts received, P2P and escrow earnings can.
+        </p>
+
+        <nav class="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+          <button
+            v-for="tab in TABS"
             :key="tab"
+            type="button"
+            class="shrink-0 px-4 py-2 rounded-lg text-xs font-bold border transition-colors"
+            :class="activeTab === tab ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'"
             @click="activeTab = tab"
-            :class="[
-              'shrink-0 px-4 py-2.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap', 
-              activeTab === tab 
-                ? 'bg-indigo-600 text-white shadow hover:bg-indigo-500' 
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-            ]"
           >
             {{ tab }}
           </button>
-        </div>
+        </nav>
 
-        <div v-if="isLoading" class="space-y-4 pt-2">
-          <div v-for="n in 3" :key="n" class="h-16 bg-slate-900 rounded-xl border border-slate-800 animate-pulse"></div>
-        </div>
-
-        <div v-else class="space-y-6 pt-2">
-          
-          <div v-if="activeTab === 'Transacts'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
-            <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">📋 Ledger Log Register</h3>
-            <div v-if="transactions.length > 0" class="divide-y divide-slate-800/60">
-              <div v-for="tx in transactions" :key="tx.id" class="py-3.5 flex items-center justify-between text-xs first:pt-0 last:pb-0">
-                <div class="flex items-center space-x-3">
-                  <div class="text-base bg-slate-950 p-2 rounded-lg border border-slate-800/60">{{ tx.icon || '🪙' }}</div>
-                  <div>
-                    <p class="font-bold text-slate-200">{{ tx.description }}</p>
-                    <span class="text-[10px] text-slate-500 block font-mono mt-0.5">{{ formatDateLabel(tx.created_at || tx.date) }}</span>
-                  </div>
-                </div>
-                <span :class="['font-mono font-bold text-sm', tx.type === 'credit' ? 'text-emerald-400' : 'text-rose-500']">
-                  {{ tx.type === 'credit' ? '+' : '-' }}${{ (Number(tx.amount) || 0).toFixed(2) }}
-                </span>
-              </div>
+        <section v-if="activeTab === 'History' || activeTab === 'Gifts'" class="bg-slate-900 border border-slate-800 rounded-xl divide-y divide-slate-800">
+          <p v-if="!(activeTab === 'Gifts' ? gifts : history).length" class="text-sm text-slate-400 p-6 text-center">
+            {{ activeTab === 'Gifts' ? 'No gifts sent or received yet.' : 'No transactions yet.' }}
+          </p>
+          <div
+            v-for="item in (activeTab === 'Gifts' ? gifts : history)"
+            :key="item.id"
+            class="flex items-center gap-3 px-4 py-3"
+          >
+            <div
+              class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-bold"
+              :class="item.direction === 'in' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'"
+            >
+              {{ item.direction === 'in' ? '↓' : '↑' }}
             </div>
-            <div v-else class="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-lg">
-              No dynamic accounting row items logged under this workspace anchor.
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold truncate">
+                {{ item.label }}<span v-if="item.counterpart" class="text-slate-400 font-normal"> · {{ item.direction === 'in' ? 'from' : 'to' }} @{{ item.counterpart }}</span>
+              </p>
+              <p class="text-[11px] text-slate-500 truncate">
+                {{ formatDate(item.created_at) }}<span v-if="item.detail"> · {{ item.detail }}</span>
+              </p>
             </div>
-          </div>
-
-          <div v-if="activeTab === 'gifts'" class="space-y-4">
-            <PewgiftSummary />
-            <PewgiftHistory v-if="pewgiftUserId" :user-id="pewgiftUserId" />
-          </div>
-
-          <div v-if="activeTab === 'Pay Methods'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">💳 Active Settlement Links</h3>
-              <button @click="showAddPaymentModal = true" class="text-[11px] text-indigo-400 font-bold hover:underline">
-                Add Method
-              </button>
-            </div>
-            <div v-if="paymentMethods.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div v-for="method in paymentMethods" :key="method.id" class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                  <div class="text-lg">{{ method.icon || '💳' }}</div>
-                  <div>
-                    <p class="text-xs font-bold text-white">{{ method.name }}</p>
-                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">{{ method.info }}</p>
-                  </div>
-                </div>
-                <button @click="removePaymentMethodItem(method.id)" class="text-[10px] font-bold text-rose-400 hover:bg-rose-950/20 px-2 py-1 rounded border border-rose-950/30 transition-colors">
-                  Remove
-                </button>
-              </div>
-            </div>
-            <div v-else class="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-lg">
-              No authenticated merchant methods tied to this profile layout stack.
+            <div class="text-right shrink-0">
+              <p class="text-sm font-bold font-mono" :class="item.direction === 'in' ? 'text-emerald-400' : 'text-rose-400'">
+                {{ item.direction === 'in' ? '+' : '-' }}{{ fmt(item.amount) }}
+              </p>
+              <span class="inline-block mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize" :class="STATE_CLASS[item.state]">
+                {{ item.state }}
+              </span>
             </div>
           </div>
+        </section>
 
-          <div v-if="activeTab === 'Withdraws'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
-            <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">🏦 Asset Disbursal Processing Records</h3>
-            <div v-if="withdrawals.length > 0" class="divide-y divide-slate-800/60">
-              <div v-for="withdrawal in withdrawals" :key="withdrawal.id" class="py-3.5 flex items-center justify-between text-xs first:pt-0 last:pb-0">
-                <div>
-                  <div class="flex items-center space-x-2">
-                    <span class="font-bold text-white text-sm">${{ (Number(withdrawal.amount) || 0).toFixed(2) }}</span>
-                    <span :class="['px-1.5 py-0.5 text-[8px] font-black uppercase rounded tracking-wide border', withdrawal.status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20']">
-                      {{ withdrawal.status }}
-                    </span>
-                  </div>
-                  <span class="text-[10px] text-slate-500 font-mono block mt-0.5">{{ formatDateLabel(withdrawal.created_at || withdrawal.date) }}</span>
-                </div>
-                <span class="text-slate-400 font-medium font-mono text-[11px]">{{ withdrawal.method || 'Direct Bank Settlement' }}</span>
-              </div>
-            </div>
-            <div v-else class="p-8 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-lg">
-              No historic or executing payout sequences logged.
-            </div>
-          </div>
-
-          <div v-if="activeTab === 'Refers'" class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-6">
-            <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider">🎁 Node Network Affiliate Program</h3>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center">
-                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Referred Nodes Connected</span>
-                <p class="text-2xl font-black text-white mt-1">{{ referralStats.total_referrals }}</p>
-              </div>
-              <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center">
-                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Accumulated Dividends</span>
-                <p class="text-2xl font-black text-emerald-400 mt-1">${{ referralStats.referral_earnings.toFixed(2) }}</p>
-              </div>
-            </div>
-
-            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-              <label class="block text-[10px] font-bold uppercase text-slate-400 tracking-wider">Your Cryptographic Affiliate Tracking Code</label>
-              <div class="flex gap-2">
-                <input type="text" :value="referralStats.referral_code" readonly class="flex-1 bg-slate-900 text-xs font-mono font-bold text-white border border-slate-800 rounded-lg px-3 py-2 focus:outline-none" />
-                <button @click="copyReferralLinkCode" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors">
-                  📋 Copy Key
-                </button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </ClientOnly>
-    </div>
-
-    <!-- SAFEKEEPING MODAL GATEWAY: OUTBOUND NODE TRANSFERS -->
-    <div v-if="showTransferModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div class="bg-slate-900 border border-slate-800 w-full max-w-md p-6 rounded-xl shadow-2xl space-y-4">
-        <div>
-          <h3 class="text-base font-black text-white">Initiate Instant Secure Disbursal</h3>
-          <p class="text-xs text-slate-400">Move cross-node capital pools instantly across verification chains.</p>
-        </div>
-
-        <form @submit.prevent="executeDirectNodeTransfer" class="space-y-4">
+        <section v-if="activeTab === 'Withdraw'" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
           <div>
-            <label class="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Target Receiver Hash ID</label>
-            <input v-model="targetRecipient" type="text" required placeholder="e.g. 8f24bca8-22d1-44bb-ba91..." class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5 focus:outline-none font-mono" />
+            <h2 class="text-sm font-bold">Request a withdrawal</h2>
+            <p class="text-[11px] text-slate-400 mt-1">
+              Available: {{ fmt(summary.withdrawable_pew) }} PEW (≈ ${{ fmt(summary.withdrawable_usd) }}). Minimum {{ summary.fees.min_withdrawal_pew }} PEW. An admin reviews every request.
+            </p>
           </div>
 
-          <div>
-            <label class="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Amount ($)</label>
-            <input v-model.number="transferAmount" type="number" step="0.01" required placeholder="0.00" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5 focus:outline-none font-mono" />
-          </div>
-
-          <div>
-            <label class="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Internal Purpose Note</label>
-            <input v-model="paymentNotes" type="text" placeholder="Reference notes or contract logs" class="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg px-3 py-2.5 focus:outline-none" />
-          </div>
-
-          <div class="flex items-center justify-end gap-2 pt-2">
-            <button type="button" @click="showTransferModal = false" class="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors">
-              Close
-            </button>
-            <button type="submit" :disabled="isSubmitting" class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors">
-              {{ isSubmitting ? 'Validating Link...' : 'Execute Transaction' }}
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              v-for="m in (['bank', 'crypto'] as const)"
+              :key="m"
+              type="button"
+              class="py-2.5 rounded-lg text-xs font-bold border capitalize"
+              :class="withdrawForm.method === m ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'"
+              @click="withdrawForm.method = m"
+            >
+              {{ m === 'bank' ? 'Bank account' : 'Crypto wallet' }}
             </button>
           </div>
-        </form>
-      </div>
+
+          <form class="space-y-3" @submit.prevent="submitWithdrawal">
+            <template v-if="withdrawForm.method === 'bank'">
+              <input v-model.trim="withdrawForm.bank_name" required placeholder="Bank name" class="wallet-input">
+              <input v-model.trim="withdrawForm.account_number" required inputmode="numeric" placeholder="Account number / IBAN" class="wallet-input">
+              <input v-model.trim="withdrawForm.account_name" required placeholder="Account holder name" class="wallet-input">
+              <input v-model.trim="withdrawForm.country" placeholder="Country (optional)" class="wallet-input">
+            </template>
+            <template v-else>
+              <input v-model.trim="withdrawForm.network" required placeholder="Network (e.g. USDT-TRC20, BTC)" class="wallet-input">
+              <input v-model.trim="withdrawForm.address" required placeholder="Wallet address" class="wallet-input font-mono">
+            </template>
+            <input v-model.number="withdrawForm.amount" type="number" min="0" step="0.01" required placeholder="Amount in PEW" class="wallet-input font-mono">
+
+            <div v-if="withdrawForm.amount" class="text-[11px] text-slate-400 bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
+              <p>Withdrawal fee ({{ summary.fees.withdrawal_fee_pct }}%): -{{ fmt(withdrawPreview.fee) }} PEW</p>
+              <p v-if="summary.fees.withdrawal_tax_pct">Tax ({{ summary.fees.withdrawal_tax_pct }}%): -{{ fmt(withdrawPreview.tax) }} PEW</p>
+              <p class="text-slate-200 font-semibold">You receive: ${{ fmt(withdrawPreview.usd) }}</p>
+            </div>
+
+            <p v-if="withdrawError" class="text-xs text-red-400">{{ withdrawError }}</p>
+            <p v-if="withdrawNotice" class="text-xs text-emerald-400">{{ withdrawNotice }}</p>
+
+            <button
+              type="submit"
+              :disabled="isWithdrawing || summary.is_locked || summary.withdrawable_pew <= 0"
+              class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-lg"
+            >
+              {{ isWithdrawing ? 'Sending…' : 'Send for approval' }}
+            </button>
+          </form>
+        </section>
+      </template>
     </div>
-  </main>
+  </div>
 </template>
+
+<style scoped>
+.wallet-input {
+  width: 100%;
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #fff;
+}
+.wallet-input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+</style>
