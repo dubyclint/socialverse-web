@@ -21,14 +21,17 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const iceServers: RTCIceServer[] = [STUN]
 
-  if (config.cloudflareTurnKeyId && config.cloudflareTurnApiToken) {
-    iceServers.push(...await cloudflareIceServers(String(config.cloudflareTurnKeyId), String(config.cloudflareTurnApiToken)))
-  }
+  // Read at request time too: runtimeConfig is captured at build time, and the
+  // deploy only provides these variables to the running container.
+  const env = (key: string, fallback: unknown) => String(fallback || process.env[key] || '')
+  const keyId = env('CLOUDFLARE_TURN_KEY_ID', config.cloudflareTurnKeyId)
+  const token = env('CLOUDFLARE_TURN_API_TOKEN', config.cloudflareTurnApiToken)
+  if (keyId && token) iceServers.push(...await cloudflareIceServers(keyId, token))
 
-  const urls = String(config.turnUrls || '').split(',').map(url => url.trim()).filter(Boolean)
-  if (urls.length && config.turnUsername && config.turnCredential) {
-    iceServers.push({ urls, username: String(config.turnUsername), credential: String(config.turnCredential) })
-  }
+  const urls = env('TURN_URLS', config.turnUrls).split(',').map(url => url.trim()).filter(Boolean)
+  const username = env('TURN_USERNAME', config.turnUsername)
+  const credential = env('TURN_CREDENTIAL', config.turnCredential)
+  if (urls.length && username && credential) iceServers.push({ urls, username, credential })
 
   const relay = iceServers.some(server => [server.urls].flat().some(url => String(url).startsWith('turn')))
   return { iceServers, relay }
