@@ -4,6 +4,29 @@
 // ============================================================================
 
 import { ref, computed } from 'vue'
+import { useUserSettings } from '~/composables/use-user-settings'
+
+const STANDARD_MAX_EDGE = 1600
+
+/** Downsize a photo in the browser; returns the original when it is already small or not a raster image. */
+const downscaleImage = async (file: File): Promise<File> => {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file
+  const bitmap = await createImageBitmap(file).catch(() => null)
+  if (!bitmap) return file
+  const scale = Math.min(1, STANDARD_MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+  if (scale === 1) {
+    bitmap.close()
+    return file
+  }
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+  if (!blob || blob.size >= file.size) return file
+  return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+}
 
 interface UploadProgress {
   loaded: number
@@ -29,6 +52,7 @@ interface UploadResponse {
 }
 
 export const useFileUpload = () => {
+  const { settings: userSettings, load: loadUserSettings } = useUserSettings()
   const uploading = ref(false)
   const progress = ref<UploadProgress>({ loaded: 0, total: 0, percentage: 0 })
   const error = ref<string | null>(null)
@@ -56,6 +80,11 @@ export const useFileUpload = () => {
       if (file.size > maxSize) {
         error.value = `File size exceeds ${maxSize / 1024 / 1024}MB limit`
         return null
+      }
+
+      if (options.optimize) {
+        await loadUserSettings()
+        if (userSettings.value.storage_data.uploadQuality === 'standard') file = await downscaleImage(file)
       }
 
       // ✅ Create form data

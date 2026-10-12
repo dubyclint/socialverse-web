@@ -150,7 +150,7 @@
             <settings-item
               icon="image"
               title="Media Upload Quality"
-              :subtitle="settings.storage_data.mediaUploadQuality === 'hd' ? 'HD' : 'Standard'"
+              :subtitle="settings.storage_data.uploadQuality === 'original' ? 'Highest quality' : 'Standard'"
               @click="currentSection = 'mediaQuality'"
             />
             <settings-item
@@ -367,15 +367,15 @@
             v-for="option in mediaQualityOptions"
             :key="option.value"
             class="option-item"
-            :class="{ active: settings.storage_data.mediaUploadQuality === option.value }"
-            @click="update('storage_data', { mediaUploadQuality: option.value })"
+            :class="{ active: settings.storage_data.uploadQuality === option.value }"
+            @click="update('storage_data', { uploadQuality: option.value })"
           >
             <div class="option-info">
               <div class="option-title">{{ option.label }}</div>
               <div class="option-description">{{ option.description }}</div>
             </div>
             <div class="option-radio">
-              <div v-if="settings.storage_data.mediaUploadQuality === option.value" class="radio-dot" />
+              <div v-if="settings.storage_data.uploadQuality === option.value" class="radio-dot" />
             </div>
           </div>
         </div>
@@ -607,8 +607,8 @@ const lockOptions = [
 ]
 
 const mediaQualityOptions = [
-  { value: 'standard' as const, label: 'Standard', description: 'Smaller uploads, faster on mobile data' },
-  { value: 'hd' as const, label: 'HD', description: 'Best quality, larger uploads' }
+  { value: 'original' as const, label: 'Highest quality', description: 'Photos upload at full resolution (default)' },
+  { value: 'standard' as const, label: 'Standard', description: 'Photos are resized to 1600px, faster on mobile data' }
 ]
 
 const customWallpaper = computed(() => /^https?:\/\//.test(settings.value.general.chatWallpaper))

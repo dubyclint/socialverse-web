@@ -9,7 +9,7 @@
 
       <!-- Tab System -->
       <div class="flex gap-2 border-b border-slate-800 mb-6 pb-2 overflow-x-auto no-scrollbar">
-        <button v-for="tab in ['account', 'stream', 'security']" :key="tab" 
+        <button v-for="tab in ['account', 'media', 'stream', 'security']" :key="tab" 
           @click="activeTab = tab"
           :class="['px-4 py-2 text-xs font-bold rounded-lg capitalize transition-all border', activeTab === tab ? 'tab-active' : 'tab-inactive']">
           {{ tab }}
@@ -32,6 +32,24 @@
             </div>
           </div>
           <button @click="saveSettings('profile')" :disabled="isSaving" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl">Save Changes</button>
+        </div>
+
+        <!-- Media Tab -->
+        <div v-if="activeTab === 'media'" class="space-y-4">
+          <label class="flex items-center justify-between gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800 cursor-pointer">
+            <span>
+              <span class="block text-sm font-bold text-white">Highest Quality Uploads</span>
+              <span class="block text-[11px] text-slate-400 mt-1">On: photos upload at full resolution. Off: photos are resized to 1600px for faster uploads on mobile data.</span>
+            </span>
+            <input
+              type="checkbox"
+              class="h-5 w-5 accent-indigo-500"
+              :checked="userSettings.storage_data.uploadQuality === 'original'"
+              :disabled="settingsSaving"
+              @change="updateUserSettings('storage_data', { uploadQuality: ($event.target as HTMLInputElement).checked ? 'original' : 'standard' })"
+            />
+          </label>
+          <p v-if="settingsError" class="text-xs text-rose-400">{{ settingsError }}</p>
         </div>
 
         <!-- Stream Tab -->
@@ -64,11 +82,20 @@ import { ref, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user' // Updated Store
 import { api } from '~/lib/api' // Updated API client
 import type { AuthUser } from '~/types/user'
+import { useUserSettings } from '~/composables/use-user-settings'
 
 definePageMeta({ middleware: ['auth'], layout: 'default' })
 
 const userStore = useUserStore()
 const activeTab = ref('account')
+const {
+  settings: userSettings,
+  saving: settingsSaving,
+  error: settingsError,
+  load: loadUserSettings,
+  update: updateUserSettings
+} = useUserSettings()
+onMounted(() => { void loadUserSettings() })
 const isSaving = ref(false)
 const showStreamKey = ref(false)
 const toast = ref({ message: '', type: 'success' as 'success' | 'error' })

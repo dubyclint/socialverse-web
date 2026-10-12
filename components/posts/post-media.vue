@@ -15,6 +15,7 @@
         class="media-item"
         :alt="`Post media ${index + 1}`"
         loading="lazy"
+        decoding="async"
         @click="$emit('open', url)"
       />
     </template>
@@ -53,10 +54,17 @@ const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)
 
 /* A single media item leads the card: tall enough to dominate the viewport
    without pushing the action bar off screen. */
+/* Best fit: the whole photo/video is shown at its natural aspect ratio,
+   never upscaled past its own resolution and never taller than the screen. */
 .count-1 .media-item {
-  max-height: 70vh;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(80vh, 900px);
+  margin: 0 auto;
   object-fit: contain;
 }
+.count-1 .media-video { width: 100%; }
 
 .count-2 .media-item,
 .count-3 .media-item,
@@ -80,6 +88,6 @@ const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)
 }
 
 @media (max-width: 768px) {
-  .count-1 .media-item { max-height: 60vh; }
+  .count-1 .media-item { max-height: 75vh; }
 }
 </style>

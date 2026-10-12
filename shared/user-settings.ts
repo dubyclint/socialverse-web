@@ -34,7 +34,8 @@ export interface StorageDataSettings {
   autoDownloadPhotos: 'never' | 'wifi' | 'always'
   autoDownloadVideos: 'never' | 'wifi' | 'always'
   autoDownloadDocuments: 'never' | 'wifi' | 'always'
-  mediaUploadQuality: 'standard' | 'hd'
+  /** 'original' keeps photos at full resolution (default); 'standard' downsizes before upload. */
+  uploadQuality: 'original' | 'standard'
   dataSaver: boolean
 }
 
@@ -93,7 +94,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     autoDownloadPhotos: 'wifi',
     autoDownloadVideos: 'never',
     autoDownloadDocuments: 'never',
-    mediaUploadQuality: 'standard',
+    uploadQuality: 'original',
     dataSaver: false
   },
   general: {
