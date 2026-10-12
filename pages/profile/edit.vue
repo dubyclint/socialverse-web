@@ -257,7 +257,100 @@
         </div>
 
         <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 space-y-4">
+          <h2 class="text-xl font-semibold text-white mb-1">Personal Info</h2>
+          <p class="text-slate-500 text-sm mb-2">Tick "Public" to show a detail on your profile. Unticked details are only visible to you.</p>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Marital status</label>
+            <div class="flex items-center gap-3">
+              <select v-model="formData.marital_status" class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
+                <option value="">Not specified</option>
+                <option v-for="status in maritalStatuses" :key="status" :value="status">{{ status }}</option>
+              </select>
+              <label class="vis-toggle"><input v-model="formData.field_visibility.marital_status" type="checkbox" /> Public</label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">University / school</label>
+            <div class="flex items-center gap-3">
+              <input v-model="formData.university" type="text" maxlength="120" placeholder="e.g. University of Lagos" class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              <label class="vis-toggle"><input v-model="formData.field_visibility.university" type="checkbox" /> Public</label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Work / business</label>
+            <div class="flex items-center gap-3">
+              <input v-model="formData.work" type="text" maxlength="120" placeholder="e.g. Designer at Viorp" class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              <label class="vis-toggle"><input v-model="formData.field_visibility.work" type="checkbox" /> Public</label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Religion / denomination</label>
+            <div class="flex items-center gap-3">
+              <input v-model="formData.religion" type="text" maxlength="120" placeholder="e.g. Christianity — Catholic" class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              <label class="vis-toggle"><input v-model="formData.field_visibility.religion" type="checkbox" /> Public</label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Interests</label>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <span v-for="tag in formData.interest_tags" :key="tag" class="inline-flex items-center gap-1 bg-blue-900/40 border border-blue-500/40 text-blue-200 text-sm rounded-full px-3 py-1">
+                {{ tag }}
+                <button type="button" class="text-blue-300 hover:text-white" :aria-label="`Remove ${tag}`" @click="removeInterest(tag)">×</button>
+              </span>
+            </div>
+            <div class="flex items-center gap-3">
+              <input
+                v-model="interestDraft"
+                type="text"
+                maxlength="40"
+                placeholder="Type an interest and press Enter"
+                class="flex-1 min-w-0 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                @keydown.enter.prevent="addInterest"
+                @keydown.,.prevent="addInterest"
+              />
+              <label class="vis-toggle"><input v-model="formData.field_visibility.interests" type="checkbox" /> Public</label>
+            </div>
+            <p class="text-slate-500 text-xs mt-1">{{ formData.interest_tags.length }}/20</p>
+          </div>
+          <div class="border-t border-slate-700 pt-4">
+            <h3 class="text-sm font-semibold text-slate-300 mb-2">Show these on my profile</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label v-for="key in basicVisibilityFields" :key="key" class="vis-toggle justify-between bg-slate-900/50 rounded-lg px-3 py-2">
+                <span>{{ fieldLabels[key] }}</span>
+                <input v-model="formData.field_visibility[key]" type="checkbox" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 space-y-4">
           <h2 class="text-xl font-semibold text-white mb-4">Privacy & Notifications</h2>
+
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input
+              v-model="formData.profile_locked"
+              type="checkbox"
+              class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              :disabled="isSubmitting"
+            />
+            <span class="text-slate-300">
+              Lock my profile
+              <p class="text-slate-500 text-sm">People who aren't your PALs only see your name, photo, bio and counts — no personal info or posts.</p>
+            </span>
+          </label>
+
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input
+              v-model="formData.show_online"
+              type="checkbox"
+              class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              :disabled="isSubmitting"
+            />
+            <span class="text-slate-300">
+              Show when I'm online
+              <p class="text-slate-500 text-sm">When off, nobody sees you as online or your last-seen time, on your profile or in chat.</p>
+            </span>
+          </label>
 
           <label class="flex items-center gap-3 cursor-pointer">
             <input
@@ -351,6 +444,13 @@ import { storeToRefs } from 'pinia'
 import { useProfileStore } from '~/stores/profile'
 import { CALLING_COUNTRIES, DEFAULT_CALLING_COUNTRY } from '~/utils/calling-codes'
 import { api } from '~/services/http'
+import {
+  MARITAL_STATUSES,
+  PRIVATE_PROFILE_FIELDS,
+  PROFILE_FIELD_LABELS,
+  isFieldPublic,
+  type PrivateProfileField
+} from '~/shared/profile-fields'
 
 interface PhoneStatus {
   phone: string | null
@@ -386,10 +486,34 @@ const formData = ref({
   gender: '',
   is_private: false,
   hide_following: false,
-  email_notifications: true
+  email_notifications: true,
+  marital_status: '',
+  university: '',
+  work: '',
+  religion: '',
+  interest_tags: [] as string[],
+  profile_locked: false,
+  show_online: true,
+  field_visibility: Object.fromEntries(PRIVATE_PROFILE_FIELDS.map(f => [f, true])) as Record<PrivateProfileField, boolean>
 })
 
-const originalFormData = ref({ ...formData.value })
+const maritalStatuses = MARITAL_STATUSES
+const fieldLabels = PROFILE_FIELD_LABELS
+const basicVisibilityFields: PrivateProfileField[] = ['gender', 'birth_date', 'location', 'website']
+const interestDraft = ref('')
+const addInterest = () => {
+  const tag = interestDraft.value.trim().replace(/,$/, '')
+  interestDraft.value = ''
+  if (!tag || formData.value.interest_tags.length >= 20) return
+  if (formData.value.interest_tags.some(t => t.toLowerCase() === tag.toLowerCase())) return
+  formData.value.interest_tags = [...formData.value.interest_tags, tag]
+}
+const removeInterest = (tag: string) => {
+  formData.value.interest_tags = formData.value.interest_tags.filter(t => t !== tag)
+}
+
+const cloneForm = <T>(value: T): T => JSON.parse(JSON.stringify(value))
+const originalFormData = ref(cloneForm(formData.value))
 const fieldErrors = ref<Record<string, string>>({})
 const formError = ref<string | null>(null)
 const formSuccess = ref(false)
@@ -536,9 +660,19 @@ const loadProfile = async () => {
         gender: p.gender || '',
         is_private: !!p.is_private,
         hide_following: !!p.hide_following,
-        email_notifications: p.email_notifications !== false
+        email_notifications: p.email_notifications !== false,
+        marital_status: p.marital_status || '',
+        university: p.university || '',
+        work: p.work || '',
+        religion: p.religion || '',
+        interest_tags: Array.isArray(p.interest_tags) ? [...p.interest_tags] : [],
+        profile_locked: !!p.profile_locked,
+        show_online: p.show_online !== false,
+        field_visibility: Object.fromEntries(
+          PRIVATE_PROFILE_FIELDS.map(f => [f, isFieldPublic(p.field_visibility, f)])
+        ) as Record<PrivateProfileField, boolean>
       }
-      originalFormData.value = { ...formData.value }
+      originalFormData.value = cloneForm(formData.value)
     }
   } catch (err: any) {
     formError.value = 'Failed to load profile'
@@ -579,7 +713,7 @@ const handleSubmit = async () => {
     })
     currentPassword.value = ''
     
-    originalFormData.value = { ...formData.value }
+    originalFormData.value = cloneForm(formData.value)
     formSuccess.value = true
     setTimeout(() => router.push('/profile'), 1000)
   } catch (err: unknown) {
@@ -597,6 +731,8 @@ onBeforeUnmount(stopVerifyPoll)
 </script>
               
 <style scoped>
+.vis-toggle { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: #cbd5e1; font-size: 0.8rem; cursor: pointer; }
+.vis-toggle input { width: 16px; height: 16px; accent-color: #3b82f6; }
 /* Better defaults for form controls in this page */
 input:disabled,
 textarea:disabled,

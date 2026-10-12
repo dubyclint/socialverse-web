@@ -138,6 +138,7 @@ const icons: IconsMap = {
   'arrow-down-left': { viewBox: '0 0 24 24', path: '<path d="M17 7 7 17"></path><path d="M17 17H7V7"></path>' },
   'arrow-up-right': { viewBox: '0 0 24 24', path: '<path d="M7 7h10v10"></path><path d="M7 17 17 7"></path>' },
   'bar-chart-2': { viewBox: '0 0 24 24', path: '<path d="M5 21v-6"></path><path d="M12 21V3"></path><path d="M19 21V9"></path>' },
+  'book-open': { viewBox: '0 0 24 24', path: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>' },
   'briefcase': { viewBox: '0 0 24 24', path: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path><rect width="20" height="14" x="2" y="6" rx="2"></rect>' },
   'check-check': { viewBox: '0 0 24 24', path: '<path d="M18 6 7 17l-5-5"></path><path d="m22 10-7.5 7.5L13 16"></path>' },
   'compass': { viewBox: '0 0 24 24', path: '<circle cx="12" cy="12" r="10"></circle><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"></path>' },

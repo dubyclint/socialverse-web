@@ -16,12 +16,15 @@
 
       <template v-else>
         <section class="profile-header">
-          <img
-            :src="profile.avatar_url || '/default-avatar.svg'"
-            :alt="displayName"
-            class="avatar"
-            @error="onAvatarError"
-          />
+          <div class="avatar-wrap">
+            <img
+              :src="profile.avatar_url || '/default-avatar.svg'"
+              :alt="displayName"
+              class="avatar"
+              @error="onAvatarError"
+            />
+            <span v-if="profile.is_online" class="online-dot" title="Online" />
+          </div>
           <div class="identity">
             <div class="name-row">
               <h1>
@@ -40,8 +43,8 @@
               @{{ profile.username || 'unknown' }}
               <span v-if="profile.relationship.follows_you && !isSelf" class="follows-you">Follows you</span>
             </p>
+            <p v-if="presenceText" class="presence" :class="{ online: profile.is_online }">{{ presenceText }}</p>
             <p v-if="profile.bio" class="bio">{{ profile.bio }}</p>
-            <p v-if="profile.location" class="meta"><Icon name="map-pin" size="14" /> {{ profile.location }}</p>
 
             <div class="stats">
               <span class="stat static"><strong>{{ profile.posts_count ?? 0 }}</strong> Posts</span>
@@ -66,6 +69,7 @@
             <div class="actions">
               <template v-if="isSelf">
                 <NuxtLink to="/profile/edit" class="btn secondary">Edit profile</NuxtLink>
+                <NuxtLink to="/settings" class="btn secondary"><Icon name="settings" size="16" /> Settings</NuxtLink>
               </template>
               <template v-else>
                 <button type="button" class="btn" @click="openChat">
@@ -82,6 +86,40 @@
             <p v-if="listNotice" class="notice">{{ listNotice }}</p>
           </div>
         </section>
+
+        <section v-if="profile.locked" class="locked-card">
+          <Icon name="lock" size="18" />
+          <span>This profile is locked. Only PALs can see {{ displayName }}'s details and posts.</span>
+        </section>
+
+        <section v-else-if="detailRows.length || interests.length" class="details-card">
+          <h2>About</h2>
+          <ul class="details">
+            <li v-for="row in detailRows" :key="row.key">
+              <Icon :name="row.icon" size="15" />
+              <span class="label">{{ row.label }}</span>
+              <a v-if="row.key === 'website'" :href="row.value" target="_blank" rel="noopener noreferrer">{{ row.value }}</a>
+              <span v-else>{{ row.value }}</span>
+              <Icon v-if="isSelf && hiddenFields.has(row.key)" name="eye-off" size="13" class="private-mark" title="Only visible to you" />
+            </li>
+          </ul>
+          <div v-if="interests.length" class="interests">
+            <span v-for="tag in interests" :key="tag" class="interest">{{ tag }}</span>
+            <Icon v-if="isSelf && hiddenFields.has('interests')" name="eye-off" size="13" class="private-mark" title="Only visible to you" />
+          </div>
+        </section>
+
+        <section v-if="!profile.locked" class="posts-section">
+          <h2>Posts</h2>
+          <div v-if="postsLoading && !posts.length" class="state-card">Loading posts…</div>
+          <div v-else-if="!posts.length" class="state-card">No posts yet.</div>
+          <div v-else class="posts-list">
+            <PostCard v-for="post in posts" :key="post.id" :post="post" />
+          </div>
+          <div ref="sentinel" class="sentinel">
+            <span v-if="postsLoading && posts.length">Loading more…</span>
+          </div>
+        </section>
       </template>
     </div>
 
@@ -95,8 +133,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PostCard from '~/components/posts/post-card.vue'
+import type { FeedPost } from '~/composables/useSocialFeed'
+import { PROFILE_FIELD_LABELS, isFieldPublic, type PrivateProfileField } from '~/shared/profile-fields'
 
 definePageMeta({
   middleware: ['auth'],
@@ -113,6 +154,19 @@ interface PublicProfile {
   avatar_url: string | null
   bio: string | null
   location: string | null
+  website: string | null
+  gender: string | null
+  birth_date: string | null
+  marital_status: string | null
+  university: string | null
+  work: string | null
+  religion: string | null
+  interest_tags: string[] | null
+  field_visibility?: Record<string, boolean> | null
+  locked: boolean
+  is_online: boolean
+  show_online: boolean
+  last_seen: string | null
   is_verified: boolean | null
   posts_count: number | null
   followers_count: number
@@ -140,6 +194,91 @@ const isSelf = computed(() => Boolean(profile.value?.relationship.is_self))
 const displayName = computed(() =>
   profile.value?.display_name || profile.value?.full_name || profile.value?.username || 'User'
 )
+
+const DETAIL_ICONS: Record<Exclude<PrivateProfileField, 'interests'>, string> = {
+  work: 'briefcase',
+  university: 'book-open',
+  location: 'map-pin',
+  marital_status: 'heart',
+  religion: 'star',
+  gender: 'user',
+  birth_date: 'calendar',
+  website: 'link'
+}
+
+const formatDetail = (key: string, value: string) => {
+  if (key === 'birth_date') return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+  if (key === 'gender') return value.replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase())
+  return value
+}
+
+const detailRows = computed(() => {
+  const p = profile.value
+  if (!p) return []
+  return (Object.keys(DETAIL_ICONS) as (keyof typeof DETAIL_ICONS)[])
+    .filter(key => typeof p[key] === 'string' && p[key])
+    .map(key => ({ key, icon: DETAIL_ICONS[key], label: PROFILE_FIELD_LABELS[key], value: formatDetail(key, p[key] as string) }))
+})
+
+const interests = computed(() => profile.value?.interest_tags ?? [])
+
+const hiddenFields = computed(() => {
+  const vis = profile.value?.field_visibility
+  return new Set((Object.keys(PROFILE_FIELD_LABELS) as PrivateProfileField[]).filter(f => !isFieldPublic(vis, f)))
+})
+
+const presenceText = computed(() => {
+  const p = profile.value
+  if (!p) return ''
+  if (p.is_online) return 'Online'
+  if (!p.last_seen) return ''
+  const mins = Math.round((Date.now() - new Date(p.last_seen).getTime()) / 60000)
+  if (mins < 1) return 'Last seen just now'
+  if (mins < 60) return `Last seen ${mins} min ago`
+  if (mins < 1440) return `Last seen ${Math.round(mins / 60)} h ago`
+  return `Last seen ${new Date(p.last_seen).toLocaleDateString()}`
+})
+
+const posts = ref<FeedPost[]>([])
+const postsLoading = ref(false)
+const postsPage = ref(1)
+const postsHasMore = ref(false)
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+const loadPosts = async (reset = false) => {
+  const p = profile.value
+  if (!p || p.locked || postsLoading.value) return
+  if (reset) {
+    posts.value = []
+    postsPage.value = 1
+  }
+  postsLoading.value = true
+  try {
+    const res = await $fetch<{ data?: { posts: FeedPost[], hasMore: boolean } }>(
+      `/api/posts/user/${p.user_id}`,
+      { query: { page: postsPage.value, limit: 10 } }
+    )
+    posts.value = [...posts.value, ...(res.data?.posts ?? [])]
+    postsHasMore.value = Boolean(res.data?.hasMore)
+    postsPage.value += 1
+  } catch (e) {
+    console.error('[profile] posts failed', e)
+    postsHasMore.value = false
+  } finally {
+    postsLoading.value = false
+  }
+}
+
+watch(sentinel, (el) => {
+  observer?.disconnect()
+  if (!el) return
+  observer = new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting) && postsHasMore.value) void loadPosts()
+  }, { rootMargin: '400px' })
+  observer.observe(el)
+})
+onBeforeUnmount(() => observer?.disconnect())
 
 const isAddressable = (v: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ||
@@ -190,6 +329,7 @@ const load = async () => {
       return
     }
     profile.value = await $fetch<PublicProfile>(`/api/profile/${encodeURIComponent(id)}`)
+    void loadPosts(true)
   } catch (e: unknown) {
     const err = e as { statusCode?: number, data?: { statusMessage?: string } }
     error.value = err.statusCode === 404 ? 'Profile not found.' : err.data?.statusMessage || 'Failed to load profile.'
@@ -210,7 +350,24 @@ watch(() => route.params.id, load, { immediate: true })
 .state-card.error h2 { color: #fca5a5; }
 .spinner { width: 34px; height: 34px; border: 3px solid #334155; border-top-color: #3b82f6; border-radius: 999px; margin: 0 auto 10px; animation: spin 1s linear infinite; }
 .profile-header { display: grid; grid-template-columns: 110px 1fr; gap: 18px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; color: #e2e8f0; }
+.avatar-wrap { position: relative; width: 110px; height: 110px; }
 .avatar { width: 110px; height: 110px; border-radius: 999px; object-fit: cover; border: 2px solid #3b82f6; }
+.online-dot { position: absolute; right: 8px; bottom: 8px; width: 16px; height: 16px; border-radius: 999px; background: #22c55e; border: 3px solid #1e293b; }
+.presence { margin-top: 4px; color: #94a3b8; font-size: 0.8rem; }
+.presence.online { color: #4ade80; }
+.locked-card, .details-card { margin-top: 14px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 20px; color: #cbd5e1; }
+.locked-card { display: flex; align-items: center; gap: 10px; color: #fbbf24; }
+.details-card h2, .posts-section h2 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; }
+.details { list-style: none; display: grid; gap: 8px; }
+.details li { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.details .label { color: #64748b; font-size: 0.8rem; min-width: 120px; }
+.details a { color: #60a5fa; word-break: break-all; }
+.private-mark { color: #64748b; }
+.interests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+.interest { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #bfdbfe; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; }
+.posts-section { margin-top: 18px; }
+.posts-list { display: flex; flex-direction: column; gap: 14px; }
+.sentinel { min-height: 24px; text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 8px; }
 .identity { min-width: 0; }
 .name-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .name-row h1 { font-size: 1.4rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
@@ -231,7 +388,8 @@ watch(() => route.params.id, load, { immediate: true })
 .notice { margin-top: 10px; color: #fbbf24; font-size: 0.85rem; }
 @media (max-width: 560px) {
   .profile-header { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-  .name-row, .username, .stats, .actions, .meta { justify-content: center; }
+  .name-row, .username, .stats, .actions { justify-content: center; }
+  .avatar-wrap { margin: 0 auto; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

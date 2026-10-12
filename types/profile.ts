@@ -39,6 +39,14 @@ export interface Profile {
   is_private?: boolean
   hide_following?: boolean
   full_name_changed_at?: string | null
+  marital_status?: string | null
+  university?: string | null
+  work?: string | null
+  religion?: string | null
+  interest_tags?: string[] | null
+  profile_locked?: boolean
+  show_online?: boolean
+  field_visibility?: Record<string, boolean> | null
   email_notifications?: boolean
 
   // Verification & Status Properties
@@ -85,6 +93,14 @@ export interface ProfileUpdateInput {
   is_private?: boolean
   hide_following?: boolean
   full_name_changed_at?: string | null
+  marital_status?: string | null
+  university?: string | null
+  work?: string | null
+  religion?: string | null
+  interest_tags?: string[] | null
+  profile_locked?: boolean
+  show_online?: boolean
+  field_visibility?: Record<string, boolean> | null
 
   // Extended mutations
   username?: string | null
@@ -108,6 +124,14 @@ export interface ProfileCompleteInput {
   is_private?: boolean
   hide_following?: boolean
   full_name_changed_at?: string | null
+  marital_status?: string | null
+  university?: string | null
+  work?: string | null
+  religion?: string | null
+  interest_tags?: string[] | null
+  profile_locked?: boolean
+  show_online?: boolean
+  field_visibility?: Record<string, boolean> | null
 
   // Canonical onboarding payload
   interests?: string[]
