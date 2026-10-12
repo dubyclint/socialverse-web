@@ -1,5 +1,7 @@
 // Royalty-free catalog backed by the public Audius API (trending, or search with ?q=).
 const AUDIUS = 'https://api.audius.co/v1'
+// The trimmer decodes the whole file in the browser, so very long mixes are skipped.
+const MAX_TRACK_SECONDS = 600
 
 interface AudiusTrack {
   id: string
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
   try {
     const res = await $fetch<{ data: AudiusTrack[] }>(url, { timeout: 10000 })
     const tracks = (res.data ?? [])
-      .filter(t => t.is_streamable !== false && t.duration > 0)
+      .filter(t => t.is_streamable !== false && t.duration > 0 && t.duration <= MAX_TRACK_SECONDS)
       .map(t => ({
         id: t.id,
         title: t.title,

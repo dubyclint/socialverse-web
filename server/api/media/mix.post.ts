@@ -80,12 +80,15 @@ export default defineEventHandler(async (event) => {
     const audioPath = join(dir, 'audio')
     const outPath = join(dir, 'out.mp4')
     await writeFile(mediaPath, media.data)
-    const audio = audioPart
-      ? audioPart.data
-      : (await download(`https://api.audius.co/v1/tracks/${audiusId}/stream?app_name=viorp`, MAX_AUDIO_BYTES)).data
-    await writeFile(audioPath, audio)
+    // Catalog tracks are read by ffmpeg straight from Audius so only the
+    // selected window is fetched, however long the track is.
+    let audioInput = `https://api.audius.co/v1/tracks/${audiusId}/stream?app_name=viorp`
+    if (audioPart) {
+      await writeFile(audioPath, audioPart.data)
+      audioInput = audioPath
+    }
 
-    const clip = ['-ss', String(start), '-t', String(duration), '-i', audioPath]
+    const clip = ['-ss', String(start), '-t', String(duration), '-i', audioInput]
     let args: string[]
     if (isImage) {
       args = ['-y', '-loop', '1', '-i', mediaPath, ...clip,
