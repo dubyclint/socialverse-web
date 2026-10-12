@@ -15,6 +15,35 @@ interface FlutterwaveEvent {
   }
 }
 
+interface VerifiedTransaction {
+  id: number | string
+  tx_ref: string
+  status: string
+  amount: number
+  currency: string
+}
+
+/**
+ * Re-reads the transaction from Flutterwave so the amount and status come from
+ * the provider, not the webhook body. Returns null unless it is successful and
+ * belongs to this deposit.
+ */
+const verifyTransaction = async (id: number | string | undefined, reference: string): Promise<VerifiedTransaction | null> => {
+  const secret = runtimeSecret(useRuntimeConfig().flutterwaveSecretKey, 'FLUTTERWAVE_SECRET_KEY')
+  if (!secret || id == null) return null
+  try {
+    const res = await $fetch<{ status: string, data?: VerifiedTransaction }>(
+      `https://api.flutterwave.com/v3/transactions/${encodeURIComponent(String(id))}/verify`,
+      { headers: { authorization: `Bearer ${secret}` }, timeout: 15000 }
+    )
+    const tx = res.data
+    return tx && tx.status === 'successful' && tx.tx_ref === reference ? tx : null
+  } catch (err) {
+    console.error('[flutterwave] verify failed:', err)
+    return null
+  }
+}
+
 /**
  * Flutterwave sends `flutterwave-signature`, which is either the dashboard
  * secret hash verbatim (legacy) or an HMAC-SHA256 of the raw body with it.
@@ -37,12 +66,16 @@ export default defineEventHandler(async (event) => {
 
   if (reference) {
     if (payload.data?.status === 'successful') {
-      await settleDeposit({
-        depositId: reference,
-        externalRef: payload.data.id != null ? String(payload.data.id) : reference,
-        paidAmount: payload.data.amount != null ? Number(payload.data.amount) : null,
-        providerPayload: payload as unknown as Record<string, unknown>
-      })
+      const verified = await verifyTransaction(payload.data.id, reference)
+      if (verified) {
+        await settleDeposit({
+          depositId: reference,
+          externalRef: String(verified.id),
+          paidAmount: Number(verified.amount),
+          paidCurrency: verified.currency,
+          providerPayload: payload as unknown as Record<string, unknown>
+        })
+      }
     } else if (payload.data?.status === 'failed') {
       await failDeposit(reference, payload as unknown as Record<string, unknown>)
     }
