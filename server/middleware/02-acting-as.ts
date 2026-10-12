@@ -1,13 +1,13 @@
 import { getRequestURL } from 'h3'
 import { isActingAsPage, resolveActor } from '~/server/utils/actor'
 
-// Engagement that is not Page-aware yet (gifts spend the personal wallet);
+// Engagement that is not Page-aware yet (post gifts use the Page wallet);
 // a Page identity is refused so it can never surface as the person instead.
 const PERSONAL_ONLY = [
   /^\/api\/posts\/[^/]+\/(pewgift|share|repost|report)(\/|$)/,
   /^\/api\/follows(\/|$)/,
   /^\/api\/pals(\/|$)/,
-  /^\/api\/pewgift(\/|$)/,
+  /^\/api\/pewgift(\/(?!send-to-posts$)|$)/,
   /^\/api\/pages\/[^/]+\/follow$/
 ]
 

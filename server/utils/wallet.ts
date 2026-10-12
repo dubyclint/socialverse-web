@@ -64,7 +64,10 @@ export const LEDGER_LABELS: Record<string, { label: string, kind: 'deposit' | 'g
   ESCROW_DISPUTE_REFUND: { label: 'Escrow refund', kind: 'trade' },
   AD_ENGAGEMENT_REVENUE: { label: 'Monetization', kind: 'earning' },
   WITHDRAWAL: { label: 'Withdrawal', kind: 'withdrawal' },
-  WITHDRAWAL_REFUND: { label: 'Withdrawal returned', kind: 'withdrawal' }
+  WITHDRAWAL_REFUND: { label: 'Withdrawal returned', kind: 'withdrawal' },
+  PAGE_TRANSFER_OUT: { label: 'Moved to your Page', kind: 'trade' },
+  PAGE_TRANSFER_IN: { label: 'Page funds added', kind: 'trade' },
+  PAGE_PAYOUT: { label: 'Page earnings', kind: 'earning' }
 }
 
 export const DEPOSIT_STATE: Record<string, TxState> = {

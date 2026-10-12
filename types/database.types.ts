@@ -3855,6 +3855,69 @@ export type Database = {
           },
         ]
       }
+      page_wallet_ledger: {
+        Row: {
+          amount: number
+          counterpart_id: string | null
+          counterpart_type: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          operator_id: string | null
+          page_id: string
+          reference_id: string | null
+          transaction_type: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+        }
+        Insert: {
+          amount: number
+          counterpart_id?: string | null
+          counterpart_type?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          operator_id?: string | null
+          page_id: string
+          reference_id?: string | null
+          transaction_type: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+        }
+        Update: {
+          amount?: number
+          counterpart_id?: string | null
+          counterpart_type?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          operator_id?: string | null
+          page_id?: string
+          reference_id?: string | null
+          transaction_type?: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+        }
+        Relationships: []
+      }
+      page_wallets: {
+        Row: {
+          balance: number
+          is_locked: boolean
+          page_id: string
+          updated_at: string
+          withdrawable_balance: number
+        }
+        Insert: {
+          balance?: number
+          is_locked?: boolean
+          page_id: string
+          updated_at?: string
+          withdrawable_balance?: number
+        }
+        Update: {
+          balance?: number
+          is_locked?: boolean
+          page_id?: string
+          updated_at?: string
+          withdrawable_balance?: number
+        }
+        Relationships: []
+      }
       wallets: {
         Row: {
           balance: number
@@ -4365,6 +4428,21 @@ export type Database = {
         Args: { p_key: string, p_default: number }
         Returns: number
       }
+      page_wallet_transfer: {
+        Args: {
+          p_from_type: string
+          p_from_id: string
+          p_to_type: string
+          p_to_id: string
+          p_amount: number
+          p_debit_type: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+          p_credit_type: Database["public"]["Enums"]["wallet_transaction_ledger_type"]
+          p_operator: string
+          p_reference_id?: string
+          p_metadata?: Json
+        }
+        Returns: number
+      }
       request_withdrawal: {
         Args: { p_amount: number, p_method: string, p_details: Json, p_user?: string }
         Returns: string
@@ -4516,6 +4594,9 @@ export type Database = {
         | "GIFT_FEE"
         | "WITHDRAWAL_REFUND"
         | "DEPOSIT_FEE"
+        | "PAGE_TRANSFER_OUT"
+        | "PAGE_TRANSFER_IN"
+        | "PAGE_PAYOUT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4749,6 +4830,9 @@ export const Constants = {
         "GIFT_FEE",
         "WITHDRAWAL_REFUND",
         "DEPOSIT_FEE",
+        "PAGE_TRANSFER_OUT",
+        "PAGE_TRANSFER_IN",
+        "PAGE_PAYOUT",
       ],
     },
   },

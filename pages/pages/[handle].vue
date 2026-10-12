@@ -40,6 +40,23 @@
         </form>
         <button type="button" class="danger" @click="removePage">Delete Page</button>
       </section>
+      <section v-if="canEdit && wallet" class="card">
+        <h2>Page wallet</h2>
+        <div class="wallet-row">
+          <div><span class="muted">Balance</span><strong>{{ wallet.balance.toFixed(2) }} PEW</strong></div>
+          <div><span class="muted">Withdrawable earnings</span><strong>{{ wallet.withdrawable_pew.toFixed(2) }} PEW</strong><small class="muted">≈ ${{ wallet.withdrawable_usd.toFixed(2) }} after fees</small></div>
+        </div>
+        <p class="muted">Gifts on this Page's posts land here (minus the {{ wallet.gift_fee_pct }}% gift fee). While acting as this Page, gifts you send come from this wallet.</p>
+        <form class="inline" @submit.prevent="walletAction('fund')">
+          <input v-model.number="walletAmount" type="number" min="0" step="0.01" placeholder="Amount (PEW)" />
+          <button type="submit" class="btn small" :disabled="busy">Add from my wallet</button>
+          <button v-if="page.viewer_role === 'OWNER'" type="button" class="btn small" :disabled="busy || wallet.withdrawable_pew <= 0" @click="walletAction('payout')">Pay earnings to me</button>
+        </form>
+        <div v-for="item in wallet.items" :key="item.id" class="admin">
+          <span>{{ item.label }}<span v-if="item.counterpart" class="muted"> · {{ item.counterpart }}</span><small class="muted"> · {{ new Date(item.created_at).toLocaleDateString() }}</small></span>
+          <span :class="item.direction === 'in' ? 'in' : 'out'">{{ item.direction === 'in' ? '+' : '-' }}{{ item.amount.toFixed(2) }}</span>
+        </div>
+      </section>
       <p v-if="notice" class="notice">{{ notice }}</p>
 
       <section class="posts">
@@ -64,6 +81,10 @@ interface PageView {
   followers_count: number, posts_count: number, viewer_role: 'OWNER' | 'MANAGER' | 'MODERATOR' | null, is_following: boolean
 }
 interface Admin { user_id: string, role: string, user: { username: string } | null }
+interface PageWallet {
+  balance: number, withdrawable_pew: number, withdrawable_usd: number, gift_fee_pct: number
+  items: { id: string, label: string, direction: 'in' | 'out', amount: number, counterpart: string | null, created_at: string }[]
+}
 
 const route = useRoute()
 const context = useContextStore()
@@ -79,12 +100,35 @@ const hasMore = ref(false)
 const admins = ref<Admin[]>([])
 const edit = reactive({ name: '', category: '', bio: '', avatar_url: '' as string | null })
 const newAdmin = reactive({ username: '', role: 'MANAGER' })
+const wallet = ref<PageWallet | null>(null)
+const walletAmount = ref<number | null>(null)
 
 const canEdit = computed(() => page.value?.viewer_role === 'OWNER' || page.value?.viewer_role === 'MANAGER')
 const isActive = computed(() => context.activeActor?.id === page.value?.id)
 const msg = (e: unknown, fallback: string) => {
   const err = e as { data?: { statusMessage?: string }, statusMessage?: string }
   return err.data?.statusMessage || err.statusMessage || fallback
+}
+
+const loadWallet = async () => {
+  if (!page.value || !canEdit.value) return
+  wallet.value = await $fetch<PageWallet>(`/api/pages/${page.value.id}/wallet`).catch(() => null)
+}
+
+const walletAction = async (action: 'fund' | 'payout') => {
+  if (!page.value || !walletAmount.value) { notice.value = 'Enter an amount'; return }
+  busy.value = true
+  notice.value = ''
+  try {
+    await $fetch(`/api/pages/${page.value.id}/wallet/${action}`, { method: 'POST', body: { amount: walletAmount.value } })
+    notice.value = action === 'fund' ? 'Added to the Page wallet.' : 'Earnings moved to your withdrawable balance.'
+    walletAmount.value = null
+    await loadWallet()
+  } catch (e) {
+    notice.value = msg(e, 'Wallet update failed')
+  } finally {
+    busy.value = false
+  }
 }
 
 const loadPosts = async (reset = false) => {
@@ -105,6 +149,7 @@ const load = async () => {
     await loadPosts(true)
     if (page.value.viewer_role) {
       admins.value = (await $fetch<{ admins: Admin[] }>(`/api/pages/${page.value.id}/admins`)).admins
+      await loadWallet()
     }
   } catch (e) {
     error.value = msg(e, 'Page not found')
@@ -186,5 +231,9 @@ input, textarea, select { background: #0f172a; border: 1px solid #334155; border
 .danger { background: none; border: 1px solid #ef4444; color: #f87171; border-radius: 999px; padding: 0.45rem 1rem; cursor: pointer; align-self: flex-start; margin-top: 6px; }
 .notice { margin-top: 10px; color: #fbbf24; }
 .error { color: #f87171; }
+.wallet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wallet-row div { display: flex; flex-direction: column; gap: 2px; }
+.in { color: #4ade80; }
+.out { color: #f87171; }
 .posts { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
 </style>
