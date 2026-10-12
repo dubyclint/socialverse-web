@@ -3863,6 +3863,7 @@ export type Database = {
           locked_balance: number
           updated_at: string
           user_id: string
+          withdrawable_balance: number
         }
         Insert: {
           balance?: number
@@ -3871,6 +3872,7 @@ export type Database = {
           locked_balance?: number
           updated_at?: string
           user_id: string
+          withdrawable_balance?: number
         }
         Update: {
           balance?: number
@@ -3879,6 +3881,7 @@ export type Database = {
           locked_balance?: number
           updated_at?: string
           user_id?: string
+          withdrawable_balance?: number
         }
         Relationships: []
       }
@@ -3894,6 +3897,13 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          admin_note: string | null
+          details: Json
+          fee_pewgift: number
+          method: string | null
+          payout_usd: number | null
+          reviewed_by: string | null
+          tax_pewgift: number
         }
         Insert: {
           amount: number
@@ -3906,6 +3916,13 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          admin_note?: string | null
+          details?: Json
+          fee_pewgift?: number
+          method?: string | null
+          payout_usd?: number | null
+          reviewed_by?: string | null
+          tax_pewgift?: number
         }
         Update: {
           amount?: number
@@ -3918,6 +3935,13 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          admin_note?: string | null
+          details?: Json
+          fee_pewgift?: number
+          method?: string | null
+          payout_usd?: number | null
+          reviewed_by?: string | null
+          tax_pewgift?: number
         }
         Relationships: [
           {
@@ -4337,6 +4361,18 @@ export type Database = {
         Args: { p_deposit_id: string }
         Returns: number
       }
+      fee_setting: {
+        Args: { p_key: string, p_default: number }
+        Returns: number
+      }
+      request_withdrawal: {
+        Args: { p_amount: number, p_method: string, p_details: Json, p_user?: string }
+        Returns: string
+      }
+      resolve_withdrawal: {
+        Args: { p_id: string, p_status: string, p_note?: string | null, p_admin?: string }
+        Returns: undefined
+      }
       slugify_username: {
         Args: { p: string }
         Returns: string
@@ -4477,6 +4513,9 @@ export type Database = {
         | "ESCROW_MILESTONE_RELEASE"
         | "ESCROW_DISPUTE_REFUND"
         | "AD_ENGAGEMENT_REVENUE"
+        | "GIFT_FEE"
+        | "WITHDRAWAL_REFUND"
+        | "DEPOSIT_FEE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4707,6 +4746,9 @@ export const Constants = {
         "ESCROW_MILESTONE_RELEASE",
         "ESCROW_DISPUTE_REFUND",
         "AD_ENGAGEMENT_REVENUE",
+        "GIFT_FEE",
+        "WITHDRAWAL_REFUND",
+        "DEPOSIT_FEE",
       ],
     },
   },

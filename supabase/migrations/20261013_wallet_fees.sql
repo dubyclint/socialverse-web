@@ -185,10 +185,11 @@ begin
 end $$;
 
 -- Withdrawals: only earned PEW; fee + tax shown up front; held until an admin decides.
-create or replace function public.request_withdrawal(p_amount numeric, p_method text, p_details jsonb)
+-- p_user is honoured only for service-role calls (no auth.uid()); anon cannot execute.
+create or replace function public.request_withdrawal(p_amount numeric, p_method text, p_details jsonb, p_user uuid default null)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
-  v_user uuid := auth.uid();
+  v_user uuid := coalesce(auth.uid(), p_user);
   v_wallet wallets%rowtype;
   v_fee numeric;
   v_tax numeric;
@@ -230,13 +231,13 @@ begin
   return v_id;
 end $$;
 
-create or replace function public.resolve_withdrawal(p_id uuid, p_status text, p_note text default null)
+create or replace function public.resolve_withdrawal(p_id uuid, p_status text, p_note text default null, p_admin uuid default null)
 returns void language plpgsql security definer set search_path = public as $$
 declare
-  v_admin uuid := auth.uid();
+  v_admin uuid := coalesce(auth.uid(), p_admin);
   v_row withdrawals%rowtype;
 begin
-  if v_admin is not null and not exists (select 1 from "user" where user_id = v_admin and role in ('admin', 'manager')) then
+  if auth.uid() is not null and not exists (select 1 from "user" where user_id = v_admin and role in ('admin', 'manager')) then
     raise exception 'Admins only' using errcode = '42501';
   end if;
   if p_status not in ('processing', 'successful', 'failed') then
@@ -266,8 +267,8 @@ begin
    where id = p_id;
 end $$;
 
-revoke execute on function public.request_withdrawal(numeric, text, jsonb) from public, anon;
-grant execute on function public.request_withdrawal(numeric, text, jsonb) to authenticated;
-revoke execute on function public.resolve_withdrawal(uuid, text, text) from public, anon;
-grant execute on function public.resolve_withdrawal(uuid, text, text) to authenticated;
+revoke execute on function public.request_withdrawal(numeric, text, jsonb, uuid) from public, anon;
+grant execute on function public.request_withdrawal(numeric, text, jsonb, uuid) to authenticated;
+revoke execute on function public.resolve_withdrawal(uuid, text, text, uuid) from public, anon;
+grant execute on function public.resolve_withdrawal(uuid, text, text, uuid) to authenticated;
 revoke execute on function public.transfer_pewgift(uuid, uuid, numeric, wallet_transaction_ledger_type, wallet_transaction_ledger_type, uuid, jsonb) from public, anon, authenticated;
