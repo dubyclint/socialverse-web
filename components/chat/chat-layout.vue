@@ -109,6 +109,7 @@
           @delete-message="deleteMessage"
           @react-message="reactToMessage"
           @translate-message="translateMessage"
+          @forward-message="openForward"
           @start-call="handleStartCall"
           @membership-changed="loadChats"
           @blocked="handleBlocked"
@@ -119,6 +120,26 @@
     </div>
 
     <!-- Modals -->
+    <div v-if="forwarding" class="new-chat-overlay" @click.self="forwarding = null">
+      <div class="new-chat-modal">
+        <div class="new-chat-header">
+          <h3>Forward to…</h3>
+          <button class="btn-icon" @click="forwarding = null"><Icon name="x" /></button>
+        </div>
+        <input v-model="forwardSearch" class="new-chat-search" type="text" placeholder="Search conversations" />
+        <p v-if="forwardError" class="new-chat-hint">{{ forwardError }}</p>
+        <ul class="new-chat-results">
+          <li v-for="target in forwardTargets" :key="target.id">
+            <button class="new-chat-result" :disabled="forwardSent.has(target.id)" @click="forwardTo(target.id)">
+              <img :src="target.avatar || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
+              <span class="new-chat-name">{{ target.name }}</span>
+              <span class="new-chat-username">{{ forwardSent.has(target.id) ? 'Sent' : target.type === 'group' ? 'Group' : '' }}</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
     <div v-if="showNewChat" class="new-chat-overlay" @click.self="closeNewChat">
       <div class="new-chat-modal">
         <div class="new-chat-header">
@@ -396,12 +417,48 @@ const sendMessage = async (payload: string | SendMessagePayload) => {
 
 const editMessage = async (messageId: string, content: string) => {
   if (!chatStore.currentChatId) return
-  try {
-    emitEditMessage(chatStore.currentChatId, messageId, content)
-  } catch (error) {
-    console.error('Failed to edit message:', error)
-    chatStore.setError('Failed to edit message')
-  }
+  const ack = await emitEditMessage(chatStore.currentChatId, messageId, content)
+  if (!ack.success) chatStore.setError(ack.error || 'Failed to edit message')
+}
+
+interface ForwardableMessage {
+  content?: string
+  attachments?: string[]
+  messageType?: string
+}
+
+const forwarding = ref<ForwardableMessage | null>(null)
+const forwardSearch = ref('')
+const forwardError = ref('')
+const forwardSent = ref(new Set<string>())
+const forwardTargets = computed(() => {
+  const query = forwardSearch.value.trim().toLowerCase()
+  return Array.from(chatStore.chats.values())
+    .filter(chat => !query || (chat.name ?? '').toLowerCase().includes(query))
+    .slice(0, 50)
+})
+
+const openForward = (message: ForwardableMessage) => {
+  forwarding.value = message
+  forwardSearch.value = ''
+  forwardError.value = ''
+  forwardSent.value = new Set()
+}
+
+const forwardTo = async (chatId: string) => {
+  const message = forwarding.value
+  if (!message) return
+  forwardError.value = ''
+  const messageType = message.messageType === 'gift' || message.messageType === 'system' ? 'text' : message.messageType
+  const ack = await emitMessage(chatId, {
+    content: message.content ?? '',
+    attachments: message.attachments ?? [],
+    messageType: messageType ?? 'text',
+    tempId: `fwd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    forwarded: true
+  })
+  if (ack.success) forwardSent.value = new Set([...forwardSent.value, chatId])
+  else forwardError.value = ack.error || 'Could not forward message'
 }
 
 const deleteMessage = async (messageId: string) => {
@@ -553,6 +610,7 @@ onMounted(async () => {
       attachments: message.attachments ?? [],
       messageType: (message.messageType ?? 'text') as ChatMessage['messageType'],
       gift: message.gift,
+      forwarded: message.forwarded,
       replyTo: message.replyTo ? { ...message.replyTo, content: message.replyTo.content ?? '' } : undefined,
       timestamp: new Date(message.timestamp).getTime(),
       status: own ? 'sent' : undefined

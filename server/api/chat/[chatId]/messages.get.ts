@@ -114,6 +114,7 @@ export default defineEventHandler(async (event) => {
       attachments: row.deleted_at ? [] : row.attachment_urls ?? [],
       messageType: (giftOf(row.metadata) ? 'gift' : row.message_type || 'text') as ChatMessage['messageType'],
       gift: row.deleted_at ? undefined : giftOf(row.metadata),
+      forwarded: Boolean((row.metadata as { forwarded?: boolean } | null)?.forwarded),
       replyTo: quoted
         ? {
             id: quoted.id,

@@ -8,6 +8,8 @@
       v-if="showAvatar && !isOwn"
       class="message-avatar"
       :to="message.senderId ? `/profile/${message.senderId}` : '#'"
+      @click.prevent="avatarClick"
+      @dblclick.prevent="openLightbox(message.senderAvatar || '/default-avatar.svg')"
     >
       <img :src="message.senderAvatar || '/default-avatar.svg'" :alt="message.senderName" />
     </NuxtLink>
@@ -16,11 +18,21 @@
     <div class="message-content">
       <!-- Sender Name (for group chats) -->
       <div v-if="showSenderName && !isOwn" class="sender-name">{{ message.senderName }}</div>
+      <div v-if="message.forwarded && !isDeleted" class="forwarded-label">
+        <Icon name="forward" size="12" /> Forwarded
+      </div>
 
       <!-- Attachments -->
       <div v-if="attachments.length" class="message-attachments">
         <template v-for="url in attachments" :key="url">
-          <img v-if="message.messageType === 'image'" :src="url" alt="" class="attachment-image" />
+          <img
+            v-if="message.messageType === 'image'"
+            :src="url"
+            alt=""
+            class="attachment-image"
+            title="Double-tap to view full photo"
+            @dblclick.stop="openLightbox(url)"
+          />
           <video
             v-else-if="message.messageType === 'video'"
             :src="url"
@@ -101,6 +113,26 @@
           Reply
         </button>
 
+        <button
+          v-if="!isDeleted && (message.content || attachments.length)"
+          class="action-btn copy-btn"
+          title="Copy"
+          @click="copyMessage"
+        >
+          <Icon name="copy" size="16" />
+          {{ copied ? 'Copied' : 'Copy' }}
+        </button>
+
+        <button
+          v-if="!isDeleted && !message.gift && (message.content || attachments.length)"
+          class="action-btn forward-btn"
+          title="Forward"
+          @click="$emit('forward', message)"
+        >
+          <Icon name="forward" size="16" />
+          Forward
+        </button>
+
         <!-- Translate Button -->
         <button 
           v-if="!isTranslated && !message.isDeleted"
@@ -126,7 +158,7 @@
 
         <!-- Edit Button -->
         <button 
-          v-if="isOwn && !message.isDeleted"
+          v-if="isOwn && !message.isDeleted && canEdit()"
           @click="$emit('edit', message)"
           class="action-btn edit-btn"
           title="Edit message"
@@ -221,11 +253,13 @@
         </div>
       </div>
     </div>
+    <MediaLightbox :src="lightboxSrc" :alt="message.senderName" @close="lightboxSrc = null" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import MediaLightbox from './media-lightbox.vue'
 
 interface Message {
   id?: string
@@ -265,9 +299,51 @@ const emit = defineEmits<{
   edit: [message: Message]
   delete: [messageId: string]
   reply: [message: Message]
+  forward: [message: Message]
   react: [messageId: string, emoji: string]
   gifted: []
 }>()
+
+// Matches the server-side edit window in the socket gateway.
+const EDIT_WINDOW_MS = 10 * 60 * 1000
+const canEdit = (): boolean => {
+  if (props.message.gift || !props.message.timestamp) return false
+  return Date.now() - new Date(props.message.timestamp).getTime() < EDIT_WINDOW_MS
+}
+
+const copied = ref(false)
+const copyMessage = async (): Promise<void> => {
+  const text = [props.message.content, ...(props.message.attachments ?? [])].filter(Boolean).join('\n')
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const area = document.createElement('textarea')
+    area.value = text
+    document.body.appendChild(area)
+    area.select()
+    document.execCommand('copy')
+    area.remove()
+  }
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 1500)
+}
+
+const lightboxSrc = ref<string | null>(null)
+const openLightbox = (src: string): void => {
+  if (avatarTimer) clearTimeout(avatarTimer)
+  avatarTimer = null
+  lightboxSrc.value = src
+}
+
+// Single tap opens the profile; a double tap opens the photo instead.
+let avatarTimer: ReturnType<typeof setTimeout> | null = null
+const avatarClick = (): void => {
+  if (avatarTimer) return
+  avatarTimer = setTimeout(() => {
+    avatarTimer = null
+    if (props.message.senderId) void navigateTo(`/profile/${props.message.senderId}`)
+  }, 280)
+}
 
 const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
@@ -442,6 +518,16 @@ const handleContextMenu = (event: MouseEvent) => {
 </script>
 
 <style scoped>
+.forwarded-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.75;
+  margin-bottom: 2px;
+}
+
 .message-bubble {
   display: flex;
   gap: 8px;

@@ -10,7 +10,7 @@
           <icon name="arrow-left" />
         </button>
         
-        <div class="chat-avatar" @click="viewProfile">
+        <div class="chat-avatar" title="Tap for profile, double-tap for photo" @click="avatarTap" @dblclick="avatarDoubleTap">
           <img 
             v-if="chat.type === 'direct'"
             :src="chat.avatar || '/default-avatar.svg'" 
@@ -123,6 +123,7 @@
               @edit="editMessage"
               @delete="deleteMessage"
               @reply="replyToMessage"
+              @forward="message => emit('forwardMessage', message)"
               @react="reactToMessage"
             />
           </div>
@@ -214,7 +215,11 @@
           ></textarea>
         </div>
         
-        <button class="input-btn" @click="toggleAttachmentMenu">
+        <button class="input-btn" title="Take a photo or video" @click="openCamera">
+          <icon name="camera" />
+        </button>
+
+        <button class="input-btn" title="Attach a file" @click="toggleAttachmentMenu">
           <icon name="paperclip" />
         </button>
 
@@ -317,6 +322,7 @@
       @close="showEmojiPicker = false"
       @select="insertEmoji"
     />
+    <MediaLightbox :src="headerPhoto" :alt="chat.name" @close="headerPhoto = null" />
   </div>
 </template>
 
@@ -337,6 +343,7 @@ const { settings: userSettings, load: loadUserSettings } = useUserSettings()
 const wallpaperStyle = computed(() => chatWallpaperStyle(userSettings.value.general.chatWallpaper))
 onMounted(() => { void loadUserSettings() })
 import ChatGiftSheet from './chat-gift-sheet.vue'
+import MediaLightbox from './media-lightbox.vue'
 
 // Props
 const props = defineProps({
@@ -352,7 +359,7 @@ const props = defineProps({
 // Emits
 const emit = defineEmits([
   'sendMessage', 'editMessage', 'deleteMessage', 'reactMessage', 'markAsRead',
-  'startCall', 'typing', 'membershipChanged', 'blocked', 'cleared', 'back'
+  'startCall', 'typing', 'membershipChanged', 'blocked', 'cleared', 'back', 'forwardMessage'
 ])
 
 // Stores and composables
@@ -582,7 +589,12 @@ const sendMessage = async () => {
   }
 }
 
+const EDIT_WINDOW_MS = 10 * 60 * 1000
 const editMessage = (message) => {
+  if (Date.now() - new Date(message.timestamp).getTime() >= EDIT_WINDOW_MS) {
+    uploadError.value = 'Messages can only be edited within 10 minutes of sending'
+    return
+  }
   editingMessage.value = message
   messageText.value = message.content
   messageInput.value?.focus()
@@ -812,6 +824,21 @@ const insertEmoji = (emoji) => {
   })
   
   showEmojiPicker.value = false
+}
+
+const headerPhoto = ref(null)
+let avatarTimer = null
+const avatarTap = () => {
+  if (avatarTimer) return
+  avatarTimer = setTimeout(() => {
+    avatarTimer = null
+    viewProfile()
+  }, 280)
+}
+const avatarDoubleTap = () => {
+  clearTimeout(avatarTimer)
+  avatarTimer = null
+  if (props.chat.type === 'direct') headerPhoto.value = props.chat.avatar || '/default-avatar.svg'
 }
 
 const viewProfile = () => {
@@ -1476,5 +1503,36 @@ watch(() => props.messages, () => {
   height: 110px;
   border-radius: 8px;
   background: #f3f4f6;
+}
+
+@media (max-width: 768px) {
+  .session-header {
+    padding: 4px 6px;
+    min-height: 48px;
+    gap: 4px;
+  }
+  .header-left { gap: 6px; }
+  .back-btn { padding: 4px; }
+  .chat-avatar { width: 32px; height: 32px; }
+  .online-indicator { width: 9px; height: 9px; bottom: 0; right: 0; }
+  .chat-name { font-size: 14px; margin-bottom: 0; }
+  .chat-status { font-size: 11px; line-height: 1.2; }
+  .chat-name, .chat-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-right { gap: 0; flex-shrink: 0; flex-wrap: nowrap; }
+  .header-btn { padding: 6px; }
+
+  .message-input-container { padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .input-area { gap: 2px; align-items: center; }
+  .input-btn, .voice-btn, .send-btn { padding: 6px; }
+  .text-input-container {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 24px;
+  }
+  .message-input { font-size: 16px; }
 }
 </style>

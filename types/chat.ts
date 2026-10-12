@@ -26,6 +26,7 @@ export interface ChatMessage {
   timestamp: number
   messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system' | 'gift'
   gift?: { name: string, quantity: number }
+  forwarded?: boolean
   status?: MessageStatus
   /** Client-side id of an optimistic message, echoed back by the server. */
   tempId?: string

@@ -14,6 +14,8 @@ import { defineEventHandler } from 'h3'
 import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
 import { registerCallHandlers } from './calls'
 
+const EDIT_WINDOW_MS = 10 * 60 * 1000
+
 type UpgradeListener = (req: IncomingMessage, socket: Duplex, head: Buffer) => void
 
 interface AuthenticatedSocket extends Socket {
@@ -213,6 +215,7 @@ export default defineNitroPlugin((nitroApp: any) => {
           : []
         const replyToId: string | null = data?.replyToId ? String(data.replyToId) : null
         const messageType: string = typeof data?.messageType === 'string' ? data.messageType : 'text'
+        const forwarded = data?.forwarded === true
         const fail = (message: string) => {
           socket.emit('chat:error', { chatId, tempId, message })
           ack?.({ success: false, tempId, error: message })
@@ -244,7 +247,8 @@ export default defineNitroPlugin((nitroApp: any) => {
             attachment_urls: attachments,
             message_type: messageType,
             reply_to_id: replyToId,
-            expires_at: expiresAt
+            expires_at: expiresAt,
+            ...(forwarded ? { metadata: { forwarded: true } } : {})
           })
           .select('id, created_at')
           .single()
@@ -276,6 +280,7 @@ export default defineNitroPlugin((nitroApp: any) => {
           attachments,
           messageType,
           replyToId,
+          forwarded,
           expiresAt,
           senderId: socket.userId,
           ...sender,
@@ -298,6 +303,18 @@ export default defineNitroPlugin((nitroApp: any) => {
           return ack?.({ success: false, error: 'Invalid edit' })
         }
         if (content.length > 2000) return ack?.({ success: false, error: 'Message too long' })
+
+        const { data: original } = await admin
+          .from('chat_messages')
+          .select('created_at')
+          .eq('id', messageId)
+          .eq('room_id', chatId)
+          .eq('sender_id', socket.userId)
+          .maybeSingle()
+        if (!original) return ack?.({ success: false, error: 'Could not edit message' })
+        if (Date.now() - new Date(original.created_at).getTime() > EDIT_WINDOW_MS) {
+          return ack?.({ success: false, error: 'Messages can only be edited within 10 minutes of sending' })
+        }
 
         const editedAt = new Date().toISOString()
         const { data: updated, error } = await admin

@@ -10,6 +10,7 @@ interface ChatMessagePayload {
   attachments?: string[]
   replyToId?: string
   messageType?: string
+  forwarded?: boolean
 }
 
 export interface IncomingChatMessage {
@@ -26,6 +27,7 @@ export interface IncomingChatMessage {
   replyToId?: string | null
   replyTo?: { id: string, senderId: string, senderName?: string, content: string | null }
   gift?: { name: string, quantity: number }
+  forwarded?: boolean
   expiresAt?: string | null
 }
 
@@ -173,9 +175,14 @@ export const useChat = () => {
     socket.emit('chat:read', { chatId })
   }
 
-  const editMessage = (chatId: string, messageId: string, content: string) => {
-    socket.emit('chat:edit', { chatId, messageId, content })
-  }
+  const editMessage = (chatId: string, messageId: string, content: string): Promise<{ success: boolean, error?: string }> =>
+    new Promise((resolve) => {
+      const timer = setTimeout(() => resolve({ success: false, error: 'Timed out' }), 15000)
+      socket.emit('chat:edit', { chatId, messageId, content }, (ack: { success: boolean, error?: string }) => {
+        clearTimeout(timer)
+        resolve(ack || { success: false, error: 'No acknowledgement' })
+      })
+    })
 
   const deleteMessage = (chatId: string, messageId: string, forEveryone = true) => {
     socket.emit('chat:delete', { chatId, messageId, forEveryone })
