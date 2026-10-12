@@ -24,6 +24,10 @@
           <Icon name="users" size="20" />
           <span>Users</span>
         </NuxtLink>
+        <NuxtLink to="/admin/withdrawals" class="nav-link" :class="{ active: isActive('/admin/withdrawals') }">
+          <Icon name="credit-card" size="20" />
+          <span>Withdrawals & fees</span>
+        </NuxtLink>
         <NuxtLink to="/admin/analytics" class="nav-link" :class="{ active: isActive('/admin/analytics') }">
           <Icon name="bar-chart-2" size="20" />
           <span>Analytics</span>
@@ -94,6 +98,7 @@ const pageTitle = computed(() => {
     '/manager': 'Manager Dashboard',
     '/admin': 'Admin Panel',
     '/admin/users': 'User Management',
+    '/admin/withdrawals': 'Withdrawals & Fees',
     '/admin/analytics': 'Analytics',
     '/admin/security': 'Security',
   }

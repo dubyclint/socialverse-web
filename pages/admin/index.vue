@@ -1,5 +1,10 @@
 <template>
   <div class="admin-dashboard">
+    <nav class="admin-links">
+      <NuxtLink to="/admin/users">Users &amp; roles</NuxtLink>
+      <NuxtLink to="/admin/withdrawals">Withdrawals &amp; fees</NuxtLink>
+      <NuxtLink to="/admin/payments">Payment providers</NuxtLink>
+    </nav>
     <!-- Main Dashboard Components -->
     <div class="dashboard-grid">
       <adminuserlist />
@@ -78,6 +83,22 @@ onMounted(async () => {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.admin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-links a {
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .dashboard-grid {
