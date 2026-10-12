@@ -12,6 +12,7 @@ export interface CandidatePost {
   shares_count: number
   created_at: string
   title: string | null
+  page_id: string | null
 }
 
 export interface CandidateAuthor {
@@ -27,7 +28,7 @@ const CANDIDATE_TTL_SECONDS = 60
 const AUTHOR_TTL_SECONDS = 300
 
 export const CANDIDATE_COLUMNS =
-  'id, user_id, content, media_urls, hashtags, likes_count, comments_count, shares_count, created_at, title'
+  'id, user_id, content, media_urls, hashtags, likes_count, comments_count, shares_count, created_at, title, page_id'
 
 /**
  * Public posts only — the pool is shared between viewers, so anything with
@@ -78,5 +79,29 @@ export const getAuthors = defineCachedFunction(
     name: 'feed-authors',
     maxAge: AUTHOR_TTL_SECONDS,
     getKey: (authorIds: string[]) => [...authorIds].sort().join(',').slice(0, 512)
+  }
+)
+
+export interface CandidatePageAuthor {
+  id: string
+  handle: string
+  name: string
+  avatar_url: string | null
+}
+
+export const getPageAuthors = defineCachedFunction(
+  async (pageIds: string[]): Promise<CandidatePageAuthor[]> => {
+    if (!pageIds.length) return []
+    const { data, error } = await getServiceClient()
+      .from('pages')
+      .select('id, handle, name, avatar_url')
+      .in('id', pageIds)
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    return data ?? []
+  },
+  {
+    name: 'feed-page-authors',
+    maxAge: AUTHOR_TTL_SECONDS,
+    getKey: (pageIds: string[]) => [...pageIds].sort().join(',').slice(0, 512)
   }
 )

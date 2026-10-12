@@ -10,6 +10,8 @@
 
 import { serverSupabaseClient } from '#supabase/server'
 import { notifyMentions } from '~/server/utils/mention-notify'
+import { resolveActor } from '~/server/utils/actor'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
 interface CreatePostRequest {
   content: string
@@ -52,6 +54,13 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
 
     const userId = session.user.id
     console.log('[Posts Create API] User ID:', userId)
+
+    // Posting as a Page needs OWNER or MANAGER; moderators only engage.
+    const actor = await resolveActor(event)
+    if (actor.type === 'PAGE' && actor.role !== 'OWNER' && actor.role !== 'MANAGER') {
+      throw createError({ statusCode: 403, statusMessage: 'Moderators cannot post as this Page' })
+    }
+    const pageId = actor.type === 'PAGE' ? actor.id : null
 
     // ============================================================================
     // STEP 2: Read request body
@@ -120,10 +129,14 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
     // ============================================================================
     console.log('[Posts Create API] Creating post...')
 
-    const { data: post, error: postError } = await supabase
+    // Page posts are written with the service role after the RBAC check above;
+    // the posts_set_author trigger derives author_type/author_id from page_id.
+    const writer = pageId ? getServiceClient() : supabase
+    const { data: post, error: postError } = await writer
       .from('posts')
       .insert({
         user_id: userId,
+        page_id: pageId,
         content: body.content?.trim() ?? '',
         privacy,
         hashtags: body.tags || [],
@@ -147,11 +160,13 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
     console.log('[Posts Create API] ✅ Post created successfully')
 
     if (!body.saveAsDraft && post.content) {
-      const { data: actor } = await supabase.from('user').select('username').eq('user_id', userId).maybeSingle()
+      const actorName = pageId
+        ? (await getServiceClient().from('pages').select('name').eq('id', pageId).maybeSingle()).data?.name
+        : (await supabase.from('user').select('username').eq('user_id', userId).maybeSingle()).data?.username
       await notifyMentions({
         text: post.content,
         actorId: userId,
-        actorName: actor?.username ?? 'Someone',
+        actorName: actorName ?? 'Someone',
         sourceId: post.id,
         eventType: 'TAG',
         where: 'a post'

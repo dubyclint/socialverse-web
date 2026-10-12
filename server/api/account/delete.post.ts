@@ -53,8 +53,28 @@ export default defineEventHandler(async (event): Promise<DeleteAccountResponse> 
     throw createError({ statusCode: 409, statusMessage: 'Close your open P2P trades before deleting your account.' })
   }
 
-  const deletedAt = new Date().toISOString()
   const service = serverSupabaseServiceRole<Database>(event)
+
+  const { data: ownedPages } = await service
+    .from('page_admins')
+    .select('page_id, page:pages(name)')
+    .eq('user_id', user.id)
+    .eq('role', 'OWNER')
+  for (const owned of ownedPages ?? []) {
+    const { count } = await service
+      .from('page_admins')
+      .select('id', { count: 'exact', head: true })
+      .eq('page_id', owned.page_id)
+      .eq('role', 'OWNER')
+    if ((count ?? 0) <= 1) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: `You are the only owner of the Page "${owned.page?.name ?? 'Untitled'}". Delete it or make someone else an owner first.`
+      })
+    }
+  }
+
+  const deletedAt = new Date().toISOString()
 
   const { error: anonymiseError } = await service
     .from('user')

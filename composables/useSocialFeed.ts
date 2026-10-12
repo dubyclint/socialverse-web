@@ -8,6 +8,7 @@ import type { PerformResult } from '~/composables/use-engagement-sync'
 const PAGE_SIZE = 12
 
 export interface FeedAuthor {
+  type?: 'USER' | 'PAGE'
   id: string
   username: string
   full_name: string

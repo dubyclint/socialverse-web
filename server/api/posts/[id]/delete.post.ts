@@ -1,6 +1,8 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
+import { getPageRole } from '~/server/utils/actor'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
 interface DeletePostResponse {
   success: boolean
@@ -12,19 +14,22 @@ export default defineEventHandler(async (event): Promise<DeletePostResponse> => 
   const postId = getRouterParam(event, 'id')
   if (!postId) throw createError({ statusCode: 400, statusMessage: 'Post ID is required' })
 
-  const client = await serverSupabaseClient<Database>(event)
+  let client = await serverSupabaseClient<Database>(event)
 
   const { data: post, error: postError } = await client
     .from('posts')
-    .select('user_id')
+    .select('user_id, page_id')
     .eq('id', postId)
     .maybeSingle()
 
   if (postError) throw createError({ statusCode: 500, statusMessage: postError.message })
   if (!post) throw createError({ statusCode: 404, statusMessage: 'Post not found' })
-  if (post.user_id !== user.id) {
+  // Any admin of the authoring Page may remove its posts (moderation).
+  const pageRole = post.page_id ? await getPageRole(post.page_id, user.id) : null
+  if (post.user_id !== user.id && !pageRole) {
     throw createError({ statusCode: 403, statusMessage: 'You can only delete your own posts' })
   }
+  if (pageRole) client = getServiceClient()
 
   await Promise.all([
     client.from('post_likes').delete().eq('post_id', postId),

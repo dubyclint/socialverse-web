@@ -107,6 +107,7 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
       .from('posts')
       .select('*', { count: 'exact' })
       .eq('user_id', userId)
+      .is('page_id', null)
       .in('privacy', privacyFilter)
       .eq('is_draft', false)
       .is('scheduled_at', null)

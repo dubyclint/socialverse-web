@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
-import { CANDIDATE_COLUMNS, getAuthors, getCandidatePool } from '~/server/utils/feed-cache'
+import { CANDIDATE_COLUMNS, getAuthors, getCandidatePool, getPageAuthors } from '~/server/utils/feed-cache'
 import type { CandidatePost } from '~/server/utils/feed-cache'
 import { parseRepostRef } from '~/server/utils/repost'
 
@@ -58,6 +58,7 @@ export interface FeedAuthor {
   full_name: string
   avatar_url: string | null
   verified: boolean
+  type?: 'USER' | 'PAGE'
 }
 
 export interface RankedPost {
@@ -137,6 +138,8 @@ export const rankPosts = async (
   ])
 
   const followingIds = new Set((following ?? []).map(row => row.following_id))
+  const { data: followedPages } = await client.from('page_follows').select('page_id').eq('user_id', userId)
+  for (const row of followedPages ?? []) followingIds.add(row.page_id)
 
   let interestTags = new Set<string>()
   const interestIds = (interestLinks ?? []).map(row => row.interest_id)
@@ -206,13 +209,15 @@ export const rankPosts = async (
 
   const rows: CandidatePost[] =
     tab === 'following'
-      ? Array.from(byId.values()).filter(row => followingIds.has(row.user_id))
+      ? Array.from(byId.values()).filter(row => followingIds.has(row.page_id ?? row.user_id))
       : Array.from(byId.values())
 
   if (!rows.length) return []
 
-  const [authors, { data: likes }] = await Promise.all([
-    getAuthors(Array.from(new Set(rows.map(row => row.user_id)))),
+  const pageIds = Array.from(new Set(rows.map(row => row.page_id).filter((id): id is string => Boolean(id))))
+  const [authors, pageAuthors, { data: likes }] = await Promise.all([
+    getAuthors(Array.from(new Set(rows.filter(row => !row.page_id).map(row => row.user_id)))),
+    getPageAuthors(pageIds),
     client
       .from('post_likes')
       .select('post_id')
@@ -221,6 +226,7 @@ export const rankPosts = async (
   ])
 
   const authorById = new Map(authors.map(author => [author.user_id, author]))
+  const pageAuthorById = new Map(pageAuthors.map(page => [page.id, page]))
   const likedPostIds = new Set((likes ?? []).map(like => like.post_id))
   const now = Date.now()
 
@@ -248,11 +254,11 @@ export const rankPosts = async (
       score *= weights.interest_boost
       reason = 'interest'
     }
-    if (tab !== 'trending' && affinityAuthorIds.has(row.user_id)) {
+    if (tab !== 'trending' && !row.page_id && affinityAuthorIds.has(row.user_id)) {
       score *= weights.affinity_boost
       reason = 'affinity'
     }
-    if (tab !== 'trending' && followingIds.has(row.user_id)) {
+    if (tab !== 'trending' && followingIds.has(row.page_id ?? row.user_id)) {
       score *= weights.following_boost
       reason = 'following'
     }
@@ -260,7 +266,8 @@ export const rankPosts = async (
     const seen = seenPostIds.has(row.id)
     if (seen && tab !== 'trending') score *= weights.seen_penalty
 
-    const author = authorById.get(row.user_id)
+    const author = row.page_id ? undefined : authorById.get(row.user_id)
+    const pageAuthor = row.page_id ? pageAuthorById.get(row.page_id) : undefined
 
     return {
       id: row.id,
@@ -274,15 +281,25 @@ export const rankPosts = async (
       gifts_count: 0,
       liked_by_me: likedPostIds.has(row.id),
       repost_of: null,
-      author: author
+      author: pageAuthor
         ? {
-            id: author.user_id,
-            username: author.username || 'user',
-            full_name: author.full_name || author.display_name || author.username || 'User',
-            avatar_url: author.avatar_url,
-            verified: author.is_verified === true
+            id: pageAuthor.id,
+            username: pageAuthor.handle,
+            full_name: pageAuthor.name,
+            avatar_url: pageAuthor.avatar_url,
+            verified: false,
+            type: 'PAGE' as const
           }
-        : null,
+        : author
+          ? {
+              id: author.user_id,
+              username: author.username || 'user',
+              full_name: author.full_name || author.display_name || author.username || 'User',
+              avatar_url: author.avatar_url,
+              verified: author.is_verified === true,
+              type: 'USER' as const
+            }
+          : null,
       score,
       reason,
       seen

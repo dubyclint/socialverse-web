@@ -23,6 +23,7 @@ export interface PostDetailView {
     name: string
     avatar: string | null
     isVerified: boolean
+    type: 'USER' | 'PAGE'
   }
 }
 
@@ -42,12 +43,15 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   if (!post) throw createError({ statusCode: 404, statusMessage: 'Post not found' })
 
-  const [{ data: author }, { data: like }] = await Promise.all([
+  const [{ data: author }, { data: page }, { data: like }] = await Promise.all([
     client
       .from('user')
       .select('user_id, username, display_name, full_name, avatar_url, is_verified')
       .eq('user_id', post.user_id)
       .maybeSingle(),
+    post.page_id
+      ? client.from('pages').select('id, handle, name, avatar_url').eq('id', post.page_id).maybeSingle()
+      : Promise.resolve({ data: null }),
     client
       .from('post_likes')
       .select('id')
@@ -72,12 +76,15 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
       sharesCount: post.shares_count,
       likedByMe: Boolean(like),
       isMine: post.user_id === user.id,
-      author: {
+      author: page
+        ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, isVerified: false, type: 'PAGE' as const }
+        : {
         id: post.user_id,
         username: author?.username ?? 'unknown',
         name: author?.full_name || author?.display_name || author?.username || 'Unknown user',
         avatar: author?.avatar_url ?? null,
-        isVerified: author?.is_verified === true
+        isVerified: author?.is_verified === true,
+        type: 'USER' as const
       }
     }
   }

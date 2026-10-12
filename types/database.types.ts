@@ -9,6 +9,96 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      pages: {
+        Row: {
+          id: string
+          name: string
+          handle: string
+          category: string | null
+          bio: string | null
+          avatar_url: string | null
+          cover_url: string | null
+          website: string | null
+          created_by_user_id: string
+          followers_count: number
+          posts_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          handle: string
+          category?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          cover_url?: string | null
+          website?: string | null
+          created_by_user_id: string
+          followers_count?: number
+          posts_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          handle?: string
+          category?: string | null
+          bio?: string | null
+          avatar_url?: string | null
+          cover_url?: string | null
+          website?: string | null
+          created_by_user_id?: string
+          followers_count?: number
+          posts_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      page_admins: {
+        Row: {
+          id: string
+          page_id: string
+          user_id: string
+          role: Database['public']['Enums']['page_role']
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          page_id: string
+          user_id: string
+          role: Database['public']['Enums']['page_role']
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          page_id?: string
+          user_id?: string
+          role?: Database['public']['Enums']['page_role']
+          created_at?: string
+        }
+        Relationships: []
+      }
+      page_follows: {
+        Row: {
+          page_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          page_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          page_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       ad_interactions: {
         Row: {
           campaign_id: string
@@ -2190,6 +2280,12 @@ export type Database = {
           media_urls: string[]
           privacy: string
           scheduled_at: string | null
+
+          page_id: string | null
+
+          author_type: string
+
+          author_id: string | null
           shares_count: number
           title: string | null
           updated_at: string
@@ -2206,6 +2302,12 @@ export type Database = {
           media_urls?: string[]
           privacy?: string
           scheduled_at?: string | null
+
+          page_id?: string | null
+
+          author_type?: string
+
+          author_id?: string | null
           shares_count?: number
           title?: string | null
           updated_at?: string
@@ -2222,6 +2324,12 @@ export type Database = {
           media_urls?: string[]
           privacy?: string
           scheduled_at?: string | null
+
+          page_id?: string | null
+
+          author_type?: string
+
+          author_id?: string | null
           shares_count?: number
           title?: string | null
           updated_at?: string
@@ -4269,6 +4377,7 @@ export type Database = {
       }
     }
     Enums: {
+      page_role: "OWNER" | "MANAGER" | "MODERATOR"
       ad_action_type: "IMPRESSION" | "CLICK"
       ad_billing_type_mode: "CPC" | "CPM"
       ad_campaign_lifecycle_status:
