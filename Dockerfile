@@ -22,6 +22,9 @@ FROM node:22-slim AS runner
 
 WORKDIR /app
 
+# ffmpeg mixes the post audio track into photos/videos (server/api/media/mix.post.ts)
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOST=0.0.0.0
