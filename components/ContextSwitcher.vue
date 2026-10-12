@@ -15,6 +15,7 @@
         <img :src="page.avatar_url || '/default-avatar.svg'" alt="" class="ctx-avatar" />
         <span class="ctx-name">{{ page.name }}<small>{{ page.role.toLowerCase() }} · @{{ page.handle }}</small></span>
       </button>
+      <NuxtLink to="/profile" class="ctx-link" @click="open = false">My profile</NuxtLink>
       <NuxtLink to="/pages" class="ctx-link" @click="open = false">Manage Pages</NuxtLink>
     </div>
   </div>

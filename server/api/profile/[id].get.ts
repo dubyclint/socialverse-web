@@ -1,7 +1,5 @@
 // FILE: /server/api/profile/[id].get.ts
 import { defineEventHandler, getRouterParam, createError } from 'h3'
-import { serverSupabaseClient } from '#supabase/server'
-import type { Database } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { countFollowGraph, loadRelationships } from '~/server/utils/social-graph'
@@ -24,9 +22,10 @@ export default defineEventHandler(async (event) => {
   const identifier = getRouterParam(event, 'id')
   if (!identifier) throw createError({ statusCode: 400, statusMessage: 'User ID is required' })
 
-  const supabase = await serverSupabaseClient<Database>(event)
-
-  const query = supabase.from('user').select(PUBLIC_PROFILE_COLUMNS)
+  // Service client: privacy columns are not readable by end users directly;
+  // per-field visibility is applied below.
+  const service = getServiceClient()
+  const query = service.from('user').select(PUBLIC_PROFILE_COLUMNS)
   const { data: profile, error } = await (
     UUID_RE.test(identifier)
       ? query.eq('user_id', identifier)
@@ -40,7 +39,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
-  const service = getServiceClient()
   const [counts, relationships] = await Promise.all([
     countFollowGraph(service, profile.user_id),
     loadRelationships(service, viewer.id, [profile.user_id])

@@ -41,8 +41,8 @@
             <Icon name="users" size="22" />
             <ClientOnly><span v-if="pendingPalRequests > 0" class="dot-indicator" aria-label="New PAL requests"></span></ClientOnly>
           </NuxtLink>
-          <ClientOnly><ContextSwitcher /></ClientOnly>
-          <div class="user-avatar-wrapper">
+          <ClientOnly><ContextSwitcher v-if="contextStore.managedPages.length" /></ClientOnly>
+          <div v-if="!contextStore.managedPages.length" class="user-avatar-wrapper">
             <img :src="userAvatar" :alt="userName" class="user-avatar" @click="goToProfilePage()" :style="{ cursor: currentUser?.id ? 'pointer' : 'default' }" />
             <span class="status-indicator" :class="userStatus"></span>
           </div>
@@ -268,6 +268,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, navigateTo } from '#app';
 import { useSocialFeed } from '~/composables/useSocialFeed';
+import { useContextStore } from '~/stores/context';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
@@ -284,6 +285,7 @@ const topNavItems = [
 
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
+const contextStore = useContextStore();
 const { 
   posts, postsLoading, hasMorePosts, loadingMore, 
   loadMorePosts, refreshFeed, initPipeline, 
