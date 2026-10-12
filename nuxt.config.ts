@@ -106,6 +106,8 @@ export default defineNuxtConfig({
     turnUrls: process.env.TURN_URLS,
     turnUsername: process.env.TURN_USERNAME,
     turnCredential: process.env.TURN_CREDENTIAL,
+    cloudflareTurnKeyId: process.env.CLOUDFLARE_TURN_KEY_ID,
+    cloudflareTurnApiToken: process.env.CLOUDFLARE_TURN_API_TOKEN,
     googleTranslateApiKey: process.env.GOOGLE_TRANSLATE_API_KEY,
     deeplApiKey: process.env.DEEPL_API_KEY,
     libretranslateUrl: process.env.LIBRETRANSLATE_URL,

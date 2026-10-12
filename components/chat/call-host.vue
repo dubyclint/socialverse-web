@@ -9,11 +9,15 @@
       :candidates="candidates"
       :is-muted="isMuted"
       :is-video-off="isVideoOff"
+      :speaker-on="speakerOn"
+      :facing-mode="facingMode"
       @accept-call="acceptCall"
       @reject-call="rejectCall"
       @end-call="hangUp"
       @toggle-mute="toggleMute"
       @toggle-video="toggleVideo"
+      @toggle-speaker="toggleSpeaker"
+      @switch-camera="switchCamera"
       @add-participants="addParticipants"
     />
     <div v-if="error" class="call-error" role="alert" @click="error = null">{{ error }}</div>
@@ -34,13 +38,17 @@ const {
   participants,
   isMuted,
   isVideoOff,
+  speakerOn,
+  facingMode,
   error,
   acceptCall,
   addParticipants,
   rejectCall,
   hangUp,
   toggleMute,
-  toggleVideo
+  toggleVideo,
+  toggleSpeaker,
+  switchCamera
 } = useWebrtcCall()
 
 const chatStore = useChatStore()

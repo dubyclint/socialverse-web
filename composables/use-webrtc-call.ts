@@ -31,18 +31,38 @@ export interface ActiveCall {
 interface Peer {
   pc: RTCPeerConnection
   pending: RTCIceCandidateInit[]
+  /** We sent the offer, so we drive ICE restarts. */
+  offerer: boolean
+  restarted: boolean
 }
+
+const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true
+}
+
+const videoConstraints = (facing: 'user' | 'environment'): MediaTrackConstraints => ({
+  facingMode: { ideal: facing },
+  width: { ideal: 1280 },
+  height: { ideal: 720 }
+})
 
 const FALLBACK_ICE: RTCConfiguration = {
   iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
 }
 
 let iceConfig: RTCConfiguration | null = null
+let iceLoadedAt = 0
+let hasRelay = false
+// TURN credentials can be short-lived, so refetch them for calls started later.
 const loadIceConfig = async (): Promise<RTCConfiguration> => {
-  if (iceConfig) return iceConfig
+  if (iceConfig && Date.now() - iceLoadedAt < 30 * 60_000) return iceConfig
   try {
-    const res = await $fetch<{ iceServers: RTCIceServer[] }>('/api/calls/ice')
+    const res = await $fetch<{ iceServers: RTCIceServer[], relay?: boolean }>('/api/calls/ice')
     iceConfig = { iceServers: res.iceServers }
+    hasRelay = Boolean(res.relay)
+    iceLoadedAt = Date.now()
   } catch {
     iceConfig = FALLBACK_ICE
   }
@@ -57,6 +77,9 @@ const participants = shallowRef<CallParticipant[]>([])
 const error = ref<string | null>(null)
 const isMuted = ref(false)
 const isVideoOff = ref(false)
+/** Loudspeaker (full volume) vs normal earpiece-level volume. */
+const speakerOn = ref(true)
+const facingMode = ref<'user' | 'environment'>('user')
 const isInCall = computed(() => call.value !== null)
 /** Epoch ms when the first peer connection came up; drives the call timer. */
 const connectedAt = ref<number | null>(null)
@@ -123,12 +146,15 @@ export const useWebrtcCall = () => {
       return null
     }
     try {
-      localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' }))
+      localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({
+        audio: AUDIO_CONSTRAINTS,
+        video: callType === 'video' ? videoConstraints(facingMode.value) : false
+      }))
       return localStream.value
     } catch (err) {
       if (callType === 'video') {
         try {
-          localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({ audio: true }))
+          localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS }))
           isVideoOff.value = true
           error.value = mediaErrorMessage(err, 'video').replace(' You can still hear the other side.', ' Continuing with audio only.')
           return localStream.value
@@ -167,7 +193,7 @@ export const useWebrtcCall = () => {
 
   const createPeer = async (userId: string): Promise<Peer> => {
     const pc = new RTCPeerConnection(await loadIceConfig())
-    const peer: Peer = { pc, pending: [] }
+    const peer: Peer = { pc, pending: [], offerer: false, restarted: false }
     peers.set(userId, peer)
 
     const stream = localStream.value
@@ -179,33 +205,41 @@ export const useWebrtcCall = () => {
       if (call.value?.callType === 'video') pc.addTransceiver('video', { direction: 'recvonly' })
     }
 
-    const remote = markRaw(new MediaStream())
-    setParticipant(userId, { stream: remote })
+    // A fresh MediaStream per track change makes every <video>/<audio> rebind
+    // and call play() again; mobile browsers don't render tracks added later.
+    const remoteTracks: MediaStreamTrack[] = []
     pc.ontrack = event => {
-      const tracks = event.streams[0]?.getTracks() ?? [event.track]
-      tracks.forEach(track => {
-        if (!remote.getTracks().includes(track)) remote.addTrack(track)
-      })
-      setParticipant(userId, { stream: remote, state: 'connected' })
-      markConnected()
+      const incoming = event.streams[0]?.getTracks() ?? [event.track]
+      for (const track of incoming) {
+        if (!remoteTracks.includes(track)) remoteTracks.push(track)
+        track.onunmute = () => setParticipant(userId, { stream: markRaw(new MediaStream(remoteTracks)) })
+      }
+      setParticipant(userId, { stream: markRaw(new MediaStream(remoteTracks)) })
     }
 
     pc.onicecandidate = event => {
       if (event.candidate) signal(userId, 'ice', event.candidate.toJSON())
     }
 
+    // Media only flows once ICE has connected; ringing/negotiation is not "connected".
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') {
         setParticipant(userId, { state: 'connected' })
         markConnected()
       }
-      if (pc.connectionState === 'failed') {
-        closePeer(userId)
-        dropParticipant(userId)
-        if (!peers.size) {
-          error.value = 'The call could not connect on this network'
-          hangUp()
-        }
+      if (pc.connectionState !== 'failed') return
+      if (!peer.restarted) {
+        peer.restarted = true
+        if (peer.offerer) void sendOffer(userId, true).catch(() => undefined)
+        return
+      }
+      closePeer(userId)
+      dropParticipant(userId)
+      if (!peers.size) {
+        error.value = hasRelay
+          ? 'The call dropped. Check your connection and try again.'
+          : 'The call could not connect between these networks (mobile data needs a relay server).'
+        hangUp()
       }
     }
 
@@ -217,9 +251,10 @@ export const useWebrtcCall = () => {
     peer.pending = []
   }
 
-  const sendOffer = async (userId: string) => {
+  const sendOffer = async (userId: string, iceRestart = false) => {
     const peer = await peerFor(userId)
-    const offer = await peer.pc.createOffer()
+    peer.offerer = true
+    const offer = await peer.pc.createOffer({ iceRestart })
     await peer.pc.setLocalDescription(offer)
     signal(userId, 'offer', offer)
   }
@@ -235,6 +270,7 @@ export const useWebrtcCall = () => {
     call.value = null
     isMuted.value = false
     isVideoOff.value = false
+    facingMode.value = 'user'
   }
 
   const startCall = async (params: {
@@ -322,6 +358,37 @@ export const useWebrtcCall = () => {
   const toggleVideo = () => {
     isVideoOff.value = !isVideoOff.value
     localStream.value?.getVideoTracks().forEach(track => (track.enabled = !isVideoOff.value))
+  }
+
+  const toggleSpeaker = () => {
+    speakerOn.value = !speakerOn.value
+  }
+
+  // Swap the camera by asking for a new track with the other facingMode and
+  // replacing it in-place on every peer connection (no renegotiation needed).
+  const switchCamera = async () => {
+    const stream = localStream.value
+    const current = stream?.getVideoTracks()[0]
+    if (!stream || !current || !navigator.mediaDevices?.getUserMedia) return
+    const next = facingMode.value === 'user' ? 'environment' : 'user'
+    try {
+      current.stop()
+      const fresh = await navigator.mediaDevices.getUserMedia({ video: videoConstraints(next) })
+      const track = fresh.getVideoTracks()[0]
+      if (!track) return
+      track.enabled = !isVideoOff.value
+      for (const { pc } of peers.values()) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video' || s.track === current)
+        await sender?.replaceTrack(track)
+      }
+      stream.removeTrack(current)
+      stream.addTrack(track)
+      localStream.value = markRaw(new MediaStream(stream.getTracks()))
+      facingMode.value = next
+    } catch (err) {
+      console.warn('[call] camera switch failed', err)
+      error.value = 'Could not switch camera on this device'
+    }
   }
 
   const onIncoming = (data: {
@@ -452,12 +519,16 @@ export const useWebrtcCall = () => {
     error,
     isMuted,
     isVideoOff,
+    speakerOn,
+    facingMode,
     startCall,
     addParticipants,
     acceptCall,
     rejectCall,
     hangUp,
     toggleMute,
-    toggleVideo
+    toggleVideo,
+    toggleSpeaker,
+    switchCamera
   }
 }

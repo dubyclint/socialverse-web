@@ -1,5 +1,5 @@
 <template>
-  <div class="call-interface" v-if="call">
+  <div v-if="call" ref="root" class="call-interface" @click="resumePlayback">
     <div class="call-overlay">
       <div class="call-content">
         <div class="call-header">
@@ -18,31 +18,46 @@
           </div>
         </div>
 
-        <div v-if="call.callType === 'video'" class="video-grid" :data-count="Math.min(participants.length + 1, 8)">
-          <div v-for="person in participants" :key="person.userId" class="video-tile">
+        <!-- Remote audio always plays through <audio>; <video> stays muted so
+             mobile autoplay rules never block the picture. -->
+        <audio
+          v-for="person in participants"
+          :key="`a-${person.userId}`"
+          :ref="el => bindMedia(el, person.stream)"
+          autoplay
+          playsinline
+          class="hidden-media"
+        ></audio>
+
+        <div
+          v-if="call.callType === 'video'"
+          ref="stage"
+          class="video-grid"
+          :class="{ focused: Boolean(focusedId) }"
+          :data-count="Math.min(participants.length + 1, 8)"
+        >
+          <div
+            v-for="tile in tiles"
+            :key="tile.id"
+            class="video-tile"
+            :class="{ 'self-tile': tile.self, 'is-focused': tile.id === focusedId, 'is-pip': Boolean(focusedId) && tile.id !== focusedId }"
+            :title="tile.id === focusedId ? 'Tap to swap view' : 'Tap to show this video large'"
+            :style="pipStyle(tile.id)"
+            @click="focusTile(tile.id)"
+          >
             <video
-              v-if="person.stream"
-              :ref="el => bindMedia(el, person.stream)"
+              v-if="tile.stream && tile.hasVideo"
+              :ref="el => bindMedia(el, tile.stream)"
               autoplay
               playsinline
+              muted
             ></video>
-            <img v-else :src="person.avatar || '/default-avatar.svg'" alt="" class="tile-avatar" />
-            <span class="tile-name">{{ person.name }}<template v-if="person.state === 'ringing'"> · ringing</template></span>
-          </div>
-          <div class="video-tile self-tile">
-            <video :ref="el => bindMedia(el, localStream ?? null)" autoplay playsinline muted></video>
-            <span class="tile-name">You</span>
+            <img v-else :src="tile.avatar || '/default-avatar.svg'" alt="" class="tile-avatar" />
+            <span class="tile-name">{{ tile.name }}<template v-if="tile.ringing"> · ringing</template></span>
           </div>
         </div>
 
         <div v-else class="audio-visualization">
-          <audio
-            v-for="person in participants"
-            :key="person.userId"
-            :ref="el => bindMedia(el, person.stream)"
-            autoplay
-            playsinline
-          ></audio>
           <div v-if="isGroupCall" class="audio-roster">
             <div v-for="person in participants" :key="person.userId" class="roster-person" :class="{ ringing: person.state === 'ringing' }">
               <img :src="person.avatar || '/default-avatar.svg'" alt="" />
@@ -98,6 +113,33 @@
           </button>
 
           <button
+            class="control-btn speaker-btn"
+            :class="{ on: speakerOn }"
+            :title="speakerOn ? 'Loudspeaker on (tap for normal)' : 'Normal volume (tap for loudspeaker)'"
+            @click="$emit('toggleSpeaker')"
+          >
+            <Icon :name="speakerOn ? 'volume-2' : 'volume-1'" />
+          </button>
+
+          <button
+            v-if="call.callType === 'video' && canSwitchCamera"
+            class="control-btn"
+            title="Switch front/back camera"
+            @click="$emit('switchCamera')"
+          >
+            <Icon name="switch-camera" />
+          </button>
+
+          <button
+            v-if="call.callType === 'video'"
+            class="control-btn"
+            :title="isFullscreen ? 'Exit full screen' : 'Full screen'"
+            @click="toggleFullscreen"
+          >
+            <Icon :name="isFullscreen ? 'minimize' : 'maximize'" />
+          </button>
+
+          <button
             v-if="call.isActive || !call.isIncoming"
             class="control-btn add-btn"
             title="Add people"
@@ -144,6 +186,8 @@ const props = defineProps<{
   candidates?: CallPerson[]
   isMuted?: boolean
   isVideoOff?: boolean
+  speakerOn?: boolean
+  facingMode?: 'user' | 'environment'
 }>()
 
 const emit = defineEmits<{
@@ -152,6 +196,8 @@ const emit = defineEmits<{
   rejectCall: []
   toggleMute: []
   toggleVideo: []
+  toggleSpeaker: []
+  switchCamera: []
   addParticipants: [userIds: string[]]
 }>()
 
@@ -175,12 +221,110 @@ const availableCandidates = computed(() => {
   return (props.candidates ?? []).filter(person => !present.has(person.userId))
 })
 
+const NORMAL_VOLUME = 0.6
+const mediaEls = new Set<HTMLMediaElement>()
+const applyVolume = (el: HTMLMediaElement) => {
+  if (el instanceof HTMLAudioElement) el.volume = props.speakerOn === false ? NORMAL_VOLUME : 1
+}
+
 const bindMedia = (el: Element | ComponentPublicInstance | null, stream: MediaStream | null) => {
   if (!(el instanceof HTMLMediaElement)) return
+  mediaEls.add(el)
+  applyVolume(el)
   if (el.srcObject !== stream) {
     el.srcObject = stream
     if (stream) void el.play().catch(() => undefined)
   }
+}
+
+// Any tap inside the call retries playback that a mobile autoplay policy blocked.
+const resumePlayback = () => {
+  for (const el of mediaEls) {
+    if (!el.isConnected) mediaEls.delete(el)
+    else if (el.paused && el.srcObject) void el.play().catch(() => undefined)
+  }
+}
+
+watch(() => props.speakerOn, () => mediaEls.forEach(applyVolume))
+
+interface Tile {
+  id: string
+  name: string
+  avatar?: string
+  stream: MediaStream | null
+  hasVideo: boolean
+  self: boolean
+  ringing: boolean
+}
+
+const SELF = 'self'
+const tiles = computed<Tile[]>(() => [
+  ...props.participants.map(person => ({
+    id: person.userId,
+    name: person.name,
+    avatar: person.avatar,
+    stream: person.stream,
+    hasVideo: Boolean(person.stream?.getVideoTracks().length),
+    self: false,
+    ringing: person.state === 'ringing'
+  })),
+  {
+    id: SELF,
+    name: 'You',
+    stream: props.localStream ?? null,
+    hasVideo: Boolean(props.localStream?.getVideoTracks().length) && !props.isVideoOff,
+    self: true,
+    ringing: false
+  }
+])
+
+// 1:1 calls default to the other person large with yourself picture-in-picture.
+const pickedFocus = ref<string | null>(null)
+const focusedId = computed(() => {
+  if (pickedFocus.value && tiles.value.some(t => t.id === pickedFocus.value)) return pickedFocus.value
+  return props.participants.length === 1 ? props.participants[0]!.userId : null
+})
+
+const focusTile = (id: string) => {
+  if (props.participants.length === 1) {
+    // Tapping either tile swaps which one is large.
+    pickedFocus.value = focusedId.value === SELF ? props.participants[0]!.userId : SELF
+    return
+  }
+  pickedFocus.value = pickedFocus.value === id ? null : id
+}
+
+// Non-focused tiles stack down the right edge as picture-in-picture thumbnails.
+const pipStyle = (id: string) => {
+  if (!focusedId.value || id === focusedId.value) return undefined
+  const index = tiles.value.filter(t => t.id !== focusedId.value).findIndex(t => t.id === id)
+  return { top: `calc(12px + ${index} * min(22vh, 150px))`, height: 'min(20vh, 140px)', aspectRatio: 'auto' }
+}
+
+const root = ref<HTMLElement | null>(null)
+const stage = ref<HTMLElement | null>(null)
+const isFullscreen = ref(false)
+const canSwitchCamera = ref(false)
+
+const syncFullscreen = () => {
+  isFullscreen.value = Boolean(document.fullscreenElement)
+}
+
+const toggleFullscreen = async () => {
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      return
+    }
+    if (root.value?.requestFullscreen) {
+      await root.value.requestFullscreen()
+      return
+    }
+  } catch {
+    // Fall through to the iOS video-only fullscreen below.
+  }
+  const video = stage.value?.querySelector<HTMLVideoElement & { webkitEnterFullscreen?: () => void }>('.is-focused video, video')
+  video?.webkitEnterFullscreen?.()
 }
 
 const closePicker = () => {
@@ -239,6 +383,10 @@ const stopCallTimer = () => {
 
 onMounted(() => {
   if (props.connectedAt) startCallTimer()
+  document.addEventListener('fullscreenchange', syncFullscreen)
+  void navigator.mediaDevices?.enumerateDevices?.().then(devices => {
+    canSwitchCamera.value = devices.filter(d => d.kind === 'videoinput').length > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
+  }).catch(() => undefined)
 
   audioTimer.value = setInterval(() => {
     isAudioActive.value = Boolean(props.call?.isActive)
@@ -246,6 +394,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreen)
   stopCallTimer()
   if (audioTimer.value) clearInterval(audioTimer.value)
 })
@@ -552,8 +701,25 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
 }
-.video-tile video { width: 100%; height: 100%; object-fit: cover; }
+.video-tile { cursor: pointer; }
+.video-tile video { width: 100%; height: 100%; object-fit: cover; background: #000; }
 .self-tile video { transform: scaleX(-1); }
+.video-grid.focused { display: block; position: relative; }
+.video-grid.focused .video-tile.is-focused { position: absolute; inset: 0; }
+.video-grid.focused .video-tile.is-focused video { object-fit: contain; }
+.video-grid.focused .video-tile.is-pip {
+  position: absolute;
+  right: 12px;
+  width: 28%;
+  max-width: 160px;
+  aspect-ratio: 3 / 4;
+  z-index: 2;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.hidden-media { display: none; }
+.speaker-btn.on { background: rgba(255, 255, 255, 0.35); }
+.call-interface:fullscreen .call-overlay { background: #000; }
 .tile-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
 .tile-name {
   position: absolute;
