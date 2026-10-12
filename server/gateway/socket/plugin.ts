@@ -146,6 +146,13 @@ export default defineNitroPlugin((nitroApp: any) => {
       return Boolean(data)
     }
 
+    // Users who turned off online presence are never broadcast as online/offline.
+    const showsPresence = async (userId?: string): Promise<boolean> => {
+      if (!userId) return false
+      const { data } = await admin.from('user').select('show_online').eq('user_id', userId).maybeSingle()
+      return data?.show_online !== false
+    }
+
     io.use(async (socket: AuthenticatedSocket, next: (err?: Error) => void) => {
       try {
         const token = socket.handshake?.auth?.token
@@ -526,11 +533,13 @@ export default defineNitroPlugin((nitroApp: any) => {
         ack?.({ success: true, ...payload })
       })
 
-      socket.on('presence:online', () => {
+      socket.on('presence:online', async () => {
+        if (!(await showsPresence(socket.userId))) return
         io?.emit('presence:online', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
 
-      socket.on('presence:offline', () => {
+      socket.on('presence:offline', async () => {
+        if (!(await showsPresence(socket.userId))) return
         io?.emit('presence:offline', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
 
@@ -538,7 +547,8 @@ export default defineNitroPlugin((nitroApp: any) => {
         io?.emit('notification:received', { ...data, senderId: socket.userId, timestamp: new Date().toISOString() })
       })
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
+        if (!(await showsPresence(socket.userId))) return
         io?.emit('presence:offline', { userId: socket.userId, timestamp: new Date().toISOString() })
       })
     })

@@ -8,6 +8,8 @@
 // ============================================================================
 
 import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { loadRelationships } from '~/server/utils/social-graph'
 
 interface PostsResponse {
   success: boolean
@@ -17,6 +19,7 @@ interface PostsResponse {
     page: number
     limit: number
     hasMore: boolean
+    locked?: boolean
   }
   message?: string
   error?: string
@@ -80,6 +83,20 @@ export default defineEventHandler(async (event): Promise<PostsResponse> => {
     }
 
     console.log('[Posts User API] Privacy filter:', privacyFilter)
+
+    // A locked profile keeps its posts to the owner and their PALs.
+    if (currentUserId !== userId) {
+      const service = getServiceClient()
+      const { data: owner } = await service.from('user').select('profile_locked').eq('user_id', userId).maybeSingle()
+      if (owner?.profile_locked) {
+        const isPal = currentUserId
+          ? (await loadRelationships(service, currentUserId, [userId])).get(userId)?.pal_status === 'friends'
+          : false
+        if (!isPal) {
+          return { success: true, data: { posts: [], total: 0, page, limit, hasMore: false, locked: true } }
+        }
+      }
+    }
 
     // ============================================================================
     // STEP 5: Fetch posts with count

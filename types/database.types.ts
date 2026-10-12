@@ -3172,6 +3172,13 @@ export type Database = {
           username_changed_at: string | null
           hide_following: boolean
           full_name_changed_at: string | null
+          marital_status: string | null
+          university: string | null
+          work: string | null
+          religion: string | null
+          profile_locked: boolean
+          show_online: boolean
+          field_visibility: Json
           verified_at: string | null
           website: string | null
         }
@@ -3218,6 +3225,13 @@ export type Database = {
           username_changed_at?: string | null
           hide_following?: boolean
           full_name_changed_at?: string | null
+          marital_status?: string | null
+          university?: string | null
+          work?: string | null
+          religion?: string | null
+          profile_locked?: boolean
+          show_online?: boolean
+          field_visibility?: Json
           verified_at?: string | null
           website?: string | null
         }
@@ -3264,6 +3278,13 @@ export type Database = {
           username_changed_at?: string | null
           hide_following?: boolean
           full_name_changed_at?: string | null
+          marital_status?: string | null
+          university?: string | null
+          work?: string | null
+          religion?: string | null
+          profile_locked?: boolean
+          show_online?: boolean
+          field_visibility?: Json
           verified_at?: string | null
           website?: string | null
         }

@@ -2,6 +2,8 @@
 // Get user presence status
 
 import { PresenceModel } from '~/server/models/status'
+import { requireUser } from '~/server/utils/auth'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,7 +16,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const presence = await PresenceModel.getPresence(userId)
+    const viewer = await requireUser(event)
+    const { data: owner } = await getServiceClient()
+      .from('user')
+      .select('show_online')
+      .eq('user_id', userId)
+      .maybeSingle()
+    const hidden = owner?.show_online === false && viewer.id !== userId
+    const presence = hidden ? null : await PresenceModel.getPresence(userId)
 
     if (!presence) {
       return {

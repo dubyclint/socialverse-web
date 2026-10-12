@@ -4,6 +4,7 @@ import type { Database } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
 import { loadOwnProfile } from '~/server/utils/own-profile'
 import { changeUsername, normaliseUsername, verifyPassword } from '~/server/utils/username-change'
+import { MARITAL_STATUSES, sanitiseFieldVisibility } from '~/shared/profile-fields'
 
 type UserUpdate = Database['public']['Tables']['user']['Update']
 
@@ -21,9 +22,27 @@ interface UpdateBody {
   gender?: string | null
   is_private?: boolean
   hide_following?: boolean
+  marital_status?: string | null
+  university?: string | null
+  work?: string | null
+  religion?: string | null
+  interest_tags?: string[]
+  profile_locked?: boolean
+  show_online?: boolean
+  field_visibility?: Record<string, boolean>
 }
 
 const FULL_NAME_LOCK_DAYS = 120
+const MAX_INTERESTS = 20
+const MAX_FIELD_LENGTH = 120
+
+const boundedText = (value: unknown, field: string): string | null => {
+  const text = nullIfBlank(value)
+  if (text && text.length > MAX_FIELD_LENGTH) {
+    throw createError({ statusCode: 400, statusMessage: `${field} must be at most ${MAX_FIELD_LENGTH} characters` })
+  }
+  return text
+}
 
 // Postgres rejects '' for date/uuid columns; the edit form sends it for cleared fields.
 const nullIfBlank = (value: unknown): string | null => {
@@ -61,6 +80,29 @@ export default defineEventHandler(async (event) => {
   if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
   if (body.is_private !== undefined) updateData.is_private = body.is_private
   if (typeof body.hide_following === 'boolean') updateData.hide_following = body.hide_following
+  if (typeof body.profile_locked === 'boolean') updateData.profile_locked = body.profile_locked
+  if (typeof body.show_online === 'boolean') updateData.show_online = body.show_online
+  if (body.university !== undefined) updateData.university = boundedText(body.university, 'University')
+  if (body.work !== undefined) updateData.work = boundedText(body.work, 'Work')
+  if (body.religion !== undefined) updateData.religion = boundedText(body.religion, 'Religion')
+  if (body.marital_status !== undefined) {
+    const status = nullIfBlank(body.marital_status)
+    if (status && !(MARITAL_STATUSES as readonly string[]).includes(status)) {
+      throw createError({ statusCode: 400, statusMessage: 'Unknown marital status' })
+    }
+    updateData.marital_status = status
+  }
+  if (body.field_visibility !== undefined) updateData.field_visibility = sanitiseFieldVisibility(body.field_visibility)
+  if (Array.isArray(body.interest_tags)) {
+    const tags = [...new Set(body.interest_tags
+      .filter((tag): tag is string => typeof tag === 'string')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0 && tag.length <= 40))]
+    if (tags.length > MAX_INTERESTS) {
+      throw createError({ statusCode: 400, statusMessage: `Choose at most ${MAX_INTERESTS} interests` })
+    }
+    updateData.interest_tags = tags
+  }
 
   // The edit form calls it full_name; display_name is what the feed and
   // profile cards read, so keep the two in step.
