@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireAdmin } from '~/server/gateway/auth/auth-utils'
 import type { Database } from '~/types/database.types'
 
@@ -25,7 +25,7 @@ export interface AdAnalyticsResponse {
 /** Live campaign performance derived from `ad_interactions` spend rows. */
 export default defineEventHandler(async (event): Promise<AdAnalyticsResponse> => {
   await requireAdmin(event)
-  const client = await serverSupabaseClient<Database>(event)
+  const client = getServiceClient()
 
   const [{ data: campaigns, error: campaignError }, { data: interactions, error: interactionError }] =
     await Promise.all([

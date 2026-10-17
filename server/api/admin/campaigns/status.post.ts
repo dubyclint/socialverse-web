@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireAdmin } from '~/server/gateway/auth/auth-utils'
 import type { Database } from '~/types/database.types'
 
@@ -9,7 +9,7 @@ interface Body {
   status?: string
 }
 
-const STATUSES: CampaignStatus[] = ['ACTIVE', 'PAUSED', 'COMPLETED', 'PENDING_REVIEW']
+const STATUSES: CampaignStatus[] = ['ACTIVE', 'PAUSED', 'COMPLETED']
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -19,7 +19,12 @@ export default defineEventHandler(async (event) => {
   const status = STATUSES.find(value => value === body.status)
   if (!status) throw createError({ statusCode: 400, statusMessage: 'Unsupported campaign status' })
 
-  const client = await serverSupabaseClient<Database>(event)
+  const client = getServiceClient()
+  if (status === 'COMPLETED') {
+    const { error: refundError } = await client.rpc('ad_budget_refund' as never, { p_campaign_id: body.campaignId, p_final_status: 'COMPLETED' } as never)
+    if (refundError) throw createError({ statusCode: 500, statusMessage: refundError.message })
+    return { success: true, status }
+  }
   const { error } = await client
     .from('ads_campaigns')
     .update({ status, updated_at: new Date().toISOString() })
