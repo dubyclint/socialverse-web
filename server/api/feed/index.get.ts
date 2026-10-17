@@ -2,12 +2,12 @@ import { loadConfig } from '~/server/utils/platform-config'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { actingPageId } from '~/server/utils/actor'
+import { loadTargetedAds } from '~/server/utils/ads'
 import {
   DEFAULT_ADS,
   DEFAULT_RANKING,
   interleave,
   loadExternalSlots,
-  loadInAppAds,
   rankPosts
 } from '~/server/utils/feed-ranker'
 import type {
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
 
   const posts = await rankPosts(supabase, user.id, limit, page * limit, weights, tab, actingPageId(event))
   const [inAppAds, externalSlots] = await Promise.all([
-    ads.enabled ? loadInAppAds(supabase, ads.max_in_app_ads) : Promise.resolve([]),
+    ads.enabled ? loadTargetedAds(event, user.id, ads.max_in_app_ads) : Promise.resolve([]),
     ads.enabled && ads.external_fallback
       ? loadExternalSlots(supabase, user.id)
       : Promise.resolve([])

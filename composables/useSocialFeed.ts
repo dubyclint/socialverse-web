@@ -1,3 +1,4 @@
+import type { AdView } from '~/utils/ad-options'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
@@ -88,13 +89,7 @@ export interface SuggestedUser extends FeedAuthor {
 
 export type FeedTab = 'for-you' | 'following' | 'trending'
 
-export interface FeedAd {
-  id: string
-  title: string
-  creativeUrl: string | null
-  destinationUrl: string | null
-  advertiserId: string
-}
+export type FeedAd = AdView
 
 export type FeedItem =
   | { type: 'post', post: FeedPost }

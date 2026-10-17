@@ -1,3 +1,5 @@
+import type { AdView } from '~/utils/ad-options'
+import { isSensitiveText } from '~/server/utils/ads'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
 import { CANDIDATE_COLUMNS, getAuthors, getCandidatePool, getPageAuthors } from '~/server/utils/feed-cache'
@@ -88,13 +90,7 @@ export interface RepostSource {
   author: FeedAuthor | null
 }
 
-export interface InAppAd {
-  id: string
-  title: string
-  creativeUrl: string | null
-  destinationUrl: string | null
-  advertiserId: string
-}
+export type InAppAd = AdView
 
 export interface ExternalAdSlot {
   id: string
@@ -371,30 +367,6 @@ export const rankPosts = async (
   return page
 }
 
-/** Active, in-budget, in-window campaigns, highest bid first. */
-export const loadInAppAds = async (client: Client, limit: number): Promise<InAppAd[]> => {
-  if (limit <= 0) return []
-
-  const nowIso = new Date().toISOString()
-  const { data } = await client
-    .from('ads_campaigns')
-    .select('id, title, ad_creative_url, target_destination_url, advertiser_id, bid_per_unit')
-    .eq('status', 'ACTIVE')
-    .gt('remaining_budget', 0)
-    .lte('starts_at', nowIso)
-    .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
-    .order('bid_per_unit', { ascending: false })
-    .limit(limit)
-
-  return (data ?? []).map(row => ({
-    id: row.id,
-    title: row.title,
-    creativeUrl: row.ad_creative_url,
-    destinationUrl: row.target_destination_url,
-    advertiserId: row.advertiser_id
-  }))
-}
-
 /**
  * Registered external network placements, ordered by how well they match the
  * viewer's interests and then by bid. Placements with no interest targeting
@@ -478,11 +450,18 @@ export const interleave = (
     }
   }
 
+  let owed = false
+
   while (postIndex < posts.length) {
     const isAdSlot =
-      config.enabled && (slot === config.first_slot || (slot - config.first_slot) % every === 0)
+      config.enabled && slot >= config.first_slot && (slot - config.first_slot) % every === 0
+    const previous = items[items.length - 1]
+    const unsafe = previous?.type === 'post' && isSensitiveText(previous.post.content)
 
-    if (isAdSlot && slot >= config.first_slot) {
+    if ((isAdSlot || owed) && unsafe) {
+      owed = true
+    } else if (isAdSlot || owed) {
+      owed = false
       const ad = adQueue.shift()
       if (ad) {
         items.push({ type: 'ad', ad })
