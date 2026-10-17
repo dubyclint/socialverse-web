@@ -2263,3 +2263,8 @@ html {
 @media (max-width: 640px) {
   .profile-tabs { gap: 1.25rem; }
 }
+
+/* External ad overlays are never shown on financial or account screens. */
+html.ads-suppressed iframe[src*="monetag"],
+html.ads-suppressed div[id^="mntg"],
+html.ads-suppressed .monetag-social-bar { display: none !important; }
