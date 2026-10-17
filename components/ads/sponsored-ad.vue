@@ -224,7 +224,7 @@ import VerifiedBadgeIcon from '~/components/verified-badge-icon.vue'
 import { CTA_LABELS } from '~/utils/ad-options'
 import type { AdPlacement, AdView } from '~/utils/ad-options'
 
-const props = withDefaults(defineProps<{ ad: AdView, placement?: AdPlacement }>(), { placement: 'feed' })
+const props = withDefaults(defineProps<{ ad: AdView, placement?: AdPlacement, preview?: boolean }>(), { placement: 'feed', preview: false })
 
 const root = ref<HTMLElement | null>(null)
 const formOpen = ref(false)
@@ -243,7 +243,9 @@ const host = computed(() => {
 })
 
 const track = (interactionType: 'IMPRESSION' | 'CLICK' | 'MESSAGE', cta = props.ad.cta) =>
-  $fetch('/api/ads/track', { method: 'POST', body: { campaignId: props.ad.id, interactionType, placement: props.placement, cta } })
+  props.preview
+    ? Promise.resolve()
+    : $fetch('/api/ads/track', { method: 'POST', body: { campaignId: props.ad.id, interactionType, placement: props.placement, cta } })
     .catch(error => console.error('[Ads] tracking failed', error))
 
 const open = (link?: string) => {
@@ -253,6 +255,7 @@ const open = (link?: string) => {
     formOpen.value = true
     return
   }
+  if (props.preview) return
   if (ad.conversionLocation === 'CHAT') {
     track('MESSAGE')
     navigateTo(`/chat?user=${ad.advertiserId}`)
@@ -268,6 +271,10 @@ const open = (link?: string) => {
 }
 
 const submitLead = async () => {
+  if (props.preview) {
+    formOpen.value = false
+    return
+  }
   leadBusy.value = true
   leadError.value = ''
   try {
