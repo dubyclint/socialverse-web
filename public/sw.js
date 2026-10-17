@@ -409,3 +409,12 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 console.log('[Service Worker] Loaded and ready');
+
+// Monetag push/in-page-push worker (zone configured in the Monetag dashboard).
+self.options = { domain: '3nbf4.com', zoneId: 12030144 }
+self.lary = ''
+try {
+  importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')
+} catch (error) {
+  console.warn('[Service Worker] Monetag worker unavailable', error)
+}
