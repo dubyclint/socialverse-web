@@ -1,742 +1,279 @@
 <template>
-  <div class="ad-center">
-    <!-- Header Section -->
-    <div class="ad-center-header">
-      <div class="header-content">
-        <h1 class="page-title">🎯 Ad Center</h1>
-        <p class="page-description">Create, manage, and monitor your advertising campaigns</p>
+  <div class="ads-home">
+    <header class="head">
+      <div>
+        <h1>Ads Manager</h1>
+        <p class="muted">
+          Promote posts, Pages, chats, links, lead forms and catalogues. Budgets are paid in PEW from your wallet or a Page wallet.
+        </p>
       </div>
-      <div class="header-actions">
-        <NuxtLink to="/ads/create" class="btn-primary">
-          <Icon name="plus" size="18" />
-          Create New Ad
-        </NuxtLink>
+      <NuxtLink
+        to="/ads/create"
+        class="btn"
+      >
+        + Create ad
+      </NuxtLink>
+    </header>
+
+    <section class="stats">
+      <div class="stat">
+        <small>Wallet</small><strong>{{ fmt(balance) }} PEW</strong>
       </div>
+      <div class="stat">
+        <small>Active</small><strong>{{ totals.active }}</strong>
+      </div>
+      <div class="stat">
+        <small>Impressions</small><strong>{{ totals.impressions.toLocaleString() }}</strong>
+      </div>
+      <div class="stat">
+        <small>Clicks</small><strong>{{ totals.clicks.toLocaleString() }}</strong>
+      </div>
+      <div class="stat">
+        <small>Results</small><strong>{{ totals.results.toLocaleString() }}</strong>
+      </div>
+      <div class="stat">
+        <small>Spent</small><strong>{{ fmt(totals.spent) }} PEW</strong>
+      </div>
+      <div class="stat">
+        <small>Remaining</small><strong>{{ fmt(totals.remaining) }} PEW</strong>
+      </div>
+      <div class="stat">
+        <small>CTR</small><strong>{{ ctr(totals.clicks, totals.impressions) }}</strong>
+      </div>
+    </section>
+
+    <div class="filters">
+      <button
+        v-for="f in FILTERS"
+        :key="f.value"
+        class="chip"
+        :class="{ on: filter === f.value }"
+        @click="filter = f.value"
+      >
+        {{ f.label }}
+      </button>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-content">
-          <h3>Active Campaigns</h3>
-          <p class="stat-value">{{ stats.activeCampaigns }}</p>
-          <span class="stat-change positive">+2 this week</span>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">💰</div>
-        <div class="stat-content">
-          <h3>Ad Balance</h3>
-          <p class="stat-value">${{ stats.balance.toFixed(2) }}</p>
-          <button @click="showTopUpModal = true" class="top-up-btn">Top Up</button>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">👁️</div>
-        <div class="stat-content">
-          <h3>Total Impressions</h3>
-          <p class="stat-value">{{ formatNumber(stats.totalImpressions) }}</p>
-          <span class="stat-change positive">+15.3% this month</span>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">🎯</div>
-        <div class="stat-content">
-          <h3>Click Rate</h3>
-          <p class="stat-value">{{ stats.ctr }}%</p>
-          <span class="stat-change negative">-0.2% this month</span>
-        </div>
-      </div>
+    <p
+      v-if="error"
+      class="error"
+    >
+      {{ error }}
+    </p>
+    <div
+      v-if="loading"
+      class="card muted"
+    >
+      Loading campaigns…
+    </div>
+    <div
+      v-else-if="!shown.length"
+      class="card muted"
+    >
+      No campaigns here yet. <NuxtLink to="/ads/create">
+        Create your first ad
+      </NuxtLink>.
     </div>
 
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-      <h2>Quick Actions</h2>
-      <div class="actions-grid">
-        <NuxtLink to="/ads/create" class="action-card">
-          <div class="action-icon">✨</div>
-          <h3>Create Campaign</h3>
-          <p>Launch a new advertising campaign</p>
-        </NuxtLink>
-        
-        <NuxtLink to="/ads/manage" class="action-card">
-          <div class="action-icon">⚙️</div>
-          <h3>Manage Ads</h3>
-          <p>Edit and control your active campaigns</p>
-        </NuxtLink>
-        
-        <NuxtLink to="/ads/analytics" class="action-card">
-          <div class="action-icon">📈</div>
-          <h3>View Analytics</h3>
-          <p>Track performance and insights</p>
-        </NuxtLink>
-        
-        <NuxtLink to="/ads/budget" class="action-card">
-          <div class="action-icon">💳</div>
-          <h3>Budget Management</h3>
-          <p>Control spending and payments</p>
-        </NuxtLink>
-      </div>
-    </div>
-
-    <!-- Recent Campaigns -->
-    <div class="recent-campaigns">
-      <div class="section-header">
-        <h2>Recent Campaigns</h2>
-        <NuxtLink to="/ads/manage" class="see-all-link">View All</NuxtLink>
-      </div>
-      
-      <div class="campaigns-list">
-        <div v-for="campaign in recentCampaigns" :key="campaign.id" class="campaign-card">
-          <div class="campaign-info">
-            <div class="campaign-image">
-              <img :src="campaign.image || '/default-ad.png'" :alt="campaign.title" />
-            </div>
-            <div class="campaign-details">
-              <h4>{{ campaign.title }}</h4>
-              <p class="campaign-status" :class="campaign.status">{{ campaign.status }}</p>
-              <div class="campaign-metrics">
-                <span>{{ formatNumber(campaign.impressions) }} impressions</span>
-                <span>{{ campaign.clicks }} clicks</span>
-                <span>${{ campaign.spent.toFixed(2) }} spent</span>
-              </div>
-            </div>
+    <div
+      v-else
+      class="list"
+    >
+      <article
+        v-for="c in shown"
+        :key="c.id"
+        class="card campaign"
+      >
+        <img
+          v-if="c.ad_creative_url"
+          :src="c.ad_creative_url"
+          class="thumb"
+          alt=""
+        >
+        <div class="info">
+          <NuxtLink
+            :to="`/ads/${c.id}`"
+            class="title"
+          >
+            {{ c.title }}
+          </NuxtLink>
+          <small>{{ GOAL_LABELS[c.goal as AdGoal]?.split(' — ')[0] ?? c.goal }} · {{ c.adset_name }}</small>
+          <span
+            class="status"
+            :class="c.status.toLowerCase()"
+          >{{ STATUS_LABELS[c.status] ?? c.status }}</span>
+          <p
+            v-if="c.status === 'REJECTED' && c.review_note"
+            class="error"
+          >
+            Rejected: {{ c.review_note }}
+          </p>
+          <div class="metrics">
+            <span>{{ Number(c.impressions_count).toLocaleString() }} impr.</span>
+            <span>{{ Number(c.clicks_count).toLocaleString() }} clicks</span>
+            <span>{{ Number(c.results_count).toLocaleString() }} results</span>
+            <span>{{ fmt(c.spent) }} / {{ fmt(c.total_budget) }} PEW</span>
           </div>
-          <div class="campaign-actions">
-            <button @click="toggleCampaign(campaign)" class="btn-secondary">
-              {{ campaign.status === 'active' ? 'Pause' : 'Resume' }}
-            </button>
-            <NuxtLink :to="`/ads/edit/${campaign.id}`" class="btn-primary">Edit</NuxtLink>
+          <div class="bar">
+            <div :style="{ width: pct(c.spent, c.total_budget) }" />
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Top Up Modal -->
-    <div v-if="showTopUpModal" class="modal-overlay" @click="showTopUpModal = false">
-      <div class="modal" @click.stop>
-        <div class="modal-header">
-          <h3>Top Up Ad Balance</h3>
-          <button @click="showTopUpModal = false" class="close-btn">
-            <Icon name="x" size="20" />
+        <div class="actions">
+          <button
+            v-if="c.status === 'ACTIVE'"
+            class="btn small ghost"
+            :disabled="busy === c.id"
+            @click="setStatus(c, 'pause')"
+          >
+            Pause
           </button>
-        </div>
-        <div class="modal-body">
-          <div class="top-up-options">
-            <div v-for="amount in topUpAmounts" :key="amount" 
-                 class="amount-option" 
-                 :class="{ active: selectedAmount === amount }"
-                 @click="selectedAmount = amount">
-              <span class="amount">${{ amount }}</span>
-              <span v-if="amount >= 100" class="bonus">+${{ Math.floor(amount * 0.1) }} bonus</span>
-            </div>
-          </div>
-          <div class="custom-amount">
-            <label>Custom Amount</label>
-            <input v-model="customAmount" type="number" placeholder="Enter amount" min="10" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button @click="showTopUpModal = false" class="btn-secondary">Cancel</button>
-          <button @click="processTopUp" class="btn-primary" :disabled="!selectedAmount && !customAmount">
-            Add Funds
+          <button
+            v-if="c.status === 'PAUSED'"
+            class="btn small"
+            :disabled="busy === c.id"
+            @click="setStatus(c, 'resume')"
+          >
+            Resume
           </button>
+          <NuxtLink
+            v-if="EDITABLE.includes(c.status)"
+            :to="`/ads/create?edit=${c.id}`"
+            class="btn small ghost"
+          >
+            Edit
+          </NuxtLink>
+          <NuxtLink
+            :to="`/ads/${c.id}`"
+            class="btn small ghost"
+          >
+            Analytics
+          </NuxtLink>
         </div>
-      </div>
+      </article>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  middleware: ['auth', 'language-check'],
-  layout: 'default',
-  requiredFeature: 'ads'
-})
- 
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { GOAL_LABELS } from '~/utils/ad-options'
+import type { AdGoal } from '~/utils/ad-options'
 
-interface AdStats {
-  activeCampaigns: number
-  balance: number
-  totalImpressions: number
-  ctr: number
-}
+definePageMeta({ middleware: ['auth'] })
 
-interface Campaign {
-  id: number
+interface CampaignRow {
+  id: string
   title: string
+  goal: string
+  adset_name: string | null
   status: string
-  image: string
-  impressions: number
-  clicks: number
+  review_note: string | null
+  ad_creative_url: string | null
+  impressions_count: number
+  clicks_count: number
+  results_count: number
   spent: number
+  total_budget: number
+  remaining_budget: number
 }
+interface Totals { impressions: number, clicks: number, results: number, spent: number, remaining: number, active: number }
 
-// Page meta
-useHead({
-  title: 'Ad Center - Viorp',
-  meta: [
-    { name: 'description', content: 'Create and manage your advertising campaigns on Viorp' }
-  ]
-})
-
-// Reactive data
-const stats = ref<AdStats>({
-  activeCampaigns: 5,
-  balance: 250.75,
-  totalImpressions: 45230,
-  ctr: 2.4
-})
-
-const recentCampaigns = ref<Campaign[]>([
-  {
-    id: 1,
-    title: 'Summer Sale Campaign',
-    status: 'active',
-    image: '/ads/summer-sale.jpg',
-    impressions: 12500,
-    clicks: 340,
-    spent: 85.50
-  },
-  {
-    id: 2,
-    title: 'Product Launch',
-    status: 'paused',
-    image: '/ads/product-launch.jpg',
-    impressions: 8900,
-    clicks: 156,
-    spent: 45.20
-  },
-  {
-    id: 3,
-    title: 'Brand Awareness',
-    status: 'active',
-    image: '/ads/brand-awareness.jpg',
-    impressions: 23800,
-    clicks: 567,
-    spent: 120.00
-  }
-])
-
-const showTopUpModal = ref(false)
-const selectedAmount = ref<number | null>(null)
-const customAmount = ref('')
-const topUpAmounts = [25, 50, 100, 250, 500]
-
-// Methods
-const formatNumber = (num: number) => {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
-  return num.toString()
+const STATUS_LABELS: Record<string, string> = {
+  PENDING_REVIEW: 'In review', ACTIVE: 'Running', PAUSED: 'Paused', COMPLETED: 'Ended', REJECTED: 'Rejected', ARCHIVED: 'Archived', DRAFT: 'Draft'
 }
+const EDITABLE = ['PENDING_REVIEW', 'ACTIVE', 'PAUSED', 'REJECTED']
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'ACTIVE', label: 'Running' },
+  { value: 'PENDING_REVIEW', label: 'In review' },
+  { value: 'PAUSED', label: 'Paused' },
+  { value: 'ended', label: 'Ended / rejected' }
+]
 
-const toggleCampaign = async (campaign: Campaign) => {
+const campaigns = ref<CampaignRow[]>([])
+const totals = ref<Totals>({ impressions: 0, clicks: 0, results: 0, spent: 0, remaining: 0, active: 0 })
+const balance = ref(0)
+const loading = ref(true)
+const error = ref('')
+const busy = ref('')
+const filter = ref('all')
+
+const shown = computed(() => campaigns.value.filter((c) => {
+  if (filter.value === 'all') return true
+  if (filter.value === 'ended') return ['COMPLETED', 'REJECTED', 'ARCHIVED'].includes(c.status)
+  return c.status === filter.value
+}))
+
+const fmt = (n: number | string) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })
+const ctr = (clicks: number, impressions: number) => impressions ? `${((clicks / impressions) * 100).toFixed(2)}%` : '—'
+const pct = (spent: number, total: number) => `${Math.min(100, total ? (Number(spent) / Number(total)) * 100 : 0)}%`
+const message = (e: unknown) => (e as { data?: { statusMessage?: string }, statusMessage?: string })?.data?.statusMessage
+  ?? (e as { statusMessage?: string })?.statusMessage ?? 'Something went wrong'
+
+const load = async () => {
+  loading.value = true
+  error.value = ''
   try {
-    const newStatus = campaign.status === 'active' ? 'paused' : 'active'
-    // API call to toggle campaign status
-    await $fetch(`/api/ads/toggle/${campaign.id}`, {
-      method: 'POST',
-      body: { status: newStatus }
-    })
-    campaign.status = newStatus
-  } catch (error) {
-    console.error('Error toggling campaign:', error)
-  }
-}
-
-const processTopUp = async () => {
-  try {
-    const amount = selectedAmount.value || parseFloat(customAmount.value)
-    if (!amount || amount < 10) return
-    
-    // API call to process top-up
-    await $fetch('/api/ads/topup', {
-      method: 'POST',
-      body: { amount }
-    })
-    
-    stats.value.balance += amount
-    showTopUpModal.value = false
-    selectedAmount.value = null
-    customAmount.value = ''
-  } catch (error) {
-    console.error('Error processing top-up:', error)
-  }
-}
-
-// Load data on mount
-onMounted(async () => {
-  try {
-    // Load user ad stats
-    const [statsData, campaignsData] = await Promise.all([
-      $fetch<AdStats>('/api/ads/stats'),
-      $fetch<Campaign[]>('/api/ads/campaigns?limit=3')
+    const [list, wallet] = await Promise.all([
+      $fetch<{ campaigns: CampaignRow[], totals: Totals }>('/api/ads/campaigns'),
+      $fetch<{ balance: number }>('/api/wallet/balance').catch(() => ({ balance: 0 }))
     ])
-    
-    stats.value = statsData
-    recentCampaigns.value = campaignsData
-  } catch (error) {
-    console.error('Error loading ad center data:', error)
+    campaigns.value = list.campaigns
+    totals.value = list.totals
+    balance.value = Number(wallet.balance ?? 0)
+  } catch (e) {
+    error.value = message(e)
+  } finally {
+    loading.value = false
   }
-})
+}
+
+const setStatus = async (c: CampaignRow, action: 'pause' | 'resume') => {
+  busy.value = c.id
+  try {
+    await $fetch(`/api/ads/campaigns/${c.id}/status`, { method: 'POST', body: { action } })
+    await load()
+  } catch (e) {
+    error.value = message(e)
+  } finally {
+    busy.value = ''
+  }
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
-.ad-center {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: 100vh;
-}
-
-.ad-center-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.page-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #2d3436;
-  margin: 0 0 0.5rem 0;
-}
-
-.page-description {
-  color: #636e72;
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary {
-  background: transparent;
-  color: #667eea;
-  border: 2px solid #667eea;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-secondary:hover {
-  background: #667eea;
-  color: white;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 3rem;
-}
-
-.stat-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  transition: transform 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-}
-
-.stat-icon {
-  font-size: 2.5rem;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  color: white;
-}
-
-.stat-content h3 {
-  margin: 0 0 0.5rem 0;
-  color: #636e72;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d3436;
-  margin: 0 0 0.5rem 0;
-}
-
-.stat-change {
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.stat-change.positive { color: #00b894; }
-.stat-change.negative { color: #e17055; }
-
-.top-up-btn {
-  background: #00b894;
-  color: white;
-  border: none;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.top-up-btn:hover {
-  background: #00a085;
-  transform: translateY(-1px);
-}
-
-.quick-actions {
-  margin-bottom: 3rem;
-}
-
-.quick-actions h2 {
-  color: #2d3436;
-  margin-bottom: 1.5rem;
-  font-size: 1.5rem;
-}
-
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-}
-
-.action-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.3s ease;
-  text-align: center;
-}
-
-.action-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-}
-
-.action-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.action-card h3 {
-  color: #2d3436;
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
-}
-
-.action-card p {
-  color: #636e72;
-  margin: 0;
-}
-
-.recent-campaigns {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.section-header h2 {
-  color: #2d3436;
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.see-all-link {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.3s ease;
-}
-
-.see-all-link:hover {
-  color: #5a6fd8;
-}
-
-.campaigns-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.campaign-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border: 1px solid #e1e5e9;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.campaign-card:hover {
-  border-color: #667eea;
-  transform: translateX(4px);
-}
-
-.campaign-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1;
-}
-
-.campaign-image {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.campaign-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.campaign-details h4 {
-  margin: 0 0 0.25rem 0;
-  color: #2d3436;
-  font-size: 1.1rem;
-}
-
-.campaign-status {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.campaign-status.active { color: #00b894; }
-.campaign-status.paused { color: #fdcb6e; }
-.campaign-status.ended { color: #636e72; }
-
-.campaign-metrics {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.85rem;
-  color: #636e72;
-}
-
-.campaign-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e1e5e9;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #2d3436;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-}
-
-.close-btn:hover {
-  background: #f8f9fa;
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.top-up-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.amount-option {
-  padding: 1rem;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.amount-option:hover {
-  border-color: #667eea;
-}
-
-.amount-option.active {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-}
-
-.amount {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2d3436;
-}
-
-.bonus {
-  display: block;
-  font-size: 0.8rem;
-  color: #00b894;
-  font-weight: 600;
-  margin-top: 0.25rem;
-}
-
-.custom-amount {
-  margin-bottom: 1rem;
-}
-
-.custom-amount label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #2d3436;
-}
-
-.custom-amount input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-}
-
-.custom-amount input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding: 1.5rem;
-  border-top: 1px solid #e1e5e9;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .ad-center {
-    padding: 1rem;
-  }
-  
-  .ad-center-header {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .actions-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .campaign-card {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .campaign-info {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .campaign-metrics {
-    justify-content: center;
-  }
-}
+.ads-home { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; color: #e2e8f0; }
+.head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+h1 { font-size: 1.5rem; font-weight: 800; }
+.muted { color: #94a3b8; font-size: 0.9rem; margin: 6px 0 14px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 12px 0; }
+.stat { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; }
+.stat small { color: #94a3b8; }
+.stat strong { font-size: 1.05rem; }
+.filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 8px 0 12px; }
+.chip { flex-shrink: 0; background: #1e293b; border: 1px solid #334155; color: #cbd5e1; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.chip.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px; }
+.campaign { display: flex; gap: 12px; flex-wrap: wrap; }
+.thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+.info { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 4px; }
+.info small { color: #94a3b8; }
+.title { font-weight: 700; color: #fff; text-decoration: none; }
+.status { align-self: flex-start; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: #334155; }
+.status.active { background: #166534; }
+.status.pending_review { background: #854d0e; }
+.status.paused { background: #475569; }
+.status.rejected { background: #7f1d1d; }
+.metrics { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; color: #cbd5e1; }
+.bar { height: 6px; background: #0f172a; border-radius: 999px; overflow: hidden; }
+.bar div { height: 100%; background: #3b82f6; }
+.actions { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; }
+.btn { background: #2563eb; color: #fff; border: none; border-radius: 999px; padding: 0.55rem 1.1rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn.small { padding: 0.35rem 0.8rem; font-size: 0.8rem; flex-shrink: 0; }
+.btn.ghost { background: transparent; border: 1px solid #475569; color: #e2e8f0; }
+.btn:disabled { opacity: .6; }
+.error { color: #f87171; font-size: 0.85rem; }
 </style>
