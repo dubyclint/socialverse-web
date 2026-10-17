@@ -48,53 +48,182 @@
           </div>
         </div>
       </div>
-      <div v-if="sidebarOpen" class="sidebar-overlay" @click="toggleSidebar"></div>
+
+      <!-- Backdrop Overlay -->
+      <Transition name="fade">
+        <div v-if="sidebarOpen" class="sidebar-overlay" @click="toggleSidebar"></div>
+      </Transition>
+
+      <!-- Redesigned Sidebar Drawer -->
       <aside :class="['sidebar', { open: sidebarOpen }]">
+        <!-- Sidebar Header -->
         <div class="sidebar-header">
-          <h3>Menu</h3>
-          <button class="close-btn" @click="toggleSidebar"><Icon name="lucide:x" size="20" /></button>
-        </div>
-        <nav class="sidebar-nav">
-          <p class="sidebar-section">You</p>
-          <div v-if="!currentUser?.id" class="sidebar-item disabled-info" title="Not authenticated">
-            <Icon name="user" size="18" /> <span>Profile</span> <span class="warning-badge">!</span>
-          </div>
-          <button v-else class="sidebar-item" @click="goToProfilePage()" title="Go to your profile">
-            <Icon name="user" size="18" /> <span>Profile</span>
+          <h3 class="sidebar-header-title">Menu</h3>
+          <button class="close-btn" @click="toggleSidebar" aria-label="Close menu">
+            <Icon name="lucide:x" size="20" />
           </button>
-          <NuxtLink v-if="currentUser?.id" to="/profile/edit" class="sidebar-item sub" @click="toggleSidebar"><Icon name="edit-3" size="16" /> <span>Edit profile</span></NuxtLink>
-          <NuxtLink to="/notifications" class="sidebar-item" @click="toggleSidebar"><Icon name="bell" size="18" /> <span>Notifications</span><span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span></NuxtLink>
-          <NuxtLink to="/pal" class="sidebar-item" @click="toggleSidebar"><Icon name="users" size="18" /> <span>My PALs</span></NuxtLink>
+        </div>
 
-          <p class="sidebar-section">Social</p>
-          <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar"><Icon name="message-circle" size="18" /> <span>Chat</span><span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span></NuxtLink>
-          <NuxtLink to="/universe" class="sidebar-item sub" @click="toggleSidebar"><Icon name="globe" size="16" /> <span>Universe chat</span></NuxtLink>
-          <NuxtLink to="/status" class="sidebar-item" @click="toggleSidebar"><Icon name="layers" size="18" /> <span>Statuses</span></NuxtLink>
-          <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar"><Icon name="compass" size="18" /> <span>Explore</span></NuxtLink>
-          <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar"><Icon name="heart" size="18" /> <span>Match</span></NuxtLink>
+        <!-- Scrollable Navigation Container -->
+        <nav class="sidebar-nav">
+          <!-- Profile Card Header Block (if logged in) -->
+          <div v-if="currentUser?.id" class="sidebar-user-card">
+            <div class="sidebar-user-info">
+              <img :src="userAvatar" :alt="userName" class="sidebar-user-avatar" />
+              <div class="sidebar-user-details">
+                <span class="sidebar-user-name">{{ userName }}</span>
+                <span class="sidebar-user-handle">@{{ userUsername || 'user' }}</span>
+              </div>
+            </div>
+            <div class="sidebar-user-actions">
+              <button class="sidebar-quick-btn" @click="goToProfilePage(); toggleSidebar()">
+                <Icon name="user" size="14" /> Profile
+              </button>
+              <NuxtLink to="/profile/edit" class="sidebar-quick-btn outline" @click="toggleSidebar">
+                <Icon name="edit-3" size="14" /> Edit
+              </NuxtLink>
+            </div>
+          </div>
 
-          <p class="sidebar-section">Create</p>
-          <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create post</span></NuxtLink>
-          <NuxtLink to="/posts" class="sidebar-item sub" @click="toggleSidebar"><Icon name="file-text" size="16" /> <span>My posts</span></NuxtLink>
-          <NuxtLink to="/pages" class="sidebar-item" @click="toggleSidebar"><Icon name="flag" size="18" /> <span>My Pages</span></NuxtLink>
-          <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="aperture" size="18" /> <span>Live streaming</span></NuxtLink>
-          <NuxtLink to="/stream/broadcast" class="sidebar-item sub" @click="toggleSidebar"><Icon name="radio" size="16" /> <span>Go live</span></NuxtLink>
-          <NuxtLink to="/stream/history" class="sidebar-item sub" @click="toggleSidebar"><Icon name="clock" size="16" /> <span>Past streams</span></NuxtLink>
+          <!-- Section: YOU -->
+          <div class="sidebar-group">
+            <p class="sidebar-section-title">YOU</p>
+            <div v-if="!currentUser?.id" class="sidebar-item disabled-info" title="Not authenticated">
+              <Icon name="user" class="item-icon" size="18" />
+              <span class="item-label">Profile</span>
+              <span class="warning-badge">!</span>
+            </div>
+            <button v-else class="sidebar-item" @click="goToProfilePage(); toggleSidebar()" title="Go to your profile">
+              <Icon name="user" class="item-icon" size="18" />
+              <span class="item-label">Profile</span>
+            </button>
+            <NuxtLink v-if="currentUser?.id" to="/profile/edit" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="edit-3" class="item-icon" size="16" />
+              <span class="item-label">Edit profile</span>
+            </NuxtLink>
+            <NuxtLink to="/notifications" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="bell" class="item-icon" size="18" />
+              <span class="item-label">Notifications</span>
+              <span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span>
+            </NuxtLink>
+            <NuxtLink to="/pal" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="users" class="item-icon" size="18" />
+              <span class="item-label">My PALs</span>
+            </NuxtLink>
+          </div>
 
-          <p class="sidebar-section">Earn</p>
-          <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar"><Icon name="wallet" size="18" /> <span>Wallet</span></NuxtLink>
-          <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar"><Icon name="dollar-sign" size="18" /> <span>Monetization</span></NuxtLink>
-          <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar"><Icon name="trending-up" size="18" /> <span>P2P trading</span></NuxtLink>
-          <NuxtLink to="/escrow" class="sidebar-item sub" @click="toggleSidebar"><Icon name="shield" size="16" /> <span>Escrow</span></NuxtLink>
-          <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar"><Icon name="megaphone" size="18" /> <span>Ads</span></NuxtLink>
+          <!-- Section: SOCIAL -->
+          <div class="sidebar-group">
+            <p class="sidebar-section-title">SOCIAL</p>
+            <NuxtLink to="/chat" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="message-circle" class="item-icon" size="18" />
+              <span class="item-label">Chat</span>
+              <span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span>
+            </NuxtLink>
+            <NuxtLink to="/universe" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="globe" class="item-icon" size="16" />
+              <span class="item-label">Universe chat</span>
+            </NuxtLink>
+            <NuxtLink to="/status" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="layers" class="item-icon" size="18" />
+              <span class="item-label">Statuses</span>
+            </NuxtLink>
+            <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="compass" class="item-icon" size="18" />
+              <span class="item-label">Explore</span>
+            </NuxtLink>
+            <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="heart" class="item-icon" size="18" />
+              <span class="item-label">Match</span>
+            </NuxtLink>
+          </div>
 
-          <p class="sidebar-section">Help &amp; account</p>
-          <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar"><Icon name="life-buoy" size="18" /> <span>Support</span></NuxtLink>
-          <NuxtLink to="/support-chat" class="sidebar-item sub" @click="toggleSidebar"><Icon name="headphones" size="16" /> <span>Agent support</span></NuxtLink>
-          <NuxtLink to="/settings" class="sidebar-item" @click="toggleSidebar"><Icon name="settings" size="18" /> <span>Settings</span></NuxtLink>
-          <NuxtLink to="/terms-and-policy" class="sidebar-item sub" @click="toggleSidebar"><Icon name="file-text" size="16" /> <span>Policy &amp; terms</span></NuxtLink>
-          <NuxtLink to="/settings/delete-account" class="sidebar-item sub" @click="toggleSidebar"><Icon name="trash-2" size="16" /> <span>Delete account</span></NuxtLink>
-          <button class="sidebar-item logout-btn" @click="handleLogout"><Icon name="log-out" size="18" /> <span>Logout</span></button>
+          <!-- Section: CREATE -->
+          <div class="sidebar-group">
+            <p class="sidebar-section-title">CREATE</p>
+            <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="plus-square" class="item-icon" size="18" />
+              <span class="item-label">Create post</span>
+            </NuxtLink>
+            <NuxtLink to="/posts" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="file-text" class="item-icon" size="16" />
+              <span class="item-label">My posts</span>
+            </NuxtLink>
+            <NuxtLink to="/pages" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="flag" class="item-icon" size="18" />
+              <span class="item-label">My Pages</span>
+            </NuxtLink>
+            <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="aperture" class="item-icon" size="18" />
+              <span class="item-label">Live streaming</span>
+            </NuxtLink>
+            <NuxtLink to="/stream/broadcast" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="radio" class="item-icon" size="16" />
+              <span class="item-label">Go live</span>
+            </NuxtLink>
+            <NuxtLink to="/stream/history" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="clock" class="item-icon" size="16" />
+              <span class="item-label">Past streams</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Section: EARN -->
+          <div class="sidebar-group">
+            <p class="sidebar-section-title">EARN</p>
+            <NuxtLink to="/wallet" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="wallet" class="item-icon" size="18" />
+              <span class="item-label">Wallet</span>
+            </NuxtLink>
+            <NuxtLink to="/monetization" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="dollar-sign" class="item-icon" size="18" />
+              <span class="item-label">Monetization</span>
+            </NuxtLink>
+            <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="trending-up" class="item-icon" size="18" />
+              <span class="item-label">P2P trading</span>
+            </NuxtLink>
+            <NuxtLink to="/escrow" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="shield" class="item-icon" size="16" />
+              <span class="item-label">Escrow</span>
+            </NuxtLink>
+            <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="megaphone" class="item-icon" size="18" />
+              <span class="item-label">Ads</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Section: HELP & ACCOUNT -->
+          <div class="sidebar-group">
+            <p class="sidebar-section-title">HELP &amp; ACCOUNT</p>
+            <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="life-buoy" class="item-icon" size="18" />
+              <span class="item-label">Support</span>
+            </NuxtLink>
+            <NuxtLink to="/support-chat" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="headphones" class="item-icon" size="16" />
+              <span class="item-label">Agent support</span>
+            </NuxtLink>
+            <NuxtLink to="/settings" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="settings" class="item-icon" size="18" />
+              <span class="item-label">Settings</span>
+            </NuxtLink>
+            <NuxtLink to="/terms-and-policy" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="file-text" class="item-icon" size="16" />
+              <span class="item-label">Policy &amp; terms</span>
+            </NuxtLink>
+            <NuxtLink to="/settings/delete-account" class="sidebar-item sub danger" @click="toggleSidebar">
+              <Icon name="trash-2" class="item-icon" size="16" />
+              <span class="item-label">Delete account</span>
+            </NuxtLink>
+          </div>
+
+          <!-- Bottom Logout Button Container -->
+          <div class="sidebar-footer">
+            <button class="logout-btn" @click="handleLogout">
+              <Icon name="log-out" size="18" />
+              <span>Logout</span>
+            </button>
+          </div>
         </nav>
       </aside>
     </header>
@@ -137,7 +266,7 @@
         </aside>
       </ClientOnly>
 
-       <section class="feed-content">
+      <section class="feed-content">
         <div class="feed-tabs">
           <button v-for="tab in feedTabs" :key="tab.id" :class="['feed-tab', { active: activeTab === tab.id }]" @click="activeTab = tab.id; refreshFeed(tab.id)">
             <Icon :name="tab.icon" size="18" /> <span>{{ tab.label }}</span>
@@ -188,15 +317,15 @@
           <div v-if="postsLoading && posts.length === 0" class="loading-state"><div class="spinner"></div><p>Loading posts...</p></div>
           <div v-else-if="feedItems.length > 0" class="posts-list">
             <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
-            <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
-            <div v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)">
-              <PostsPostCard
-                :post="post"
-                :viewer-avatar="userAvatar"
-                @pewgift="openGiftModal"
-                @removed="removeFeedPost"
-              />
-            </div>
+              <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
+              <div v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)">
+                <PostsPostCard
+                  :post="post"
+                  :viewer-avatar="userAvatar"
+                  @pewgift="openGiftModal"
+                  @removed="removeFeedPost"
+                />
+              </div>
             </template>
             <div v-if="hasMorePosts" class="load-more">
               <button v-if="!loadingMore" @click="loadMorePosts" class="btn-load-more">Load More Posts</button>
@@ -208,60 +337,60 @@
             <div class="no-posts-actions"><NuxtLink to="/explore" class="btn-explore"><Icon name="compass" size="18" /> Explore People</NuxtLink><button @click="goToCreatePost" class="btn-create"><Icon name="plus-square" size="18" /> Create Post</button></div>
           </div>
         </ClientOnly>
-        </section>
+      </section>
 
-        <aside class="feed-sidebar-right">
-          <div class="search-card">
-            <div class="search-wrapper"><Icon name="search" size="18" class="search-icon" /><input v-model="searchQuery" type="text" placeholder="Search posts, people..." class="search-input" @keyup.enter="performSearch" /></div>
-          </div>
-          <div class="recommendations-card">
-            <div class="card-header"><h3 class="card-title">Suggested For You</h3><button class="refresh-btn" @click="refreshSuggestedUsers" title="Refresh"><Icon name="refresh-cw" size="16" /></button></div>
-            <div v-if="suggestedUsersLoading" class="loading-small"><div class="spinner-small"></div></div>
-            <div v-else-if="suggestedUsers.length > 0" class="recommendations-list">
-              <div v-for="user in suggestedUsers" :key="user.id" class="recommendation-item">
-                <img :src="user.avatar_url || '/default-avatar.svg'" :alt="user.full_name" class="rec-avatar" @click="goToUserProfile(user.username, user.id)" :style="{ cursor: user.id ? 'pointer' : 'default' }" />
-                <div class="rec-info"><h4 class="rec-name">{{ user.full_name }}</h4><p class="rec-username">@{{ user.username }}</p></div>
-                <button :class="['btn-follow', { following: user.following }]" @click="followUser(user.id)">{{ user.following ? 'Following' : 'Follow' }}</button>
-              </div>
-            </div>
-          </div>
-          <div class="trending-card">
-            <div class="card-header"><h3 class="card-title">Trending Now</h3><button class="refresh-btn" @click="refreshTrending" title="Refresh"><Icon name="refresh-cw" size="16" /></button></div>
-            <div v-if="trendingLoading" class="loading-small"><div class="spinner-small"></div></div>
-            <div v-else-if="trendingTopics.length > 0" class="trending-list">
-              <NuxtLink v-for="trend in trendingTopics" :key="trend.id" :to="`/explore?tag=${trend.title}`" class="trending-item">
-                <div class="trend-info"><p class="trend-category">{{ trend.category }}</p><h4 class="trend-title">{{ trend.title }}</h4><p class="trend-count">{{ trend.count }} posts</p></div>
-              </NuxtLink>
-            </div>
-          </div>
-        </aside>
-      </main>
-
-      <PewGiftModal 
-        v-if="isGiftModalOpen"
-        :is-open="isGiftModalOpen" 
-        :post="activeGiftPost" 
-        @close="isGiftModalOpen = false" 
-        @confirm="handleConfirmGift" 
-      />
-
-      <ClientOnly>
-        <div v-if="activeSelectedStatus" class="status-lightbox-modal" @click.self="closeStatusViewer">
-          <div class="lightbox-content" :style="{ backgroundColor: activeSelectedStatus.colors?.background || '#000', color: activeSelectedStatus.colors?.text || '#fff' }">
-            <div class="lightbox-top-meta">
-              <div class="meta-left"><img :src="activeSelectedStatus.author?.avatar_url || '/default-avatar.svg'" class="lightbox-author-avatar" /><div><h5>{{ activeSelectedStatus.author?.full_name }}</h5><span>@{{ activeSelectedStatus.author?.username }}</span></div></div>
-              <button class="lightbox-close-btn" @click="closeStatusViewer"><Icon name="x" size="20" /></button>
-            </div>
-            <div class="lightbox-main-body">
-              <p v-if="activeSelectedStatus.content" class="lightbox-text-content">{{ activeSelectedStatus.content }}</p>
-              <div v-if="activeSelectedStatus.media_url" class="lightbox-media-attachment">
-                <img v-if="activeSelectedStatus.media_type === 'image'" :src="activeSelectedStatus.media_url" class="lightbox-img" />
-                <video v-else-if="activeSelectedStatus.media_type === 'video'" :src="activeSelectedStatus.media_url" controls autoplay class="lightbox-video"></video>
-              </div>
+      <aside class="feed-sidebar-right">
+        <div class="search-card">
+          <div class="search-wrapper"><Icon name="search" size="18" class="search-icon" /><input v-model="searchQuery" type="text" placeholder="Search posts, people..." class="search-input" @keyup.enter="performSearch" /></div>
+        </div>
+        <div class="recommendations-card">
+          <div class="card-header"><h3 class="card-title">Suggested For You</h3><button class="refresh-btn" @click="refreshSuggestedUsers" title="Refresh"><Icon name="refresh-cw" size="16" /></button></div>
+          <div v-if="suggestedUsersLoading" class="loading-small"><div class="spinner-small"></div></div>
+          <div v-else-if="suggestedUsers.length > 0" class="recommendations-list">
+            <div v-for="user in suggestedUsers" :key="user.id" class="recommendation-item">
+              <img :src="user.avatar_url || '/default-avatar.svg'" :alt="user.full_name" class="rec-avatar" @click="goToUserProfile(user.username, user.id)" :style="{ cursor: user.id ? 'pointer' : 'default' }" />
+              <div class="rec-info"><h4 class="rec-name">{{ user.full_name }}</h4><p class="rec-username">@{{ user.username }}</p></div>
+              <button :class="['btn-follow', { following: user.following }]" @click="followUser(user.id)">{{ user.following ? 'Following' : 'Follow' }}</button>
             </div>
           </div>
         </div>
-      </ClientOnly>
+        <div class="trending-card">
+          <div class="card-header"><h3 class="card-title">Trending Now</h3><button class="refresh-btn" @click="refreshTrending" title="Refresh"><Icon name="refresh-cw" size="16" /></button></div>
+          <div v-if="trendingLoading" class="loading-small"><div class="spinner-small"></div></div>
+          <div v-else-if="trendingTopics.length > 0" class="trending-list">
+            <NuxtLink v-for="trend in trendingTopics" :key="trend.id" :to="`/explore?tag=${trend.title}`" class="trending-item">
+              <div class="trend-info"><p class="trend-category">{{ trend.category }}</p><h4 class="trend-title">{{ trend.title }}</h4><p class="trend-count">{{ trend.count }} posts</p></div>
+            </NuxtLink>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <PewGiftModal 
+      v-if="isGiftModalOpen"
+      :is-open="isGiftModalOpen" 
+      :post="activeGiftPost" 
+      @close="isGiftModalOpen = false" 
+      @confirm="handleConfirmGift" 
+    />
+
+    <ClientOnly>
+      <div v-if="activeSelectedStatus" class="status-lightbox-modal" @click.self="closeStatusViewer">
+        <div class="lightbox-content" :style="{ backgroundColor: activeSelectedStatus.colors?.background || '#000', color: activeSelectedStatus.colors?.text || '#fff' }">
+          <div class="lightbox-top-meta">
+            <div class="meta-left"><img :src="activeSelectedStatus.author?.avatar_url || '/default-avatar.svg'" class="lightbox-author-avatar" /><div><h5>{{ activeSelectedStatus.author?.full_name }}</h5><span>@{{ activeSelectedStatus.author?.username }}</span></div></div>
+            <button class="lightbox-close-btn" @click="closeStatusViewer"><Icon name="x" size="20" /></button>
+          </div>
+          <div class="lightbox-main-body">
+            <p v-if="activeSelectedStatus.content" class="lightbox-text-content">{{ activeSelectedStatus.content }}</p>
+            <div v-if="activeSelectedStatus.media_url" class="lightbox-media-attachment">
+              <img v-if="activeSelectedStatus.media_type === 'image'" :src="activeSelectedStatus.media_url" class="lightbox-img" />
+              <video v-else-if="activeSelectedStatus.media_type === 'video'" :src="activeSelectedStatus.media_url" controls autoplay class="lightbox-video"></video>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ClientOnly>
   </div>
 </template>
           
@@ -366,7 +495,7 @@ onMounted(async () => {
 </script>
 
 
-<style>
+<style scoped>
 /* ============================================================================
    GLOBAL & LAYOUT ARCHITECTURE
    ============================================================================ */
@@ -393,35 +522,319 @@ onMounted(async () => {
 .rec-avatar, .skeleton-avatar { width: 2.25rem; height: 2.25rem; }
 
 /* ============================================================================
-   HEADER & NAVIGATION
+   HEADER & TOP NAVIGATION
    ============================================================================ */
 .feed-header { position: sticky; top: 0; z-index: 50; background-color: #1e293b; border-bottom: 1px solid #334155; }
 .header-top { display: flex; align-items: center; justify-content: space-between; height: 4rem; max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
 .header-left, .header-center, .header-right { display: flex; align-items: center; }
 .logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: #f8fafc; font-weight: 600; }
-.logo-img { width: 32px; height: 32px; flex-shrink: 0; }
-.menu-btn { background: none; border: none; color: #94a3b8; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s; }
+.menu-btn { background: none; border: none; color: #94a3b8; padding: 0.5rem; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
 .menu-btn:hover { color: #f8fafc; background-color: #334155; }
 .header-search { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; margin-right: 0.5rem; border-radius: 999px; color: #cbd5e1; }
 .header-search:hover { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
 .header-pals { position: relative; }
 .dot-indicator { position: absolute; top: 0.4rem; right: 0.4rem; width: 0.6rem; height: 0.6rem; border-radius: 999px; background: #ef4444; box-shadow: 0 0 0 2px #1e293b; pointer-events: none; }
 .nav-icon { display: flex; flex-direction: column; align-items: center; padding: 0.5rem 1rem; color: #94a3b8; border-radius: 0.5rem; transition: all 0.2s; text-decoration: none; position: relative; }
-.sidebar-item .badge { margin-left: auto; min-width: 1.25rem; height: 1.25rem; padding: 0 0.35rem; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.7rem; font-weight: 700; line-height: 1.25rem; text-align: center; }
 .count-badge { position: absolute; top: 0.1rem; right: 0.45rem; min-width: 1.15rem; height: 1.15rem; padding: 0 0.3rem; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.68rem; font-weight: 700; line-height: 1.15rem; text-align: center; box-shadow: 0 0 0 2px #1e293b; pointer-events: none; }
 .nav-icon.active { color: #3b82f6; background-color: rgba(59, 130, 246, 0.1); }
 
 /* ============================================================================
-   SIDEBAR & DRAWER SYSTEM
+   REDEFINED SIDEBAR MENU DRAWER
    ============================================================================ */
-.sidebar-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 100; }
-.sidebar { position: fixed; top: 0; left: 0; width: 280px; height: 100vh; background-color: #1e293b; z-index: 101; transform: translateX(-100%); transition: transform 0.3s ease; }
-.sidebar.open { transform: translateX(0); }
-.feed-sidebar-left { position: sticky; top: 5rem; display: flex; flex-direction: column; gap: 1rem; }
+.sidebar-overlay { 
+  position: fixed; 
+  inset: 0; 
+  background-color: rgba(15, 23, 42, 0.75); 
+  backdrop-filter: blur(6px); 
+  z-index: 999; 
+}
+
+.sidebar { 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 300px; 
+  height: 100vh; 
+  background-color: #0f172a; 
+  border-right: 1px solid #1e293b;
+  z-index: 1000; 
+  transform: translateX(-100%); 
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); 
+  display: flex;
+  flex-direction: column;
+  box-shadow: 10px 0 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.sidebar.open { 
+  transform: translateX(0); 
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid #1e293b;
+  background-color: #0f172a;
+}
+
+.sidebar-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.close-btn {
+  background: #1e293b;
+  border: none;
+  color: #94a3b8;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0.75rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Custom Scrollbar for Drawer */
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+
+/* User Quick Card inside Drawer */
+.sidebar-user-card {
+  background-color: #1e293b;
+  border-radius: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sidebar-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-user-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 1.5px solid #3b82f6;
+}
+
+.sidebar-user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-handle {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.sidebar-user-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sidebar-quick-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.sidebar-quick-btn:hover {
+  background-color: #2563eb;
+}
+
+.sidebar-quick-btn.outline {
+  background-color: transparent;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+}
+
+.sidebar-quick-btn.outline:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
+/* Grouping & Items */
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sidebar-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.75rem;
+  margin: 0 0 0.15rem 0;
+  text-transform: uppercase;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.sidebar-item:hover, .sidebar-item.router-link-active {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+}
+
+.sidebar-item.sub {
+  padding-left: 1rem;
+  font-size: 0.825rem;
+  color: #94a3b8;
+}
+
+.sidebar-item.sub:hover {
+  color: #f8fafc;
+  background-color: #1e293b;
+}
+
+.sidebar-item.danger {
+  color: #f87171;
+}
+
+.sidebar-item.danger:hover {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.item-icon {
+  flex-shrink: 0;
+}
+
+.item-label {
+  flex: 1;
+}
+
+.sidebar-item .badge {
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warning-badge {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+/* Footer Section */
+.sidebar-footer {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1e293b;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.675rem 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
 
 /* ============================================================================
-   COMPONENT CARDS
+   COMPONENT CARDS & MAIN FEED
    ============================================================================ */
+.feed-sidebar-left { position: sticky; top: 5rem; display: flex; flex-direction: column; gap: 1rem; }
 .profile-card, .create-post-section, .recommendations-card, .trending-card {
   background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.25rem;
 }
@@ -430,9 +843,6 @@ onMounted(async () => {
 .post-media-gallery { border-radius: 0.5rem; overflow: hidden; border: 1px solid #334155; background-color: #0f172a; margin-top: 0.75rem; }
 .post-image { width: 100%; display: block; object-fit: cover; }
 
-/* ============================================================================
-   TOOLBAR & INTERACTION RECONCILIATION
-   ============================================================================ */
 .posts-list { display: flex; flex-direction: column; gap: 1rem; }
 
 .post-actions-wrapper {
@@ -469,6 +879,10 @@ onMounted(async () => {
 
 .pew-gift-btn { color: #f59e0b; }
 .pew-gift-btn:hover:not(:disabled) { background-color: rgba(245, 158, 11, 0.1); }
+
+/* Transitions */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* ============================================================================
    RESPONSIVE BREAKPOINTS
