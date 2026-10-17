@@ -1,21 +1,21 @@
 <template>
-  <article class="feed-ad">
+  <div
+    v-if="item.type === 'ad'"
+    class="feed-ad-native"
+  >
+    <SponsoredAd
+      :ad="item.ad"
+      placement="feed"
+    />
+  </div>
+  <article
+    v-else
+    class="feed-ad"
+  >
     <span class="sponsored">Sponsored</span>
 
-    <a
-      v-if="item.type === 'ad'"
-      :href="item.ad.destinationUrl || '#'"
-      target="_blank"
-      rel="noopener nofollow"
-      class="ad-body"
-      @click="trackClick(item.ad.id)"
-    >
-      <img v-if="item.ad.creativeUrl" :src="item.ad.creativeUrl" :alt="item.ad.title" class="ad-creative" />
-      <h4 class="ad-title">{{ item.ad.title }}</h4>
-    </a>
-
     <ins
-      v-else-if="item.type === 'external_ad'"
+      v-if="item.type === 'external_ad'"
       class="adsbygoogle external-slot"
       :data-ad-client="item.clientId"
       :data-ad-slot="item.slotId"
@@ -27,20 +27,10 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import SponsoredAd from '~/components/ads/sponsored-ad.vue'
 import type { FeedItem } from '~/composables/useSocialFeed'
 
 const props = defineProps<{ item: Exclude<FeedItem, { type: 'post' }> }>()
-
-const trackClick = async (campaignId: string) => {
-  try {
-    await $fetch('/api/ads/track', {
-      method: 'POST',
-      body: { campaignId, interactionType: 'CLICK' }
-    })
-  } catch (error) {
-    console.error('[Feed] Ad click tracking failed', error)
-  }
-}
 
 /** AdSense needs its loader script once per page plus a push per placement. */
 const mountAdsense = (clientId: string) => {
@@ -58,21 +48,11 @@ const mountAdsense = (clientId: string) => {
   globals.adsbygoogle.push({})
 }
 
-onMounted(async () => {
+onMounted(() => {
   if (props.item.type === 'external_ad') {
     if (props.item.provider === 'adsense' && props.item.clientId) {
       mountAdsense(props.item.clientId)
     }
-    return
-  }
-
-  try {
-    await $fetch('/api/ads/track', {
-      method: 'POST',
-      body: { campaignId: props.item.ad.id, interactionType: 'IMPRESSION' }
-    })
-  } catch (error) {
-    console.error('[Feed] Ad impression tracking failed', error)
   }
 })
 </script>
