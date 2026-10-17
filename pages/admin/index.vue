@@ -1,9 +1,18 @@
 <template>
   <div class="admin-dashboard">
     <nav class="admin-links">
-      <NuxtLink to="/admin/users">Users &amp; roles</NuxtLink>
-      <NuxtLink to="/admin/withdrawals">Withdrawals &amp; fees</NuxtLink>
-      <NuxtLink to="/admin/payments">Payment providers</NuxtLink>
+      <NuxtLink to="/admin/users">
+        Users &amp; roles
+      </NuxtLink>
+      <NuxtLink to="/admin/withdrawals">
+        Withdrawals &amp; fees
+      </NuxtLink>
+      <NuxtLink to="/admin/ads">
+        Ads review &amp; settings
+      </NuxtLink>
+      <NuxtLink to="/admin/payments">
+        Payment providers
+      </NuxtLink>
     </nav>
     <!-- Main Dashboard Components -->
     <div class="dashboard-grid">
@@ -18,8 +27,8 @@
     <div class="analytics-section">
       <h2>📊 Escrow Analytics</h2>
       <div class="charts">
-        <canvas id="volumeChart"></canvas>
-        <canvas id="releaseTimeChart"></canvas>
+        <canvas id="volumeChart" />
+        <canvas id="releaseTimeChart" />
       </div>
     </div>
   </div>
