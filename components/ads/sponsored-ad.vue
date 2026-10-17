@@ -259,7 +259,7 @@ const open = (link?: string) => {
     return
   }
   track('CLICK')
-  if (ad.conversionLocation === 'POST' && ad.postId) navigateTo(`/post/${ad.postId}`)
+  if (ad.conversionLocation === 'POST' && ad.postId) navigateTo(`/posts/${ad.postId}`)
   else if (ad.conversionLocation === 'PAGE' && ad.pageHandle) navigateTo(`/pages/${ad.pageHandle}`)
   else {
     const url = link || ad.destinationUrl

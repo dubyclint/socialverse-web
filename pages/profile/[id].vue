@@ -110,6 +110,8 @@
           </div>
         </section>
 
+        <PlacementAd v-if="!isSelf" placement="profile" :context-text="profile.bio" />
+
         <section v-if="!profile.locked" class="posts-section">
           <h2>Posts</h2>
           <div v-if="postsLoading && !posts.length" class="state-card">Loading posts…</div>
@@ -137,6 +139,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PostCard from '~/components/posts/post-card.vue'
+import PlacementAd from '~/components/ads/placement-ad.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { PROFILE_FIELD_LABELS, isFieldPublic, type PrivateProfileField } from '~/shared/profile-fields'
 

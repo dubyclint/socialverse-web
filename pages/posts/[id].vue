@@ -60,6 +60,8 @@
         </div>
       </div>
 
+      <PlacementAd v-if="post" placement="post_detail" :context-text="post.content" />
+
       <div ref="commentsSection" class="comments-section">
         <h3>Comments ({{ comments.length }})</h3>
 
@@ -107,6 +109,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
+import PlacementAd from '~/components/ads/placement-ad.vue'
 import type { PostDetailView } from '~/server/api/posts/[id]/index.get'
 import type { PostCommentView } from '~/server/api/posts/[id]/comments.get'
 

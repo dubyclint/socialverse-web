@@ -59,6 +59,8 @@
       </section>
       <p v-if="notice" class="notice">{{ notice }}</p>
 
+      <PlacementAd placement="page" />
+
       <section class="posts">
         <h2>Posts</h2>
         <p v-if="!posts.length" class="muted">No posts yet.</p>
@@ -72,6 +74,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import PostCard from '~/components/posts/post-card.vue'
+import PlacementAd from '~/components/ads/placement-ad.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { useFileUpload } from '~/composables/use-file-upload'
 import { useContextStore } from '~/stores/context'
