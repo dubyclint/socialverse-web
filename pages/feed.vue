@@ -76,6 +76,7 @@
           <p class="sidebar-section">Create</p>
           <NuxtLink to="/posts/create" class="sidebar-item" @click="toggleSidebar"><Icon name="plus-square" size="18" /> <span>Create post</span></NuxtLink>
           <NuxtLink to="/posts" class="sidebar-item sub" @click="toggleSidebar"><Icon name="file-text" size="16" /> <span>My posts</span></NuxtLink>
+          <NuxtLink to="/pages" class="sidebar-item" @click="toggleSidebar"><Icon name="flag" size="18" /> <span>My Pages</span></NuxtLink>
           <NuxtLink to="/stream" class="sidebar-item" @click="toggleSidebar"><Icon name="aperture" size="18" /> <span>Live streaming</span></NuxtLink>
           <NuxtLink to="/stream/broadcast" class="sidebar-item sub" @click="toggleSidebar"><Icon name="radio" size="16" /> <span>Go live</span></NuxtLink>
           <NuxtLink to="/stream/history" class="sidebar-item sub" @click="toggleSidebar"><Icon name="clock" size="16" /> <span>Past streams</span></NuxtLink>

@@ -30,8 +30,8 @@
             :src="url"
             alt=""
             class="attachment-image"
-            title="Double-tap to view full photo"
-            @dblclick.stop="openLightbox(url)"
+            title="Tap to view full photo"
+            @click.stop="openLightbox(url)"
           />
           <video
             v-else-if="message.messageType === 'video'"

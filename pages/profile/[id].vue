@@ -69,6 +69,7 @@
             <div class="actions">
               <template v-if="isSelf">
                 <NuxtLink to="/profile/edit" class="btn secondary">Edit profile</NuxtLink>
+                <NuxtLink to="/pages" class="btn secondary"><Icon name="flag" size="16" /> My Pages</NuxtLink>
                 <NuxtLink to="/settings" class="btn secondary"><Icon name="settings" size="16" /> Settings</NuxtLink>
               </template>
               <template v-else>

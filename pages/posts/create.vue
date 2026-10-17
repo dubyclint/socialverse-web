@@ -48,7 +48,37 @@
             <button class="upload-btn" :disabled="uploading || mediaItems.length >= POST_MEDIA_MAX_ITEMS" @click="triggerFileInput">
               <Icon name="image" size="16" /> Add photo or video
             </button>
+            <button v-if="mediaItems.length === 1" type="button" class="upload-btn" :disabled="uploading" @click="openMusic">
+              🎵 {{ selectedAudio ? 'Change music' : 'Add music' }}
+            </button>
             <span class="upload-hint">Up to {{ POST_MEDIA_MAX_ITEMS }} items · videos max {{ videoLimitMb }}MB</span>
+          </div>
+
+          <div v-if="mediaItems.length === 1 && showMusic" class="music-panel">
+            <div class="music-tabs">
+              <button type="button" :class="{ on: musicTab === 'catalog' }" @click="musicTab = 'catalog'">Royalty-free</button>
+              <button type="button" :class="{ on: musicTab === 'device' }" @click="musicTab = 'device'">From device</button>
+              <button type="button" class="music-close" @click="clearMusic">Remove music</button>
+            </div>
+            <div v-if="musicTab === 'catalog'" class="music-catalog">
+              <input v-model.trim="musicQuery" class="music-search" placeholder="Search music" @keyup.enter="loadTracks" />
+              <p v-if="tracksError" class="publish-error">{{ tracksError }}</p>
+              <button v-for="t in tracks" :key="t.id" type="button" class="music-track" :class="{ on: selectedAudio?.id === t.id }" @click="pickTrack(t)">
+                <img v-if="t.artwork" :src="t.artwork" alt="" />
+                <span><strong>{{ t.title }}</strong><small>{{ t.artist }} · {{ Math.round(t.duration) }}s</small></span>
+              </button>
+            </div>
+            <label v-else class="music-device">
+              <input type="file" accept="audio/*" @change="pickDeviceAudio" />
+              <span>{{ selectedAudio?.file ? selectedAudio.file.name : 'Choose an audio file' }}</span>
+            </label>
+            <AudioTrimmer
+              v-if="selectedAudio"
+              :key="selectedAudio.url"
+              :default-audio-url="selectedAudio.url"
+              :source-type="selectedAudio.file ? 'custom-device' : 'royalty-free'"
+              @on-trim-change="trim = $event"
+            />
           </div>
           <input
             ref="fileInputRef"
@@ -92,7 +122,7 @@
               :disabled="(!postContent.trim() && !mediaItems.length) || publishing"
               @click="publishPost"
             >
-              {{ publishing ? 'Publishing...' : 'Publish' }}
+              {{ mixing ? 'Adding music...' : publishing ? 'Publishing...' : 'Publish' }}
             </button>
           </div>
         </section>
@@ -114,6 +144,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
 import { usePostsStore } from '~/stores/posts'
 import { useFileUpload } from '~/composables/use-file-upload'
+import AudioTrimmer, { type TrimChange } from '~/components/AudioTrimmer.vue'
 import {
   POST_MEDIA_ACCEPT,
   POST_MEDIA_MAX_ITEMS,
@@ -121,6 +152,9 @@ import {
   isPostVideoMime,
   validatePostMediaFile
 } from '~/utils/post-media'
+
+interface CatalogTrack { id: string, title: string, artist: string, duration: number, artwork: string | null, stream_url: string }
+interface SelectedAudio { url: string, id?: string, file?: File }
 
 interface ComposerMedia {
   file: File
@@ -197,12 +231,71 @@ const handleMediaSelect = (event: Event) => {
   })
 }
 
+const showMusic = ref(false)
+const musicTab = ref<'catalog' | 'device'>('catalog')
+const musicQuery = ref('')
+const tracks = ref<CatalogTrack[]>([])
+const tracksError = ref('')
+const selectedAudio = ref<SelectedAudio | null>(null)
+const trim = ref<TrimChange | null>(null)
+const mixing = ref(false)
+
+const loadTracks = async () => {
+  tracksError.value = ''
+  try {
+    tracks.value = (await $fetch<{ tracks: CatalogTrack[] }>('/api/audio/tracks', { query: { q: musicQuery.value || undefined } })).tracks
+  } catch {
+    tracksError.value = 'Music catalog is unavailable right now'
+  }
+}
+
+const openMusic = () => {
+  showMusic.value = true
+  if (!tracks.value.length) void loadTracks()
+}
+
+const releaseAudio = () => {
+  if (selectedAudio.value?.file) URL.revokeObjectURL(selectedAudio.value.url)
+  selectedAudio.value = null
+  trim.value = null
+}
+
+const pickTrack = (track: CatalogTrack) => {
+  releaseAudio()
+  selectedAudio.value = { url: track.stream_url, id: track.id }
+}
+
+const pickDeviceAudio = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  releaseAudio()
+  selectedAudio.value = { url: URL.createObjectURL(file), file }
+}
+
+const clearMusic = () => {
+  releaseAudio()
+  showMusic.value = false
+}
+
+/** Server-side mix so mobile browsers never run ffmpeg; returns the new MP4. */
+const mixAudio = async (mediaUrl: string): Promise<{ url: string, type: string }> => {
+  const form = new FormData()
+  form.append('media_url', mediaUrl)
+  form.append('start', String(trim.value?.startTime ?? 0))
+  form.append('duration', String(trim.value?.duration ?? 15))
+  if (selectedAudio.value?.file) form.append('audio', selectedAudio.value.file, selectedAudio.value.file.name)
+  else if (selectedAudio.value?.id) form.append('audius_id', selectedAudio.value.id)
+  return await $fetch<{ url: string, type: string }>('/api/media/mix', { method: 'POST', body: form })
+}
+
 const removeMedia = (index: number) => {
+  if (mediaItems.value.length <= 2) clearMusic()
   const [removed] = mediaItems.value.splice(index, 1)
   if (removed) URL.revokeObjectURL(removed.previewUrl)
 }
 
 const clearMedia = () => {
+  clearMusic()
   mediaItems.value.forEach(item => URL.revokeObjectURL(item.previewUrl))
   mediaItems.value = []
 }
@@ -222,6 +315,17 @@ const publishPost = async () => {
       const uploaded = await uploadFile(item.file, 'posts', { optimize: !item.isVideo })
       if (!uploaded) throw new Error('We could not upload your media. Please try again.')
       media.push({ url: uploaded.url, type: item.file.type })
+    }
+
+    if (media.length === 1 && media[0] && selectedAudio.value && trim.value) {
+      mixing.value = true
+      try {
+        media[0] = await mixAudio(media[0].url)
+      } catch {
+        throw new Error('Could not add music to your post. Remove the music or try again.')
+      } finally {
+        mixing.value = false
+      }
     }
 
     const response = await $fetch<{ success: boolean, data?: { id: string } }>('/api/posts/create', {
@@ -491,4 +595,17 @@ onBeforeUnmount(clearMedia)
   .create-post-container { grid-template-columns: 1fr; }
   .preview-sidebar { display: none; }
 }
+.music-panel { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.music-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.music-tabs button { background: #1e293b; border: 1px solid #334155; color: #cbd5e1; border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.8rem; }
+.music-tabs button.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+.music-tabs .music-close { margin-left: auto; color: #f87171; }
+.music-catalog { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.music-search { background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #fff; padding: 8px 10px; }
+.music-track { display: flex; align-items: center; gap: 10px; background: none; border: none; color: #e2e8f0; text-align: left; padding: 6px; border-radius: 8px; min-height: 48px; }
+.music-track.on, .music-track:hover { background: #1e293b; }
+.music-track img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.music-track span { display: flex; flex-direction: column; min-width: 0; }
+.music-track small { color: #94a3b8; }
+.music-device { display: flex; flex-direction: column; gap: 6px; color: #cbd5e1; font-size: 0.85rem; }
 </style>

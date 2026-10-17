@@ -16,15 +16,20 @@
         :alt="`Post media ${index + 1}`"
         loading="lazy"
         decoding="async"
-        @click="$emit('open', url)"
+        title="Tap to view full photo"
+        @click.stop="fullSrc = url"
       />
     </template>
-    <span v-if="media.length > 4" class="media-more">+{{ media.length - 4 }}</span>
+    <span v-if="media.length > 4" class="media-more" @click.stop="$emit('open', media[4] ?? '')">+{{ media.length - 4 }}</span>
+    <MediaLightbox :src="fullSrc" alt="" @close="fullSrc = null" />
   </div>
 </template>
 
 <script setup lang="ts">
+import MediaLightbox from '~/components/chat/media-lightbox.vue'
+
 defineProps<{ media: string[] }>()
+const fullSrc = ref<string | null>(null)
 defineEmits<{ open: [url: string] }>()
 
 const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)
