@@ -117,6 +117,10 @@ export default defineNuxtConfig({
 
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
+      legalBusinessAddress: process.env.NUXT_PUBLIC_LEGAL_BUSINESS_ADDRESS || '',
+      dmcaAgentName: process.env.NUXT_PUBLIC_DMCA_AGENT_NAME || '',
+      dmcaAgentAddress: process.env.NUXT_PUBLIC_DMCA_AGENT_ADDRESS || '',
+      dmcaAgentEmail: process.env.NUXT_PUBLIC_DMCA_AGENT_EMAIL || 'copyright@viorp.com',
       apiUrl: process.env.NUXT_PUBLIC_API_URL,
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL,
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,

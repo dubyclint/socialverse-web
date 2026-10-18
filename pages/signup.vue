@@ -82,6 +82,13 @@
           </div>
         </div>
 
+        <label class="flex items-start gap-2 text-slate-400 text-xs leading-snug">
+          <input v-model="formData.acceptTerms" type="checkbox" required class="mt-0.5" />
+          <span>I am at least 13 years old (or the minimum age in my country) and I agree to the
+            <NuxtLink to="/terms" target="_blank" class="text-indigo-400">Terms</NuxtLink> and
+            <NuxtLink to="/privacy" target="_blank" class="text-indigo-400">Privacy Policy</NuxtLink>.</span>
+        </label>
+
         <button type="submit" :disabled="isAuthLoading"
           class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3.5 rounded-xl transition-all">
           {{ isAuthLoading ? 'Creating Account...' : 'Sign Up' }}
@@ -122,7 +129,8 @@ const formData = ref({
   phoneCountry: DEFAULT_CALLING_COUNTRY,
   location: '',
   bio: '',
-  password: ''
+  password: '',
+  acceptTerms: false
 })
 const localError = ref('')
 const success = ref('')
@@ -132,6 +140,10 @@ const handleSignup = async () => {
   success.value = ''
   if (formData.value.bio.trim().length < 2) {
     localError.value = 'Please add a short bio'
+    return
+  }
+  if (!formData.value.acceptTerms) {
+    localError.value = 'Please confirm your age and accept the Terms to continue'
     return
   }
 
@@ -145,7 +157,8 @@ const handleSignup = async () => {
         phone: formData.value.phone.trim(),
         phoneCountry: formData.value.phoneCountry,
         location: formData.value.location.trim(),
-        bio: formData.value.bio.trim()
+        bio: formData.value.bio.trim(),
+        acceptTerms: formData.value.acceptTerms
       }
     })
 

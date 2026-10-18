@@ -13,6 +13,7 @@ interface SignupRequest {
   phoneCountry?: string
   bio?: string
   location?: string
+  acceptTerms?: boolean
 }
 
 const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
@@ -32,6 +33,10 @@ export default defineEventHandler(async (event) => {
     if (!body.email || !body.username || !body.password) {
       console.error('[Signup API] Missing required core fields')
       return { success: false, error: 'Email, username, and password are required.' }
+    }
+
+    if (body.acceptTerms !== true) {
+      return { success: false, error: 'You must confirm you are at least 13 and accept the Terms and Privacy Policy.' }
     }
 
     const bio = typeof body.bio === 'string' ? body.bio.trim() : ''
