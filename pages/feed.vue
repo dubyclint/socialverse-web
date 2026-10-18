@@ -415,7 +415,7 @@ import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
 import { useStaff } from '~/composables/useStaff';
 
 const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();
-onMounted(() => { loadStaff(); });
+onMounted(() => { loadStaff(true); });
 
 // Top Navigation Configuration with updated Lucide icon mappings
 const topNavItems = [

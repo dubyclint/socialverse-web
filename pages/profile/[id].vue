@@ -71,6 +71,9 @@
                 <NuxtLink to="/profile/edit" class="btn secondary">Edit profile</NuxtLink>
                 <NuxtLink to="/pages" class="btn secondary"><Icon name="flag" size="16" /> My Pages</NuxtLink>
                 <NuxtLink to="/settings" class="btn secondary"><Icon name="settings" size="16" /> Settings</NuxtLink>
+                <NuxtLink v-if="isStaff" to="/admin" class="btn secondary staff-btn">
+                  <Icon name="shield" size="16" /> Control dashboard
+                </NuxtLink>
               </template>
               <template v-else>
                 <button type="button" class="btn" @click="openChat">
@@ -142,6 +145,7 @@ import { useRoute, useRouter } from 'vue-router'
 import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
+import { useStaff } from '~/composables/useStaff'
 import VerificationRequestCard from '~/components/verification-request-card.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { PROFILE_FIELD_LABELS, isFieldPublic, type PrivateProfileField } from '~/shared/profile-fields'
@@ -199,6 +203,8 @@ const listKind = ref<'followers' | 'following' | 'pals' | null>(null)
 const listNotice = ref('')
 
 const isSelf = computed(() => Boolean(profile.value?.relationship.is_self))
+const { isStaff, load: loadStaffInfo } = useStaff()
+watch(isSelf, (self) => { if (self) void loadStaffInfo(true) }, { immediate: true })
 const displayName = computed(() =>
   profile.value?.display_name || profile.value?.full_name || profile.value?.username || 'User'
 )

@@ -24,7 +24,9 @@ export const useStaff = () => {
     return staff.value
   }
 
+  const reset = () => { staff.value = null; loaded.value = false }
+
   const can = (permission: string) => staff.value?.role === 'admin' || Boolean(staff.value?.permissions.includes(permission))
 
-  return { staff, loaded, load, can, isStaff: computed(() => Boolean(staff.value)), isAdmin: computed(() => staff.value?.role === 'admin') }
+  return { staff, loaded, load, reset, can, isStaff: computed(() => Boolean(staff.value)), isAdmin: computed(() => staff.value?.role === 'admin') }
 }

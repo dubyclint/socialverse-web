@@ -1,4 +1,5 @@
 // stores/user.ts
+import { useStaff } from '~/composables/useStaff'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Profile } from '~/types/profile'
@@ -121,6 +122,7 @@ export const useUserStore = defineStore('user', () => {
     }
     user.value = null
     profile.value = null
+    useStaff().reset()
     posts.value = []
     notifications.value = []
   }

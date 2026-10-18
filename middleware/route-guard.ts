@@ -2,34 +2,22 @@
 // FILE: /middleware/route-guard.ts - ROLE-BASED ACCESS CONTROL
 // ============================================================================
 import { defineNuxtRouteMiddleware, navigateTo, abortNavigation, createError } from '#app'
-import { useSupabaseUser, useSupabaseClient } from '#imports'
+import { useSupabaseUser } from '#imports'
+import { useStaff } from '~/composables/useStaff'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!to?.path) return
 
   const user = useSupabaseUser()
-  const client = useSupabaseClient()
 
   if (!user.value) {
     console.warn(`[Route Guard] ✗ Unauthenticated access attempt: ${to.path}`)
     return navigateTo('/signin')
   }
 
-  // Fetch full user profile/metadata including roles if not present on user object
-  let userRole = 'user'
-  try {
-    const { data: profile } = await client
-      .from('profiles')
-      .select('role')
-      .eq('id', user.value.id)
-      .single()
-      
-    if (profile && 'role' in profile) {
-      userRole = (profile as { role?: string }).role || 'user'
-    }
-  } catch (e) {
-    console.error('[Route Guard] Failed to resolve user role profile:', e)
-  }
+  // Role comes from the server: authenticated clients cannot read user.role directly.
+  const staff = await useStaff().load(true)
+  const userRole = staff?.role ?? 'user'
 
   if (to.path.startsWith('/admin') && userRole !== 'admin' && userRole !== 'manager') {
     console.warn(`[Route Guard] ✗ Non-admin blocked from: ${to.path}`)
