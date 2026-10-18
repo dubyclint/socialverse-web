@@ -89,3 +89,384 @@ When writing code, designing schemas, or planning features, you must always alig
 3. **Data-Driven & Scalable:** Assume the system operates at a scale of 13M+ users. Suggest optimized indexing, caching tiers (Redis/CDN), and minimal payload sizes.
 4. **Be Direct and Practical:** Provide production-ready, TypeScript-compatible Vue 3 Composition API code blocks (`<script setup lang="ts">`). Avoid placeholders or pseudo-code unless explicitly asked.
   
+add global announcement features and let tab accessed from profile or sidebar of feed.vue (only for admin or manager user)  <!-- layouts/default.vue -->
+<script setup>
+import { onMounted, ref } from 'vue'
+
+const showAnnouncement = ref(false)
+const announcementText = ref('')
+const announcementId = ref(null)
+
+onMounted(async () => {
+  try {
+    // 1. Fetch the cached announcement from your server/CDN
+    const response = await fetch('https://viorp.com')
+    const data = await response.json()
+    
+    if (data && data.active) {
+      // 2. Check if the user has already closed this specific update
+      const readId = localStorage.getItem('viorp_dismissed_announcement_id')
+      
+      if (readId !== String(data.id)) {
+        announcementId.value = data.id
+        announcementText.value = data.message
+        showAnnouncement.value = true
+      }
+    }
+  } catch (err) {
+    console.error('Announcement check skipped silently:', err)
+  }
+})
+
+const dismissAlert = () => {
+  localStorage.setItem('viorp_dismissed_announcement_id', String(announcementId.value))
+  showAnnouncement.value = false
+}
+</script>
+
+<template>
+  <div>
+    <!-- Global Overlay Announcement Block -->
+    <div v-if="showAnnouncement" class="announcement-banner">
+      <p>{{ announcementText }}</p>
+      <button @click="dismissAlert">Got it</button>
+    </div>
+    
+    <slot />
+  </div>
+</template>
+
+<style scoped>
+.announcement-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background-color: #007bff;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  z-index: 9999;
+  display: flex; justify-content: space-between; align-items: center;
+}
+</style>
+
+
+<script setup>
+import { ref } from 'vue'
+
+// Role authentication check mock properties (derived from your app's global state / auth store)
+const props = defineProps({
+  userRole: {
+    type: String,
+    required: true,
+    validator: (value) => ['admin', 'manager', 'user'].includes(value)
+  }
+})
+
+const announcementTitle = ref('')
+const announcementMessage = ref('')
+const isPublishing = ref(false)
+const serverFeedback = ref({ success: false, text: '' })
+
+const handlePublishAnnouncement = async () => {
+  // Front-End Safeguard: Ensure unauthorized roles cannot even attempt the submit trigger
+  if (props.userRole !== 'admin' && props.userRole !== 'manager') {
+    serverFeedback.value = { success: false, text: 'Access Denied: Insufficient authorization permissions.' }
+    return
+  }
+
+  if (!announcementTitle.value || !announcementMessage.value) {
+    serverFeedback.value = { success: false, text: 'Please fill out all required fields before broadcasting.' }
+    return
+  }
+
+  isPublishing.value = true
+  serverFeedback.value = { success: false, text: '' }
+
+  try {
+    // API request routes straight to your backend admin controller layer
+    const response = await fetch('https://viorp.com', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('viorp_auth_token')}` // Secure auth state token
+      },
+      body: JSON.stringify({
+        title: announcementTitle.value,
+        message: announcementMessage.value,
+        published_by_role: props.userRole
+      })
+    })
+
+    if (response.ok) {
+      serverFeedback.value = { success: true, text: 'Broadcast issued successfully! Users will pull down the update.' }
+      announcementTitle.value = ''
+      announcementMessage.value = ''
+    } else {
+      const errData = await response.json()
+      serverFeedback.value = { success: false, text: errData.message || 'Server rejected broadcast instruction.' }
+    }
+  } catch (err) {
+    serverFeedback.value = { success: false, text: 'Network connection failure encountered.' }
+    console.error(err)
+  } finally {
+    isPublishing.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="announcement-manager-panel">
+    <!-- UI Block Wrapper Guardrail -->
+    <div v-if="userRole === 'admin' || userRole === 'manager'" class="management-card">
+      <div class="card-header">
+        <h3>📢 Global Announcement Broadcaster</h3>
+        <p class="role-badge" :class="userRole">Authorized Level: {{ userRole.toUpperCase() }}</p>
+      </div>
+
+      <div class="form-group">
+        <label for="announcement-title">Alert Title</label>
+        <input 
+          id="announcement-title"
+          v-model.trim="announcementTitle"
+          type="text" 
+          placeholder="e.g., Scheduled Core Maintenance Window"
+          maxlength="100"
+          :disabled="isPublishing"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="announcement-body">Announcement Message Content</label>
+        <textarea 
+          id="announcement-body"
+          v-model.trim="announcementMessage"
+          placeholder="Type the message details you want to display globally to all 50 million users..."
+          rows="5"
+          maxlength="1000"
+          :disabled="isPublishing"
+        ></textarea>
+        <small class="char-counter">{{ announcementMessage.length }}/1000 characters used</small>
+      </div>
+
+      <button 
+        @click="handlePublishAnnouncement" 
+        class="publish-btn"
+        :disabled="isPublishing"
+      >
+        {{ isPublishing ? 'Broadcasting to Cloud Cache...' : 'Publish Global Live Broadcast' }}
+      </button>
+
+      <p v-if="serverFeedback.text" class="feedback-msg" :class="{ 'success-style': serverFeedback.success }">
+        {{ serverFeedback.text }}
+      </p>
+    </div>
+
+    <!-- Fallback if unauthorized personnel somehow access the link -->
+    <div v-else class="unauthorized-fallback-banner">
+      <p>⚠️ Error 403: Access Restricted. Only Admin and Manager credentials can issue network broadcasts.</p>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.announcement-manager-panel {
+  max-width: 600px;
+  margin: 20px auto;
+  font-family: sans-serif;
+}
+.management-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+.role-badge {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 4px;
+}
+.role-badge.admin { background: #ffebee; color: #c62828; }
+.role-badge.manager { background: #e8f5e9; color: #2e7d32; }
+.form-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+}
+label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+input, textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #007bff;
+}
+.char-counter {
+  text-align: right;
+  color: #777;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.publish-btn {
+  width: 100%;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.publish-btn:hover:not(:disabled) { background-color: #0056b3; }
+.publish-btn:disabled { background-color: #cccccc; cursor: not-allowed; }
+.feedback-msg {
+  margin-top: 15px;
+  font-size: 13px;
+  color: #d32f2f;
+  text-align: center;
+}
+.feedback-msg.success-style { color: #2e7d32; }
+.unauthorized-fallback-banner {
+  background: #fff3cd;
+  color: #856404;
+  padding: 15px;
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid #ffeeba;
+}
+</style>
+
+<!-- layouts/default.vue -->
+<template>
+  <div>
+    <!-- Global Scale-Safe Overlay Banner -->
+    <Transition name="fade-slide">
+      <div v-if="showAnnouncement" class="announcement-root-banner" role="alert">
+        <div class="announcement-content-box">
+          <span class="mega-horn-icon">📢</span>
+          <div class="text-block">
+            <strong class="headline">{{ alertTitle }}</strong>
+            <p class="body-copy">{{ alertMessage }}</p>
+          </div>
+        </div>
+        <button @click="dismissAlert" class="close-action-button" aria-label="Dismiss Announcement">
+          ✕
+        </button>
+      </div>
+    </Transition>
+    
+    <!-- Render core cross-platform application structure layout -->
+    <slot />
+  </div>
+</template>
+
+<script setup>
+import { onMounted, ref } from 'vue'
+
+const showAnnouncement = ref(false)
+const alertTitle = ref('')
+const alertMessage = ref('')
+const announcementId = ref(null)
+
+onMounted(async () => {
+  // Prevent any script execution on Server Side Rendering context blocks
+  if (process.server) return
+
+  try {
+    // This public URL is heavily proxied behind Cloudflare Edge layers to insulate your database
+    const response = await fetch('https://viorp.com')
+    
+    if (!response.ok) return // Exit silently if no active live alert is cached
+    
+    const data = await response.json()
+    
+    if (data && data.id) {
+      // Cross-verify unique numerical ID strings using browser local storage keys
+      const historicalReadId = localStorage.getItem('viorp_dismissed_announcement_id')
+      
+      if (historicalReadId !== String(data.id)) {
+        announcementId.value = data.id
+        alertTitle.value = data.title
+        alertMessage.value = data.message
+        showAnnouncement.value = true
+      }
+    }
+  } catch (err) {
+    // Silent catch block to ensure any ad block network exceptions or fetch drops don't freeze app features
+    console.log('Background broadcast cache sync checked out.')
+  }
+})
+
+const dismissAlert = () => {
+  if (announcementId.value) {
+    // Record dismiss action state context markers
+    localStorage.setItem('viorp_dismissed_announcement_id', String(announcementId.value))
+    showAnnouncement.value = false
+  }
+}
+</script>
+
+<style scoped>
+.announcement-root-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background-color: #1a1a1a; /* Sleek, high-contrast dark visual anchor theme */
+  color: #ffffff;
+  padding: 14px 24px;
+  z-index: 99999; /* Higher priority execution layer overlay than all sub elements */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border-bottom: 2px solid #007bff;
+}
+.announcement-content-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 90%;
+}
+.mega-horn-icon { font-size: 20px; }
+.text-block { display: flex; flex-direction: column; text-align: left; }
+.headline { font-size: 14px; color: #007bff; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+.body-copy { font-size: 13px; margin: 2px 0 0 0; color: #e0e0e0; line-height: 1.4; }
+.close-action-button {
+  background: transparent;
+  color: #aaaaaa;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+}
+.close-action-button:hover { color: #ffffff; }
+
+/* Dynamic layout interface animations transitions setup */
+.fade-slide-enter-active, .fade-slide-leave-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fade-slide-enter-from, .fade-slide-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+</style>
+
