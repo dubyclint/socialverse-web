@@ -10,15 +10,15 @@ const LIMIT = 30
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const term = String(getQuery(event).q ?? '').trim().replace(/^@/, '')
-  if (term.length < 2) return { success: true, data: [] }
+  if (term.length < 2) return { success: true, data: [], pages: [] }
 
   const service = getServiceClient()
   // PostgREST `or` syntax: strip characters that would break the filter list.
   const safe = term.replace(/[%,()*\\]/g, ' ').trim()
-  if (!safe) return { success: true, data: [] }
+  if (!safe) return { success: true, data: [], pages: [] }
   const pattern = `%${safe}%`
 
-  const [{ data, error }, blocked] = await Promise.all([
+  const [{ data, error }, blocked, { data: pageRows }] = await Promise.all([
     service
       .from('user')
       .select(DIRECTORY_COLUMNS)
@@ -27,7 +27,13 @@ export default defineEventHandler(async (event) => {
       .eq('is_banned', false)
       .order('followers_count', { ascending: false })
       .limit(LIMIT),
-    loadBlockedIds(service, user.id)
+    loadBlockedIds(service, user.id),
+    service
+      .from('pages')
+      .select('id, name, handle, category, avatar_url, is_verified, verified_type, followers_count')
+      .or(`handle.ilike.${pattern},name.ilike.${pattern}`)
+      .order('followers_count', { ascending: false })
+      .limit(10)
   ])
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
@@ -41,7 +47,7 @@ export default defineEventHandler(async (event) => {
     // Exact and prefix username matches first.
     .sort((a, b) => rank(b.username, lowered) - rank(a.username, lowered))
 
-  return { success: true, data: results }
+  return { success: true, data: results, pages: pageRows ?? [] }
 })
 
 const rank = (username: string | null, term: string) => {

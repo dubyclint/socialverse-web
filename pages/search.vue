@@ -41,7 +41,22 @@
         <p v-if="trimmed.length < 2" class="hint">Keep typing…</p>
         <p v-else-if="loading && !results.length" class="hint">Searching…</p>
         <p v-else-if="error" class="hint error">{{ error }}</p>
-        <p v-else-if="!results.length" class="hint">No users match “{{ trimmed }}”.</p>
+        <p v-else-if="!results.length && !pageResults.length" class="hint">No users or Pages match “{{ trimmed }}”.</p>
+
+        <ul v-if="pageResults.length" class="results">
+          <li v-for="pg in pageResults" :key="pg.id" class="result">
+            <NuxtLink :to="`/pages/${pg.handle}`" class="result-link" @click="commitQuery">
+              <img :src="pg.avatar_url || '/default-avatar.svg'" alt="" class="result-avatar" />
+              <span class="result-text">
+                <span class="result-name">
+                  {{ pg.name }}
+                  <VerifiedBadge v-if="pg.is_verified" :type="pg.verified_type" :size="16" />
+                </span>
+                <span class="result-handle">@{{ pg.handle }} · Page<template v-if="pg.category"> · {{ pg.category }}</template> · {{ pg.followers_count }} followers</span>
+              </span>
+            </NuxtLink>
+          </li>
+        </ul>
 
         <ul class="results">
           <li v-for="person in results" :key="person.id" class="result">
@@ -90,6 +105,17 @@ definePageMeta({ middleware: ['auth'], layout: 'default' })
 
 type PalStatus = 'none' | 'friends' | 'outgoing' | 'incoming'
 
+interface PageResult {
+  id: string
+  name: string
+  handle: string
+  category: string | null
+  avatar_url: string | null
+  is_verified: boolean
+  verified_type: string | null
+  followers_count: number
+}
+
 interface SearchResult {
   id: string
   username: string | null
@@ -113,6 +139,7 @@ const router = useRouter()
 const inputRef = ref<HTMLInputElement | null>(null)
 const query = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const results = ref<SearchResult[]>([])
+const pageResults = ref<PageResult[]>([])
 const loading = ref(false)
 const error = ref('')
 const recent = ref<string[]>([])
@@ -149,8 +176,11 @@ const runSearch = async (term: string) => {
   loading.value = true
   error.value = ''
   try {
-    const response = await $fetch<{ data: SearchResult[] }>('/api/users/search', { query: { q: term } })
-    if (seq === requestSeq) results.value = response.data ?? []
+    const response = await $fetch<{ data: SearchResult[], pages?: PageResult[] }>('/api/users/search', { query: { q: term } })
+    if (seq === requestSeq) {
+      results.value = response.data ?? []
+      pageResults.value = response.pages ?? []
+    }
   } catch {
     if (seq === requestSeq) error.value = 'Search failed. Check your connection and try again.'
   } finally {
@@ -163,6 +193,7 @@ watch(trimmed, (term) => {
   router.replace({ query: term ? { q: term } : {} })
   if (term.length < 2) {
     results.value = []
+    pageResults.value = []
     return
   }
   debounce = setTimeout(() => runSearch(term), 250)

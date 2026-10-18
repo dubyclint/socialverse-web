@@ -9,13 +9,15 @@
         <div class="info">
           <h1>{{ page.name }} <VerifiedBadge v-if="page.is_verified" :type="page.verified_type" :size="20" /></h1>
           <p class="muted">@{{ page.handle }}<span v-if="page.category"> · {{ page.category }}</span></p>
-          <p class="muted">{{ page.followers_count }} followers · {{ page.posts_count }} posts</p>
+          <p class="muted"><button type="button" class="stat-link" @click="openFollowers">{{ page.followers_count }} followers</button> · {{ page.posts_count }} posts</p>
+          <p v-if="page.owner?.username" class="muted">Page linked to <NuxtLink :to="`/profile/${page.owner.username}`" class="owner-link">{{ page.owner.display_name || page.owner.full_name || page.owner.username }}</NuxtLink> <VerifiedBadge v-if="page.owner.is_verified" :type="page.owner.verified_type" :size="14" /></p>
           <p v-if="page.bio" class="bio">{{ page.bio }}</p>
           <div class="actions">
             <button v-if="!page.viewer_role" type="button" class="btn" :disabled="busy" @click="toggleFollow">{{ page.is_following ? 'Following' : 'Follow' }}</button>
             <button v-if="!page.viewer_role" type="button" class="btn secondary" :disabled="busy" @click="messagePage">Message</button>
             <button type="button" class="btn secondary" @click="sharePage">Share</button>
             <button v-if="page.viewer_role" type="button" class="btn" @click="actAs">{{ isActive ? 'Acting as this Page' : 'Act as this Page' }}</button>
+            <button v-if="page.viewer_role" type="button" class="btn secondary" @click="postAsPage">Create post</button>
             <span v-if="page.viewer_role" class="role">{{ page.viewer_role.toLowerCase() }}</span>
           </div>
         </div>
@@ -90,6 +92,18 @@
         <button v-if="hasMore" type="button" class="btn small" @click="loadPosts()">Load more</button>
       </section>
     </template>
+    <div v-if="followersOpen" class="sheet-backdrop" @click.self="followersOpen = false">
+      <div class="sheet" role="dialog" aria-label="Followers">
+        <div class="sheet-head"><h2>Followers</h2><button type="button" class="link" @click="followersOpen = false">Close</button></div>
+        <p v-if="followersLoading" class="muted">Loading…</p>
+        <p v-else-if="!followers.length" class="muted">No followers yet.</p>
+        <NuxtLink v-for="f in followers" :key="f.id" :to="`/profile/${f.username || f.id}`" class="follower">
+          <img :src="f.avatar_url || '/default-avatar.svg'" alt="" />
+          <span>{{ f.name }} <VerifiedBadge v-if="f.is_verified" :type="f.verified_type" :size="14" /></span>
+          <span class="muted">@{{ f.username }}</span>
+        </NuxtLink>
+      </div>
+    </div>
     <MediaLightbox :src="photoSrc" :alt="page?.name" @close="photoSrc = null" />
   </div>
 </template>
@@ -111,7 +125,9 @@ interface PageView {
   is_verified?: boolean | null, verified_type?: string | null
   cover_url: string | null, website: string | null, location: string | null, contact_email: string | null
   contact_phone: string | null, founded_year: number | null, created_at: string
+  owner?: { user_id: string, username: string | null, display_name: string | null, full_name: string | null, avatar_url: string | null, is_verified: boolean | null, verified_type: string | null } | null
 }
+interface Follower { id: string, username: string | null, name: string, avatar_url: string | null, is_verified: boolean, verified_type: string | null }
 interface Admin { user_id: string, role: string, user: { username: string } | null }
 interface PageWallet {
   balance: number, withdrawable_pew: number, withdrawable_usd: number, gift_fee_pct: number
@@ -135,6 +151,9 @@ const edit = reactive({
   website: '', location: '', contact_email: '', contact_phone: '', founded_year: null as number | null
 })
 const photoSrc = ref<string | null>(null)
+const followersOpen = ref(false)
+const followersLoading = ref(false)
+const followers = ref<Follower[]>([])
 const hasAbout = computed(() => Boolean(page.value && (page.value.category || page.value.location || page.value.website || page.value.contact_email || page.value.contact_phone || page.value.founded_year)))
 const newAdmin = reactive({ username: '', role: 'MANAGER' })
 const wallet = ref<PageWallet | null>(null)
@@ -218,6 +237,26 @@ const toggleFollow = () => run(async () => {
   page.value!.is_following = res.following
   page.value!.followers_count = res.followers_count
 })
+const openFollowers = async () => {
+  if (!page.value) return
+  followersOpen.value = true
+  followersLoading.value = true
+  try {
+    followers.value = (await $fetch<{ data: Follower[] }>(`/api/pages/${page.value.id}/followers`)).data
+  } catch (e) {
+    notice.value = msg(e, 'Could not load followers')
+    followersOpen.value = false
+  } finally {
+    followersLoading.value = false
+  }
+}
+
+const postAsPage = async () => {
+  if (!page.value) return
+  context.switchToPage(page.value.id)
+  await navigateTo('/posts/create')
+}
+
 const actAs = () => {
   if (page.value) context.switchToPage(page.value.id)
 }
@@ -281,6 +320,13 @@ h2 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
 .muted { color: #94a3b8; font-size: 0.85rem; }
 .bio { margin-top: 8px; white-space: pre-wrap; }
 .actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.stat-link { background: none; border: none; color: inherit; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
+.owner-link { color: #93c5fd; }
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
+.sheet { width: min(520px, 100%); max-height: 70vh; overflow-y: auto; background: #1e293b; border-radius: 16px 16px 0 0; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; }
+.follower { display: flex; align-items: center; gap: 10px; color: #e2e8f0; text-decoration: none; }
+.follower img { width: 40px; height: 40px; border-radius: 999px; object-fit: cover; }
 .role { background: #334155; border-radius: 999px; padding: 2px 10px; font-size: 0.75rem; }
 .card { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
 input, textarea, select { background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #fff; padding: 9px 12px; min-width: 0; }

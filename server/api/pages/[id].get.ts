@@ -6,6 +6,7 @@ import { loadPage } from '~/server/utils/pages'
 export default defineEventHandler(async (event) => {
   const page = await loadPage(getRouterParam(event, 'id') ?? '')
   const viewer = await getOptionalUser(event)
+  const ownerQuery = getServiceClient().from('user').select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type').eq('user_id', page.created_by_user_id).maybeSingle()
   let viewerRole = null
   let isFollowing = false
   if (viewer) {
@@ -16,5 +17,6 @@ export default defineEventHandler(async (event) => {
     viewerRole = role
     isFollowing = Boolean(follow)
   }
-  return { ...page, viewer_role: viewerRole, is_following: isFollowing }
+  const { data: owner } = await ownerQuery
+  return { ...page, owner, viewer_role: viewerRole, is_following: isFollowing }
 })
