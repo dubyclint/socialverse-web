@@ -13,10 +13,13 @@ interface Candidate {
 const CONTACT_WEIGHT = 100
 const MUTUAL_WEIGHT = 12
 const INTEREST_WEIGHT = 5
+const FOLLOWER_WEIGHT = 40
+const COUNTRY_WEIGHT = 1
 
 /**
  * PAL suggestions, strongest signal first: people already in the user's
- * address book, then friends-of-friends, then shared interests.
+ * address book, then followers, friends-of-friends, shared interests and
+ * finally people in the same country.
  */
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
@@ -95,6 +98,27 @@ export default defineEventHandler(async (event) => {
     }
     for (const [id, count] of counts) {
       bump(id, INTEREST_WEIGHT * count, 'Shares your interests')
+    }
+  }
+
+  // People who already follow the viewer, then people in the same country.
+  const [{ data: followers }, { data: me }] = await Promise.all([
+    service.from('follows').select('follower_id').eq('following_id', user.id).limit(200),
+    service.from('user').select('phone_country').eq('user_id', user.id).maybeSingle()
+  ])
+  for (const row of followers ?? []) {
+    if (row.follower_id) bump(row.follower_id, FOLLOWER_WEIGHT, 'Follows you')
+  }
+  if (candidates.size < limit && me?.phone_country) {
+    const { data: nearby } = await service
+      .from('user')
+      .select('user_id')
+      .eq('phone_country', me.phone_country)
+      .neq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(100)
+    for (const row of nearby ?? []) {
+      if (row.user_id) bump(row.user_id, COUNTRY_WEIGHT, 'In your country')
     }
   }
 

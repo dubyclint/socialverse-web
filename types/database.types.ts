@@ -2306,6 +2306,8 @@ export type Database = {
           scheduled_at: string | null
 
           page_id: string | null
+          language: string | null
+          country: string | null
 
           author_type: string
 
@@ -2328,6 +2330,8 @@ export type Database = {
           scheduled_at?: string | null
 
           page_id?: string | null
+          language?: string | null
+          country?: string | null
 
           author_type?: string
 
@@ -2350,6 +2354,8 @@ export type Database = {
           scheduled_at?: string | null
 
           page_id?: string | null
+          language?: string | null
+          country?: string | null
 
           author_type?: string
 

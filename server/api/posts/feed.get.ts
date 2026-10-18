@@ -1,7 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { actingPageId } from '~/server/utils/actor'
-import { DEFAULT_RANKING, rankPosts } from '~/server/utils/feed-ranker'
+import { DEFAULT_RANKING, rankPosts, viewerLocale } from '~/server/utils/feed-ranker'
 import { loadConfig } from '~/server/utils/platform-config'
 import type { FeedRankingWeights, FeedTab, RankedPost } from '~/server/utils/feed-ranker'
 import type { Database } from '~/types/database.types'
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
   const tab: FeedTab = requestedTab === 'following' || requestedTab === 'trending' ? requestedTab : 'for-you'
 
   const weights = await loadConfig<FeedRankingWeights>(supabase, 'feed_ranking', DEFAULT_RANKING)
-  const posts = await rankPosts(supabase, user.id, limit, (page - 1) * limit, weights, tab, actingPageId(event))
+  const posts = await rankPosts(supabase, user.id, limit, (page - 1) * limit, weights, tab, actingPageId(event), viewerLocale(event))
 
   return {
     success: true,

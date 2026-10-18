@@ -12,6 +12,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { notifyMentions } from '~/server/utils/mention-notify'
 import { resolveActor } from '~/server/utils/actor'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { viewerLocale } from '~/server/utils/feed-ranker'
 import { assertAllowed } from '~/server/utils/staff'
 
 interface CreatePostRequest {
@@ -134,6 +135,12 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
     // Page posts are written with the service role after the RBAC check above;
     // the posts_set_author trigger derives author_type/author_id from page_id.
     const writer = pageId ? getServiceClient() : supabase
+    const locale = viewerLocale(event)
+    let postCountry = locale.country
+    if (!postCountry) {
+      const { data: author } = await getServiceClient().from('user').select('phone_country').eq('user_id', userId).maybeSingle()
+      postCountry = author?.phone_country && /^[A-Z]{2}$/.test(author.phone_country) ? author.phone_country : null
+    }
     const { data: post, error: postError } = await writer
       .from('posts')
       .insert({
@@ -142,6 +149,8 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
         content: body.content?.trim() ?? '',
         privacy,
         hashtags: body.tags || [],
+        language: locale.language,
+        country: postCountry,
         media_urls: (body.media || []).map(item => item.url).filter(Boolean),
         scheduled_at: scheduledAt,
         is_draft: body.saveAsDraft || false,

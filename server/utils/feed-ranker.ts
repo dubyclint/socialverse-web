@@ -1,4 +1,7 @@
 import type { AdView } from '~/utils/ad-options'
+import { getHeader } from 'h3'
+import type { H3Event } from 'h3'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 import { isSensitiveText } from '~/server/utils/ads'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
@@ -18,6 +21,8 @@ export interface FeedRankingWeights {
   gravity: number
   candidate_pool: number
   seen_penalty: number
+  language_boost?: number
+  region_boost?: number
 }
 
 export interface AdServingConfig {
@@ -114,6 +119,33 @@ export type FeedTab = 'for-you' | 'following' | 'trending'
  * is connected to: authors they follow, hashtags matching their interests, and
  * authors they have recently interacted with.
  */
+export interface ViewerLocale {
+  language: string | null
+  country: string | null
+}
+
+/** Primary language from Accept-Language and country from the edge geo header. */
+export const viewerLocale = (event: H3Event): ViewerLocale => {
+  const lang = (getHeader(event, 'accept-language') ?? '').split(',')[0]?.trim().slice(0, 2).toLowerCase() ?? ''
+  const geo = (getHeader(event, 'cf-ipcountry') ?? getHeader(event, 'x-vercel-ip-country') ?? '').toUpperCase()
+  return {
+    language: /^[a-z]{2}$/.test(lang) ? lang : null,
+    country: /^[A-Z]{2}$/.test(geo) && geo !== 'XX' ? geo : null
+  }
+}
+
+/** Reorders a ranked list so the same author never appears twice in a row when an alternative exists. */
+const diversify = <T extends { author: FeedAuthor | null }>(posts: T[]): T[] => {
+  const pending = [...posts]
+  const out: T[] = []
+  while (pending.length) {
+    const last = out[out.length - 1]?.author?.id
+    const index = pending.findIndex(post => !last || post.author?.id !== last)
+    out.push(pending.splice(index === -1 ? 0 : index, 1)[0]!)
+  }
+  return out
+}
+
 export const rankPosts = async (
   client: Client,
   userId: string,
@@ -121,8 +153,15 @@ export const rankPosts = async (
   offset: number,
   weights: FeedRankingWeights,
   tab: FeedTab = 'for-you',
-  likerPageId: string | null = null
+  likerPageId: string | null = null,
+  locale: ViewerLocale = { language: null, country: null }
 ): Promise<RankedPost[]> => {
+  let viewerCountry = locale.country
+  if (!viewerCountry) {
+    const { data: me } = await getServiceClient().from('user').select('phone_country').eq('user_id', userId).maybeSingle()
+    viewerCountry = me?.phone_country && /^[A-Z]{2}$/.test(me.phone_country) ? me.phone_country : null
+  }
+
   const [{ data: following }, { data: interestLinks }, { data: interactions }] = await Promise.all([
     client.from('follows').select('following_id').eq('follower_id', userId),
     client.from('user_interests').select('interest_id').eq('user_id', userId),
@@ -256,6 +295,11 @@ export const rankPosts = async (
       reason = 'following'
     }
 
+    if (tab !== 'trending') {
+      if (locale.language && row.language === locale.language) score *= weights.language_boost ?? 1.5
+      if (viewerCountry && row.country === viewerCountry) score *= weights.region_boost ?? 1.25
+    }
+
     const seen = seenPostIds.has(row.id)
     if (seen && tab !== 'trending') score *= weights.seen_penalty
 
@@ -299,7 +343,8 @@ export const rankPosts = async (
     }
   })
 
-  const page = scored.sort((a, b) => b.score - a.score).slice(offset, offset + limit)
+  const sorted = scored.sort((a, b) => b.score - a.score)
+  const page = (tab === 'trending' ? sorted : diversify(sorted)).slice(offset, offset + limit)
 
   // Reposts carry the original post inline so the card can render it.
   const repostRefs = new Map<string, string>()

@@ -327,6 +327,7 @@
           <div v-else-if="feedItems.length > 0" class="posts-list">
             <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
               <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
+              <PalSuggestionsRail v-if="index === 3" />
               <div v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)">
                 <PostsPostCard
                   :post="post"
@@ -412,6 +413,7 @@ import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
 import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
+import PalSuggestionsRail from '~/components/feed/pal-suggestions-rail.vue';
 import { useStaff } from '~/composables/useStaff';
 
 const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();

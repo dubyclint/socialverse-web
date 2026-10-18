@@ -13,6 +13,8 @@ export interface CandidatePost {
   created_at: string
   title: string | null
   page_id: string | null
+  language: string | null
+  country: string | null
 }
 
 export interface CandidateAuthor {
@@ -28,7 +30,7 @@ const CANDIDATE_TTL_SECONDS = 60
 const AUTHOR_TTL_SECONDS = 300
 
 export const CANDIDATE_COLUMNS =
-  'id, user_id, content, media_urls, hashtags, likes_count, comments_count, shares_count, created_at, title, page_id'
+  'id, user_id, content, media_urls, hashtags, likes_count, comments_count, shares_count, created_at, title, page_id, language, country'
 
 /**
  * Public posts only — the pool is shared between viewers, so anything with
