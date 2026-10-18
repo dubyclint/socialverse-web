@@ -21,6 +21,8 @@
               :src="profile.avatar_url || '/default-avatar.svg'"
               :alt="displayName"
               class="avatar"
+              title="View photo"
+              @click="photoSrc = profile.avatar_url || null"
               @error="onAvatarError"
             />
             <span v-if="profile.is_online" class="online-dot" title="Online" />
@@ -136,6 +138,7 @@
       :kind="listKind"
       @close="listKind = null"
     />
+    <MediaLightbox :src="photoSrc" :alt="displayName" @close="photoSrc = null" />
   </div>
 </template>
 
@@ -145,6 +148,7 @@ import { useRoute, useRouter } from 'vue-router'
 import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
+import MediaLightbox from '~/components/chat/media-lightbox.vue'
 import { useStaff } from '~/composables/useStaff'
 import VerificationRequestCard from '~/components/verification-request-card.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
@@ -201,6 +205,7 @@ const error = ref('')
 const profile = ref<PublicProfile | null>(null)
 const listKind = ref<'followers' | 'following' | 'pals' | null>(null)
 const listNotice = ref('')
+const photoSrc = ref<string | null>(null)
 
 const isSelf = computed(() => Boolean(profile.value?.relationship.is_self))
 const { isStaff, load: loadStaffInfo } = useStaff()
@@ -365,7 +370,7 @@ watch(() => route.params.id, load, { immediate: true })
 .spinner { width: 34px; height: 34px; border: 3px solid #334155; border-top-color: #3b82f6; border-radius: 999px; margin: 0 auto 10px; animation: spin 1s linear infinite; }
 .profile-header { display: grid; grid-template-columns: 110px 1fr; gap: 18px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; color: #e2e8f0; }
 .avatar-wrap { position: relative; width: 110px; height: 110px; }
-.avatar { width: 110px; height: 110px; border-radius: 999px; object-fit: cover; border: 2px solid #3b82f6; }
+.avatar { width: 110px; height: 110px; border-radius: 999px; object-fit: cover; border: 2px solid #3b82f6; cursor: zoom-in; }
 .online-dot { position: absolute; right: 8px; bottom: 8px; width: 16px; height: 16px; border-radius: 999px; background: #22c55e; border: 3px solid #1e293b; }
 .presence { margin-top: 4px; color: #94a3b8; font-size: 0.8rem; }
 .presence.online { color: #4ade80; }

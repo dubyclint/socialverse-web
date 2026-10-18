@@ -7,7 +7,10 @@
     </p>
 
     <header class="post-header">
-      <img :src="avatar" :alt="authorName" class="post-avatar" @click="openAuthor" />
+      <span class="post-avatar-wrap">
+        <img :src="avatar" :alt="authorName" class="post-avatar" @click="openAuthor" />
+        <PresenceDot v-if="post.author?.type !== 'PAGE'" :user-id="post.author?.id" :size="11" />
+      </span>
       <div class="post-identity">
         <span class="author-row">
           <NuxtLink :to="authorLink" class="post-author">
@@ -140,6 +143,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import PresenceDot from '~/components/presence-dot.vue'
 import type { FeedPost, PostLiker } from '~/composables/useSocialFeed'
 import { useEngagementSync } from '~/composables/use-engagement-sync'
 
@@ -380,6 +384,7 @@ const formatTimeAgo = (value: string) => {
   padding: 0.6rem 0.85rem;
 }
 
+.post-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
 .post-avatar {
   width: 40px;
   height: 40px;

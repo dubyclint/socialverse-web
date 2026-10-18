@@ -16,6 +16,7 @@
             :src="chat.avatar || '/default-avatar.svg'" 
             :alt="chat.name"
           />
+          <PresenceDot v-if="chat.type === 'direct'" :user-id="chat.userId" :size="10" />
           <div v-else class="group-avatar">
             <icon name="users" />
           </div>
@@ -298,6 +299,7 @@
             target="_blank"
             rel="noopener"
             class="shared-media-item"
+            @click="item.messageType === 'image' && ($event.preventDefault(), headerPhoto = item.url)"
           >
             <img v-if="item.messageType === 'image'" :src="item.url" alt="" />
             <video v-else-if="item.messageType === 'video'" :src="item.url" />
@@ -344,6 +346,7 @@ const wallpaperStyle = computed(() => chatWallpaperStyle(userSettings.value.gene
 onMounted(() => { void loadUserSettings() })
 import ChatGiftSheet from './chat-gift-sheet.vue'
 import MediaLightbox from './media-lightbox.vue'
+import PresenceDot from '~/components/presence-dot.vue'
 
 // Props
 const props = defineProps({

@@ -23,10 +23,7 @@
       </div>
       
       <!-- Online indicator for direct chats -->
-      <div 
-        v-if="chat.type === 'direct' && chat.isOnline" 
-        class="online-indicator"
-      ></div>
+      <PresenceDot v-if="chat.type === 'direct'" :user-id="chat.userId" :size="12" />
       
       <!-- Status indicator (blue dot) -->
       <div 
@@ -107,6 +104,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import PresenceDot from '~/components/presence-dot.vue'
 import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow } from 'date-fns'
 import Icon from '@/components/ui/icon.vue'

@@ -12,6 +12,7 @@
       @dblclick.prevent="openLightbox(message.senderAvatar || '/default-avatar.svg')"
     >
       <img :src="message.senderAvatar || '/default-avatar.svg'" :alt="message.senderName" />
+      <PresenceDot :user-id="message.senderId" :size="9" />
     </NuxtLink>
 
     <!-- Message Content -->
@@ -26,7 +27,7 @@
       <div v-if="attachments.length" class="message-attachments">
         <template v-for="url in attachments" :key="url">
           <img
-            v-if="message.messageType === 'image'"
+            v-if="kindOf(url) === 'image'"
             :src="url"
             alt=""
             class="attachment-image"
@@ -34,14 +35,14 @@
             @click.stop="openLightbox(url)"
           />
           <video
-            v-else-if="message.messageType === 'video'"
+            v-else-if="kindOf(url) === 'video'"
             :src="url"
             controls
             playsinline
             class="attachment-video"
           ></video>
           <audio
-            v-else-if="message.messageType === 'audio'"
+            v-else-if="kindOf(url) === 'audio'"
             :src="url"
             controls
             class="attachment-audio"
@@ -260,6 +261,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import MediaLightbox from './media-lightbox.vue'
+import PresenceDot from '~/components/presence-dot.vue'
 
 interface Message {
   id?: string
@@ -369,6 +371,17 @@ const senderStyle = computed(() => {
 })
 
 const attachments = computed(() => props.message.attachments ?? [])
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif|heic|heif|bmp|svg)(\?|#|$)/i
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v|3gp|mkv)(\?|#|$)/i
+const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|weba)(\?|#|$)/i
+/** Attachments are rendered by their own file type, so a photo sent as a "file" still opens full screen. */
+const kindOf = (url: string): 'image' | 'video' | 'audio' | 'file' => {
+  if (IMAGE_EXT.test(url)) return 'image'
+  if (VIDEO_EXT.test(url)) return 'video'
+  if (AUDIO_EXT.test(url)) return 'audio'
+  const type = props.message.messageType
+  return type === 'image' || type === 'video' || type === 'audio' ? type : 'file'
+}
 const isDeleted = computed(() => Boolean(props.message.deleted ?? props.message.isDeleted))
 const quotedText = computed(() => {
   const quoted = props.message.replyTo
@@ -561,6 +574,7 @@ const handleContextMenu = (event: MouseEvent) => {
 }
 
 .message-avatar {
+  position: relative;
   flex-shrink: 0;
 }
 
