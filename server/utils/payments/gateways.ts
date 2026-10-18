@@ -1,6 +1,7 @@
 import { createError } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { runtimeSecret } from '~/server/utils/runtime-secret'
+import { bachsApiKey, bachsRequest, type BachsCheckout } from './bachs'
 import type { CheckoutRequest, CheckoutResult, PaymentGateway, PaymentProviderRow } from './types'
 
 const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'VND'])
@@ -147,6 +148,26 @@ const nowpayments: PaymentGateway = {
   }
 }
 
+const bachs: PaymentGateway = {
+  code: 'bachs',
+  async createCheckout(_provider: PaymentProviderRow, request: CheckoutRequest): Promise<CheckoutResult> {
+    const checkout = await bachsRequest<BachsCheckout>('/v1/checkout-sessions', {
+      method: 'POST',
+      body: {
+        pricing: { currency: request.currency, amount: request.amount.toFixed(2) },
+        ...(request.email ? { customer: { email: request.email } } : {}),
+        success_url: request.callbackUrl,
+        cancel_url: request.callbackUrl,
+        metadata: { deposit_id: request.depositId, user_id: request.userId }
+      }
+    })
+    if (!checkout.checkout_url) {
+      throw createError({ statusCode: 502, statusMessage: 'Bachs did not return a checkout page' })
+    }
+    return { checkoutUrl: checkout.checkout_url, instructions: null, externalRef: checkout.checkout_id }
+  }
+}
+
 /** Manual routes (P2P, support agent, bank transfer) have no hosted checkout. */
 const manual: PaymentGateway = {
   code: 'manual',
@@ -163,7 +184,23 @@ const manual: PaymentGateway = {
 const gateways: Record<string, PaymentGateway> = {
   paystack,
   flutterwave,
-  nowpayments
+  nowpayments,
+  bachs
+}
+
+/** Whether a provider can actually take a payment with the secrets present at runtime. */
+export function isGatewayConfigured(provider: PaymentProviderRow): boolean {
+  const config = useRuntimeConfig()
+  const extra = provider.config as { payment_links?: string[], bank_slots?: unknown[] }
+  switch (provider.code) {
+    case 'paystack': return Boolean(runtimeSecret(config.paystackSecretKey, 'PAYSTACK_SECRET_KEY'))
+    case 'flutterwave':
+      return Boolean(runtimeSecret(config.flutterwaveSecretKey, 'FLUTTERWAVE_SECRET_KEY'))
+        || Boolean(extra.payment_links?.length) || Boolean(extra.bank_slots?.length)
+    case 'nowpayments': return Boolean(runtimeSecret(config.nowpaymentsApiKey, 'NOWPAYMENTS_API_KEY', 'NOWPAYMENT_API_KEY', 'NOWPAYMENTS_KEY'))
+    case 'bachs': return Boolean(bachsApiKey())
+    default: return true
+  }
 }
 
 export function resolveGateway(code: string): PaymentGateway {

@@ -2,6 +2,7 @@ import { createError, defineEventHandler, getQuery } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 import { DEFAULT_DEPOSIT_SETTINGS } from '~/server/utils/payments/settings'
 import { resolveLimits } from '~/server/utils/payments/fees'
+import { isGatewayConfigured } from '~/server/utils/payments/gateways'
 import type { DepositSettings, PaymentProviderRow } from '~/server/utils/payments/types'
 import type { Database } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
     ...(config?.config_values as Partial<DepositSettings> | null)
   }
 
-  const rows = (providers ?? []) as unknown as PaymentProviderRow[]
+  const rows = ((providers ?? []) as unknown as PaymentProviderRow[]).filter(isGatewayConfigured)
   const available = isNative ? rows.filter(row => !row.web_only) : rows
 
   return {

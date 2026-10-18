@@ -98,6 +98,8 @@ export default defineNuxtConfig({
     flutterwaveSecretKey: process.env.FLUTTERWAVE_SECRET_KEY,
     flutterwaveWebhookHash: process.env.FLUTTERWAVE_WEBHOOK_HASH,
     nowpaymentsApiKey: process.env.NOWPAYMENTS_API_KEY,
+    bachsApiKey: process.env.BACHS_API_KEY,
+    bachsWebhookSecret: process.env.BACHS_WEBHOOK_SECRET,
     nowpaymentsIpnSecret: process.env.NOWPAYMENTS_IPN_SECRET,
     upstashRedisRestUrl: process.env.UPSTASH_REDIS_REST_URL,
     upstashRedisRestToken: process.env.UPSTASH_REDIS_REST_TOKEN,
