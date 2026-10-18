@@ -31,11 +31,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     console.error('[Route Guard] Failed to resolve user role profile:', e)
   }
 
-  if (to.path.startsWith('/admin') && userRole !== 'admin') {
+  if (to.path.startsWith('/admin') && userRole !== 'admin' && userRole !== 'manager') {
     console.warn(`[Route Guard] ✗ Non-admin blocked from: ${to.path}`)
     return abortNavigation(createError({
       statusCode: 403,
-      statusMessage: 'Admin access required',
+      statusMessage: 'Admin or manager access required',
     }))
   }
 

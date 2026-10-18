@@ -18,7 +18,7 @@ export default defineNuxtRouteMiddleware(async () => {
     .single()
 
   const role = (profile as { role?: string | null } | null)?.role
-  if (role !== 'admin') {
+  if (role !== 'admin' && role !== 'manager') {
     return navigateTo('/')
   }
 })

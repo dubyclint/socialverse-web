@@ -1,5 +1,5 @@
-import { createError, type H3Event } from 'h3'
-import { requireUser } from '~/server/utils/auth'
+import type { H3Event } from 'h3'
+import { requireStaff } from '~/server/utils/staff'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 
 export interface FeeSettings {
@@ -40,12 +40,8 @@ export const payoutUsd = (pew: number, fees: FeeSettings) =>
   Number((pew * (1 - (fees.withdrawal_fee_pct + fees.withdrawal_tax_pct) / 100) * fees.pew_usd_rate).toFixed(2))
 
 export const requireWalletAdmin = async (event: H3Event) => {
-  const user = await requireUser(event)
-  const { data } = await getServiceClient().from('user').select('role').eq('user_id', user.id).maybeSingle()
-  if (!data || !['admin', 'manager'].includes(String(data.role))) {
-    throw createError({ statusCode: 403, statusMessage: 'Admin access required' })
-  }
-  return user
+  const staff = await requireStaff(event, 'fees')
+  return { id: staff.id }
 }
 
 export type TxState = 'successful' | 'pending' | 'processing' | 'failed'

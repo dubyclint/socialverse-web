@@ -1,38 +1,23 @@
 // FILE: /server/utils/send-notification.ts
-// ============================================================================
-// SEND NOTIFICATION UTILITY - Updated to use H3 context
-// ============================================================================
-
 import type { H3Event } from 'h3'
-import { getDBAdmin } from './db-helpers'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
+/** Insert a system notification for `userId`; failures are logged, never thrown. */
 export async function sendNotification(
-  event: H3Event,
-  userId: string, 
-  type: 'filter' | 'rematch' | 'group' | 'match' | 'system', 
-  message: string
+  _event: H3Event | null,
+  userId: string,
+  _type: 'filter' | 'rematch' | 'group' | 'match' | 'system',
+  message: string,
+  notifierId: string | null = null,
+  sourceId: string | null = null
 ): Promise<void> {
-  try {
-    const supabase = await getDBAdmin(event)
-    
-    const { error } = await supabase
-      .from('notifications')
-      .insert({
-        user_id: userId,
-        type,
-        message,
-        timestamp: new Date().toISOString(),
-        read: false
-      })
-      
-    if (error) {
-      console.error('Failed to send notification:', error.message)
-      throw error
-    }
-
-    console.log(`[Notification] Sent to user ${userId}`)
-  } catch (error) {
-    console.error('[Notification] Error:', error)
-    throw error
-  }
+  const { error } = await getServiceClient().from('notifications').insert({
+    recipient_id: userId,
+    notifier_id: notifierId,
+    event_type: 'SYSTEM_ALERT',
+    source_id: sourceId,
+    message_text: message,
+    is_read: false
+  } as never)
+  if (error) console.error('[Notification] insert failed:', error.message)
 }
