@@ -2,9 +2,11 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { readBody, createError } from 'h3'
+import { assertAllowed } from '~/server/utils/staff'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'wallet')
   const body = await readBody(event) // { counterpartId, amount, type }
   
   const client = await serverSupabaseClient(event)

@@ -1,11 +1,11 @@
 import { serverSupabaseClient } from '#supabase/server'
-import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import type { Database } from '~/types/database.types'
 
 type SlotRow = Database['public']['Tables']['external_ad_slots']['Row']
 
 export default defineEventHandler(async (event): Promise<{ success: boolean, data: SlotRow[] }> => {
-  await requireAdmin(event)
+  await requireStaff(event, 'ads')
   const supabase = await serverSupabaseClient<Database>(event)
 
   const { data, error } = await supabase

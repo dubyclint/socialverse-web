@@ -1,11 +1,11 @@
 import { createError, defineEventHandler } from 'h3'
-import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { DEFAULT_DEPOSIT_SETTINGS } from '~/server/utils/payments/settings'
 import type { DepositSettings } from '~/server/utils/payments/types'
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  await requireStaff(event, 'payments')
   const service = getServiceClient()
 
   const [{ data: providers, error }, { data: config }] = await Promise.all([

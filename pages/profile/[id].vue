@@ -29,7 +29,7 @@
             <div class="name-row">
               <h1>
                 {{ displayName }}
-                <Icon v-if="profile.is_verified" name="check-circle" size="18" class="verified" />
+                <VerifiedBadge v-if="profile.is_verified" :type="profile.verified_type" :size="20" />
               </h1>
               <SocialFollowButton
                 v-if="!isSelf"
@@ -110,6 +110,7 @@
           </div>
         </section>
 
+        <VerificationRequestCard v-if="isSelf" />
         <PlacementAd v-if="!isSelf" placement="profile" :context-text="profile.bio" />
 
         <section v-if="!profile.locked" class="posts-section">
@@ -140,6 +141,8 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
+import VerificationRequestCard from '~/components/verification-request-card.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { PROFILE_FIELD_LABELS, isFieldPublic, type PrivateProfileField } from '~/shared/profile-fields'
 
@@ -172,6 +175,7 @@ interface PublicProfile {
   show_online: boolean
   last_seen: string | null
   is_verified: boolean | null
+  verified_type: string | null
   posts_count: number | null
   followers_count: number
   following_count: number

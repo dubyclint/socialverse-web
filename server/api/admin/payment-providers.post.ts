@@ -1,5 +1,5 @@
 import { createError, defineEventHandler, readBody } from 'h3'
-import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import type { Database, Json } from '~/types/database.types'
 
@@ -34,7 +34,7 @@ const MAX_BANK_SLOTS = 6
 const MAX_PAYMENT_LINKS = 2
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  await requireStaff(event, 'payments')
   const body = await readBody<ProviderPayload>(event)
 
   if (!body?.code) throw createError({ statusCode: 400, statusMessage: 'code is required' })

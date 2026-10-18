@@ -7,6 +7,7 @@ import { DEFAULT_DEPOSIT_SETTINGS } from '~/server/utils/payments/settings'
 import type { DepositSettings, PaymentProviderRow } from '~/server/utils/payments/types'
 import type { Database, Json } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
+import { assertAllowed } from '~/server/utils/staff'
 
 type DepositRoute = Database['public']['Enums']['deposit_route']
 
@@ -24,6 +25,7 @@ interface DepositIntentBody {
  */
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
+  await assertAllowed(user.id, 'wallet')
   const body = await readBody<DepositIntentBody>(event)
   const amount = Number(body?.amount)
 

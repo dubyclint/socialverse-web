@@ -50,3 +50,8 @@ alter table public.announcements enable row level security;
 drop policy if exists announcements_public_read on public.announcements;
 create policy announcements_public_read on public.announcements
   for select using (active and starts_at <= now() and (ends_at is null or ends_at > now()));
+
+-- Private bucket for verification evidence (IDs, registration certificates).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('verification', 'verification', false, 10485760, array['image/jpeg','image/png','image/webp','application/pdf'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;

@@ -1,9 +1,11 @@
 // /server/api/posts/[id]/pewgift.post.ts
 import { serverSupabaseClient } from '#supabase/server'
 import { requireUser } from '~/server/utils/auth'
+import { assertAllowed } from '~/server/utils/staff'
 
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
+  await assertAllowed(user.id, 'gift')
   const postId = getRouterParam(event, 'id')
   const { amount } = await readBody(event)
   const client = await serverSupabaseClient(event)

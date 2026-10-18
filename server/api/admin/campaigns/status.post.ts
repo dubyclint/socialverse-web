@@ -1,5 +1,5 @@
 import { getServiceClient } from '~/server/utils/supabase-admin'
-import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import type { Database } from '~/types/database.types'
 
 type CampaignStatus = Database['public']['Enums']['ad_campaign_lifecycle_status']
@@ -12,7 +12,7 @@ interface Body {
 const STATUSES: CampaignStatus[] = ['ACTIVE', 'PAUSED', 'COMPLETED']
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  await requireStaff(event, 'ads')
   const body = await readBody<Body>(event)
 
   if (!body.campaignId) throw createError({ statusCode: 400, statusMessage: 'campaignId is required' })

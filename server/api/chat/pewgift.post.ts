@@ -2,9 +2,11 @@ import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { mapGiftError } from '~/server/utils/pewgift-errors'
 import type { Database } from '~/types/database.types'
+import { assertAllowed } from '~/server/utils/staff'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'gift')
   const body = await readBody<{
     recipientId?: string
     giftId?: string

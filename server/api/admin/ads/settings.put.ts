@@ -1,4 +1,4 @@
-import { requireWalletAdmin } from '~/server/utils/wallet'
+import { requireStaff } from '~/server/utils/staff'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { DEFAULT_AD_PRICING, DEFAULT_EXTERNAL_ADS, readPlatformConfig } from '~/server/utils/ads'
 import type { AdPricing, ExternalAdsConfig } from '~/server/utils/ads'
@@ -14,7 +14,7 @@ const save = async (key: string, values: object) => {
 
 /** Updates CPM pricing, feed ad density and external network IDs. */
 export default defineEventHandler(async (event) => {
-  await requireWalletAdmin(event)
+  await requireStaff(event, 'ads')
   const body = await readBody<{ pricing?: Partial<AdPricing>, external?: Partial<ExternalAdsConfig>, serving?: { enabled?: boolean, every_n_items?: number, first_slot?: number, external_fallback?: boolean } }>(event)
 
   if (body.pricing) {

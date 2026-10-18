@@ -62,6 +62,24 @@
               {{ role }}
             </button>
           </div>
+          <div v-if="user.role === 'manager'" class="w-full flex flex-wrap gap-2 pl-[52px]">
+            <span class="text-slate-400 text-xs w-full">Manager can use:</span>
+            <label
+              v-for="perm in STAFF_PERMISSIONS"
+              :key="perm.key"
+              :title="perm.description"
+              :class="['px-2.5 py-1 rounded-full text-xs cursor-pointer border', (managerPerms[user.id] ?? []).includes(perm.key) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300']"
+            >
+              <input
+                type="checkbox"
+                class="hidden"
+                :checked="(managerPerms[user.id] ?? []).includes(perm.key)"
+                :disabled="savingId === user.id"
+                @change="togglePermission(user, perm.key)"
+              />
+              {{ perm.label }}
+            </label>
+          </div>
         </div>
       </div>
 
@@ -76,6 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { api } from '~/services/http'
+import { STAFF_PERMISSIONS } from '~/utils/staff-permissions'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'route-guard'],
@@ -113,6 +132,7 @@ const roleFilter = ref('')
 const loading = ref(false)
 const savingId = ref<string | null>(null)
 const error = ref('')
+const managerPerms = ref<Record<string, string[]>>({})
 
 const errorMessage = (err: unknown, fallback: string): string => {
   const data = (err as { data?: { statusMessage?: string; message?: string } })?.data
@@ -128,6 +148,8 @@ const load = async () => {
     })
     users.value = res.users
     total.value = res.total
+    const perms = await $fetch<{ managers: { user_id: string, manager_permissions: string[] | null }[] }>('/api/admin/roles/permissions')
+    managerPerms.value = Object.fromEntries(perms.managers.map(m => [m.user_id, m.manager_permissions ?? []]))
   } catch (err: unknown) {
     error.value = errorMessage(err, 'Failed to load users')
   } finally {
@@ -163,8 +185,24 @@ const changeRole = async (user: AdminUser, role: Role) => {
   try {
     await api('/admin/roles', { method: 'POST', body: { userId: user.id, role } })
     user.role = role
+    if (role === 'manager' && !managerPerms.value[user.id]) managerPerms.value = { ...managerPerms.value, [user.id]: [] }
   } catch (err: unknown) {
     error.value = errorMessage(err, 'Failed to change role')
+  } finally {
+    savingId.value = null
+  }
+}
+
+const togglePermission = async (user: AdminUser, key: string) => {
+  const current = managerPerms.value[user.id] ?? []
+  const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key]
+  savingId.value = user.id
+  error.value = ''
+  try {
+    const res = await $fetch<{ permissions: string[] }>('/api/admin/roles/permissions', { method: 'POST', body: { userId: user.id, permissions: next } })
+    managerPerms.value = { ...managerPerms.value, [user.id]: res.permissions }
+  } catch (err: unknown) {
+    error.value = errorMessage(err, 'Failed to update permissions')
   } finally {
     savingId.value = null
   }

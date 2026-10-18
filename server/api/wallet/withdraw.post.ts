@@ -1,6 +1,7 @@
 import { createError, readBody } from 'h3'
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { assertAllowed } from '~/server/utils/staff'
 
 interface WithdrawBody {
   amount: number
@@ -16,6 +17,7 @@ const REQUIRED: Record<WithdrawBody['method'], string[]> = {
 /** Moves earned PEW out of the wallet into a pending request for admin review. */
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
+  await assertAllowed(user.id, 'wallet')
   const body = await readBody<WithdrawBody>(event)
   const amount = Number(body?.amount)
   const method = body?.method

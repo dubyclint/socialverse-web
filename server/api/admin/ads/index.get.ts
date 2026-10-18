@@ -1,11 +1,11 @@
-import { requireWalletAdmin } from '~/server/utils/wallet'
+import { requireStaff } from '~/server/utils/staff'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { AD_COLUMNS, DEFAULT_AD_PRICING, DEFAULT_EXTERNAL_ADS, readPlatformConfig, toAdViews } from '~/server/utils/ads'
 import type { AdPricing, AdRow, ExternalAdsConfig } from '~/server/utils/ads'
 
 /** Admin/manager ads console: review queue, all campaigns, pricing and networks. */
 export default defineEventHandler(async (event) => {
-  await requireWalletAdmin(event)
+  await requireStaff(event, 'ads')
   const status = String(getQuery(event).status ?? 'PENDING_REVIEW')
   let query = getServiceClient().from('ads_campaigns').select(AD_COLUMNS).is('deleted_at', null).order('created_at', { ascending: false }).limit(200)
   if (status !== 'ALL') query = query.eq('status', status as never)

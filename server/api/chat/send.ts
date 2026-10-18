@@ -1,10 +1,12 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
+import { assertAllowed } from '~/server/utils/staff'
 
 /** Direct message send: resolves (or opens) the 1:1 room, then appends the message. */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'chat')
   const { recipientId, message } = await readBody<{ recipientId?: string, message?: string }>(event)
 
   if (!recipientId || !message?.trim()) {

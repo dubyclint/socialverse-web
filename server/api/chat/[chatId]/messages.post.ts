@@ -3,10 +3,12 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { requireUuid, sanitizeText } from '~/server/utils/input'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
+import { assertAllowed } from '~/server/utils/staff'
 
 /** Post into an existing room the caller belongs to (used by trade chat). */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'chat')
   const chatId = getRouterParam(event, 'chatId')
   const { message } = await readBody<{ message?: string }>(event)
 

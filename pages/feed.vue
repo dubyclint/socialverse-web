@@ -203,6 +203,15 @@
               <Icon name="headphones" class="item-icon" size="16" />
               <span class="item-label">Agent support</span>
             </NuxtLink>
+            <NuxtLink v-if="isStaff" to="/admin" class="sidebar-item staff-item" @click="toggleSidebar">
+              <Icon name="shield" class="item-icon" size="18" />
+              <span class="item-label">Control dashboard</span>
+              <span class="badge staff-role">{{ staff?.role === 'admin' ? 'Admin' : 'Manager' }}</span>
+            </NuxtLink>
+            <NuxtLink v-if="canStaff('announcements')" to="/admin/announcements" class="sidebar-item sub" @click="toggleSidebar">
+              <Icon name="megaphone" class="item-icon" size="16" />
+              <span class="item-label">Global announcement</span>
+            </NuxtLink>
             <NuxtLink to="/settings" class="sidebar-item" @click="toggleSidebar">
               <Icon name="settings" class="item-icon" size="18" />
               <span class="item-label">Settings</span>
@@ -403,6 +412,10 @@ import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
 import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
+import { useStaff } from '~/composables/useStaff';
+
+const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();
+onMounted(() => { loadStaff(); });
 
 // Top Navigation Configuration with updated Lucide icon mappings
 const topNavItems = [
@@ -746,6 +759,8 @@ onMounted(async () => {
   color: #60a5fa;
 }
 
+.staff-item { color: var(--color-primary, #7c3aed); font-weight: 600; }
+.badge.staff-role { background: #7c3aed; color: #fff; }
 .sidebar-item.sub {
   padding-left: 1rem;
   font-size: 0.825rem;

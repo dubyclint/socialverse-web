@@ -4,6 +4,7 @@ import type { Database } from '~/types/database.types'
 import type { PostCommentView } from './comments.get'
 import { notifyMentions } from '~/server/utils/mention-notify'
 import { resolveActor } from '~/server/utils/actor'
+import { assertAllowed } from '~/server/utils/staff'
 
 interface AddCommentRequest {
   content: string
@@ -16,6 +17,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default defineEventHandler(async (event): Promise<{ success: boolean, data: PostCommentView, commentsCount: number }> => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'comment')
   const postId = getRouterParam(event, 'id')
   if (!postId) throw createError({ statusCode: 400, statusMessage: 'Post id is required' })
 

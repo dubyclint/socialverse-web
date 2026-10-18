@@ -1,9 +1,9 @@
 import { serverSupabaseClient } from '#supabase/server'
-import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import type { Database } from '~/types/database.types'
 
 export default defineEventHandler(async (event): Promise<{ success: boolean }> => {
-  await requireAdmin(event)
+  await requireStaff(event, 'ads')
 
   const id = String(getQuery(event).id ?? '')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id is required' })

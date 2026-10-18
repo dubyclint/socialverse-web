@@ -10,7 +10,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // Email and phone are private to their owner and never part of a public profile.
 const PUBLIC_PROFILE_COLUMNS =
-  'user_id,username,display_name,full_name,avatar_url,cover_url,bio,website,location,gender,is_verified,verified_at,phone_verified,is_private,hide_following,role,rank,rank_points,rank_level,hide_rank,posts_count,interest_tags,is_banned,created_at,updated_at,last_seen,birth_date,marital_status,university,work,religion,profile_locked,show_online,field_visibility'
+  'user_id,username,display_name,full_name,avatar_url,cover_url,bio,website,location,gender,is_verified,verified_at,verified_type,phone_verified,is_private,hide_following,role,rank,rank_points,rank_level,hide_rank,posts_count,interest_tags,is_banned,created_at,updated_at,last_seen,birth_date,marital_status,university,work,religion,profile_locked,show_online,field_visibility'
 
 /**
  * Profiles are addressed by username in the UI (/profile/:username) and by
@@ -79,6 +79,7 @@ export default defineEventHandler(async (event) => {
     bio: profile.bio,
     is_verified: profile.is_verified,
     verified_at: profile.verified_at,
+    verified_type: profile.verified_type,
     role: profile.role,
     rank: profile.hide_rank && !isSelf ? null : profile.rank,
     posts_count: profile.posts_count,

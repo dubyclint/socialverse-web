@@ -12,6 +12,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { notifyMentions } from '~/server/utils/mention-notify'
 import { resolveActor } from '~/server/utils/actor'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { assertAllowed } from '~/server/utils/staff'
 
 interface CreatePostRequest {
   content: string
@@ -53,6 +54,7 @@ export default defineEventHandler(async (event): Promise<CreatePostResponse> => 
     }
 
     const userId = session.user.id
+    await assertAllowed(userId, 'post')
     console.log('[Posts Create API] User ID:', userId)
 
     // Posting as a Page needs OWNER or MANAGER; moderators only engage.

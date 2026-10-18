@@ -1,4 +1,5 @@
-import { requireAdmin, logAdminAction } from '~/server/gateway/auth/auth-utils'
+import { logAdminAction } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import { getSupabaseAdmin } from '~/server/utils/supabase'
 
 type BalanceAction = 'add' | 'subtract' | 'set'
@@ -11,7 +12,7 @@ interface BalanceAdjustmentBody {
 }
 
 export default defineEventHandler(async (event) => {
-  const admin = await requireAdmin(event)
+  const admin = await requireStaff(event, 'compliance')
   const body = await readBody<BalanceAdjustmentBody>(event)
 
   const userId = body?.userId

@@ -5,6 +5,7 @@ import type { Database } from '~/types/database.types'
 import { getPageRole, resolveActor } from '~/server/utils/actor'
 import { pageWalletTransfer } from '~/server/utils/page-wallet'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { assertAllowed } from '~/server/utils/staff'
 
 interface SendGiftRequest {
   postId: string
@@ -16,6 +17,7 @@ interface SendGiftRequest {
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'gift')
   const body = await readBody<SendGiftRequest>(event)
 
   if (!body.postId || !body.giftTypeId) {

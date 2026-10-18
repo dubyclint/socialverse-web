@@ -13,6 +13,7 @@ import type { Duplex } from 'node:stream'
 import { defineEventHandler } from 'h3'
 import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
 import { registerCallHandlers } from './calls'
+import { assertAllowed } from '~/server/utils/staff'
 
 const EDIT_WINDOW_MS = 10 * 60 * 1000
 
@@ -226,6 +227,11 @@ export default defineNitroPlugin((nitroApp: any) => {
         const fail = (message: string) => {
           socket.emit('chat:error', { chatId, tempId, message })
           ack?.({ success: false, tempId, error: message })
+        }
+        try {
+          await assertAllowed(socket.userId, 'chat')
+        } catch (err) {
+          return fail((err as { statusMessage?: string }).statusMessage || 'Chat is restricted on your account')
         }
 
         if (!chatId || !socket.userId) return fail('Invalid message')

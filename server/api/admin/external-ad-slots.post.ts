@@ -1,5 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
-import { requireAdmin } from '~/server/gateway/auth/auth-utils'
+import { requireStaff } from '~/server/utils/staff'
 import type { Database } from '~/types/database.types'
 
 type SlotRow = Database['public']['Tables']['external_ad_slots']['Row']
@@ -18,7 +18,7 @@ interface SlotPayload {
 const PROVIDERS = ['adsense', 'meta', 'taboola', 'outbrain', 'custom']
 
 export default defineEventHandler(async (event): Promise<{ success: boolean, data: SlotRow }> => {
-  await requireAdmin(event)
+  await requireStaff(event, 'ads')
   const body = await readBody<SlotPayload>(event)
 
   const label = body.label?.trim()

@@ -1,10 +1,10 @@
-import { requireWalletAdmin } from '~/server/utils/wallet'
+import { requireStaff } from '~/server/utils/staff'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { sendNotification } from '~/server/utils/send-notification'
 
 /** Approve (runs the ad) or reject (refunds the budget) a campaign in review. */
 export default defineEventHandler(async (event) => {
-  const admin = await requireWalletAdmin(event)
+  const admin = await requireStaff(event, 'ads')
   const { campaignId, action, note } = await readBody<{ campaignId?: string, action?: 'approve' | 'reject', note?: string }>(event)
   const service = getServiceClient()
   const { data: campaign } = await service.from('ads_campaigns').select('id, title, advertiser_id, status').eq('id', campaignId ?? '').maybeSingle()

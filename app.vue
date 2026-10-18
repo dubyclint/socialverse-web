@@ -10,6 +10,7 @@
       <Sonner />
       <CallHost v-if="supabaseUser" />
       <CelebrateLayer />
+      <GlobalAnnouncement />
     </ClientOnly>
   </div>
 </template>
@@ -22,6 +23,7 @@ import { usePresence } from '~/composables/usePresence'
 import { useDiscoveryStore } from '~/stores/useDiscovery'
 import CallHost from '~/components/chat/call-host.vue'
 import CelebrateLayer from '~/components/celebrate-layer.vue'
+import GlobalAnnouncement from '~/components/global-announcement.vue'
 
 const isHydrating = ref(true)
 const supabaseUser = useSupabaseUser()

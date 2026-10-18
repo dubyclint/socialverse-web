@@ -4,6 +4,7 @@ import { mapGiftError } from '~/server/utils/pewgift-errors'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
 import { getSocketServer, chatAudience } from '~/server/utils/socket-hub'
+import { assertAllowed } from '~/server/utils/staff'
 
 interface SendGiftToChatRequest {
   chatId: string
@@ -16,6 +17,7 @@ interface SendGiftToChatRequest {
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
+  await assertAllowed(user.id, 'gift')
   await enforceRateLimit(event, 'pewgift:send', { limit: 30, windowMs: 60_000 }, user.id)
   const body = await readBody<SendGiftToChatRequest>(event)
 

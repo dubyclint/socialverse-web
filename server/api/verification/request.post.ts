@@ -9,7 +9,7 @@ interface Body {
   category?: BadgeType
   reason?: string
   links?: string[]
-  documents?: { name?: string, url?: string }[]
+  documents?: { name?: string, path?: string }[]
 }
 
 const CATEGORIES: BadgeType[] = ['personal', 'business', 'government']
@@ -28,9 +28,9 @@ export default defineEventHandler(async (event) => {
   const links = (Array.isArray(body.links) ? body.links : [])
     .map(l => String(l).trim()).filter(l => /^https:\/\/\S+$/i.test(l)).slice(0, 5)
   const documents = (Array.isArray(body.documents) ? body.documents : [])
-    .filter(d => typeof d?.url === 'string' && /^https:\/\//i.test(d.url))
+    .filter(d => typeof d?.path === 'string' && d.path.startsWith(`${user.id}/`) && !d.path.includes('..'))
     .slice(0, 5)
-    .map(d => ({ name: String(d.name ?? 'Document').slice(0, 120), url: d.url as string, type: 'file', uploadDate: new Date().toISOString() }))
+    .map(d => ({ name: String(d.name ?? 'Document').slice(0, 120), path: d.path as string, uploadDate: new Date().toISOString() }))
   if (!links.length && !documents.length) {
     throw createError({ statusCode: 400, statusMessage: 'Add at least one https link or document as proof' })
   }

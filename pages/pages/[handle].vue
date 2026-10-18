@@ -6,7 +6,7 @@
       <section class="header">
         <img :src="page.avatar_url || '/default-avatar.svg'" alt="" class="avatar" />
         <div class="info">
-          <h1>{{ page.name }}</h1>
+          <h1>{{ page.name }} <VerifiedBadge v-if="page.is_verified" :type="page.verified_type" :size="20" /></h1>
           <p class="muted">@{{ page.handle }}<span v-if="page.category"> · {{ page.category }}</span></p>
           <p class="muted">{{ page.followers_count }} followers · {{ page.posts_count }} posts</p>
           <p v-if="page.bio" class="bio">{{ page.bio }}</p>
@@ -26,6 +26,8 @@
         <label class="muted">Page photo <input type="file" accept="image/*" @change="onAvatar" /></label>
         <button type="submit" class="btn" :disabled="busy">{{ busy ? 'Saving…' : 'Save' }}</button>
       </form>
+
+      <VerificationRequestCard v-if="page.viewer_role === 'OWNER'" :page-id="page.id" />
 
       <section v-if="page.viewer_role === 'OWNER'" class="card">
         <h2>Admins</h2>
@@ -75,6 +77,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
+import VerificationRequestCard from '~/components/verification-request-card.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { useFileUpload } from '~/composables/use-file-upload'
 import { useContextStore } from '~/stores/context'
@@ -82,6 +86,7 @@ import { useContextStore } from '~/stores/context'
 interface PageView {
   id: string, name: string, handle: string, category: string | null, bio: string | null, avatar_url: string | null
   followers_count: number, posts_count: number, viewer_role: 'OWNER' | 'MANAGER' | 'MODERATOR' | null, is_following: boolean
+  is_verified?: boolean | null, verified_type?: string | null
 }
 interface Admin { user_id: string, role: string, user: { username: string } | null }
 interface PageWallet {
