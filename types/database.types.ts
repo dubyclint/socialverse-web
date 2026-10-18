@@ -19,6 +19,10 @@ export type Database = {
           avatar_url: string | null
           cover_url: string | null
           website: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          location: string | null
+          founded_year: number | null
           created_by_user_id: string
           followers_count: number
           posts_count: number
@@ -34,6 +38,10 @@ export type Database = {
           avatar_url?: string | null
           cover_url?: string | null
           website?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          location?: string | null
+          founded_year?: number | null
           created_by_user_id: string
           followers_count?: number
           posts_count?: number
@@ -49,6 +57,10 @@ export type Database = {
           avatar_url?: string | null
           cover_url?: string | null
           website?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          location?: string | null
+          founded_year?: number | null
           created_by_user_id?: string
           followers_count?: number
           posts_count?: number
@@ -610,6 +622,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           disappearing_seconds: number | null
+          page_id: string | null
+          page_visitor_id: string | null
           id: string
           is_group_chat: boolean
           last_message_at: string | null
@@ -621,6 +635,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           disappearing_seconds?: number | null
+          page_id?: string | null
+          page_visitor_id?: string | null
           id?: string
           is_group_chat?: boolean
           last_message_at?: string | null
@@ -632,6 +648,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           disappearing_seconds?: number | null
+          page_id?: string | null
+          page_visitor_id?: string | null
           id?: string
           is_group_chat?: boolean
           last_message_at?: string | null

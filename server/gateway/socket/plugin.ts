@@ -14,6 +14,7 @@ import { defineEventHandler } from 'h3'
 import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
 import { registerCallHandlers } from './calls'
 import { assertAllowed } from '~/server/utils/staff'
+import { pageRoomsById, pageSenderOverride } from '~/server/utils/page-chat'
 
 const EDIT_WINDOW_MS = 10 * 60 * 1000
 
@@ -271,7 +272,8 @@ export default defineNitroPlugin((nitroApp: any) => {
         await admin.from('chat_rooms').update({ updated_at: new Date().toISOString() }).eq('id', chatId)
         await markWatermark(chatId, socket.userId, 'last_read_at', inserted.created_at)
 
-        const sender = await senderOf(socket.userId)
+        const pageRoom = (await pageRoomsById([chatId])).get(chatId)
+        const sender = { ...(await senderOf(socket.userId)), ...pageSenderOverride(pageRoom, socket.userId) }
         let replyTo: { id: string, senderId: string, senderName?: string, content: string | null } | undefined
         if (replyToId) {
           const { data: quoted } = await admin
@@ -281,7 +283,7 @@ export default defineNitroPlugin((nitroApp: any) => {
             .eq('room_id', chatId)
             .maybeSingle()
           if (quoted) {
-            const quotedSender = await senderOf(quoted.sender_id)
+            const quotedSender = { ...(await senderOf(quoted.sender_id)), ...pageSenderOverride(pageRoom, quoted.sender_id) }
             replyTo = { id: quoted.id, senderId: quoted.sender_id, senderName: quotedSender.senderName, content: quoted.message_text }
           }
         }

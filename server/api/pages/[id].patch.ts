@@ -22,6 +22,23 @@ export default defineEventHandler(async (event) => {
   if (body.website !== undefined) update.website = cleanText(body.website, 300, 'Website')
   if (body.avatar_url !== undefined) update.avatar_url = cleanText(body.avatar_url, 1000, 'Avatar')
   if (body.cover_url !== undefined) update.cover_url = cleanText(body.cover_url, 1000, 'Cover')
+  if (body.location !== undefined) update.location = cleanText(body.location, 120, 'Location')
+  if (body.contact_phone !== undefined) update.contact_phone = cleanText(body.contact_phone, 40, 'Phone')
+  if (body.contact_email !== undefined) {
+    const email = cleanText(body.contact_email, 200, 'Email')
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw createError({ statusCode: 400, statusMessage: 'Enter a valid contact email' })
+    update.contact_email = email
+  }
+  if (body.founded_year !== undefined) {
+    const year = body.founded_year === null || body.founded_year === '' ? null : Number(body.founded_year)
+    if (year !== null && (!Number.isInteger(year) || year < 1800 || year > new Date().getFullYear())) {
+      throw createError({ statusCode: 400, statusMessage: 'Enter a valid founding year' })
+    }
+    update.founded_year = year
+  }
+  if (update.website) {
+    if (!/^https?:\/\//i.test(update.website)) update.website = `https://${update.website}`
+  }
   if (!Object.keys(update).length) return { page }
 
   update.updated_at = new Date().toISOString()

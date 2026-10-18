@@ -2,6 +2,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import type { ChatMessage } from '~/types/chat'
+import { pageRoomsById, pageSenderOverride } from '~/server/utils/page-chat'
 
 const PAGE_SIZE = 50
 
@@ -58,6 +59,7 @@ export default defineEventHandler(async (event) => {
     : { data: [] }
 
   const senderById = new Map((senders || []).map(sender => [sender.user_id, sender]))
+  const pageRoom = (await pageRoomsById([chatId])).get(chatId)
 
   const messageIds = visible.map(row => row.id)
   const { data: reactionRows } = messageIds.length
@@ -110,6 +112,7 @@ export default defineEventHandler(async (event) => {
       senderId: row.sender_id,
       senderName: sender?.display_name || sender?.username || 'unknown',
       senderAvatar: sender?.avatar_url || undefined,
+      ...pageSenderOverride(pageRoom, row.sender_id),
       content: row.deleted_at ? '' : row.message_text || '',
       attachments: row.deleted_at ? [] : row.attachment_urls ?? [],
       messageType: (giftOf(row.metadata) ? 'gift' : row.message_type || 'text') as ChatMessage['messageType'],
@@ -120,7 +123,7 @@ export default defineEventHandler(async (event) => {
             id: quoted.id,
             senderId: quoted.sender_id,
             content: quoted.deleted_at ? '' : quoted.message_text || '',
-            senderName: senderById.get(quoted.sender_id)?.display_name || senderById.get(quoted.sender_id)?.username || undefined,
+            senderName: pageSenderOverride(pageRoom, quoted.sender_id)?.senderName || senderById.get(quoted.sender_id)?.display_name || senderById.get(quoted.sender_id)?.username || undefined,
             deleted: Boolean(quoted.deleted_at)
           }
         : undefined,

@@ -3,8 +3,9 @@
     <div v-if="loading" class="muted">Loading…</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <template v-else-if="page">
+      <div v-if="page.cover_url" class="cover" :style="{ backgroundImage: `url(${page.cover_url})` }" role="img" aria-label="Cover photo" @click="photoSrc = page.cover_url" />
       <section class="header">
-        <img :src="page.avatar_url || '/default-avatar.svg'" alt="" class="avatar" />
+        <img :src="page.avatar_url || '/default-avatar.svg'" alt="" class="avatar" title="View photo" @click="photoSrc = page.avatar_url" />
         <div class="info">
           <h1>{{ page.name }} <VerifiedBadge v-if="page.is_verified" :type="page.verified_type" :size="20" /></h1>
           <p class="muted">@{{ page.handle }}<span v-if="page.category"> · {{ page.category }}</span></p>
@@ -12,10 +13,23 @@
           <p v-if="page.bio" class="bio">{{ page.bio }}</p>
           <div class="actions">
             <button v-if="!page.viewer_role" type="button" class="btn" :disabled="busy" @click="toggleFollow">{{ page.is_following ? 'Following' : 'Follow' }}</button>
+            <button v-if="!page.viewer_role" type="button" class="btn secondary" :disabled="busy" @click="messagePage">Message</button>
+            <button type="button" class="btn secondary" @click="sharePage">Share</button>
             <button v-if="page.viewer_role" type="button" class="btn" @click="actAs">{{ isActive ? 'Acting as this Page' : 'Act as this Page' }}</button>
             <span v-if="page.viewer_role" class="role">{{ page.viewer_role.toLowerCase() }}</span>
           </div>
         </div>
+      </section>
+
+      <section v-if="hasAbout" class="card about">
+        <h2>About</h2>
+        <p v-if="page.category"><Icon name="tag" size="14" /> {{ page.category }}</p>
+        <p v-if="page.location"><Icon name="map-pin" size="14" /> {{ page.location }}</p>
+        <p v-if="page.website"><Icon name="link" size="14" /> <a :href="page.website" target="_blank" rel="noopener nofollow">{{ page.website.replace(/^https?:\/\//, '') }}</a></p>
+        <p v-if="page.contact_email"><Icon name="mail" size="14" /> <a :href="`mailto:${page.contact_email}`">{{ page.contact_email }}</a></p>
+        <p v-if="page.contact_phone"><Icon name="phone" size="14" /> <a :href="`tel:${page.contact_phone}`">{{ page.contact_phone }}</a></p>
+        <p v-if="page.founded_year"><Icon name="calendar" size="14" /> Founded {{ page.founded_year }}</p>
+        <p class="muted">Created {{ new Date(page.created_at).toLocaleDateString() }}</p>
       </section>
 
       <form v-if="canEdit" class="card" @submit.prevent="save">
@@ -23,7 +37,13 @@
         <input v-model.trim="edit.name" placeholder="Name" maxlength="80" />
         <input v-model.trim="edit.category" placeholder="Category" maxlength="60" />
         <textarea v-model.trim="edit.bio" placeholder="About" maxlength="500" rows="3" />
+        <input v-model.trim="edit.website" placeholder="Website" maxlength="300" />
+        <input v-model.trim="edit.location" placeholder="Location" maxlength="120" />
+        <input v-model.trim="edit.contact_email" type="email" placeholder="Contact email" maxlength="200" />
+        <input v-model.trim="edit.contact_phone" type="tel" placeholder="Contact phone" maxlength="40" />
+        <input v-model.number="edit.founded_year" type="number" min="1800" :max="new Date().getFullYear()" placeholder="Year founded" />
         <label class="muted">Page photo <input type="file" accept="image/*" @change="onAvatar" /></label>
+        <label class="muted">Cover photo <input type="file" accept="image/*" @change="onCover" /></label>
         <button type="submit" class="btn" :disabled="busy">{{ busy ? 'Saving…' : 'Save' }}</button>
       </form>
 
@@ -70,6 +90,7 @@
         <button v-if="hasMore" type="button" class="btn small" @click="loadPosts()">Load more</button>
       </section>
     </template>
+    <MediaLightbox :src="photoSrc" :alt="page?.name" @close="photoSrc = null" />
   </div>
 </template>
 
@@ -79,6 +100,7 @@ import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import VerificationRequestCard from '~/components/verification-request-card.vue'
+import MediaLightbox from '~/components/chat/media-lightbox.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { useFileUpload } from '~/composables/use-file-upload'
 import { useContextStore } from '~/stores/context'
@@ -87,6 +109,8 @@ interface PageView {
   id: string, name: string, handle: string, category: string | null, bio: string | null, avatar_url: string | null
   followers_count: number, posts_count: number, viewer_role: 'OWNER' | 'MANAGER' | 'MODERATOR' | null, is_following: boolean
   is_verified?: boolean | null, verified_type?: string | null
+  cover_url: string | null, website: string | null, location: string | null, contact_email: string | null
+  contact_phone: string | null, founded_year: number | null, created_at: string
 }
 interface Admin { user_id: string, role: string, user: { username: string } | null }
 interface PageWallet {
@@ -106,7 +130,12 @@ const posts = ref<FeedPost[]>([])
 const postsPage = ref(1)
 const hasMore = ref(false)
 const admins = ref<Admin[]>([])
-const edit = reactive({ name: '', category: '', bio: '', avatar_url: '' as string | null })
+const edit = reactive({
+  name: '', category: '', bio: '', avatar_url: '' as string | null, cover_url: '' as string | null,
+  website: '', location: '', contact_email: '', contact_phone: '', founded_year: null as number | null
+})
+const photoSrc = ref<string | null>(null)
+const hasAbout = computed(() => Boolean(page.value && (page.value.category || page.value.location || page.value.website || page.value.contact_email || page.value.contact_phone || page.value.founded_year)))
 const newAdmin = reactive({ username: '', role: 'MANAGER' })
 const wallet = ref<PageWallet | null>(null)
 const walletAmount = ref<number | null>(null)
@@ -153,7 +182,12 @@ const load = async () => {
   error.value = ''
   try {
     page.value = await $fetch<PageView>(`/api/pages/${encodeURIComponent(String(route.params.handle))}`)
-    Object.assign(edit, { name: page.value.name, category: page.value.category ?? '', bio: page.value.bio ?? '', avatar_url: page.value.avatar_url })
+    const p = page.value
+    Object.assign(edit, {
+      name: p.name, category: p.category ?? '', bio: p.bio ?? '', avatar_url: p.avatar_url, cover_url: p.cover_url,
+      website: p.website ?? '', location: p.location ?? '', contact_email: p.contact_email ?? '',
+      contact_phone: p.contact_phone ?? '', founded_year: p.founded_year
+    })
     await loadPosts(true)
     if (page.value.viewer_role) {
       admins.value = (await $fetch<{ admins: Admin[] }>(`/api/pages/${page.value.id}/admins`)).admins
@@ -191,8 +225,24 @@ const onAvatar = (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (file) void run(async () => { edit.avatar_url = (await uploadFile(file, 'avatars')).url }, 'Photo uploaded. Save to apply.')
 }
+const onCover = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (file) void run(async () => { edit.cover_url = (await uploadFile(file, 'posts')).url }, 'Cover uploaded. Save to apply.')
+}
+const messagePage = () => run(async () => {
+  const res = await $fetch<{ data: { id: string } }>(`/api/pages/${page.value!.id}/message`, { method: 'POST' })
+  await navigateTo({ path: '/chat', query: { room: res.data.id } })
+})
+const sharePage = async () => {
+  if (!page.value) return
+  const url = `${window.location.origin}/pages/${page.value.handle}`
+  try {
+    if (navigator.share) await navigator.share({ title: page.value.name, url })
+    else { await navigator.clipboard.writeText(url); notice.value = 'Link copied' }
+  } catch { /* share sheet dismissed */ }
+}
 const save = () => run(async () => {
-  await $fetch(`/api/pages/${page.value!.id}`, { method: 'PATCH', body: { ...edit } })
+  await $fetch(`/api/pages/${page.value!.id}`, { method: 'PATCH', body: { ...edit, founded_year: edit.founded_year || null } })
   await context.refreshPages()
   await load()
 }, 'Saved')
@@ -220,7 +270,11 @@ watch(() => route.params.handle, load, { immediate: true })
 <style scoped>
 .page-view { max-width: 680px; margin: 0 auto; padding: 20px 16px 80px; color: #e2e8f0; }
 .header { display: flex; gap: 16px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 18px; flex-wrap: wrap; }
-.avatar { width: 96px; height: 96px; border-radius: 999px; object-fit: cover; border: 2px solid #f59e0b; }
+.cover { height: 160px; border-radius: 12px 12px 0 0; background: #1e293b center / cover no-repeat; cursor: zoom-in; margin-bottom: -12px; }
+.about p { display: flex; align-items: center; gap: 6px; word-break: break-word; }
+.about a { color: #60a5fa; }
+.btn.secondary { background: #334155; }
+.avatar { cursor: zoom-in; width: 96px; height: 96px; border-radius: 999px; object-fit: cover; border: 2px solid #f59e0b; }
 .info { flex: 1; min-width: 200px; }
 h1 { font-size: 1.4rem; font-weight: 800; }
 h2 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }

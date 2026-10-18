@@ -2,6 +2,7 @@ import { requireUser } from '~/server/utils/auth'
 import { getPageRole } from '~/server/utils/actor'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadPage } from '~/server/utils/pages'
+import { syncPageRoomMembers } from '~/server/utils/page-chat'
 
 /** Owners remove admins; any admin may remove themself. The last owner cannot leave. */
 export default defineEventHandler(async (event) => {
@@ -23,5 +24,6 @@ export default defineEventHandler(async (event) => {
 
   const { error } = await service.from('page_admins').delete().eq('page_id', page.id).eq('user_id', targetId)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  await syncPageRoomMembers(page.id)
   return { success: true }
 })

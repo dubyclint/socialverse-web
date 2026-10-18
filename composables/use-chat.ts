@@ -20,6 +20,7 @@ export interface IncomingChatMessage {
   senderId: string
   senderName?: string
   senderAvatar?: string
+  senderPageId?: string
   timestamp: string
   tempId?: string
   attachments?: string[]

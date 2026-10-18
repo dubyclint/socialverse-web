@@ -22,6 +22,8 @@ export interface ChatMessage {
   senderId: string
   senderName: string
   senderAvatar?: string
+  /** Set when the message was sent on behalf of a Page. */
+  senderPageId?: string
   content: string
   timestamp: number
   messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system' | 'gift'
@@ -59,6 +61,9 @@ export interface TypingUser {
 
 export interface Chat {
   id: string
+  /** Page conversation: the Page this chat belongs to. */
+  pageId?: string
+  pageHandle?: string
   title?: string
   name?: string
   avatar?: string

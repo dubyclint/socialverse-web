@@ -12,7 +12,7 @@
       @dblclick.prevent="openLightbox(message.senderAvatar || '/default-avatar.svg')"
     >
       <img :src="message.senderAvatar || '/default-avatar.svg'" :alt="message.senderName" />
-      <PresenceDot :user-id="message.senderId" :size="9" />
+      <PresenceDot v-if="!message.senderPageId" :user-id="message.senderId" :size="9" />
     </NuxtLink>
 
     <!-- Message Content -->

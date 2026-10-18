@@ -1,6 +1,7 @@
 import { PAGE_ROLES, requirePageRole, type PageRole } from '~/server/utils/actor'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadPage } from '~/server/utils/pages'
+import { syncPageRoomMembers } from '~/server/utils/page-chat'
 
 /** Owners add an admin by username, or change an existing admin's role. */
 export default defineEventHandler(async (event) => {
@@ -25,5 +26,6 @@ export default defineEventHandler(async (event) => {
     .from('page_admins')
     .upsert({ page_id: page.id, user_id: target.user_id, role }, { onConflict: 'page_id,user_id' })
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  await syncPageRoomMembers(page.id)
   return { success: true }
 })

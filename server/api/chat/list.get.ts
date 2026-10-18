@@ -2,6 +2,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import type { Chat, ChatMember } from '~/types/chat'
+import { pageRoomsById } from '~/server/utils/page-chat'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -45,6 +46,7 @@ export default defineEventHandler(async (event) => {
     : { data: [] }
   const personById = new Map((people ?? []).map(person => [person.user_id, person]))
 
+  const pageRooms = await pageRoomsById(roomIds)
   const unreadByRoom = new Map((unread ?? []).map(row => [row.room_id, Number(row.unread)]))
 
   const latestByRoom = new Map<string, { message_text: string | null, message_type: string | null, created_at: string }>()
@@ -57,10 +59,18 @@ export default defineEventHandler(async (event) => {
     const members = membersByRoom.get(room.id) ?? []
     const isGroup = room.is_group_chat ?? false
     // A direct chat is shown as the other person, never as the stored room name.
-    const peer = isGroup ? undefined : personById.get(members.find(id => id !== user.id) ?? '')
+    const pageRoom = pageRooms.get(room.id)
+    const isVisitor = pageRoom ? pageRoom.visitorId === user.id : false
+    // In a Page conversation the visitor sees the Page; the Page's admins see the visitor.
+    const peer = isGroup || isVisitor
+      ? undefined
+      : personById.get(pageRoom ? pageRoom.visitorId ?? '' : members.find(id => id !== user.id) ?? '')
+    const personName = peer?.display_name || peer?.username || 'Direct message'
     const name = isGroup
       ? room.room_name || 'Group'
-      : peer?.display_name || peer?.username || 'Direct message'
+      : pageRoom
+        ? isVisitor ? pageRoom.page.name : `${personName} · ${pageRoom.page.name}`
+        : personName
     const preview = latest
       ? latest.message_text || (latest.message_type === 'audio' ? 'Voice message' : 'Attachment')
       : undefined
@@ -69,7 +79,9 @@ export default defineEventHandler(async (event) => {
       id: room.id,
       name,
       title: name,
-      avatar: (isGroup ? room.room_avatar : peer?.avatar_url) || undefined,
+      avatar: (isGroup ? room.room_avatar : isVisitor ? pageRoom?.page.avatar_url : peer?.avatar_url) || undefined,
+      pageId: pageRoom?.page.id,
+      pageHandle: pageRoom?.page.handle,
       type: isGroup ? 'group' as const : 'direct' as const,
       userId: peer?.user_id,
       username: peer?.username,

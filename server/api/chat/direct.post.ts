@@ -31,9 +31,10 @@ export default defineEventHandler(async (event) => {
 
   const { data: mine } = await client
     .from('chat_room_members')
-    .select('room_id, chat_rooms!inner(is_group_chat)')
+    .select('room_id, chat_rooms!inner(is_group_chat, page_id)')
     .eq('user_id', user.id)
     .eq('chat_rooms.is_group_chat', false)
+    .is('chat_rooms.page_id', null)
 
   const candidateIds = (mine ?? []).map(row => row.room_id)
 

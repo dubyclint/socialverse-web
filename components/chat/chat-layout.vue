@@ -584,6 +584,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** `/chat?user=<uuid>` (from PALs, contacts, profiles, search) opens that direct chat. */
 const openChatFromRoute = async () => {
+  const room = typeof route.query.room === 'string' ? route.query.room.trim() : ''
+  if (UUID_RE.test(room)) {
+    if (!chatStore.chats.get(room)) await loadChats()
+    await selectChat(room)
+    const { room: _room, ...rest } = route.query
+    await router.replace({ query: rest })
+    return
+  }
   const target = typeof route.query.user === 'string' ? route.query.user.trim() : ''
   if (!UUID_RE.test(target) || target === currentUserId.value || isStartingChat.value) return
   await startDirectChat(target)
@@ -606,6 +614,7 @@ onMounted(async () => {
       senderId: message.senderId,
       senderName: own ? 'You' : message.senderName || chat?.name || 'unknown',
       senderAvatar: message.senderAvatar,
+      senderPageId: message.senderPageId,
       content: message.content,
       attachments: message.attachments ?? [],
       messageType: (message.messageType ?? 'text') as ChatMessage['messageType'],
@@ -704,7 +713,7 @@ onMounted(async () => {
   await openChatFromRoute()
 })
 
-watch(() => route.query.user, () => { void openChatFromRoute() })
+watch(() => [route.query.user, route.query.room], () => { void openChatFromRoute() })
 
 onUnmounted(() => {
   dispose()

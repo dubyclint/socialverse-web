@@ -2,7 +2,7 @@ import { createError } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 
 export const PAGE_COLUMNS =
-  'id,name,handle,category,bio,avatar_url,cover_url,website,created_by_user_id,followers_count,posts_count,created_at,updated_at,is_verified,verified_type'
+  'id,name,handle,category,bio,avatar_url,cover_url,website,contact_email,contact_phone,location,founded_year,created_by_user_id,followers_count,posts_count,created_at,updated_at,is_verified,verified_type'
 export const PAGE_CREATION_CAP = 5
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
