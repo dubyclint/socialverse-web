@@ -15,7 +15,7 @@
         <span class="author-row">
           <NuxtLink :to="authorLink" class="post-author">
             {{ authorName }}
-            <Icon v-if="post.author?.verified" name="check-circle" size="13" class="verified" />
+            <VerifiedBadge v-if="post.author?.verified" :type="post.author?.verified_type" :size="16" />
           </NuxtLink>
           <SocialFollowButton v-if="!isMine && post.author?.id && post.author?.type !== 'PAGE'" :user-id="post.author.id" compact />
         </span>
@@ -65,6 +65,7 @@
         />
         <span class="repost-source-name">
           {{ post.repost_of.author?.full_name || 'Unknown user' }}
+          <VerifiedBadge v-if="post.repost_of.author?.verified" :type="post.repost_of.author?.verified_type" :size="14" />
         </span>
         <span class="repost-source-time">{{ formatTimeAgo(post.repost_of.created_at) }}</span>
       </div>
@@ -144,6 +145,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import PresenceDot from '~/components/presence-dot.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import type { FeedPost, PostLiker } from '~/composables/useSocialFeed'
 import { useEngagementSync } from '~/composables/use-engagement-sync'
 

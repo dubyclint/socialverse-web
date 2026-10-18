@@ -107,12 +107,14 @@ export default defineNitroPlugin((nitroApp: any) => {
     const senderOf = async (userId: string) => {
       const { data } = await admin
         .from('user')
-        .select('username, display_name, avatar_url')
+        .select('username, display_name, avatar_url, is_verified, verified_type')
         .eq('user_id', userId)
         .maybeSingle()
       return {
         senderName: data?.display_name || data?.username || 'unknown',
-        senderAvatar: data?.avatar_url || undefined
+        senderAvatar: data?.avatar_url || undefined,
+        senderVerified: data?.is_verified === true,
+        senderVerifiedType: data?.verified_type ?? null
       }
     }
 

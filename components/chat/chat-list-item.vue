@@ -37,7 +37,7 @@
       <div class="chat-header">
         <div class="chat-name">
           {{ chat.name }}
-          <Icon v-if="chat.isVerified" name="check-circle" class="verified-icon" />
+          <VerifiedBadge v-if="chat.isVerified" :type="chat.verifiedType" :size="16" />
         </div>
         <div class="chat-time">
           {{ formatTime(chat.lastMessageAt) }}
@@ -105,6 +105,7 @@
 <script setup>
 import { computed } from 'vue'
 import PresenceDot from '~/components/presence-dot.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import { useUserStore } from '@/stores/user'
 import { formatDistanceToNow } from 'date-fns'
 import Icon from '@/components/ui/icon.vue'

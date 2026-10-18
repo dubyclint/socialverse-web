@@ -222,8 +222,8 @@ export const toAdViews = async (rows: AdRow[]): Promise<AdView[]> => {
   const userIds = [...new Set(rows.filter(r => !r.page_id).map(r => r.advertiser_id))]
   const pageIds = [...new Set(rows.map(r => r.page_id).filter((id): id is string => Boolean(id)))]
   const [{ data: users }, { data: pages }] = await Promise.all([
-    userIds.length ? service.from('user').select('user_id, username, display_name, avatar_url, is_verified').in('user_id', userIds) : Promise.resolve({ data: [] }),
-    pageIds.length ? service.from('pages').select('id, name, handle, avatar_url, is_verified').in('id', pageIds) : Promise.resolve({ data: [] })
+    userIds.length ? service.from('user').select('user_id, username, display_name, avatar_url, is_verified, verified_type').in('user_id', userIds) : Promise.resolve({ data: [] }),
+    pageIds.length ? service.from('pages').select('id, name, handle, avatar_url, is_verified, verified_type').in('id', pageIds) : Promise.resolve({ data: [] })
   ])
   const userById = new Map((users ?? []).map(u => [u.user_id, u]))
   const pageById = new Map((pages ?? []).map(p => [p.id, p]))
@@ -238,8 +238,8 @@ export const toAdViews = async (rows: AdRow[]): Promise<AdView[]> => {
       id: row.id,
       title: row.title,
       advertiser: page
-        ? { id: page.id, type: 'PAGE' as const, name: page.name, handle: page.handle, avatar_url: page.avatar_url, is_verified: Boolean(page.is_verified) }
-        : { id: row.advertiser_id, type: 'USER' as const, name: user?.display_name || user?.username || 'Advertiser', handle: user?.username ?? '', avatar_url: user?.avatar_url ?? null, is_verified: Boolean(user?.is_verified) },
+        ? { id: page.id, type: 'PAGE' as const, name: page.name, handle: page.handle, avatar_url: page.avatar_url, is_verified: Boolean(page.is_verified), verified_type: page.verified_type }
+        : { id: row.advertiser_id, type: 'USER' as const, name: user?.display_name || user?.username || 'Advertiser', handle: user?.username ?? '', avatar_url: user?.avatar_url ?? null, is_verified: Boolean(user?.is_verified), verified_type: user?.verified_type ?? null },
       objective: row.objective,
       goal: row.goal,
       conversionLocation: row.conversion_location,

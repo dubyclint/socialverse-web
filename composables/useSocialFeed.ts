@@ -15,6 +15,7 @@ export interface FeedAuthor {
   full_name: string
   avatar_url: string | null
   verified: boolean
+  verified_type?: string | null
 }
 
 export interface FeedPost {
@@ -110,6 +111,7 @@ interface UserRow {
   full_name: string | null
   avatar_url: string | null
   is_verified: boolean | null
+  verified_type?: string | null
 }
 
 interface StatusRow {
@@ -128,6 +130,7 @@ const toAuthor = (row: UserRow | undefined): FeedAuthor | null => {
     full_name: row.full_name || row.display_name || row.username || 'User',
     avatar_url: row.avatar_url,
     verified: row.is_verified === true,
+    verified_type: row.verified_type ?? null,
   }
 }
 
@@ -190,6 +193,7 @@ export const useSocialFeed = () => {
   const userAvatar = computed(() => userStore.profile?.avatar_url || '/default-avatar.svg')
   const userStatus = computed(() => (currentUserId.value ? 'online' : 'offline'))
   const isVerified = computed(() => userStore.profile?.is_verified === true)
+  const verifiedType = computed(() => userStore.profile?.verified_type ?? null)
   const userFollowers = computed(() => userStore.profile?.followers_count ?? 0)
   const userFollowing = computed(() => userStore.profile?.following_count ?? 0)
   const userPosts = computed(() => userStore.profile?.posts_count ?? 0)
@@ -211,7 +215,7 @@ export const useSocialFeed = () => {
 
     const { data, error } = await supabase
       .from('user')
-      .select('user_id,username,display_name,full_name,avatar_url,is_verified')
+      .select('user_id,username,display_name,full_name,avatar_url,is_verified,verified_type')
       .in('user_id', ids)
 
     if (error) {
@@ -311,7 +315,7 @@ export const useSocialFeed = () => {
     try {
       const query = supabase
         .from('user')
-        .select('user_id,username,display_name,full_name,avatar_url,is_verified')
+        .select('user_id,username,display_name,full_name,avatar_url,is_verified,verified_type')
         .limit(5)
 
       const { data, error } = currentUserId.value
@@ -698,6 +702,7 @@ export const useSocialFeed = () => {
     userStatus,
     walletBalance,
     isVerified,
+    verifiedType,
     authStore: userStore,
 
     // statuses

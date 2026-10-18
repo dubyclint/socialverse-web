@@ -7,6 +7,7 @@ export interface PalProfile {
   avatar_url: string | null
   bio: string | null
   is_verified: boolean
+  verified_type?: string | null
   last_seen: string | null
 }
 

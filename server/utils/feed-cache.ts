@@ -19,6 +19,7 @@ export interface CandidatePost {
 
 export interface CandidateAuthor {
   user_id: string
+  verified_type: string | null
   username: string | null
   display_name: string | null
   full_name: string | null
@@ -71,14 +72,14 @@ export const getAuthors = defineCachedFunction(
     const client = getServiceClient()
     const { data, error } = await client
       .from('user')
-      .select('user_id, username, display_name, full_name, avatar_url, is_verified')
+      .select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type')
       .in('user_id', authorIds)
 
     if (error) throw createError({ statusCode: 500, statusMessage: error.message })
     return data ?? []
   },
   {
-    name: 'feed-authors',
+    name: 'feed-authors-v2',
     maxAge: AUTHOR_TTL_SECONDS,
     getKey: (authorIds: string[]) => [...authorIds].sort().join(',').slice(0, 512)
   }
@@ -86,6 +87,8 @@ export const getAuthors = defineCachedFunction(
 
 export interface CandidatePageAuthor {
   id: string
+  is_verified: boolean | null
+  verified_type: string | null
   handle: string
   name: string
   avatar_url: string | null
@@ -96,13 +99,13 @@ export const getPageAuthors = defineCachedFunction(
     if (!pageIds.length) return []
     const { data, error } = await getServiceClient()
       .from('pages')
-      .select('id, handle, name, avatar_url')
+      .select('id, handle, name, avatar_url, is_verified, verified_type')
       .in('id', pageIds)
     if (error) throw createError({ statusCode: 500, statusMessage: error.message })
     return data ?? []
   },
   {
-    name: 'feed-page-authors',
+    name: 'feed-page-authors-v2',
     maxAge: AUTHOR_TTL_SECONDS,
     getKey: (pageIds: string[]) => [...pageIds].sort().join(',').slice(0, 512)
   }

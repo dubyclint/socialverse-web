@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
 
   const peerIds = Array.from(new Set((memberRows ?? []).map(row => row.user_id).filter(id => id !== user.id)))
   const { data: people } = peerIds.length
-    ? await client.from('user').select('user_id, username, display_name, avatar_url').in('user_id', peerIds)
+    ? await client.from('user').select('user_id, username, display_name, avatar_url, is_verified, verified_type').in('user_id', peerIds)
     : { data: [] }
   const personById = new Map((people ?? []).map(person => [person.user_id, person]))
 
@@ -81,6 +81,8 @@ export default defineEventHandler(async (event) => {
       title: name,
       avatar: (isGroup ? room.room_avatar : isVisitor ? pageRoom?.page.avatar_url : peer?.avatar_url) || undefined,
       pageId: pageRoom?.page.id,
+      isVerified: isGroup ? false : isVisitor ? pageRoom?.page.is_verified === true : peer?.is_verified === true,
+      verifiedType: isVisitor ? pageRoom?.page.verified_type ?? null : peer?.verified_type ?? null,
       pageHandle: pageRoom?.page.handle,
       type: isGroup ? 'group' as const : 'direct' as const,
       userId: peer?.user_id,

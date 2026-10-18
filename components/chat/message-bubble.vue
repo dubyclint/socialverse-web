@@ -18,7 +18,10 @@
     <!-- Message Content -->
     <div class="message-content">
       <!-- Sender Name (for group chats) -->
-      <div v-if="showSenderName && !isOwn" class="sender-name">{{ message.senderName }}</div>
+      <div v-if="showSenderName && !isOwn" class="sender-name">
+        {{ message.senderName }}
+        <VerifiedBadge v-if="message.senderVerified" :type="message.senderVerifiedType" :size="14" />
+      </div>
       <div v-if="message.forwarded && !isDeleted" class="forwarded-label">
         <Icon name="forward" size="12" /> Forwarded
       </div>
@@ -262,11 +265,14 @@
 import { ref, computed } from 'vue'
 import MediaLightbox from './media-lightbox.vue'
 import PresenceDot from '~/components/presence-dot.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 
 interface Message {
   id?: string
   senderId?: string
   senderName: string
+  senderVerified?: boolean
+  senderVerifiedType?: string | null
   senderAvatar?: string
   content: string
   timestamp?: string | Date | number

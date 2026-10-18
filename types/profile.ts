@@ -52,6 +52,7 @@ export interface Profile {
   // Verification & Status Properties
   profile_completed?: boolean
   is_verified?: boolean
+  verified_type?: string | null
   verified_badge_type?: VerifiedBadgeType | null
   verification_status?: VerificationStatus
   verified_at?: string | null

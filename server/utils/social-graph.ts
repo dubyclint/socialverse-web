@@ -20,9 +20,10 @@ export interface DirectoryProfile {
   full_name: string | null
   avatar_url: string | null
   is_verified: boolean
+  verified_type: string | null
 }
 
-export const DIRECTORY_COLUMNS = 'user_id, username, display_name, full_name, avatar_url, is_verified'
+export const DIRECTORY_COLUMNS = 'user_id, username, display_name, full_name, avatar_url, is_verified, verified_type'
 
 export const toDirectoryProfile = (row: {
   user_id: string
@@ -31,13 +32,15 @@ export const toDirectoryProfile = (row: {
   full_name: string | null
   avatar_url: string | null
   is_verified: boolean | null
+  verified_type?: string | null
 }): DirectoryProfile => ({
   id: row.user_id,
   username: row.username,
   name: row.display_name || row.full_name || row.username || 'Unknown',
   full_name: row.full_name || row.display_name,
   avatar_url: row.avatar_url,
-  is_verified: row.is_verified ?? false
+  is_verified: row.is_verified ?? false,
+  verified_type: row.verified_type ?? null
 })
 
 /** The viewer's follow, PAL and block relationship with each of `ids`. */

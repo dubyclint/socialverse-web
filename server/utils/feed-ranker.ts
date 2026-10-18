@@ -66,6 +66,7 @@ export interface FeedAuthor {
   full_name: string
   avatar_url: string | null
   verified: boolean
+  verified_type?: string | null
   type?: 'USER' | 'PAGE'
 }
 
@@ -324,7 +325,8 @@ export const rankPosts = async (
             username: pageAuthor.handle,
             full_name: pageAuthor.name,
             avatar_url: pageAuthor.avatar_url,
-            verified: false,
+            verified: pageAuthor.is_verified === true,
+            verified_type: pageAuthor.verified_type,
             type: 'PAGE' as const
           }
         : author
@@ -334,6 +336,7 @@ export const rankPosts = async (
               full_name: author.full_name || author.display_name || author.username || 'User',
               avatar_url: author.avatar_url,
               verified: author.is_verified === true,
+              verified_type: author.verified_type,
               type: 'USER' as const
             }
           : null,
@@ -385,7 +388,8 @@ export const rankPosts = async (
                 originalAuthor.username ||
                 'User',
               avatar_url: originalAuthor.avatar_url,
-              verified: originalAuthor.is_verified === true
+              verified: originalAuthor.is_verified === true,
+              verified_type: originalAuthor.verified_type
             }
           : null
       }

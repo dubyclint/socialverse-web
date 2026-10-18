@@ -3,7 +3,7 @@ import { getServiceClient } from '~/server/utils/supabase-admin'
 /** Roles that read and answer a Page's inbox. */
 export const PAGE_INBOX_ROLES = ['OWNER', 'MANAGER'] as const
 
-export interface PageIdentity { id: string, name: string, handle: string, avatar_url: string | null }
+export interface PageIdentity { id: string, name: string, handle: string, avatar_url: string | null, is_verified: boolean | null, verified_type: string | null }
 
 export const pageInboxUserIds = async (pageId: string): Promise<string[]> => {
   const { data } = await getServiceClient()
@@ -44,7 +44,7 @@ export const pageRoomsById = async (roomIds: string[]) => {
     .not('page_id', 'is', null)
   const pageIds = [...new Set((rooms ?? []).map(r => r.page_id as string))]
   if (!pageIds.length) return result
-  const { data: pages } = await service.from('pages').select('id, name, handle, avatar_url').in('id', pageIds)
+  const { data: pages } = await service.from('pages').select('id, name, handle, avatar_url, is_verified, verified_type').in('id', pageIds)
   const pageById = new Map((pages ?? []).map(p => [p.id, p]))
   for (const room of rooms ?? []) {
     const page = pageById.get(room.page_id as string)
@@ -57,7 +57,7 @@ export const pageRoomsById = async (roomIds: string[]) => {
 export const pageSenderOverride = (
   room: { page: PageIdentity, visitorId: string | null } | undefined,
   senderId: string
-): { senderName: string, senderAvatar: string | undefined, senderPageId: string } | null => {
+): { senderName: string, senderAvatar: string | undefined, senderPageId: string, senderVerified: boolean, senderVerifiedType: string | null } | null => {
   if (!room || senderId === room.visitorId) return null
-  return { senderName: room.page.name, senderAvatar: room.page.avatar_url || undefined, senderPageId: room.page.id }
+  return { senderName: room.page.name, senderAvatar: room.page.avatar_url || undefined, senderPageId: room.page.id, senderVerified: room.page.is_verified === true, senderVerifiedType: room.page.verified_type }
 }

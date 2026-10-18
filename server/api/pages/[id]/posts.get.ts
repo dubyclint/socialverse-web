@@ -31,7 +31,8 @@ export default defineEventHandler(async (event) => {
     username: page.handle,
     full_name: page.name,
     avatar_url: page.avatar_url,
-    verified: false,
+    verified: page.is_verified === true,
+    verified_type: page.verified_type,
     type: 'PAGE' as const
   }
   const posts = (rows ?? []).map(row => ({

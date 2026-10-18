@@ -11,7 +11,7 @@
             <img :src="person.avatar_url || '/default-avatar.svg'" :alt="person.name" class="avatar" />
             <PresenceDot :user-id="person.id" :size="11" />
           </span>
-          <strong class="name">{{ person.name }}</strong>
+          <strong class="name">{{ person.name }} <VerifiedBadge v-if="person.is_verified" :type="person.verified_type" :size="14" /></strong>
           <span class="reason">{{ person.reasons[0] || (person.username ? `@${person.username}` : '') }}</span>
         </NuxtLink>
         <button type="button" class="add" :disabled="busy.has(person.id)" @click="add(person.id)">
@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { usePals } from '~/composables/use-pals'
 import PresenceDot from '~/components/presence-dot.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 
 const { suggestions, loadSuggestions, sendRequest } = usePals()
 const busy = ref(new Set<string>())

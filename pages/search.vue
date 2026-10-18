@@ -50,7 +50,7 @@
               <span class="result-text">
                 <span class="result-name">
                   {{ person.name }}
-                  <Icon v-if="person.is_verified" name="check-circle" size="13" class="verified" />
+                  <VerifiedBadge v-if="person.is_verified" :type="person.verified_type" :size="16" />
                 </span>
                 <span class="result-handle">
                   @{{ person.username || 'unknown' }}
@@ -84,6 +84,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 
 definePageMeta({ middleware: ['auth'], layout: 'default' })
 
@@ -95,6 +96,7 @@ interface SearchResult {
   name: string
   avatar_url: string | null
   is_verified: boolean
+  verified_type?: string | null
   relationship?: {
     is_following: boolean
     follows_you: boolean

@@ -12,7 +12,7 @@ export interface PalProfile {
 }
 
 const PROFILE_COLUMNS =
-  'user_id, username, display_name, full_name, avatar_url, bio, is_verified, last_seen'
+  'user_id, username, display_name, full_name, avatar_url, bio, is_verified, verified_type, last_seen'
 
 export const toPalProfile = (row: {
   user_id: string
@@ -22,6 +22,7 @@ export const toPalProfile = (row: {
   avatar_url: string | null
   bio: string | null
   is_verified: boolean | null
+  verified_type?: string | null
   last_seen: string | null
 }): PalProfile => ({
   id: row.user_id,
@@ -30,6 +31,7 @@ export const toPalProfile = (row: {
   avatar_url: row.avatar_url,
   bio: row.bio,
   is_verified: row.is_verified ?? false,
+  verified_type: row.verified_type ?? null,
   last_seen: row.last_seen
 })
 

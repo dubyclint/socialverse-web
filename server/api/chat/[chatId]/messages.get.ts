@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
 
   const senderIds = Array.from(new Set(visible.map(row => row.sender_id)))
   const { data: senders } = senderIds.length
-    ? await client.from('user').select('user_id, username, display_name, avatar_url').in('user_id', senderIds)
+    ? await client.from('user').select('user_id, username, display_name, avatar_url, is_verified, verified_type').in('user_id', senderIds)
     : { data: [] }
 
   const senderById = new Map((senders || []).map(sender => [sender.user_id, sender]))
@@ -112,6 +112,8 @@ export default defineEventHandler(async (event) => {
       senderId: row.sender_id,
       senderName: sender?.display_name || sender?.username || 'unknown',
       senderAvatar: sender?.avatar_url || undefined,
+      senderVerified: sender?.is_verified === true,
+      senderVerifiedType: sender?.verified_type ?? null,
       ...pageSenderOverride(pageRoom, row.sender_id),
       content: row.deleted_at ? '' : row.message_text || '',
       attachments: row.deleted_at ? [] : row.attachment_urls ?? [],

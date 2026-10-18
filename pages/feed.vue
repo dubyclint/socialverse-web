@@ -254,7 +254,7 @@
                 <span :class="['status-indicator', userStatus]"></span>
               </div>
               <div class="profile-info">
-                <h3 class="profile-name">{{ userName }}</h3>
+                <h3 class="profile-name">{{ userName }} <VerifiedBadge v-if="isVerified" :type="verifiedType" :size="18" /></h3>
                 <p class="profile-username">@{{ userUsername || 'loading...' }}</p>
               </div>
             </div>
@@ -322,6 +322,7 @@
         </ClientOnly>
 
         <ClientOnly>
+          <GlobalAnnouncement inline />
           <EmailVerificationBanner :isVerified="authStore.isEmailVerified" :email="authStore.userEmail" @send-verification="handleVerificationSent" @dismiss="handleBannerDismissed" @verified="handleEmailVerified" />
           <div v-if="postsLoading && posts.length === 0" class="loading-state"><div class="spinner"></div><p>Loading posts...</p></div>
           <div v-else-if="feedItems.length > 0" class="posts-list">
@@ -414,6 +415,8 @@ import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
 import FeedAdSlot from '~/components/feed/feed-ad-slot.vue';
 import PalSuggestionsRail from '~/components/feed/pal-suggestions-rail.vue';
+import GlobalAnnouncement from '~/components/global-announcement.vue';
+import VerifiedBadge from '~/components/VerifiedBadge.vue';
 import { useStaff } from '~/composables/useStaff';
 
 const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();
@@ -434,7 +437,7 @@ const contextStore = useContextStore();
 const { 
   posts, postsLoading, hasMorePosts, loadingMore, 
   loadMorePosts, refreshFeed, initPipeline, 
-  userName, userAvatar, userUsername, userStatus, walletBalance, isVerified,
+  userName, userAvatar, userUsername, userStatus, walletBalance, isVerified, verifiedType,
   fetchedStatuses, statusLoading, triggerStatusViewer, activeSelectedStatus,
   suggestedUsers, suggestedUsersLoading, refreshSuggestedUsers, followUser,
   trendingTopics, trendingLoading, refreshTrending,

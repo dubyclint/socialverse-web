@@ -53,7 +53,7 @@
         <article v-for="pal in filteredPals" :key="pal.id" class="pal-card">
           <UserAvatar :user-id="pal.id" :src="pal.avatar_url" :name="pal.name" :size="48" />
           <div class="pal-info">
-            <NuxtLink :to="`/profile/${pal.id}`" class="pal-name">{{ pal.name }}</NuxtLink>
+            <NuxtLink :to="`/profile/${pal.id}`" class="pal-name">{{ pal.name }} <VerifiedBadge v-if="pal.is_verified" :type="pal.verified_type" :size="16" /></NuxtLink>
             <span class="pal-username">@{{ pal.username || 'user' }}</span>
             <p v-if="pal.bio" class="pal-bio">{{ pal.bio }}</p>
           </div>
@@ -116,7 +116,7 @@
       <article v-for="person in suggestions" :key="person.id" class="pal-card">
         <UserAvatar :user-id="person.id" :src="person.avatar_url" :name="person.name" :size="44" />
         <div class="pal-info">
-          <NuxtLink :to="`/profile/${person.id}`" class="pal-name">{{ person.name }}</NuxtLink>
+          <NuxtLink :to="`/profile/${person.id}`" class="pal-name">{{ person.name }} <VerifiedBadge v-if="person.is_verified" :type="person.verified_type" :size="16" /></NuxtLink>
           <span class="pal-username">@{{ person.username || 'user' }}</span>
           <p class="pal-reason">{{ person.reasons.join(' · ') }}</p>
         </div>
@@ -168,6 +168,7 @@
 import { computed, onMounted, ref } from 'vue'
 import Icon from '~/components/ui/icon.vue'
 import UserAvatar from '~/components/ui/user-avatar.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import ChatContactSyncModal from '~/components/chat/contact-sync-modal.vue'
 import { usePals } from '~/composables/use-pals'
 import { useContacts } from '~/composables/use-contacts'

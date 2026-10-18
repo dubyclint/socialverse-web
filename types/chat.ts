@@ -24,6 +24,8 @@ export interface ChatMessage {
   senderAvatar?: string
   /** Set when the message was sent on behalf of a Page. */
   senderPageId?: string
+  senderVerified?: boolean
+  senderVerifiedType?: string | null
   content: string
   timestamp: number
   messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system' | 'gift'
@@ -64,6 +66,8 @@ export interface Chat {
   /** Page conversation: the Page this chat belongs to. */
   pageId?: string
   pageHandle?: string
+  isVerified?: boolean
+  verifiedType?: string | null
   title?: string
   name?: string
   avatar?: string

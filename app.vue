@@ -10,14 +10,14 @@
       <Sonner />
       <CallHost v-if="supabaseUser" />
       <CelebrateLayer />
-      <GlobalAnnouncement />
+      <GlobalAnnouncement v-if="route.path !== '/feed'" />
     </ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useSupabaseUser } from '#imports'
+import { useSupabaseUser, useRoute } from '#imports'
 import { useUserStore } from '~/stores/user'
 import { usePresence } from '~/composables/usePresence'
 import { useDiscoveryStore } from '~/stores/useDiscovery'
@@ -26,6 +26,7 @@ import CelebrateLayer from '~/components/celebrate-layer.vue'
 import GlobalAnnouncement from '~/components/global-announcement.vue'
 
 const isHydrating = ref(true)
+const route = useRoute()
 const supabaseUser = useSupabaseUser()
 const userStore = useUserStore()
 const discoveryStore = useDiscoveryStore()

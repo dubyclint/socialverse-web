@@ -13,7 +13,7 @@
       <div class="ad-who">
         <span class="ad-name">
           {{ ad.advertiser.name }}
-          <VerifiedBadgeIcon v-if="ad.advertiser.is_verified" />
+          <VerifiedBadge v-if="ad.advertiser.is_verified" :type="ad.advertiser.verified_type" :size="16" />
         </span>
         <span class="ad-label">Sponsored</span>
       </div>
@@ -220,7 +220,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import VerifiedBadgeIcon from '~/components/verified-badge-icon.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import { CTA_LABELS } from '~/utils/ad-options'
 import type { AdPlacement, AdView } from '~/utils/ad-options'
 

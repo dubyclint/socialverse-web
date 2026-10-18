@@ -17,6 +17,8 @@ export type Database = {
           category: string | null
           bio: string | null
           avatar_url: string | null
+          is_verified: boolean
+          verified_type: string | null
           cover_url: string | null
           website: string | null
           contact_email: string | null
@@ -36,6 +38,8 @@ export type Database = {
           category?: string | null
           bio?: string | null
           avatar_url?: string | null
+          is_verified?: boolean
+          verified_type?: string | null
           cover_url?: string | null
           website?: string | null
           contact_email?: string | null
@@ -55,6 +59,8 @@ export type Database = {
           category?: string | null
           bio?: string | null
           avatar_url?: string | null
+          is_verified?: boolean
+          verified_type?: string | null
           cover_url?: string | null
           website?: string | null
           contact_email?: string | null
@@ -3288,6 +3294,7 @@ export type Database = {
           is_banned: boolean
           is_private: boolean
           is_verified: boolean | null
+          verified_type: string | null
           last_seen: string | null
           location: string | null
           phone: string | null
@@ -3341,6 +3348,7 @@ export type Database = {
           is_banned?: boolean
           is_private?: boolean
           is_verified?: boolean | null
+          verified_type?: string | null
           last_seen?: string | null
           location?: string | null
           phone?: string | null
@@ -3394,6 +3402,7 @@ export type Database = {
           is_banned?: boolean
           is_private?: boolean
           is_verified?: boolean | null
+          verified_type?: string | null
           last_seen?: string | null
           location?: string | null
           phone?: string | null

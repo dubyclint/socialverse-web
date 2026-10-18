@@ -30,7 +30,7 @@
         <div class="chat-info">
           <div class="chat-name">
             {{ chat.name }}
-            <icon v-if="chat.isVerified" name="check-circle" class="verified-icon" />
+            <VerifiedBadge v-if="chat.isVerified" :type="chat.verifiedType" :size="16" />
           </div>
           <div class="chat-status">
             <span v-if="typingUsers.length > 0" class="typing-text">
@@ -347,6 +347,7 @@ onMounted(() => { void loadUserSettings() })
 import ChatGiftSheet from './chat-gift-sheet.vue'
 import MediaLightbox from './media-lightbox.vue'
 import PresenceDot from '~/components/presence-dot.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 
 // Props
 const props = defineProps({
