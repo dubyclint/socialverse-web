@@ -71,6 +71,7 @@ const GROUPS: { title: string, tiles: Tile[] }[] = [
   { title: 'Content & growth', tiles: [
     { to: '/admin/announcements', icon: 'megaphone', title: 'Global announcement', desc: 'Show a notice to everyone', perm: 'announcements' },
     { to: '/admin/ads', icon: 'trending-up', title: 'Ads review & settings', desc: 'Approve ads, pricing, ad networks', perm: 'ads', queue: 'pendingAds' },
+    { to: '/admin/live-access', icon: 'video', title: 'Live access', desc: 'Trial, go-live requirements, grant or remove live access', perm: 'compliance' },
     { to: '/admin/streaming', icon: 'video', title: 'Live streaming', desc: 'Active streams', perm: 'compliance' },
     { to: '/admin/chat-monitor', icon: 'message-circle', title: 'Chat monitor', desc: 'Reported chats', perm: 'compliance' }
   ] },

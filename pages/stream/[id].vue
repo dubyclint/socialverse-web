@@ -22,7 +22,16 @@
         <h3>Live chat</h3>
         <div class="chat-list">
           <p v-for="message in messages" :key="message.id" class="chat-line">
-            <strong>{{ message.user_id.slice(0, 8) }}</strong> {{ message.message_text }}
+            <strong>{{ message.user?.name || 'Viewer' }}</strong>
+            <VerifiedBadge v-if="message.user?.is_verified" :type="message.user.verified_type" :size="12" />
+            {{ message.message_text }}
+            <button
+              v-if="message.user_id !== myId && message.user_id !== stream.creator_id"
+              type="button"
+              class="gift-line"
+              title="Gift this comment (80% goes to the host)"
+              @click="giftTarget = { id: message.user_id, name: message.user?.name || 'Viewer' }"
+            >🎁</button>
           </p>
         </div>
         <form class="chat-form" @submit.prevent="sendMessage">
@@ -31,7 +40,22 @@
         </form>
       </section>
 
-      <GiftPicker target-type="stream" :stream-id="stream.id" :recipient-id="stream.creator_id" />
+      <p v-if="stream.broadcast_status !== 'LIVE'" class="ended">This live stream has ended.</p>
+      <template v-else-if="stream.creator_id !== myId">
+        <h3>Gift the host</h3>
+        <GiftPicker target-type="stream" :stream-id="stream.id" :recipient-id="stream.creator_id" @gift-sent="loadChat" />
+      </template>
+
+      <div v-if="giftTarget" class="gift-modal" @click.self="giftTarget = null">
+        <div class="gift-modal-body">
+          <header class="gift-modal-head">
+            <strong>Gift {{ giftTarget.name }}</strong>
+            <button type="button" @click="giftTarget = null">✕</button>
+          </header>
+          <p class="split-note">80% of this gift goes to the host and 20% to {{ giftTarget.name }}, after the gift fee.</p>
+          <GiftPicker target-type="stream" :stream-id="stream.id" :recipient-id="giftTarget.id" @gift-sent="giftTarget = null; loadChat()" />
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -40,6 +64,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import StreamBattle from '~/components/streaming/stream-battle.vue'
 import GiftPicker from '~/components/financial/gifts/pewgift-picker.vue'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
+import { useUserStore } from '~/stores/user'
 import { useStreamViewerPeer } from '~/composables/use-stream-webrtc'
 import { fetchStreamTransport, useWhepViewer } from '~/composables/use-stream-whip'
 
@@ -61,6 +87,7 @@ interface StreamChatRow {
   user_id: string
   message_text: string
   created_at: string
+  user: { name: string, is_verified?: boolean | null, verified_type?: string | null } | null
 }
 
 const route = useRoute()
@@ -69,6 +96,9 @@ const matchId = ref<string | null>(null)
 const videoEl = ref<HTMLVideoElement | null>(null)
 const chatInput = ref('')
 const messages = ref<StreamChatRow[]>([])
+const giftTarget = ref<{ id: string, name: string } | null>(null)
+const userStore = useUserStore()
+const myId = computed(() => userStore.userId ?? '')
 
 const { join, leave, remoteStream, waitingForBroadcaster } = useStreamViewerPeer()
 const { play: playFromMediaServer, stop: stopMediaServer, remoteStream: providerStream } = useWhepViewer()
@@ -157,4 +187,11 @@ onUnmounted(() => {
 .chat-line { margin: 0; font-size: 0.9rem; }
 .chat-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 .chat-form input { flex: 1; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid #334155; background: transparent; color: inherit; }
+.gift-line { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 0 0.25rem; opacity: 0.8; }
+.ended { color: #94a3b8; }
+.gift-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }
+.gift-modal-body { width: min(520px, 100%); max-height: 85vh; overflow-y: auto; background: #0f172a; border-radius: 16px 16px 0 0; padding: 1rem; }
+.gift-modal-head { display: flex; justify-content: space-between; align-items: center; }
+.gift-modal-head button { background: none; border: none; color: inherit; font-size: 1.1rem; cursor: pointer; }
+.split-note { font-size: 0.85rem; color: #fbbf24; }
 </style>

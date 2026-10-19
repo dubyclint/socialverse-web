@@ -20,6 +20,11 @@
       </div>
     </div>
 
+    <div v-if="liveAccess && liveAccess.mode === 'trial'" class="trial-banner">
+      Free live trial: <strong>{{ trialClock }}</strong> left.
+      <NuxtLink to="/stream/requirements">See what you need to keep going live</NuxtLink>
+    </div>
+
     <!-- Main Content -->
     <div class="stream-container">
       <!-- Camera Stream Section -->
@@ -127,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { api } from '~/lib/api'
 import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
@@ -156,6 +161,16 @@ const { publish: publishToMediaServer, stop: stopMediaServer } = useWhipPublishe
 const transportMode = ref<'mesh' | 'whip'>('mesh')
 
 const currentStreamId = ref<string | null>(null)
+const liveAccess = ref<{ mode: string, canGoLive: boolean, trialSecondsLeft: number } | null>(null)
+const trialEndsAt = ref<number | null>(null)
+const trialNow = ref(Date.now())
+let trialTimer: ReturnType<typeof setInterval> | null = null
+const trialSecondsShown = computed(() => {
+  if (!liveAccess.value) return 0
+  if (trialEndsAt.value) return Math.max(0, Math.round((trialEndsAt.value - trialNow.value) / 1000))
+  return liveAccess.value.trialSecondsLeft
+})
+const trialClock = computed(() => `${Math.floor(trialSecondsShown.value / 60)}:${String(trialSecondsShown.value % 60).padStart(2, '0')}`)
 const errorMessage = ref('')
 const viewerCount = ref(0)
 const streamDuration = ref(0)
@@ -185,7 +200,10 @@ const onStreamStarted = async (config: any) => {
 
     if (response.success) {
       currentStreamId.value = response.data.id
-      await api('/stream', { method: 'POST', body: { action: 'start', stream_id: response.data.id } })
+      const started = await api<{ access?: { mode: string, trialSecondsLeft: number | null } }>('/stream', { method: 'POST', body: { action: 'start', stream_id: response.data.id } })
+      if (started.access?.mode === 'trial' && started.access.trialSecondsLeft) {
+        trialEndsAt.value = Date.now() + started.access.trialSecondsLeft * 1000
+      }
 
       const transport = await fetchStreamTransport(response.data.id)
       transportMode.value = transport.mode
@@ -196,6 +214,10 @@ const onStreamStarted = async (config: any) => {
       }
     }
   } catch (err: any) {
+    if (err?.statusCode === 403 || err?.status === 403 || err?.response?.status === 403) {
+      await navigateTo('/stream/requirements')
+      return
+    }
     errorMessage.value = `Failed to initialize stream: ${err.message}`
   }
 }
@@ -279,9 +301,28 @@ const sendChatMessage = async () => {
 onMounted(async () => {
   // Ensure profile is hydrated for streaming identity
   if (!userStore.user) await userStore.fetchProfile()
+  try {
+    const res = await $fetch<{ data: { mode: string, canGoLive: boolean, trialSecondsLeft: number } }>('/api/stream/live-access')
+    liveAccess.value = res.data
+    if (!res.data.canGoLive) {
+      await navigateTo('/stream/requirements', { replace: true })
+      return
+    }
+  } catch (err) {
+    console.error('[Broadcast] live access check failed', err)
+  }
+  trialTimer = setInterval(() => {
+    trialNow.value = Date.now()
+    if (trialEndsAt.value && trialNow.value >= trialEndsAt.value && currentStreamId.value) {
+      trialEndsAt.value = null
+      errorMessage.value = 'Your free live trial has ended.'
+      void onStreamEnded().then(() => navigateTo('/stream/requirements'))
+    }
+  }, 1000)
 })
 
 onUnmounted(() => {
+  if (trialTimer) clearInterval(trialTimer)
   stopPublishing()
   stopMediaServer()
   if (chatPoll) clearInterval(chatPoll)
@@ -636,4 +677,6 @@ onUnmounted(() => {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   }
 }
+.trial-banner { margin: 0 1rem 1rem; padding: 0.6rem 1rem; border-radius: 12px; background: rgba(217, 119, 6, 0.15); border: 1px solid #d97706; color: #fde68a; font-size: 0.9rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.trial-banner a { color: #fbbf24; text-decoration: underline; }
 </style>
