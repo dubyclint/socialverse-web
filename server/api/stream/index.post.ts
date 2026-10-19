@@ -1,5 +1,8 @@
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { StreamModel } from '~/server/models/stream'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { assertAllowed } from '~/server/utils/staff'
+import { getLiveEligibility } from '~/server/utils/live-access'
 
 type StreamAction = 'create' | 'start' | 'end' | 'viewers'
 
@@ -28,7 +31,23 @@ export default defineEventHandler(async (event) => {
 
   if (!action) throw createError({ statusCode: 400, statusMessage: 'Missing required field: action' })
 
+  const requireLiveAccess = async () => {
+    await assertAllowed(user.id, 'stream')
+    const access = await getLiveEligibility(user.id)
+    if (!access.canGoLive) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: access.mode === 'denied'
+          ? 'Live streaming has been disabled on your account.'
+          : 'Your free live trial is used up. See the live requirements to keep going live.',
+        data: { mode: access.mode }
+      })
+    }
+    return access
+  }
+
   if (action === 'create') {
+    await requireLiveAccess()
     if (!body.title?.trim()) {
       throw createError({ statusCode: 400, statusMessage: 'Missing required field: title' })
     }
@@ -43,7 +62,26 @@ export default defineEventHandler(async (event) => {
   await requireOwnership(streamId, user.id)
 
   if (action === 'start') {
-    return { success: true, message: 'Stream live', data: await StreamModel.startStream(streamId) }
+    const access = await requireLiveAccess()
+    const service = getServiceClient()
+    const now = new Date()
+    // One live broadcast per user at a time.
+    await service.from('streams').update({ broadcast_status: 'ENDED', ended_at: now.toISOString(), current_viewer_count: 0 })
+      .eq('creator_id', user.id).eq('broadcast_status', 'LIVE').neq('id', streamId)
+    const isTrial = access.mode === 'trial'
+    const { data, error } = await service.from('streams').update({
+      broadcast_status: 'LIVE',
+      started_at: now.toISOString(),
+      access_mode: access.mode,
+      trial_deadline: isTrial ? new Date(now.getTime() + access.trialSecondsLeft * 1000).toISOString() : null
+    } as never).eq('id', streamId).select().single()
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    return {
+      success: true,
+      message: 'Stream live',
+      data,
+      access: { mode: access.mode, trialSecondsLeft: isTrial ? access.trialSecondsLeft : null }
+    }
   }
 
   if (action === 'end') {

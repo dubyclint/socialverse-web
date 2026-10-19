@@ -34,18 +34,17 @@ export default defineEventHandler(async (event) => {
 
   if (giftError || !gift) throw createError({ statusCode: 404, statusMessage: 'Gift not found' })
 
-  const { data: result, error: txError } = await supabase.rpc('send_pewgift', {
-    p_sender_id: user.id,
+  const { data: result, error: txError } = await supabase.rpc('send_stream_gift' as never, {
+    p_stream_id: body.streamId,
     p_recipient_id: body.streamerId,
     p_gift_id: body.giftTypeId,
     p_quantity: body.quantity ?? 1,
-    p_stream_id: body.streamId,
-    p_context: { anonymous: body.isAnonymous ?? false, message: body.message ?? null }
-  })
+    p_message: body.message ?? null
+  } as never)
 
   if (txError) throw mapGiftError(txError)
 
-  const receipt = result as { transaction_id: string, total_cost: number, new_sender_balance: number }
+  const receipt = result as unknown as { transaction_id: string, total_cost: number, new_sender_balance: number, host_id: string, split: boolean }
 
   // Gifts sent into a live battle count towards the streamer's side.
   const { data: participant } = await supabase
@@ -69,7 +68,7 @@ export default defineEventHandler(async (event) => {
   await supabase.from('stream_chats').insert({
     stream_id: body.streamId,
     user_id: user.id,
-    message_text: body.message || `Sent a ${gift.name}!`
+    message_text: body.message || (receipt.split ? `🎁 Sent a ${gift.name} (80% to the host)` : `🎁 Sent a ${gift.name}!`)
   })
 
   return {
@@ -78,7 +77,8 @@ export default defineEventHandler(async (event) => {
       transactionId: receipt.transaction_id,
       newBalance: receipt.new_sender_balance,
       gift: { id: gift.id, name: gift.name, tier: gift.tier, iconUrl: gift.icon_url },
-      totalCost: receipt.total_cost
+      totalCost: receipt.total_cost,
+      split: receipt.split
     }
   }
 })

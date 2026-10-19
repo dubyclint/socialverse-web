@@ -1,5 +1,6 @@
 import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
 export default defineEventHandler(async (event) => {
   const streamId = event.context.params?.id
@@ -20,9 +21,23 @@ export default defineEventHandler(async (event) => {
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
+  const ids = [...new Set((messages ?? []).map(m => m.user_id))]
+  const { data: people } = ids.length
+    ? await getServiceClient().from('user').select('user_id, username, display_name, avatar_url, is_verified, verified_type').in('user_id', ids)
+    : { data: [] }
+  const byId = new Map((people ?? []).map(p => [p.user_id, p]))
+
   return {
     success: true,
-    data: messages || [],
+    data: (messages || []).map(m => {
+      const person = byId.get(m.user_id)
+      return {
+        ...m,
+        user: person
+          ? { name: person.display_name || person.username, username: person.username, avatar_url: person.avatar_url, is_verified: person.is_verified, verified_type: person.verified_type }
+          : null
+      }
+    }),
     count: messages?.length || 0
   }
 })

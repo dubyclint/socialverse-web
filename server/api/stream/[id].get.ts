@@ -10,7 +10,11 @@ export default defineEventHandler(async (event) => {
   // Optional auth: allow anonymous viewers
   try { await requireAuth(event) } catch (e) { /* ignore */ }
 
-  const result = await StreamModel.getStream(id)
+  let result = await StreamModel.getStream(id)
+  const deadline = (result as { trial_deadline?: string | null } | null)?.trial_deadline
+  if (result?.broadcast_status === 'LIVE' && deadline && new Date(deadline).getTime() <= Date.now()) {
+    result = await StreamModel.endStream(id)
+  }
 
     return { success: true, data: result }
   } catch (error: any) {
