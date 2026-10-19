@@ -17,6 +17,18 @@ export default defineEventHandler(async (event) => {
     viewerRole = role
     isFollowing = Boolean(follow)
   }
-  const { data: owner } = await ownerQuery
-  return { ...page, owner, viewer_role: viewerRole, is_following: isFollowing }
+  const service = getServiceClient()
+  const [{ data: owner }, { count: postsCount }, { count: followersCount }] = await Promise.all([
+    ownerQuery,
+    service.from('posts').select('id', { count: 'exact', head: true }).eq('page_id', page.id),
+    service.from('page_follows').select('page_id', { count: 'exact', head: true }).eq('page_id', page.id)
+  ])
+  return {
+    ...page,
+    posts_count: postsCount ?? page.posts_count,
+    followers_count: followersCount ?? page.followers_count,
+    owner,
+    viewer_role: viewerRole,
+    is_following: isFollowing
+  }
 })
