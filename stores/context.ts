@@ -17,6 +17,13 @@ export interface ManagedPage {
   handle: string
   avatar_url: string | null
   role: 'OWNER' | 'MANAGER' | 'MODERATOR'
+  cover_url?: string | null
+  bio?: string | null
+  category?: string | null
+  followers_count?: number
+  posts_count?: number
+  is_verified?: boolean
+  verified_type?: string | null
 }
 
 const STORAGE_KEY = 'viorp.activeActor'

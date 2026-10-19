@@ -6,16 +6,24 @@ import { PAGE_CREATION_CAP } from '~/server/utils/pages'
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const service = getServiceClient()
-  const [{ data: roles, error }, { count }] = await Promise.all([
+  const cols = 'id,name,handle,avatar_url,cover_url,bio,category,followers_count,posts_count,is_verified,verified_type'
+  const [{ data: roles, error }, { count }, { data: follows }] = await Promise.all([
     service
       .from('page_admins')
-      .select('role, page:pages(id,name,handle,avatar_url,category,followers_count)')
+      .select(`role, page:pages(${cols})`)
       .eq('user_id', user.id),
-    service.from('pages').select('id', { count: 'exact', head: true }).eq('created_by_user_id', user.id)
+    service.from('pages').select('id', { count: 'exact', head: true }).eq('created_by_user_id', user.id),
+    service
+      .from('page_follows')
+      .select(`page:pages(${cols})`)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
   ])
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
   const pages = (roles ?? [])
     .filter(row => row.page)
     .map(row => ({ ...row.page!, role: row.role }))
-  return { pages, created_count: count ?? 0, cap: PAGE_CREATION_CAP }
+  const followed = (follows ?? []).map(row => row.page).filter((page): page is NonNullable<typeof page> => Boolean(page))
+  return { pages, followed, created_count: count ?? 0, cap: PAGE_CREATION_CAP }
 })
