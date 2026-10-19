@@ -422,7 +422,7 @@ input, textarea, select { background: #0f172a; border: 1px solid #334155; border
 .sheet { width: min(520px, 100%); max-height: 70vh; overflow-y: auto; background: #1e293b; border-radius: 16px 16px 0 0; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; }
 .follower { display: flex; align-items: center; gap: 10px; color: #e2e8f0; text-decoration: none; }
-.follower img { width: 40px; height: 40px; border-radius: 999px; object-fit: cover; }
+.follower > img { width: 40px; height: 40px; border-radius: 999px; object-fit: cover; }
 @media (max-width: 520px) {
   .cover { height: 140px; }
   .profile-header { flex-direction: column; align-items: center; text-align: center; }

@@ -3,7 +3,7 @@
     :src="SRC[type]"
     :alt="`verified ${type}`"
     :title="TITLES[type]"
-    :class="['verified-badge', className]"
+    :class="['vbadge', className]"
     :style="{ '--badge-min': `${minPx}px` }"
     loading="lazy"
     decoding="async"
@@ -21,7 +21,7 @@ type BadgeType = 'personal' | 'business' | 'government'
 
 /**
  * Custom Yeller verification badge. Scales with the surrounding name's font-size
- * (the check disc is ~75% of the text height); `size` is the minimum in px.
+ * (the check disc is about the cap height of the name); `size` sets the minimum height in px.
  */
 const props = withDefaults(defineProps<{
   type?: BadgeType | string | null
@@ -33,17 +33,24 @@ const SRC: Record<BadgeType, string> = { personal: personalBadge, business: busi
 const TITLES: Record<BadgeType, string> = { personal: 'Verified individual', business: 'Verified business', government: 'Verified government' }
 
 const type = computed<BadgeType>(() => (props.type === 'business' || props.type === 'government' ? props.type : 'personal'))
-const minPx = computed(() => Math.max(18, props.size + 4))
+const minPx = computed(() => Math.max(20, props.size + 4))
 </script>
 
 <style scoped>
-.verified-badge {
-  display: inline-block;
-  width: max(var(--badge-min), 1.35em);
-  height: max(var(--badge-min), 1.35em);
-  margin: -0.25em 0 -0.25em 5px;
-  object-fit: contain;
-  background: transparent;
+/* !important: parent components' generic `img` rules must not resize or pad the badge. */
+img.vbadge {
+  display: inline-block !important;
+  height: max(var(--badge-min), 1.5em) !important;
+  width: auto !important;
+  max-width: none !important;
+  aspect-ratio: 6 / 5;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  margin: -0.3em 0 -0.3em 5px;
+  object-fit: contain !important;
+  background: transparent !important;
+  box-shadow: none !important;
   vertical-align: middle;
   transform: translateY(-1px);
   flex-shrink: 0;

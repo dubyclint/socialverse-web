@@ -271,7 +271,7 @@ await load()
 .card h3 { font-size: .9rem; color: #94a3b8; margin: 0 0 6px; font-weight: 600; }
 .member { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 0; }
 .member-link { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
-.member img { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; }
+.member-link > img { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; }
 .member-name { display: flex; flex-direction: column; min-width: 0; }
 .member-name strong { display: inline-flex; align-items: center; }
 .admin-tag { font-size: .7rem; color: #4ade80; border: 1px solid #166534; border-radius: 6px; padding: 2px 6px; flex-shrink: 0; }
@@ -293,5 +293,5 @@ input[type="search"], .name-edit input { background: #0f172a; border: 1px solid 
 .sheet-head { display: flex; justify-content: space-between; align-items: center; }
 .sheet-head h3 { margin: 0; }
 .person { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-.person img { width: 40px; height: 40px; border-radius: 999px; object-fit: cover; }
+.person > img { width: 40px; height: 40px; border-radius: 999px; object-fit: cover; }
 </style>

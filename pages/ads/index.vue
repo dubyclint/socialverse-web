@@ -1,5 +1,5 @@
 <template>
-  <div class="ads-home">
+  <div class="cmps-home">
     <header class="head">
       <div>
         <h1>Ads Manager</h1>
@@ -244,7 +244,7 @@ onMounted(load)
 </script>
 
 <style scoped>
-.ads-home { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; color: #e2e8f0; }
+.cmps-home { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; color: #e2e8f0; }
 .head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 h1 { font-size: 1.5rem; font-weight: 800; }
 .muted { color: #94a3b8; font-size: 0.9rem; margin: 6px 0 14px; }
