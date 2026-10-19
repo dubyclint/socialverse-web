@@ -73,10 +73,10 @@ const loadProviders = async () => {
     const response = await $fetch<{
       data: { providers: DepositProvider[], settings: DepositSettings, webOnlyBlocked: boolean }
     }>('/api/wallet/deposit/providers', { query: { platform: platform.value } })
-    providers.value = response.data.providers
+    providers.value = response.data.providers.filter(p => p.code !== 'bachs')
     settings.value = response.data.settings
     webOnlyBlocked.value = response.data.webOnlyBlocked
-    selectedGateway.value = response.data.providers[0]?.code ?? 'p2p'
+    selectedGateway.value = providers.value[0]?.code ?? 'p2p'
   } catch (error: unknown) {
     errorMessage.value = (error as { data?: { statusMessage?: string } })?.data?.statusMessage
       || 'Could not load payment options.'

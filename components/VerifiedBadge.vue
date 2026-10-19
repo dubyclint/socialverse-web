@@ -1,12 +1,10 @@
 <template>
   <img
-    :src="src"
+    :src="SRC[type]"
     :alt="`verified ${type}`"
     :title="TITLES[type]"
-    :width="size"
-    :height="size"
     :class="['verified-badge', className]"
-    :style="{ width: `${size}px`, height: `${size}px`, '--badge-color': COLORS[type] }"
+    :style="{ '--badge-min': `${minPx}px` }"
     loading="lazy"
     decoding="async"
     draggable="false"
@@ -15,37 +13,41 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import personalSmall from '~/assets/badges/personal_128.png'
-import businessSmall from '~/assets/badges/business_128.png'
-import governmentSmall from '~/assets/badges/government_128.png'
-import personalLarge from '~/assets/badges/personal_orbit_verified.png'
-import businessLarge from '~/assets/badges/business_orbit_verified.png'
-import governmentLarge from '~/assets/badges/government_orbit_verified.png'
+import personalBadge from '~/assets/badges/personal_badge.png'
+import businessBadge from '~/assets/badges/business_badge.png'
+import governmentBadge from '~/assets/badges/government_badge.png'
 
 type BadgeType = 'personal' | 'business' | 'government'
 
+/**
+ * Custom Yeller verification badge. Scales with the surrounding name's font-size
+ * (the check disc is ~75% of the text height); `size` is the minimum in px.
+ */
 const props = withDefaults(defineProps<{
   type?: BadgeType | string | null
-  size?: 16 | 20 | 24 | 32 | 48 | 128 | number
+  size?: number
   className?: string
-}>(), { type: 'personal', size: 20, className: '' })
+}>(), { type: 'personal', size: 18, className: '' })
 
-const SMALL: Record<BadgeType, string> = { personal: personalSmall, business: businessSmall, government: governmentSmall }
-const LARGE: Record<BadgeType, string> = { personal: personalLarge, business: businessLarge, government: governmentLarge }
-const COLORS: Record<BadgeType, string> = { personal: '#6D28D9', business: '#FFC233', government: '#5EE9B5' }
+const SRC: Record<BadgeType, string> = { personal: personalBadge, business: businessBadge, government: governmentBadge }
 const TITLES: Record<BadgeType, string> = { personal: 'Verified individual', business: 'Verified business', government: 'Verified government' }
 
 const type = computed<BadgeType>(() => (props.type === 'business' || props.type === 'government' ? props.type : 'personal'))
-const src = computed(() => (props.size <= 24 ? SMALL : LARGE)[type.value])
+const minPx = computed(() => Math.max(18, props.size + 4))
 </script>
 
 <style scoped>
 .verified-badge {
   display: inline-block;
+  width: max(var(--badge-min), 1.35em);
+  height: max(var(--badge-min), 1.35em);
+  margin: -0.25em 0 -0.25em 5px;
   object-fit: contain;
   background: transparent;
   vertical-align: middle;
+  transform: translateY(-1px);
   flex-shrink: 0;
   user-select: none;
+  -webkit-user-select: none;
 }
 </style>
