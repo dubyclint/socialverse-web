@@ -65,8 +65,18 @@
         </span>
       </div>
 
+      <div v-if="contactCard && !isDeleted" class="contact-card">
+        <span class="contact-card-avatar"><Icon name="user" size="20" /></span>
+        <span class="contact-card-body">
+          <strong>{{ contactCard.name }}</strong>
+          <span>{{ contactCard.phone }}</span>
+        </span>
+        <a :href="`tel:${contactCard.phone.replace(/[^+\d]/g, '')}`" class="contact-card-action" title="Call" @click.stop><Icon name="phone" size="16" /></a>
+        <button type="button" class="contact-card-action" title="Copy number" @click.stop="copyContact"><Icon name="copy" size="16" /></button>
+      </div>
+
       <!-- Main Message -->
-      <div v-if="message.content || isDeleted || message.replyTo" class="message-text">
+      <div v-if="!contactCard && (message.content || isDeleted || message.replyTo)" class="message-text">
         <div v-if="message.replyTo && !isDeleted" class="quoted-message">
           <span class="quoted-bar"></span>
           <span class="quoted-body">
@@ -389,6 +399,21 @@ const kindOf = (url: string): 'image' | 'video' | 'audio' | 'file' => {
   return type === 'image' || type === 'video' || type === 'audio' ? type : 'file'
 }
 const isDeleted = computed(() => Boolean(props.message.deleted ?? props.message.isDeleted))
+const contactCard = computed(() => {
+  if (props.message.messageType !== 'contact' || !props.message.content) return null
+  const [nameLine = '', phoneLine = ''] = props.message.content.split('\n')
+  const name = nameLine.replace(/^👤\s*/, '').trim()
+  const phone = phoneLine.replace(/^📞\s*/, '').trim()
+  return name && phone ? { name, phone } : null
+})
+const copyContact = async (): Promise<void> => {
+  if (!contactCard.value) return
+  try {
+    await navigator.clipboard.writeText(contactCard.value.phone)
+  } catch {
+    /* clipboard unavailable */
+  }
+}
 const quotedText = computed(() => {
   const quoted = props.message.replyTo
   if (!quoted) return ''
@@ -1002,4 +1027,11 @@ const handleContextMenu = (event: MouseEvent) => {
   font-style: italic;
   opacity: 0.6;
 }
+.contact-card { display: flex; align-items: center; gap: 10px; min-width: 220px; padding: 10px 12px; border-radius: 14px; background: var(--chat-bubble-other, #1f2937); color: #f8fafc; }
+.own-message .contact-card { background: var(--chat-bubble-own, linear-gradient(135deg, #2563eb, #7c3aed)); }
+.contact-card-avatar { width: 38px; height: 38px; border-radius: 999px; background: rgba(255, 255, 255, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.contact-card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.contact-card-body strong { font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contact-card-body span { font-size: 0.82rem; opacity: 0.85; }
+.contact-card-action { width: 32px; height: 32px; border-radius: 999px; background: rgba(255, 255, 255, 0.15); color: inherit; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
 </style>

@@ -21,3 +21,22 @@ export const chatWallpaperStyle = (value: string | undefined): Record<string, st
   const preset = CHAT_WALLPAPERS.find(item => item.value === value)
   return preset && preset.value !== 'default' ? { background: preset.css } : {}
 }
+
+/** Bubble colour themes for chat; `own` is the sender's bubble, `other` the received one. */
+export const CHAT_THEMES = [
+  { value: 'aurora', label: 'Aurora', own: 'linear-gradient(135deg, #2563eb, #7c3aed)', other: '' },
+  { value: 'ocean', label: 'Ocean', own: 'linear-gradient(135deg, #0284c7, #0d9488)', other: '#12324a' },
+  { value: 'sunset', label: 'Sunset', own: 'linear-gradient(135deg, #f97316, #db2777)', other: '#3b1d2e' },
+  { value: 'forest', label: 'Forest', own: 'linear-gradient(135deg, #16a34a, #0f766e)', other: '#16332a' },
+  { value: 'rose', label: 'Rose', own: 'linear-gradient(135deg, #e11d48, #9333ea)', other: '#3a1830' },
+  { value: 'gold', label: 'Gold', own: 'linear-gradient(135deg, #d97706, #b45309)', other: '#33291a' },
+  { value: 'mono', label: 'Midnight', own: '#334155', other: '#1e293b' }
+] as const
+
+export const chatThemeStyle = (value: string | undefined): Record<string, string> => {
+  const theme = CHAT_THEMES.find(item => item.value === value) ?? CHAT_THEMES[0]
+  return {
+    '--chat-bubble-own': theme.own,
+    ...(theme.other ? { '--chat-bubble-other': theme.other } : {})
+  }
+}

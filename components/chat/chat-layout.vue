@@ -146,6 +146,10 @@
           <h3>New chat</h3>
           <button class="btn-icon" @click="closeNewChat"><Icon name="x" /></button>
         </div>
+        <button type="button" class="new-group-entry" @click="closeNewChat(); openGroupCreator()">
+          <span class="new-group-icon"><Icon name="users" size="18" /></span>
+          <span>New group</span>
+        </button>
         <input
           v-model="userSearch"
           class="new-chat-search"
@@ -1006,4 +1010,6 @@ onUnmounted(() => {
   .chat-content.has-active .chat-sidebar { display: none; }
   .chat-content:not(.has-active) .chat-session { display: none; }
 }
+.new-group-entry { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; color: inherit; padding: 10px 4px; cursor: pointer; font-weight: 600; font-size: 0.95rem; text-align: left; }
+.new-group-icon { width: 40px; height: 40px; border-radius: 999px; background: #16a34a; color: #fff; display: flex; align-items: center; justify-content: center; }
 </style>

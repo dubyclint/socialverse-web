@@ -2,7 +2,7 @@
 <!-- All imports fixed: ~ changed to @, kebab-case component names -->
 
 <template>
-  <div class="chat-session">
+  <div class="chat-session" :style="themeStyle">
     <!-- Chat Header -->
     <div class="session-header">
       <div class="header-left">
@@ -55,10 +55,10 @@
         >
           <icon name="gift" />
         </button>
-        <button class="header-btn" title="Video call" @click="startVideoCall" v-if="chat.type === 'group' || chat.userId">
+        <button class="header-btn" title="Video call" @click="startVideoCall" v-if="chat.type !== 'group' && chat.userId">
           <icon name="video" />
         </button>
-        <button class="header-btn" title="Voice call" @click="startVoiceCall" v-if="chat.type === 'group' || chat.userId">
+        <button class="header-btn" title="Voice call" @click="startVoiceCall" v-if="chat.type !== 'group' && chat.userId">
           <icon name="phone" />
         </button>
         <div class="more-menu" ref="moreMenu">
@@ -74,6 +74,10 @@
             <button @click="viewSharedMedia" class="menu-item">
               <icon name="image" />
               Media, Links, Docs
+            </button>
+            <button @click="openAppearance" class="menu-item">
+              <icon name="palette" />
+              Theme &amp; background
             </button>
             <button @click="toggleMute" class="menu-item">
               <icon :name="chat.isMuted ? 'volume-2' : 'volume-x'" />
@@ -275,6 +279,20 @@
     />
 
     <!-- Shared media -->
+    <ChatSettings v-if="showAppearance" initial-section="bubbleTheme" @close="showAppearance = false" />
+
+    <div v-if="showContactForm" class="contact-form-backdrop" @click.self="showContactForm = false">
+      <form class="contact-form" @submit.prevent="submitManualContact">
+        <h3>Share a contact</h3>
+        <input v-model="manualContact.name" type="text" placeholder="Name" maxlength="80" required autocomplete="name" />
+        <input v-model="manualContact.phone" type="tel" placeholder="Phone number" maxlength="32" required autocomplete="tel" />
+        <div class="contact-form-actions">
+          <button type="button" class="contact-cancel" @click="showContactForm = false">Cancel</button>
+          <button type="submit" class="contact-send" :disabled="!manualContact.name.trim() || !manualContact.phone.trim()">Send</button>
+        </div>
+      </form>
+    </div>
+
     <ChatGiftSheet
       v-if="showGiftSheet"
       :chat-id="chat.id"
@@ -316,6 +334,7 @@
       @selectFile="handleFileSelect"
       @selectCamera="openCamera"
       @selectLocation="shareLocation"
+      @selectContact="shareContact"
     />
 
     <!-- Emoji Picker -->
@@ -339,10 +358,14 @@ import MessageBubble from './message-bubble.vue'
 import AttachmentMenu from './attachment-menu.vue'
 import EmojiPicker from './emoji-picker.vue'
 import { useUserSettings } from '@/composables/use-user-settings'
-import { chatWallpaperStyle } from '~/shared/chat-wallpapers'
+import { Capacitor } from '@capacitor/core'
+import { Contacts } from '@capacitor-community/contacts'
+import { chatThemeStyle, chatWallpaperStyle } from '~/shared/chat-wallpapers'
+import ChatSettings from './chat-settings.vue'
 
 const { settings: userSettings, load: loadUserSettings } = useUserSettings()
 const wallpaperStyle = computed(() => chatWallpaperStyle(userSettings.value.general.chatWallpaper))
+const themeStyle = computed(() => chatThemeStyle(userSettings.value.general.chatTheme))
 onMounted(() => { void loadUserSettings() })
 import ChatGiftSheet from './chat-gift-sheet.vue'
 import MediaLightbox from './media-lightbox.vue'
@@ -391,6 +414,9 @@ const recordedChunks = ref([])
 const recordingTimer = ref(null)
 const cameraInput = ref(null)
 const showSharedMedia = ref(false)
+const showAppearance = ref(false)
+const showContactForm = ref(false)
+const manualContact = ref({ name: '', phone: '' })
 const sharedMedia = ref([])
 
 const hasAttachment = computed(() => pendingAttachments.value.length > 0)
@@ -812,6 +838,70 @@ const shareLocation = () => {
     },
     () => { uploadError.value = 'Location permission denied' }
   )
+}
+
+const openAppearance = () => {
+  showMoreMenu.value = false
+  showAppearance.value = true
+}
+
+const sendContact = ({ name, phone }) => {
+  const cleanName = String(name || '').trim().slice(0, 80)
+  const cleanPhone = String(phone || '').trim().slice(0, 32)
+  if (!cleanName || !cleanPhone) {
+    uploadError.value = 'That contact has no phone number'
+    return
+  }
+  emit('sendMessage', {
+    chatId: props.chat.id,
+    content: `👤 ${cleanName}\n📞 ${cleanPhone}`,
+    messageType: 'contact'
+  })
+  scrollToBottom()
+}
+
+const pickNativeContact = async () => {
+  const status = await Contacts.requestPermissions()
+  if (status.contacts !== 'granted' && status.contacts !== 'limited') {
+    throw new Error('Contacts permission denied')
+  }
+  const { contact } = await Contacts.pickContact({ projection: { name: true, phones: true } })
+  const name = contact?.name?.display || [contact?.name?.given, contact?.name?.family].filter(Boolean).join(' ')
+  const phone = contact?.phones?.find(entry => entry.number)?.number || ''
+  return { name, phone }
+}
+
+const pickWebContact = async () => {
+  const [picked] = await navigator.contacts.select(['name', 'tel'], { multiple: false })
+  if (!picked) return null
+  return { name: picked.name?.[0] || '', phone: picked.tel?.[0] || '' }
+}
+
+const shareContact = async () => {
+  showAttachmentMenu.value = false
+  uploadError.value = ''
+  try {
+    if (Capacitor.isNativePlatform()) {
+      sendContact(await pickNativeContact())
+      return
+    }
+    if ('contacts' in navigator && 'ContactsManager' in window) {
+      const picked = await pickWebContact()
+      if (picked) sendContact(picked)
+      return
+    }
+  } catch (error) {
+    const message = String(error?.message || error || '')
+    if (/cancel/i.test(message)) return
+    if (/denied|permission/i.test(message)) uploadError.value = 'Contacts permission denied. You can type the contact instead.'
+  }
+  manualContact.value = { name: '', phone: '' }
+  showContactForm.value = true
+}
+
+const submitManualContact = () => {
+  sendContact(manualContact.value)
+  showContactForm.value = false
 }
 
 const insertEmoji = (emoji) => {
@@ -1539,4 +1629,12 @@ watch(() => props.messages, () => {
   }
   .message-input { font-size: 16px; }
 }
+.contact-form-backdrop { position: fixed; inset: 0; z-index: 1100; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.contact-form { width: min(380px, 100%); background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.contact-form h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.contact-form input { background: #0f172a; border: 1px solid #334155; border-radius: 10px; color: #f8fafc; padding: 10px 12px; font-size: 0.95rem; }
+.contact-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.contact-cancel { background: #334155; color: #e2e8f0; border: none; border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+.contact-send { background: #2563eb; color: #fff; border: none; border-radius: 999px; padding: 8px 18px; font-weight: 600; cursor: pointer; }
+.contact-send:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

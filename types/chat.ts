@@ -28,7 +28,7 @@ export interface ChatMessage {
   senderVerifiedType?: string | null
   content: string
   timestamp: number
-  messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system' | 'gift'
+  messageType?: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system' | 'gift' | 'contact'
   gift?: { name: string, quantity: number }
   forwarded?: boolean
   status?: MessageStatus

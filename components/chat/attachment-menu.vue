@@ -85,7 +85,7 @@ import { ref } from 'vue'
 import Icon from '@/components/ui/icon.vue'
 
 // Emits
-const emit = defineEmits(['close', 'selectFile', 'selectCamera', 'selectLocation'])
+const emit = defineEmits(['close', 'selectFile', 'selectCamera', 'selectLocation', 'selectContact'])
 
 // Refs
 const imageInput = ref(null)
@@ -111,9 +111,7 @@ const selectOption = (type) => {
       emit('selectLocation')
       break
     case 'contact':
-      // Handle contact sharing
-      console.log('Share contact')
-      emit('close')
+      emit('selectContact')
       break
   }
 }

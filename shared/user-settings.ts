@@ -44,6 +44,7 @@ export interface GeneralSettings {
   language: string
   theme: 'system' | 'dark' | 'light'
   chatWallpaper: string
+  chatTheme: string
   enterToSend: boolean
   idleLogoutMinutes: number
 }
@@ -101,6 +102,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     language: 'en',
     theme: 'system',
     chatWallpaper: 'default',
+    chatTheme: 'aurora',
     enterToSend: true,
     idleLogoutMinutes: 30
   }

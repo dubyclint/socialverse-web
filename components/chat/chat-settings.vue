@@ -171,7 +171,13 @@
             />
             <settings-item
               icon="palette"
-              title="Theme"
+              title="Chat Theme"
+              :subtitle="bubbleThemeLabel"
+              @click="currentSection = 'bubbleTheme'"
+            />
+            <settings-item
+              icon="sun"
+              title="App Appearance"
               :subtitle="themeLabel"
               @click="currentSection = 'chatTheme'"
             />
@@ -407,6 +413,27 @@
           <p v-if="wallpaperError" class="wallpaper-error">{{ wallpaperError }}</p>
         </div>
 
+        <div v-else-if="currentSection === 'bubbleTheme'" class="option-list">
+          <div
+            v-for="option in CHAT_THEMES"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: settings.general.chatTheme === option.value }"
+            @click="update('general', { chatTheme: option.value })"
+          >
+            <span class="wallpaper-swatch theme-swatch">
+              <i :style="{ background: option.own }" />
+              <i :style="{ background: option.other || '#1f2937' }" />
+            </span>
+            <div class="option-info">
+              <div class="option-title">{{ option.label }}</div>
+            </div>
+            <div class="option-radio">
+              <div v-if="settings.general.chatTheme === option.value" class="radio-dot" />
+            </div>
+          </div>
+        </div>
+
         <!-- Theme -->
         <div v-else-if="currentSection === 'chatTheme'" class="option-list">
           <div
@@ -538,7 +565,7 @@ import ToggleSwitch from '@/components/ui/toggle-switch.vue'
 import { useUserSettings } from '~/composables/use-user-settings'
 import { usePals } from '~/composables/use-pals'
 import type { Visibility } from '~/shared/user-settings'
-import { CHAT_WALLPAPERS, CHAT_WALLPAPER_MAX_BYTES } from '~/shared/chat-wallpapers'
+import { CHAT_THEMES, CHAT_WALLPAPERS, CHAT_WALLPAPER_MAX_BYTES } from '~/shared/chat-wallpapers'
 
 interface StorageUsage {
   messages: number
@@ -552,6 +579,7 @@ interface InvitableContact {
   phone: string
 }
 
+const props = defineProps<{ initialSection?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
 const router = useRouter()
@@ -559,7 +587,7 @@ const userStore = useUserStore()
 const { settings, error, load, update } = useUserSettings()
 const { blocked, loadAll, setBlocked } = usePals()
 
-const currentSection = ref<string>('main')
+const currentSection = ref<string>(props.initialSection ?? 'main')
 const inviteMessage = ref('Hey! Join me on Viorp - a private social platform. Download: https://viorp.com/download')
 const invitable = ref<InvitableContact[]>([])
 const storage = ref<StorageUsage>({ messages: 0, messageCount: 0, mediaCount: 0, statusCount: 0 })
@@ -576,7 +604,8 @@ const sectionTitles: Record<string, string> = {
   groupPrivacy: 'Group Privacy',
   blockedContacts: 'Blocked Contacts',
   appLock: 'App Lock',
-  chatTheme: 'Theme',
+  chatTheme: 'App Appearance',
+  bubbleTheme: 'Chat Theme',
   chatWallpaper: 'Chat Background',
   storage: 'Storage Management',
   networkUsage: 'Auto-Download',
@@ -679,6 +708,10 @@ const appLockLabel = computed(() =>
 
 const languageLabel = computed(() =>
   languageOptions.find(option => option.value === settings.value.general.language)?.label ?? 'English'
+)
+
+const bubbleThemeLabel = computed(() =>
+  CHAT_THEMES.find(option => option.value === settings.value.general.chatTheme)?.label ?? 'Aurora'
 )
 
 const themeLabel = computed(() =>
@@ -1138,4 +1171,6 @@ onMounted(() => {
   padding: 6px 8px;
   color: inherit;
 }
+.theme-swatch { display: inline-flex; flex-direction: column; overflow: hidden; }
+.theme-swatch i { flex: 1; display: block; }
 </style>
