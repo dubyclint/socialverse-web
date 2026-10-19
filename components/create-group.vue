@@ -8,7 +8,14 @@
         </button>
       </header>
 
-      <input v-model="groupName" class="field" maxlength="80" placeholder="Group name" required />
+      <div class="name-row">
+        <label class="group-photo" :title="avatar ? 'Change group photo' : 'Add group photo'">
+          <img v-if="avatar" :src="avatar" alt="Group photo" />
+          <Icon v-else :name="uploading ? 'loader' : 'camera'" size="20" />
+          <input type="file" accept="image/jpeg,image/png,image/webp" hidden :disabled="uploading" @change="pickPhoto" />
+        </label>
+        <input v-model="groupName" class="field" maxlength="80" placeholder="Group name" required />
+      </div>
 
       <div v-if="selected.length" class="chips">
         <button v-for="person in selected" :key="person.user_id" type="button" class="chip" @click="toggle(person)">
@@ -64,7 +71,29 @@ interface Person {
   avatar_url: string | null
 }
 
-const emit = defineEmits<{ close: []; create: [payload: { name: string; memberIds: string[] }] }>()
+const emit = defineEmits<{ close: []; create: [payload: { name: string; memberIds: string[]; avatar: string | null }] }>()
+
+const avatar = ref<string | null>(null)
+const uploading = ref(false)
+const pickPhoto = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) { error.value = 'Group photo must be under 5 MB'; return }
+  uploading.value = true
+  error.value = ''
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await $fetch<{ url: string }>('/api/upload', { method: 'POST', body: form })
+    avatar.value = res.url
+  } catch {
+    error.value = 'Could not upload the group photo'
+  } finally {
+    uploading.value = false
+  }
+}
 
 const groupName = ref('')
 const query = ref('')
@@ -100,13 +129,17 @@ const toggle = (person: Person) => {
 }
 
 const submit = () => {
-  emit('create', { name: groupName.value.trim(), memberIds: selected.value.map(person => person.user_id) })
+  emit('create', { name: groupName.value.trim(), memberIds: selected.value.map(person => person.user_id), avatar: avatar.value })
 }
 
 onMounted(load)
 </script>
 
 <style scoped>
+.name-row { display: flex; gap: 10px; align-items: center; }
+.name-row .field { flex: 1; }
+.group-photo { width: 52px; height: 52px; flex-shrink: 0; border-radius: 999px; background: #334155; color: #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+.group-photo img { width: 100%; height: 100%; object-fit: cover; }
 .create-group-overlay {
   position: fixed;
   inset: 0;

@@ -511,7 +511,7 @@ const handleTyping = (isTyping: boolean) => {
   }
 }
 
-const createGroup = async (groupData: { name: string; memberIds: string[] }) => {
+const createGroup = async (groupData: { name: string; memberIds: string[]; avatar: string | null }) => {
   try {
     const response = await $fetch<ApiResponse<Chat>>('/api/chat/group', { method: 'POST', body: groupData })
     if (response.success && response.data) {
