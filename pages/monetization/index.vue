@@ -1,4 +1,4 @@
-
+//pages/monetisatio/index.vue
 Monetization Portal: Requirements & Terms of Service
 
 Welcome to the Creator Monetization Program. To unlock payouts and withdrawal capabilities, your account must comply with our application ecosystem health, safety, and engagement rules.
