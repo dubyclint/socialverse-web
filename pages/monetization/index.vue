@@ -31,7 +31,7 @@
             <span class="font-bold text-zinc-200">3.</span>
             <div>
               <span class="font-semibold text-white">Wallet Maintenance Policy:</span>
-              <span class="text-zinc-400"> To keep your profile in active standing, a minimum deposit of 10 PEW must be made every 2 months. Note: While this wallet rule is non-binding during our early launch window, our Admin Team manually reviews your overall wallet activity prior to approving any outbound withdrawal cash-out request.</span>
+              <span class="text-zinc-400"> To keep your qualifications in active standing, a minimum total of 10 PEW  must have been added through add fund methods within a period of 2 months. Note: While this wallet rule is non-binding during our early launch window, our Admin Team manually reviews your overall wallet activity prior to approving any outbound withdrawal cash-out request.</span>
             </div>
           </div>
 
