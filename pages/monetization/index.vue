@@ -1,111 +1,30 @@
-<template>
-  <div class="monetization">
-    <div class="monetization-header">
-      <h1 class="page-title">💰 Monetization</h1>
-      <p class="page-description">Every way to earn, spend and secure value on Viorp</p>
-    </div>
 
-    <div class="monetization-grid">
-      <NuxtLink v-for="item in surfaces" :key="item.to" :to="item.to" class="monetization-card">
-        <span class="card-icon">{{ item.emoji }}</span>
-        <span class="card-body">
-          <span class="card-title">{{ item.title }}</span>
-          <span class="card-description">{{ item.description }}</span>
-        </span>
-        <Icon name="chevron-right" size="18" class="card-chevron" />
-      </NuxtLink>
-    </div>
-  </div>
-</template>
+Monetization Portal: Requirements & Terms of Service
 
-<script setup lang="ts">
-definePageMeta({
-  middleware: ['auth', 'profile-completion', 'language-check'],
-  layout: 'default'
-})
+Welcome to the Creator Monetization Program. To unlock payouts and withdrawal capabilities, your account must comply with our application ecosystem health, safety, and engagement rules.
 
-useHead({ title: 'Monetization' })
+⚖️ Core Legal Terms & Conditions
 
-const surfaces: Array<{ to: string; emoji: string; title: string; description: string }> = [
-  { to: '/wallet', emoji: '👛', title: 'Wallet', description: 'Balances, deposits and withdrawals' },
-  { to: '/pewgift', emoji: '🎁', title: 'PewGift', description: 'Send and receive gifts on posts, chats and streams' },
-  { to: '/ads', emoji: '🎯', title: 'Ad Center', description: 'Create and monitor advertising campaigns' },
-  { to: '/p2p', emoji: '📈', title: 'P2P Trading', description: 'Trade directly with other users' },
-  { to: '/escrow', emoji: '🔒', title: 'Escrow', description: 'Secure transactions and dispute resolution' },
-  { to: '/stream', emoji: '📺', title: 'Live Streaming', description: 'Earn from gifts and stream ads' }
-]
-</script>
+1. Age Requirement: You must be 18 years or older to participate.
+2. Identity Verification: All monetized channels and Page Owners must complete KYC verification or possess an official platform Verified Badge.
+3. Wallet Maintenance Policy: To keep your profile in active standing, a minimum deposit of 10 PEW must be made every 2 months. Note: While this wallet rule is non-binding during our early launch window, our Admin Team manually reviews your overall wallet activity prior to approving any outbound withdrawal cash-out request.
+Platform Compliance Guardrails: Accounts with active community standard violations, safety flags, or fraudulent botting signatures are automatically disqualified. The Admin Team reserves the absolute right to modify criteria, freeze transactions, or reverse previous monetization approvals based on platform safety.
+4. Platform Compliance Guardrails: Accounts with active community standard violations, safety flags, or fraudulent botting signatures are automatically disqualified. The Admin Team reserves the absolute right to modify criteria, freeze transactions, or reverse previous monetization approvals based on platform safety.
 
-<style scoped>
-.monetization {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px 16px 48px;
-}
+Monetization Eligibility Progress
+Our system runs automated background checks tracking your feature usage. You must fulfill a minimum of 70% global app feature use to submit a payout request. The Admin Team holds strict override privileges and can manually waive any or all requirements for your profile.
+🟩 Fulfilled Criteria (Passed Automated Checks)
+Account Security & KYC: Completed age verification (18+) and approved via ID check or Premium Badge.
+post/Engagement : Actively publishing a minimum of 2-6 unique posts per 2 weeks.
+• Messaging & Community: Transmitting 4+ chat/group messages per week or executing 1 monthly outbound gift.
 
-.monetization-header {
-  margin-bottom: 24px;
-}
+🟨 Pending Criteria (Currently In-Progress)
 
-.page-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  margin: 0 0 4px;
-}
+• Daily Active Presence: Accumulate a cumulative session duration of 30 minutes online daily (Calculated on a weekly/monthly rolling cycle).
+• Live Stream Protocol: Reach 2,000 total followers and complete an active stream featuring an outbound gift within a 2-week window.
+• My Pal Social Graph: Maintain a peer connection pool of 600  "Pals" alongside active direct message session loops.
+• Ad Manager Suite: Execute a minimum self-serve promotional campaign placement spend of 5 PEW per calendar month.
 
-.page-description {
-  color: var(--text-secondary, #6b7280);
-  margin: 0;
-}
+Admin Status Notes
 
-.monetization-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-}
-
-.monetization-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
-  background: var(--card-bg, #fff);
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.monetization-card:hover {
-  border-color: var(--primary-color, #6366f1);
-  transform: translateY(-1px);
-}
-
-.card-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.card-title {
-  font-weight: 700;
-}
-
-.card-description {
-  font-size: 0.85rem;
-  color: var(--text-secondary, #6b7280);
-}
-
-.card-chevron {
-  color: var(--text-secondary, #9ca3af);
-  flex-shrink: 0;
-}
-</style>
+ℹ️ Special Waiver Note: The system status gauges above depend on live feature event logs. If you do not meet the strict 70% threshold, your application can still be pushed to manual review. Platform Administrators have the authority to issue Global Rule Waivers  based on original content quality and other valid considerations
