@@ -300,7 +300,7 @@
                   <div class="plus-icon-badge">
                     <Icon name="plus" size="16" />
                   </div>
-                  <span class="story-label">Create Story</span>
+                  <span class="story-label">Create Status</span>
                 </div>
               </div>
 
