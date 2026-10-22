@@ -282,16 +282,19 @@
           </button>
         </div>
 
+        <!-- LIVE NOW RAIL (STYLING SYNCED WITH STATUS CARDS & TINY GAP) -->
         <ClientOnly>
-          <LiveRail v-if="activeTab === 'for-you'" class="feed-live-rail-wrapper" />
+          <div v-if="activeTab === 'for-you'" class="feed-live-rail-wrapper">
+            <LiveRail />
+          </div>
         </ClientOnly>
 
-        <!-- STREAMLINED FACEBOOK & INSTAGRAM-STYLE STORIES/STATUS TRAY -->
+        <!-- STREAMLINED STATUS TRAY -->
         <ClientOnly>
           <div class="status-tray-container">
             <div v-if="statusLoading" class="status-tray-loading"><div class="spinner-mini"></div></div>
             <div v-else class="status-horizontal-scroll">
-              <!-- Add / Create Story Card -->
+              <!-- Add / Create Status Card -->
               <div class="story-card create-story-card" @click="navigateTo('/status')">
                 <div class="story-cover-image">
                   <img :src="userAvatar" alt="Your avatar" />
@@ -300,11 +303,11 @@
                   <div class="plus-icon-badge">
                     <Icon name="plus" size="16" />
                   </div>
-                  <span class="story-label">Create Story</span>
+                  <span class="story-label">Create Status</span>
                 </div>
               </div>
 
-              <!-- Active Status / Story Cards -->
+              <!-- Active Status Cards -->
               <div v-for="statusItem in fetchedStatuses" :key="statusItem.id" class="story-card user-story-card" @click="triggerStatusViewer(statusItem)">
                 <div class="story-background-wrapper" :style="{ backgroundColor: statusItem.colors?.background || '#1e293b' }">
                   <img v-if="statusItem.media_type === 'image' && statusItem.media_url" :src="statusItem.media_url" class="story-bg-media" />
@@ -331,20 +334,6 @@
               </div>
               <button class="media-quick-btn" @click="goToCreatePost" title="Photo/video">
                 <Icon name="image" size="22" class="text-emerald-400" />
-              </button>
-            </div>
-            <div class="create-post-actions">
-              <button class="action-btn photo-action" @click="goToCreatePost" title="Photo/video">
-                <Icon name="image" size="20" class="btn-icon text-emerald-400" />
-                <span class="action-label">Photo/video</span>
-              </button>
-              <button class="action-btn feeling-action" @click="goToCreatePost" title="Feeling/activity">
-                <Icon name="smile" size="20" class="btn-icon text-amber-400" />
-                <span class="action-label">Feeling/activity</span>
-              </button>
-              <button class="action-btn poll-action" @click="goToCreatePost" title="Create Poll">
-                <Icon name="bar-chart-2" size="20" class="btn-icon text-sky-400" />
-                <span class="action-label">Poll</span>
               </button>
             </div>
           </div>
@@ -585,115 +574,24 @@ onMounted(async () => {
 .nav-icon.active { color: #3b82f6; background-color: rgba(59, 130, 246, 0.1); }
 
 /* ============================================================================
-   FACEBOOK-STYLE CREATE POST WIDGET
+   LIVE NOW & STATUS CONTAINERS (TINY MARGIN GAP)
    ============================================================================ */
-.create-post-section {
-  background-color: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 0.75rem;
-  padding: 0.625rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-top: 0.25rem;
+.feed-live-rail-wrapper {
+  margin-bottom: 0.125rem;
 }
 
-.create-post-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+:deep(.live-rail-card),
+:deep(.live-stream-card) {
+  border-radius: 0.75rem !important;
+  border: 1px solid #334155 !important;
+  background-color: #1e293b !important;
 }
 
-.create-post-input-wrapper {
-  flex: 1;
-  background-color: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 9999px;
-  padding: 0.5rem 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.create-post-input-wrapper:hover {
-  background-color: #1a2638;
-  border-color: #475569;
-}
-
-.placeholder-text {
-  color: #94a3b8;
-  font-size: 0.875rem;
-  user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.media-quick-btn {
-  background: transparent;
-  border: none;
-  padding: 0.375rem;
-  border-radius: 9999px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-
-.media-quick-btn:hover {
-  background-color: #334155;
-}
-
-.create-post-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid #334155;
-  padding-top: 0.375rem;
-  gap: 0.25rem;
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.25rem;
-  border-radius: 0.5rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.action-btn:hover {
-  background-color: #334155;
-}
-
-.action-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #cbd5e1;
-}
-
-.text-emerald-400 { color: #34d399; }
-.text-amber-400 { color: #fbbf24; }
-.text-sky-400 { color: #38bdf8; }
-
-/* ============================================================================
-   VERTICAL STORY / STATUS CARDS (HORIZONTAL SCROLL)
-   ============================================================================ */
 .status-tray-container {
   width: 100%;
   overflow: hidden;
-  margin-top: 0.25rem;
-  margin-bottom: 0;
+  margin-top: 0.125rem;
+  margin-bottom: 0.25rem;
 }
 
 .status-tray-loading {
@@ -722,7 +620,7 @@ onMounted(async () => {
 .story-card {
   position: relative;
   flex: 0 0 100px;
-  height: 160px;
+  height: 150px;
   border-radius: 0.75rem;
   overflow: hidden;
   cursor: pointer;
@@ -737,14 +635,14 @@ onMounted(async () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* Create Story Card Specifics */
+/* Create Status Card Specifics */
 .create-story-card {
   display: flex;
   flex-direction: column;
 }
 
 .story-cover-image {
-  height: 105px;
+  height: 98px;
   width: 100%;
   overflow: hidden;
   background-color: #0f172a;
@@ -762,7 +660,7 @@ onMounted(async () => {
 }
 
 .create-story-footer {
-  height: 55px;
+  height: 52px;
   background-color: #1e293b;
   display: flex;
   flex-direction: column;
@@ -794,7 +692,7 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* Active User Story Cards */
+/* Active User Status Cards */
 .story-background-wrapper {
   width: 100%;
   height: 100%;
@@ -863,6 +761,72 @@ onMounted(async () => {
   text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
+
+/* ============================================================================
+   STREAMLINED FACEBOOK-STYLE CREATE POST WIDGET
+   ============================================================================ */
+.create-post-section {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 0.125rem;
+}
+
+.create-post-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.create-post-input-wrapper {
+  flex: 1;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 9999px;
+  padding: 0.5rem 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.create-post-input-wrapper:hover {
+  background-color: #1a2638;
+  border-color: #475569;
+}
+
+.placeholder-text {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-quick-btn {
+  background: transparent;
+  border: none;
+  padding: 0.375rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.media-quick-btn:hover {
+  background-color: #334155;
+}
+
+.text-emerald-400 { color: #34d399; }
 
 /* ============================================================================
    REDEFINED SIDEBAR MENU DRAWER
@@ -1167,8 +1131,7 @@ onMounted(async () => {
   background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem;
 }
 
-.feed-content { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-.feed-live-rail-wrapper { margin-bottom: 0.25rem; }
+.feed-content { display: flex; flex-direction: column; gap: 0.375rem; min-width: 0; }
 .post-media-gallery { border-radius: 0.5rem; overflow: hidden; border: 1px solid #334155; background-color: #0f172a; margin-top: 0.5rem; }
 .post-image { width: 100%; display: block; object-fit: cover; }
 
@@ -1202,7 +1165,7 @@ onMounted(async () => {
   .feed-main-wrapper { 
     grid-template-columns: 1fr; 
     padding: 0.25rem 0.25rem calc(4.5rem + env(safe-area-inset-bottom, 0px)); 
-    gap: 0.375rem;
+    gap: 0.25rem;
   }
   .feed-sidebar-left { display: none; }
 
@@ -1229,10 +1192,6 @@ onMounted(async () => {
   }
   .create-story-footer {
     height: 52px;
-  }
-
-  .action-label {
-    display: none;
   }
 }
 </style>
