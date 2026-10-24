@@ -7,7 +7,7 @@ There is duplications
 
 - on chat message and group chat whenever theme and background are called for , the wallpaper should be there on the list to choose too .
 - the profile photo set for group chat should display during chat, 
-
+- from my admin dashboard I can see that there are total of 900 pew in wallets : my question as the super admin is are these accounts and wallets usable? all pew created not from the add fund payment gateway methods should be sent back to super admin user balance after work or testing, only amount needed for testing not above 50pew should be left.
 - make sure the verification badge now display alongside user - profile name on chat message list table and across app, check the create group icon on chat message, I don't want 2 different icon doing the same work.
 
 
