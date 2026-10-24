@@ -679,7 +679,7 @@ Class	Badge
 - Don't forget when admin change rate or fee it should update on verification badge T&C's page too.
 
   
-  -I find out that all implementation on notification isn't yet working, user interaction is notifying users on notification icon count . Activities like successful verification badge, likes, comment, gift, share, download, mention, tagged, post,  yet most importantly when opened the notification should be able to take one to event if clicked.
+  -I find out that all implementation on notification isn't yet working, user interaction is notifying users on notification icon count . Activities like successful verification badge, likes, comment, gift(with notification sign in wallet icon)share, download, mention, tagged, post,  yet most importantly when opened the notification should be able to take one to event if clicked.all notification push sound on unless user set it off at setting.
 
 - we are to launch now:
 Check all security loope, apply scalability capacity for 1m users.
