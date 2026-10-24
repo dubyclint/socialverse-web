@@ -3,7 +3,7 @@ implement this instruction:
 Admin or manager can revoke a verification badge already approved to a user, in this case the request verification returns to user profile for user to apply again.
 
 There is duplications
- of  edit profile  from feed.vue sidebar , when a profile is visited every action can be done there . Every edit profile will done under edit on profile. Unify let there single source, which is visit profile then edit from there . So unify and remove edit profile from sidebar .
+ of  edit profile  from feed.vue sidebar , when a profile is visited every action can be done there . Every edit profile will done under edit on profile. Unify let there single source, which is visit profile then edit from there . So unify and remove edit profile from sidebar , the tab and should be ad manager on feed.vue
 
 - on chat message and group chat whenever theme and background are called for , the wallpaper should be there on the list to choose too .
 - the profile photo set for group chat should display during chat, 
