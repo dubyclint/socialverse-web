@@ -11,6 +11,11 @@ There is duplications
 - make sure the verification badge now display alongside user - profile name on chat message list table and across app, check the create group icon on chat message, I don't want 2 different icon doing the same work.
 
 
+- there is improper CSS flex/overflow management, heavy unoptimized local asset storage, and a breaking state management loop in this project :chat box spacing inconsistent, my frontend page loading slow, chat message feature loading is slow, sometimes when on feature doing something app sends off to sign in again, audio/video call on chat message now slow to connect or cut off immediately connected , there is inconsistency or persistent issue
+      (check for Dom-element bloat and unoptimized message rendering,virtual scrolling,Optimize v-for keys,Lazy-load media components,• Separate your network timeout logic from your auth routing guard logic. A slow or broken connection should trigger an offline banner notification, not an automatic routing dispatch to your /login screen.
+• Update your Axios/Fetch interceptor to retry token refreshing at least twice during high-latency network drops before forcing a hard sign-out.• Increase signaling connection timeout thresholds: Modify your WebRTC connection configurations to expand the connection handshake window up to 15-20 seconds during poor network states.
+• Force TURN servers: When networks are heavily restricted or weak, standard peer-to-peer (STUN) direct routing fails entirely. Ensure your WebRTC implementation is properly fallback-routing calls through a dedicated, geographically close TURN relay server to stabilize transmission.
+   
 - the chat message chat typing box is very good on desktop but not on mobile , even the create group design and styling isn't very good so you look at this code to improve the design
 
  <template>
