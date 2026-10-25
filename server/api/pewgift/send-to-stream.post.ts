@@ -4,6 +4,7 @@ import { mapGiftError } from '~/server/utils/pewgift-errors'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
 import { assertAllowed } from '~/server/utils/staff'
+import { loadHostStreamPrefs } from '~/server/utils/stream-settings'
 
 interface SendGiftToStreamRequest {
   streamId: string
@@ -23,6 +24,9 @@ export default defineEventHandler(async (event) => {
   if (!body.streamId || !body.streamerId || !body.giftTypeId) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
+
+  const { settings: hostPrefs } = await loadHostStreamPrefs(body.streamId)
+  if (!hostPrefs.allowGifts) throw createError({ statusCode: 403, statusMessage: 'The host has turned off gifts for this stream' })
 
   const supabase = await serverSupabaseClient<Database>(event)
 

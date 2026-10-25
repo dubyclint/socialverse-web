@@ -193,7 +193,7 @@ const onStreamStarted = async (config: any) => {
       method: 'POST',
       body: {
         action: 'create',
-        title: config.title || `${userStore.profile?.username || 'Live'} stream`,
+        title: config.title || await $fetch<{ data: { defaultTitle?: string } }>('/api/stream/settings').then(r => r.data.defaultTitle).catch(() => '') || `${userStore.profile?.username || 'Live'} stream`,
         description: config.category
       }
     })

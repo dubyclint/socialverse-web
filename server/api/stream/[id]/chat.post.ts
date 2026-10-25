@@ -3,6 +3,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import { assertAllowed } from '~/server/utils/staff'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
+import { loadHostStreamPrefs } from '~/server/utils/stream-settings'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -14,6 +15,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ content?: string }>(event)
   if (!body.content?.trim()) {
     throw createError({ statusCode: 400, statusMessage: 'Message content is required' })
+  }
+
+  const { hostId, settings } = await loadHostStreamPrefs(streamId)
+  if (!settings.allowComments && hostId !== user.id) {
+    throw createError({ statusCode: 403, statusMessage: 'The host has turned off chat for this stream' })
   }
 
   const supabase = await serverSupabaseClient<Database>(event)

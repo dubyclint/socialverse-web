@@ -67,3 +67,14 @@ export const DEFAULT_STREAM_SETTINGS: StreamSettings = {
   enableHLS: true,
   enableDASH: false
 }
+
+/** The host's saved preferences for a stream (chat and gift switches). */
+export const loadHostStreamPrefs = async (streamId: string): Promise<{ hostId: string | null, settings: StreamSettings }> => {
+  const { getServiceClient } = await import('~/server/utils/supabase-admin')
+  const db = getServiceClient()
+  const { data: stream } = await db.from('streams').select('creator_id').eq('id', streamId).maybeSingle()
+  const hostId = (stream as { creator_id?: string } | null)?.creator_id ?? null
+  if (!hostId) return { hostId: null, settings: DEFAULT_STREAM_SETTINGS }
+  const { data } = await db.from('stream_settings').select('settings').eq('user_id', hostId).maybeSingle()
+  return { hostId, settings: { ...DEFAULT_STREAM_SETTINGS, ...((data?.settings ?? {}) as Partial<StreamSettings>) } }
+}
