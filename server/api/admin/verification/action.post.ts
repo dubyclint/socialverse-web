@@ -56,6 +56,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'action must be approve, reject, assign or revoke' })
   }
 
+  if (body.action === 'assign' && staff.role !== 'admin') {
+    throw createError({ statusCode: 403, statusMessage: 'Only the super admin can award a badge directly' })
+  }
   if (!targetId || (kind !== 'user' && kind !== 'page')) {
     throw createError({ statusCode: 400, statusMessage: 'kind and targetId are required' })
   }
@@ -78,11 +81,18 @@ export default defineEventHandler(async (event) => {
     ownerId = ownerId ?? targetId
   }
 
+  if (revoke) {
+    // Close the approved request so the owner can apply again.
+    let approved = service.from('badge_requests').update({ status: 'revoked', review_note: note, reviewed_by: staff.id, updated_at: now } as never).eq('status', 'approved')
+    approved = kind === 'page' ? approved.eq('page_id', targetId) : approved.eq('user_id', targetId).is('page_id', null)
+    await approved
+  }
+
   await logStaffAction(staff.id, `verification_${body.action}`, kind, targetId, { type: patch.verified_type, note })
   if (ownerId) {
     const what = kind === 'page' ? 'Your Page' : 'Your account'
     await sendNotification(event, ownerId, 'system', revoke
-      ? `${what} verification badge was removed${note ? `: ${note}` : '.'}`
+      ? `${what} verification badge was removed${note ? `: ${note}` : '.'} You can request verification again from your profile.`
       : `${what} is now verified with the ${LABEL[type as BadgeType]} badge.`, staff.id)
   }
   return { success: true, verified: !revoke, type: patch.verified_type }

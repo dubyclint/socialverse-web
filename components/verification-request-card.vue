@@ -8,6 +8,7 @@
     <p v-else-if="state?.verified" class="muted">Verified as {{ label(state.type) }}.</p>
     <p v-else-if="state?.request?.status === 'pending'" class="muted">Your {{ label(state.request.category) }} request is under review.</p>
     <template v-else>
+      <p v-if="state?.request?.status === 'revoked'" class="error">Your badge was removed<span v-if="state.request.review_note">: {{ state.request.review_note }}</span>. You can apply again.</p>
       <p v-if="state?.request?.status === 'rejected'" class="error">
         Last request was not approved<span v-if="state.request.review_note">: {{ state.request.review_note }}</span>
       </p>
@@ -19,15 +20,24 @@
             <VerifiedBadge :type="t.value" :size="20" /> {{ t.label }}
           </label>
         </div>
+        <div v-if="form.category === 'business'" class="types">
+          <label :class="['type', { active: form.businessSize === 'sme' }]"><input v-model="form.businessSize" type="radio" value="sme" /> SME / sole owner</label>
+          <label :class="['type', { active: form.businessSize === 'corp' }]"><input v-model="form.businessSize" type="radio" value="corp" /> Large company</label>
+        </div>
+        <div class="types">
+          <label v-if="feeFor('monthly') !== null" :class="['type', { active: form.plan === 'monthly' }]"><input v-model="form.plan" type="radio" value="monthly" /> Monthly · {{ feeFor('monthly') }} PEW</label>
+          <label v-if="feeFor('yearly') !== null" :class="['type', { active: form.plan === 'yearly' }]"><input v-model="form.plan" type="radio" value="yearly" /> Yearly · {{ feeFor('yearly') }} PEW</label>
+        </div>
         <textarea v-model.trim="form.reason" rows="3" maxlength="1000" placeholder="Why should this account be verified? (at least 20 characters)" required />
         <input v-model.trim="form.links" placeholder="Official links (https://…, comma separated)" />
         <label class="muted">Supporting document (ID, registration certificate…)
           <input type="file" accept="image/*,application/pdf" @change="onDoc" />
         </label>
         <p v-if="docName" class="muted">Attached: {{ docName }}</p>
+        <label class="muted"><input v-model="form.accept" type="checkbox" /> I accept the <NuxtLink :to="`/verification/terms?back=${encodeURIComponent($route.fullPath)}`">Verified Badge terms &amp; fees</NuxtLink>. The fee is taken from {{ pageId ? 'the Page wallet' : 'my wallet' }} and is non-refundable.</label>
         <p v-if="error" class="error">{{ error }}</p>
         <div class="row">
-          <button type="submit" class="btn" :disabled="busy || uploading">{{ busy ? 'Sending…' : 'Send request' }}</button>
+          <button type="submit" class="btn" :disabled="busy || uploading || !form.accept">{{ busy ? 'Sending…' : 'Send request' }}</button>
           <button type="button" class="btn secondary" @click="open = false">Cancel</button>
         </div>
       </form>
@@ -56,9 +66,15 @@ const uploading = ref(false)
 const error = ref('')
 const docName = ref('')
 const docPath = ref('')
-const form = reactive<{ category: BadgeType, reason: string, links: string }>({
-  category: props.pageId ? 'business' : 'personal', reason: '', links: ''
+const form = reactive<{ category: BadgeType, reason: string, links: string, plan: 'monthly' | 'yearly', businessSize: 'sme' | 'corp', accept: boolean }>({
+  category: props.pageId ? 'business' : 'personal', reason: '', links: '', plan: 'yearly', businessSize: 'sme', accept: false
 })
+const fees = ref<Record<string, number | null>>({})
+const feeFor = (plan: 'monthly' | 'yearly') => {
+  const tier = form.category === 'government' ? 'government' : form.category === 'business' ? (form.businessSize === 'corp' ? 'business_corp' : 'business_sme') : props.pageId ? 'page' : 'personal'
+  const v = fees.value[`${tier}_${plan}`]
+  return v === undefined ? null : v
+}
 
 const label = (t: string | null | undefined) => BADGE_TYPES.find(b => b.value === t)?.label.toLowerCase() ?? 'individual'
 
@@ -104,7 +120,10 @@ const submit = async () => {
         category: form.category,
         reason: form.reason,
         links: form.links.split(',').map(s => s.trim()).filter(Boolean),
-        documents: docPath.value ? [{ name: docName.value, path: docPath.value }] : []
+        documents: docPath.value ? [{ name: docName.value, path: docPath.value }] : [],
+        plan: form.plan,
+        businessSize: form.businessSize,
+        acceptTerms: form.accept
       }
     })
     open.value = false
@@ -117,7 +136,10 @@ const submit = async () => {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  $fetch<{ fees: Record<string, number | null> }>('/api/verification/fees').then((r) => { fees.value = r.fees }).catch(() => {})
+})
 </script>
 
 <style scoped>

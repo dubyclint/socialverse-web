@@ -11,6 +11,19 @@
     <p v-if="error" class="sa-error">{{ error }}</p>
     <p v-if="notice" class="sa-ok">{{ notice }}</p>
 
+    <template v-if="tab === 'fees'">
+      <div class="sa-card">
+        <p>Fees in PEW, charged when someone applies. Leave empty to hide a plan.</p>
+        <div v-for="(label, tier) in feeTiers" :key="tier" class="sa-row">
+          <strong style="flex:1">{{ label }}</strong>
+          <label>Monthly <input v-model="feeForm[`${tier}_monthly`]" class="sa-input" type="number" min="0" step="0.01" style="width:90px" /></label>
+          <label>Yearly <input v-model="feeForm[`${tier}_yearly`]" class="sa-input" type="number" min="0" step="0.01" style="width:90px" /></label>
+        </div>
+        <button class="sa-btn" :disabled="busy" @click="saveFees">Save fees</button>
+        <NuxtLink to="/verification/terms" target="_blank">View badge terms page</NuxtLink>
+      </div>
+    </template>
+
     <template v-if="tab === 'assign'">
       <div class="sa-card">
         <input v-model="q" class="sa-input" placeholder="Search a user or Page by name / username / handle" @input="onSearch" />
@@ -109,8 +122,29 @@ const TABS = [
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'verified', label: 'Verified accounts' },
-  { value: 'assign', label: 'Assign directly' }
+  { value: 'assign', label: 'Assign directly' },
+  { value: 'fees', label: 'Badge fees' }
 ]
+const feeForm = reactive<Record<string, number | string | null>>({})
+const feeTiers = ref<Record<string, string>>({})
+const loadFees = async () => {
+  const r = await $fetch<{ fees: Record<string, number | null>, tiers: Record<string, string> }>('/api/verification/fees')
+  feeTiers.value = r.tiers
+  Object.assign(feeForm, r.fees)
+}
+const saveFees = async () => {
+  busy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    await $fetch('/api/admin/verification/fees', { method: 'POST', body: { ...feeForm } })
+    notice.value = 'Badge fees saved. The terms page shows them now.'
+  } catch (err) {
+    error.value = msg(err, 'Could not save fees')
+  } finally {
+    busy.value = false
+  }
+}
 const tab = ref('pending')
 const requests = ref<RequestRow[]>([])
 const verified = ref<Entity[]>([])
@@ -176,6 +210,6 @@ const revoke = (kind: string, targetId: string) => {
   void act({ action: 'revoke', kind, targetId, note })
 }
 
-watch(tab, load)
+watch(tab, t => (t === 'fees' ? loadFees().catch(() => { error.value = 'Could not load fees' }) : load()))
 onMounted(load)
 </script>

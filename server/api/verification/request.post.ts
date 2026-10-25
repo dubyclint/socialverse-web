@@ -3,6 +3,7 @@ import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { getPageRole } from '~/server/utils/actor'
 import type { BadgeType } from '~/utils/staff-permissions'
+import { getVerificationFees, tierFor, type VerificationPlan } from '~/server/utils/verification-fees'
 
 interface Body {
   pageId?: string | null
@@ -10,6 +11,9 @@ interface Body {
   reason?: string
   links?: string[]
   documents?: { name?: string, path?: string }[]
+  plan?: VerificationPlan
+  businessSize?: 'sme' | 'corp'
+  acceptTerms?: boolean
 }
 
 const CATEGORIES: BadgeType[] = ['personal', 'business', 'government']
@@ -35,8 +39,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Add at least one https link or document as proof' })
   }
 
+  if (body.acceptTerms !== true) throw createError({ statusCode: 400, statusMessage: 'Accept the Verified Badge terms and fees first' })
+  const plan: VerificationPlan = body.plan === 'monthly' ? 'monthly' : 'yearly'
+
   const service = getServiceClient()
   const pageId = body.pageId || null
+  const tier = tierFor(category, Boolean(pageId), body.businessSize)
+  const fee = (await getVerificationFees())[`${tier}_${plan}`]
+  if (fee === null) throw createError({ statusCode: 400, statusMessage: `The ${plan} plan isn't available for this badge` })
   if (pageId) {
     if (await getPageRole(pageId, user.id) !== 'OWNER') {
       throw createError({ statusCode: 403, statusMessage: 'Only the Page owner can request verification' })
@@ -53,14 +63,30 @@ export default defineEventHandler(async (event) => {
   const { data: existing } = await pending.maybeSingle()
   if (existing) throw createError({ statusCode: 409, statusMessage: 'A verification request is already under review' })
 
+  const balance = pageId
+    ? Number((await service.from('page_wallets').select('balance').eq('page_id', pageId).maybeSingle()).data?.balance ?? 0)
+    : Number((await service.from('wallets').select('balance').eq('user_id', user.id).eq('currency', 'PEW').maybeSingle()).data?.balance ?? 0)
+  if (balance < fee) {
+    throw createError({ statusCode: 402, statusMessage: `This badge costs ${fee} PEW (${plan}). ${pageId ? 'The Page wallet' : 'Your wallet'} has ${balance} PEW — add funds first.` })
+  }
+
   const { data, error } = await service.from('badge_requests').insert({
     user_id: user.id,
     page_id: pageId,
     category,
     reason,
     evidence: { links, documents },
-    status: 'pending'
+    status: 'pending',
+    plan,
+    tier
   } as never).select('id, status, created_at').single()
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  return data
+
+  const { error: chargeError } = await service.rpc('verification_fee_charge' as never, { p_user: user.id, p_page: pageId, p_amount: fee, p_request: data.id } as never)
+  if (chargeError) {
+    await service.from('badge_requests').delete().eq('id', data.id)
+    const insufficient = chargeError.code === '23514'
+    throw createError({ statusCode: insufficient ? 402 : 500, statusMessage: insufficient ? 'Not enough PEW in the wallet for this badge' : chargeError.message })
+  }
+  return { ...data, fee, plan, tier }
 })
