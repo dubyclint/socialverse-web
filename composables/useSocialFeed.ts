@@ -308,18 +308,12 @@ export const useSocialFeed = () => {
   const refreshSuggestedUsers = async () => {
     suggestedUsersLoading.value = true
     try {
-      const query = supabase
-        .from('user')
-        .select('user_id,username,display_name,full_name,avatar_url,is_verified,verified_type')
-        .limit(5)
-
-      const { data, error } = currentUserId.value
-        ? await query.neq('user_id', currentUserId.value)
-        : await query
-
-      if (error) throw new Error(error.message)
-
-      const rows = (data ?? []) as UserRow[]
+      // Server-ranked: contacts, followers, mutual PALs, shared interests, then country.
+      const res = await $fetch<{ suggestions?: Array<{ id: string, username: string | null, name: string, avatar_url: string | null, is_verified?: boolean, verified_type?: string | null }> }>('/api/pals/suggestions', { query: { limit: 6 } })
+      const rows = (res.suggestions ?? []).map(s => ({
+        user_id: s.id, username: s.username, display_name: s.name, full_name: s.name,
+        avatar_url: s.avatar_url, is_verified: s.is_verified ?? false, verified_type: s.verified_type ?? null
+      })) as UserRow[]
 
       let followingIds = new Set<string>()
       if (currentUserId.value && rows.length > 0) {

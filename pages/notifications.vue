@@ -105,6 +105,9 @@ const metaFor = (note: NotificationItem) => EVENT_META[note.event_type] ?? { lab
 const POST_EVENTS = new Set(['COMMENT_ADDED', 'COMMENT_REPLY', 'MENTION', 'TAG', 'POST_LIKE', 'GIFT_RECEIVED', 'POST_SHARED'])
 
 const linkFor = (note: NotificationItem): string => {
+  const lower = (note.message_text || '').toLowerCase()
+  if (lower.includes('your status')) return '/my-status'
+  if (lower.includes('their status') && note.notifier_id) return `/status?u=${note.notifier_id}`
   if (POST_EVENTS.has(note.event_type) && note.source_id) return `/posts/${note.source_id}`
   if (note.event_type === 'MISSED_CALL' && note.notifier_id) return `/chat?user=${note.notifier_id}`
   if (note.event_type.startsWith('PAL_')) return '/pal'

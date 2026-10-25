@@ -91,6 +91,7 @@
         <input v-model="reply" maxlength="500" placeholder="Reply…" @focus="paused = true" @blur="paused = false" @keyup.enter="sendReply">
         <button aria-label="Send reply" :disabled="!reply.trim()" @click="sendReply"><Icon name="send" size="18" /></button>
         <button aria-label="Gift PEW" @click="giftOpen = !giftOpen; paused = giftOpen"><Icon name="gift" size="20" /></button>
+        <button aria-label="Your comments" @click="openComments"><Icon name="message-circle" size="20" /></button>
         <div v-if="giftOpen" class="st-gift">
           <input v-model.number="giftAmount" type="number" min="0.01" step="0.01" aria-label="PEW amount">
           <button :disabled="gifting" @click="sendGift">{{ gifting ? 'Sending…' : 'Gift PEW' }}</button>
@@ -98,17 +99,33 @@
         <p v-if="reactMsg" class="st-react-msg">{{ reactMsg }}</p>
       </div>
       <div v-if="viewing.is_me" class="st-viewers" @click.stop="toggleViewers">
-        <Icon name="eye" size="16" /> {{ viewerInfo?.view_count ?? current!.view_count ?? 0 }}
+        <div class="st-own-actions">
+          <span><Icon name="eye" size="16" /> {{ viewerInfo?.view_count ?? current!.view_count ?? 0 }}</span>
+          <button class="st-comments-btn" @click.stop="openComments"><Icon name="message-circle" size="16" /> Comments</button>
+        </div>
         <ul v-if="showViewers && viewerInfo?.viewers.length">
           <li v-for="v in viewerInfo.viewers" :key="v.id"><img :src="v.avatar_url || '/default-avatar.svg'" alt="">{{ v.name }}<small>{{ timeAgo(v.viewed_at) }}</small></li>
         </ul>
+      </div>
+      <div v-if="showComments" class="st-csheet" @click.stop>
+        <header><strong>{{ commentsAuthor ? 'Comments' : 'Your comments' }}</strong><button aria-label="Close comments" @click="closeComments"><Icon name="x" size="20" /></button></header>
+        <p v-if="commentsLoading" class="st-cempty">Loading…</p>
+        <p v-else-if="!threads.length" class="st-cempty">{{ commentsAuthor ? 'No comments yet' : 'You haven\'t commented on this status yet' }}</p>
+        <div v-for="t in threads" :key="t.id" class="st-thread">
+          <div class="st-cmsg"><img :src="t.user?.avatar_url || '/default-avatar.svg'" alt=""><div><strong>{{ t.user?.name }}</strong><p>{{ t.content }}</p><small>{{ timeAgo(t.created_at) }}</small></div></div>
+          <div v-for="r in t.replies" :key="r.id" class="st-cmsg reply"><img :src="r.user?.avatar_url || '/default-avatar.svg'" alt=""><div><strong>{{ r.by_author ? `${r.user?.name} · author` : r.user?.name }}</strong><p>{{ r.content }}</p><small>{{ timeAgo(r.created_at) }}</small></div></div>
+          <div class="st-creply">
+            <input v-model="threadReply[t.id]" maxlength="500" :placeholder="commentsAuthor ? `Reply to ${t.user?.name ?? 'comment'}…` : 'Add to this thread…'" @keyup.enter="sendThreadReply(t.id)">
+            <button :disabled="!threadReply[t.id]?.trim()" aria-label="Send" @click="sendThreadReply(t.id)"><Icon name="send" size="16" /></button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { reactive, ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useUserStore } from '~/stores/user'
 import type { StatusGroup } from '~/server/api/status/index.get'
 
@@ -212,6 +229,35 @@ const videoEl = ref<HTMLVideoElement | null>(null)
 const viewerInfo = ref<{ view_count: number, viewers: { id: string, name: string, avatar_url: string | null, viewed_at: string }[] } | null>(null)
 const showViewers = ref(false)
 const paused = ref(false)
+interface ThreadPerson { id: string, name: string, avatar_url: string | null }
+interface Thread { id: string, content: string, created_at: string, user: ThreadPerson | null, replies: { id: string, content: string, created_at: string, user: ThreadPerson | null, by_author: boolean }[] }
+const showComments = ref(false)
+const commentsLoading = ref(false)
+const commentsAuthor = ref(false)
+const threads = ref<Thread[]>([])
+const threadReply = reactive<Record<string, string>>({})
+const loadComments = async () => {
+  const s = current.value
+  if (!s) return
+  commentsLoading.value = true
+  try {
+    const res = await $fetch<{ data: { is_author: boolean, threads: Thread[] } }>(`/api/status/${s.id}/comments`)
+    commentsAuthor.value = res.data.is_author
+    threads.value = res.data.threads
+  } catch (e) { flash(errMsg(e, 'Could not load comments')) } finally { commentsLoading.value = false }
+}
+const openComments = () => { showComments.value = true; paused.value = true; loadComments() }
+const closeComments = () => { showComments.value = false; paused.value = false }
+const sendThreadReply = async (rootId: string) => {
+  const s = current.value
+  const text = threadReply[rootId]?.trim()
+  if (!s || !text) return
+  try {
+    await $fetch(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text, replyTo: rootId } })
+    threadReply[rootId] = ''
+    await loadComments()
+  } catch (e) { flash(errMsg(e, 'Could not send reply')) }
+}
 const reply = ref('')
 const giftOpen = ref(false)
 const giftAmount = ref(1)
@@ -234,7 +280,8 @@ const sendReply = async () => {
   try {
     await $fetch(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text } })
     reply.value = ''
-    flash('Reply sent')
+    flash('Comment sent')
+    if (showComments.value) await loadComments()
   } catch (e) { flash(errMsg(e, 'Could not send reply')) }
 }
 const sendGift = async () => {
@@ -389,6 +436,25 @@ onBeforeUnmount(stopTimer)
 .st-gift input { border-radius: 10px; }
 .st-gift button { background: #22c55e !important; border-radius: 10px; padding: 8px 14px !important; font-weight: 600; }
 .st-react-msg { width: 100%; margin: 0; font-size: .8rem; color: #a7f3d0; text-align: center; }
+.st-own-actions { display: flex; align-items: center; gap: 14px; }
+.st-own-actions span { display: inline-flex; align-items: center; gap: 4px; }
+.st-comments-btn { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.14); border: 0; color: #fff; border-radius: 999px; padding: 6px 12px; }
+.st-csheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 70dvh; overflow-y: auto; background: #0f172a; color: #e2e8f0; border-radius: 16px 16px 0 0; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); z-index: 5; }
+.st-csheet header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.st-csheet header button { background: none; border: 0; color: inherit; }
+.st-cempty { color: #94a3b8; text-align: center; padding: 16px 0; margin: 0; }
+.st-thread { border-top: 1px solid rgba(148,163,184,.15); padding: 8px 0; }
+.st-cmsg { display: flex; gap: 8px; padding: 4px 0; }
+.st-cmsg.reply { margin-left: 34px; }
+.st-cmsg img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.st-cmsg div { min-width: 0; }
+.st-cmsg strong { font-size: .82rem; }
+.st-cmsg p { margin: 2px 0; font-size: .88rem; overflow-wrap: anywhere; }
+.st-cmsg small { color: #94a3b8; font-size: .72rem; }
+.st-creply { display: flex; gap: 6px; margin: 6px 0 0 34px; }
+.st-creply input { flex: 1; min-width: 0; background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 7px 12px; color: #fff; outline: none; }
+.st-creply button { background: #22c55e; border: 0; color: #fff; border-radius: 999px; padding: 6px 10px; }
+.st-creply button:disabled { opacity: .4; }
 .st-viewers { color: #fff; text-align: center; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .st-viewers ul { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 40dvh; overflow-y: auto; text-align: left; background: #111827; border-radius: 12px; }
 .st-viewers li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }

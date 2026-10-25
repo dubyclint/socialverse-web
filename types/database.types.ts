@@ -3717,6 +3717,7 @@ export type Database = {
           user_id: string
           content: string
           created_at: string
+          reply_to: string | null
         }
         Insert: {
           id?: string
@@ -3724,6 +3725,7 @@ export type Database = {
           user_id: string
           content: string
           created_at?: string
+          reply_to?: string | null
         }
         Update: {
           id?: string
@@ -3731,6 +3733,7 @@ export type Database = {
           user_id?: string
           content?: string
           created_at?: string
+          reply_to?: string | null
         }
         Relationships: []
       }

@@ -345,6 +345,8 @@
           </div>
         </ClientOnly>
 
+        <ClientOnly><PalSuggestionsRail /></ClientOnly>
+
         <!-- STREAMLINED FACEBOOK-STYLE CREATE POST WIDGET -->
         <ClientOnly>
           <div class="create-post-section">
@@ -367,7 +369,6 @@
           <div v-else-if="feedItems.length > 0" class="posts-list">
             <template v-for="(item, index) in feedItems" :key="item.type === 'post' ? item.post.id : `slot-${index}`">
               <FeedAdSlot v-if="item.type !== 'post'" :item="item" />
-              <PalSuggestionsRail v-if="index === 3" />
               <div v-for="post in postOf(item)" :key="post.id" v-impression="() => trackImpression(post.id)">
                 <PostsPostCard
                   :post="post"

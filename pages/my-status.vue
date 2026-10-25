@@ -26,14 +26,30 @@
           <div class="ms-counts">
             <button :class="{ on: open[s.id] === 'views' }" @click="toggle(s.id, 'views')"><Icon name="eye" size="14" /> {{ s.views.length }}</button>
             <button :class="{ on: open[s.id] === 'likes' }" @click="toggle(s.id, 'likes')"><Icon name="heart" size="14" /> {{ s.likes.length }}</button>
-            <button :class="{ on: open[s.id] === 'comments' }" @click="toggle(s.id, 'comments')"><Icon name="message-circle" size="14" /> {{ s.comments.length }}</button>
+            <button :class="{ on: open[s.id] === 'comments' }" @click="toggle(s.id, 'comments')"><Icon name="message-circle" size="14" /> {{ roots(s).length }}</button>
             <button :class="{ on: open[s.id] === 'gifts' }" @click="toggle(s.id, 'gifts')"><Icon name="gift" size="14" /> {{ giftTotal(s) }} PEW</button>
           </div>
         </div>
         <button class="ms-del" aria-label="Delete status" @click="remove(s.id)"><Icon name="trash-2" size="18" /></button>
       </div>
 
-      <ul v-if="open[s.id]" class="ms-list">
+      <div v-if="open[s.id] === 'comments'" class="ms-list">
+        <p v-if="!roots(s).length" class="ms-none">No comments yet</p>
+        <div v-for="c in roots(s)" :key="c.id" class="ms-thread">
+          <NuxtLink :to="`/profile/${c.user.id}`" class="ms-person">
+            <img :src="c.user.avatar_url || '/default-avatar.svg'" alt="">
+            <div class="ms-person-text"><strong>{{ c.user.name }}</strong><span class="ms-text">{{ c.content }}</span></div>
+          </NuxtLink>
+          <div v-for="r in repliesOf(s, c.id)" :key="r.id" class="ms-reply">
+            <strong>{{ r.mine ? 'You' : r.user.name }}</strong> <span class="ms-text">{{ r.content }}</span>
+          </div>
+          <div class="ms-reply-box">
+            <input v-model="replyText[c.id]" maxlength="500" :placeholder="`Reply to ${c.user.name}…`" @keyup.enter="sendReply(s, c.id)">
+            <button :disabled="!replyText[c.id]?.trim()" @click="sendReply(s, c.id)">Reply</button>
+          </div>
+        </div>
+      </div>
+      <ul v-else-if="open[s.id]" class="ms-list">
         <li v-for="row in rows(s)" :key="row.key">
           <NuxtLink :to="`/profile/${row.user.id}`" class="ms-person">
             <img :src="row.user.avatar_url || '/default-avatar.svg'" alt="">
@@ -68,7 +84,7 @@ interface MyStatus {
   expires_at: string
   views: { user: Person, at: string }[]
   likes: { user: Person, at: string }[]
-  comments: { id: string, user: Person, content: string, at: string }[]
+  comments: { id: string, user: Person, content: string, at: string, reply_to: string | null, mine: boolean }[]
   gifts: { id: string, user: Person, amount: number, at: string }[]
 }
 type Section = 'views' | 'likes' | 'comments' | 'gifts'
@@ -78,6 +94,20 @@ const items = ref<MyStatus[]>([])
 const loading = ref(true)
 const error = ref('')
 const open = reactive<Record<string, Section | undefined>>({})
+const replyText = reactive<Record<string, string>>({})
+const roots = (s: MyStatus) => s.comments.filter(c => !c.reply_to)
+const repliesOf = (s: MyStatus, id: string) => s.comments.filter(c => c.reply_to === id)
+const sendReply = async (s: MyStatus, rootId: string) => {
+  const text = replyText[rootId]?.trim()
+  if (!text) return
+  try {
+    const res = await $fetch<{ data: { id: string, created_at: string } }>(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text, replyTo: rootId } })
+    s.comments.push({ id: res.data.id, user: { id: '', name: 'You', username: '', avatar_url: null }, content: text, at: res.data.created_at, reply_to: rootId, mine: true })
+    replyText[rootId] = ''
+  } catch (e) {
+    error.value = errMsg(e, 'Could not send reply')
+  }
+}
 
 const errMsg = (e: unknown, fallback: string) => (e as { data?: { statusMessage?: string } })?.data?.statusMessage || fallback
 const load = async () => {
@@ -153,5 +183,12 @@ onMounted(load)
 .ms-person-text strong { font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ms-text { font-size: .82rem; color: #cbd5e1; overflow-wrap: anywhere; }
 .ms-list small { color: #94a3b8; flex-shrink: 0; font-size: .75rem; }
+.ms-thread { padding: 8px 0; border-bottom: 1px solid rgba(148,163,184,.1); }
+.ms-reply { margin: 4px 0 0 44px; font-size: .84rem; overflow-wrap: anywhere; }
+.ms-reply strong { color: #93c5fd; }
+.ms-reply-box { display: flex; gap: 6px; margin: 6px 0 0 44px; }
+.ms-reply-box input { flex: 1; min-width: 0; background: #1e293b; border: 1px solid #334155; border-radius: 999px; padding: 7px 12px; color: #fff; outline: none; }
+.ms-reply-box button { background: #22c55e; color: #fff; border: 0; border-radius: 999px; padding: 6px 12px; font-size: .8rem; flex-shrink: 0; }
+.ms-reply-box button:disabled { opacity: .4; }
 .ms-none { color: #94a3b8; font-size: .85rem; justify-content: center; }
 </style>
