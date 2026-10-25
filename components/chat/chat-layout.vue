@@ -71,7 +71,7 @@
             <!-- Chat Info -->
             <div class="chat-info">
               <div class="chat-header-row">
-                <h3>{{ chat.name }}</h3>
+                <h3>{{ chat.name }}<VerifiedBadge v-if="chat.isVerified" :type="chat.verifiedType" :size="16" /></h3>
                 <span v-if="chat.lastMessageTime" class="time">
                   {{ formatTime(chat.lastMessageTime) }}
                 </span>

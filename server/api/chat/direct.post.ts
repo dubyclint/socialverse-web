@@ -3,6 +3,9 @@ import { defineEventHandler, readBody, createError } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
+import { resolveActor } from '~/server/utils/actor'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { pageInboxUserIds, syncPageRoomMembers } from '~/server/utils/page-chat'
 
 interface DirectChatBody {
   userId?: string
@@ -28,6 +31,54 @@ export default defineEventHandler(async (event) => {
     .maybeSingle()
 
   if (!counterparty) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+
+  // Acting as a Page: the conversation belongs to the Page, so the other
+  // person sees the Page (not the admin's personal profile) and every inbox
+  // admin of the Page shares it.
+  const actor = await resolveActor(event)
+  if (actor.type === 'PAGE') {
+    const service = getServiceClient()
+    const { data: page } = await service.from('pages').select('id, name, avatar_url').eq('id', actor.id).maybeSingle()
+    if (!page) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
+    const { data: existingPageRoom } = await service
+      .from('chat_rooms')
+      .select('id')
+      .eq('page_id', page.id)
+      .eq('page_visitor_id', otherId)
+      .maybeSingle()
+    if (existingPageRoom) {
+      await syncPageRoomMembers(page.id)
+      return { success: true, data: { id: existingPageRoom.id, existing: true } }
+    }
+    const admins = await pageInboxUserIds(page.id)
+    if (admins.includes(otherId)) throw createError({ statusCode: 400, statusMessage: 'That person manages this Page' })
+    const id = randomUUID()
+    const { error } = await service.from('chat_rooms').insert({
+      id,
+      is_group_chat: false,
+      room_name: page.name,
+      room_avatar: page.avatar_url,
+      created_by: user.id,
+      page_id: page.id,
+      page_visitor_id: otherId
+    })
+    if (error) {
+      if (error.code === '23505') {
+        const { data: raced } = await service.from('chat_rooms').select('id').eq('page_id', page.id).eq('page_visitor_id', otherId).single()
+        return { success: true, data: { id: raced?.id, existing: true } }
+      }
+      throw createError({ statusCode: 500, statusMessage: error.message })
+    }
+    const memberIds = [...new Set([otherId, user.id, ...admins])]
+    const { error: memberError } = await service
+      .from('chat_room_members')
+      .insert(memberIds.map(user_id => ({ room_id: id, user_id })))
+    if (memberError) {
+      await service.from('chat_rooms').delete().eq('id', id)
+      throw createError({ statusCode: 500, statusMessage: memberError.message })
+    }
+    return { success: true, data: { id, existing: false } }
+  }
 
   const { data: mine } = await client
     .from('chat_room_members')

@@ -19,7 +19,7 @@
     <div class="contact-info">
       <div class="contact-name">
         {{ contact.username }}
-        <Icon v-if="contact.isVerified" name="check-circle" class="verified-icon" />
+        <VerifiedBadge v-if="contact.isVerified" :type="contact.verifiedType" :size="16" />
       </div>
       <div class="contact-status">
         {{ contact.isOnline ? 'Online' : formatLastSeen(contact.lastSeen) }}
