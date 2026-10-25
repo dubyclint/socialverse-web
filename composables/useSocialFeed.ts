@@ -82,6 +82,8 @@ export interface FeedStatus {
   content: string | null
   created_at: string
   author: FeedAuthor | null
+  colors?: { background: string | null, text: string | null }
+  all_viewed?: boolean
 }
 
 export interface SuggestedUser extends FeedAuthor {
@@ -114,14 +116,6 @@ interface UserRow {
   verified_type?: string | null
 }
 
-interface StatusRow {
-  id: string
-  user_id: string
-  media_url: string | null
-  caption: string | null
-  created_at: string
-}
-
 const toAuthor = (row: UserRow | undefined): FeedAuthor | null => {
   if (!row) return null
   return {
@@ -132,11 +126,6 @@ const toAuthor = (row: UserRow | undefined): FeedAuthor | null => {
     verified: row.is_verified === true,
     verified_type: row.verified_type ?? null,
   }
-}
-
-const guessMediaType = (url: string | null): 'image' | 'video' | 'text' => {
-  if (!url) return 'text'
-  return /\.(mp4|webm|mov|m3u8)$/i.test(url) ? 'video' : 'image'
 }
 
 export const useSocialFeed = () => {
@@ -279,25 +268,25 @@ export const useSocialFeed = () => {
   const fetchStatuses = async () => {
     statusLoading.value = true
     try {
-      const { data, error } = await supabase
-        .from('user_statuses')
-        .select('id,user_id,media_url,caption,created_at')
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (error) throw new Error(error.message)
-
-      const rows = (data ?? []) as StatusRow[]
-      const authors = await loadAuthors(rows.map((row) => row.user_id))
-
-      fetchedStatuses.value = rows.map((row) => ({
-        id: row.id,
-        media_url: row.media_url,
-        media_type: guessMediaType(row.media_url),
-        content: row.caption,
-        created_at: row.created_at,
-        author: toAuthor(authors.get(row.user_id)),
-      }))
+      const res = await $fetch<{ data: Array<{
+        author: FeedAuthor
+        is_me: boolean
+        all_viewed: boolean
+        statuses: Array<{ id: string, content: string | null, media_url: string | null, media_type: 'image' | 'video' | 'text', background_color: string | null, text_color: string | null, created_at: string }>
+      }> }>('/api/status')
+      fetchedStatuses.value = (res.data ?? []).map((group) => {
+        const latest = group.statuses[group.statuses.length - 1]!
+        return {
+          id: latest.id,
+          media_url: latest.media_url,
+          media_type: latest.media_type,
+          content: latest.content,
+          created_at: latest.created_at,
+          author: group.author,
+          colors: { background: latest.background_color, text: latest.text_color },
+          all_viewed: group.all_viewed,
+        }
+      })
     } catch (e) {
       console.error('[Feed] Loading statuses failed', e)
       fetchedStatuses.value = []

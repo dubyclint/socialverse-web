@@ -1,60 +1,35 @@
-// FILE: /server/api/status/create.post.ts
-// Create a new status
+import { requireUser } from '~/server/utils/auth'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
-import { StatusModel, type CreateStatusInput } from '~/server/models/status'
-import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
-import { readBody, createError } from 'h3'
+const COLOR_RE = /^#[0-9a-f]{6}$/i
 
+/** Posts a 24-hour status: text on a colour, or a photo/video (uploaded via /api/upload) with an optional caption. */
 export default defineEventHandler(async (event) => {
-  try {
-    const user = await requireAuth(event)
-    if (!user?.id) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      })
-    }
+  const user = await requireUser(event)
+  const body = await readBody<{ content?: string, media_url?: string | null, background_color?: string, text_color?: string }>(event)
+  const content = (body?.content ?? '').trim()
+  const mediaUrl = (body?.media_url ?? '').trim() || null
 
-    const body = await readBody(event)
-    const { content, media_type, media_url, background_color, text_color, expires_at } = body
+  if (!content && !mediaUrl) throw createError({ statusCode: 400, statusMessage: 'Write something or add a photo or video' })
+  if (content.length > 700) throw createError({ statusCode: 400, statusMessage: 'Status text is limited to 700 characters' })
+  if (mediaUrl && !/^https:\/\//i.test(mediaUrl)) throw createError({ statusCode: 400, statusMessage: 'Invalid media' })
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Content is required and must be a non-empty string'
-      })
-    }
+  const background = COLOR_RE.test(body?.background_color ?? '') ? body!.background_color! : '#1e293b'
+  const textColor = COLOR_RE.test(body?.text_color ?? '') ? body!.text_color! : '#ffffff'
 
-    if (content.length > 5000) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Content must be less than 5000 characters'
-      })
-    }
-
-    const statusInput: CreateStatusInput = {
-      content: content.trim(),
-      media_type: media_type || 'text',
-      media_url,
-      background_color: background_color || '#000000',
-      text_color: text_color || '#ffffff',
-      expires_at
-    }
-
-  // Use compatibility adapter which accepts a single object (legacy callers)
-  const status = await StatusModel.create({ userId: user.id, ...statusInput })
-
-    return {
-      success: true,
-      data: status,
-      message: 'Status created successfully'
-    }
-  } catch (error: any) {
-    console.error('[Status Create] Error:', error)
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Failed to create status'
+  const { data, error } = await getServiceClient()
+    .from('user_statuses')
+    .insert({
+      user_id: user.id,
+      content: content || null,
+      caption: content || null,
+      media_url: mediaUrl,
+      background_color: background,
+      text_color: textColor,
+      expires_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
     })
-  }
+    .select('id, created_at, expires_at')
+    .single()
+  if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+  return { success: true, data }
 })
-

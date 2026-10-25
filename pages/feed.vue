@@ -79,8 +79,8 @@
               <button class="sidebar-quick-btn" @click="goToProfilePage(); toggleSidebar()">
                 <Icon name="user" size="14" /> Profile
               </button>
-              <NuxtLink to="/profile/edit" class="sidebar-quick-btn outline" @click="toggleSidebar">
-                <Icon name="edit-3" size="14" /> Edit
+              <NuxtLink to="/ads" class="sidebar-quick-btn outline" @click="toggleSidebar">
+                <Icon name="megaphone" size="14" /> Ads Manager
               </NuxtLink>
             </div>
           </div>
@@ -97,10 +97,6 @@
               <Icon name="user" class="item-icon" size="18" />
               <span class="item-label">Profile</span>
             </button>
-            <NuxtLink v-if="currentUser?.id" to="/profile/edit" class="sidebar-item sub" @click="toggleSidebar">
-              <Icon name="edit-3" class="item-icon" size="16" />
-              <span class="item-label">Edit profile</span>
-            </NuxtLink>
             <NuxtLink to="/notifications" class="sidebar-item" @click="toggleSidebar">
               <Icon name="bell" class="item-icon" size="18" />
               <span class="item-label">Notifications</span>
@@ -120,7 +116,7 @@
               <span class="item-label">Chat</span>
               <span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span>
             </NuxtLink>
-            <NuxtLink to="/universe" class="sidebar-item sub" @click="toggleSidebar">
+            <NuxtLink v-if="isAdmin" to="/universe" class="sidebar-item sub" @click="toggleSidebar">
               <Icon name="globe" class="item-icon" size="16" />
               <span class="item-label">Universe chat</span>
             </NuxtLink>
@@ -132,7 +128,7 @@
               <Icon name="compass" class="item-icon" size="18" />
               <span class="item-label">Explore</span>
             </NuxtLink>
-            <NuxtLink to="/match" class="sidebar-item" @click="toggleSidebar">
+            <NuxtLink v-if="isAdmin" to="/match" class="sidebar-item" @click="toggleSidebar">
               <Icon name="heart" class="item-icon" size="18" />
               <span class="item-label">Match</span>
             </NuxtLink>
@@ -178,28 +174,28 @@
               <Icon name="dollar-sign" class="item-icon" size="18" />
               <span class="item-label">Monetization</span>
             </NuxtLink>
-            <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar">
+            <NuxtLink v-if="isAdmin" to="/p2p" class="sidebar-item" @click="toggleSidebar">
               <Icon name="trending-up" class="item-icon" size="18" />
               <span class="item-label">P2P trading</span>
             </NuxtLink>
-            <NuxtLink to="/escrow" class="sidebar-item sub" @click="toggleSidebar">
+            <NuxtLink v-if="isAdmin" to="/escrow" class="sidebar-item sub" @click="toggleSidebar">
               <Icon name="shield" class="item-icon" size="16" />
               <span class="item-label">Escrow</span>
             </NuxtLink>
             <NuxtLink to="/ads" class="sidebar-item" @click="toggleSidebar">
               <Icon name="megaphone" class="item-icon" size="18" />
-              <span class="item-label">Ads</span>
+              <span class="item-label">Ads Manager</span>
             </NuxtLink>
           </div>
 
           <!-- Section: HELP & ACCOUNT -->
           <div class="sidebar-group">
             <p class="sidebar-section-title">HELP &amp; ACCOUNT</p>
-            <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar">
+            <NuxtLink v-if="isAdmin" to="/support" class="sidebar-item" @click="toggleSidebar">
               <Icon name="life-buoy" class="item-icon" size="18" />
               <span class="item-label">Support</span>
             </NuxtLink>
-            <NuxtLink to="/support-chat" class="sidebar-item sub" @click="toggleSidebar">
+            <NuxtLink v-if="isAdmin" to="/support-chat" class="sidebar-item sub" @click="toggleSidebar">
               <Icon name="headphones" class="item-icon" size="16" />
               <span class="item-label">Agent support</span>
             </NuxtLink>
@@ -295,7 +291,7 @@
             <div v-if="statusLoading" class="status-tray-loading"><div class="spinner-mini"></div></div>
             <div v-else class="status-horizontal-scroll">
               <!-- Add / Create Status Card -->
-              <div class="story-card create-story-card" @click="navigateTo('/status')">
+              <div class="story-card create-story-card" @click="navigateTo('/status?new=1')">
                 <div class="story-cover-image">
                   <img :src="userAvatar" alt="Your avatar" />
                 </div>
@@ -308,7 +304,7 @@
               </div>
 
               <!-- Active Status Cards -->
-              <div v-for="statusItem in fetchedStatuses" :key="statusItem.id" class="story-card user-story-card" @click="triggerStatusViewer(statusItem)">
+              <div v-for="statusItem in fetchedStatuses" :key="statusItem.id" class="story-card user-story-card" :class="{ seen: statusItem.all_viewed }" @click="navigateTo(`/status?u=${statusItem.author?.id}`)">
                 <div class="story-background-wrapper" :style="{ backgroundColor: statusItem.colors?.background || '#1e293b' }">
                   <img v-if="statusItem.media_type === 'image' && statusItem.media_url" :src="statusItem.media_url" class="story-bg-media" />
                   <p v-else-if="statusItem.content" class="story-preview-text">{{ statusItem.content }}</p>
@@ -438,6 +434,7 @@ import VerifiedBadge from '~/components/VerifiedBadge.vue';
 import { useStaff } from '~/composables/useStaff';
 
 const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();
+const isAdmin = computed(() => staff.value?.role === 'admin');
 onMounted(() => { loadStaff(true); });
 
 // Top Navigation Configuration with updated Lucide icon mappings

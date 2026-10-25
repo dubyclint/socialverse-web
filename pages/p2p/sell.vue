@@ -91,7 +91,7 @@
 import type { SellerMethodKind, SupportedAsset } from '~/types/p2p'
 
 definePageMeta({
-  middleware: ['auth', 'profile-completion', 'language-check'],
+  middleware: ['auth', 'profile-completion', 'language-check', 'admin-only'],
   layout: 'default'
 })
 

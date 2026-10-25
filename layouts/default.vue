@@ -34,6 +34,7 @@
             </NuxtLink>
 
             <NuxtLink 
+              v-if="isAdmin"
               to="/match" 
               class="nav-item" 
               :class="{ active: isActive('/match') }"
@@ -140,6 +141,8 @@
 </template>
 
 <script setup lang="ts">
+const { isAdmin, load: loadStaffRole } = useStaff()
+if (import.meta.client) loadStaffRole()
 import { ref, watch, computed } from 'vue'
 // useRoute is auto-imported by Nuxt 3, but keeping explicit import is fine if preferred:
 import { useRoute } from 'vue-router'

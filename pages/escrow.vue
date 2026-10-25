@@ -66,7 +66,7 @@
 import type { P2PTrade } from '~/types/p2p'
 
 definePageMeta({
-  middleware: ['auth', 'profile-completion', 'language-check'],
+  middleware: ['auth', 'profile-completion', 'language-check', 'admin-only'],
   layout: 'default'
 })
 

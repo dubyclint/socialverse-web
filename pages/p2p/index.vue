@@ -34,7 +34,7 @@ import TradeChat from '~/components/trade-chat.vue'
 import EscrowStatus from '~/components/financial/escrow/escrow-status.vue'
 
 definePageMeta({
-  middleware: ['auth', 'profile-completion', 'language-check'],
+  middleware: ['auth', 'profile-completion', 'language-check', 'admin-only'],
   layout: 'default'
 })
 
