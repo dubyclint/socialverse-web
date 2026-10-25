@@ -348,10 +348,34 @@ onMounted(async () => {
   flex-direction: column;
 }
 
+.pal-card > img,
+.pal-card > a:first-child,
+.pal-card .avatar {
+  flex-shrink: 0;
+}
+
 .pal-name {
   font-weight: 600;
   color: inherit;
   text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pal-username,
+.pal-reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pal-bio {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .pal-username,
@@ -366,6 +390,7 @@ onMounted(async () => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .btn {

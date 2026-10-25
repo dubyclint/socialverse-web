@@ -18,7 +18,7 @@
     
     <div class="contact-info">
       <div class="contact-name">
-        {{ contact.username }}
+        <span class="contact-username">{{ contact.username }}</span>
         <VerifiedBadge v-if="contact.isVerified" :type="contact.verifiedType" :size="16" />
       </div>
       <div class="contact-status">
@@ -110,6 +110,14 @@ const formatLastSeen = (timestamp) => {
   font-weight: 500;
   color: #333;
   margin-bottom: 2px;
+  min-width: 0;
+}
+
+.contact-username {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .verified-icon {
@@ -122,6 +130,11 @@ const formatLastSeen = (timestamp) => {
 .contact-status {
   font-size: 12px;
   color: #666;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .contact-action {
