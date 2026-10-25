@@ -10,6 +10,119 @@ There is duplications
 - from my admin dashboard I can see that there are total of 900 pew in wallets : my question as the super admin is are these accounts and wallets usable? all pew created not from the add fund payment gateway methods should be sent back to super admin user balance after work or testing, only amount needed for testing not above 50pew should be left. apply security concern to this as pew is a value that can be withdrawn to cash. security please.
 - make sure the verification badge now display alongside user - profile name on chat message list table and across app, check the create group icon on chat message, I don't want 2 different icon doing the same work.
 
+- apply 2factor Auth system like  (Time-Based One-Time Password) Authenticator Apps (like Google    on login for any user that sets it on on settings. Note: it's only for users that set it on on settings)
+Step 1: Database Schema Modifications
+
+You need to add three fields to your database users table to track the 2FA state:
+• two_factor_secret: String (Encrypted). Stores the unique cryptographic key for the user.
+• two_factor_enabled: Boolean (Defaults to false). Ensures 2FA doesn't block them until registration is fully confirmed.
+• two_factor_recovery_codes: JSON Array (Hashed strings). Backup codes in case they lose their phone.
+
+Step 2: The Setup Phase (Inside App Settings > Security)
+
+When a logged-in user decides to toggle on 2FA, your app must execute this exact confirmation handshake. Never enable 2FA without making the user verify a test code first, or they might lock themselves out with a broken configuration.
+[User clicks "Enable 2FA"] ──> Nuxt API generates secret string & QR Link
+                                                   │
+                                                   ▼
+User types code from Google Auth <── App displays QR Code / Manual Key
+                                                   │
+                                                   ▼
+[Nuxt API verifies code] ──> Sets `
+
+The Backend Setup Endpoint (Nuxt Nitro Route)
+
+Use a standard, lightweight library like otplib or speakeasy on your Node server: 
+Step 3: The Intercept Phase (On Login)
+
+Now that the user has it enabled, your standard username/password login process changes from a single step to a two-step checkpoint.
+
+[User Submits User/Pass] ──> [Backend: Password Correct?]
+                                      │
+                 ┌────────────────────┴────────────────────┐
+                 ▼                                         ▼
+    [two_factor_enabled is false]             [two_factor_enabled is true]
+                 │                                         │
+                 ▼                                         ▼
+   Issue Full JWT / Login Session            Issue Restricted Temporary Token
+                                                           │
+                                                           ▼
+                                            App displays 2FA Input Screen
+
+
+ The Updated Login API Route
+
+When a user attempts a normal login, modify your response payload:// server/api/auth/login.post.ts
+export default defineEventHandler(async (event) => {
+  const { email, password } = await readBody(event);
+  const user = await db.user.findUnique({ where: { email } });
+
+  if (!user || !(await verifyPassword(user.password, password))) {
+    throw createError({ statusCode: 401, message: 'Invalid credentials' });
+  }
+
+  // CHECK 2FA STATE
+  if (user.two_factor_enabled) {
+    // Generate a temporary token that is ONLY allowed to access the 2FA verification route.
+    // Do not issue the final session cookie or full application JWT yet.
+    const tempToken = generateTemporary2faToken(user.id); 
+    
+    return {
+      status: 'REQUIRES_2FA',
+      tempToken
+    };
+  }
+
+  // Normal login flow if 2FA is off
+  const sessionToken = issueFullSession(user);
+  return { status: 'SUCCESS', sessionToken };
+});
+
+
+The Nuxt UI Route Guard
+
+In your Nuxt/Capacitor application code, capture that status code: // composables/useAuth.ts
+const login = async (email, password) => {
+  const res = await $fetch('/api/auth/login', { method: 'POST', body: { email, password } });
+  
+  if (res.status === 'REQUIRES_2FA') {
+    // Save the temporary token in memory/state
+    temp2faToken.value = res.tempToken;
+    
+    // Redirect them to the 2FA check step screen
+    return navigateTo('/login/verify-2fa');
+  }
+  
+  // Proceed with normal login...
+}
+
+
+3. The Final Verification Route
+
+On the /login/verify-2fa screen, the user enters the current 6 digits from their app. Your application submits both the tempToken and the 6-digit code: // server/api/auth/2fa/authenticate.post.ts
+import { authenticator } from 'otplib';
+
+export default defineEventHandler(async (event) => {
+  const { code, tempToken } = await readBody(event);
+  
+  // 1. Verify the temporary token belongs to a real pending user login
+  const userId = verifyTemporary2faToken(tempToken);
+  const user = await db.user.findUnique({ where: { id: userId } });
+
+  // 2. Validate the 6-digit code against their stored master secret
+  const isValid = authenticator.verify({
+    token: code,
+    secret: user.two_factor_secret
+  });
+
+  if (!isValid) {
+    throw createError({ statusCode: 400, message: 'Invalid authentication code' });
+  }
+
+  // 3. Clear the temporary token and log them in completely!
+  const finalSessionToken = issueFullSession(user);
+  return { status: 'SUCCESS', sessionToken: finalSessionToken };
+});
+
 
 - there is improper CSS flex/overflow management, heavy unoptimized local asset storage, and a breaking state management loop in this project :chat box spacing inconsistent, my frontend page loading slow, chat message feature loading is slow, sometimes when on feature doing something app sends off to sign in again, audio/video call on chat message now slow to connect or cut off immediately connected , there is inconsistency or persistent issue
       (check for Dom-element bloat and unoptimized message rendering,virtual scrolling,Optimize v-for keys,Lazy-load media components,• Separate your network timeout logic from your auth routing guard logic. A slow or broken connection should trigger an offline banner notification, not an automatic routing dispatch to your /login screen.
