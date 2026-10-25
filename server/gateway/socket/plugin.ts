@@ -15,6 +15,7 @@ import { setSocketServer, chatAudience } from '~/server/utils/socket-hub'
 import { registerCallHandlers } from './calls'
 import { assertAllowed } from '~/server/utils/staff'
 import { pageRoomsById, pageSenderOverride } from '~/server/utils/page-chat'
+import { readReceiptsOn } from '~/server/utils/privacy-visibility'
 
 const EDIT_WINDOW_MS = 10 * 60 * 1000
 
@@ -431,6 +432,7 @@ export default defineNitroPlugin((nitroApp: any) => {
 
           const at = data?.at ? new Date(data.at).toISOString() : new Date().toISOString()
           await markWatermark(chatId, socket.userId, column, at)
+          if (column === 'last_read_at' && !(await readReceiptsOn(admin as never, socket.userId))) return
           io?.to(await memberRooms(chatId)).emit(event, { chatId, userId: socket.userId, at })
         }
 

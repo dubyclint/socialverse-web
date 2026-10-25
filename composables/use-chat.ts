@@ -1,6 +1,7 @@
 // composables/use-chat.ts
 import { computed } from 'vue'
 import { useSocket } from '~/composables/use-socket'
+import { useUserSettings } from '~/composables/use-user-settings'
 
 interface ChatMessagePayload {
   content: string
@@ -161,7 +162,10 @@ export const useChat = () => {
 
   const onReceipt = (handler: (receipt: ChatReceipt, kind: 'delivered' | 'read') => void) => {
     listen('chat:delivered', (receipt: ChatReceipt) => handler(receipt, 'delivered'))
-    listen('chat:read', (receipt: ChatReceipt) => handler(receipt, 'read'))
+    const { settings } = useUserSettings()
+    listen('chat:read', (receipt: ChatReceipt) => {
+      if (settings.value.privacy.readReceipts !== false) handler(receipt, 'read')
+    })
   }
 
   const sendTyping = (chatId: string, isTyping: boolean) => {

@@ -3,6 +3,8 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import type { Chat, ChatMember } from '~/types/chat'
 import { pageRoomsById } from '~/server/utils/page-chat'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { privacyGate } from '~/server/utils/privacy-visibility'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -44,7 +46,11 @@ export default defineEventHandler(async (event) => {
   const { data: people } = peerIds.length
     ? await client.from('user').select('user_id, username, display_name, avatar_url, is_verified, verified_type').in('user_id', peerIds)
     : { data: [] }
-  const personById = new Map((people ?? []).map(person => [person.user_id, person]))
+  const canSee = await privacyGate(getServiceClient(), user.id, peerIds)
+  const personById = new Map((people ?? []).map(person => [person.user_id, {
+    ...person,
+    avatar_url: canSee(person.user_id, 'profilePhoto') ? person.avatar_url : null
+  }]))
 
   const pageRooms = await pageRoomsById(roomIds)
   const unreadByRoom = new Map((unread ?? []).map(row => [row.room_id, Number(row.unread)]))

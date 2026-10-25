@@ -38,6 +38,18 @@
               <option value="nobody">Nobody</option>
             </select>
           </div>
+          <div v-for="field in visibilityFields" :key="field.key" class="row">
+            <span class="min-w-0"><span class="block text-sm font-bold text-white">{{ field.label }}</span><span class="block text-[11px] text-slate-400">{{ field.hint }}</span></span>
+            <select :value="userSettings.privacy[field.key]" class="sel" @change="updateUserSettings('privacy', { [field.key]: ($event.target as HTMLSelectElement).value as 'everyone' | 'contacts' | 'nobody' })">
+              <option value="everyone">Everyone</option>
+              <option value="contacts">My PALs</option>
+              <option value="nobody">Nobody</option>
+            </select>
+          </div>
+          <label class="row cursor-pointer">
+            <span class="min-w-0"><span class="block text-sm font-bold text-white">Read receipts</span><span class="block text-[11px] text-slate-400">Off: others don't see when you've read their messages, and you don't see theirs</span></span>
+            <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="userSettings.privacy.readReceipts" @change="updateUserSettings('privacy', { readReceipts: !userSettings.privacy.readReceipts })">
+          </label>
           <label class="row cursor-pointer">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Private account</span><span class="block text-[11px] text-slate-400">Only approved followers see your posts</span></span>
             <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="userSettings.privacy.isPrivateAccount" @change="updateUserSettings('privacy', { isPrivateAccount: !userSettings.privacy.isPrivateAccount })">
@@ -153,6 +165,12 @@ const accountLinks = [
   { to: '/ads', icon: 'megaphone', label: 'Ads Manager', hint: 'Create and track ad campaigns' },
   { to: '/verification/terms', icon: 'badge-check', label: 'Verification', hint: 'Badge fees and how to apply' }
 ]
+
+const visibilityFields = [
+  { key: 'lastSeen', label: 'Last seen & online', hint: 'Who sees when you were last active' },
+  { key: 'profilePhoto', label: 'Profile photo', hint: 'Who can see your photo' },
+  { key: 'about', label: 'About', hint: 'Who can read your bio' }
+] as const
 
 const route = useRoute()
 const router = useRouter()

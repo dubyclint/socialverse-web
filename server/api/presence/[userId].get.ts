@@ -4,6 +4,7 @@
 import { PresenceModel } from '~/server/models/status'
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { privacyGate } from '~/server/utils/privacy-visibility'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -22,7 +23,8 @@ export default defineEventHandler(async (event) => {
       .select('show_online')
       .eq('user_id', userId)
       .maybeSingle()
-    const hidden = owner?.show_online === false && viewer.id !== userId
+    const canSee = await privacyGate(getServiceClient(), viewer.id, [userId])
+    const hidden = viewer.id !== userId && (owner?.show_online === false || !canSee(userId, 'lastSeen'))
     const presence = hidden ? null : await PresenceModel.getPresence(userId)
 
     if (!presence) {

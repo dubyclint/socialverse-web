@@ -1,6 +1,7 @@
 import { createError, defineEventHandler } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireUser } from '~/server/utils/auth'
+import { privacyGate } from '~/server/utils/privacy-visibility'
 
 export interface ContactEntry {
   id: string | null
@@ -44,7 +45,8 @@ export default defineEventHandler(async (event) => {
       .or(`user_id.eq.${user.id},pal_id.eq.${user.id}`)
   ])
 
-  const profileById = new Map((profiles ?? []).map(p => [p.user_id, p]))
+  const canSee = await privacyGate(service, user.id, ids)
+  const profileById = new Map((profiles ?? []).map(p => [p.user_id, { ...p, avatar_url: canSee(p.user_id, 'profilePhoto') ? p.avatar_url : null }]))
 
   const palStatusFor = (otherId: string): ContactEntry['pal_status'] => {
     const row = (pals ?? []).find(p =>

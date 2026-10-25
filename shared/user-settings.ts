@@ -74,9 +74,9 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     appLockType: 'none'
   },
   privacy: {
-    lastSeen: 'contacts',
+    lastSeen: 'everyone',
     profilePhoto: 'everyone',
-    about: 'contacts',
+    about: 'everyone',
     status: 'everyone',
     readReceipts: true,
     groups: 'contacts',

@@ -4,6 +4,7 @@ import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { countFollowGraph, loadRelationships } from '~/server/utils/social-graph'
 import { checkPresence } from '~/server/utils/presence'
+import { privacyGate } from '~/server/utils/privacy-visibility'
 import { PRIVATE_PROFILE_FIELDS, isFieldPublic } from '~/shared/profile-fields'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -39,16 +40,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
-  const [counts, relationships] = await Promise.all([
+  const [counts, relationships, canSee] = await Promise.all([
     countFollowGraph(service, profile.user_id),
-    loadRelationships(service, viewer.id, [profile.user_id])
+    loadRelationships(service, viewer.id, [profile.user_id]),
+    privacyGate(service, viewer.id, [profile.user_id])
   ])
   const relationship = relationships.get(profile.user_id)!
 
   const isSelf = relationship.is_self
   // A locked profile shows only basic info to anyone who is not a PAL.
   const locked = profile.profile_locked && !isSelf && relationship.pal_status !== 'friends'
-  const presenceVisible = isSelf || profile.show_online
+  const presenceVisible = isSelf || (profile.show_online && canSee(profile.user_id, 'lastSeen'))
   const isOnline = presenceVisible ? await checkPresence(profile.user_id) : false
 
   const fieldValues: Record<string, unknown> = {
@@ -74,9 +76,9 @@ export default defineEventHandler(async (event) => {
     username: profile.username,
     display_name: profile.display_name,
     full_name: profile.full_name,
-    avatar_url: profile.avatar_url,
+    avatar_url: canSee(profile.user_id, 'profilePhoto') ? profile.avatar_url : null,
     cover_url: profile.cover_url,
-    bio: profile.bio,
+    bio: canSee(profile.user_id, 'about') ? profile.bio : null,
     is_verified: profile.is_verified,
     verified_at: profile.verified_at,
     verified_type: profile.verified_type,

@@ -3,6 +3,8 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 import type { ChatMessage } from '~/types/chat'
 import { pageRoomsById, pageSenderOverride } from '~/server/utils/page-chat'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { loadPrivacy } from '~/server/utils/privacy-visibility'
 
 const PAGE_SIZE = 50
 
@@ -36,7 +38,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const deliveredUpTo = watermark('last_delivered_at')
-  const readUpTo = watermark('last_read_at')
+  // Read ticks are mutual: hidden if the viewer or any other member turned read receipts off.
+  const prefs = await loadPrivacy(getServiceClient(), (members || []).map(member => member.user_id))
+  const receiptsOn = [...prefs.values()].every(p => p.readReceipts !== false)
+  const readUpTo = receiptsOn ? watermark('last_read_at') : 0
 
   const { data: rows, error } = await client
     .from('chat_messages')

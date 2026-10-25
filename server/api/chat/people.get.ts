@@ -2,6 +2,8 @@ import { defineEventHandler, getQuery, createError } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { privacyGate } from '~/server/utils/privacy-visibility'
 
 const LIMIT = 20
 
@@ -55,5 +57,7 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await query
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  return { success: true, data: data ?? [], scope: 'network' as const }
+  const canSee = await privacyGate(getServiceClient(), user.id, (data ?? []).map(p => p.user_id))
+  const visible = (data ?? []).map(p => ({ ...p, avatar_url: canSee(p.user_id, 'profilePhoto') ? p.avatar_url : null }))
+  return { success: true, data: visible, scope: 'network' as const }
 })
