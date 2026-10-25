@@ -94,17 +94,28 @@ const EVENT_META: Record<string, { label: string, icon: string }> = {
   PAL_ACCEPTED: { label: 'New PAL', icon: 'users' },
   FOLLOW_RECEIVED: { label: 'New follower', icon: 'user-plus' },
   STREAM_LIVE: { label: 'Live', icon: 'radio' },
-  ESCROW_UPDATE: { label: 'Escrow', icon: 'alert-circle' }
+  ESCROW_UPDATE: { label: 'Escrow', icon: 'alert-circle' },
+  POST_SHARED: { label: 'Share', icon: 'repeat' },
+  PAGE_FOLLOWED: { label: 'Page follower', icon: 'flag' },
+  SYSTEM_ALERT: { label: 'Viorp', icon: 'bell' }
 }
 
 const metaFor = (note: NotificationItem) => EVENT_META[note.event_type] ?? { label: 'Update', icon: 'bell' }
 
-const POST_EVENTS = new Set(['COMMENT_ADDED', 'COMMENT_REPLY', 'MENTION', 'TAG', 'POST_LIKE', 'GIFT_RECEIVED'])
+const POST_EVENTS = new Set(['COMMENT_ADDED', 'COMMENT_REPLY', 'MENTION', 'TAG', 'POST_LIKE', 'GIFT_RECEIVED', 'POST_SHARED'])
 
 const linkFor = (note: NotificationItem): string => {
   if (POST_EVENTS.has(note.event_type) && note.source_id) return `/posts/${note.source_id}`
   if (note.event_type === 'MISSED_CALL' && note.notifier_id) return `/chat?user=${note.notifier_id}`
   if (note.event_type.startsWith('PAL_')) return '/pal'
+  if (note.event_type === 'FOLLOW_RECEIVED' && note.notifier_id) return `/profile/${note.notifier_id}`
+  if (note.event_type === 'PAGE_FOLLOWED' && note.source_id) return `/pages/${note.source_id}`
+  if (note.event_type === 'STREAM_LIVE' && note.source_id) return `/stream/${note.source_id}`
+  if (note.event_type === 'GIFT_RECEIVED') return '/wallet'
+  const text = (note.message_text || '').toLowerCase()
+  if (text.includes('verif')) return '/profile'
+  if (text.includes('ad ') || text.includes('campaign')) return note.source_id ? `/ads/${note.source_id}` : '/ads'
+  if (text.includes('withdraw') || text.includes('wallet') || text.includes('deposit')) return '/wallet'
   return '/notifications'
 }
 

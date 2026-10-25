@@ -26,6 +26,7 @@ export interface NotificationSettings {
   reminders: boolean
   messagePreview: boolean
   pushEnabled: boolean
+  sound: boolean
   emailDigest: boolean
 }
 
@@ -89,6 +90,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     reminders: false,
     messagePreview: true,
     pushEnabled: true,
+    sound: true,
     emailDigest: false
   },
   storage_data: {

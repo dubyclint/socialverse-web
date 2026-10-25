@@ -69,7 +69,7 @@ export const useUnreadCounts = () => {
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${id}` }, (payload) => {
           const row = payload.new as { message_text?: string }
           if (route.path !== '/notifications') notifications.value += 1
-          ringtone.ping('notify')
+          if (useUserSettings().settings.value.notifications?.sound !== false) ringtone.ping('notify')
           notifyDevice('Viorp', row.message_text || 'You have a new notification', '/notifications')
         })
         .subscribe()

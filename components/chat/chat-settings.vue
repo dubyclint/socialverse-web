@@ -108,6 +108,12 @@
               @click="update('notifications', { conversationTones: !settings.notifications.conversationTones })"
             />
             <settings-item
+              icon="volume-2"
+              title="Notification Sound"
+              :subtitle="settings.notifications.sound !== false ? 'On' : 'Off'"
+              @click="update('notifications', { sound: settings.notifications.sound === false })"
+            />
+            <settings-item
               icon="bell"
               title="Push Notifications"
               :subtitle="settings.notifications.pushEnabled ? 'On' : 'Off'"

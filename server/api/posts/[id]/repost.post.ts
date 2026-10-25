@@ -68,8 +68,7 @@ export default defineEventHandler(async (event): Promise<RepostResponse> => {
     await client.from('notifications').insert({
       recipient_id: original.user_id,
       notifier_id: user.id,
-      // notification_event enum has no repost member; SYSTEM_ALERT carries the text.
-      event_type: 'SYSTEM_ALERT',
+      event_type: 'POST_SHARED',
       message_text: 'Your post was reposted',
       source_id: original.id
     })
