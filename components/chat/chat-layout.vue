@@ -401,20 +401,56 @@ const sendMessage = async (payload: string | SendMessagePayload) => {
 
   sendTyping(chatId, false)
 
-  const ack = await emitMessage(chatId, {
-    content,
-    recipientId: object?.recipientId,
-    attachments,
-    replyToId: object?.replyTo?.id,
-    messageType,
-    tempId
+  outbox.value.push({
+    chatId,
+    tempId,
+    payload: { content, recipientId: object?.recipientId, attachments, replyToId: object?.replyTo?.id, messageType, tempId }
   })
+  saveOutbox()
+  await flushOutbox()
+}
 
-  if (!ack.success) {
-    chatStore.updateMessage(chatId, tempId, { status: 'failed' })
-    chatStore.setError(ack.error || 'Failed to send message')
+// Offline-safe FIFO outbox: one message at a time, next only after the server acks.
+interface OutboxItem { chatId: string, tempId: string, payload: Parameters<typeof emitMessage>[1] }
+const OUTBOX_KEY = 'viorp-chat-outbox'
+const outbox = ref<OutboxItem[]>([])
+let flushing = false
+const saveOutbox = () => {
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox.value)) } catch { /* storage full or disabled */ }
+}
+const isNetworkFailure = (error?: string) => !navigator.onLine || error === 'Timed out' || error === 'No acknowledgement'
+const flushOutbox = async () => {
+  if (flushing) return
+  flushing = true
+  try {
+    while (outbox.value.length && navigator.onLine) {
+      const item = outbox.value[0]!
+      const ack = await emitMessage(item.chatId, item.payload)
+      if (!ack.success && isNetworkFailure(ack.error)) {
+        setTimeout(() => { void flushOutbox() }, 5000)
+        break
+      }
+      outbox.value.shift()
+      saveOutbox()
+      if (!ack.success) {
+        chatStore.updateMessage(item.chatId, item.tempId, { status: 'failed' })
+        chatStore.setError(ack.error || 'Failed to send message')
+      }
+    }
+  } finally {
+    flushing = false
   }
 }
+const onBackOnline = () => { void flushOutbox() }
+onMounted(() => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]') as OutboxItem[]
+    if (Array.isArray(stored) && stored.length) outbox.value = [...stored, ...outbox.value]
+  } catch { /* corrupt entry */ }
+  window.addEventListener('online', onBackOnline)
+  void flushOutbox()
+})
+onUnmounted(() => window.removeEventListener('online', onBackOnline))
 
 const editMessage = async (messageId: string, content: string) => {
   if (!chatStore.currentChatId) return

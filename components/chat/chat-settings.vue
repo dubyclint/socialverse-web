@@ -414,6 +414,14 @@
         </div>
 
         <div v-else-if="currentSection === 'bubbleTheme'" class="option-list">
+          <div class="option-item" @click="currentSection = 'chatWallpaper'">
+            <span class="wallpaper-swatch" :style="customWallpaper ? { backgroundImage: `url(${settings.general.chatWallpaper})`, backgroundSize: 'cover' } : {}" />
+            <div class="option-info">
+              <div class="option-title">Wallpaper</div>
+              <div class="option-description">Choose a background or use your own photo</div>
+            </div>
+            <div class="option-radio">›</div>
+          </div>
           <div
             v-for="option in CHAT_THEMES"
             :key="option.value"

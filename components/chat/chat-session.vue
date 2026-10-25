@@ -17,6 +17,7 @@
             :alt="chat.name"
           />
           <PresenceDot v-if="chat.type === 'direct'" :user-id="chat.userId" :size="10" />
+          <img v-else-if="chat.avatar" :src="chat.avatar" :alt="chat.name" />
           <div v-else class="group-avatar">
             <icon name="users" />
           </div>
