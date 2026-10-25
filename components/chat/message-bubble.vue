@@ -77,6 +77,13 @@
 
       <!-- Main Message -->
       <div v-if="!contactCard && (message.content || isDeleted || message.replyTo)" class="message-text">
+        <div v-if="statusReply && !isDeleted" class="quoted-message status-quote">
+          <span class="quoted-bar"></span>
+          <span class="quoted-body">
+            <strong class="quoted-sender">Status</strong>
+            <span class="quoted-text">{{ statusReply.preview }}</span>
+          </span>
+        </div>
         <div v-if="message.replyTo && !isDeleted" class="quoted-message">
           <span class="quoted-bar"></span>
           <span class="quoted-body">
@@ -85,7 +92,7 @@
           </span>
         </div>
         <p v-if="isDeleted" class="deleted-text">This message was deleted</p>
-        <p v-else-if="!isTranslated">{{ message.content }}</p>
+        <p v-else-if="!isTranslated">{{ statusReply ? statusReply.text : message.content }}</p>
         <p v-else class="translated-text">{{ translatedContent }}</p>
         <span v-if="isEdited" class="edited-badge">(edited)</span>
       </div>
@@ -405,6 +412,11 @@ const contactCard = computed(() => {
   const name = nameLine.replace(/^👤\s*/, '').trim()
   const phone = phoneLine.replace(/^📞\s*/, '').trim()
   return name && phone ? { name, phone } : null
+})
+const statusReply = computed(() => {
+  if (props.message.messageType !== 'status_reply' || !props.message.content) return null
+  const [first = '', ...rest] = props.message.content.split('\n')
+  return { preview: first.replace(/^↩️\s*Status:\s*/, '').trim(), text: rest.join('\n') }
 })
 const copyContact = async (): Promise<void> => {
   if (!contactCard.value) return

@@ -253,8 +253,9 @@ const sendThreadReply = async (rootId: string) => {
   const text = threadReply[rootId]?.trim()
   if (!s || !text) return
   try {
-    await $fetch(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text, replyTo: rootId } })
+    const res = await $fetch<{ data: { room_id: string | null } }>(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text, replyTo: rootId } })
     threadReply[rootId] = ''
+    if (res.data.room_id) return navigateTo(`/chat?room=${res.data.room_id}`)
     await loadComments()
   } catch (e) { flash(errMsg(e, 'Could not send reply')) }
 }
@@ -278,8 +279,9 @@ const sendReply = async () => {
   const text = reply.value.trim()
   if (!s || !text) return
   try {
-    await $fetch(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text } })
+    const res = await $fetch<{ data: { room_id: string | null } }>(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text } })
     reply.value = ''
+    if (res.data.room_id) return navigateTo(`/chat?room=${res.data.room_id}`)
     flash('Comment sent')
     if (showComments.value) await loadComments()
   } catch (e) { flash(errMsg(e, 'Could not send reply')) }

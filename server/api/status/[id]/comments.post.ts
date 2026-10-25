@@ -1,6 +1,7 @@
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadPeople, loadVisibleStatus } from '~/server/utils/status-privacy'
+import { ensureDirectRoom } from '~/server/utils/direct-room'
 
 /**
  * Comments on a status, or replies within a thread. The author can reply to any
@@ -45,5 +46,23 @@ export default defineEventHandler(async (event) => {
       is_read: false
     } as never)
   }
-  return { success: true, data: { id: data.id, content, created_at: data.created_at, reply_to: root?.id ?? null } }
+  // Like WhatsApp, a status comment also lands in the private chat, quoting the status.
+  let roomId: string | null = null
+  if (recipient !== user.id) {
+    const { data: st } = await db.from('user_statuses').select('content, caption, media_url').eq('id', status.id).maybeSingle()
+    const text = (st?.content || st?.caption || '').replace(/\s+/g, ' ').trim()
+    const media = st?.media_url ?? ''
+    const preview = text ? (text.length > 60 ? `${text.slice(0, 60)}…` : text) : /\.(mp4|webm|mov)(\?|$)/i.test(media) ? '🎥 Video' : '📷 Photo'
+    roomId = await ensureDirectRoom(db, user.id, recipient)
+    const { error: chatError } = await db.from('chat_messages').insert({
+      room_id: roomId,
+      sender_id: user.id,
+      message_text: `↩️ Status: ${preview}\n${content}`,
+      message_type: 'status_reply',
+      metadata: { status_id: status.id, status_author_id: status.user_id }
+    } as never)
+    if (chatError) roomId = null
+    else await db.from('chat_rooms').update({ updated_at: new Date().toISOString() }).eq('id', roomId)
+  }
+  return { success: true, data: { id: data.id, content, created_at: data.created_at, reply_to: root?.id ?? null, room_id: roomId } }
 })

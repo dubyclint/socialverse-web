@@ -101,7 +101,8 @@ const sendReply = async (s: MyStatus, rootId: string) => {
   const text = replyText[rootId]?.trim()
   if (!text) return
   try {
-    const res = await $fetch<{ data: { id: string, created_at: string } }>(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text, replyTo: rootId } })
+    const res = await $fetch<{ data: { id: string, created_at: string, room_id: string | null } }>(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text, replyTo: rootId } })
+    if (res.data.room_id) return navigateTo(`/chat?room=${res.data.room_id}`)
     s.comments.push({ id: res.data.id, user: { id: '', name: 'You', username: '', avatar_url: null }, content: text, at: res.data.created_at, reply_to: rootId, mine: true })
     replyText[rootId] = ''
   } catch (e) {
