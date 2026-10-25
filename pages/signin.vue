@@ -13,7 +13,26 @@
         <p class="text-rose-400 text-xs font-medium">{{ localError || userStore.error }}</p>
       </div>
 
-      <form @submit.prevent="handleSignin" class="space-y-4">
+      <form v-if="mfaStep" @submit.prevent="handleMfa" class="space-y-4">
+        <p class="text-slate-300 text-sm">
+          {{ useRecovery ? 'Enter one of your recovery codes.' : 'Enter the 6-digit code from your authenticator app.' }}
+        </p>
+        <input v-model="mfaCode" :inputmode="useRecovery ? 'text' : 'numeric'" autocomplete="one-time-code"
+          :maxlength="useRecovery ? 11 : 6" :placeholder="useRecovery ? 'XXXXX-XXXXX' : '123456'" required
+          class="w-full bg-slate-950 text-lg tracking-widest text-white border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        <button type="submit" :disabled="mfaBusy"
+          class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white font-bold text-xs py-3.5 rounded-xl">
+          {{ mfaBusy ? 'Checking...' : 'Verify' }}
+        </button>
+        <div class="flex justify-between text-xs">
+          <button type="button" class="text-indigo-400" @click="useRecovery = !useRecovery; mfaCode = ''">
+            {{ useRecovery ? 'Use authenticator code' : 'Lost your phone? Use a recovery code' }}
+          </button>
+          <button type="button" class="text-slate-500" @click="cancelMfa">Cancel</button>
+        </div>
+      </form>
+
+      <form v-else @submit.prevent="handleSignin" class="space-y-4">
         <div>
           <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">Email</label>
           <input v-model="email" type="email" required :disabled="userStore.isLoading"
@@ -62,6 +81,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user'
+import { useMfa } from '~/composables/use-mfa'
 
 definePageMeta({ layout: 'blank', middleware: 'guest' })
 
@@ -70,10 +90,52 @@ const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const localError = ref('')
+const mfa = useMfa()
+const route = useRoute()
+const mfaStep = ref(false)
+const mfaCode = ref('')
+const mfaBusy = ref(false)
+const useRecovery = ref(false)
+
+const destination = () => {
+  const target = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+  return target.startsWith('/') && !target.startsWith('//') ? target : '/feed'
+}
+
+const finish = async () => {
+  await userStore.fetchProfile().catch(() => undefined)
+  await navigateTo(destination(), { replace: true })
+}
 
 onMounted(async () => {
+  if (useSupabaseUser().value && await mfa.isPending().catch(() => false)) {
+    mfaStep.value = true
+    return
+  }
   if (userStore.isAuthenticated) await navigateTo('/feed', { replace: true })
 })
+
+const handleMfa = async () => {
+  localError.value = ''
+  mfaBusy.value = true
+  try {
+    if (useRecovery.value) await mfa.useRecoveryCode(mfaCode.value)
+    else await mfa.verifyCode(mfaCode.value.trim())
+    if (useRecovery.value) await navigateTo('/settings?tab=security', { replace: true })
+    else await finish()
+  } catch (e) {
+    localError.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage
+      || (e as Error)?.message || 'Verification failed'
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const cancelMfa = async () => {
+  await useSupabaseClient().auth.signOut()
+  mfaStep.value = false
+  mfaCode.value = ''
+}
 
 const handleSignin = async () => {
   localError.value = ''
@@ -86,7 +148,12 @@ const handleSignin = async () => {
   const result = await userStore.signIn(email.value.trim(), password.value)
 
   if (result.success) {
-    await navigateTo('/feed', { replace: true })
+    if (await mfa.isPending().catch(() => false)) {
+      userStore.setError(null)
+      mfaStep.value = true
+      return
+    }
+    await finish()
   } else {
     localError.value = result.message || 'Invalid email or password'
   }

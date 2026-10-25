@@ -3,6 +3,7 @@
 // ============================================================================
 import { defineNuxtRouteMiddleware, navigateTo } from '#app'
 import { useSupabaseUser } from '#imports'
+import { useMfa } from '~/composables/use-mfa'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!to?.path) return
@@ -30,6 +31,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Native session validation via @nuxtjs/supabase
   if (!user.value) {
+    return navigateTo(`/signin?redirect=${encodeURIComponent(to.fullPath)}`, { replace: true })
+  }
+  if (await useMfa().isPending().catch(() => false)) {
     return navigateTo(`/signin?redirect=${encodeURIComponent(to.fullPath)}`, { replace: true })
   }
 })

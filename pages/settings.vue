@@ -67,6 +67,10 @@
           </div>
           <button @click="saveSettings('stream')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl">Save Stream</button>
         </div>
+
+        <div v-if="activeTab === 'security'" class="space-y-4">
+          <TwoFactorSettings />
+        </div>
       </div>
     </main>
 
@@ -83,11 +87,12 @@ import { useUserStore } from '~/stores/user' // Updated Store
 import { api } from '~/lib/api' // Updated API client
 import type { AuthUser } from '~/types/user'
 import { useUserSettings } from '~/composables/use-user-settings'
+import TwoFactorSettings from '~/components/settings/two-factor-settings.vue'
 
 definePageMeta({ middleware: ['auth'], layout: 'default' })
 
 const userStore = useUserStore()
-const activeTab = ref('account')
+const activeTab = ref(String(useRoute().query.tab || 'account'))
 const {
   settings: userSettings,
   saving: settingsSaving,
