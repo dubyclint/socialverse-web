@@ -3710,6 +3710,75 @@ export type Database = {
           },
         ]
       }
+      status_comments: {
+        Row: {
+          id: string
+          status_id: string
+          user_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          status_id: string
+          user_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          status_id?: string
+          user_id?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      status_gifts: {
+        Row: {
+          id: string
+          status_id: string
+          sender_id: string
+          recipient_id: string
+          amount: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          status_id: string
+          sender_id: string
+          recipient_id: string
+          amount: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          status_id?: string
+          sender_id?: string
+          recipient_id?: string
+          amount?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      status_likes: {
+        Row: {
+          status_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          status_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          status_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       user_statuses: {
         Row: {
           background_color: string | null

@@ -15,3 +15,25 @@ export const canSeeStatus = async (db: Db, viewerId: string, authorId: string): 
     .limit(1)
   return Boolean(pal?.length)
 }
+
+/** Loads an active status the viewer is allowed to see, or throws 404. */
+export const loadVisibleStatus = async (db: Db, viewerId: string, id: string) => {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw createError({ statusCode: 400, statusMessage: 'Invalid status' })
+  const { data: status } = await db.from('user_statuses').select('id, user_id')
+    .eq('id', id).is('deleted_at', null).gt('expires_at', new Date().toISOString()).maybeSingle()
+  if (!status || !await canSeeStatus(db, viewerId, status.user_id)) {
+    throw createError({ statusCode: 404, statusMessage: 'This status has expired' })
+  }
+  return status
+}
+
+export const loadPeople = async (db: Db, ids: string[]) => {
+  if (!ids.length) return new Map<string, { id: string, name: string, username: string, avatar_url: string | null }>()
+  const { data } = await db.from('user').select('user_id, username, full_name, display_name, avatar_url').in('user_id', [...new Set(ids)])
+  return new Map((data ?? []).map(p => [p.user_id, {
+    id: p.user_id,
+    name: p.full_name || p.display_name || p.username || 'User',
+    username: p.username || 'user',
+    avatar_url: p.avatar_url
+  }]))
+}

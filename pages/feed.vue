@@ -291,8 +291,18 @@
           <div class="status-tray-container">
             <div v-if="statusLoading" class="status-tray-loading"><div class="spinner-mini"></div></div>
             <div v-else class="status-horizontal-scroll">
-              <!-- Add / Create Status Card -->
-              <div class="story-card create-story-card" @click="navigateTo('/status?new=1')">
+              <!-- My status: always first, opens my statuses and their interactions -->
+              <div v-if="myStatus" class="story-card user-story-card" @click="navigateTo('/my-status')">
+                <div class="story-background-wrapper" :style="{ backgroundColor: myStatus.colors?.background || '#1e293b' }">
+                  <img v-if="myStatus.media_type === 'image' && myStatus.media_url" :src="myStatus.media_url" class="story-bg-media" />
+                  <p v-else-if="myStatus.content" class="story-preview-text">{{ myStatus.content }}</p>
+                </div>
+                <div class="story-card-overlay">
+                  <div class="story-avatar-badge"><img :src="userAvatar" alt="" /></div>
+                  <span class="story-author-name">My status</span>
+                </div>
+              </div>
+              <div v-else class="story-card create-story-card" @click="navigateTo('/my-status')">
                 <div class="story-cover-image">
                   <img :src="userAvatar" alt="Your avatar" />
                 </div>
@@ -300,23 +310,37 @@
                   <div class="plus-icon-badge">
                     <Icon name="plus" size="16" />
                   </div>
-                  <span class="story-label">Create Status</span>
+                  <span class="story-label">My status</span>
                 </div>
               </div>
 
-              <!-- Active Status Cards -->
-              <div v-for="statusItem in fetchedStatuses" :key="statusItem.id" class="story-card user-story-card" :class="{ seen: statusItem.all_viewed }" @click="navigateTo(`/status?u=${statusItem.author?.id}`)">
+              <template v-for="item in trayItems" :key="item.key">
+              <!-- Sponsored status -->
+              <div v-if="item.kind === 'ad'" class="story-card user-story-card ad-story-card" @click="openStatusAd(item.ad)">
+                <div class="story-background-wrapper" style="background-color:#1e293b">
+                  <img v-if="item.ad.media?.[0]?.type === 'image'" :src="item.ad.media[0].url" class="story-bg-media" />
+                  <video v-else-if="item.ad.media?.[0]?.type === 'video'" :src="item.ad.media[0].url" class="story-bg-media" muted playsinline />
+                  <p v-else class="story-preview-text">{{ item.ad.headline || item.ad.primaryText || item.ad.title }}</p>
+                </div>
+                <div class="story-card-overlay">
+                  <span class="ad-story-label">Sponsored</span>
+                  <span class="story-author-name">{{ item.ad.advertiser?.name }}</span>
+                </div>
+              </div>
+              <!-- PAL / matched user status -->
+              <div v-else class="story-card user-story-card" :class="{ seen: item.s.all_viewed }" @click="navigateTo(`/status?u=${item.s.author?.id}`)">
                 <div class="story-background-wrapper" :style="{ backgroundColor: statusItem.colors?.background || '#1e293b' }">
-                  <img v-if="statusItem.media_type === 'image' && statusItem.media_url" :src="statusItem.media_url" class="story-bg-media" />
-                  <p v-else-if="statusItem.content" class="story-preview-text">{{ statusItem.content }}</p>
+                  <img v-if="item.s.media_type === 'image' && item.s.media_url" :src="item.s.media_url" class="story-bg-media" />
+                  <p v-else-if="item.s.content" class="story-preview-text">{{ item.s.content }}</p>
                 </div>
                 <div class="story-card-overlay">
                   <div class="story-avatar-badge">
-                    <img :src="statusItem.author?.avatar_url || '/default-avatar.svg'" :alt="statusItem.author?.full_name" />
+                    <img :src="item.s.author?.avatar_url || '/default-avatar.svg'" :alt="item.s.author?.full_name" />
                   </div>
-                  <span class="story-author-name">{{ statusItem.author?.full_name || statusItem.author?.username || 'User' }}</span>
+                  <span class="story-author-name">{{ item.s.author?.full_name || item.s.author?.username || 'User' }}</span>
                 </div>
               </div>
+              </template>
             </div>
           </div>
         </ClientOnly>
@@ -454,7 +478,7 @@ const {
   posts, postsLoading, hasMorePosts, loadingMore, 
   loadMorePosts, refreshFeed, initPipeline, 
   userName, userAvatar, userUsername, userStatus, walletBalance, isVerified, verifiedType,
-  fetchedStatuses, statusLoading, triggerStatusViewer, activeSelectedStatus,
+  fetchedStatuses, statusLoading, statusAds, triggerStatusViewer, activeSelectedStatus,
   suggestedUsers, suggestedUsersLoading, refreshSuggestedUsers, followUser,
   trendingTopics, trendingLoading, refreshTrending,
   sidebarOpen, toggleSidebar, handleLogout, currentUser, 
@@ -507,6 +531,44 @@ const goToProfilePage = () => navigateTo('/profile');
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
 const goToSettingsProfile = () => navigateTo('/profile/edit');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
+
+// Status tray: My status first, then PAL / matched statuses with sponsored statuses mixed in
+// (the first one within the first 4 cards, then one after every 4 statuses).
+const myStatus = computed(() => fetchedStatuses.value.find(s => s.is_me) || null);
+const trayItems = computed(() => {
+  const others = fetchedStatuses.value.filter(s => !s.is_me);
+  const ads = statusAds.value || [];
+  const out = [];
+  let next = 0;
+  others.forEach((s, i) => {
+    if (next < ads.length && (i === 2 || (i > 2 && (i - 2) % 4 === 0))) out.push({ kind: 'ad', key: `ad-${ads[next].id}`, ad: ads[next++] });
+    out.push({ kind: 'status', key: s.id, s });
+  });
+  if (next < ads.length && others.length < 3) out.push({ kind: 'ad', key: `ad-${ads[next].id}`, ad: ads[next++] });
+  return out;
+});
+const trackedStatusAds = new Set();
+const trackStatusAd = (ad, interactionType) =>
+  $fetch('/api/ads/track', { method: 'POST', body: { campaignId: ad.id, interactionType, placement: 'status', cta: ad.cta } }).catch(() => {});
+watch(trayItems, (items) => {
+  items.slice(0, 4).forEach((item) => {
+    if (item.kind === 'ad' && !trackedStatusAds.has(item.ad.id)) {
+      trackedStatusAds.add(item.ad.id);
+      trackStatusAd(item.ad, 'IMPRESSION');
+    }
+  });
+});
+const openStatusAd = (ad) => {
+  if (ad.conversionLocation === 'CHAT') {
+    trackStatusAd(ad, 'MESSAGE');
+    return navigateTo(`/chat?user=${ad.advertiserId}`);
+  }
+  trackStatusAd(ad, 'CLICK');
+  if (ad.conversionLocation === 'POST' && ad.postId) return navigateTo(`/posts/${ad.postId}`);
+  if (ad.conversionLocation === 'PAGE' && ad.pageHandle) return navigateTo(`/pages/${ad.pageHandle}`);
+  if (ad.destinationUrl) return window.open(ad.destinationUrl, '_blank', 'noopener,noreferrer');
+  return navigateTo(ad.advertiser?.type === 'PAGE' && ad.pageHandle ? `/pages/${ad.pageHandle}` : `/profile/${ad.advertiserId}`);
+};
 
 const performSearch = () => {
   if (searchQuery.value) navigateTo({ path: '/search', query: { q: searchQuery.value } });
@@ -692,6 +754,16 @@ onMounted(async () => {
 }
 
 /* Active User Status Cards */
+.ad-story-label {
+  align-self: flex-start;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: #facc15;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .story-background-wrapper {
   width: 100%;
   height: 100%;

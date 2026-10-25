@@ -86,6 +86,17 @@
         <video v-else ref="videoEl" :src="current!.media_url!" autoplay playsinline @loadedmetadata="onVideoMeta" @ended="next" />
         <p v-if="current!.media_type !== 'text' && current!.content" class="st-vcaption">{{ current!.content }}</p>
       </div>
+      <div v-if="!viewing.is_me" class="st-react" @click.stop>
+        <button class="st-like" :class="{ on: current!.liked }" aria-label="Like" @click="toggleLike"><Icon name="heart" size="20" /> {{ current!.like_count || '' }}</button>
+        <input v-model="reply" maxlength="500" placeholder="Reply…" @focus="paused = true" @blur="paused = false" @keyup.enter="sendReply">
+        <button aria-label="Send reply" :disabled="!reply.trim()" @click="sendReply"><Icon name="send" size="18" /></button>
+        <button aria-label="Gift PEW" @click="giftOpen = !giftOpen; paused = giftOpen"><Icon name="gift" size="20" /></button>
+        <div v-if="giftOpen" class="st-gift">
+          <input v-model.number="giftAmount" type="number" min="0.01" step="0.01" aria-label="PEW amount">
+          <button :disabled="gifting" @click="sendGift">{{ gifting ? 'Sending…' : 'Gift PEW' }}</button>
+        </div>
+        <p v-if="reactMsg" class="st-react-msg">{{ reactMsg }}</p>
+      </div>
       <div v-if="viewing.is_me" class="st-viewers" @click.stop="toggleViewers">
         <Icon name="eye" size="16" /> {{ viewerInfo?.view_count ?? current!.view_count ?? 0 }}
         <ul v-if="showViewers && viewerInfo?.viewers.length">
@@ -200,6 +211,43 @@ const progress = ref(0)
 const videoEl = ref<HTMLVideoElement | null>(null)
 const viewerInfo = ref<{ view_count: number, viewers: { id: string, name: string, avatar_url: string | null, viewed_at: string }[] } | null>(null)
 const showViewers = ref(false)
+const paused = ref(false)
+const reply = ref('')
+const giftOpen = ref(false)
+const giftAmount = ref(1)
+const gifting = ref(false)
+const reactMsg = ref('')
+const flash = (msg: string) => { reactMsg.value = msg; setTimeout(() => { if (reactMsg.value === msg) reactMsg.value = '' }, 2500) }
+const toggleLike = async () => {
+  const s = current.value
+  if (!s) return
+  try {
+    const res = await $fetch<{ data: { liked: boolean, count: number } }>(`/api/status/${s.id}/like`, { method: 'POST' })
+    s.liked = res.data.liked
+    s.like_count = res.data.count
+  } catch (e) { flash(errMsg(e, 'Could not like')) }
+}
+const sendReply = async () => {
+  const s = current.value
+  const text = reply.value.trim()
+  if (!s || !text) return
+  try {
+    await $fetch(`/api/status/${s.id}/comments`, { method: 'POST', body: { content: text } })
+    reply.value = ''
+    flash('Reply sent')
+  } catch (e) { flash(errMsg(e, 'Could not send reply')) }
+}
+const sendGift = async () => {
+  const s = current.value
+  if (!s) return
+  gifting.value = true
+  try {
+    await $fetch(`/api/status/${s.id}/gift`, { method: 'POST', body: { amount: giftAmount.value } })
+    giftOpen.value = false
+    paused.value = false
+    flash(`Gifted ${giftAmount.value} PEW`)
+  } catch (e) { flash(errMsg(e, 'Gift failed')) } finally { gifting.value = false }
+}
 let timer: ReturnType<typeof setInterval> | null = null
 const current = computed(() => viewing.value?.statuses[index.value] ?? null)
 
@@ -210,7 +258,7 @@ const startTimer = (ms?: number) => {
   const total = ms ?? (current.value?.media_type === 'text' ? TEXT_MS : IMAGE_MS)
   const started = Date.now()
   timer = setInterval(() => {
-    if (showViewers.value) return
+    if (showViewers.value || paused.value) return
     progress.value = Math.min(100, ((Date.now() - started) / total) * 100)
     if (progress.value >= 100) next()
   }, 50)
@@ -281,7 +329,7 @@ onMounted(async () => {
   await load()
   const target = String(route.query.u || '')
   if (route.query.new === '1') composerOpen.value = true
-  const g = target ? groups.value.find(x => x.author.id === target) : null
+  const g = route.query.mine === '1' ? myGroup.value : target ? groups.value.find(x => x.author.id === target) : null
   if (g) openGroup(g)
 })
 onBeforeUnmount(stopTimer)
@@ -332,6 +380,15 @@ onBeforeUnmount(stopTimer)
 .st-vbody img, .st-vbody video { max-width: 100%; max-height: 100%; object-fit: contain; }
 .st-vtext { font-size: 1.7rem; text-align: center; padding: 24px; word-break: break-word; white-space: pre-wrap; }
 .st-vcaption { position: absolute; bottom: 16px; left: 16px; right: 16px; text-align: center; color: #fff; background: rgba(0,0,0,.5); padding: 8px 12px; border-radius: 10px; }
+.st-react { display: flex; align-items: center; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); color: #fff; flex-wrap: wrap; position: relative; }
+.st-react button { background: none; border: 0; color: #fff; display: inline-flex; align-items: center; gap: 4px; padding: 6px; flex-shrink: 0; }
+.st-react button:disabled { opacity: .4; }
+.st-like.on { color: #f43f5e; }
+.st-react input { flex: 1; min-width: 0; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 12px; color: #fff; outline: none; }
+.st-gift { display: flex; gap: 8px; width: 100%; }
+.st-gift input { border-radius: 10px; }
+.st-gift button { background: #22c55e !important; border-radius: 10px; padding: 8px 14px !important; font-weight: 600; }
+.st-react-msg { width: 100%; margin: 0; font-size: .8rem; color: #a7f3d0; text-align: center; }
 .st-viewers { color: #fff; text-align: center; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .st-viewers ul { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 40dvh; overflow-y: auto; text-align: left; background: #111827; border-radius: 12px; }
 .st-viewers li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }

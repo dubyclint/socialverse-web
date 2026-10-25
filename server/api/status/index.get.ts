@@ -11,6 +11,8 @@ export interface StatusItem {
   created_at: string
   expires_at: string | null
   viewed: boolean
+  liked: boolean
+  like_count: number
   view_count?: number
 }
 
@@ -26,18 +28,22 @@ const mediaType = (url: string | null): StatusItem['media_type'] => {
   return /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(url) ? 'video' : 'image'
 }
 
-/** Active (24h) statuses from the viewer, the people they follow and their PALs, grouped by author. */
+/** Active statuses from the viewer, their PALs and people they were matched with, grouped by author. */
 export default defineEventHandler(async (event): Promise<{ success: true, data: StatusGroup[] }> => {
   const user = await requireUser(event)
   const db = getServiceClient()
 
-  const [{ data: follows }, { data: pals }] = await Promise.all([
-    db.from('follows').select('following_id').eq('follower_id', user.id),
+  const { data: myMatches } = await db.from('stream_match_participants').select('match_id').eq('user_id', user.id).limit(200)
+  const matchIds = [...new Set((myMatches ?? []).map(m => m.match_id))]
+  const [{ data: matched }, { data: pals }] = await Promise.all([
+    matchIds.length
+      ? db.from('stream_match_participants').select('user_id').in('match_id', matchIds).neq('user_id', user.id)
+      : Promise.resolve({ data: [] as { user_id: string }[] }),
     db.from('pals').select('user_id, pal_id').or(`user_id.eq.${user.id},pal_id.eq.${user.id}`).eq('status', 'accepted')
   ])
   const authorIds = new Set<string>([user.id])
   const palIds = new Set<string>()
-  for (const f of follows ?? []) authorIds.add(f.following_id)
+  for (const m of matched ?? []) authorIds.add(m.user_id)
   for (const p of pals ?? []) {
     const other = p.user_id === user.id ? p.pal_id : p.user_id
     authorIds.add(other)
@@ -69,10 +75,17 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
   if (!rows?.length) return { success: true, data: [] }
 
   const ids = rows.map(r => r.id)
-  const [{ data: views }, { data: people }] = await Promise.all([
+  const [{ data: views }, { data: people }, { data: likes }] = await Promise.all([
     db.from('status_views').select('status_id').eq('viewer_id', user.id).in('status_id', ids),
-    db.from('user').select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type').in('user_id', [...new Set(rows.map(r => r.user_id))])
+    db.from('user').select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type').in('user_id', [...new Set(rows.map(r => r.user_id))]),
+    db.from('status_likes').select('status_id, user_id').in('status_id', ids)
   ])
+  const likeCount = new Map<string, number>()
+  const likedByMe = new Set<string>()
+  for (const l of likes ?? []) {
+    likeCount.set(l.status_id, (likeCount.get(l.status_id) ?? 0) + 1)
+    if (l.user_id === user.id) likedByMe.add(l.status_id)
+  }
   const viewed = new Set((views ?? []).map(v => v.status_id))
   const personById = new Map((people ?? []).map(p => [p.user_id, p]))
 
@@ -110,6 +123,8 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
       created_at: row.created_at,
       expires_at: row.expires_at,
       viewed: seen,
+      liked: likedByMe.has(row.id),
+      like_count: likeCount.get(row.id) ?? 0,
       ...(isMe ? { view_count: row.view_count ?? 0 } : {})
     })
   }

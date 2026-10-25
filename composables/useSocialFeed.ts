@@ -84,6 +84,7 @@ export interface FeedStatus {
   author: FeedAuthor | null
   colors?: { background: string | null, text: string | null }
   all_viewed?: boolean
+  is_me?: boolean
 }
 
 export interface SuggestedUser extends FeedAuthor {
@@ -154,6 +155,7 @@ export const useSocialFeed = () => {
   // Statuses
   const fetchedStatuses = ref<FeedStatus[]>([])
   const statusLoading = ref(false)
+  const statusAds = ref<FeedAd[]>([])
   const activeSelectedStatus = ref<FeedStatus | null>(null)
 
   // Right rail
@@ -274,6 +276,9 @@ export const useSocialFeed = () => {
         all_viewed: boolean
         statuses: Array<{ id: string, content: string | null, media_url: string | null, media_type: 'image' | 'video' | 'text', background_color: string | null, text_color: string | null, created_at: string }>
       }> }>('/api/status')
+      $fetch<{ ads?: FeedAd[] }>('/api/ads/placement', { query: { placement: 'status', limit: 2 } })
+        .then((r) => { statusAds.value = r.ads ?? [] })
+        .catch(() => { statusAds.value = [] })
       fetchedStatuses.value = (res.data ?? []).map((group) => {
         const latest = group.statuses[group.statuses.length - 1]!
         return {
@@ -285,6 +290,7 @@ export const useSocialFeed = () => {
           author: group.author,
           colors: { background: latest.background_color, text: latest.text_color },
           all_viewed: group.all_viewed,
+          is_me: group.is_me,
         }
       })
     } catch (e) {
@@ -697,6 +703,7 @@ export const useSocialFeed = () => {
     // statuses
     fetchedStatuses,
     statusLoading,
+    statusAds,
     triggerStatusViewer,
     activeSelectedStatus,
 
