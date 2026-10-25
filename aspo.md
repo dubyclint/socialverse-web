@@ -216,3 +216,19 @@ Summary Checklist :
 2. Isolate tracking metrics: Storing logs this way allows your admin role profile to see which manager claimed a ticket, how fast they replied, and when a complaint was resolved.
 3. Database Guardrail: Enforce server-side authentication checking on the /admin/support/* routes to ensure that only authenticated user rows with roles explicitly matching admin or manager can fetch ticket lists.
 build a clean Vue Composable helper file that handles the end-user side of things
+
+create and apply the p2p instructions now and immediately:
+- Now the features update: 1. P2P:  on p2p option add fund add all currency option in the world no country exception with rates linked to USD. 1pew = 1usd. Min deposit is 5 pew on using p2p . Add p2p option too on withdrawal method ,  The admin admin can assign / revoke any user a seller privedges
+
+The seller p2p page setting involves setting name to be displayed, small box to be filled  instruction notes for buyer , payment method:  currency list all currency of country with no exception . app rate , sell margin or fee or limits applied .   Now the seller can create max 30 currency different bank or payment method. 
+
+What happens is that when add fund request is made the currency and amount are matched, and all matching sellers are listed for choosing, after seeing their rates limits and margin etc( read the seller note or any app t&C's )
+
+If seller chosen, next
+
+To be displayed to buyer are note, bank details for payment.
+
+Buyer is advised to click I'm paying tab so that the amount is locked in escrow while payment continue. 45 mins is allowed for payment , buyer then proceed to pay and if done, clicks paid tab this trigger check payment tab for seller, if confirmed seller clicks confirm and  another yes I confirm. Immediately the pew is released to buyer . 
+
+Apply similar system apply  to withdrawal too. But withdrawal of pew using P2P, first apply withdrawal fee to the pew amount to be withdrawn or traded then apply the system used on add fund. ( Apply my template yet apply best  security, or best p2p  practices)
+Once 45 mins time for payment elapse dispute tabs displays on both seller and buyer who can initiate dispute but if both click same micro second the buyer is chosen. once dispute button is clicked agent/ support joins the chat read aspo.md and apply the best , the support who  then consider the case by collecting evidence and decide the out come either by  releasing fund if it he has admin privileges to  or escalate to admin who has the role ( note   on control create or improve P2P or escrow dispute resolution decider role this role can be assigned to any user by super admin , they decide and release or cancel disputed trade in p2p or escow , their decision is final. nevertheless wWhile settlement is ongoing the buyer or seller in position to confirm and release can confirm and release and close the dispute if not admin will decide and release or cancel trade. there is no timeframe for admin decision.
