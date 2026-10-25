@@ -22,9 +22,6 @@
         <button @click="openNewChat" class="btn-icon" title="New Chat">
           <Icon name="plus" />
         </button>
-        <button @click="openGroupCreator" class="btn-icon" title="New Group">
-          <Icon name="users" />
-        </button>
         <button @click="openSettings" class="btn-icon" title="Settings">
           <Icon name="settings" />
         </button>
