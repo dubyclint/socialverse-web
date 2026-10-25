@@ -34,6 +34,7 @@ export const useUnreadCounts = () => {
   const notifications = useState<number>('unread-notifications', () => 0)
   const chat = useState<number>('unread-chat', () => 0)
   const palRequests = useState<number>('pending-pal-requests', () => 0)
+  const gifts = useState<number>('unread-gifts', () => 0)
   const supabase = useSupabaseClient()
   const user = useSupabaseUser()
   const { socket } = useSocket()
@@ -42,13 +43,21 @@ export const useUnreadCounts = () => {
 
   const refresh = async (): Promise<void> => {
     const [n, c, p] = await Promise.allSettled([
-      $fetch<{ unread: number }>('/api/user/notifications', { query: { limit: 1 } }),
+      $fetch<{ unread: number, gifts?: number }>('/api/user/notifications', { query: { limit: 1 } }),
       $fetch<{ total: number }>('/api/chat/unread'),
       $fetch<{ incoming?: unknown[] }>('/api/pals/requests')
     ])
-    if (n.status === 'fulfilled') notifications.value = n.value.unread ?? 0
+    if (n.status === 'fulfilled') {
+      notifications.value = n.value.unread ?? 0
+      gifts.value = route.path === '/wallet' ? 0 : n.value.gifts ?? 0
+    }
     if (c.status === 'fulfilled') chat.value = c.value.total ?? 0
     if (p.status === 'fulfilled') palRequests.value = p.value.incoming?.length ?? 0
+  }
+
+  const markGiftsSeen = async (): Promise<void> => {
+    gifts.value = 0
+    await $fetch('/api/notifications/read-gifts', { method: 'POST' }).catch(() => undefined)
   }
 
   const markNotificationsRead = async (): Promise<void> => {
@@ -67,7 +76,8 @@ export const useUnreadCounts = () => {
       channel = supabase
         .channel(`notifications:${id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${id}` }, (payload) => {
-          const row = payload.new as { message_text?: string }
+          const row = payload.new as { message_text?: string, event_type?: string }
+          if (row.event_type === 'GIFT_RECEIVED' && route.path !== '/wallet') gifts.value += 1
           if (route.path !== '/notifications') notifications.value += 1
           if (useUserSettings().settings.value.notifications?.sound !== false) ringtone.ping('notify')
           notifyDevice('Viorp', row.message_text || 'You have a new notification', '/notifications')
@@ -115,5 +125,5 @@ export const useUnreadCounts = () => {
 
   const label = (count: number) => (count > 99 ? '99+' : String(count))
 
-  return { notifications, chat, palRequests, refresh, markNotificationsRead, track, label }
+  return { notifications, chat, palRequests, gifts, refresh, markNotificationsRead, markGiftsSeen, track, label }
 }

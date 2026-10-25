@@ -31,6 +31,7 @@
           </NuxtLink>
           <NuxtLink to="/wallet" class="nav-icon" :class="{ active: route.path === '/wallet' }" aria-label="Wallet">
             <Icon name="wallet" size="24" /> <span class="nav-label">Wallet</span>
+            <span v-if="unreadGifts > 0" class="gift-dot" aria-label="New gifts" />
           </NuxtLink>
         </nav>
         <div class="header-right">
@@ -467,6 +468,7 @@ const {
   notifications: unreadNotifications,
   chat: unreadMessages,
   palRequests: pendingPalRequests,
+  gifts: unreadGifts,
   label: unreadLabel,
   track: trackUnread
 } = useUnreadCounts();
@@ -1191,4 +1193,5 @@ onMounted(async () => {
     height: 52px;
   }
 }
+.gift-dot { position: absolute; top: 4px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 2px #0f172a; }
 </style>

@@ -159,6 +159,7 @@ const reviewReturnedDeposit = async (depositId: string) => {
 }
 
 onMounted(() => {
+  void useUnreadCounts().markGiftsSeen()
   loadWallet()
   if (typeof route.query.deposit === 'string') reviewReturnedDeposit(route.query.deposit)
 })

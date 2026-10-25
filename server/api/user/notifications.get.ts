@@ -8,6 +8,7 @@ interface NotificationsResponse {
   success: boolean
   data: NotificationRow[]
   unread: number
+  gifts: number
 }
 
 export default defineEventHandler(async (event): Promise<NotificationsResponse> => {
@@ -26,15 +27,24 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  const { count } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('recipient_id', user.id)
-    .eq('is_read', false)
+  const [{ count }, { count: gifts }] = await Promise.all([
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', user.id)
+      .eq('is_read', false),
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', user.id)
+      .eq('event_type', 'GIFT_RECEIVED')
+      .eq('is_read', false)
+  ])
 
   return {
     success: true,
     data: data ?? [],
-    unread: count ?? 0
+    unread: count ?? 0,
+    gifts: gifts ?? 0
   }
 })
