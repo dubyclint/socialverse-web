@@ -45,7 +45,7 @@
         </div>
       </button>
     </section>
-    <p v-if="!loading && !groups.length" class="st-empty">No status updates from people you follow in the last 24 hours.</p>
+    <p v-if="!loading && !groups.length" class="st-empty">No recent status updates from people you follow.</p>
     <div v-if="loading" class="st-empty">Loading…</div>
 
     <!-- Text / caption composer -->

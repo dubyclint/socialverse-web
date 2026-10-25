@@ -1,9 +1,10 @@
+import { getStatusSettings } from '~/server/utils/status-settings'
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 
 const COLOR_RE = /^#[0-9a-f]{6}$/i
 
-/** Posts a 24-hour status: text on a colour, or a photo/video (uploaded via /api/upload) with an optional caption. */
+/** Posts a status that lasts the admin-set duration (default 24h): text on a colour, or a photo/video (uploaded via /api/upload) with an optional caption. */
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const body = await readBody<{ content?: string, media_url?: string | null, background_color?: string, text_color?: string }>(event)
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
       media_url: mediaUrl,
       background_color: background,
       text_color: textColor,
-      expires_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+      expires_at: new Date(Date.now() + (await getStatusSettings()).duration_hours * 3600 * 1000).toISOString()
     })
     .select('id, created_at, expires_at')
     .single()

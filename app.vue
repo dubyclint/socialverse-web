@@ -10,6 +10,7 @@
       <Sonner />
       <CallHost v-if="supabaseUser" />
       <CelebrateLayer />
+      <OfflineBanner />
       <GlobalAnnouncement v-if="route.path !== '/feed'" />
     </ClientOnly>
   </div>
@@ -23,6 +24,7 @@ import { usePresence } from '~/composables/usePresence'
 import { useDiscoveryStore } from '~/stores/useDiscovery'
 import CallHost from '~/components/chat/call-host.vue'
 import CelebrateLayer from '~/components/celebrate-layer.vue'
+import OfflineBanner from '~/components/offline-banner.vue'
 import GlobalAnnouncement from '~/components/global-announcement.vue'
 
 const isHydrating = ref(true)

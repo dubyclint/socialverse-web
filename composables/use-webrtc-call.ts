@@ -230,6 +230,10 @@ export const useWebrtcCall = () => {
       if (pc.connectionState !== 'failed') return
       if (!peer.restarted) {
         peer.restarted = true
+        // Direct (STUN) path failed: retry through the TURN relay only.
+        if (hasRelay) {
+          try { pc.setConfiguration({ ...pc.getConfiguration(), iceTransportPolicy: 'relay' }) } catch { /* keep current policy */ }
+        }
         if (peer.offerer) void sendOffer(userId, true).catch(() => undefined)
         return
       }
