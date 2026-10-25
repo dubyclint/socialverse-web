@@ -1,5 +1,6 @@
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { rankPalSuggestions } from '~/server/utils/pal-suggestions'
 
 export interface StatusItem {
   id: string
@@ -33,17 +34,14 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
   const user = await requireUser(event)
   const db = getServiceClient()
 
-  const { data: myMatches } = await db.from('stream_match_participants').select('match_id').eq('user_id', user.id).limit(200)
-  const matchIds = [...new Set((myMatches ?? []).map(m => m.match_id))]
-  const [{ data: matched }, { data: pals }] = await Promise.all([
-    matchIds.length
-      ? db.from('stream_match_participants').select('user_id').in('match_id', matchIds).neq('user_id', user.id)
-      : Promise.resolve({ data: [] as { user_id: string }[] }),
+  const [suggested, { data: pals }] = await Promise.all([
+    rankPalSuggestions(db, user.id, 50),
     db.from('pals').select('user_id, pal_id').or(`user_id.eq.${user.id},pal_id.eq.${user.id}`).eq('status', 'accepted')
   ])
   const authorIds = new Set<string>([user.id])
   const palIds = new Set<string>()
-  for (const m of matched ?? []) authorIds.add(m.user_id)
+  const suggestedRank = new Map(suggested.map(([id], i) => [id, i]))
+  for (const [id] of suggested) authorIds.add(id)
   for (const p of pals ?? []) {
     const other = p.user_id === user.id ? p.pal_id : p.user_id
     authorIds.add(other)
@@ -55,12 +53,9 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
   if (others.length) {
     const { data: prefs } = await db.from('user_settings').select('user_id, privacy').in('user_id', others)
     for (const pref of prefs ?? []) {
-      const visibility = (pref.privacy as { status?: string } | null)?.status ?? 'contacts'
+      const visibility = (pref.privacy as { status?: string } | null)?.status ?? 'everyone'
       if (visibility === 'nobody' || (visibility === 'contacts' && !palIds.has(pref.user_id))) authorIds.delete(pref.user_id)
     }
-    // No saved settings means the default ('contacts'): PALs only.
-    const withPrefs = new Set((prefs ?? []).map(p => p.user_id))
-    for (const id of others) if (!withPrefs.has(id) && !palIds.has(id)) authorIds.delete(id)
   }
 
   const { data: rows, error } = await db
@@ -133,6 +128,10 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
   list.sort((a, b) => {
     if (a.is_me !== b.is_me) return a.is_me ? -1 : 1
     if (a.all_viewed !== b.all_viewed) return a.all_viewed ? 1 : -1
+    // PALs first, then suggested PALs by suggestion strength.
+    const ar = palIds.has(a.author.id) ? -1 : suggestedRank.get(a.author.id) ?? 999
+    const br = palIds.has(b.author.id) ? -1 : suggestedRank.get(b.author.id) ?? 999
+    if (ar !== br) return ar - br
     return b.statuses.at(-1)!.created_at.localeCompare(a.statuses.at(-1)!.created_at)
   })
   return { success: true, data: list }

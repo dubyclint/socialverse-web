@@ -77,7 +77,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     lastSeen: 'contacts',
     profilePhoto: 'everyone',
     about: 'contacts',
-    status: 'contacts',
+    status: 'everyone',
     readReceipts: true,
     groups: 'contacts',
     silenceUnknownCallers: false,

@@ -302,7 +302,7 @@
                   <span class="story-author-name">My status</span>
                 </div>
               </div>
-              <div v-else class="story-card create-story-card" @click="navigateTo('/my-status')">
+              <div v-else class="story-card create-story-card" @click="navigateTo('/status?new=1')">
                 <div class="story-cover-image">
                   <img :src="userAvatar" alt="Your avatar" />
                 </div>
@@ -310,7 +310,7 @@
                   <div class="plus-icon-badge">
                     <Icon name="plus" size="16" />
                   </div>
-                  <span class="story-label">My status</span>
+                  <span class="story-label">Create status</span>
                 </div>
               </div>
 
