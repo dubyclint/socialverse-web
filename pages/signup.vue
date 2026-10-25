@@ -82,12 +82,34 @@
           </div>
         </div>
 
-        <label class="flex items-start gap-2 text-slate-400 text-xs leading-snug">
-          <input v-model="formData.acceptTerms" type="checkbox" required class="mt-0.5" />
-          <span>I am at least 13 years old (or the minimum age in my country) and I agree to the
-            <NuxtLink to="/terms" target="_blank" class="text-indigo-400">Terms</NuxtLink> and
-            <NuxtLink to="/privacy" target="_blank" class="text-indigo-400">Privacy Policy</NuxtLink>.</span>
-        </label>
+        <!-- Terms & Conditions Checkbox -->
+        <div class="pt-1">
+          <label class="flex items-start gap-3 cursor-pointer select-none group">
+            <div class="relative flex items-center shrink-0 mt-0.5">
+              <input 
+                v-model="formData.acceptTerms" 
+                type="checkbox" 
+                required 
+                :disabled="isAuthLoading"
+                class="peer appearance-none w-4 h-4 rounded-md bg-slate-950 border border-slate-800 checked:bg-indigo-600 checked:border-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 outline-none transition cursor-pointer disabled:cursor-not-allowed" 
+              />
+              <svg 
+                class="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100 left-0.5 top-0.5 transition-opacity" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <span class="text-xs text-slate-400 leading-snug group-hover:text-slate-300 transition-colors">
+              I am at least 13 years old (or the minimum age in my country) and I agree to the
+              <NuxtLink to="/terms" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">Terms</NuxtLink> and
+              <NuxtLink to="/privacy" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">Privacy Policy</NuxtLink>.
+            </span>
+          </label>
+        </div>
 
         <button type="submit" :disabled="isAuthLoading"
           class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold text-xs py-3.5 rounded-xl transition-all">
