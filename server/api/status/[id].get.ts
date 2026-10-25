@@ -1,5 +1,6 @@
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { canSeeStatus } from '~/server/utils/status-privacy'
 
 /** Opens a status: records the viewer once; the author also gets the viewer list. */
 export default defineEventHandler(async (event) => {
@@ -16,6 +17,9 @@ export default defineEventHandler(async (event) => {
     .gt('expires_at', new Date().toISOString())
     .maybeSingle()
   if (!status) throw createError({ statusCode: 404, statusMessage: 'This status has expired' })
+  if (!await canSeeStatus(db, user.id, status.user_id)) {
+    throw createError({ statusCode: 404, statusMessage: 'This status has expired' })
+  }
 
   if (status.user_id !== user.id) {
     const { error } = await db.from('status_views').insert({ status_id: id, viewer_id: user.id })

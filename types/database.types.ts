@@ -3720,7 +3720,7 @@ export type Database = {
           duration_seconds: number
           expires_at: string
           id: string
-          media_url: string
+          media_url: string | null
           text_color: string | null
           user_id: string
           view_count: number
@@ -3734,7 +3734,7 @@ export type Database = {
           duration_seconds?: number
           expires_at?: string
           id?: string
-          media_url: string
+          media_url?: string | null
           text_color?: string | null
           user_id: string
           view_count?: number
@@ -3748,7 +3748,7 @@ export type Database = {
           duration_seconds?: number
           expires_at?: string
           id?: string
-          media_url?: string
+          media_url?: string | null
           text_color?: string | null
           user_id?: string
           view_count?: number

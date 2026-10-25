@@ -36,8 +36,26 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
     db.from('pals').select('user_id, pal_id').or(`user_id.eq.${user.id},pal_id.eq.${user.id}`).eq('status', 'accepted')
   ])
   const authorIds = new Set<string>([user.id])
+  const palIds = new Set<string>()
   for (const f of follows ?? []) authorIds.add(f.following_id)
-  for (const p of pals ?? []) authorIds.add(p.user_id === user.id ? p.pal_id : p.user_id)
+  for (const p of pals ?? []) {
+    const other = p.user_id === user.id ? p.pal_id : p.user_id
+    authorIds.add(other)
+    palIds.add(other)
+  }
+
+  // Respect each author's "Status" privacy: everyone, PALs only (contacts) or nobody.
+  const others = [...authorIds].filter(id => id !== user.id)
+  if (others.length) {
+    const { data: prefs } = await db.from('user_settings').select('user_id, privacy').in('user_id', others)
+    for (const pref of prefs ?? []) {
+      const visibility = (pref.privacy as { status?: string } | null)?.status ?? 'contacts'
+      if (visibility === 'nobody' || (visibility === 'contacts' && !palIds.has(pref.user_id))) authorIds.delete(pref.user_id)
+    }
+    // No saved settings means the default ('contacts'): PALs only.
+    const withPrefs = new Set((prefs ?? []).map(p => p.user_id))
+    for (const id of others) if (!withPrefs.has(id) && !palIds.has(id)) authorIds.delete(id)
+  }
 
   const { data: rows, error } = await db
     .from('user_statuses')

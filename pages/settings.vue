@@ -9,7 +9,7 @@
 
       <!-- Tab System -->
       <div class="flex gap-2 border-b border-slate-800 mb-6 pb-2 overflow-x-auto no-scrollbar">
-        <button v-for="tab in ['account', 'media', 'stream', 'security']" :key="tab" 
+        <button v-for="tab in ['account', 'privacy', 'media', 'stream', 'security']" :key="tab" 
           @click="activeTab = tab"
           :class="['px-4 py-2 text-xs font-bold rounded-lg capitalize transition-all border', activeTab === tab ? 'tab-active' : 'tab-inactive']">
           {{ tab }}
@@ -68,6 +68,35 @@
           <button @click="saveSettings('stream')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl">Save Stream</button>
         </div>
 
+        <div v-if="activeTab === 'privacy'" class="space-y-4">
+          <p class="text-xs text-slate-400">These apply everywhere in Viorp, not just in chat.</p>
+          <div v-for="field in visibilityFields" :key="field.key" class="flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-white">{{ field.label }}</p>
+              <p class="text-[11px] text-slate-400">{{ field.hint }}</p>
+            </div>
+            <select
+              :value="userSettings.privacy[field.key]"
+              class="flex-shrink-0 bg-slate-900 text-xs text-white border border-slate-700 rounded-lg px-2 py-2"
+              @change="updateUserSettings('privacy', { [field.key]: ($event.target as HTMLSelectElement).value })"
+            >
+              <option value="everyone">Everyone</option>
+              <option value="contacts">My PALs</option>
+              <option value="nobody">Nobody</option>
+            </select>
+          </div>
+          <label class="flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3">
+            <span class="text-sm font-bold text-white">Read receipts</span>
+            <input type="checkbox" :checked="userSettings.privacy.readReceipts" @change="updateUserSettings('privacy', { readReceipts: !userSettings.privacy.readReceipts })" />
+          </label>
+          <label class="flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3">
+            <span class="text-sm font-bold text-white">Notification sound</span>
+            <input type="checkbox" :checked="userSettings.notifications.sound !== false" @change="updateUserSettings('notifications', { sound: userSettings.notifications.sound === false })" />
+          </label>
+          <p v-if="settingsError" class="text-xs text-rose-400">{{ settingsError }}</p>
+          <p v-else-if="settingsSaving" class="text-xs text-slate-400">Saving…</p>
+        </div>
+
         <div v-if="activeTab === 'security'" class="space-y-4">
           <TwoFactorSettings />
         </div>
@@ -102,6 +131,12 @@ const {
 } = useUserSettings()
 onMounted(() => { void loadUserSettings() })
 const isSaving = ref(false)
+const visibilityFields = [
+  { key: 'status', label: 'Status', hint: 'Who can see your statuses' },
+  { key: 'lastSeen', label: 'Last seen & online', hint: 'Who sees when you were last active' },
+  { key: 'profilePhoto', label: 'Profile photo', hint: 'Who can see your photo' },
+  { key: 'about', label: 'About', hint: 'Who can read your about text' }
+] as const
 const showStreamKey = ref(false)
 const toast = ref({ message: '', type: 'success' as 'success' | 'error' })
 
