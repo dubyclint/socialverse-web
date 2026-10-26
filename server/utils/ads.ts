@@ -282,7 +282,26 @@ export const loadTargetedAds = async (event: H3Event, userId: string, limit: num
   if (!rows.length) return []
   const viewer = await loadViewer(event, userId)
   const eligible = rows.filter(row => inSchedule(row.schedule) && matchesTargeting(row.targeting_demographics, viewer))
-  return toAdViews(eligible.slice(0, limit))
+  if (eligible.length <= limit) return toAdViews(eligible)
+  // Ads this viewer already saw or tapped give way to active ads they haven't seen; the least recently seen return last.
+  const dayAgo = new Date(Date.now() - 86_400_000).toISOString()
+  const { data: seen } = await getServiceClient()
+    .from('ad_interactions')
+    .select('campaign_id, created_at')
+    .eq('viewer_id', userId)
+    .in('campaign_id', eligible.map(r => r.id))
+    .gte('created_at', dayAgo)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  const lastSeen = new Map<string, number>()
+  for (const row of seen ?? []) {
+    if (row.campaign_id && !lastSeen.has(row.campaign_id)) lastSeen.set(row.campaign_id, Date.parse(row.created_at))
+  }
+  const ranked = eligible
+    .map((row, rank) => ({ row, rank, seenAt: lastSeen.get(row.id) ?? 0 }))
+    .sort((a, b) => a.seenAt - b.seenAt || a.rank - b.rank)
+    .map(r => r.row)
+  return toAdViews(ranked.slice(0, limit))
 }
 
 /** Placements where programmatic or in-app ads are never shown. */
