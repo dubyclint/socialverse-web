@@ -172,4 +172,5 @@ const copyCodes = async () => {
 .btn.primary { background: #4f46e5; color: #fff; }
 .btn.danger { background: #9f1239; color: #fff; }
 .btn:disabled { opacity: .5; }
+@media (max-width: 640px) { .tfa { padding: 12px; gap: 10px; } .row .btn { flex: 1 1 auto; } .qr { width: 150px; height: 150px; } }
 </style>

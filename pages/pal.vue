@@ -434,4 +434,13 @@ onMounted(async () => {
 .error-text {
   color: var(--color-error, #FF2E88);
 }
+
+@media (max-width: 640px) {
+  .pal-card { flex-wrap: wrap; gap: 6px 10px; padding: 10px; border-radius: 12px; }
+  .pal-info { flex: 1 1 calc(100% - 62px); }
+  .pal-name { display: flex; align-items: center; gap: 4px; font-size: 14px; }
+  .pal-actions-row { flex: 1 1 100%; flex-wrap: nowrap; gap: 6px; padding-left: 58px; }
+  .pal-actions-row .btn { flex: 1 1 0; min-width: 0; padding: 6px 8px; font-size: 12px; border-radius: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pal-grid, .pal-section { gap: 8px; }
+}
 </style>

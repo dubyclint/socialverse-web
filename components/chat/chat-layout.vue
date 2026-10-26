@@ -143,45 +143,62 @@
           <h3>New chat</h3>
           <button class="btn-icon" @click="closeNewChat"><Icon name="x" /></button>
         </div>
-        <button type="button" class="new-group-entry" @click="closeNewChat(); openGroupCreator()">
-          <span class="new-group-icon"><Icon name="users" size="18" /></span>
-          <span>New group</span>
+        <button type="button" class="new-chat-option" @click="closeNewChat(); openGroupCreator()">
+          <span class="new-chat-option-icon"><Icon name="users" size="18" /></span>
+          <span class="new-chat-option-text"><strong>Create new group</strong><small>Pick members, name and photo</small></span>
+          <Icon name="chevron-right" size="16" class="new-chat-chevron" />
         </button>
-        <input
-          v-model="userSearch"
-          class="new-chat-search"
-          type="text"
-          placeholder="Search your contacts and conversations"
-          @input="searchUsers"
-        />
-        <p v-if="isSearching" class="new-chat-hint">Searching…</p>
-        <p v-else-if="userResults.length === 0" class="new-chat-hint">
-          No one in your contacts matches. Direct messages are limited to people you follow, your
-          contacts and existing conversations — use Find Friends to meet someone new.
-        </p>
-        <ul class="new-chat-results">
-          <li v-for="result in userResults" :key="result.user_id">
-            <button class="new-chat-result" :disabled="isStartingChat" @click="startDirectChat(result.user_id)">
-              <img :src="result.avatar_url || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
-              <span class="new-chat-name">{{ result.display_name || result.username }}</span>
-              <span class="new-chat-username">@{{ result.username }}</span>
-            </button>
-          </li>
-        </ul>
+        <div class="new-chat-search-wrap">
+          <Icon name="search" size="16" />
+          <input
+            v-model="userSearch"
+            class="new-chat-search"
+            type="search"
+            placeholder="Search friends, contacts or conversations"
+            @input="searchUsers"
+          />
+        </div>
+        <div class="new-chat-body">
+          <template v-if="conversationResults.length">
+            <h4 class="new-chat-section">Conversations</h4>
+            <ul class="new-chat-results">
+              <li v-for="chat in conversationResults" :key="chat.id">
+                <button class="new-chat-result" @click="closeNewChat(); selectChat(chat.id)">
+                  <img :src="chat.avatar || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
+                  <span class="new-chat-text"><span class="new-chat-name">{{ chat.name }}</span><span class="new-chat-username">{{ chat.type === 'group' ? 'Group' : chat.lastMessage || 'Direct message' }}</span></span>
+                </button>
+              </li>
+            </ul>
+          </template>
+          <h4 class="new-chat-section">{{ userSearch.trim() ? 'Friends & contacts' : 'Your friends & contacts' }}</h4>
+          <p v-if="isSearching" class="new-chat-hint">Searching…</p>
+          <p v-else-if="userResults.length === 0" class="new-chat-hint">
+            No one in your contacts matches. Direct messages are limited to people you follow, your
+            contacts and existing conversations — use Find Friends to meet someone new.
+          </p>
+          <ul class="new-chat-results">
+            <li v-for="result in userResults" :key="result.user_id">
+              <button class="new-chat-result" :disabled="isStartingChat" @click="startDirectChat(result.user_id)">
+                <img :src="result.avatar_url || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
+                <span class="new-chat-text"><span class="new-chat-name">{{ result.display_name || result.username }}</span><span class="new-chat-username">@{{ result.username }}</span></span>
+                <Icon name="message-circle" size="16" class="new-chat-chevron" />
+              </button>
+            </li>
+          </ul>
 
         <div v-if="suggestions.length" class="new-chat-suggestions">
-          <h4>People you may know</h4>
+          <h4 class="new-chat-section">Suggestions</h4>
           <ul class="new-chat-results">
             <li v-for="person in suggestions" :key="person.id">
               <NuxtLink class="new-chat-result" :to="`/profile/${person.username}`" @click="closeNewChat">
-                <img :src="person.avatar_url" alt="" class="new-chat-avatar" />
-                <span class="new-chat-name">{{ person.full_name }}</span>
-                <span class="new-chat-username">
+                <img :src="person.avatar_url || '/default-avatar.svg'" alt="" class="new-chat-avatar" />
+                <span class="new-chat-text"><span class="new-chat-name">{{ person.full_name }}</span><span class="new-chat-username">
                   {{ person.mutual_count ? `${person.mutual_count} mutual` : person.location || `@${person.username}` }}
-                </span>
+                </span></span>
               </NuxtLink>
             </li>
           </ul>
+        </div>
         </div>
       </div>
     </div>
@@ -312,6 +329,13 @@ const currentChat = computed(() => {
 })
 
 const openGroupCreator = () => { showGroupCreator.value = true }
+const conversationResults = computed(() => {
+  const term = userSearch.value.trim().toLowerCase()
+  if (!term) return []
+  return Array.from(chatStore.chats.values())
+    .filter(chat => (chat.name || '').toLowerCase().includes(term))
+    .slice(0, 8)
+})
 const openSettings = () => { showSettings.value = true }
 const filterChats = () => { /* filtering handled reactively by `filteredChats` */ }
 const isUserOnline = (chat: Chat) => chatStore.onlineUsers.has(chat.id)
@@ -760,28 +784,46 @@ onUnmounted(() => {
 
 <style scoped>
 .new-chat-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.55);
-  display: flex; align-items: center; justify-content: center; z-index: 1200;
+  position: fixed; inset: 0; background: rgba(2, 6, 23, .7);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 1200;
 }
 .new-chat-modal {
-  width: min(420px, 94vw); background: var(--color-bg-secondary, #1e293b); color: var(--color-text-primary, #e2e8f0); border-radius: 12px; padding: 1rem;
+  width: 100%; max-height: 92dvh; display: flex; flex-direction: column; gap: .6rem;
+  background: var(--color-bg-secondary, #0f172a); color: var(--color-text-primary, #e2e8f0);
+  border-radius: 16px 16px 0 0; padding: .75rem .75rem calc(.75rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 640px) {
+  .new-chat-overlay { align-items: center; }
+  .new-chat-modal { width: min(460px, 94vw); max-height: 80vh; border-radius: 16px; padding: 1rem; border: 1px solid #1e293b; }
 }
 .new-chat-header { display: flex; align-items: center; justify-content: space-between; }
-.new-chat-search {
-  width: 100%; margin-top: .75rem; padding: .6rem .75rem;
-  border: 1px solid #d1d5db; border-radius: 8px;
+.new-chat-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.new-chat-option {
+  display: flex; align-items: center; gap: .7rem; width: 100%; padding: .65rem .7rem; text-align: left;
+  background: #1e293b; border: 1px solid #334155; border-radius: 12px; color: inherit; cursor: pointer;
 }
-.new-chat-hint { color: #6b7280; font-size: .85rem; margin: .75rem 0 0; }
-.new-chat-suggestions { margin-top: 1rem; border-top: 1px solid var(--color-border); padding-top: .75rem; }
-.new-chat-suggestions h4 { font-size: .85rem; color: var(--color-text-muted); margin: 0; }
-.new-chat-results { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 45vh; overflow: auto; }
+.new-chat-option:hover { border-color: #2563eb; }
+.new-chat-option-icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: 999px; background: #2563eb; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.new-chat-option-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.new-chat-option-text strong { font-size: .92rem; }
+.new-chat-option-text small { font-size: .75rem; color: #94a3b8; }
+.new-chat-chevron { flex-shrink: 0; color: #64748b; }
+.new-chat-search-wrap { display: flex; align-items: center; gap: .5rem; padding: 0 .7rem; background: #1e293b; border: 1px solid #334155; border-radius: 10px; color: #94a3b8; }
+.new-chat-search { flex: 1; min-width: 0; padding: .55rem 0; background: transparent; border: 0; outline: none; color: #f8fafc; font-size: 16px; }
+.new-chat-body { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -.25rem; padding: 0 .25rem; }
+.new-chat-section { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin: .5rem 0 .15rem; }
+.new-chat-hint { color: #94a3b8; font-size: .82rem; margin: .25rem 0; }
+.new-chat-suggestions { margin-top: .25rem; }
+.new-chat-results { list-style: none; margin: 0; padding: 0; }
 .new-chat-result {
-  display: flex; align-items: center; gap: .6rem; width: 100%;
-  padding: .5rem; background: none; border: 0; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: .65rem; width: 100%; min-height: 52px;
+  padding: .45rem .5rem; background: none; border: 0; border-radius: 10px; cursor: pointer; text-align: left; color: inherit;
 }
-.new-chat-result:hover { background: #f3f4f6; }
-.new-chat-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
-.new-chat-username { color: #6b7280; font-size: .8rem; }
+.new-chat-result:hover { background: #1e293b; }
+.new-chat-avatar { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; object-fit: cover; background: #334155; }
+.new-chat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.new-chat-name { font-size: .9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.new-chat-username { color: #94a3b8; font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .chat-layout {
   display: flex;

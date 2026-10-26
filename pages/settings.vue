@@ -1,21 +1,21 @@
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 md:p-8">
-    <main class="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-8 shadow-2xl">
-      <div class="mb-6 border-b border-slate-800 pb-5 flex items-center gap-3">
+  <div class="min-h-screen bg-slate-950 text-slate-100 font-sans p-2 sm:p-4 md:p-8">
+    <main class="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 md:p-8 shadow-2xl">
+      <div class="mb-3 sm:mb-6 border-b border-slate-800 pb-3 sm:pb-5 flex items-center gap-3">
         <button class="text-slate-400 hover:text-white" aria-label="Back" @click="goBack"><Icon name="arrow-left" size="20" /></button>
         <div>
-          <h1 class="text-2xl font-black tracking-tight text-white">Settings</h1>
+          <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white">Settings</h1>
           <p class="text-xs text-slate-400 mt-1">Everything here saves to your account right away.</p>
         </div>
       </div>
 
-      <div class="flex gap-2 border-b border-slate-800 mb-6 pb-2 overflow-x-auto no-scrollbar">
-        <button v-for="tab in tabs" :key="tab.id" :class="['px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap border', activeTab === tab.id ? 'tab-active' : 'tab-inactive']" @click="setTab(tab.id)">
+      <div class="flex gap-1.5 border-b border-slate-800 mb-3 sm:mb-6 pb-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+        <button v-for="tab in tabs" :key="tab.id" :class="['px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-bold rounded-full whitespace-nowrap border flex-shrink-0', activeTab === tab.id ? 'tab-active' : 'tab-inactive']" @click="setTab(tab.id)">
           {{ tab.label }}
         </button>
       </div>
 
-      <div class="space-y-4">
+      <div class="space-y-2 sm:space-y-3">
         <template v-if="activeTab === 'account'">
           <NuxtLink v-for="link in accountLinks" :key="link.to" :to="link.to" class="row">
             <span class="flex items-center gap-3 min-w-0"><Icon :name="link.icon" size="18" class="text-indigo-400 flex-shrink-0" /><span class="min-w-0"><span class="block text-sm font-bold text-white">{{ link.label }}</span><span class="block text-[11px] text-slate-400 truncate">{{ link.hint }}</span></span></span>
@@ -48,11 +48,11 @@
           </div>
           <label class="row cursor-pointer">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Read receipts</span><span class="block text-[11px] text-slate-400">Off: others don't see when you've read their messages, and you don't see theirs</span></span>
-            <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="userSettings.privacy.readReceipts" @change="updateUserSettings('privacy', { readReceipts: !userSettings.privacy.readReceipts })">
+            <input type="checkbox" class="tog" :checked="userSettings.privacy.readReceipts" @change="updateUserSettings('privacy', { readReceipts: !userSettings.privacy.readReceipts })">
           </label>
           <label class="row cursor-pointer">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Private account</span><span class="block text-[11px] text-slate-400">Only approved followers see your posts</span></span>
-            <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="userSettings.privacy.isPrivateAccount" @change="updateUserSettings('privacy', { isPrivateAccount: !userSettings.privacy.isPrivateAccount })">
+            <input type="checkbox" class="tog" :checked="userSettings.privacy.isPrivateAccount" @change="updateUserSettings('privacy', { isPrivateAccount: !userSettings.privacy.isPrivateAccount })">
           </label>
           <NuxtLink to="/profile/edit" class="row">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Profile fields &amp; online status</span><span class="block text-[11px] text-slate-400">Choose which profile details are public and whether you appear online</span></span>
@@ -63,14 +63,14 @@
         <template v-if="activeTab === 'notifications'">
           <label class="row cursor-pointer">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Notification sound</span><span class="block text-[11px] text-slate-400">Play a sound when a new notification arrives</span></span>
-            <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="userSettings.notifications.sound !== false" @change="updateUserSettings('notifications', { sound: userSettings.notifications.sound === false })">
+            <input type="checkbox" class="tog" :checked="userSettings.notifications.sound !== false" @change="updateUserSettings('notifications', { sound: userSettings.notifications.sound === false })">
           </label>
         </template>
 
         <template v-if="activeTab === 'media'">
           <label class="row cursor-pointer">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Highest quality uploads</span><span class="block text-[11px] text-slate-400">Off resizes photos to 1600px for faster uploads on mobile data</span></span>
-            <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="userSettings.storage_data.uploadQuality === 'original'" @change="updateUserSettings('storage_data', { uploadQuality: ($event.target as HTMLInputElement).checked ? 'original' : 'standard' })">
+            <input type="checkbox" class="tog" :checked="userSettings.storage_data.uploadQuality === 'original'" @change="updateUserSettings('storage_data', { uploadQuality: ($event.target as HTMLInputElement).checked ? 'original' : 'standard' })">
           </label>
           <NuxtLink to="/chat" class="row">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Chat theme &amp; wallpaper</span><span class="block text-[11px] text-slate-400">Open a chat, then ⋮ → Theme &amp; background</span></span>
@@ -103,10 +103,10 @@
                 <input v-model="streamDefaults.defaultTitle" maxlength="100" class="mt-1 w-full bg-slate-900 text-sm text-white border border-slate-700 rounded-lg px-3 py-2" @change="saveStream({ defaultTitle: streamDefaults.defaultTitle })">
               </label>
               <label class="flex items-center justify-between gap-3 text-sm text-white cursor-pointer">Allow viewers to chat
-                <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="streamDefaults.allowComments" @change="saveStream({ allowComments: !streamDefaults.allowComments })">
+                <input type="checkbox" class="tog" :checked="streamDefaults.allowComments" @change="saveStream({ allowComments: !streamDefaults.allowComments })">
               </label>
               <label class="flex items-center justify-between gap-3 text-sm text-white cursor-pointer">Allow PEW gifts
-                <input type="checkbox" class="h-5 w-5 accent-indigo-500" :checked="streamDefaults.allowGifts" @change="saveStream({ allowGifts: !streamDefaults.allowGifts })">
+                <input type="checkbox" class="tog" :checked="streamDefaults.allowGifts" @change="saveStream({ allowGifts: !streamDefaults.allowGifts })">
               </label>
             </div>
           </template>
@@ -270,7 +270,13 @@ onMounted(() => { void loadUserSettings() })
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .tab-active { @apply bg-indigo-600/10 text-indigo-400 border-indigo-500/30; }
 .tab-inactive { @apply text-slate-400 border-transparent hover:bg-slate-800/60; }
-.row { @apply flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3; }
+.row { @apply flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3; }
+.row > span:first-child { @apply flex-1 min-w-0; }
+.sel { max-width: 46%; }
+.tog { @apply flex-shrink-0 cursor-pointer; appearance: none; -webkit-appearance: none; width: 2.25rem; height: 1.25rem; border-radius: 9999px; background: #334155; position: relative; transition: background .15s; }
+.tog::after { content: ''; position: absolute; top: 2px; left: 2px; width: 1rem; height: 1rem; border-radius: 9999px; background: #fff; transition: transform .15s; }
+.tog:checked { background: #6366f1; }
+.tog:checked::after { transform: translateX(1rem); }
 .sel { @apply flex-shrink-0 bg-slate-900 text-xs text-white border border-slate-700 rounded-lg px-2 py-2; }
 .btn-primary { @apply bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-lg; }
 .btn-secondary { @apply bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2 rounded-lg; }
