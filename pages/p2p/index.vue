@@ -31,7 +31,7 @@
       <p class="hint">
         ≈ {{ fmtMoney(localValue) }} {{ asset }} at 1 USD = {{ unitsPerUsd }} {{ asset }}
         <template v-if="mode === 'deposit'"> · minimum 5 PEW</template>
-        <template v-else> · withdrawable {{ fmt(withdrawable) }} PEW, withdrawal fee comes off first</template>
+        <template v-else> · minimum 10 PEW · withdrawable {{ fmt(withdrawable) }} PEW, withdrawal fee comes off first</template>
       </p>
       <button class="btn primary w-full" :disabled="!canSearch || loading" @click="search">{{ loading ? 'Finding sellers…' : 'Find sellers' }}</button>
       <p v-if="error" class="err">{{ error }}</p>
@@ -199,7 +199,7 @@ let poller: ReturnType<typeof setInterval> | null = null
 const rateOf = computed(() => Number(assets.value.find(a => a.code === asset.value)?.reference_rate || 1))
 const unitsPerUsd = computed(() => fmtMoney(1 / rateOf.value))
 const localValue = computed(() => (Number(amount.value) || 0) / rateOf.value)
-const canSearch = computed(() => !!asset.value && Number(amount.value) >= (mode.value === 'withdraw' ? 1 : 5))
+const canSearch = computed(() => !!asset.value && Number(amount.value) >= (mode.value === 'withdraw' ? 10 : 5))
 const openCount = computed(() => trades.value.filter(t => ['funded', 'disputed'].includes(t.status)).length)
 const me = computed(() => user.value?.id ?? '')
 const iAmHolder = computed(() => activeTrade.value?.seller_id === me.value)

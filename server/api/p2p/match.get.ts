@@ -17,15 +17,19 @@ export default defineEventHandler(async (event) => {
 
   const db = getServiceClient()
   await refreshFiatRatesIfStale(db)
-  const [{ data: a }, { data: fee }, { data: wfee }] = await Promise.all([
+  const [{ data: a }, { data: fee }, { data: wfee }, { data: wtax }, { data: wmin }] = await Promise.all([
     db.from('supported_assets').select('reference_rate, is_enabled').eq('code', asset).maybeSingle(),
     db.from('fee_settings').select('percent_rate').eq('scope', 'deposit').eq('is_active', true),
-    db.rpc('fee_setting' as never, { p_key: 'withdrawal_fee_pct', p_default: 37 } as never)
+    db.rpc('fee_setting' as never, { p_key: 'withdrawal_fee_pct', p_default: 37 } as never),
+    db.rpc('fee_setting' as never, { p_key: 'withdrawal_tax_pct', p_default: 0 } as never),
+    db.rpc('fee_setting' as never, { p_key: 'min_withdrawal_pew', p_default: 10 } as never)
   ])
   if (!a?.is_enabled) throw createError({ statusCode: 400, statusMessage: 'Currency is not available' })
   const rate = Number(a.reference_rate)
   const depositPct = Math.max(0, ...((fee ?? []).map(f => Number(f.percent_rate) || 0)))
-  const withdrawPct = Number(wfee ?? 37)
+  const withdrawPct = Number(wfee ?? 37) + Number(wtax ?? 0)
+  const minWithdraw = Math.max(Number(wmin ?? 10), 5)
+  if (side === 'buy' && amount < minWithdraw) throw createError({ statusCode: 400, statusMessage: `Minimum withdrawal is ${minWithdraw} PEW` })
 
   const { data: listings } = await db.from('p2p_listings')
     .select('id, seller_id, asset_code, margin_pct, min_amount, max_amount, available_pewgift, terms, payment_method_id, updated_at')
