@@ -329,7 +329,7 @@
               </div>
               <!-- PAL / matched user status -->
               <div v-else class="story-card user-story-card" :class="{ seen: item.s.all_viewed }" @click="navigateTo(`/status?u=${item.s.author?.id}`)">
-                <div class="story-background-wrapper" :style="{ backgroundColor: statusItem.colors?.background || '#1e293b' }">
+                <div class="story-background-wrapper" :style="{ backgroundColor: item.s.colors?.background || '#1e293b' }">
                   <img v-if="item.s.media_type === 'image' && item.s.media_url" :src="item.s.media_url" class="story-bg-media" />
                   <p v-else-if="item.s.content" class="story-preview-text">{{ item.s.content }}</p>
                 </div>
@@ -639,7 +639,7 @@ onMounted(async () => {
    LIVE NOW & STATUS CONTAINERS (TINY MARGIN GAP)
    ============================================================================ */
 .feed-live-rail-wrapper {
-  margin-bottom: 0.125rem;
+  margin: 0;
 }
 
 :deep(.live-rail-card),
@@ -652,8 +652,7 @@ onMounted(async () => {
 .status-tray-container {
   width: 100%;
   overflow: hidden;
-  margin-top: 0.125rem;
-  margin-bottom: 0.25rem;
+  margin: 0;
 }
 
 .status-tray-loading {
@@ -1203,11 +1202,11 @@ onMounted(async () => {
   background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem;
 }
 
-.feed-content { display: flex; flex-direction: column; gap: 0.375rem; min-width: 0; }
+.feed-content { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
 .post-media-gallery { border-radius: 0.5rem; overflow: hidden; border: 1px solid #334155; background-color: #0f172a; margin-top: 0.5rem; }
 .post-image { width: 100%; display: block; object-fit: cover; }
 
-.posts-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.posts-list { display: flex; flex-direction: column; gap: 0.125rem; }
 
 .post-actions-wrapper {
   display: flex;
@@ -1237,9 +1236,37 @@ onMounted(async () => {
   .feed-main-wrapper { 
     grid-template-columns: 1fr; 
     padding: 0.25rem 0.25rem calc(4.5rem + env(safe-area-inset-bottom, 0px)); 
-    gap: 0.25rem;
+    gap: 0.125rem;
   }
-  .feed-sidebar-left { display: none; }
+  /* Mobile keeps the desktop profile card, laid out as a compact horizontal header. */
+  .feed-sidebar-left { position: static; display: flex; gap: 0.125rem; }
+  .profile-card {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 0.375rem 0.75rem; padding: 0.5rem 0.625rem; text-align: left;
+  }
+  .profile-card > * { margin: 0 !important; }
+  .profile-card .profile-header {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: row;
+    align-items: center; gap: 0.5rem; padding: 0; text-align: left;
+  }
+  .profile-card .profile-avatar { width: 2.75rem; height: 2.75rem; }
+  .profile-card .profile-info { min-width: 0; text-align: left; }
+  .profile-card .profile-name {
+    display: flex; align-items: center; gap: 0.25rem; margin: 0;
+    font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .profile-card .profile-username { margin: 0; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-card .profile-stats {
+    flex: 0 0 auto; display: flex; flex-direction: row; gap: 0.75rem; padding: 0; border: 0;
+  }
+  .profile-card .stat { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+  .profile-card .stat-value { font-size: 0.9rem; }
+  .profile-card .stat-label { font-size: 0.65rem; }
+  .profile-card .profile-actions { flex: 1 1 100%; display: flex; flex-direction: row; gap: 0.375rem; }
+  .profile-card .btn-edit-profile { flex: 1 1 auto; padding: 0.375rem 0.5rem; font-size: 0.8rem; }
+  .profile-card .btn-share-profile { flex: 0 0 auto; padding: 0.375rem 0.625rem; }
+  .profile-card .quick-stats { flex: 1 1 100%; display: flex; flex-direction: row; gap: 0.375rem; padding: 0; }
+  .profile-card .quick-stat { flex: 1 1 0; min-width: 0; padding: 0.25rem 0.5rem; font-size: 0.75rem; }
 
   .header-center {
     position: fixed;

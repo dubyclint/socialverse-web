@@ -72,8 +72,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.live-rail { margin-bottom: 1rem; }
-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.live-rail { margin: 0; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
 h3 { margin: 0; font-size: 1rem; }
 .see-all { font-size: 0.85rem; }
 .rail { display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.25rem; }

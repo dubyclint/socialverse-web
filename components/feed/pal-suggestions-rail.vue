@@ -53,7 +53,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.pal-rail { background: var(--color-surface, #1e293b); border-radius: 12px; padding: 12px; margin: 12px 0; }
+.pal-rail { background: var(--color-surface, #1e293b); border-radius: 12px; padding: 8px 10px; margin: 0; }
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 h3 { font-size: 0.95rem; margin: 0; }
 .see-all { font-size: 0.8rem; color: #60a5fa; }
