@@ -167,7 +167,7 @@ h2 { font-size: 1.05rem; font-weight: 700; margin: 0; }
 .names strong, .names small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .names strong { font-size: 0.92rem; font-weight: 600; }
 .names small { color: #94a3b8; font-size: 0.75rem; }
-.pick { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 22px; height: 22px; border-radius: 999px; border: 2px solid #475569; background: transparent; display: grid; place-content: center; cursor: pointer; margin: 0; }
+.pick { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 22px; height: 22px; border-radius: 999px; border: 2px solid #475569; background: transparent; display: grid; place-content: center; cursor: pointer; margin: 0; min-height: 0; min-width: 0; max-height: 22px; padding: 0; box-sizing: border-box; }
 .pick::after { content: ''; width: 10px; height: 6px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px, -1px); opacity: 0; }
 .pick:checked { background: #2563eb; border-color: #2563eb; }
 .pick:checked::after { opacity: 1; }

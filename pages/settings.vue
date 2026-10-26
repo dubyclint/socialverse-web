@@ -273,7 +273,7 @@ onMounted(() => { void loadUserSettings() })
 .row { @apply flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3; }
 .row > span:first-child { @apply flex-1 min-w-0; }
 .sel { max-width: 46%; }
-.tog { @apply flex-shrink-0 cursor-pointer; appearance: none; -webkit-appearance: none; width: 2.25rem; height: 1.25rem; border-radius: 9999px; background: #334155; position: relative; transition: background .15s; }
+.tog { @apply flex-shrink-0 cursor-pointer; appearance: none; -webkit-appearance: none; width: 2.25rem; height: 1.25rem; border-radius: 9999px; background: #334155; position: relative; transition: background .15s; min-height: 0; min-width: 0; max-height: 1.25rem; padding: 0; box-sizing: border-box; }
 .tog::after { content: ''; position: absolute; top: 2px; left: 2px; width: 1rem; height: 1rem; border-radius: 9999px; background: #fff; transition: transform .15s; }
 .tog:checked { background: #6366f1; }
 .tog:checked::after { transform: translateX(1rem); }

@@ -530,7 +530,7 @@ const searchQuery = ref('');
 const goToCreatePost = () => navigateTo('/posts/create');
 const goToProfilePage = () => navigateTo('/profile');
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
-const goToSettingsProfile = () => navigateTo('/profile/edit');
+const goToSettingsProfile = () => navigateTo('/profile');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
 
 // Status tray: My status first, then PAL / matched statuses with sponsored statuses mixed in
@@ -1241,32 +1241,30 @@ onMounted(async () => {
   /* Mobile keeps the desktop profile card, laid out as a compact horizontal header. */
   .feed-sidebar-left { position: static; display: flex; gap: 0.125rem; }
   .profile-card {
-    display: flex; flex-wrap: wrap; align-items: center;
-    gap: 0.375rem 0.75rem; padding: 0.5rem 0.625rem; text-align: left;
+    display: flex; flex-direction: column; align-items: stretch;
+    gap: 0.5rem; padding: 0.625rem 0.75rem; text-align: left; width: 100%;
   }
   .profile-card > * { margin: 0 !important; }
-  .profile-card .profile-header {
-    flex: 1 1 0; min-width: 0; display: flex; flex-direction: row;
-    align-items: center; gap: 0.5rem; padding: 0; text-align: left;
-  }
-  .profile-card .profile-avatar { width: 2.75rem; height: 2.75rem; }
-  .profile-card .profile-info { min-width: 0; text-align: left; }
+  .profile-card .profile-header { display: flex; flex-direction: row; align-items: center; gap: 0.625rem; padding: 0; min-width: 0; }
+  .profile-card .profile-avatar { width: 3.25rem; height: 3.25rem; }
+  .profile-card .profile-info { flex: 1 1 0; min-width: 0; text-align: left; }
   .profile-card .profile-name {
-    display: flex; align-items: center; gap: 0.25rem; margin: 0;
-    font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; gap: 0.25rem; margin: 0; font-size: 1rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .profile-card .profile-username { margin: 0; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-card .profile-username { margin: 0; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .profile-card .profile-stats {
-    flex: 0 0 auto; display: flex; flex-direction: row; gap: 0.75rem; padding: 0; border: 0;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.25rem;
+    padding: 0.375rem 0; border-top: 1px solid #334155; border-bottom: 1px solid #334155;
   }
-  .profile-card .stat { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-  .profile-card .stat-value { font-size: 0.9rem; }
-  .profile-card .stat-label { font-size: 0.65rem; }
-  .profile-card .profile-actions { flex: 1 1 100%; display: flex; flex-direction: row; gap: 0.375rem; }
-  .profile-card .btn-edit-profile { flex: 1 1 auto; padding: 0.375rem 0.5rem; font-size: 0.8rem; }
-  .profile-card .btn-share-profile { flex: 0 0 auto; padding: 0.375rem 0.625rem; }
-  .profile-card .quick-stats { flex: 1 1 100%; display: flex; flex-direction: row; gap: 0.375rem; padding: 0; }
-  .profile-card .quick-stat { flex: 1 1 0; min-width: 0; padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+  .profile-card .stat { display: flex; flex-direction: column; align-items: center; min-width: 0; cursor: pointer; }
+  .profile-card .stat-value { font-size: 1rem; font-weight: 700; }
+  .profile-card .stat-label { font-size: 0.7rem; color: #94a3b8; }
+  .profile-card .profile-actions { display: flex; flex-direction: row; gap: 0.375rem; }
+  .profile-card .btn-edit-profile { flex: 1 1 auto; min-width: 0; padding: 0.45rem 0.5rem; font-size: 0.85rem; }
+  .profile-card .btn-share-profile { flex: 0 0 auto; padding: 0.45rem 0.7rem; }
+  .profile-card .quick-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.375rem; padding: 0; }
+  .profile-card .quick-stat { min-width: 0; padding: 0.3rem 0.5rem; font-size: 0.75rem; }
 
   .header-center {
     position: fixed;
