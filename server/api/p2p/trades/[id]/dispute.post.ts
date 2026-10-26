@@ -1,6 +1,5 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
-import type { Database } from '~/types/database.types'
 
 /** Raises a dispute; escrow stays locked until an admin resolves it. */
 export default defineEventHandler(async (event) => {
@@ -10,13 +9,13 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Trade id is required' })
   if (!body?.reason) throw createError({ statusCode: 400, statusMessage: 'A reason is required' })
 
-  const supabase = await serverSupabaseClient<Database>(event)
-  const { error } = await supabase.rpc('dispute_p2p_trade', {
+  const supabase = getServiceClient()
+  const { data: ticketId, error } = await supabase.rpc('dispute_p2p_trade' as never, {
     p_trade_id: id,
     p_actor_id: user.id,
     p_reason: body.reason
-  })
+  } as never)
 
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })
-  return { success: true }
+  return { success: true, ticketId }
 })

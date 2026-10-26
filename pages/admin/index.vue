@@ -60,6 +60,8 @@ const GROUPS: { title: string, tiles: Tile[] }[] = [
     { to: '/admin/users', icon: 'users', title: 'Roles & privileges', desc: 'Make managers and choose what each can do', perm: null },
     { to: '/admin/verified', icon: 'badge-check', title: 'Verification badges', desc: 'Approve requests, assign or remove badges', perm: 'verification', queue: 'pendingBadges' },
     { to: '/admin/compliance', icon: 'alert-triangle', title: 'Compliance', desc: 'Bans, timed bans, feature restrictions, reports', perm: 'compliance', queue: 'openReports' },
+    { to: '/admin/staff', icon: 'shield', title: 'Staff & sellers', desc: 'Grant/revoke P2P sellers, support, P2P admin and dispute-decider roles', perm: 'admin' },
+    { to: '/admin/support-queue', icon: 'headphones', title: 'Support queue', desc: 'Claim, answer, escalate tickets and P2P disputes', perm: 'support' },
     { to: '/admin/support-agents', icon: 'headphones', title: 'Support agents', desc: 'Agent roster for support chat', perm: 'support' }
   ] },
   { title: 'Money', tiles: [

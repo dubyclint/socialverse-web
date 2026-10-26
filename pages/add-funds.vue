@@ -158,7 +158,7 @@ onMounted(loadProviders)
         <p class="text-sm text-amber-300">
           Top-ups are handled on the web. Open viorp.com/add-funds in your browser — your balance syncs straight back into the app.
         </p>
-        <NuxtLink v-if="isAdmin" to="/p2p" class="inline-block text-xs font-bold text-indigo-300 hover:text-white">Or deposit via P2P →</NuxtLink>
+        <NuxtLink to="/p2p" class="inline-block text-xs font-bold text-indigo-300 hover:text-white">Or deposit via P2P →</NuxtLink>
       </div>
 
       <div v-else class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">

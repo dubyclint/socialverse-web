@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { requireAmount, requireUuid } from '~/server/utils/input'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
@@ -17,7 +17,7 @@ interface OpenTradeBody {
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
   const body = await readBody<OpenTradeBody>(event)
-  const supabase = await serverSupabaseClient<Database>(event)
+  const supabase = getServiceClient()
 
   const listingId = requireUuid(body.listingId, 'listingId')
   const amount = requireAmount(body.amount, 'amount')

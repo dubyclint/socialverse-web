@@ -175,7 +175,7 @@
               <Icon name="dollar-sign" class="item-icon" size="18" />
               <span class="item-label">Monetization</span>
             </NuxtLink>
-            <NuxtLink v-if="isAdmin" to="/p2p" class="sidebar-item" @click="toggleSidebar">
+            <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar">
               <Icon name="trending-up" class="item-icon" size="18" />
               <span class="item-label">P2P trading</span>
             </NuxtLink>
@@ -192,7 +192,7 @@
           <!-- Section: HELP & ACCOUNT -->
           <div class="sidebar-group">
             <p class="sidebar-section-title">HELP &amp; ACCOUNT</p>
-            <NuxtLink v-if="isAdmin" to="/support" class="sidebar-item" @click="toggleSidebar">
+            <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar">
               <Icon name="life-buoy" class="item-icon" size="18" />
               <span class="item-label">Support</span>
             </NuxtLink>

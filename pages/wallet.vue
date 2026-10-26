@@ -276,6 +276,14 @@ onMounted(() => {
         </section>
 
         <section v-if="activeTab === 'Withdraw'" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+          <NuxtLink to="/p2p?mode=withdraw" class="flex items-center gap-3 p-3 rounded-xl border border-indigo-500/60 bg-indigo-600/10 hover:bg-indigo-600/20">
+            <span class="text-xl flex-shrink-0">🤝</span>
+            <span class="flex-1 min-w-0">
+              <span class="block text-sm font-bold text-white">Withdraw via P2P seller</span>
+              <span class="block text-[11px] text-slate-400 truncate">Any currency · seller pays your account · PEW held in escrow until you confirm</span>
+            </span>
+            <span class="text-indigo-300 text-sm flex-shrink-0">→</span>
+          </NuxtLink>
           <div>
             <h2 class="text-sm font-bold">Request a withdrawal</h2>
             <p class="text-[11px] text-slate-400 mt-1">
