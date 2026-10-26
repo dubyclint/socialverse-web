@@ -200,9 +200,13 @@ export const matchesTargeting = (targeting: AdTargeting | null, viewer: Viewer):
   const behaviourHit = behaviours.some(value => viewer.behaviours.has(value))
   if (detailHit || behaviourHit) return true
 
-  const knowsNothing = viewer.attributes.size === 0 && viewer.behaviours.size === 0
-  return Boolean(t.expand) && knowsNothing
+  // Advantage audience: detailed targeting becomes a preference; strict filters above still apply.
+  return Boolean(t.expand)
 }
+
+/** True when the viewer matches the ad's detailed targeting itself, not only via expansion. */
+const isDetailMatch = (targeting: AdTargeting | null, viewer: Viewer) =>
+  matchesTargeting(targeting ? { ...targeting, expand: false } : targeting, viewer)
 
 export const inSchedule = (schedule: AdSchedule | null, now = new Date()): boolean => {
   if (!schedule) return true
@@ -281,7 +285,11 @@ export const loadTargetedAds = async (event: H3Event, userId: string, limit: num
   const rows = (data ?? []) as unknown as AdRow[]
   if (!rows.length) return []
   const viewer = await loadViewer(event, userId)
-  const eligible = rows.filter(row => inSchedule(row.schedule) && matchesTargeting(row.targeting_demographics, viewer))
+  const eligible = rows
+    .filter(row => inSchedule(row.schedule) && matchesTargeting(row.targeting_demographics, viewer))
+    .map((row, rank) => ({ row, rank, direct: isDetailMatch(row.targeting_demographics, viewer) }))
+    .sort((a, b) => Number(b.direct) - Number(a.direct) || a.rank - b.rank)
+    .map(r => r.row)
   if (eligible.length <= limit) return toAdViews(eligible)
   // Ads this viewer already saw or tapped give way to active ads they haven't seen; the least recently seen return last.
   const dayAgo = new Date(Date.now() - 86_400_000).toISOString()
