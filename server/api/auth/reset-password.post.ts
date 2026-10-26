@@ -1,78 +1,38 @@
-// ============================================================================
-// FILE: /server/api/auth/reset-password.post.ts - PRODUCTION RECONCILED
-// ============================================================================
-import { defineEventHandler, readBody, createError } from 'h3'
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { enforceRateLimit } from '~/server/utils/rate-limit'
+import { nextPasswordChangeAt, recordPasswordEvent, limitMessage } from '~/server/utils/password-policy'
+import { serverSupabaseUser } from '#supabase/server'
 
-interface ResetPasswordRequest {
-  email: string
-}
+const masked = { success: true, message: 'If an account exists with this email, a password reset link has been sent.' }
 
+/** Emails a password reset link (Supabase Auth SMTP). One password change per user per 30 days. */
 export default defineEventHandler(async (event) => {
-  try {
-    const supabase = await serverSupabaseClient(event)
-    const body = await readBody<ResetPasswordRequest>(event)
-
-    if (!body || !body.email) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email address is required.'
-      })
-    }
-
-    const email = body.email.trim().toLowerCase()
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Invalid email format provided.'
-      })
-    }
-
-    console.log('[Reset Password] Processing challenge request routing for:', email)
-
-    // Verify account presence securely
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('email', email)
-      .maybeSingle()
-
-    if (!profile) {
-      console.warn('[Reset Password] Target email not found on system. Masking response for security.')
-      return {
-        success: true,
-        message: 'If an account exists with this email, a password reset link has been sent.'
-      }
-    }
-
-    // ✅ FIXED: Points directly to your flat root level recovery page component
-    const siteUrl = process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const redirectUrl = `${siteUrl}/reset-password-confirm`
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl
-    })
-
-    if (resetError) {
-      console.error('[Reset Password] Supabase communication failed:', resetError.message)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Failed to transmit recovery data payload: ${resetError.message}`
-      })
-    }
-
-    return {
-      success: true,
-      message: 'If an account exists with this email, a password reset link has been sent.'
-    }
-
-  } catch (error: any) {
-    console.error('[Reset Password] Critical pipeline fault:', error)
-    if (error.statusCode) throw error
-    throw createError({
-      statusCode: 500,
-      statusMessage: error.message || 'Internal password reset pipeline error.'
-    })
+  const body = await readBody<{ email?: string }>(event)
+  const email = String(body?.email || '').trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw createError({ statusCode: 400, statusMessage: 'Enter a valid email address.' })
   }
+
+  await enforceRateLimit(event, 'auth:reset:ip', { limit: 5, windowMs: 60 * 60_000 })
+  await enforceRateLimit(event, 'auth:reset:email', { limit: 3, windowMs: 24 * 60 * 60_000 }, email)
+
+  const db = getServiceClient()
+  const { data: account } = await db.from('user').select('user_id').eq('email', email).maybeSingle()
+  if (!account) return masked
+
+  const signedIn = await serverSupabaseUser(event).catch(() => null)
+  const next = await nextPasswordChangeAt(account.user_id)
+  if (next) {
+    if (signedIn?.id === account.user_id) throw createError({ statusCode: 429, statusMessage: limitMessage(next) })
+    return masked
+  }
+
+  const origin = process.env.NUXT_PUBLIC_SITE_URL || process.env.NUXT_PUBLIC_APP_URL || getRequestURL(event).origin
+  const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: `${origin.replace(/\/$/, '')}/auth/reset-password` })
+  if (error) {
+    console.error('[reset-password] send failed:', error.message)
+    throw createError({ statusCode: 502, statusMessage: 'Could not send the email right now. Try again later.' })
+  }
+  await recordPasswordEvent(account.user_id, 'requested')
+  return signedIn?.id === account.user_id ? { success: true, message: `Reset link sent to ${email}` } : masked
 })
