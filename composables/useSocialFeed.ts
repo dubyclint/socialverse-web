@@ -258,7 +258,8 @@ export const useSocialFeed = () => {
     try {
       const next = page.value + 1
       const more = await loadFeed(next)
-      feedItems.value = [...feedItems.value, ...more]
+      const shownAds = new Set(feedItems.value.flatMap(i => (i.type === 'ad' ? [i.ad.id] : [])))
+      feedItems.value = [...feedItems.value, ...more.filter(i => i.type !== 'ad' || !shownAds.has(i.ad.id))]
       page.value = next
     } catch (e) {
       console.error('[Feed] Loading more feed items failed', e)
@@ -276,7 +277,7 @@ export const useSocialFeed = () => {
         all_viewed: boolean
         statuses: Array<{ id: string, content: string | null, media_url: string | null, media_type: 'image' | 'video' | 'text', background_color: string | null, text_color: string | null, created_at: string }>
       }> }>('/api/status')
-      $fetch<{ ads?: FeedAd[] }>('/api/ads/placement', { query: { placement: 'status', limit: 2 } })
+      $fetch<{ ads?: FeedAd[] }>('/api/ads/placement', { query: { placement: 'status', limit: 10 } })
         .then((r) => { statusAds.value = r.ads ?? [] })
         .catch(() => { statusAds.value = [] })
       fetchedStatuses.value = (res.data ?? []).map((group) => {
@@ -664,8 +665,10 @@ export const useSocialFeed = () => {
     }
   }
 
-  const goToFollowers = () => router.push('/followers')
-  const goToFollowing = () => router.push('/following')
+  const goToFollowers = () =>
+    router.push(userUsername.value ? { path: `/profile/${userUsername.value}`, query: { list: 'followers' } } : '/profile')
+  const goToFollowing = () =>
+    router.push(userUsername.value ? { path: `/profile/${userUsername.value}`, query: { list: 'following' } } : '/profile')
   const goToUserPosts = () =>
     router.push(userUsername.value ? `/profile/${userUsername.value}` : '/profile')
 

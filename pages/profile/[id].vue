@@ -349,6 +349,8 @@ const load = async () => {
     }
     profile.value = await $fetch<PublicProfile>(`/api/profile/${encodeURIComponent(id)}`)
     void loadPosts(true)
+    const requested = String(route.query.list || '')
+    if (requested === 'followers' || requested === 'following' || requested === 'pals') openList(requested)
   } catch (e: unknown) {
     const err = e as { statusCode?: number, data?: { statusMessage?: string } }
     error.value = err.statusCode === 404 ? 'Profile not found.' : err.data?.statusMessage || 'Failed to load profile.'

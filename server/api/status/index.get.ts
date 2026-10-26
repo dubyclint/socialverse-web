@@ -29,14 +29,17 @@ const mediaType = (url: string | null): StatusItem['media_type'] => {
   return /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(url) ? 'video' : 'image'
 }
 
-/** Active statuses from the viewer, their PALs and people they were matched with, grouped by author. */
+/** Active statuses grouped by author: the viewer, PALs, suggested PALs, then everyone else whose privacy allows it. */
 export default defineEventHandler(async (event): Promise<{ success: true, data: StatusGroup[] }> => {
   const user = await requireUser(event)
   const db = getServiceClient()
 
-  const [suggested, { data: pals }] = await Promise.all([
+  const nowIso = new Date().toISOString()
+  const [suggested, { data: pals }, { data: active }, { data: blocks }] = await Promise.all([
     rankPalSuggestions(db, user.id, 50),
-    db.from('pals').select('user_id, pal_id').or(`user_id.eq.${user.id},pal_id.eq.${user.id}`).eq('status', 'accepted')
+    db.from('pals').select('user_id, pal_id').or(`user_id.eq.${user.id},pal_id.eq.${user.id}`).eq('status', 'accepted'),
+    db.from('user_statuses').select('user_id').is('deleted_at', null).gt('expires_at', nowIso).limit(1000),
+    db.from('user_blocks').select('blocker_id, blocked_id').or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`)
   ])
   const authorIds = new Set<string>([user.id])
   const palIds = new Set<string>()
@@ -46,6 +49,11 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
     const other = p.user_id === user.id ? p.pal_id : p.user_id
     authorIds.add(other)
     palIds.add(other)
+  }
+  for (const row of active ?? []) if (row.user_id) authorIds.add(row.user_id)
+  for (const b of blocks ?? []) {
+    const other = b.blocker_id === user.id ? b.blocked_id : b.blocker_id
+    if (other) authorIds.delete(other)
   }
 
   // Respect each author's "Status" privacy: everyone, PALs only (contacts) or nobody.
@@ -63,7 +71,7 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
     .select('id, user_id, content, caption, media_url, background_color, text_color, created_at, expires_at, view_count')
     .in('user_id', [...authorIds])
     .is('deleted_at', null)
-    .gt('expires_at', new Date().toISOString())
+    .gt('expires_at', nowIso)
     .order('created_at', { ascending: true })
     .limit(500)
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })

@@ -29,6 +29,8 @@ export interface AdServingConfig {
   enabled: boolean
   first_slot: number
   every_n_items: number
+  every_n_min?: number
+  every_n_max?: number
   max_in_app_ads: number
   external_fallback: boolean
   external_provider: string
@@ -470,7 +472,10 @@ export const interleave = (
 ): FeedItem[] => {
   const items: FeedItem[] = []
   const adQueue = [...ads]
-  const every = Math.max(1, config.every_n_items)
+  const gapMin = Math.max(1, Math.round(config.every_n_min ?? config.every_n_items))
+  const gapMax = Math.max(gapMin, Math.round(config.every_n_max ?? config.every_n_items))
+  const nextGap = () => gapMin + Math.floor(Math.random() * (gapMax - gapMin + 1))
+  let nextAdSlot = Math.max(0, config.first_slot)
   let postIndex = 0
   let slot = 0
   let externalIndex = 0
@@ -503,7 +508,7 @@ export const interleave = (
 
   while (postIndex < posts.length) {
     const isAdSlot =
-      config.enabled && slot >= config.first_slot && (slot - config.first_slot) % every === 0
+      config.enabled && slot >= nextAdSlot
     const previous = items[items.length - 1]
     const unsafe = previous?.type === 'post' && isSensitiveText(previous.post.content)
 
@@ -511,6 +516,7 @@ export const interleave = (
       owed = true
     } else if (isAdSlot || owed) {
       owed = false
+      nextAdSlot = slot + 1 + nextGap()
       const ad = adQueue.shift()
       if (ad) {
         items.push({ type: 'ad', ad })

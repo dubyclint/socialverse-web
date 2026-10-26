@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   if (!PLACEMENTS.includes(placement as typeof PLACEMENTS[number])) {
     throw createError({ statusCode: 400, statusMessage: 'Unknown placement' })
   }
-  const limit = Math.min(3, Math.max(1, Number(getQuery(event).limit) || 1))
+  const limit = Math.min(10, Math.max(1, Number(getQuery(event).limit) || 1))
   const ads = await loadTargetedAds(event, user.id, limit)
   return { ad: ads[0] ?? null, ads }
 })

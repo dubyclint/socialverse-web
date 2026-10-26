@@ -15,7 +15,7 @@ const save = async (key: string, values: object) => {
 /** Updates CPM pricing, feed ad density and external network IDs. */
 export default defineEventHandler(async (event) => {
   await requireStaff(event, 'ads')
-  const body = await readBody<{ pricing?: Partial<AdPricing>, external?: Partial<ExternalAdsConfig>, serving?: { enabled?: boolean, every_n_items?: number, first_slot?: number, external_fallback?: boolean } }>(event)
+  const body = await readBody<{ pricing?: Partial<AdPricing>, external?: Partial<ExternalAdsConfig>, serving?: { enabled?: boolean, every_n_items?: number, every_n_min?: number, every_n_max?: number, first_slot?: number, external_fallback?: boolean } }>(event)
 
   if (body.pricing) {
     const current = await readPlatformConfig<AdPricing>('ad_pricing', DEFAULT_AD_PRICING)
@@ -46,12 +46,17 @@ export default defineEventHandler(async (event) => {
   }
   if (body.serving) {
     const current = await readPlatformConfig<Record<string, unknown>>('ad_serving', {})
-    const every = Number(body.serving.every_n_items ?? current.every_n_items ?? 6)
-    if (every < 5 || every > 7) throw createError({ statusCode: 400, statusMessage: 'Feed ads must be 1 in every 5–7 posts' })
+    const fallback = Number(body.serving.every_n_items ?? current.every_n_items ?? 5)
+    const gapMin = Math.round(Number(body.serving.every_n_min ?? current.every_n_min ?? fallback))
+    const gapMax = Math.round(Number(body.serving.every_n_max ?? current.every_n_max ?? fallback))
+    if (!(gapMin >= 2 && gapMax <= 7 && gapMin <= gapMax)) throw createError({ statusCode: 400, statusMessage: 'Feed ads must come every 2–7 posts (minimum no more than maximum)' })
+    const every = gapMin
     await save('ad_serving', {
       ...current,
       enabled: body.serving.enabled ?? current.enabled ?? true,
       every_n_items: every,
+      every_n_min: gapMin,
+      every_n_max: gapMax,
       first_slot: Math.max(1, Number(body.serving.first_slot ?? current.first_slot ?? 3)),
       external_fallback: body.serving.external_fallback ?? current.external_fallback ?? true
     })

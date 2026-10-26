@@ -136,10 +136,16 @@
           v-model="serving.enabled"
           type="checkbox"
         > Ads enabled</label>
-        <label>One ad every N posts (5–7)<input
-          v-model.number="serving.every_n_items"
+        <label>Ad gap: at least N posts (2–7)<input
+          v-model.number="serving.every_n_min"
           type="number"
-          min="5"
+          min="2"
+          max="7"
+        ></label>
+        <label>Ad gap: at most N posts (2–7)<input
+          v-model.number="serving.every_n_max"
+          type="number"
+          min="2"
           max="7"
         ></label>
         <label>First ad after post #<input
@@ -239,7 +245,7 @@ const saving = ref(false)
 const error = ref('')
 const notice = ref('')
 const pricing = reactive({ cpm_pew: 2, min_budget_pew: 5, min_daily_pew: 1 })
-const serving = reactive({ enabled: true, every_n_items: 6, first_slot: 3, external_fallback: true })
+const serving = reactive({ enabled: true, every_n_items: 5, every_n_min: 2, every_n_max: 7, first_slot: 3, external_fallback: true })
 const external = reactive({
   monetag_enabled: true, monetag_domain: '', monetag_zone_id: '', monetag_social_bar_src: '', monetag_smartlink_url: '',
   appodeal_enabled: true, appodeal_app_key: '', transition_cooldown_minutes: 15
@@ -257,6 +263,8 @@ const load = async () => {
     Object.assign(pricing, res.pricing)
     Object.assign(external, res.external)
     Object.assign(serving, res.serving)
+    serving.every_n_min = Number(res.serving?.every_n_min ?? res.serving?.every_n_items ?? serving.every_n_min)
+    serving.every_n_max = Number(res.serving?.every_n_max ?? res.serving?.every_n_items ?? serving.every_n_max)
   } catch (e) {
     error.value = message(e)
   } finally {

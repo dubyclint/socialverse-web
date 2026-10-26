@@ -540,12 +540,25 @@ const trayItems = computed(() => {
   const others = fetchedStatuses.value.filter(s => !s.is_me);
   const ads = statusAds.value || [];
   const out = [];
-  let next = 0;
-  others.forEach((s, i) => {
-    if (next < ads.length && (i === 2 || (i > 2 && (i - 2) % 4 === 0))) out.push({ kind: 'ad', key: `ad-${ads[next].id}`, ad: ads[next++] });
+  let placed = 0;
+  let since = 0;
+  let gap = 2;
+  const pushAd = () => {
+    const ad = ads[placed];
+    out.push({ kind: 'ad', key: `ad-${ad.id}`, ad });
+    placed += 1;
+  };
+  // A sponsored status after every 2–3 statuses (alternating); each active ad is shown once.
+  others.forEach((s) => {
     out.push({ kind: 'status', key: s.id, s });
+    since += 1;
+    if (placed < ads.length && since >= gap) {
+      pushAd();
+      since = 0;
+      gap = gap === 2 ? 3 : 2;
+    }
   });
-  if (next < ads.length && others.length < 3) out.push({ kind: 'ad', key: `ad-${ads[next].id}`, ad: ads[next++] });
+  if (placed === 0 && ads.length) pushAd();
   return out;
 });
 const trackedStatusAds = new Set();
@@ -1201,6 +1214,9 @@ onMounted(async () => {
 .profile-card, .recommendations-card, .trending-card {
   background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem;
 }
+.profile-card .stat { cursor: pointer; }
+.profile-card .stat-value { color: #f1f5f9; }
+.profile-card .stat-label { color: #94a3b8; }
 
 .feed-content { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
 .post-media-gallery { border-radius: 0.5rem; overflow: hidden; border: 1px solid #334155; background-color: #0f172a; margin-top: 0.5rem; }
