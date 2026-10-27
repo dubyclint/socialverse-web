@@ -10,6 +10,31 @@
       <a v-for="s in sections" :key="s.id" :href="`#${s.id}`">{{ s.title }}</a>
     </nav>
 
+    <section id="child-safety">
+      <h2>Child Safety &amp; Abuse Reporting Standards</h2>
+      <p><strong>We maintain a zero-tolerance policy toward child sexual exploitation and abuse (CSAE/CSAM).</strong></p>
+      <p>Viorp prohibits any content, behavior, or activity that sexualizes, grooms, exploits, or endangers minors. This includes but is not limited to sexual content involving minors, romantic relationships between minors and adults, trafficking, employment of minors in sexual services, and production, solicitation or distribution of CSAM.</p>
+      
+      <h3>How to Report:</h3>
+      <p>If you encounter any content, chat message, live stream, profile, or behavior that endangers a minor, please report it immediately:</p>
+      <ul>
+        <li>Inside the app: Use <strong>Report</strong> on any content or go to <strong>Support &gt; Help &amp; Tickets &gt; Create urgent safety report</strong></li>
+        <li>Email our designated safety officers:
+          <br />Safety: <a href="mailto:okerekepaul597@gmail.com">okerekepaul597@gmail.com</a>
+          <br />Support: <a href="mailto:support@viorp.com">support@viorp.com</a>
+          <br />Compliance: <a href="mailto:compliance@viorp.com">compliance@viorp.com</a>
+        </li>
+      </ul>
+
+      <h3>Our Enforcement Action:</h3>
+      <ul>
+        <li>All reports regarding child safety are investigated with the highest priority within 24 hours.</li>
+        <li>Valid violations result in immediate account termination, permanent device ban, and removal of content.</li>
+        <li>We report all instances of CSAM and child exploitation to the <strong>National Center for Missing &amp; Exploited Children (NCMEC)</strong> via CyberTipline and to relevant law enforcement authorities where required by law.</li>
+        <li>We cooperate fully with law enforcement investigations.</li>
+      </ul>
+    </section>
+
     <section id="community">
       <h2>Community guidelines &amp; user content</h2>
       <p>You own what you post. By posting you give Viorp a worldwide, non-exclusive licence to host, display and distribute it inside Viorp for as long as it stays up. You must have the rights to everything you upload, including music added to posts.</p>
@@ -119,6 +144,7 @@ const cfg = useRuntimeConfig().public as unknown as {
 }
 
 const sections = [
+  { id: 'child-safety', title: 'Child Safety Standards' },
   { id: 'community', title: 'Community & content' },
   { id: 'safety', title: 'Safety & moderation' },
   { id: 'pages', title: 'Pages' },
@@ -151,6 +177,7 @@ useHead({
 .legal { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; line-height: 1.6; color: var(--text, #e2e8f0); }
 .legal h1 { font-size: 1.6rem; margin-bottom: 4px; }
 .legal h2 { font-size: 1.15rem; margin: 28px 0 8px; scroll-margin-top: 72px; }
+.legal h3 { font-size: 1rem; margin: 16px 0 6px; }
 .legal a { color: #60a5fa; }
 .legal ul { padding-left: 20px; }
 .legal li { margin-bottom: 6px; }
@@ -158,4 +185,5 @@ useHead({
 .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .toc a { padding: 6px 12px; border-radius: 999px; background: #1e293b; font-size: 0.85rem; text-decoration: none; }
 .contact-block { background: #1e293b; padding: 12px; border-radius: 8px; }
+#child-safety { background: #1a2332; border: 1px solid #2d3a4f; padding: 16px; border-radius: 12px; }
 </style>
