@@ -30,8 +30,10 @@
               <strong>{{ c.side === 'buy' ? 'Buys PEW (withdrawals)' : 'Sells PEW (deposits)' }} · {{ c.asset_code }}</strong>
               <small>{{ c.method?.bank_name || c.method?.kind }} · margin {{ c.margin_pct }}% · {{ fmt(c.min_amount) }}–{{ fmt(c.max_amount) }} PEW · available {{ fmt(c.available_pewgift) }}</small>
             </div>
-            <span :class="['pill', c.is_active ? 'on' : '']">{{ c.is_active ? 'Live' : 'Paused' }}</span>
-            <button class="btn ghost sm" @click="edit(c)">Edit</button>
+            <div class="offer-actions">
+              <span :class="['pill', c.is_active ? 'on' : '']">{{ c.is_active ? 'Live' : 'Paused' }}</span>
+              <button class="btn ghost sm" @click="edit(c)">Edit</button>
+            </div>
           </li>
         </ul>
       </section>
@@ -171,28 +173,40 @@ onMounted(async () => {
 .hint { font-size: 12px; color: #94a3b8; margin: 0; }
 .err { color: #fca5a5; font-size: 13px; }
 .ok { color: #86efac; font-size: 13px; }
-.btn { padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; border: 0; }
-.btn.sm { padding: 5px 10px; font-size: 12px; flex-shrink: 0; }
-.btn:disabled { opacity: .5; }
+.btn { padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; border: 0; cursor: pointer; }
+.btn.sm { padding: 6px 12px; font-size: 12px; min-height: 32px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.primary { background: #4f46e5; color: #fff; }
 .btn.ghost { background: #1e293b; color: #e2e8f0; }
 .btn.danger { background: #7f1d1d; color: #fecaca; }
-.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.offer { display: flex; align-items: center; gap: 8px; border: 1px solid #1e293b; border-radius: 10px; padding: 8px; }
-.names { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* Offer item layout and responsiveness */
+.offer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #1e293b; border-radius: 10px; padding: 10px 12px; background: #020617; }
+.names { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .names strong, .names small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .names strong { font-size: 13px; }
 .names small { font-size: 11px; color: #94a3b8; }
-.pill { flex-shrink: 0; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #334155; }
+.offer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.pill { flex-shrink: 0; font-size: 11px; padding: 4px 10px; border-radius: 999px; background: #334155; font-weight: 500; }
 .pill.on { background: #14532d; color: #bbf7d0; }
-.seg { display: flex; gap: 6px; overflow-x: auto; }
-.seg button { flex: 1 0 auto; padding: 6px 10px; border-radius: 999px; background: #1e293b; color: #cbd5e1; font-size: 12px; border: 0; }
+
+.seg { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.seg button { flex: 1 0 auto; padding: 10px 14px; border-radius: 999px; background: #1e293b; color: #cbd5e1; font-size: 12px; border: 0; cursor: pointer; white-space: nowrap; }
 .seg button.on { background: #4f46e5; color: #fff; }
+
 .check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.tog { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 2.25rem; height: 1.25rem; border-radius: 999px; background: #334155; position: relative; margin: 0; }
+.tog { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 2.25rem; height: 1.25rem; border-radius: 999px; background: #334155; position: relative; margin: 0; cursor: pointer; }
 .tog::after { content: ''; position: absolute; top: 2px; left: 2px; width: 1rem; height: 1rem; border-radius: 999px; background: #fff; transition: transform .15s; }
 .tog:checked { background: #6366f1; }
 .tog:checked::after { transform: translateX(1rem); }
-.actions { display: flex; gap: 6px; flex-wrap: wrap; }
-@media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 480px) { 
+  .row2 { grid-template-columns: 1fr; } 
+  .offer { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
+  .offer-actions { justify-content: space-between; width: 100%; border-top: 1px solid #1e293b; padding-top: 8px; }
+  .names strong, .names small { white-space: normal; word-break: break-word; }
+}
 </style>
