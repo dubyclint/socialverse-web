@@ -226,128 +226,6 @@ very important: on the profile page the post should be arranged as : 1. All ; wh
 
 critical: add in monitization requirements qualifications and progress page that 200000 views in 30 days from authentic videos, not copyright videos. Clippers video are reviewed, the standard views 5 seconds don't count only the engaged views.
 
-
-viorp tech G : - create creators analysts : only admin , manager can see the tab on profile since it's still in development: all miss matched figures should be aligned, admin control is important in any missing place 
-
-
-Your objective is to architect, design, and code the Creator Analytics Dashboard, Ad Revenue Share Telemetry Loop, and Administrative Controls tailored exactly to our app's structure and monetization requirements.
-
----
-
-### REVISED CAPABILITY MATRIX & SYSTEM CONSTRAINTS
-- Platform Payout Rule: There are NO static platform pool payments. Creators receive a configured, fixed percentage share ("set% share") of ad revenue generated exclusively when a user triggers an Engaged View (>= 6 seconds) AND actively interacts with or completes an ad render during that window.
-- Free Tier Utilities: Chat Messaging, Wallet transfers/logs, and Pages/Posts are strictly utility modules and do not generate or consume revenue.
-- Network Scale Gate: Programmatic SDK initializations for Monetag and Appodeal are explicitly PAUSED in code. They must remain deactivated until the platform's overall metrics cross the 10,000 Daily Active Users (DAU) milestone.
-
----
-
-### LAYER 1: DATA TELEMETRY & MULTI-TIER VIEW SCHEMA
-The data tracking layer must pair media playback runtime tightly with ad network event callbacks. Structure your data models and ingestion hooks to log:
-- `view_id`, `video_id`, `creator_id`, `viewer_id`
-- `watch_time_seconds` (float)
-- `is_engaged_view` (boolean, triggers true at >= 6.0 seconds or 100% video completion)
-- `ad_interacted` (boolean, validated via client-side Ad SDK callback event)
-- `raw_ad_revenue` (decimal, incoming ad server callback postback value)
-- `creator_payout_share` (decimal, calculated strictly on the backend as: raw_ad_revenue * platform_set_percentage_share)
-
----
-
-### LAYER 2: THE FRONTEND CREATOR STUDIO (NUXT / VUE 3)
-Develop modular, touch-responsive Vue 3 views optimized for low-overhead performance in Capacitor native web views. Group insights under clean, scannable subheadings:
-
-#### A. Monetized Veep Performance Grid
-- Total Video Plays: Public-facing counter visible on the profile's 3-column Veep tab thumbnail.
-- Ad-Interacted Engaged Views: The exact volume of views that met the 6-second marker AND successfully tracked an ad interaction.
-- Wallet Revenue Ledger: A read-only transactional stream showing incoming ad-share distributions mapped directly to specific video IDs.
-
-#### B. Retention & Monetization Efficiency Analytics
-- Audience Drop-Off Curve: A line chart displaying video runtime vs. retention. Superimpose a distinct vertical visual indicator on the chart at the 6-second mark to show the creator exactly what percentage of their audience reaches the ad-monetization window.
-
----
-
-### LAYER 3: ADMINISTRATIVE PANEL & NETWORK CONTROL HOOKS
-Create a secure dashboard interface reserved for system administrators. Integrate the following handlers into the pipeline:
-
-#### A. DAU Gating & Ad Network Activation Studio
-- Active DAU Monitor: Real-time calculation system tracking unique user device tokens or authentication requests over a rolling 24-hour window.
-- Network Initialization Logic: Enforce a hard gateway check in your boot configurations:
-  `if (global_platform_dau < 10000) { disable_monetag_appodeal = true; serve_fallback_house_ads = true; }`
-- Platform Revenue Share Configuration: An admin interface setting to update the global `set% share` paid to creators (e.g., changing the creator cut from 50% to 60%).
-
-#### B. View Padding Adjustments
-- Public View Offset Configuration: Interface to inject a baseline flat metric booster (+500 views, +1000 page reads) to public video thumbnails on the profile grid. The calculation engine must process public views as: `displayed_public_views = actual_views + admin_padding_offset`. This modifier must never touch, alter, or inflate the ad-interacted wallet payout ledger.
-
----
-
-### PIPELINE DELIVERY EXPECTATIONS
-When processing instructions from this prompt:
-1. Deliver clean, modular Vue 3 scripts using `<script setup>` syntax styled with Tailwind CSS.
-2. Ensure ad network callbacks hook natively via Capacitor plugin interfaces.
-3. Explicitly comment on how the system verifies that `is_engaged_view` and `ad_interacted` are both true before modifying any Wallet variables.
-
-
-Your objective is to design and code the Ad Network Selection Engine, CPM Payout Math System, and Admin Render Rate rules matching our explicit monetization criteria.
-
----
-
-### CORE LOGICAL LAWS & CONSTRAINTS
-1. Monetization Trigger: Payout calculations occur ONLY when an Engaged View (>= 6.0 seconds) successfully fetches, fills, and renders an ad frame.
-2. The CPM Payment Law: Ad networks pay per 1,000 views (eCPM). Individual view credits must be computed as fractional micro-payments based on a configured eCPM value.
-3. Scale Gating Rules: 
-   - If current DAU < 6,000: Block third-party SDK calls (Monetag, Appodeal). Force internal 'House Ads'.
-   - If current DAU >= 6,000: Execute third-party ad mediation waterfalls.
-
----
-
-### LAYER 1: DATA SCHEMAS & CALCULATED CPM PAYOUT MATH
-The database architecture must handle micro-precision floats to protect against rounding errors on single impressions. Implement this explicit mathematical payout model:
-
-- `System Variable: platform_set_share` (e.g., 0.60 for a 60% creator split to be set by admin)
-- `Ad Variable: network_ecpm` (The Effective Cost Per 1,000 impressions returned by the ad network or set by admin, e.g., $2.00 to )
-- `Formula for Single Play Payout`: 
-  `single_view_revenue = network_ecpm / 1000`
-  `creator_wallet_credit = single_view_revenue * platform_set_share`
-
-Ensure the database schema records:
-- `ad_request_id` (UUID), `video_id`, `creator_id`
-- `ad_type_served` (enum: 'interstitial', 'rewarded', 'native_banner', 'house_ad', 'none')
-- `network_source` (enum: 'monetag', 'appodeal', 'internal_house')
-- `fill_status` (enum: 'requested', 'filled', 'rendered_failed', 'no_ad')
-- `current_network_ecpm` (decimal, scale 4)
-- `wallet_credit_amount` (decimal, scale 8 - for processing micro-cents safely)
-
----
-
-### LAYER 2: THE RENDERING RULES ENGINE (WATERFALL & FILL TIMEOUTS)
-Write the client-side lifecycle wrapper within the Vue 3 / Capacitor component to manage media playback injection rules:
-
-- Step 1: At second 6 of playback, suspend or overlay the video state. Fire an asynchronous client ad request event.
-- Step 2: Evaluate DAU. If < 6k, request an internal House Ad asset from the asset cache database. If >= 6k, ping the programmatic SDK mediation layer.
-- Step 3: Implement a Render Time-out Limit (Max 3.5 seconds). If the ad network fails to deliver a 'Filled' event callback before the timeout expires, catch the error, change `fill_status` to 'no_ad', and instantly resume video playback without modifying the creator's wallet data.
-- Step 4: If an ad successfully fires its 'Rendered/Completed' callback, dispatch a secure webhook signed by a backend token to queue the wallet adjustment script.
-
----
-
-### LAYER 3: ADMINISTRATOR TECH OVERRIDES HUB
-Provide explicit configuration management settings for platform control:
-
-#### A. Ad Configuration & CPM Optimization
-- Base Network eCPM Modifier: An admin input canvas setting custom baseline eCPM estimates per country region or ad format tier (e.g., setting Interstitials to $2.00 eCPM, and Native Banners to $1.50 eCPM) used to calculate wallet allocations during programmatic callback delays.
-- Creators' Custom Payout Percentage Cut: A central administrative global variable input (`set% share`) determining platform vs. user revenue distribution.
-
-#### B. Render Rate & Traffic Delivery Diagnostics
-- Render-Rate Traffic Metric Panels: Real-time visual data displaying:
-  `Render Rate % = (Total Rendered Ads / Total Ad Requests) * 100`
-- Fill Failure Alarms: System diagnostics reporting how many requests hit the timeout threshold resulting in an absolute 'No Ad' delivery state.
-
----
-
-### PIPELINE DELIVERY EXPECTATIONS
-1. Deliver clean Nuxt 3 server endpoints (`/server/api/ad-revenue-processor.ts`) utilizing precise big-decimal mathematics to handle micro-cent wallet updates securely.
-2. Deliver Vue 3 frontend composition logic tracking playback time, firing ad overlays, and managing the 3.5-second ad-load timeout fallback chain seamlessly inside native web views.
-
-
-
 Be best in 
 1. Vue 3 Full-Screen Core Skeleton: Provide a vertically swipable wrapper using a touch gesture handler or a native CSS scroll snap wrapper (snap-y snap-mandatory h-screen overflow-y-scroll).
 2. Telemetry-Aware Video Player Component: Write an optimized, robust <veepVideoPlayer /> or <veepImageCanvas /> component containing the pre-buffer loop, range-request strategy, and audio crossfade hooks.
@@ -436,3 +314,86 @@ Everyone can add fund using P2P
 -anytime a user  login or even if the user is on another feature and there is gift sent, or any credit, money should rain on the screen, the wallet icon should indicate unread and unread income or gift state with best wallet interactives.
 - the P2P trading on sidebar on feed.vue should be named P2P  Network and the tab should have counts of active trades.
 Refactor and redesign the Trade Chat component in our P2P trading dashboard.   Requirements:Attachment & Media Upload:Add an attachment button (paperclip/plus icon) inside the input toolbar.Allow users to upload photos (PNG, JPG), screenshots, screen recordings (MP4, WEBM), and documents (PDF).Include a file picker drawer/modal with options: Take Photo/Video, Upload File/Image, Paste Screenshot.Display a pre-send preview thumbnail area for selected media with a remove/cancel option.UI & Styling Improvements:Replace the rigid box design with a modern, full-width responsive chat box.   Redesign the message input bar to combine [Attachment Button] [Text Input] [Send Button] seamlessly in one toolbar.   Modernize the active/disabled states for the Send button.   Improve empty state UX for "No messages yet." with an icon/illustration and helpful prompt (e.g., "Communicate with the seller or attach payment proof here").Add distinct chat bubbles for sent vs. received messages, including timestamps and read/delivered status icons.Output Required:Provide clean, modular frontend code (React / Tailwind CSS / HTML) and file upload handler logic.
+
+viorp tech G : - create creators analysts : only admin , manager can see the tab on profile since it's still in development: all miss matched figures should be aligned, admin control is important in any missing place
+
+Your objective is to architect, design, and code the Creator Analytics Dashboard, Ad Revenue Share Telemetry Loop, and Administrative Controls tailored exactly to our app's structure and monetization requirements.
+
+REVISED CAPABILITY MATRIX & SYSTEM CONSTRAINTS
+Platform Payout Rule: There are NO static platform pool payments. Creators receive a configured, fixed percentage share ("set% share") of ad revenue generated exclusively when a user triggers an Engaged View (>= 6 seconds) AND actively interacts with or completes an ad render during that window.
+Free Tier Utilities: Chat Messaging, Wallet transfers/logs, and Pages/Posts are strictly utility modules and do not generate or consume revenue.
+Network Scale Gate: Programmatic SDK initializations for Monetag and Appodeal are explicitly PAUSED in code. They must remain deactivated until the platform's overall metrics cross the 10,000 Daily Active Users (DAU) milestone.
+LAYER 1: DATA TELEMETRY & MULTI-TIER VIEW SCHEMA
+The data tracking layer must pair media playback runtime tightly with ad network event callbacks. Structure your data models and ingestion hooks to log:
+
+view_id, video_id, creator_id, viewer_id
+watch_time_seconds (float)
+is_engaged_view (boolean, triggers true at >= 6.0 seconds or 100% video completion)
+ad_interacted (boolean, validated via client-side Ad SDK callback event)
+raw_ad_revenue (decimal, incoming ad server callback postback value)
+creator_payout_share (decimal, calculated strictly on the backend as: raw_ad_revenue * platform_set_percentage_share)
+LAYER 2: THE FRONTEND CREATOR STUDIO (NUXT / VUE 3)
+Develop modular, touch-responsive Vue 3 views optimized for low-overhead performance in Capacitor native web views. Group insights under clean, scannable subheadings:
+
+A. Monetized Veep Performance Grid
+Total Video Plays: Public-facing counter visible on the profile's 3-column Veep tab thumbnail.
+Ad-Interacted Engaged Views: The exact volume of views that met the 6-second marker AND successfully tracked an ad interaction.
+Wallet Revenue Ledger: A read-only transactional stream showing incoming ad-share distributions mapped directly to specific video IDs.
+B. Retention & Monetization Efficiency Analytics
+Audience Drop-Off Curve: A line chart displaying video runtime vs. retention. Superimpose a distinct vertical visual indicator on the chart at the 6-second mark to show the creator exactly what percentage of their audience reaches the ad-monetization window.
+LAYER 3: ADMINISTRATIVE PANEL & NETWORK CONTROL HOOKS
+Create a secure dashboard interface reserved for system administrators. Integrate the following handlers into the pipeline:
+
+A. DAU Gating & Ad Network Activation Studio
+Active DAU Monitor: Real-time calculation system tracking unique user device tokens or authentication requests over a rolling 24-hour window.
+Network Initialization Logic: Enforce a hard gateway check in your boot configurations: if (global_platform_dau < 10000) { disable_monetag_appodeal = true; serve_fallback_house_ads = true; }
+Platform Revenue Share Configuration: An admin interface setting to update the global set% share paid to creators (e.g., changing the creator cut from 50% to 60%).
+B. View Padding Adjustments
+Public View Offset Configuration: Interface to inject a baseline flat metric booster (+500 views, +1000 page reads) to public video thumbnails on the profile grid. The calculation engine must process public views as: displayed_public_views = actual_views + admin_padding_offset. This modifier must never touch, alter, or inflate the ad-interacted wallet payout ledger.
+PIPELINE DELIVERY EXPECTATIONS
+When processing instructions from this prompt:
+
+Deliver clean, modular Vue 3 scripts using <script setup> syntax styled with Tailwind CSS.
+Ensure ad network callbacks hook natively via Capacitor plugin interfaces.
+Explicitly comment on how the system verifies that is_engaged_view and ad_interacted are both true before modifying any Wallet variables.
+Your objective is to design and code the Ad Network Selection Engine, CPM Payout Math System, and Admin Render Rate rules matching our explicit monetization criteria.
+
+CORE LOGICAL LAWS & CONSTRAINTS
+Monetization Trigger: Payout calculations occur ONLY when an Engaged View (>= 6.0 seconds) successfully fetches, fills, and renders an ad frame.
+The CPM Payment Law: Ad networks pay per 1,000 views (eCPM). Individual view credits must be computed as fractional micro-payments based on a configured eCPM value.
+Scale Gating Rules:
+If current DAU < 6,000: Block third-party SDK calls (Monetag, Appodeal). Force internal 'House Ads'.
+If current DAU >= 6,000: Execute third-party ad mediation waterfalls.
+LAYER 1: DATA SCHEMAS & CALCULATED CPM PAYOUT MATH
+The database architecture must handle micro-precision floats to protect against rounding errors on single impressions. Implement this explicit mathematical payout model:
+
+System Variable: platform_set_share (e.g., 0.60 for a 60% creator split to be set by admin)
+Ad Variable: network_ecpm (The Effective Cost Per 1,000 impressions returned by the ad network or set by admin, e.g., $2.00 to )
+Formula for Single Play Payout: single_view_revenue = network_ecpm / 1000 creator_wallet_credit = single_view_revenue * platform_set_share
+Ensure the database schema records:
+
+ad_request_id (UUID), video_id, creator_id
+ad_type_served (enum: 'interstitial', 'rewarded', 'native_banner', 'house_ad', 'none')
+network_source (enum: 'monetag', 'appodeal', 'internal_house')
+fill_status (enum: 'requested', 'filled', 'rendered_failed', 'no_ad')
+current_network_ecpm (decimal, scale 4)
+wallet_credit_amount (decimal, scale 8 - for processing micro-cents safely)
+LAYER 2: THE RENDERING RULES ENGINE (WATERFALL & FILL TIMEOUTS)
+Write the client-side lifecycle wrapper within the Vue 3 / Capacitor component to manage media playback injection rules:
+
+Step 1: At second 6 of playback, suspend or overlay the video state. Fire an asynchronous client ad request event.
+Step 2: Evaluate DAU. If < 6k, request an internal House Ad asset from the asset cache database. If >= 6k, ping the programmatic SDK mediation layer.
+Step 3: Implement a Render Time-out Limit (Max 3.5 seconds). If the ad network fails to deliver a 'Filled' event callback before the timeout expires, catch the error, change fill_status to 'no_ad', and instantly resume video playback without modifying the creator's wallet data.
+Step 4: If an ad successfully fires its 'Rendered/Completed' callback, dispatch a secure webhook signed by a backend token to queue the wallet adjustment script.
+LAYER 3: ADMINISTRATOR TECH OVERRIDES HUB
+Provide explicit configuration management settings for platform control:
+
+A. Ad Configuration & CPM Optimization
+Base Network eCPM Modifier: An admin input canvas setting custom baseline eCPM estimates per country region or ad format tier (e.g., setting Interstitials to $2.00 eCPM, and Native Banners to $1.50 eCPM) used to calculate wallet allocations during programmatic callback delays.
+Creators' Custom Payout Percentage Cut: A central administrative global variable input (set% share) determining platform vs. user revenue distribution.
+B. Render Rate & Traffic Delivery Diagnostics
+Render-Rate Traffic Metric Panels: Real-time visual data displaying: Render Rate % = (Total Rendered Ads / Total Ad Requests) * 100
+Fill Failure Alarms: System diagnostics reporting how many requests hit the timeout threshold resulting in an absolute 'No Ad' delivery state.
+PIPELINE DELIVERY EXPECTATIONS
+Deliver clean Nuxt 3 server endpoints (/server/api/ad-revenue-processor.ts) utilizing precise big-decimal mathematics to handle micro-cent wallet updates securely.
+Deliver Vue 3 frontend composition logic tracking playback time, firing ad overlays, and managing the 3.5-second ad-load timeout fallback chain seamlessly inside native web views.
