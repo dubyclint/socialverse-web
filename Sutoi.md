@@ -1,4 +1,4 @@
-viorp tech A: study every bit of Tech Stack Behind TikTok's Seamless Video Player
+viorp tech A: study and apply every bit of Tech Stack Behind TikTok's Seamless Video Player
 
 1. The Video Delivery Pipeline (HLS & MPEG-DASH)
 
