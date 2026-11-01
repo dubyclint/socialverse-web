@@ -86,10 +86,9 @@ const STATE_CLASS: Record<HistoryItem['state'], string> = {
 const withdrawPreview = computed(() => {
   const fees = summary.value?.fees
   const amount = Number(withdrawForm.amount) || 0
-  if (!fees) return { fee: 0, tax: 0, usd: 0 }
-  const fee = amount * fees.withdrawal_fee_pct / 100
+  if (!fees) return { tax: 0, usd: 0 }
   const tax = amount * fees.withdrawal_tax_pct / 100
-  return { fee, tax, usd: (amount - fee - tax) * fees.pew_usd_rate }
+  return { tax, usd: amount - tax }
 })
 
 const loadWallet = async () => {
@@ -118,7 +117,7 @@ const submitWithdrawal = async () => {
     withdrawError.value = 'Enter an amount'
     return
   }
-  if (summary.value && amount > summary.value.withdrawable_pew) {
+  if (summary.value && amount > summary.value.withdrawable_usd) {
     withdrawError.value = 'Amount is more than your withdrawable balance'
     return
   }
@@ -287,7 +286,7 @@ onMounted(() => {
           <div>
             <h2 class="text-sm font-bold">Request a withdrawal</h2>
             <p class="text-[11px] text-slate-400 mt-1">
-              Available: {{ fmt(summary.withdrawable_pew) }} PEW (≈ ${{ fmt(summary.withdrawable_usd) }}). Minimum {{ summary.fees.min_withdrawal_pew }} PEW. An admin reviews every request.
+              Available: ${{ fmt(summary.withdrawable_usd) }} (withdrawal fee already taken). Minimum ${{ summary.fees.min_withdrawal_pew }}. An admin reviews every request.
             </p>
           </div>
 
@@ -315,11 +314,11 @@ onMounted(() => {
               <input v-model.trim="withdrawForm.network" required placeholder="Network (e.g. USDT-TRC20, BTC)" class="wallet-input">
               <input v-model.trim="withdrawForm.address" required placeholder="Wallet address" class="wallet-input font-mono">
             </template>
-            <input v-model.number="withdrawForm.amount" type="number" min="0" step="0.01" required placeholder="Amount in PEW" class="wallet-input font-mono">
+            <input v-model.number="withdrawForm.amount" type="number" min="0" step="0.01" required placeholder="Amount in USD" class="wallet-input font-mono">
 
             <div v-if="withdrawForm.amount" class="text-[11px] text-slate-400 bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
-              <p>Withdrawal fee ({{ summary.fees.withdrawal_fee_pct }}%): -{{ fmt(withdrawPreview.fee) }} PEW</p>
-              <p v-if="summary.fees.withdrawal_tax_pct">Tax ({{ summary.fees.withdrawal_tax_pct }}%): -{{ fmt(withdrawPreview.tax) }} PEW</p>
+              <p>No further withdrawal fee: your withdrawable balance already has it taken off.</p>
+              <p v-if="summary.fees.withdrawal_tax_pct">Local tax ({{ summary.fees.withdrawal_tax_pct }}%): -${{ fmt(withdrawPreview.tax) }}</p>
               <p class="text-slate-200 font-semibold">You receive: ${{ fmt(withdrawPreview.usd) }}</p>
             </div>
 
@@ -328,7 +327,7 @@ onMounted(() => {
 
             <button
               type="submit"
-              :disabled="isWithdrawing || summary.is_locked || summary.withdrawable_pew <= 0"
+              :disabled="isWithdrawing || summary.is_locked || summary.withdrawable_usd <= 0"
               class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-lg"
             >
               {{ isWithdrawing ? 'Sending…' : 'Send for approval' }}

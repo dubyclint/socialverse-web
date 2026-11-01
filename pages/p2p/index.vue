@@ -24,14 +24,14 @@
           </select>
         </label>
         <label class="field">
-          <span>{{ mode === 'withdraw' ? 'PEW to withdraw' : 'PEW to receive' }}</span>
+          <span>{{ mode === 'withdraw' ? 'USD to withdraw' : 'PEW to receive' }}</span>
           <input v-model.number="amount" type="number" inputmode="decimal" :min="mode === 'withdraw' ? 10 : 5" step="1" />
         </label>
       </div>
       <p class="hint">
         ≈ {{ fmtMoney(localValue) }} {{ asset }} at 1 USD = {{ unitsPerUsd }} {{ asset }}
         <template v-if="mode === 'deposit'"> · minimum 5 PEW</template>
-        <template v-else> · minimum 10 PEW · withdrawable {{ fmt(withdrawable) }} PEW, withdrawal fee comes off first</template>
+        <template v-else> · minimum $10 · withdrawable ${{ fmt(withdrawable) }}, withdrawal fee already taken, no further fee</template>
       </p>
       <button class="btn primary w-full" :disabled="!canSearch || loading" @click="search">{{ loading ? 'Finding sellers…' : 'Find sellers' }}</button>
       <p v-if="error" class="err">{{ error }}</p>
@@ -309,14 +309,14 @@ onMounted(async () => {
   poller = setInterval(() => { if (activeTrade.value && ['funded', 'disputed'].includes(activeTrade.value.status)) openTrade(activeTrade.value.id) }, 10000)
   const [a, s, p] = await Promise.allSettled([
     $fetch<{ assets: Asset[] }>('/api/p2p/assets'),
-    $fetch<{ withdrawable_pew: number }>('/api/wallet/summary'),
+    $fetch<{ withdrawable_usd: number }>('/api/wallet/summary'),
     $fetch<{ isSeller: boolean }>('/api/p2p/seller/profile')
   ])
   if (a.status === 'fulfilled') {
     assets.value = a.value.assets
     if (!assets.value.some(x => x.code === asset.value)) asset.value = assets.value[0]?.code ?? ''
   }
-  if (s.status === 'fulfilled') withdrawable.value = Number(s.value.withdrawable_pew ?? 0)
+  if (s.status === 'fulfilled') withdrawable.value = Number(s.value.withdrawable_usd ?? 0)
   if (p.status === 'fulfilled') isSeller.value = p.value.isSeller
   await loadTrades()
   if (typeof route.query.trade === 'string') await openTrade(route.query.trade)

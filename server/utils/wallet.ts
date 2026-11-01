@@ -35,9 +35,9 @@ export const getFeeSettings = async (): Promise<FeeSettings> => {
   return merged
 }
 
-/** USD paid out for `pew` earned PEW after the withdrawal fee and tax. */
+/** Withdrawable USD for `pew` earned PEW: the withdrawal fee is taken once, here. Tax applies only to bank/crypto payouts. */
 export const payoutUsd = (pew: number, fees: FeeSettings) =>
-  Number((pew * (1 - (fees.withdrawal_fee_pct + fees.withdrawal_tax_pct) / 100) * fees.pew_usd_rate).toFixed(2))
+  Math.floor(pew * (1 - fees.withdrawal_fee_pct / 100) * fees.pew_usd_rate * 100) / 100
 
 export const requireWalletAdmin = async (event: H3Event) => {
   const staff = await requireStaff(event, 'fees')

@@ -3,7 +3,7 @@ import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireAmount, requireUuid } from '~/server/utils/input'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
 
-/** P2P withdrawal: the fee comes off first, the PEW is held in escrow and the seller pays the user's account. */
+/** P2P withdrawal of `amount` USD from the withdrawable balance (already net of the fee); held in escrow until the seller pays. */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
   const body = await readBody<{ listingId?: string, amount?: number, payout?: { name?: string, account?: string, bank?: string, note?: string } }>(event)

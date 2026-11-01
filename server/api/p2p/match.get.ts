@@ -17,19 +17,16 @@ export default defineEventHandler(async (event) => {
 
   const db = getServiceClient()
   await refreshFiatRatesIfStale(db)
-  const [{ data: a }, { data: fee }, { data: wfee }, { data: wtax }, { data: wmin }] = await Promise.all([
+  const [{ data: a }, { data: fee }, { data: wmin }] = await Promise.all([
     db.from('supported_assets').select('reference_rate, is_enabled').eq('code', asset).maybeSingle(),
     db.from('fee_settings').select('percent_rate').eq('scope', 'deposit').eq('is_active', true),
-    db.rpc('fee_setting' as never, { p_key: 'withdrawal_fee_pct', p_default: 37 } as never),
-    db.rpc('fee_setting' as never, { p_key: 'withdrawal_tax_pct', p_default: 0 } as never),
     db.rpc('fee_setting' as never, { p_key: 'min_withdrawal_pew', p_default: 10 } as never)
   ])
   if (!a?.is_enabled) throw createError({ statusCode: 400, statusMessage: 'Currency is not available' })
   const rate = Number(a.reference_rate)
   const depositPct = Math.max(0, ...((fee ?? []).map(f => Number(f.percent_rate) || 0)))
-  const withdrawPct = Number(wfee ?? 37) + Number(wtax ?? 0)
   const minWithdraw = Math.max(Number(wmin ?? 10), 5)
-  if (side === 'buy' && amount < minWithdraw) throw createError({ statusCode: 400, statusMessage: `Minimum withdrawal is ${minWithdraw} PEW` })
+  if (side === 'buy' && amount < minWithdraw) throw createError({ statusCode: 400, statusMessage: `Minimum withdrawal is $${minWithdraw}` })
 
   const { data: listings } = await db.from('p2p_listings')
     .select('id, seller_id, asset_code, margin_pct, min_amount, max_amount, available_pewgift, terms, payment_method_id, updated_at')
@@ -55,14 +52,14 @@ export default defineEventHandler(async (event) => {
     if (!p || !p.is_active || p.revoked_at || !u || u.is_banned || !m || m.status !== 'APPROVED') return []
     if (side === 'sell' && (bal.get(l.seller_id) ?? 0) < amount) return []
     const margin = Number(l.margin_pct)
-    const net = side === 'sell' ? amount : amount * (1 - withdrawPct / 100)
+    const net = amount
     const perPew = side === 'sell' ? (1 + (margin + depositPct) / 100) / rate : (1 - margin / 100) / rate
     return [{
       listing_id: l.id, seller_id: l.seller_id, side,
       seller_name: p.display_name || u.display_name || u.username, username: u.username, avatar_url: u.avatar_url,
       is_verified: u.is_verified, verified_type: u.verified_type,
       buyer_notes: p.buyer_notes, terms: l.terms, method_kind: m.kind, method_label: m.bank_name || m.network || m.kind,
-      margin_pct: margin, platform_fee_pct: side === 'sell' ? depositPct : withdrawPct,
+      margin_pct: margin, platform_fee_pct: side === 'sell' ? depositPct : 0,
       min_amount: Number(l.min_amount), max_amount: Math.min(Number(l.max_amount), Number(l.available_pewgift)),
       price_per_pew: Number(perPew.toFixed(6)), pew_after_fee: Number(net.toFixed(4)),
       quote_amount: Number((net * (side === 'sell' ? (1 + (margin + depositPct) / 100) : (1 - margin / 100)) / rate).toFixed(2))
