@@ -67,7 +67,7 @@
     </div>
 
     <!-- Viewer -->
-    <div v-if="viewing" class="st-viewer" @click="onViewerTap">
+    <div v-if="viewing" class="st-viewer" :class="{ holding }" @click="onViewerTap" @pointerdown="onHoldStart" @pointerup="onHoldEnd" @pointercancel="onHoldEnd" @touchstart.passive="onSwipeStart" @touchend="onSwipeEnd">
       <div class="st-bars">
         <span v-for="(s, i) in viewing.statuses" :key="s.id" class="st-bar"><i :style="{ width: i < index ? '100%' : i === index ? `${progress}%` : '0%' }" /></span>
       </div>
@@ -347,7 +347,7 @@ const openGroup = (g: StatusGroup) => {
 }
 
 const nextGroup = () => {
-  const order = [...(myGroup.value ? [myGroup.value] : []), ...recent.value, ...viewedGroups.value]
+  const order = groupOrder()
   const at = order.findIndex(g => g === viewing.value)
   const following = order[at + 1]
   if (following && !viewing.value?.is_me) openGroup(following)
@@ -357,8 +357,42 @@ const next = () => {
   if (!viewing.value) return
   if (index.value < viewing.value.statuses.length - 1) { index.value++; show() } else nextGroup()
 }
-const prev = () => { if (index.value > 0) { index.value--; show() } else show() }
-const onViewerTap = (e: MouseEvent) => (e.clientX < window.innerWidth / 3 ? prev() : next())
+const groupOrder = () => [...(myGroup.value ? [myGroup.value] : []), ...recent.value, ...viewedGroups.value]
+const prevGroup = () => {
+  const order = groupOrder()
+  const before = order[order.findIndex(g => g === viewing.value) - 1]
+  if (before && !viewing.value?.is_me) { viewing.value = before; index.value = 0; show() } else show()
+}
+// Left tap: restart if mid-segment, otherwise previous segment (or previous user's statuses).
+const prev = () => {
+  if (progress.value > 15) { show(); return }
+  if (index.value > 0) { index.value--; show() } else prevGroup()
+}
+const holding = ref(false)
+let holdTimer: ReturnType<typeof setTimeout> | null = null
+let suppressTap = false
+const onHoldStart = () => {
+  holdTimer = setTimeout(() => { holding.value = true; paused.value = true; suppressTap = true; videoEl.value?.pause() }, 250)
+}
+const onHoldEnd = () => {
+  if (holdTimer) clearTimeout(holdTimer)
+  if (holding.value) { holding.value = false; paused.value = false; videoEl.value?.play().catch(() => {}) }
+}
+let swipeX = 0; let swipeY = 0
+const onSwipeStart = (e: TouchEvent) => { swipeX = e.touches[0]?.clientX ?? 0; swipeY = e.touches[0]?.clientY ?? 0 }
+const onSwipeEnd = (e: TouchEvent) => {
+  const t = e.changedTouches[0]
+  if (!t) return
+  const dx = t.clientX - swipeX; const dy = t.clientY - swipeY
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    suppressTap = true
+    if (dx < 0) nextGroup(); else prevGroup()
+  }
+}
+const onViewerTap = (e: MouseEvent) => {
+  if (suppressTap) { suppressTap = false; return }
+  if (e.clientX < window.innerWidth / 3) prev(); else next()
+}
 const closeViewer = () => { stopTimer(); viewing.value = null; showViewers.value = false }
 const toggleViewers = () => { showViewers.value = !showViewers.value }
 
@@ -391,7 +425,8 @@ onBeforeUnmount(stopTimer)
 .st-back { background: none; border: 0; color: inherit; padding: 4px; }
 .st-mine { padding: 4px 16px 12px; border-bottom: 1px solid rgba(148,163,184,.15); }
 .st-row { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; color: inherit; padding: 10px 0; text-align: left; cursor: pointer; }
-.st-ring { position: relative; width: 54px; height: 54px; border-radius: 50%; padding: 2px; background: conic-gradient(#22c55e, #16a34a, #22c55e); flex-shrink: 0; }
+.st-ring { position: relative; width: 54px; height: 54px; border-radius: 50%; padding: 2px; background: conic-gradient(#3b82f6, #1d4ed8, #3b82f6); flex-shrink: 0; }
+.st-viewer.holding .st-bars, .st-viewer.holding .st-vhead, .st-viewer.holding .st-react, .st-viewer.holding .st-vcaption { opacity: 0; transition: opacity .15s; }
 .st-ring.seen { background: #64748b; }
 .st-ring.none { background: transparent; }
 .st-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--bg-primary, #0f172a); }

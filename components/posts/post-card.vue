@@ -7,8 +7,8 @@
     </p>
 
     <header class="post-header">
-      <span class="post-avatar-wrap">
-        <img :src="avatar" :alt="authorName" class="post-avatar" @click="openAuthor" />
+      <span class="post-avatar-wrap" :class="{ 'status-ring': hasUnseen(post.author?.id) }">
+        <img :src="avatar" :alt="authorName" class="post-avatar" @click="hasUnseen(post.author?.id) ? navigateTo(`/status?u=${post.author?.id}`) : openAuthor()" />
         <PresenceDot v-if="post.author?.type !== 'PAGE'" :user-id="post.author?.id" :size="11" />
       </span>
       <div class="post-identity">
@@ -195,6 +195,7 @@ const commentsCount = ref(initial.comments)
 const sharesCount = ref(initial.shares)
 const content = ref(props.post.content)
 const media = ref<string[]>([...(props.post.media ?? [])])
+const { hasUnseen } = useStatusRings()
 
 watch(() => props.post, (post) => {
   const counts = countsFor(post)
@@ -597,4 +598,6 @@ const formatTimeAgo = (value: string) => {
   .action-btn span { display: none; }
   .action-btn { padding: 0.6rem 0.2rem; }
 }
+.status-ring { border-radius: 50%; padding: 2px; background: conic-gradient(#3b82f6, #1d4ed8, #3b82f6); display: inline-flex; }
+.status-ring .post-avatar { border: 2px solid #0f172a; }
 </style>

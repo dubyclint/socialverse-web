@@ -24,7 +24,7 @@
             <p v-if="it.post.hashtags?.length" class="veep-tags">{{ it.post.hashtags.map(h => '#' + h).join(' ') }}</p>
           </div>
           <div class="veep-actions">
-            <NuxtLink v-if="it.post.author" :to="`/profile/${it.post.author.id}`" class="veep-avatar">
+            <NuxtLink v-if="it.post.author" :to="hasUnseen(it.post.author.id) ? `/status?u=${it.post.author.id}` : `/profile/${it.post.author.id}`" class="veep-avatar" :class="{ ring: hasUnseen(it.post.author.id) }">
               <img :src="it.post.author.avatar_url || '/default-avatar.svg'" alt="">
               <span class="plus">+</span>
             </NuxtLink>
@@ -127,6 +127,7 @@ definePageMeta({ layout: false })
 useHead({ title: 'Veep · Viorp' })
 
 const route = useRoute()
+const { hasUnseen } = useStatusRings()
 const tabs = [{ key: 'veep', label: 'Veep' }, { key: 'global', label: 'Global' }, { key: 'trend', label: 'Trend' }, { key: 'hood', label: 'Hood' }] as const
 type TabKey = typeof tabs[number]['key']
 const tab = ref<TabKey>('veep')
@@ -308,6 +309,7 @@ onMounted(() => {
 .veep-actions .liked .ic { color: #ef4444; }
 .veep-actions .saved .ic { filter: hue-rotate(40deg) saturate(2); }
 .veep-avatar { position: relative; display: block; width: 46px; height: 46px; }
+.veep-avatar.ring img { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6; }
 .veep-avatar img { width: 46px; height: 46px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
 .veep-avatar .plus { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; color: #fff; font-size: 14px; line-height: 18px; text-align: center; font-weight: 700; }
 .veep-meatball { position: absolute; right: 14px; bottom: calc(env(safe-area-inset-bottom) + 64px); z-index: 10; background: none; border: 0; color: #fff; font-size: 16px; letter-spacing: 1px; min-height: 0; }
