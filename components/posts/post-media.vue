@@ -5,9 +5,11 @@
         v-if="isVideo(url)"
         :src="url"
         class="media-item media-video"
-        controls
         playsinline
+        muted
         preload="metadata"
+        title="Tap to watch in Veep"
+        @click.stop="openVeep"
       />
       <img
         v-else
@@ -28,7 +30,11 @@
 <script setup lang="ts">
 import MediaLightbox from '~/components/chat/media-lightbox.vue'
 
-defineProps<{ media: string[] }>()
+const props = defineProps<{ media: string[], postId?: string }>()
+const openVeep = (e: Event) => {
+  if (props.postId) navigateTo(`/veep?start=${props.postId}`)
+  else (e.target as HTMLVideoElement).play().catch(() => {})
+}
 const fullSrc = ref<string | null>(null)
 defineEmits<{ open: [url: string] }>()
 

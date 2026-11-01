@@ -45,6 +45,21 @@
         </div>
       </section>
 
+      <!-- Veep views -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 md:p-8 mb-8">
+        <h2 class="text-lg font-semibold mb-2">Veep views requirement</h2>
+        <p class="text-[13.5px] text-zinc-400 mb-4 leading-relaxed">
+          {{ veep ? veep.target.toLocaleString() : '200,000' }} engaged views in {{ veep?.days ?? 30 }} days from authentic, original videos. Copyrighted videos don't count and clipped videos are reviewed.
+          Standard views ({{ veep?.thresholds.standard_s ?? 5 }}s) don't count; only engaged views ({{ veep?.thresholds.engaged_s ?? 25 }}s or watched to the end) do.
+        </p>
+        <div v-if="veep">
+          <div class="flex justify-between text-sm mb-1"><span>{{ veep.engaged.toLocaleString() }} / {{ veep.target.toLocaleString() }} engaged views</span><span>{{ veep.progress }}%</span></div>
+          <div class="h-2 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full bg-emerald-500" :style="{ width: veep.progress + '%' }" /></div>
+          <p class="mt-2 text-[12px] text-zinc-500">Standard views in the same period (not counted): {{ veep.standard.toLocaleString() }}</p>
+        </div>
+        <p v-else class="text-sm text-zinc-500">Sign in to see your progress.</p>
+      </section>
+
       <!-- Eligibility Progress -->
       <section class="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 md:p-8 mb-8">
         <h2 class="text-lg font-semibold mb-2">Monetization Eligibility Progress</h2>
@@ -106,4 +121,6 @@ definePageMeta({
 useHead({
   title: 'Monetization Portal - Requirements & Terms'
 })
+const veep = ref<{ engaged: number, standard: number, target: number, days: number, progress: number, thresholds: { standard_s: number, engaged_s: number } } | null>(null)
+onMounted(async () => { try { veep.value = await $fetch('/api/veep/monetization') } catch { veep.value = null } })
 </script>

@@ -1,7 +1,7 @@
+import { applyDiditDecision } from '~/server/utils/didit'
 import crypto from 'node:crypto'
 import { readRawBody, getHeader, setResponseStatus } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
-import { sendNotification } from '~/server/utils/send-notification'
 
 const shortenFloats = (v: unknown): unknown => {
   if (Array.isArray(v)) return v.map(shortenFloats)
@@ -41,39 +41,6 @@ export default defineEventHandler(async (event) => {
     .eq('didit_session_id', String(parsed.session_id)).maybeSingle()
   const r = req as { id: string, user_id: string, status: string } | null
   if (!r || r.user_id !== String(parsed.vendor_data)) return 'ok'
-  const now = new Date().toISOString()
-  const setReq = (patch: Record<string, unknown>) => db.from('kyc_requests' as never).update({ ...patch, decision: parsed.decision ?? null, updated_at: now } as never).eq('id', r.id)
-  const setKyc = (status: string) => db.from('user_kyc' as never).upsert({ user_id: r.user_id, status, updated_at: now } as never, { onConflict: 'user_id' })
-
-  switch (parsed.status) {
-    case 'Approved': {
-      const ocr = parsed.decision?.id_verifications?.[0] ?? parsed.decision?.id_verification
-      const legal = [ocr?.first_name, ocr?.last_name].filter(Boolean).join(' ').trim()
-      if (legal) await setReq({ full_name: legal })
-      const { error } = await db.rpc('kyc_approve' as never, { p_request: r.id, p_reviewer: null, p_waive: false } as never)
-      if (error) {
-        await setReq({ status: 'in_review', review_note: error.message })
-        await setKyc('pending')
-      } else {
-        await sendNotification(event, r.user_id, 'system', 'Your identity (KYC) is verified.', r.user_id)
-      }
-      break
-    }
-    case 'Declined':
-      await setReq({ status: 'rejected', review_note: 'Declined by automated verification' }); await setKyc('rejected')
-      await sendNotification(event, r.user_id, 'system', 'Your KYC was not approved. You can try again or use manual verification.', r.user_id)
-      break
-    case 'In Review':
-    case 'Resubmitted':
-      await setReq({ status: 'in_review' }); await setKyc('pending'); break
-    case 'Abandoned':
-    case 'Expired':
-      await setReq({ status: 'abandoned' }); break
-    case 'Kyc Expired':
-      await setKyc('revoked')
-      await sendNotification(event, r.user_id, 'system', 'Your KYC has expired. Please verify again.', r.user_id)
-      break
-    default: break
-  }
+  await applyDiditDecision(event, r, String(parsed.status), parsed.decision ?? null)
   return 'ok'
 })

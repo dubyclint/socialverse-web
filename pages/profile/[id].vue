@@ -120,10 +120,23 @@
         <PlacementAd v-if="!isSelf" placement="profile" :context-text="profile.bio" />
 
         <section v-if="!profile.locked" class="posts-section">
-          <h2>Posts</h2>
+          <div class="ptabs">
+            <button v-for="t in (['all', 'photos', 'veep'] as const)" :key="t" :class="{ on: postTab === t }" @click="postTab = t">{{ t === 'all' ? 'All' : t === 'photos' ? 'Photos' : 'Veep' }}</button>
+          </div>
+          <div v-if="postTab === 'photos'" class="pgrid">
+            <button v-for="u in photoUrls" :key="u" class="pcell" @click="photoSrc = u"><img :src="u" alt="" loading="lazy"></button>
+            <p v-if="!photoUrls.length" class="state-card">No photos yet.</p>
+          </div>
+          <div v-else-if="postTab === 'veep'" class="pgrid">
+            <NuxtLink v-for="v in veepPosts" :key="v.id" :to="`/veep?start=${v.id}`" class="pcell">
+              <video :src="v.url" preload="metadata" muted playsinline />
+              <span class="pviews">▶ {{ viewCounts[v.id]?.views ?? 0 }}</span>
+            </NuxtLink>
+            <p v-if="!veepPosts.length" class="state-card">No veeps yet.</p>
+          </div>
           <div v-if="postsLoading && !posts.length" class="state-card">Loading posts…</div>
-          <div v-else-if="!posts.length" class="state-card">No posts yet.</div>
-          <div v-else class="posts-list">
+          <div v-else-if="postTab === 'all' && !posts.length" class="state-card">No posts yet.</div>
+          <div v-else-if="postTab === 'all'" class="posts-list">
             <PostCard v-for="post in posts" :key="post.id" :post="post" />
           </div>
           <div ref="sentinel" class="sentinel">
@@ -261,6 +274,24 @@ const presenceText = computed(() => {
 })
 
 const posts = ref<FeedPost[]>([])
+const postTab = ref<'all' | 'photos' | 'veep'>('all')
+const VIDEO_URL = /\.(mp4|webm|mov|m4v|m3u8)(\?|#|$)/i
+const photoUrls = computed(() => {
+  const out = new Set<string>()
+  if (profile.value?.avatar_url) out.add(profile.value.avatar_url)
+  for (const p of posts.value) for (const u of p.media ?? []) if (!VIDEO_URL.test(u)) out.add(u)
+  return [...out]
+})
+const veepPosts = computed(() => posts.value.flatMap((p) => {
+  const url = (p.media ?? []).find(u => VIDEO_URL.test(u))
+  return url ? [{ id: p.id, url }] : []
+}))
+const viewCounts = ref<Record<string, { views: number, engaged: number }>>({})
+watch(veepPosts, async (list) => {
+  const ids = list.map(v => v.id).filter(id => !viewCounts.value[id])
+  if (!ids.length) return
+  try { Object.assign(viewCounts.value, (await $fetch<{ views: typeof viewCounts.value }>('/api/veep/views', { query: { ids: ids.join(',') } })).views) } catch { /* counts optional */ }
+})
 const postsLoading = ref(false)
 const postsPage = ref(1)
 const postsHasMore = ref(false)
@@ -389,6 +420,13 @@ watch(() => route.params.id, load, { immediate: true })
 .interests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
 .interest { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #bfdbfe; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; }
 .posts-section { margin-top: 18px; }
+.ptabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.ptabs button { flex: 1; padding: 6px 0; border-radius: 8px; background: #1e293b; color: #94a3b8; font-weight: 600; font-size: 13px; min-height: 0; }
+.ptabs button.on { background: #3b82f6; color: #fff; }
+.pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.pcell { position: relative; aspect-ratio: 1; overflow: hidden; background: #1e293b; border-radius: 4px; padding: 0; min-height: 0; }
+.pcell img, .pcell video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pviews { position: absolute; left: 4px; bottom: 3px; font-size: 11px; color: #fff; text-shadow: 0 1px 2px #000; }
 .posts-list { display: flex; flex-direction: column; gap: 14px; }
 .sentinel { min-height: 24px; text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 8px; }
 .identity { min-width: 0; }

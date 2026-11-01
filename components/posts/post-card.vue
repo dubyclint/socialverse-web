@@ -42,7 +42,7 @@
       <p class="post-text">{{ content }}</p>
     </div>
 
-    <PostsPostMedia v-if="media.length" :media="media" @open="openPost" />
+    <PostsPostMedia v-if="media.length" :media="media" :post-id="post.id" @open="openPost" />
 
     <div v-if="post.repost_of" class="repost-source">
       <div class="repost-source-head">
