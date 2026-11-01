@@ -82,6 +82,7 @@
               </div>
               <label class="field"><span>Bank or provider</span><input v-model="payout.bank" /></label>
             </template>
+            <label class="field"><span>Reason for payment</span><input v-model.trim="reason" maxlength="140" :placeholder="reasonDefault" /></label>
             <label class="check"><input v-model="accepted" type="checkbox" class="pick" /> I accept the seller's terms and the escrow rules</label>
             <button class="btn primary w-full" :disabled="!accepted || busy" @click="start(m)">
               {{ busy ? 'Locking escrow…' : mode === 'deposit' ? "I'm paying" : `Lock ${fmt(amount)} PEW and withdraw` }}
@@ -115,6 +116,7 @@
       <dl v-if="iAmPayer && activeTrade.kind === 'deposit' && tradeMethod" class="pay">
         <template v-if="tradeMethod.bank_name"><dt>Bank</dt><dd>{{ tradeMethod.bank_name }}</dd></template>
         <template v-if="tradeMethod.account_name"><dt>Name</dt><dd>{{ tradeMethod.account_name }}</dd></template>
+        <template v-if="activeTrade.payment_reason || activeTrade.payout_details?.note"><dt>Reason</dt><dd>{{ activeTrade.payment_reason || activeTrade.payout_details?.note }}</dd></template>
         <template v-if="tradeMethod.account_ref"><dt>Account</dt><dd class="mono">{{ tradeMethod.account_ref }}</dd></template>
         <template v-if="tradeMethod.network"><dt>Network</dt><dd>{{ tradeMethod.network }}</dd></template>
         <template v-if="tradeMethod.instructions"><dt>Note</dt><dd>{{ tradeMethod.instructions }}</dd></template>
@@ -172,7 +174,7 @@ interface Method { kind?: string, account_name?: string | null, account_ref?: st
 interface Trade {
   id: string, kind: 'deposit' | 'withdraw', status: string, amount: number, source_amount: number, asset_code: string, seller_id: string, buyer_id: string
   paid_declared_at: string | null, seller_confirmed_at: string | null, expires_at: string, created_at: string, chat_room_id: string | null
-  support_ticket_id: string | null, decision_note: string | null, payout_details: { name: string, account: string, bank?: string } | null
+  support_ticket_id: string | null, decision_note: string | null, payout_details: { name: string, account: string, bank?: string, note?: string } | null, payment_reason?: string | null
   seller_payment_methods?: Method | null
 }
 
@@ -192,6 +194,9 @@ const picked = ref<Match | null>(null)
 const details = ref<{ method: Method } | null>(null)
 const accepted = ref(false)
 const payout = reactive({ name: '', account: '', bank: '' })
+const reasonDefault = computed(() => mode.value === 'deposit' ? 'Viorp top up' : 'Viorp earnings/gifts withdrawal')
+const reason = ref('')
+watch(reasonDefault, (d, old) => { if (!reason.value || reason.value === old) reason.value = d }, { immediate: true })
 const kycState = ref<{ kyc: { status: string, legal_name: string | null }, privileged: boolean, user_id: string } | null>(null)
 const kycLocked = computed(() => !kycState.value?.privileged && kycState.value?.kyc.status === 'verified')
 const kycNeeded = computed(() => Boolean(kycState.value) && !kycState.value?.privileged && kycState.value?.kyc.status !== 'verified')
@@ -267,8 +272,8 @@ async function start(m: Match) {
   busy.value = true; error.value = ''
   try {
     const res = mode.value === 'deposit'
-      ? await $fetch<{ trade: Trade }>('/api/p2p/trades', { method: 'POST', body: { listingId: m.listing_id, amount: amount.value, acceptedTerms: true } })
-      : await $fetch<{ trade: Trade }>('/api/p2p/withdraw', { method: 'POST', body: { listingId: m.listing_id, amount: amount.value, payout } })
+      ? await $fetch<{ trade: Trade }>('/api/p2p/trades', { method: 'POST', body: { listingId: m.listing_id, amount: amount.value, acceptedTerms: true, reason: reason.value || reasonDefault.value } })
+      : await $fetch<{ trade: Trade }>('/api/p2p/withdraw', { method: 'POST', body: { listingId: m.listing_id, amount: amount.value, payout: { ...payout, note: reason.value || reasonDefault.value } } })
     await openTrade(res.trade.id)
   } catch (e) { error.value = msg(e) } finally { busy.value = false }
 }

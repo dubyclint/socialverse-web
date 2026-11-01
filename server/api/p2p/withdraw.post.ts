@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
   const db = getServiceClient()
   const { data: tradeId, error } = await db.rpc('open_p2p_withdraw' as never, { p_listing_id: listingId, p_user_id: user.id, p_amount: amount, p_payout: payout } as never)
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })
+  await db.from('p2p_trades').update({ payment_reason: payout.note } as never).eq('id', tradeId as unknown as string)
   const { data: trade } = await db.from('p2p_trades').select('*').eq('id', tradeId as unknown as string).single()
   return { trade }
 })

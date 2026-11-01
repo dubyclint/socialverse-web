@@ -8,6 +8,7 @@ interface OpenTradeBody {
   listingId?: string
   amount?: number
   acceptedTerms?: boolean
+  reason?: string
 }
 
 /**
@@ -35,6 +36,9 @@ export default defineEventHandler(async (event) => {
   })
 
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })
+
+  const reason = String(body.reason ?? '').trim().slice(0, 140) || 'Viorp top up'
+  await supabase.from('p2p_trades').update({ payment_reason: reason } as never).eq('id', tradeId as unknown as string)
 
   const { data: trade } = await supabase
     .from('p2p_trades')
