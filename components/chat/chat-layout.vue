@@ -57,7 +57,7 @@
             @click="selectChat(chat.id)"
           >
             <!-- Chat Avatar -->
-            <div class="chat-avatar">
+            <div class="chat-avatar" :class="{ 'status-ring': hasUnseen(chat.userId) }" @click.stop="hasUnseen(chat.userId) ? navigateTo(`/status?u=${chat.userId}`) : selectChat(chat.id)">
               <img 
                 :src="chat.avatar || '/default-avatar.svg'"
                 :alt="chat.name"
@@ -217,6 +217,7 @@
 </template>
 
 <script setup lang="ts">
+import { useStatusRings } from '~/composables/useStatusRings'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
@@ -252,6 +253,7 @@ interface SuggestedUser {
 
 // Chat store initialized
 const chatStore = useChatStore()
+const { hasUnseen } = useStatusRings()
 const route = useRoute()
 const { refresh: refreshUnread } = useUnreadCounts()
 const router = useRouter()
@@ -1087,4 +1089,5 @@ onUnmounted(() => {
 }
 .new-group-entry { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; color: inherit; padding: 10px 4px; cursor: pointer; font-weight: 600; font-size: 0.95rem; text-align: left; }
 .new-group-icon { width: 40px; height: 40px; border-radius: 999px; background: #16a34a; color: #fff; display: flex; align-items: center; justify-content: center; }
+.chat-avatar.status-ring { border-radius: 50%; padding: 2px; background: conic-gradient(#3b82f6, #1d4ed8, #3b82f6); }
 </style>

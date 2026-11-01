@@ -192,7 +192,7 @@
       
       <div class="stream-meta">
         <div class="streamer-info">
-          <NuxtLink :to="`/profile/${streamerId}`" class="streamer-avatar-link">
+          <NuxtLink :to="hasUnseen(streamerId) ? `/status?u=${streamerId}` : `/profile/${streamerId}`" class="streamer-avatar-link" :class="{ 'status-ring': hasUnseen(streamerId) }">
             <img 
               :src="streamerAvatar || '/default-avatar.svg'" 
               :alt="streamerName"
@@ -259,6 +259,8 @@
   </div>
 </template>
 <script setup>
+import { useStatusRings } from '~/composables/useStatusRings'
+const { hasUnseen } = useStatusRings()
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useSocket } from '@/composables/use-socket'
 import { useUser } from '@/composables/use-user'
@@ -809,4 +811,5 @@ const followStreamer = async () => {
     justify-content: space-around;
   }
 }
+.streamer-avatar-link.status-ring { border-radius: 50%; padding: 2px; background: conic-gradient(#3b82f6, #1d4ed8, #3b82f6); display: inline-flex; }
 </style>
