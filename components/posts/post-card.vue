@@ -621,4 +621,18 @@ const formatTimeAgo = (value: string) => {
 }
 .status-ring { border-radius: 50%; padding: 2px; background: conic-gradient(#3b82f6, #1d4ed8, #3b82f6); display: inline-flex; }
 .status-ring .post-avatar { border: 2px solid #0f172a; }
+/* One-line header: photo · name @handle · time · follow ··· menu */
+.post-card .post-header { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.45rem; padding: 0.4rem 0.6rem; min-height: 0; }
+.post-card .post-identity { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 0.35rem; overflow: hidden; white-space: nowrap; }
+.post-card .author-row { display: inline-flex; align-items: center; gap: 0.3rem; min-width: 0; flex: 0 1 auto; }
+.post-card .post-author { display: inline-flex; align-items: center; gap: 3px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+.post-card .post-meta { display: inline-flex; align-items: center; gap: 3px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; margin: 0; }
+.post-card .post-meta .handle { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.post-card .post-menu-wrap { margin-left: auto; }
+.post-card .post-menu-wrap .icon-btn { padding: 2px; min-height: 0; min-width: 0; }
+@media (max-width: 768px) {
+  .post-card .post-avatar { width: 30px; height: 30px; }
+  .post-card .post-meta .handle { display: none; }
+  .post-card .post-meta .dot:first-of-type { display: none; }
+}
 </style>
