@@ -143,6 +143,7 @@
 </template>
 
 <script setup lang="ts">
+import { useStatusRings } from '~/composables/useStatusRings'
 import { computed, ref, watch } from 'vue'
 import PresenceDot from '~/components/presence-dot.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'

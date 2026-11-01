@@ -120,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import { useStatusRings } from '~/composables/useStatusRings'
 import VeepPlayer from '~/components/veep/veep-player.vue'
 import type { FeedItem, RankedPost } from '~/server/utils/feed-ranker'
 
