@@ -594,10 +594,21 @@ const formatTimeAgo = (value: string) => {
   color: var(--color-aurora-mint, #6fffd4);
 }
 
+/* Mobile keeps the desktop card design, scaled down. */
 @media (max-width: 768px) {
-  .post-card { border-radius: 0; border-left: none; border-right: none; }
-  .action-btn span { display: none; }
-  .action-btn { padding: 0.6rem 0.2rem; }
+  .post-card { border-radius: 12px; }
+  .repost-banner { padding: 0.4rem 0.65rem 0; font-size: 0.7rem; }
+  .post-header { gap: 0.5rem; padding: 0.5rem 0.65rem; }
+  .post-avatar { width: 34px; height: 34px; }
+  .post-author { font-size: 0.82rem; }
+  .post-meta { font-size: 0.68rem; }
+  .post-body { padding: 0 0.65rem 0.5rem; }
+  .post-text { font-size: 0.84rem; line-height: 1.4; }
+  .hashtag { font-size: 0.74rem; }
+  .post-actions { gap: 0; }
+  .action-btn { min-height: 0; padding: 0.4rem 0.15rem; font-size: 0.72rem; gap: 0.25rem; }
+  .action-btn span { display: inline; }
+  .action-btn :deep(svg) { width: 16px; height: 16px; }
 }
 .status-ring { border-radius: 50%; padding: 2px; background: conic-gradient(#3b82f6, #1d4ed8, #3b82f6); display: inline-flex; }
 .status-ring .post-avatar { border: 2px solid #0f172a; }
