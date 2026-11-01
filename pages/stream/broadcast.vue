@@ -1,682 +1,359 @@
-<!-- ============================================================================
-     STREAMING PAGE - OPTIMIZED INTERFACE INTEGRATION
-     ============================================================================ -->
-
 <template>
-  <div class="stream-page">
-    <!-- Header -->
-    <div class="stream-header">
-      <div class="header-content">
-        <h1>📱 Live Streaming</h1>
-        <p class="subtitle">Broadcast to your audience in real-time</p>
+  <div class="live" :class="{ setup: phase === 'setup' }">
+    <video ref="videoEl" class="live-video" :class="{ mirror: facing === 'user' }" autoplay playsinline muted />
+    <div class="shade-top" /><div class="shade-bottom" />
+    <p v-if="camError" class="center-msg">{{ camError }} <button class="btn ghost" @click="startCamera">Retry</button></p>
+
+    <template v-if="phase === 'setup'">
+      <header class="top">
+        <button class="x" aria-label="Back" @click="navigateTo('/stream')">←</button>
+        <div class="top-right">
+          <NuxtLink to="/stream/history" class="chip">History</NuxtLink>
+          <NuxtLink to="/stream/settings" class="chip">Settings</NuxtLink>
+        </div>
+      </header>
+      <div v-if="liveAccess?.mode === 'trial'" class="trial">
+        Free live trial: <strong>{{ trialClock }}</strong> left · <NuxtLink to="/stream/requirements">Requirements</NuxtLink>
       </div>
-      <div class="header-actions">
-        <button @click="navigateTo('/stream/history')" class="btn-secondary">
-          📹 Stream History
-        </button>
-        <button @click="navigateTo('/stream/settings')" class="btn-secondary">
-          ⚙️ Settings
-        </button>
+    </template>
+
+    <template v-if="phase === 'live' || phase === 'ending'">
+      <header class="top">
+        <div class="host-pill">
+          <img :src="me.avatar || '/default-avatar.svg'" alt="" />
+          <div class="host-txt"><strong>{{ me.name }}</strong><small>{{ clock }}</small></div>
+        </div>
+        <div class="top-right">
+          <button class="viewer-stack count-pill" style="padding:3px 8px" @click="viewersOpen = true">
+            <img v-for="v in room.topViewers.value.slice(0, 3)" :key="v.id" :src="v.avatar || '/default-avatar.svg'" :alt="v.name" />
+            <span style="margin-left:4px">👁 {{ room.viewerCount.value }}</span>
+          </button>
+          <button class="x" aria-label="End LIVE" @click="phase = 'ending'">✕</button>
+        </div>
+      </header>
+      <div class="badges">
+        <span class="live-tag">LIVE</span>
+        <span class="stat-tag">❤️ {{ fmt(room.likes.value) }}</span>
+        <span class="stat-tag">🎁 {{ giftTotal }} PEW</span>
+        <span class="stat-tag">{{ stats.bitrate }} kbps · {{ stats.fps }} fps</span>
+        <span v-if="trialEndsAt" class="stat-tag" style="background:#f59e0bcc;color:#111">Trial {{ trialClock }}</span>
+      </div>
+      <div class="gift-toasts">
+        <div v-for="g in giftToasts" :key="g.key" class="gift-toast">
+          <img :src="g.avatar || '/default-avatar.svg'" alt="" />
+          <div><strong>{{ g.name }}</strong><small>sent {{ g.gift }}{{ g.qty > 1 ? ` ×${g.qty}` : '' }} · {{ g.cost }} PEW</small></div>
+          <img v-if="g.icon" :src="g.icon" class="gift-icon" alt="" /><span v-else class="gift-emoji">🎁</span>
+        </div>
+      </div>
+      <div class="hearts"><span v-for="h in hearts" :key="h.id" class="heart" :style="{ left: h.x + 'px', animationDuration: h.d + 'ms' }">{{ h.e }}</span></div>
+      <section class="chat-overlay">
+        <div v-if="pinned" class="pinned">📌 <strong>{{ pinned.user?.name }}</strong> {{ pinned.message_text }}</div>
+        <div ref="chatBox" class="chat-scroll">
+          <p v-for="m in messages" :key="m.id" class="chat-line" @click="msgSheet = m">
+            <img :src="m.user?.avatar_url || '/default-avatar.svg'" alt="" />
+            <span><strong :class="{ host: m.user_id === myId }">{{ m.user?.name || 'Viewer' }}</strong>{{ m.message_text }}</span>
+          </p>
+          <p v-if="!messages.length" class="chat-line" style="cursor:default">Comments from viewers appear here.</p>
+        </div>
+      </section>
+      <p v-if="error" class="chat-error">{{ error }}</p>
+      <form class="composer" @submit.prevent="sendChat">
+        <input v-model="chatInput" maxlength="300" placeholder="Say something to your viewers…" />
+        <button type="submit" :disabled="!chatInput.trim()">Send</button>
+      </form>
+      <div v-if="phase === 'ending'" class="confirm">
+        <div>
+          <strong>End your LIVE?</strong>
+          <button class="btn" :disabled="busy" @click="endLive">End LIVE</button>
+          <button class="btn ghost" @click="phase = 'live'">Keep going</button>
+        </div>
+      </div>
+    </template>
+
+    <aside v-if="phase !== 'summary'" class="actions">
+      <button :disabled="!canFlip" aria-label="Flip camera" @click="flip"><span class="ic">🔄</span><small>Flip</small></button>
+      <button :class="{ off: !micOn }" aria-label="Microphone" @click="toggleMic"><span class="ic">{{ micOn ? '🎙️' : '🔇' }}</span><small>Mic</small></button>
+      <button :class="{ off: !camOn }" aria-label="Camera" @click="toggleCam"><span class="ic">{{ camOn ? '📷' : '🚫' }}</span><small>Camera</small></button>
+      <button v-if="torchSupported" :class="{ off: torchOn }" aria-label="Flash" @click="toggleTorch"><span class="ic">🔦</span><small>Flash</small></button>
+    </aside>
+
+    <div v-if="phase === 'setup'" class="setup-panel">
+      <input v-model="title" maxlength="80" placeholder="Add a title to your LIVE" />
+      <label>Video quality
+        <select v-model="quality" @change="startCamera">
+          <option value="480">480p · saves data</option>
+          <option value="720">720p HD</option>
+          <option value="1080">1080p Full HD</option>
+        </select>
+      </label>
+      <button class="go-live" :disabled="!media || busy" @click="goLive">{{ busy ? 'Starting…' : 'Go LIVE' }}</button>
+      <p v-if="error" class="err">{{ error }}</p>
+    </div>
+
+    <div v-if="phase === 'countdown'" class="countdown">{{ countdown }}</div>
+
+    <div v-if="phase === 'summary' && summary" class="summary">
+      <img :src="me.avatar || '/default-avatar.svg'" alt="" />
+      <strong>Your LIVE has ended</strong>
+      <div class="summary-grid">
+        <div><strong>{{ summary.duration }}</strong><small>Duration</small></div>
+        <div><strong>{{ summary.peak }}</strong><small>Peak viewers</small></div>
+        <div><strong>{{ fmt(summary.likes) }}</strong><small>Likes</small></div>
+        <div><strong>{{ summary.gifts }}</strong><small>Gifts (PEW)</small></div>
+        <div><strong>{{ summary.giftCount }}</strong><small>Gifts sent</small></div>
+        <div><strong>{{ summary.comments }}</strong><small>Comments</small></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" @click="resetToSetup">Go LIVE again</button>
+        <NuxtLink to="/stream/history" class="btn ghost">History</NuxtLink>
+        <NuxtLink to="/stream" class="btn ghost">Done</NuxtLink>
       </div>
     </div>
 
-    <div v-if="liveAccess && liveAccess.mode === 'trial'" class="trial-banner">
-      Free live trial: <strong>{{ trialClock }}</strong> left.
-      <NuxtLink to="/stream/requirements">See what you need to keep going live</NuxtLink>
-    </div>
-
-    <!-- Main Content -->
-    <div class="stream-container">
-      <!-- Camera Stream Section -->
-      <div class="stream-section">
-        <div class="section-title">
-          <h2>📹 Camera Stream</h2>
-          <span v-if="isLive" class="live-badge">🔴 LIVE</span>
-        </div>
-
-        <MobileCameraStream
-          :stream-id="currentStreamId || undefined"
-          @stream-started="onStreamStarted"
-          @stream-ended="onStreamEnded"
-          @error="onStreamError"
-        />
-      </div>
-
-      <!-- Stream Info Section -->
-      <div class="stream-info-section">
-        <div class="info-card">
-          <h3>Stream Information</h3>
-          
-          <div v-if="isLive" class="stream-stats">
-            <div class="stat-item">
-              <span class="stat-label">👥 Viewers</span>
-              <span class="stat-value">{{ viewerCount }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">⏱️ Duration</span>
-              <span class="stat-value">{{ formatDuration(streamDuration) }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">📊 Bitrate</span>
-              <span class="stat-value">{{ streamStats?.bitrate || 0 }} kbps</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">🎬 FPS</span>
-              <span class="stat-value">{{ streamStats?.frameRate || 0 }}</span>
-            </div>
-          </div>
-
-          <div v-else class="no-stream-info">
-            <p>Start streaming to see live statistics</p>
-          </div>
-        </div>
-
-        <!-- Chat Section -->
-        <div class="chat-section">
-          <h3>💬 Live Chat</h3>
-          <div class="chat-messages">
-            <div v-for="msg in chatMessages" :key="msg.id" class="chat-message">
-              <div class="message-header">
-                <strong>{{ msg.user_id.slice(0, 8) }}</strong>
-                <span class="message-time">{{ formatTime(msg.created_at) }}</span>
-              </div>
-              <p class="message-content">{{ msg.message_text }}</p>
-            </div>
-          </div>
-          <div class="chat-input">
-            <input
-              v-model="chatInput"
-              type="text"
-              placeholder="Send a message..."
-              @keyup.enter="sendChatMessage"
-            />
-            <button @click="sendChatMessage" class="btn-send">Send</button>
-          </div>
-        </div>
+    <div v-if="msgSheet" class="live-sheet-bg" @click.self="msgSheet = null">
+      <div class="live-sheet">
+        <header>{{ msgSheet.user?.name || 'Viewer' }} <button @click="msgSheet = null">✕</button></header>
+        <p class="note" style="color:#cbd5e1">{{ msgSheet.message_text }}</p>
+        <button class="opt" @click="moderate(msgSheet.is_pinned ? 'unpin' : 'pin', msgSheet)">{{ msgSheet.is_pinned ? 'Unpin' : '📌 Pin comment' }}</button>
+        <button class="opt danger" @click="moderate('delete', msgSheet)">Delete comment</button>
+        <button v-if="msgSheet.user_id !== myId" class="opt danger" @click="moderate('mute', msgSheet)">Mute in this LIVE</button>
+        <button v-if="msgSheet.user_id !== myId" class="opt" @click="moderate('unmute', msgSheet)">Unmute</button>
       </div>
     </div>
-
-    <!-- Viewers List -->
-    <div v-if="isLive && viewers.length > 0" class="viewers-section">
-      <h3>👥 Active Viewers ({{ viewers.length }})</h3>
-      <div class="viewers-grid">
-        <div v-for="viewer in viewers" :key="viewer.id" class="viewer-card">
-          <img :src="viewer.avatar" :alt="viewer.username" class="viewer-avatar" />
-          <p class="viewer-name">{{ viewer.username }}</p>
-          <span v-if="viewer.isFollowing" class="following-badge">Following</span>
-        </div>
+    <div v-if="viewersOpen" class="live-sheet-bg" @click.self="viewersOpen = false">
+      <div class="live-sheet">
+        <header>Viewers ({{ room.viewerCount.value }}) <button @click="viewersOpen = false">✕</button></header>
+        <div v-for="v in room.topViewers.value" :key="v.id" class="viewer-row"><img :src="v.avatar || '/default-avatar.svg'" alt="" />{{ v.name }}</div>
+        <p v-if="!room.topViewers.value.length" class="note">No viewers yet. Share your LIVE so people can join.</p>
       </div>
-    </div>
-
-    <!-- Gifts Section -->
-    <div v-if="isLive" class="gifts-section">
-      <h3>🎁 Received Gifts</h3>
-      <div class="gifts-list">
-        <div v-for="gift in receivedGifts" :key="gift.id" class="gift-item">
-          <span class="gift-emoji">{{ gift.emoji }}</span>
-          <div class="gift-info">
-            <p class="gift-sender">{{ gift.senderName }}</p>
-            <p class="gift-name">{{ gift.giftName }} x{{ gift.quantity }}</p>
-          </div>
-          <span class="gift-value">{{ gift.value }} PEW</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Error Message -->
-    <div v-if="errorMessage" class="error-banner">
-      <p>{{ errorMessage }}</p>
-      <button @click="errorMessage = ''" class="btn-close">×</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useUserStore } from '~/stores/user'
-import { api } from '~/lib/api'
-import { useStreamBroadcast } from '~/composables/use-stream-broadcast'
-import MobileCameraStream from '~/components/streaming/mobile-camera-stream.vue'
-import { useStreamBroadcasterPeers } from '~/composables/use-stream-webrtc'
-import { fetchStreamTransport, useWhipPublisher } from '~/composables/use-stream-whip'
+import { useLiveRoom, type LiveEvent } from '~/composables/use-live-room'
+import '~/assets/css/live.css'
 
-definePageMeta({
-  middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'],
-  layout: 'default'
-})
+definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'], layout: false })
+useHead({ title: 'Go LIVE · Viorp' })
+
+interface ChatRow { id: string, user_id: string, message_text: string, is_pinned?: boolean, created_at: string, user: { name: string, avatar_url?: string | null } | null }
+type Phase = 'setup' | 'countdown' | 'live' | 'ending' | 'summary'
 
 const userStore = useUserStore()
-
-// Composables connection
-const { 
-  isLive, 
-  viewerCount: broadcastViewers,
-  streamDuration: broadcastDuration,
-  streamStats: broadcastStats,
-  stopStream
-} = useStreamBroadcast()
-
-const { start: startPublishing, stop: stopPublishing, viewerIds } = useStreamBroadcasterPeers()
-const { publish: publishToMediaServer, stop: stopMediaServer } = useWhipPublisher()
-const transportMode = ref<'mesh' | 'whip'>('mesh')
-
-const currentStreamId = ref<string | null>(null)
+const myId = computed(() => userStore.userId ?? '')
+const me = computed(() => {
+  const p = (userStore.profile ?? {}) as { display_name?: string, full_name?: string, username?: string, avatar_url?: string }
+  return { name: p.display_name || p.full_name || p.username || 'You', avatar: p.avatar_url || null, username: p.username || '' }
+})
+const room = useLiveRoom()
+const videoEl = ref<HTMLVideoElement | null>(null)
+const chatBox = ref<HTMLElement | null>(null)
+const media = shallowRef<MediaStream | null>(null)
+const facing = ref<'user' | 'environment'>('user')
+const canFlip = ref(true)
+const micOn = ref(true)
+const camOn = ref(true)
+const torchOn = ref(false)
+const torchSupported = ref(false)
+const quality = ref<'480' | '720' | '1080'>('720')
+const title = ref('')
+const phase = ref<Phase>('setup')
+const countdown = ref(3)
+const busy = ref(false)
+const error = ref('')
+const camError = ref('')
+const streamId = ref<string | null>(null)
+const startedAt = ref(0)
+const now = ref(Date.now())
+const stats = ref({ bitrate: 0, fps: 0 })
+const messages = ref<ChatRow[]>([])
+const chatInput = ref('')
+const msgSheet = ref<ChatRow | null>(null)
+const viewersOpen = ref(false)
+const giftTotal = ref(0)
+const giftCount = ref(0)
+const peak = ref(0)
+const giftToasts = ref<{ key: number, name: string, avatar: string | null, gift: string, icon: string | null, qty: number, cost: number }[]>([])
+const hearts = ref<{ id: number, x: number, d: number, e: string }[]>([])
+const summary = ref<{ duration: string, peak: number, likes: number, gifts: number, giftCount: number, comments: number } | null>(null)
 const liveAccess = ref<{ mode: string, canGoLive: boolean, trialSecondsLeft: number } | null>(null)
 const trialEndsAt = ref<number | null>(null)
-const trialNow = ref(Date.now())
-let trialTimer: ReturnType<typeof setInterval> | null = null
-const trialSecondsShown = computed(() => {
-  if (!liveAccess.value) return 0
-  if (trialEndsAt.value) return Math.max(0, Math.round((trialEndsAt.value - trialNow.value) / 1000))
-  return liveAccess.value.trialSecondsLeft
-})
-const trialClock = computed(() => `${Math.floor(trialSecondsShown.value / 60)}:${String(trialSecondsShown.value % 60).padStart(2, '0')}`)
-const errorMessage = ref('')
-const viewerCount = ref(0)
-const streamDuration = ref(0)
-const streamStats = ref<any>(null)
-const viewers = ref<any[]>([])
-const receivedGifts = ref<any[]>([])
-const chatMessages = ref<any[]>([])
-const chatInput = ref('')
+let seq = 0
+let tick: ReturnType<typeof setInterval> | null = null
+let statsTimer: ReturnType<typeof setInterval> | null = null
 
-// Keep composable state bound to viewable metrics
-watch(broadcastViewers, (val) => { viewerCount.value = val })
-watch(broadcastDuration, (val) => { streamDuration.value = val })
-watch(broadcastStats, (val) => { streamStats.value = val })
+const fmt = (v: number) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : String(v ?? 0)
+const mmss = (s: number) => `${Math.floor(s / 3600) ? Math.floor(s / 3600) + ':' : ''}${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+const clock = computed(() => startedAt.value ? mmss((now.value - startedAt.value) / 1000) : '00:00')
+const trialSecondsShown = computed(() => trialEndsAt.value ? Math.max(0, Math.round((trialEndsAt.value - now.value) / 1000)) : (liveAccess.value?.trialSecondsLeft ?? 0))
+const trialClock = computed(() => mmss(trialSecondsShown.value))
+const pinned = computed(() => messages.value.find(m => m.is_pinned) ?? null)
+const msgOf = (e: unknown, fallback: string) => (e as { data?: { statusMessage?: string }, message?: string })?.data?.statusMessage || (e as Error)?.message || fallback
 
-// Stream Lifecycle
-const onStreamStarted = async (config: any) => {
+const DIMS = { 480: [854, 480], 720: [1280, 720], 1080: [1920, 1080] } as const
+const startCamera = async () => {
+  camError.value = ''
+  const [w, h] = DIMS[Number(quality.value) as 480 | 720 | 1080]
   try {
-    // Using unified API client
-    const response = await api<{ success: boolean; data: { id: string } }>('/stream', {
-      method: 'POST',
-      body: {
-        action: 'create',
-        title: config.title || await $fetch<{ data: { defaultTitle?: string } }>('/api/stream/settings').then(r => r.data.defaultTitle).catch(() => '') || `${userStore.profile?.username || 'Live'} stream`,
-        description: config.category
-      }
+    const next = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing.value, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: 30 } },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     })
-
-    if (response.success) {
-      currentStreamId.value = response.data.id
-      const started = await api<{ access?: { mode: string, trialSecondsLeft: number | null } }>('/stream', { method: 'POST', body: { action: 'start', stream_id: response.data.id } })
-      if (started.access?.mode === 'trial' && started.access.trialSecondsLeft) {
-        trialEndsAt.value = Date.now() + started.access.trialSecondsLeft * 1000
-      }
-
-      const transport = await fetchStreamTransport(response.data.id)
-      transportMode.value = transport.mode
-      if (transport.mode === 'whip') {
-        await publishToMediaServer(transport, config.mediaStream)
-      } else {
-        startPublishing(response.data.id, config.mediaStream)
-      }
-    }
-  } catch (err: any) {
-    if (err?.statusCode === 403 || err?.status === 403 || err?.response?.status === 403) {
-      await navigateTo('/stream/requirements')
-      return
-    }
-    errorMessage.value = `Failed to initialize stream: ${err.message}`
+    next.getAudioTracks().forEach(t => { t.enabled = micOn.value })
+    next.getVideoTracks().forEach(t => { t.enabled = camOn.value })
+    const vt = next.getVideoTracks()[0]
+    torchSupported.value = Boolean((vt?.getCapabilities?.() as { torch?: boolean } | undefined)?.torch)
+    torchOn.value = false
+    const old = media.value
+    media.value = next
+    if (videoEl.value) { videoEl.value.srcObject = next; await videoEl.value.play().catch(() => {}) }
+    if (phase.value === 'live' || phase.value === 'ending') await room.replaceStream(next)
+    old?.getTracks().forEach(t => t.stop())
+    const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
+    canFlip.value = cams.length > 1
+  } catch (e) {
+    camError.value = (e as DOMException)?.name === 'NotAllowedError' ? 'Allow camera and microphone access to go LIVE.' : 'Could not start the camera.'
   }
 }
-
-const onStreamEnded = async () => {
-  try {
-    if (currentStreamId.value) {
-      await api('/stream', {
-        method: 'POST',
-        body: { action: 'end', stream_id: currentStreamId.value }
-      })
-    }
-    await stopStream()
-    stopPublishing()
-    stopMediaServer()
-    currentStreamId.value = null
-  } catch (err: any) {
-    errorMessage.value = `Error closing stream: ${err.message}`
-  }
+const flip = () => { facing.value = facing.value === 'user' ? 'environment' : 'user'; void startCamera() }
+const toggleMic = () => { micOn.value = !micOn.value; media.value?.getAudioTracks().forEach(t => { t.enabled = micOn.value }) }
+const toggleCam = () => { camOn.value = !camOn.value; media.value?.getVideoTracks().forEach(t => { t.enabled = camOn.value }) }
+const toggleTorch = async () => {
+  const t = media.value?.getVideoTracks()[0]
+  if (!t) return
+  try { await t.applyConstraints({ advanced: [{ torch: !torchOn.value } as MediaTrackConstraintSet] }); torchOn.value = !torchOn.value } catch { torchSupported.value = false }
 }
 
-// Mesh viewer count comes from the signalling hub; with a media server the
-// provider owns the audience, so the count stays server-reported.
-watch(viewerIds, (ids) => {
-  if (transportMode.value !== 'mesh') return
-  viewerCount.value = ids.length
-  viewers.value = ids.map((id) => ({ id, username: 'Viewer' }))
+const scrollChat = () => nextTick(() => { if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight })
+const addMessage = (m: ChatRow) => {
+  if (messages.value.some(x => x.id === m.id)) return
+  messages.value = [...messages.value, m].slice(-150)
+  scrollChat()
+}
+const burst = (n: number) => {
+  const emojis = ['❤️', '💖', '💕', '💗', '🧡', '💜']
+  for (let i = 0; i < Math.min(n, 8); i++) {
+    const id = ++seq
+    hearts.value.push({ id, x: Math.random() * 40, d: 1800 + Math.random() * 1200, e: emojis[id % emojis.length]! })
+    setTimeout(() => { hearts.value = hearts.value.filter(h => h.id !== id) }, 3200)
+  }
+}
+room.on((e: LiveEvent) => {
+  if (e.type === 'chat' && e.message) addMessage(e.message as ChatRow)
+  else if (e.type === 'likes' && e.delta) burst(Number(e.delta))
+  else if (e.type === 'viewers') peak.value = Math.max(peak.value, Number(e.count) || 0)
+  else if (e.type === 'replaced') { error.value = 'This LIVE was opened on another device.'; room.disconnect() }
+  else if (e.type === 'gift') {
+    if (e.recipientId === myId.value) { giftTotal.value = Math.round((giftTotal.value + Number(e.totalCost || 0)) * 100) / 100; giftCount.value += Number(e.quantity || 1) }
+    const key = ++seq
+    giftToasts.value = [...giftToasts.value, { key, name: e.sender?.name || 'Someone', avatar: e.sender?.avatar_url ?? null, gift: e.gift?.name || 'a gift', icon: e.gift?.iconUrl ?? null, qty: e.quantity || 1, cost: Number(e.totalCost || 0) }].slice(-3)
+    setTimeout(() => { giftToasts.value = giftToasts.value.filter(g => g.key !== key) }, 4500)
+    burst(6)
+  } else if (e.type === 'moderation') {
+    if (e.action === 'delete') messages.value = messages.value.filter(m => m.id !== e.messageId)
+    else if (e.action === 'pin' || e.action === 'unpin') messages.value = messages.value.map(m => ({ ...m, is_pinned: e.action === 'pin' ? m.id === e.messageId : (m.id === e.messageId ? false : m.is_pinned) }))
+  }
 })
 
-interface StreamChatRow { id: string; user_id: string; message_text: string; created_at: string }
-
-let chatPoll: ReturnType<typeof setInterval> | null = null
-
-const loadChat = async () => {
-  if (!currentStreamId.value) return
+const goLive = async () => {
+  if (!media.value) return
+  error.value = ''
+  busy.value = true
+  phase.value = 'countdown'
+  for (countdown.value = 3; countdown.value > 0; countdown.value--) await new Promise(r => setTimeout(r, 1000))
   try {
-    const res = await api<{ success: boolean; data: StreamChatRow[] }>(
-      `/stream/${currentStreamId.value}/chat?limit=50`
-    )
-    chatMessages.value = [...(res.data || [])].reverse()
-  } catch (err) {
-    console.error('Stream chat load failed:', err)
+    const defaultTitle = await $fetch<{ data: { defaultTitle?: string } }>('/api/stream/settings').then(r => r.data.defaultTitle).catch(() => '')
+    const created = await $fetch<{ data: { id: string } }>('/api/stream', { method: 'POST', body: { action: 'create', title: title.value.trim() || defaultTitle || `${me.value.name} is LIVE` } })
+    streamId.value = created.data.id
+    const started = await $fetch<{ access?: { mode: string, trialSecondsLeft: number | null } }>('/api/stream', { method: 'POST', body: { action: 'start', stream_id: created.data.id } })
+    trialEndsAt.value = started.access?.mode === 'trial' && started.access.trialSecondsLeft ? Date.now() + started.access.trialSecondsLeft * 1000 : null
+    await room.connect(created.data.id, 'broadcaster', media.value)
+    startedAt.value = Date.now()
+    messages.value = []
+    giftTotal.value = 0; giftCount.value = 0; peak.value = 0
+    phase.value = 'live'
+    statsTimer = setInterval(async () => { stats.value = await room.sampleStats() }, 2000)
+  } catch (e) {
+    const status = (e as { statusCode?: number }).statusCode
+    if (status === 403) { await navigateTo('/stream/requirements'); return }
+    error.value = msgOf(e, 'Could not start your LIVE')
+    if (streamId.value) await $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: streamId.value } }).catch(() => {})
+    room.disconnect()
+    streamId.value = null
+    phase.value = 'setup'
+  } finally { busy.value = false }
+}
+
+const endLive = async () => {
+  busy.value = true
+  const id = streamId.value
+  const duration = startedAt.value ? mmss((Date.now() - startedAt.value) / 1000) : '00:00'
+  const likes = room.likes.value
+  try { if (id) await $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: id } }) } catch (e) { error.value = msgOf(e, 'Could not end the LIVE') }
+  if (statsTimer) clearInterval(statsTimer)
+  room.disconnect()
+  summary.value = { duration, peak: peak.value, likes, gifts: giftTotal.value, giftCount: giftCount.value, comments: messages.value.length }
+  if (id) {
+    const s = await $fetch<{ data?: { totalGiftValue?: number, chatMessageCount?: number, peakViewerCount?: number } }>(`/api/stream/${id}/stats`).catch(() => null)
+    if (s?.data?.totalGiftValue != null) summary.value.gifts = Number(s.data.totalGiftValue)
+    if (s?.data?.chatMessageCount != null) summary.value.comments = Number(s.data.chatMessageCount)
+    if (s?.data?.peakViewerCount) summary.value.peak = Math.max(summary.value.peak, Number(s.data.peakViewerCount))
   }
+  streamId.value = null
+  startedAt.value = 0
+  trialEndsAt.value = null
+  phase.value = 'summary'
+  busy.value = false
 }
+const resetToSetup = () => { summary.value = null; phase.value = 'setup'; void startCamera() }
 
-watch(currentStreamId, (id) => {
-  if (chatPoll) clearInterval(chatPoll)
-  if (!id) return
-  void loadChat()
-  chatPoll = setInterval(loadChat, 4000)
-})
-
-const onStreamError = (message: string) => {
-  errorMessage.value = message
-}
-
-const formatDuration = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-const formatTime = (timestamp: string | number | Date): string => {
-  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-const sendChatMessage = async () => {
-  if (!chatInput.value.trim() || !currentStreamId.value) return
+const sendChat = async () => {
+  const content = chatInput.value.trim()
+  if (!content || !streamId.value) return
+  chatInput.value = ''
   try {
-    await api(`/stream/${currentStreamId.value}/chat`, {
-      method: 'POST',
-      body: { content: chatInput.value }
-    })
-    chatInput.value = ''
-    await loadChat()
-  } catch (err) {
-    console.error('Chat error:', err)
-  }
+    const r = await $fetch<{ data: ChatRow }>(`/api/stream/${streamId.value}/chat`, { method: 'POST', body: { content } })
+    if (r.data) addMessage(r.data)
+  } catch (e) { error.value = msgOf(e, 'Could not send'); chatInput.value = content }
+}
+const moderate = async (action: 'pin' | 'unpin' | 'delete' | 'mute' | 'unmute', m: ChatRow) => {
+  msgSheet.value = null
+  if (!streamId.value) return
+  try { await $fetch(`/api/stream/${streamId.value}/moderate`, { method: 'POST', body: { action, messageId: m.id, userId: m.user_id } }) } catch (e) { error.value = msgOf(e, 'Action failed') }
+}
+
+const endOnUnload = () => {
+  if (!streamId.value) return
+  navigator.sendBeacon?.('/api/stream', new Blob([JSON.stringify({ action: 'end', stream_id: streamId.value })], { type: 'application/json' }))
 }
 
 onMounted(async () => {
-  // Ensure profile is hydrated for streaming identity
-  if (!userStore.user) await userStore.fetchProfile()
+  if (!userStore.profile) await userStore.fetchProfile?.()
   try {
     const res = await $fetch<{ data: { mode: string, canGoLive: boolean, trialSecondsLeft: number } }>('/api/stream/live-access')
     liveAccess.value = res.data
-    if (!res.data.canGoLive) {
-      await navigateTo('/stream/requirements', { replace: true })
-      return
-    }
-  } catch (err) {
-    console.error('[Broadcast] live access check failed', err)
-  }
-  trialTimer = setInterval(() => {
-    trialNow.value = Date.now()
-    if (trialEndsAt.value && trialNow.value >= trialEndsAt.value && currentStreamId.value) {
+    if (!res.data.canGoLive) { await navigateTo('/stream/requirements', { replace: true }); return }
+  } catch (e) { console.error('[Go LIVE] access check failed', e) }
+  await startCamera()
+  window.addEventListener('pagehide', endOnUnload)
+  tick = setInterval(() => {
+    now.value = Date.now()
+    if (trialEndsAt.value && now.value >= trialEndsAt.value && streamId.value) {
       trialEndsAt.value = null
-      errorMessage.value = 'Your free live trial has ended.'
-      void onStreamEnded().then(() => navigateTo('/stream/requirements'))
+      error.value = 'Your free live trial has ended.'
+      void endLive().then(() => { void navigateTo('/stream/requirements') })
     }
   }, 1000)
 })
-
-onUnmounted(() => {
-  if (trialTimer) clearInterval(trialTimer)
-  stopPublishing()
-  stopMediaServer()
-  if (chatPoll) clearInterval(chatPoll)
+onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', endOnUnload)
+  if (tick) clearInterval(tick)
+  if (statsTimer) clearInterval(statsTimer)
+  if (streamId.value) void $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: streamId.value } }).catch(() => {})
+  room.disconnect()
+  media.value?.getTracks().forEach(t => t.stop())
 })
 </script>
-
-<style scoped>
-.stream-page {
-  padding: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  color: var(--text-primary, #f0fffb);
-}
-
-.stream-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-dark-grey, #1f2937);
-}
-
-.header-content h1 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  margin: 0;
-}
-
-.subtitle {
-  color: rgba(240, 255, 251, 0.65);
-  margin: 0.5rem 0 0 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn-secondary {
-  padding: 0.5rem 1rem;
-  color: var(--text-primary, #f0fffb);
-  background-color: var(--color-dark-grey, #1f2937);
-  border: 1px solid var(--color-dark-grey, #1f2937);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-  background-color: #253044;
-}
-
-.stream-container {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.stream-section {
-  background: var(--bg-card, #0a0f1e);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.section-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.section-title h2 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.live-badge {
-  background-color: #ef4444;
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.stream-info-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.info-card {
-  background: var(--bg-card, #0a0f1e);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.info-card h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-}
-
-.stream-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: rgba(240, 255, 251, 0.65);
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary, #f0fffb);
-}
-
-.no-stream-info {
-  color: rgba(240, 255, 251, 0.65);
-  text-align: center;
-  padding: 1rem;
-}
-
-.chat-section {
-  background: var(--bg-card, #0a0f1e);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  height: 400px;
-}
-
-.chat-section h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  padding: 0.5rem;
-}
-
-.chat-message {
-  margin-bottom: 0.75rem;
-  padding: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.03);
-  border-radius: 0.375rem;
-}
-
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-}
-
-.message-header strong {
-  font-size: 0.875rem;
-}
-
-.message-time {
-  font-size: 0.75rem;
-  color: rgba(240, 255, 251, 0.5);
-}
-
-.message-content {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--text-primary, #f0fffb);
-}
-
-.chat-input {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.chat-input input {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid var(--color-dark-grey, #1f2937);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-}
-
-.btn-send {
-  padding: 0.5rem 1rem;
-  background-color: var(--color-aurora-mint, #6fffd4);
-  color: var(--text-on-accent, #0a0f1e);
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-}
-
-.btn-send:hover {
-  background-color: #5be6c0;
-}
-
-.viewers-section {
-  background: var(--bg-card, #0a0f1e);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
-}
-
-.viewers-section h3 {
-  margin: 0 0 1rem 0;
-}
-
-.viewers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 1rem;
-}
-
-.viewer-card {
-  text-align: center;
-  padding: 0.75rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-}
-
-.viewer-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  margin-bottom: 0.5rem;
-  object-fit: cover;
-}
-
-.viewer-name {
-  margin: 0.5rem 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.following-badge {
-  display: inline-block;
-  background-color: rgba(111, 255, 212, 0.15);
-  color: var(--color-aurora-mint, #6fffd4);
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-}
-
-.gifts-section {
-  background: var(--bg-card, #0a0f1e);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
-}
-
-.gifts-section h3 {
-  margin: 0 0 1rem 0;
-}
-
-.gifts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.gift-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  background-color: rgba(255, 200, 87, 0.15);
-  border-radius: 0.375rem;
-}
-
-.gift-emoji {
-  font-size: 1.5rem;
-}
-
-.gift-info {
-  flex: 1;
-}
-
-.gift-sender {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.gift-name {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.75rem;
-  color: rgba(240, 255, 251, 0.65);
-}
-
-.gift-value {
-  font-weight: 600;
-  color: var(--color-solar-gold, #ffc857);
-}
-
-.error-banner {
-  background-color: rgba(255, 46, 136, 0.15);
-  border: 1px solid #fecaca;
-  border-radius: 0.375rem;
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 1rem;
-}
-
-.error-banner p {
-  margin: 0;
-  color: var(--color-error-pink, #ff2e88);
-  font-size: 0.875rem;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-error-pink, #ff2e88);
-}
-
-@media (max-width: 768px) {
-  .stream-container {
-    grid-template-columns: 1fr;
-  }
-
-  .header-actions {
-    flex-direction: column;
-  }
-
-  .viewers-grid {
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  }
-}
-.trial-banner { margin: 0 1rem 1rem; padding: 0.6rem 1rem; border-radius: 12px; background: rgba(217, 119, 6, 0.15); border: 1px solid #d97706; color: #fde68a; font-size: 0.9rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-.trial-banner a { color: #fbbf24; text-decoration: underline; }
-</style>

@@ -178,4 +178,19 @@ h1 {
   font-size: 0.8rem;
   color: #94a3b8;
 }
+.live-directory { padding: 0.75rem; }
+.directory-header { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.directory-header h1 { margin: 0; font-size: 1.3rem; }
+.header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.btn-primary { background: linear-gradient(90deg, #ef4444, #ec4899) !important; border-radius: 999px !important; font-weight: 700; }
+.stream-grid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important; gap: 0.5rem !important; }
+.stream-card { position: relative; display: block; aspect-ratio: 9 / 16; border-radius: 12px; overflow: hidden; background: linear-gradient(160deg, #1e293b, #0f172a); text-decoration: none; color: #fff; }
+.stream-card .thumb { position: absolute; inset: 0; height: auto !important; background: none !important; display: flex; justify-content: space-between; align-items: flex-start; padding: 0.4rem; }
+.stream-card .live-badge { background: #ef4444; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
+.stream-card .viewers { background: #0008; font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; }
+.stream-card .meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.5rem; display: flex; gap: 0.4rem; align-items: center; background: linear-gradient(transparent, #000c); }
+.stream-card .meta h2 { font-size: 0.8rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stream-card .meta > div { min-width: 0; }
+.stream-card .creator { font-size: 0.7rem; margin: 0; opacity: 0.8; }
+.stream-card .creator-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #ef4444; }
 </style>

@@ -4,7 +4,6 @@
 // validation, and admin/utility stubs with strict typecheck compliance.
 
 import { createError, type H3Event } from 'h3'
-import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from './auth-bouncer'
 
 // Small validation helper expected by various endpoints during migration.
@@ -44,19 +43,12 @@ export const premiumOperations = {
 // caller's `profiles.role` is `admin`.
 export async function requireAdmin(event: H3Event): Promise<{ id: string }> {
   const user = await requireAuth(event)
-
-  const client = await serverSupabaseClient(event)
-  const { data: profile } = await client
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const role = (profile as { role?: string | null } | null)?.role
-  if (role !== 'admin') {
+  // Staff roles live on public."user" (same source as requireStaff); read with the service role so RLS can't hide them.
+  const { loadStaff } = await import('~/server/utils/staff')
+  const staff = await loadStaff(user.id)
+  if (staff?.role !== 'admin') {
     throw createError({ statusCode: 403, statusMessage: 'Admin access required' })
   }
-
   return { id: user.id }
 }
 

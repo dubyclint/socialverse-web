@@ -1,109 +1,102 @@
 import { defineWebSocketHandler } from 'h3'
+import {
+  broadcastToStream, dropRoomIfEmpty, ensureLikesLoaded, liveUserCard, roomOf, existingRoom,
+  scheduleViewerUpdate, startLikeFlusher, verifyLiveToken, type LivePeer
+} from '~/server/utils/stream-hub'
 
 /**
- * WebRTC signalling hub for a stream: the broadcaster publishes to each viewer
- * directly (mesh), this relay only carries offers, answers and ICE candidates.
+ * Live room socket. Joining needs a signed token from /api/stream/:id/transport,
+ * so only the stream owner can take the broadcaster seat. Carries WebRTC mesh
+ * signalling plus presence and likes; chat/gifts/moderation are pushed by the API.
  */
-type Role = 'broadcaster' | 'viewer'
+interface WsPeer { id: string, send: (data: string) => void, request?: { url?: string }, url?: string }
 
-interface StreamPeer {
-  id: string
-  role: Role
-  send: (payload: unknown) => void
-}
-
-interface StreamRoom {
-  broadcaster: StreamPeer | null
-  viewers: Map<string, StreamPeer>
-}
-
-interface Peer {
-  id: string
-  send: (data: string) => void
-  request?: { url?: string }
-  url?: string
-}
-
-const rooms = new Map<string, StreamRoom>()
 const peerRooms = new Map<string, { streamId: string, peerId: string }>()
 
-const roomOf = (streamId: string): StreamRoom => {
-  let room = rooms.get(streamId)
-  if (!room) {
-    room = { broadcaster: null, viewers: new Map() }
-    rooms.set(streamId, room)
-  }
-  return room
-}
-
-const streamIdOf = (peer: Peer): string | null => {
+const streamIdOf = (peer: WsPeer): string | null => {
   const raw = peer.url || peer.request?.url || ''
-  const match = raw.match(/\/api\/stream\/([^/]+)\/ws/)
-  return match?.[1] ?? null
+  return raw.match(/\/api\/stream\/([^/?]+)\/ws/)?.[1] ?? null
 }
 
-const leave = (peerKey: string) => {
-  const entry = peerRooms.get(peerKey)
+const leave = (key: string) => {
+  const entry = peerRooms.get(key)
   if (!entry) return
-  peerRooms.delete(peerKey)
-
-  const room = rooms.get(entry.streamId)
+  peerRooms.delete(key)
+  const room = existingRoom(entry.streamId)
   if (!room) return
-
-  if (room.broadcaster?.id === entry.peerId) {
+  if (room.broadcaster?.key === key) {
     room.broadcaster = null
-    room.viewers.forEach(viewer => viewer.send({ type: 'broadcaster-left' }))
-  } else if (room.viewers.delete(entry.peerId)) {
+    room.viewers.forEach(v => v.send({ type: 'broadcaster-left' }))
+  } else if (room.viewers.get(entry.peerId)?.key === key) {
+    room.viewers.delete(entry.peerId)
     room.broadcaster?.send({ type: 'viewer-left', viewerId: entry.peerId })
+    scheduleViewerUpdate(room)
   }
-
-  if (!room.broadcaster && room.viewers.size === 0) rooms.delete(entry.streamId)
+  dropRoomIfEmpty(room)
 }
 
 export default defineWebSocketHandler({
-  message(peer, message) {
-    const streamId = streamIdOf(peer as unknown as Peer)
+  async message(rawPeer, message) {
+    const peer = rawPeer as unknown as WsPeer
+    const streamId = streamIdOf(peer)
     if (!streamId) return
+    let data: { type?: string, token?: string, peerId?: string, to?: string, payload?: unknown, n?: number }
+    try { data = JSON.parse(message.text()) } catch { return }
+    const send = (payload: unknown) => { try { peer.send(JSON.stringify(payload)) } catch { /* closed */ } }
 
-    let data: { type?: string, role?: Role, peerId?: string, to?: string, payload?: unknown }
-    try {
-      data = JSON.parse(message.text())
-    } catch {
-      return
-    }
-
-    const room = roomOf(streamId)
-    const send = (payload: unknown) => peer.send(JSON.stringify(payload))
-
-    if (data.type === 'join' && data.peerId) {
-      const entry: StreamPeer = { id: data.peerId, role: data.role === 'broadcaster' ? 'broadcaster' : 'viewer', send }
-      peerRooms.set(peer.id, { streamId, peerId: data.peerId })
-
-      if (entry.role === 'broadcaster') {
+    if (data.type === 'join') {
+      const auth = verifyLiveToken(data.token, streamId)
+      const peerId = typeof data.peerId === 'string' ? data.peerId.slice(0, 40) : ''
+      if (!auth || !peerId) return send({ type: 'error', message: 'Not allowed to join this live' })
+      startLikeFlusher()
+      const room = roomOf(streamId)
+      await ensureLikesLoaded(room)
+      const card = await liveUserCard(auth.userId)
+      const entry: LivePeer = { key: peer.id, peerId, userId: auth.userId, role: auth.role, name: card.name || 'Viewer', avatar: card.avatar_url ?? null, send, likeWindowStart: 0, likeWindowCount: 0 }
+      peerRooms.set(peer.id, { streamId, peerId })
+      if (auth.role === 'broadcaster') {
+        if (room.broadcaster && room.broadcaster.key !== peer.id) room.broadcaster.send({ type: 'replaced' })
         room.broadcaster = entry
-        room.viewers.forEach(viewer => viewer.send({ type: 'broadcaster-ready' }))
-        send({ type: 'joined', role: 'broadcaster', viewers: Array.from(room.viewers.keys()) })
-        return
+        room.viewers.forEach(v => v.send({ type: 'broadcaster-ready' }))
+        send({ type: 'joined', role: 'broadcaster', viewers: Array.from(room.viewers.keys()), likes: room.likes })
+      } else {
+        room.viewers.set(peerId, entry)
+        room.broadcaster?.send({ type: 'viewer-joined', viewerId: peerId })
+        send({ type: 'joined', role: 'viewer', broadcasterOnline: Boolean(room.broadcaster), likes: room.likes })
       }
-
-      room.viewers.set(entry.id, entry)
-      room.broadcaster?.send({ type: 'viewer-joined', viewerId: entry.id })
-      send({ type: 'joined', role: 'viewer', broadcasterOnline: Boolean(room.broadcaster) })
+      scheduleViewerUpdate(room)
       return
     }
+
+    const entry = peerRooms.get(peer.id)
+    if (!entry || entry.streamId !== streamId) return
+    const room = roomOf(streamId)
 
     if (data.type === 'signal' && data.to) {
-      const target = room.broadcaster?.id === data.to ? room.broadcaster : room.viewers.get(data.to)
-      const from = peerRooms.get(peer.id)?.peerId
-      if (target && from) target.send({ type: 'signal', from, payload: data.payload })
+      const target = room.broadcaster?.peerId === data.to ? room.broadcaster : room.viewers.get(data.to)
+      // Viewers may only signal the broadcaster; the broadcaster may signal any viewer.
+      const fromBroadcaster = room.broadcaster?.key === peer.id
+      if (target && (fromBroadcaster || target === room.broadcaster)) target.send({ type: 'signal', from: entry.peerId, payload: data.payload })
+      return
     }
-  },
 
-  close(peer) {
-    leave(peer.id)
-  },
+    if (data.type === 'like') {
+      const self = room.broadcaster?.key === peer.id ? room.broadcaster : room.viewers.get(entry.peerId)
+      if (!self) return
+      const now = Date.now()
+      if (now - self.likeWindowStart > 1000) { self.likeWindowStart = now; self.likeWindowCount = 0 }
+      const n = Math.min(10, Math.max(1, Math.floor(Number(data.n) || 1)))
+      if (self.likeWindowCount + n > 20) return
+      self.likeWindowCount += n
+      room.likes += n
+      room.pendingLikes += n
+      return
+    }
 
-  error(peer) {
-    leave(peer.id)
-  }
+    if (data.type === 'ping') send({ type: 'pong' })
+  },
+  close(peer) { leave(peer.id) },
+  error(peer) { leave(peer.id) }
 })
+
+export { broadcastToStream }

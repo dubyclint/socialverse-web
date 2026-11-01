@@ -5,6 +5,7 @@ import { enforceRateLimit } from '~/server/utils/rate-limit'
 import type { Database } from '~/types/database.types'
 import { assertAllowed } from '~/server/utils/staff'
 import { loadHostStreamPrefs } from '~/server/utils/stream-settings'
+import { broadcastToStream, liveUserCard } from '~/server/utils/stream-hub'
 
 interface SendGiftToStreamRequest {
   streamId: string
@@ -69,11 +70,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await supabase.from('stream_chats').insert({
+  const { data: chatRow } = await supabase.from('stream_chats').insert({
     stream_id: body.streamId,
     user_id: user.id,
     message_text: body.message || (receipt.split ? `🎁 Sent a ${gift.name} (80% to the host)` : `🎁 Sent a ${gift.name}!`)
+  }).select('id, stream_id, user_id, message_text, is_pinned, created_at').single()
+  const sender = await liveUserCard(user.id)
+  broadcastToStream(body.streamId, {
+    type: 'gift',
+    gift: { id: gift.id, name: gift.name, tier: gift.tier, iconUrl: gift.icon_url },
+    quantity: body.quantity ?? 1,
+    totalCost: receipt.total_cost,
+    recipientId: body.streamerId,
+    sender
   })
+  if (chatRow) broadcastToStream(body.streamId, { type: 'chat', message: { ...chatRow, user: sender } })
 
   return {
     success: true,

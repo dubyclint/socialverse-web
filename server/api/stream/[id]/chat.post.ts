@@ -4,6 +4,8 @@ import type { Database } from '~/types/database.types'
 import { assertAllowed } from '~/server/utils/staff'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
 import { loadHostStreamPrefs } from '~/server/utils/stream-settings'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { broadcastToStream, liveUserCard } from '~/server/utils/stream-hub'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -22,6 +24,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'The host has turned off chat for this stream' })
   }
 
+  if (hostId !== user.id) {
+    const { data: muted } = await getServiceClient().from('stream_mutes' as never).select('user_id').eq('stream_id', streamId).eq('user_id', user.id).maybeSingle()
+    if (muted) throw createError({ statusCode: 403, statusMessage: 'The host muted you in this live' })
+  }
+
   const supabase = await serverSupabaseClient<Database>(event)
 
   const { data: message, error } = await supabase
@@ -32,5 +39,7 @@ export default defineEventHandler(async (event) => {
 
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
-  return { success: true, data: message }
+  const withUser = { ...message, user: await liveUserCard(user.id) }
+  broadcastToStream(streamId, { type: 'chat', message: withUser })
+  return { success: true, data: withUser }
 })

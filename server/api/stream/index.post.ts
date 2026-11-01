@@ -3,6 +3,7 @@ import { StreamModel } from '~/server/models/stream'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { assertAllowed } from '~/server/utils/staff'
 import { getLiveEligibility } from '~/server/utils/live-access'
+import { broadcastToStream } from '~/server/utils/stream-hub'
 
 type StreamAction = 'create' | 'start' | 'end' | 'viewers'
 
@@ -85,7 +86,9 @@ export default defineEventHandler(async (event) => {
   }
 
   if (action === 'end') {
-    return { success: true, message: 'Stream ended', data: await StreamModel.endStream(streamId) }
+    const ended = await StreamModel.endStream(streamId)
+    broadcastToStream(streamId, { type: 'ended' })
+    return { success: true, message: 'Stream ended', data: ended }
   }
 
   if (action === 'viewers') {

@@ -12,13 +12,20 @@
     <p v-if="error" class="alert error">{{ error }}</p>
     <p v-if="notice" class="alert ok">{{ notice }}</p>
 
+    <div class="status-box">
+      <p><strong>Active now:</strong> {{ activeLabel }}</p>
+      <p>Cloudflare Stream credentials: <strong :class="status.cloudflareConfigured ? 'ok-t' : 'bad-t'">{{ status.cloudflareConfigured ? 'configured' : 'missing' }}</strong></p>
+      <p>TURN relay (needed for peer-to-peer on mobile networks): <strong :class="status.turnConfigured ? 'ok-t' : 'bad-t'">{{ status.turnConfigured ? 'configured' : 'missing' }}</strong></p>
+      <p v-if="form.provider === 'cloudflare' && !status.cloudflareConfigured" class="hint">Cloudflare is selected but its credentials are missing, so streams run peer-to-peer until they are added.</p>
+    </div>
+
     <form class="config-form" @submit.prevent="save">
       <label>
         <span>Transport</span>
         <select v-model="form.provider">
-          <option value="mesh">Browser mesh (development / small rooms)</option>
-          <option value="cloudflare">Cloudflare Stream (scales to large audiences)</option>
-          <option value="whip">Other WHIP / WHEP media server</option>
+          <option value="mesh">Peer-to-peer (no media server · best under ~20 viewers)</option>
+          <option value="cloudflare">Cloudflare Stream (recommended · large audiences)</option>
+          <option value="whip">Custom WHIP / WHEP media server</option>
         </select>
       </label>
 
@@ -61,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion'],
@@ -84,6 +91,13 @@ const form = reactive<StreamingConfig>({
   bearer_token: ''
 })
 
+const status = reactive({ cloudflareConfigured: false, turnConfigured: false })
+const saved = ref<StreamingConfig['provider']>('mesh')
+const activeLabel = computed(() => {
+  if (saved.value === 'cloudflare') return status.cloudflareConfigured ? 'Cloudflare Stream' : 'Peer-to-peer (Cloudflare credentials missing)'
+  if (saved.value === 'whip') return 'Custom WHIP / WHEP media server'
+  return 'Peer-to-peer'
+})
 const saving = ref(false)
 const error = ref('')
 const notice = ref('')
@@ -93,8 +107,10 @@ const message = (err: unknown, fallback: string) =>
 
 onMounted(async () => {
   try {
-    const res = await $fetch<{ data: StreamingConfig }>('/api/admin/streaming-config')
+    const res = await $fetch<{ data: StreamingConfig, status?: { cloudflareConfigured: boolean, turnConfigured: boolean } }>('/api/admin/streaming-config')
     Object.assign(form, res.data)
+    saved.value = res.data.provider
+    if (res.status) Object.assign(status, res.status)
   } catch (err) {
     error.value = message(err, 'Failed to load streaming configuration')
   }
@@ -106,7 +122,8 @@ const save = async () => {
   notice.value = ''
   try {
     await $fetch('/api/admin/streaming-config', { method: 'POST', body: { ...form } })
-    notice.value = 'Saved — new streams negotiate over this transport.'
+    saved.value = form.provider
+    notice.value = 'Saved. New LIVEs use this transport.'
   } catch (err) {
     error.value = message(err, 'Failed to save streaming configuration')
   } finally {
@@ -121,6 +138,10 @@ const save = async () => {
   max-width: 720px;
 }
 
+.status-box { margin-top: 1rem; padding: 0.75rem 1rem; border: 1px solid #334155; border-radius: 0.6rem; font-size: 0.85rem; display: grid; gap: 0.25rem; }
+.status-box p { margin: 0; }
+.ok-t { color: #34d399; }
+.bad-t { color: #f87171; }
 .page-header p {
   color: #94a3b8;
   font-size: 0.9rem;

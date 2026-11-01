@@ -1,6 +1,7 @@
 // server/api/stream/[id].get.ts
 import { StreamModel } from '~/server/models/stream'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
+import { liveUserCard } from '~/server/utils/stream-hub'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event) => {
     result = await StreamModel.endStream(id)
   }
 
-    return { success: true, data: result }
+    return { success: true, data: result ? { ...result, creator: await liveUserCard(result.creator_id) } : null }
   } catch (error: any) {
     console.error('[Stream Get] Error:', error)
     throw createError({ statusCode: error.statusCode || 500, statusMessage: error.message || 'Failed to get stream' })

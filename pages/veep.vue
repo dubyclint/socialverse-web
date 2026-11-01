@@ -66,7 +66,7 @@
       <NuxtLink to="/chat">💬<small>Chat</small></NuxtLink>
       <NuxtLink to="/wallet">👛<small>Wallet</small></NuxtLink>
       <NuxtLink to="/posts/create" class="veep-create">＋<small>Create</small></NuxtLink>
-      <NuxtLink to="/live">🔴<small>Live</small></NuxtLink>
+      <NuxtLink to="/stream">🔴<small>Live</small></NuxtLink>
     </nav>
 
     <!-- Comments bottom sheet -->

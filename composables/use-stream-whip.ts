@@ -9,6 +9,7 @@ export interface StreamTransport {
   ingestUrl?: string
   playbackUrl?: string
   token?: string
+  wsToken?: string
 }
 
 export const fetchStreamTransport = async (streamId: string): Promise<StreamTransport> => {

@@ -3,6 +3,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { loadConfig } from '~/server/utils/platform-config'
 import { createCloudflareLiveInput } from '~/server/utils/streaming/cloudflare'
 import type { Database } from '~/types/database.types'
+import { signLiveToken } from '~/server/utils/stream-hub'
 
 /**
  * Streaming transport. `mesh` publishes browser-to-browser and only suits small
@@ -29,6 +30,7 @@ export interface StreamTransport {
   ingestUrl?: string
   playbackUrl?: string
   token?: string
+  wsToken?: string
 }
 
 const withStreamKey = (template: string, streamKey: string, streamId: string) =>
@@ -51,20 +53,21 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
 
   const config = await loadConfig(supabase, 'streaming', DEFAULT_STREAMING)
   const isBroadcaster = stream.creator_id === user.id
+  const wsToken = signLiveToken(stream.id, user.id, isBroadcaster ? 'broadcaster' : 'viewer')
 
   if (config.provider === 'cloudflare') {
     const { cloudflareAccountId, cloudflareStreamToken } = useRuntimeConfig(event)
 
     if (!cloudflareAccountId || !cloudflareStreamToken) {
       // No credentials means no edge fan-out; mesh keeps small rooms working.
-      return { success: true, data: { mode: 'mesh' } }
+      return { success: true, data: { mode: 'mesh', wsToken } }
     }
 
     let ingestUrl = stream.ingest_url
     let playbackUrl = stream.playback_url
 
     if (!playbackUrl) {
-      if (!isBroadcaster) return { success: true, data: { mode: 'mesh' } }
+      if (!isBroadcaster) return { success: true, data: { mode: 'mesh', wsToken } }
 
       const input = await createCloudflareLiveInput(
         cloudflareAccountId,
@@ -93,13 +96,14 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
       data: {
         mode: 'whip',
         ingestUrl: isBroadcaster ? ingestUrl ?? undefined : undefined,
-        playbackUrl: playbackUrl ?? undefined
+        playbackUrl: playbackUrl ?? undefined,
+        wsToken
       }
     }
   }
 
   if (config.provider !== 'whip' || !config.whip_ingest_url || !config.whep_playback_url) {
-    return { success: true, data: { mode: 'mesh' } }
+    return { success: true, data: { mode: 'mesh', wsToken } }
   }
 
   return {
@@ -111,7 +115,8 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
         ? withStreamKey(config.whip_ingest_url, stream.stream_key, stream.id)
         : undefined,
       playbackUrl: withStreamKey(config.whep_playback_url, stream.stream_key, stream.id),
-      token: config.bearer_token || undefined
+      token: config.bearer_token || undefined,
+      wsToken
     }
   }
 })
