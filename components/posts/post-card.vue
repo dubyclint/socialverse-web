@@ -27,7 +27,7 @@
       </div>
       <div class="post-menu-wrap">
         <button class="icon-btn" aria-label="Post options" @click="menuOpen = !menuOpen">
-          <Icon name="more-horizontal" size="18" />
+          <Icon name="more-vertical" size="18" />
         </button>
         <ul v-if="menuOpen" class="post-menu" @click="menuOpen = false">
           <li v-if="isMine"><button type="button" @click="editing = true"><Icon name="edit" size="14" /> Edit post</button></li>
@@ -631,8 +631,11 @@ const formatTimeAgo = (value: string) => {
 .post-card .post-menu-wrap { margin-left: auto; }
 .post-card .post-menu-wrap .icon-btn { padding: 2px; min-height: 0; min-width: 0; }
 @media (max-width: 768px) {
-  .post-card .post-avatar { width: 30px; height: 30px; }
-  .post-card .post-meta .handle { display: none; }
-  .post-card .post-meta .dot:first-of-type { display: none; }
+  .post-card .post-header { align-items: flex-start; }
+  .post-card .post-avatar { width: 34px; height: 34px; }
+  .post-card .post-identity { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .post-card .author-row { max-width: 100%; }
+  .post-card .post-meta { max-width: 100%; font-size: 0.68rem; }
+  .post-card .post-menu-wrap { align-self: center; }
 }
 </style>
