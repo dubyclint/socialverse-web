@@ -2,6 +2,7 @@ import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { requireAmount, requireUuid } from '~/server/utils/input'
 import { enforceRateLimit } from '~/server/utils/rate-limit'
+import { resolvePayoutName } from '~/server/utils/kyc'
 
 /** P2P withdrawal of `amount` USD from the withdrawable balance (already net of the fee); held in escrow until the seller pays. */
 export default defineEventHandler(async (event) => {
@@ -13,8 +14,9 @@ export default defineEventHandler(async (event) => {
     name: String(body.payout?.name ?? '').trim().slice(0, 120),
     account: String(body.payout?.account ?? '').trim().slice(0, 120),
     bank: String(body.payout?.bank ?? '').trim().slice(0, 120),
-    note: String(body.payout?.note ?? '').trim().slice(0, 300)
+    note: String(body.payout?.note ?? '').trim().slice(0, 300) || 'Viorp earnings/gifts withdrawal'
   }
+  payout.name = await resolvePayoutName(user.id, payout.name)
   if (!payout.name || !payout.account) throw createError({ statusCode: 400, statusMessage: 'Enter the account name and number the seller should pay' })
   await enforceRateLimit(event, 'p2p:withdraw', { limit: 10, windowMs: 60_000 }, user.id)
 

@@ -115,6 +115,7 @@
           </div>
         </section>
 
+        <KycCard v-if="isSelf" />
         <VerificationRequestCard v-if="isSelf" />
         <PlacementAd v-if="!isSelf" placement="profile" :context-text="profile.bio" />
 
@@ -151,6 +152,7 @@ import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import MediaLightbox from '~/components/chat/media-lightbox.vue'
 import { useStaff } from '~/composables/useStaff'
 import VerificationRequestCard from '~/components/verification-request-card.vue'
+import KycCard from '~/components/kyc-card.vue'
 import type { FeedPost } from '~/composables/useSocialFeed'
 import { PROFILE_FIELD_LABELS, isFieldPublic, type PrivateProfileField } from '~/shared/profile-fields'
 

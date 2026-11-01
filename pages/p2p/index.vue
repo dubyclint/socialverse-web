@@ -74,7 +74,10 @@
             <template v-else>
               <p class="sub">Where should {{ m.seller_name }} pay you {{ fmtMoney(m.quote_amount) }} {{ asset }}?</p>
               <div class="row2">
-                <label class="field"><span>Account name</span><input v-model="payout.name" /></label>
+                <label class="field">
+                  <span>Account name <NuxtLink v-if="kycNeeded" :to="kycLink" class="kyc-tick">KYC verify</NuxtLink></span>
+                  <input v-model="payout.name" :readonly="kycLocked" :class="{ 'opacity-70': kycLocked }" :placeholder="kycNeeded ? 'Verify KYC to fill your legal name' : ''" />
+                </label>
                 <label class="field"><span>Account number / wallet</span><input v-model="payout.account" /></label>
               </div>
               <label class="field"><span>Bank or provider</span><input v-model="payout.bank" /></label>
@@ -189,6 +192,14 @@ const picked = ref<Match | null>(null)
 const details = ref<{ method: Method } | null>(null)
 const accepted = ref(false)
 const payout = reactive({ name: '', account: '', bank: '' })
+const kycState = ref<{ kyc: { status: string, legal_name: string | null }, privileged: boolean, user_id: string } | null>(null)
+const kycLocked = computed(() => !kycState.value?.privileged && kycState.value?.kyc.status === 'verified')
+const kycNeeded = computed(() => Boolean(kycState.value) && !kycState.value?.privileged && kycState.value?.kyc.status !== 'verified')
+const kycLink = computed(() => `/profile/${kycState.value?.user_id ?? ''}#kyc`)
+$fetch<NonNullable<typeof kycState.value>>('/api/kyc/status').then((s) => {
+  kycState.value = s
+  if (!s.privileged && s.kyc.status === 'verified' && s.kyc.legal_name) payout.name = s.kyc.legal_name
+}).catch(() => {})
 const trades = ref<Trade[]>([])
 const activeTrade = ref<Trade | null>(null)
 const withdrawable = ref(0)
@@ -390,4 +401,6 @@ onBeforeUnmount(() => { if (ticker) clearInterval(ticker); if (poller) clearInte
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .actions .btn { flex: 1 1 140px; }
 @media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } }
+.kyc-tick { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 9px; line-height: 14px; font-weight: 700; text-decoration: none; animation: kyc-tickle 1.6s ease-in-out infinite; }
+@keyframes kyc-tickle { 0%, 80%, 100% { transform: rotate(0) } 85% { transform: rotate(-8deg) } 90% { transform: rotate(8deg) } 95% { transform: rotate(-4deg) } }
 </style>

@@ -1,4 +1,5 @@
 import { createError, readBody } from 'h3'
+import { resolvePayoutName } from '~/server/utils/kyc'
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { assertAllowed } from '~/server/utils/staff'
@@ -38,6 +39,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Fill in ${missing.join(', ').replace(/_/g, ' ')}` })
   }
 
+  if (method === 'bank') details.account_name = await resolvePayoutName(user.id, details.account_name ?? '')
+  if (!details.note) details.note = 'Viorp earnings/gifts withdrawal'
   const db = getServiceClient()
   const currency = (details.currency || 'USD').toUpperCase()
   const { data: asset } = await db.from('supported_assets').select('code, reference_rate').eq('code', currency).eq('is_enabled', true).maybeSingle()

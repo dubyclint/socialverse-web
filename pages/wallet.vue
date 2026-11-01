@@ -72,6 +72,16 @@ const withdrawForm = reactive({
   note: '',
   agree: false
 })
+const kycState = ref<{ kyc: { status: string, legal_name: string | null }, privileged: boolean, user_id: string } | null>(null)
+const kycLocked = computed(() => !kycState.value?.privileged && kycState.value?.kyc.status === 'verified')
+const kycNeeded = computed(() => Boolean(kycState.value) && !kycState.value?.privileged && kycState.value?.kyc.status !== 'verified')
+const kycLink = computed(() => `/profile/${kycState.value?.user_id ?? ''}#kyc`)
+onMounted(() => {
+  $fetch<NonNullable<typeof kycState.value>>('/api/kyc/status').then((s) => {
+    kycState.value = s
+    if (!s.privileged && s.kyc.status === 'verified' && s.kyc.legal_name) withdrawForm.account_name = s.kyc.legal_name
+  }).catch(() => {})
+})
 const currencies = ref<{ code: string, kind: string, display_name: string, reference_rate: number }[]>([])
 const localPayout = computed(() => {
   const c = currencies.value.find(x => x.code === withdrawForm.currency)
@@ -322,7 +332,10 @@ onMounted(() => {
             <template v-if="withdrawForm.method === 'bank'">
               <input v-model.trim="withdrawForm.bank_name" required placeholder="Bank name" class="wallet-input">
               <input v-model.trim="withdrawForm.account_number" required inputmode="numeric" placeholder="Account number / IBAN" class="wallet-input">
-              <input v-model.trim="withdrawForm.account_name" required placeholder="Account holder name" class="wallet-input">
+              <div class="relative">
+                <input v-model.trim="withdrawForm.account_name" required :readonly="kycLocked" placeholder="Account holder name" class="wallet-input" :class="{ 'opacity-70': kycLocked }">
+                <NuxtLink v-if="kycNeeded" :to="kycLink" class="kyc-tick absolute right-2 top-1/2 -translate-y-1/2">KYC verify</NuxtLink>
+              </div>
               <input v-model.trim="withdrawForm.country" placeholder="Country (optional)" class="wallet-input">
             </template>
             <template v-else>
@@ -364,6 +377,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.kyc-tick { padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 9px; line-height: 14px; font-weight: 700; text-decoration: none; animation: kyc-tickle 1.6s ease-in-out infinite; }
+@keyframes kyc-tickle { 0%, 80%, 100% { transform: translateY(-50%) rotate(0) } 85% { transform: translateY(-50%) rotate(-8deg) } 90% { transform: translateY(-50%) rotate(8deg) } }
 .tiny-check {
   appearance: none;
   -webkit-appearance: none;
