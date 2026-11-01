@@ -25,6 +25,11 @@ export default defineEventHandler(async (event) => {
   // Over-fetch, then keep posts that have media.
   const ranked = await rankPosts(supabase, user.id, limit * 3, page * limit * 3, weights, tab, actingPageId(event), viewerLocale(event))
   const posts = ranked.filter(p => p.media.length > 0).slice(0, limit)
+  if (posts.length) {
+    const { data: flags } = await supabase.from('posts').select('id, allow_download' as never).in('id', posts.map(p => p.id))
+    const allow = new Map(((flags ?? []) as unknown as { id: string, allow_download: boolean | null }[]).map(f => [f.id, f.allow_download !== false]))
+    for (const p of posts) Object.assign(p, { allow_download: allow.get(p.id) ?? true, is_mine: p.author?.id === user.id })
+  }
   const startId = typeof q.start === 'string' ? q.start : null
   if (startId && page === 0 && !posts.some(p => p.id === startId)) {
     const { data: one } = await supabase.from('posts').select('id').eq('id', startId).maybeSingle()

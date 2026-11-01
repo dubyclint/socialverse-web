@@ -33,6 +33,7 @@
             <button :class="{ saved: saved.has(it.post.id) }" @click="toggleSave(it.post)"><span class="ic">🔖</span><small>{{ saved.has(it.post.id) ? 'Saved' : 'Save' }}</small></button>
             <button @click="share(it.post)"><span class="ic">↗</span><small>{{ n(it.post.shares_count) }}</small></button>
             <button @click="giftFor = it.post"><span class="ic">🎁</span><small>{{ n(it.post.gifts_count) }}</small></button>
+            <button v-if="dl(it.post).allow_download !== false" @click="download(it.post)"><span class="ic">⬇</span><small>Save</small></button>
             <button @click="muted = !muted"><span class="ic">{{ muted ? '🔇' : '🔊' }}</span></button>
           </div>
           <button class="veep-meatball" aria-label="More" @click="menuFor = it.post">•••</button>
@@ -64,6 +65,7 @@
       <NuxtLink to="/feed">🏠<small>Home</small></NuxtLink>
       <NuxtLink to="/chat">💬<small>Chat</small></NuxtLink>
       <NuxtLink to="/wallet">👛<small>Wallet</small></NuxtLink>
+      <NuxtLink to="/posts/create" class="veep-create">＋<small>Create</small></NuxtLink>
       <NuxtLink to="/live">🔴<small>Live</small></NuxtLink>
     </nav>
 
@@ -94,6 +96,9 @@
         <header>Options <button @click="menuFor = null">✕</button></header>
         <label class="opt">Quality
           <select v-model="quality"><option value="auto">Auto</option><option value="data">Data saver</option><option value="high">High</option></select>
+        </label>
+        <label v-if="dl(menuFor).is_mine" class="opt">Allow viewers to download
+          <input type="checkbox" class="dl-tick" :checked="dl(menuFor).allow_download !== false" @change="setDownload(menuFor, ($event.target as HTMLInputElement).checked)" />
         </label>
         <NuxtLink class="opt" :to="`/support?post=${menuFor.id}`">Support / report</NuxtLink>
         <button class="opt" @click="report(menuFor)">Report this veep</button>
@@ -137,7 +142,7 @@ const page = ref(0)
 const hasMore = ref(true)
 const loading = ref(false)
 const active = ref(0)
-const muted = ref(true)
+const muted = ref(false)
 const scroller = ref<HTMLElement | null>(null)
 const openText = ref<string | null>(null)
 const saved = ref(new Set<string>())
@@ -149,6 +154,26 @@ const VIDEO = /\.(mp4|webm|mov|m4v|m3u8)(\?|#|$)/i
 const isVideo = (u: string) => VIDEO.test(u)
 const mediaOf = (p: RankedPost) => p.media.find(isVideo) ?? p.media[0] ?? null
 const n = (v: number) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : String(v ?? 0)
+type DlPost = RankedPost & { allow_download?: boolean, is_mine?: boolean }
+const dl = (p: RankedPost) => p as DlPost
+const download = async (p: RankedPost) => {
+  const url = mediaOf(p)
+  if (!url) return
+  try {
+    const blob = await (await fetch(url)).blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `viorp-${p.id}.${(url.split('?')[0]?.split('.').pop() || 'mp4').slice(0, 4)}`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+  } catch { window.open(url, '_blank', 'noopener') }
+}
+const setDownload = async (p: RankedPost, allow: boolean) => {
+  try {
+    const r = await $fetch<{ allow_download: boolean }>('/api/veep/download', { method: 'POST', body: { postId: p.id, allow } })
+    dl(p).allow_download = r.allow_download
+  } catch { /* unchanged */ }
+}
 const keyOf = (it: FeedItem, i: number) => it.type === 'post' ? it.post.id : it.type === 'ad' ? 'ad-' + it.ad.id + '-' + i : 'x' + i
 
 const load = async () => {
@@ -341,4 +366,9 @@ onMounted(() => {
 .lib-cell img, .lib-cell video { width: 100%; height: 100%; object-fit: cover; }
 .lib-cell span { position: absolute; left: 4px; bottom: 4px; font-size: 11px; color: #fff; text-shadow: 0 1px 2px #000; }
 @keyframes up { from { transform: translateY(100%) } }
+.veep-actions { bottom: calc(env(safe-area-inset-bottom) + 76px) !important; max-height: 66dvh; gap: 10px !important; justify-content: flex-end; }
+.veep-actions .ic { font-size: 24px !important; }
+.veep-actions .veep-avatar img { width: 40px; height: 40px; }
+.veep-create { font-weight: 700; }
+.dl-tick { width: 14px; height: 14px; min-height: 0; accent-color: #3b82f6; }
 </style>

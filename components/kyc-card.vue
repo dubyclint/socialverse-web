@@ -27,11 +27,18 @@
           <input v-model="form.idNumber" class="inp" placeholder="ID number" required />
           <input v-model="form.residence" class="inp" placeholder="Resident of (city, country)" required />
           <input v-model="form.signature" class="inp" placeholder="Signature (type your name)" required />
-          <input v-model="form.signedOn" class="inp" type="date" required />
+          <label class="lbl">Date of birth
+            <input v-model.trim="form.dateOfBirth" class="inp" inputmode="numeric" placeholder="dd/mm/yy" maxlength="10" pattern="\d{1,2}/\d{1,2}/(\d{2}|\d{4})" required @input="fmtDob" />
+          </label>
+          <label class="lbl">1. Upload your ID card (clear photo of the front)
+            <input type="file" accept="image/jpeg,image/png,image/webp" @change="e => upload(e, 'id')" />
+          </label>
+          <p v-if="idPhotoPath" class="muted">ID card uploaded.</p>
+          <p class="lbl">2. Upload your photo with the written text</p>
           <p class="muted">Write this on paper, hold it close to your face, take a photo and upload it:</p>
           <blockquote class="sentence">{{ sentence }}</blockquote>
-          <input type="file" accept="image/jpeg,image/png,image/webp" @change="upload" />
-          <p v-if="photoPath" class="muted">Photo uploaded.</p>
+          <input type="file" accept="image/jpeg,image/png,image/webp" @change="e => upload(e, 'sentence')" />
+          <p v-if="photoPath" class="muted">Photo with written text uploaded.</p>
         </template>
         <label v-if="lowBalance" class="tiny"><input v-model="form.payLater" type="checkbox" class="tick" /> My balance is {{ balance }} PEW. Pay the fee later: it becomes a negative balance paid from my next deposit or gift.</label>
         <p v-if="lowBalance && mode === 'didit' && !form.payLater" class="muted">Or use Manual: you can submit now, and the fee is charged when it's approved.</p>
@@ -62,7 +69,8 @@ const balance = ref(0)
 const diditEnabled = ref(false)
 const mode = ref<'manual' | 'didit'>('manual')
 const photoPath = ref('')
-const form = reactive({ fullName: '', idType: '', idNumber: '', residence: '', signature: '', signedOn: new Date().toISOString().slice(0, 10), payLater: false, accept: false })
+const idPhotoPath = ref('')
+const form = reactive({ fullName: '', idType: '', idNumber: '', residence: '', signature: '', dateOfBirth: '', signedOn: new Date().toISOString().slice(0, 10), payLater: false, accept: false })
 const lowBalance = computed(() => settings.value ? balance.value < settings.value.fee_pew : false)
 const idLabel = computed(() => ID_TYPES.find(t => t.value === form.idType)?.label || '____')
 const sentence = computed(() => (settings.value?.sentence || '')
@@ -77,13 +85,18 @@ const load = async () => {
     kyc.value = s.kyc; settings.value = s.settings; request.value = s.request; balance.value = s.balance; diditEnabled.value = s.didit_enabled
   } finally { loading.value = false }
 }
-const upload = async (e: Event) => {
+const fmtDob = () => {
+  const d = form.dateOfBirth.replace(/[^\d/]/g, '')
+  form.dateOfBirth = /^\d{3}$/.test(d) ? `${d.slice(0, 2)}/${d.slice(2)}` : /^\d{2}\/\d{3}$/.test(d) ? `${d.slice(0, 5)}/${d.slice(5)}` : d
+}
+const upload = async (e: Event, kind: 'id' | 'sentence') => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   uploading.value = true; err.value = ''
   try {
     const fd = new FormData(); fd.append('file', file)
-    photoPath.value = (await $fetch<{ path: string }>('/api/verification/document', { method: 'POST', body: fd })).path
+    const path = (await $fetch<{ path: string }>('/api/verification/document', { method: 'POST', body: fd })).path
+    if (kind === 'id') idPhotoPath.value = path; else photoPath.value = path
   } catch (x) { err.value = msg(x) } finally { uploading.value = false }
 }
 const submit = async () => {
@@ -94,7 +107,7 @@ const submit = async () => {
       window.location.href = r.url
       return
     }
-    await $fetch('/api/kyc/manual', { method: 'POST', body: { ...form, sentencePhotoPath: photoPath.value, acceptTerms: form.accept } })
+    await $fetch('/api/kyc/manual', { method: 'POST', body: { ...form, sentencePhotoPath: photoPath.value, idPhotoPath: idPhotoPath.value, acceptTerms: form.accept } })
     await load()
   } catch (x) { err.value = msg(x) } finally { busy.value = false }
 }
@@ -112,6 +125,7 @@ onMounted(load)
 .mode.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
 .vform { display: flex; flex-direction: column; gap: 8px; }
 .inp { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color, #e5e7eb); background: transparent; color: inherit; font-size: .88rem; }
+.lbl { display: flex; flex-direction: column; gap: 3px; font-size: .8rem; font-weight: 600; margin: 0; }
 .sentence { margin: 0; padding: 8px 10px; border-left: 3px solid #7c3aed; font-size: .85rem; font-style: italic; }
 .tiny { display: flex; align-items: flex-start; gap: 6px; font-size: .75rem; color: var(--text-secondary, #6b7280); line-height: 1.35; }
 .tick { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 12px !important; height: 12px !important; min-height: 12px !important; margin-top: 2px; border: 1px solid #94a3b8; border-radius: 3px; cursor: pointer; }

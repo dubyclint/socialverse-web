@@ -39,7 +39,8 @@
     </header>
 
     <div v-if="content" class="post-body">
-      <p class="post-text">{{ content }}</p>
+      <p ref="textEl" class="post-text" :class="{ clamp: !textOpen }">{{ content }}</p>
+      <button v-if="textLong" type="button" class="read-more" @click="textOpen = !textOpen">{{ textOpen ? 'Show less' : 'Read more' }}</button>
     </div>
 
     <PostsPostMedia v-if="media.length" :media="media" :post-id="post.id" @open="openPost" />
@@ -144,7 +145,7 @@
 
 <script setup lang="ts">
 import { useStatusRings } from '~/composables/useStatusRings'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import PresenceDot from '~/components/presence-dot.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import type { FeedPost, PostLiker } from '~/composables/useSocialFeed'
@@ -195,6 +196,12 @@ const likesCount = ref(initial.likes)
 const commentsCount = ref(initial.comments)
 const sharesCount = ref(initial.shares)
 const content = ref(props.post.content)
+const textEl = ref<HTMLElement | null>(null)
+const textOpen = ref(false)
+const textLong = ref(false)
+const measureText = () => { const el = textEl.value; if (el && !textOpen.value) textLong.value = el.scrollHeight > el.clientHeight + 2 }
+onMounted(() => nextTick(measureText))
+watch(content, () => nextTick(measureText))
 const media = ref<string[]>([...(props.post.media ?? [])])
 const { hasUnseen } = useStatusRings()
 
@@ -480,6 +487,8 @@ const formatTimeAgo = (value: string) => {
 
 .post-body { padding: 0 0.85rem 0.6rem; }
 
+.post-text.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.read-more { background: none; border: 0; padding: 0; margin-top: 2px; color: #60a5fa; font-size: 0.78rem; font-weight: 600; cursor: pointer; min-height: 0; }
 .post-text {
   margin: 0;
   font-size: 0.95rem;

@@ -56,6 +56,8 @@
           <dt>Signature</dt><dd>{{ r.signature }} · {{ r.signed_on }}</dd>
           <dt>Sentence</dt><dd>{{ r.sentence }}</dd>
         </dl>
+        <small v-if="r.date_of_birth" class="block">Date of birth: {{ r.date_of_birth }}</small>
+        <a v-if="r.id_photo_url" :href="r.id_photo_url" target="_blank" rel="noopener"><img :src="r.id_photo_url" alt="ID card" class="kyc-photo" /></a>
         <a v-if="r.photo_url" :href="r.photo_url" target="_blank" rel="noopener"><img :src="r.photo_url" alt="Sentence photo" class="kyc-photo" /></a>
         <p v-if="r.review_note" class="sa-muted">Note: {{ r.review_note }}</p>
         <div v-if="tab === 'pending'" class="sa-row" style="margin-top:8px">
@@ -77,7 +79,7 @@ definePageMeta({ middleware: ['auth', 'route-guard'], layout: 'default' })
 interface Row {
   id: string, user_id: string, method: string, status: string, full_name: string, id_type?: string, id_number?: string,
   residence?: string, signature?: string, signed_on?: string, sentence?: string, fee_pew: number, pay_later: boolean,
-  review_note?: string, created_at: string, balance: number, photo_url: string | null, user: { username: string, avatar_url: string | null } | null
+  review_note?: string, created_at: string, balance: number, photo_url: string | null, id_photo_url?: string | null, date_of_birth?: string | null, user: { username: string, avatar_url: string | null } | null
 }
 const TABS = [
   { value: 'pending', label: 'Queue' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' },

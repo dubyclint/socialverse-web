@@ -1320,4 +1320,14 @@ onMounted(async () => {
   }
 }
 .gift-dot { position: absolute; top: 4px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 2px #0f172a; }
+/* Profile card: 1-3px rhythm between rows on every breakpoint. */
+.profile-card { display: flex; flex-direction: column; gap: 3px !important; padding: 0.5rem 0.65rem !important; line-height: 1.2; }
+.profile-card > * { margin: 0 !important; }
+.profile-card .profile-header { gap: 0.5rem; padding: 0 !important; margin: 0 !important; }
+.profile-card .profile-name, .profile-card .profile-username { margin: 0 !important; line-height: 1.2; }
+.profile-card .profile-stats { padding: 2px 0 !important; margin: 0 !important; gap: 2px !important; }
+.profile-card .stat { line-height: 1.15; gap: 0; }
+.profile-card .profile-actions { gap: 3px !important; margin: 0 !important; }
+.profile-card .quick-stats { gap: 3px !important; padding: 0 !important; margin: 0 !important; }
+.profile-card .quick-stat { padding: 2px 6px !important; line-height: 1.2; }
 </style>

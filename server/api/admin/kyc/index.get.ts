@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   q = status === 'pending' ? q.in('status', ['pending', 'in_review']) : q.eq('status', status)
   const { data, error } = await q
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  const rows = (data ?? []) as { user_id: string, sentence_photo_path: string | null }[]
+  const rows = (data ?? []) as { user_id: string, sentence_photo_path: string | null, id_photo_path?: string | null }[]
   const ids = [...new Set(rows.map(r => r.user_id))]
   const [{ data: users }, { data: wallets }] = await Promise.all([
     db.from('user').select('user_id, username, display_name, avatar_url').in('user_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']),
@@ -22,6 +22,9 @@ export default defineEventHandler(async (event) => {
     ...r,
     user: users?.find(u => u.user_id === r.user_id) ?? null,
     balance: Number((wallets as { user_id: string, balance: number }[] | null)?.find(w => w.user_id === r.user_id)?.balance ?? 0),
+    id_photo_url: r.id_photo_path
+      ? (await db.storage.from('verification').createSignedUrl(r.id_photo_path, 600)).data?.signedUrl ?? null
+      : null,
     photo_url: r.sentence_photo_path
       ? (await db.storage.from('verification').createSignedUrl(r.sentence_photo_path, 600)).data?.signedUrl ?? null
       : null
