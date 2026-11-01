@@ -67,7 +67,15 @@ const withdrawForm = reactive({
   account_name: '',
   network: '',
   address: '',
-  country: ''
+  country: '',
+  currency: 'USD',
+  note: '',
+  agree: false
+})
+const currencies = ref<{ code: string, kind: string, display_name: string, reference_rate: number }[]>([])
+const localPayout = computed(() => {
+  const c = currencies.value.find(x => x.code === withdrawForm.currency)
+  return c && Number(c.reference_rate) > 0 ? withdrawPreview.value.usd / Number(c.reference_rate) : null
 })
 const withdrawError = ref('')
 const withdrawNotice = ref('')
@@ -99,6 +107,9 @@ const loadWallet = async () => {
       $fetch<{ items: HistoryItem[] }>('/api/wallet/history'),
       $fetch<{ items: HistoryItem[] }>('/api/wallet/history', { query: { filter: 'gifts' } })
     ])
+    if (!currencies.value.length) {
+      $fetch<{ assets: typeof currencies.value }>('/api/p2p/assets').then((r) => { currencies.value = r.assets }).catch(() => {})
+    }
     summary.value = s
     history.value = h.items
     gifts.value = g.items
@@ -117,6 +128,10 @@ const submitWithdrawal = async () => {
     withdrawError.value = 'Enter an amount'
     return
   }
+  if (!withdrawForm.agree) {
+    withdrawError.value = 'Tick the box to accept the terms'
+    return
+  }
   if (summary.value && amount > summary.value.withdrawable_usd) {
     withdrawError.value = 'Amount is more than your withdrawable balance'
     return
@@ -127,7 +142,7 @@ const submitWithdrawal = async () => {
 
   isWithdrawing.value = true
   try {
-    await $fetch('/api/wallet/withdraw', { method: 'POST', body: { amount, method: withdrawForm.method, details } })
+    await $fetch('/api/wallet/withdraw', { method: 'POST', body: { amount, method: withdrawForm.method, details: { ...details, currency: withdrawForm.currency, note: withdrawForm.note }, agree_terms: withdrawForm.agree } })
     withdrawNotice.value = 'Withdrawal sent for admin approval. You can follow its status in History.'
     withdrawForm.amount = null
     await loadWallet()
@@ -199,7 +214,7 @@ onMounted(() => {
             <span class="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">Withdrawable balance</span>
             <p class="text-2xl font-bold mt-1 font-mono">${{ fmt(summary.withdrawable_usd) }}</p>
             <p class="text-[11px] text-slate-400 mt-1">
-              From {{ fmt(summary.withdrawable_pew) }} PEW earned, after the {{ summary.fees.withdrawal_fee_pct }}% withdrawal fee<span v-if="summary.fees.withdrawal_tax_pct"> and {{ summary.fees.withdrawal_tax_pct }}% tax</span>
+              From {{ fmt(summary.withdrawable_pew) }} PEW earned, after the {{ summary.fees.withdrawal_fee_pct }}% withdrawal fee. No further fee when you withdraw<span v-if="summary.fees.withdrawal_tax_pct">; bank and crypto pay {{ summary.fees.withdrawal_tax_pct }}% local tax</span>.
             </p>
           </div>
         </section>
@@ -314,14 +329,23 @@ onMounted(() => {
               <input v-model.trim="withdrawForm.network" required placeholder="Network (e.g. USDT-TRC20, BTC)" class="wallet-input">
               <input v-model.trim="withdrawForm.address" required placeholder="Wallet address" class="wallet-input font-mono">
             </template>
+            <select v-model="withdrawForm.currency" class="wallet-input" aria-label="Payout currency">
+              <option v-if="!currencies.length" value="USD">USD · US Dollar</option>
+              <option v-for="c in currencies" :key="c.code" :value="c.code">{{ c.code }} · {{ c.display_name }}</option>
+            </select>
             <input v-model.number="withdrawForm.amount" type="number" min="0" step="0.01" required placeholder="Amount in USD" class="wallet-input font-mono">
+            <textarea v-model="withdrawForm.note" maxlength="500" rows="2" placeholder="Note (optional): any other information for the payout" class="wallet-input" />
 
             <div v-if="withdrawForm.amount" class="text-[11px] text-slate-400 bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
               <p>No further withdrawal fee: your withdrawable balance already has it taken off.</p>
               <p v-if="summary.fees.withdrawal_tax_pct">Local tax ({{ summary.fees.withdrawal_tax_pct }}%): -${{ fmt(withdrawPreview.tax) }}</p>
-              <p class="text-slate-200 font-semibold">You receive: ${{ fmt(withdrawPreview.usd) }}</p>
+              <p class="text-slate-200 font-semibold">You receive: ${{ fmt(withdrawPreview.usd) }}<span v-if="localPayout !== null && withdrawForm.currency !== 'USD'"> ≈ {{ fmt(localPayout) }} {{ withdrawForm.currency }}</span></p>
             </div>
 
+            <label class="flex items-start gap-2 text-[11px] text-slate-400 leading-snug">
+              <input v-model="withdrawForm.agree" type="checkbox" class="tiny-check">
+              <span>I agree to the <NuxtLink to="/terms-and-policy" class="text-indigo-400 underline">Terms &amp; Conditions</NuxtLink>. Viorp is not liable for any damage or loss resulting from wrong information I provide.</span>
+            </label>
             <p v-if="withdrawError" class="text-xs text-red-400">{{ withdrawError }}</p>
             <p v-if="withdrawNotice" class="text-xs text-emerald-400">{{ withdrawNotice }}</p>
 
@@ -340,6 +364,23 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.tiny-check {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 12px !important;
+  height: 12px !important;
+  min-height: 12px !important;
+  margin-top: 2px;
+  border: 1px solid #475569;
+  border-radius: 3px;
+  background: #020617;
+  cursor: pointer;
+}
+.tiny-check:checked {
+  background: #6366f1 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.5l4.5-5' stroke='white' stroke-width='1.8' fill='none'/%3E%3C/svg%3E") center/10px no-repeat;
+  border-color: #6366f1;
+}
 .wallet-input {
   width: 100%;
   background: #020617;

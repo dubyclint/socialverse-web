@@ -7,6 +7,7 @@ interface WithdrawBody {
   amount: number
   method: 'bank' | 'crypto'
   details: Record<string, string>
+  agree_terms?: boolean
 }
 
 const REQUIRED: Record<WithdrawBody['method'], string[]> = {
@@ -24,9 +25,12 @@ export default defineEventHandler(async (event) => {
   if (method !== 'bank' && method !== 'crypto') {
     throw createError({ statusCode: 400, statusMessage: 'Choose bank or crypto' })
   }
+  if (body.agree_terms !== true) {
+    throw createError({ statusCode: 400, statusMessage: 'Accept the terms to continue' })
+  }
   const details: Record<string, string> = {}
-  for (const key of [...REQUIRED[method], 'country', 'note']) {
-    const value = String(body.details?.[key] ?? '').trim().slice(0, 200)
+  for (const key of [...REQUIRED[method], 'country', 'note', 'currency']) {
+    const value = String(body.details?.[key] ?? '').trim().slice(0, key === 'note' ? 500 : 200)
     if (value) details[key] = value
   }
   const missing = REQUIRED[method].filter(key => !details[key])
@@ -34,7 +38,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Fill in ${missing.join(', ').replace(/_/g, ' ')}` })
   }
 
-  const { data, error } = await getServiceClient().rpc('request_withdrawal', {
+  const db = getServiceClient()
+  const currency = (details.currency || 'USD').toUpperCase()
+  const { data: asset } = await db.from('supported_assets').select('code, reference_rate').eq('code', currency).eq('is_enabled', true).maybeSingle()
+  if (!asset) throw createError({ statusCode: 400, statusMessage: 'Choose a supported payout currency' })
+  details.currency = asset.code
+  details.usd_per_unit = String(asset.reference_rate)
+  details.terms_accepted_at = new Date().toISOString()
+
+  const { data, error } = await db.rpc('request_withdrawal', {
     p_amount: amount,
     p_method: method,
     p_details: details,

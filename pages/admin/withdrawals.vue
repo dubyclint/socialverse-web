@@ -31,6 +31,8 @@ interface FeeSettings {
   gift_fee_pct: number
   withdrawal_fee_pct: number
   withdrawal_tax_pct: number
+  p2p_deposit_fee_pct: number
+  p2p_withdrawal_fee_pct: number
   pew_usd_rate: number
   min_withdrawal_pew: number
 }
@@ -38,8 +40,10 @@ interface FeeSettings {
 const FEE_FIELDS: { key: keyof FeeSettings, label: string }[] = [
   { key: 'deposit_fee_pct', label: 'Add funds processing fee (%)' },
   { key: 'gift_fee_pct', label: 'Gift fee (%)' },
-  { key: 'withdrawal_fee_pct', label: 'Withdrawal fee (%)' },
-  { key: 'withdrawal_tax_pct', label: 'Withdrawal tax (%)' },
+  { key: 'withdrawal_fee_pct', label: 'Withdrawal fee on PEW balance (%)' },
+  { key: 'withdrawal_tax_pct', label: 'Local tax on bank/crypto withdrawals (%)' },
+  { key: 'p2p_deposit_fee_pct', label: 'P2P add funds fee (%)' },
+  { key: 'p2p_withdrawal_fee_pct', label: 'P2P withdrawal fee (%)' },
   { key: 'pew_usd_rate', label: 'USD per 1 PEW' },
   { key: 'min_withdrawal_pew', label: 'Minimum withdrawal (PEW)' }
 ]

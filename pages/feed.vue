@@ -177,7 +177,8 @@
             </NuxtLink>
             <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar">
               <Icon name="trending-up" class="item-icon" size="18" />
-              <span class="item-label">P2P trading</span>
+              <span class="item-label">P2P Network</span>
+              <span v-if="activeTrades" class="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">{{ activeTrades }}</span>
             </NuxtLink>
             <NuxtLink v-if="isAdmin" to="/escrow" class="sidebar-item sub" @click="toggleSidebar">
               <Icon name="shield" class="item-icon" size="16" />
@@ -192,6 +193,10 @@
           <!-- Section: HELP & ACCOUNT -->
           <div class="sidebar-group">
             <p class="sidebar-section-title">HELP &amp; ACCOUNT</p>
+            <NuxtLink to="/settings?tab=security" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="shield" class="item-icon" size="18" />
+              <span class="item-label">Security &amp; 2FA</span>
+            </NuxtLink>
             <NuxtLink to="/support" class="sidebar-item" @click="toggleSidebar">
               <Icon name="life-buoy" class="item-icon" size="18" />
               <span class="item-label">Support</span>
@@ -461,7 +466,11 @@ import { useStaff } from '~/composables/useStaff';
 
 const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();
 const isAdmin = computed(() => staff.value?.role === 'admin');
-onMounted(() => { loadStaff(true); });
+const activeTrades = ref(0);
+onMounted(() => {
+  loadStaff(true);
+  $fetch<{ count: number }>('/api/p2p/active-count').then((r) => { activeTrades.value = r.count; }).catch(() => {});
+});
 
 // Top Navigation Configuration with updated Lucide icon mappings
 const topNavItems = [

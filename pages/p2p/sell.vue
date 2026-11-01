@@ -28,7 +28,7 @@
           <li v-for="c in configs" :key="c.id" class="offer">
             <div class="names">
               <strong>{{ c.side === 'buy' ? 'Buys PEW (withdrawals)' : 'Sells PEW (deposits)' }} · {{ c.asset_code }}</strong>
-              <small>{{ c.method?.bank_name || c.method?.kind }} · margin {{ c.margin_pct }}% · {{ fmt(c.min_amount) }}–{{ fmt(c.max_amount) }} PEW · available {{ fmt(c.available_pewgift) }}</small>
+              <small>{{ c.method?.bank_name || c.method?.kind }} · margin {{ c.margin_pct }}%<template v-if="Number(c.tax_pct)"> · tax {{ c.tax_pct }}%</template> · {{ fmt(c.min_amount) }}–{{ fmt(c.max_amount) }} PEW · available {{ fmt(c.available_pewgift) }}</small>
             </div>
             <div class="offer-actions">
               <span :class="['pill', c.is_active ? 'on' : '']">{{ c.is_active ? 'Live' : 'Paused' }}</span>
@@ -49,6 +49,7 @@
             <select v-model="form.assetCode"><option v-for="a in assets" :key="a.code" :value="a.code">{{ a.code }} · {{ a.display_name }}</option></select>
           </label>
           <label class="field"><span>Margin % (max {{ maxMargin }})</span><input v-model.number="form.marginPct" type="number" min="0" :max="maxMargin" step="0.1" /></label>
+          <label class="field"><span>Local tax % (optional)</span><input v-model.number="form.taxPct" type="number" min="0" max="30" step="0.1" /></label>
           <label class="field"><span>Min PEW</span><input v-model.number="form.minAmount" type="number" min="5" /></label>
           <label class="field"><span>Max PEW</span><input v-model.number="form.maxAmount" type="number" min="5" /></label>
           <label class="field"><span>{{ form.side === 'sell' ? 'PEW available to sell' : 'PEW you can buy' }}</span><input v-model.number="form.availablePew" type="number" min="0" /></label>
@@ -81,9 +82,9 @@
 definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check'], layout: 'default' })
 
 interface Method { kind: 'BANK' | 'CRYPTO' | 'CUSTOM', account_name?: string | null, account_ref?: string | null, bank_name?: string | null, network?: string | null, instructions?: string | null }
-interface Config { id: string, side: 'sell' | 'buy', asset_code: string, margin_pct: number, min_amount: number, max_amount: number, available_pewgift: number, terms: string | null, is_active: boolean, method: Method | null }
+interface Config { id: string, side: 'sell' | 'buy', asset_code: string, margin_pct: number, tax_pct?: number, min_amount: number, max_amount: number, available_pewgift: number, terms: string | null, is_active: boolean, method: Method | null }
 interface FormState {
-  id?: string, side: 'sell' | 'buy', assetCode: string, marginPct: number, minAmount: number, maxAmount: number, availablePew: number, terms: string, isActive: boolean
+  id?: string, side: 'sell' | 'buy', assetCode: string, marginPct: number, taxPct: number, minAmount: number, maxAmount: number, availablePew: number, terms: string, isActive: boolean
   method: { kind: 'BANK' | 'CRYPTO' | 'CUSTOM', accountName: string, accountRef: string, bankName: string, network: string, instructions: string }
 }
 
@@ -106,7 +107,7 @@ const msg = (e: unknown) => (e as { data?: { statusMessage?: string } })?.data?.
 const rate = computed(() => Number(assets.value.find(a => a.code === form.value?.assetCode)?.reference_rate || 1))
 const unitsPerUsd = computed(() => fmtMoney(1 / rate.value))
 const previewPerPew = computed(() => {
-  const m = Number(form.value?.marginPct || 0) / 100
+  const m = (Number(form.value?.marginPct || 0) + Number(form.value?.taxPct || 0)) / 100
   return (form.value?.side === 'buy' ? 1 - m : 1 + m) / rate.value
 })
 
@@ -125,9 +126,9 @@ async function load() {
 function edit(c: Config | null) {
   error.value = ''; notice.value = ''
   form.value = c
-    ? { id: c.id, side: c.side, assetCode: c.asset_code, marginPct: Number(c.margin_pct), minAmount: Number(c.min_amount), maxAmount: Number(c.max_amount), availablePew: Number(c.available_pewgift), terms: c.terms ?? '', isActive: c.is_active,
+    ? { id: c.id, side: c.side, assetCode: c.asset_code, marginPct: Number(c.margin_pct), taxPct: Number(c.tax_pct ?? 0), minAmount: Number(c.min_amount), maxAmount: Number(c.max_amount), availablePew: Number(c.available_pewgift), terms: c.terms ?? '', isActive: c.is_active,
         method: { kind: c.method?.kind ?? 'BANK', accountName: c.method?.account_name ?? '', accountRef: c.method?.account_ref ?? '', bankName: c.method?.bank_name ?? '', network: c.method?.network ?? '', instructions: c.method?.instructions ?? '' } }
-    : { side: 'sell', assetCode: assets.value[0]?.code ?? 'USD', marginPct: 0, minAmount: 5, maxAmount: 500, availablePew: 100, terms: '', isActive: true,
+    : { side: 'sell', assetCode: assets.value[0]?.code ?? 'USD', marginPct: 0, taxPct: 0, minAmount: 5, maxAmount: 500, availablePew: 100, terms: '', isActive: true,
         method: { kind: 'BANK', accountName: '', accountRef: '', bankName: '', network: '', instructions: '' } }
 }
 

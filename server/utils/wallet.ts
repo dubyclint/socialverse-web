@@ -7,6 +7,8 @@ export interface FeeSettings {
   gift_fee_pct: number
   withdrawal_fee_pct: number
   withdrawal_tax_pct: number
+  p2p_deposit_fee_pct: number
+  p2p_withdrawal_fee_pct: number
   pew_usd_rate: number
   min_withdrawal_pew: number
 }
@@ -16,6 +18,8 @@ export const DEFAULT_FEES: FeeSettings = {
   gift_fee_pct: 5,
   withdrawal_fee_pct: 37,
   withdrawal_tax_pct: 0,
+  p2p_deposit_fee_pct: 0,
+  p2p_withdrawal_fee_pct: 0,
   pew_usd_rate: 1,
   min_withdrawal_pew: 10
 }

@@ -7,6 +7,8 @@ const LIMITS: Record<keyof FeeSettings, [number, number]> = {
   gift_fee_pct: [0, 50],
   withdrawal_fee_pct: [0, 90],
   withdrawal_tax_pct: [0, 50],
+  p2p_deposit_fee_pct: [0, 50],
+  p2p_withdrawal_fee_pct: [0, 50],
   pew_usd_rate: [0.0001, 1000000],
   min_withdrawal_pew: [0, 1000000]
 }

@@ -53,7 +53,8 @@
           <div class="meta">
             <span>{{ fmtMoney(1 / m.price_per_pew) }} PEW/{{ asset }}</span>
             <span>Margin {{ m.margin_pct }}%</span>
-            <span>{{ mode === 'withdraw' ? 'Fee' : 'Platform' }} {{ m.platform_fee_pct }}%</span>
+            <span>{{ mode === 'withdraw' ? 'P2P fee' : 'Platform' }} {{ m.platform_fee_pct }}%</span>
+            <span v-if="m.tax_pct">Seller tax {{ m.tax_pct }}%</span>
             <span>Limits {{ fmt(m.min_amount) }}–{{ fmt(m.max_amount) }} PEW</span>
           </div>
           <p v-if="m.buyer_notes" class="notes">{{ m.buyer_notes }}</p>
@@ -161,7 +162,7 @@ definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check'], l
 interface Asset { code: string, display_name: string, reference_rate: number }
 interface Match {
   listing_id: string, seller_name: string, username: string, avatar_url: string | null, is_verified: boolean, verified_type: string | null
-  buyer_notes: string | null, terms: string | null, method_label: string, margin_pct: number, platform_fee_pct: number
+  buyer_notes: string | null, terms: string | null, method_label: string, margin_pct: number, tax_pct?: number, platform_fee_pct: number
   min_amount: number, max_amount: number, price_per_pew: number, quote_amount: number
 }
 interface Method { kind?: string, account_name?: string | null, account_ref?: string | null, bank_name?: string | null, network?: string | null, instructions?: string | null }

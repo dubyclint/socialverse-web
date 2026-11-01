@@ -8,6 +8,7 @@ interface ConfigBody {
   side?: 'sell' | 'buy'
   assetCode?: string
   marginPct?: number
+  taxPct?: number
   minAmount?: number
   maxAmount?: number
   availablePew?: number
@@ -37,11 +38,13 @@ export default defineEventHandler(async (event) => {
   const side = body.side === 'buy' ? 'buy' : 'sell'
   const asset = String(body.assetCode ?? '').toUpperCase()
   const margin = Number(body.marginPct ?? 0)
+  const taxPct = Number(body.taxPct ?? 0)
   const min = Math.max(side === 'sell' ? 5 : 1, Number(body.minAmount ?? 5))
   const max = Number(body.maxAmount ?? 0)
   const available = Number(body.availablePew ?? max)
   if (!asset) throw createError({ statusCode: 400, statusMessage: 'Choose a currency' })
   if (!(margin >= 0 && margin <= seller.maxMarginPct)) throw createError({ statusCode: 400, statusMessage: `Margin must be between 0 and ${seller.maxMarginPct}%` })
+  if (!(taxPct >= 0 && taxPct <= 30)) throw createError({ statusCode: 400, statusMessage: 'Tax must be between 0 and 30%' })
   if (!(max >= min)) throw createError({ statusCode: 400, statusMessage: 'Maximum must be at least the minimum' })
   if (!(available >= 0)) throw createError({ statusCode: 400, statusMessage: 'Available amount must be 0 or more' })
   const { data: a } = await db.from('supported_assets').select('code').eq('code', asset).eq('is_enabled', true).maybeSingle()
@@ -60,7 +63,7 @@ export default defineEventHandler(async (event) => {
     status: 'APPROVED' as const, reviewed_at: new Date().toISOString()
   }
   const listingRow = {
-    side, asset_code: asset, margin_pct: margin, min_amount: min, max_amount: max, available_pewgift: available,
+    side, asset_code: asset, margin_pct: margin, tax_pct: taxPct, min_amount: min, max_amount: max, available_pewgift: available,
     terms: body.terms?.trim().slice(0, 1000) || null, is_active: body.isActive ?? true, updated_at: new Date().toISOString()
   }
 
