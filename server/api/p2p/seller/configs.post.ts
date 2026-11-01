@@ -1,5 +1,6 @@
 import { requireSeller } from '~/server/utils/rbac'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { resolvePayoutName } from '~/server/utils/kyc'
 
 const MAX = 30
 
@@ -54,6 +55,10 @@ export default defineEventHandler(async (event) => {
   const kind = m.kind ?? 'BANK'
   if (kind === 'CUSTOM' ? !m.instructions : !(m.accountName && m.accountRef)) {
     throw createError({ statusCode: 400, statusMessage: side === 'sell' ? 'Enter the account name and number buyers pay into' : 'Enter how you pay sellers out (bank or method name)' })
+  }
+  if (kind === 'BANK' && m.accountName) {
+    const { data: flags } = await db.from('seller_profiles').select('can_edit_payout_name').eq('user_id', seller.id).maybeSingle()
+    if (!(flags as { can_edit_payout_name?: boolean } | null)?.can_edit_payout_name) m.accountName = await resolvePayoutName(seller.id, m.accountName)
   }
   const methodRow = {
     seller_id: seller.id, kind, asset_code: asset,

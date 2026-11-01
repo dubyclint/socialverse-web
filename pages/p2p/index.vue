@@ -43,7 +43,7 @@
             <img :src="m.avatar_url || '/default-avatar.svg'" alt="" />
             <span class="names">
               <strong>{{ m.seller_name }} <VerifiedBadge v-if="m.is_verified" :type="m.verified_type" :size="14" /></strong>
-              <small>@{{ m.username }} · {{ m.method_label }}</small>
+              <small><template v-if="m.username">@{{ m.username }} · </template>{{ m.method_label }}</small>
             </span>
             <span class="quote">
               <strong>{{ fmtMoney(m.quote_amount) }} {{ asset }}</strong>
@@ -137,7 +137,7 @@
       <p v-if="activeTrade.decision_note" class="hint">Decision: {{ activeTrade.decision_note }}</p>
       <p v-if="error" class="err">{{ error }}</p>
 
-      <TradeChat v-if="activeTrade.chat_room_id" :room-id="activeTrade.chat_room_id" />
+      <TradeChat :trade-id="activeTrade.id" :closed="['released', 'cancelled', 'refunded', 'expired'].includes(activeTrade.status)" />
     </section>
 
     <section v-if="mode === 'trades' && !activeTrade" class="card">
@@ -164,7 +164,7 @@ definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check'], l
 
 interface Asset { code: string, display_name: string, reference_rate: number }
 interface Match {
-  listing_id: string, seller_name: string, username: string, avatar_url: string | null, is_verified: boolean, verified_type: string | null
+  listing_id: string, seller_name: string, username: string | null, avatar_url: string | null, is_verified: boolean, verified_type: string | null
   buyer_notes: string | null, terms: string | null, method_label: string, margin_pct: number, tax_pct?: number, platform_fee_pct: number
   min_amount: number, max_amount: number, price_per_pew: number, quote_amount: number
 }

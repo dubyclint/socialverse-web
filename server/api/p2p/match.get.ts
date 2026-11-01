@@ -1,3 +1,4 @@
+import { isNamePrivileged } from '~/server/utils/kyc'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { refreshFiatRatesIfStale } from '~/server/utils/fx-rates'
@@ -38,10 +39,11 @@ export default defineEventHandler(async (event) => {
     .lte('min_amount', amount).gte('max_amount', amount).gte('available_pewgift', amount)
     .neq('seller_id', user.id).limit(100)
   const rows = listings ?? []
+  const viewerPrivileged = await isNamePrivileged(user.id)
   const sellerIds = [...new Set(rows.map(l => l.seller_id))]
   const methodIds = rows.map(l => l.payment_method_id).filter(Boolean) as string[]
   const [{ data: profiles }, { data: users }, { data: methods }, { data: balances }] = await Promise.all([
-    db.from('seller_profiles').select('user_id, is_active, revoked_at, display_name, buyer_notes').in('user_id', sellerIds.length ? sellerIds : ['00000000-0000-0000-0000-000000000000']),
+    db.from('seller_profiles').select('user_id, is_active, revoked_at, display_name, buyer_notes, show_username').in('user_id', sellerIds.length ? sellerIds : ['00000000-0000-0000-0000-000000000000']),
     db.from('user').select('user_id, username, display_name, avatar_url, is_verified, verified_type, is_banned').in('user_id', sellerIds.length ? sellerIds : ['00000000-0000-0000-0000-000000000000']),
     db.from('seller_payment_methods').select('id, kind, bank_name, network, status').in('id', methodIds.length ? methodIds : ['00000000-0000-0000-0000-000000000000']),
     db.from('wallets').select('user_id, balance').in('user_id', sellerIds.length ? sellerIds : ['00000000-0000-0000-0000-000000000000'])
@@ -61,7 +63,7 @@ export default defineEventHandler(async (event) => {
     const perPew = side === 'sell' ? (1 + (margin + depositPct + taxPct) / 100) / rate : (1 - (margin + taxPct) / 100) / rate
     return [{
       listing_id: l.id, seller_id: l.seller_id, side,
-      seller_name: p.display_name || u.display_name || u.username, username: u.username, avatar_url: u.avatar_url,
+      seller_name: p.display_name || u.display_name || 'Seller', username: (p as { show_username?: boolean }).show_username || viewerPrivileged ? u.username : null, avatar_url: null,
       is_verified: u.is_verified, verified_type: u.verified_type,
       buyer_notes: p.buyer_notes, terms: l.terms, method_kind: m.kind, method_label: m.bank_name || m.network || m.kind,
       margin_pct: margin, tax_pct: taxPct, platform_fee_pct: side === 'sell' ? depositPct : withdrawPct,

@@ -30,6 +30,14 @@
               <button v-else class="btn primary" :disabled="busy" @click="act('grant_seller')">Grant</button>
             </div>
           </div>
+          <div v-if="isActiveSeller(found.user_id)" class="line">
+            <span class="names"><strong>Seller privacy &amp; payout name</strong><small>Username stays hidden from traders unless allowed. Without the edit privilege the seller's KYC name is used.</small></span>
+            <div class="actions">
+              <label class="flag"><input v-model="showUsername" type="checkbox"> Show username</label>
+              <label class="flag"><input v-model="canEditPayoutName" type="checkbox"> Edit payout name</label>
+              <button class="btn primary" :disabled="busy" @click="act('seller_flags')">Save</button>
+            </div>
+          </div>
           <div v-for="r in ROLES" :key="r.key" class="line">
             <span class="names"><strong>{{ r.label }}</strong><small>{{ r.desc }}</small></span>
             <div class="actions">
@@ -86,7 +94,7 @@ const ROLES = [
 ] as const
 
 interface U { user_id: string, username: string, display_name: string | null, avatar_url: string | null, role: string }
-interface Seller { user_id: string, is_active: boolean, revoked_at: string | null, max_margin_pct: number }
+interface Seller { user_id: string, is_active: boolean, revoked_at: string | null, max_margin_pct: number, show_username?: boolean, can_edit_payout_name?: boolean }
 interface Role { user_id: string, role: string, languages: string[] | null, countries: string[] | null }
 
 const data = reactive<{ roles: Role[], sellers: Seller[], users: U[] }>({ roles: [], sellers: [], users: [] })
@@ -97,6 +105,8 @@ const busy = ref(false)
 const error = ref('')
 const notice = ref('')
 const maxMargin = ref(3)
+const showUsername = ref(false)
+const canEditPayoutName = ref(false)
 const languages = ref('en')
 const countries = ref('')
 
@@ -118,7 +128,7 @@ async function lookup() {
 function pickUser(id: string) { const u = userOf(id); if (u) { found.value = u as U; username.value = (u as U).username; syncFields() } }
 function syncFields() {
   if (!found.value) return
-  const s = sellerOf(found.value.user_id); if (s) maxMargin.value = Number(s.max_margin_pct)
+  const s = sellerOf(found.value.user_id); if (s) { maxMargin.value = Number(s.max_margin_pct); showUsername.value = Boolean(s.show_username); canEditPayoutName.value = Boolean(s.can_edit_payout_name) }
   const r = data.roles.find(x => x.user_id === found.value!.user_id)
   languages.value = (r?.languages || ['en']).join(', '); countries.value = (r?.countries || []).join(', ')
 }
@@ -128,7 +138,7 @@ async function act(action: string, role?: string) {
   busy.value = true; error.value = ''; notice.value = ''
   try {
     await $fetch('/api/admin/staff', { method: 'POST', body: {
-      userId: found.value.user_id, action, role, maxMarginPct: maxMargin.value,
+      userId: found.value.user_id, action, role, maxMarginPct: maxMargin.value, showUsername: showUsername.value, canEditPayoutName: canEditPayoutName.value,
       languages: languages.value.split(','), countries: countries.value.split(',')
     } })
     await load(); notice.value = 'Saved'
@@ -193,4 +203,6 @@ onMounted(() => load().catch((e) => { error.value = errMsg(e) }))
 @media (max-width: 380px) {
   .btn { min-width: 64px; padding: 0 10px; font-size: 12px; }
 }
+.flag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+.flag input { width: 14px; height: 14px; min-height: 0; }
 </style>

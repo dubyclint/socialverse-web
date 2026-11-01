@@ -4,7 +4,9 @@ import { STAFF_ROLES, type StaffRole } from '~/server/utils/staff-access'
 
 interface Body {
   userId?: string
-  action?: 'grant_role' | 'revoke_role' | 'grant_seller' | 'revoke_seller'
+  action?: 'grant_role' | 'revoke_role' | 'grant_seller' | 'revoke_seller' | 'seller_flags'
+  showUsername?: boolean
+  canEditPayoutName?: boolean
   role?: StaffRole
   languages?: string[]
   countries?: string[]
@@ -14,7 +16,7 @@ interface Body {
 /** Assign/revoke seller privilege and P2P/support/dispute roles. Admins only (managers may grant sellers). */
 export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
-  const actor = await requireRole(event, body.action === 'grant_seller' || body.action === 'revoke_seller' ? 'manager' : 'admin')
+  const actor = await requireRole(event, body.action === 'grant_seller' || body.action === 'revoke_seller' || body.action === 'seller_flags' ? 'manager' : 'admin')
   if (!body.userId) throw createError({ statusCode: 400, statusMessage: 'userId is required' })
   const db = getServiceClient()
   const now = new Date().toISOString()
@@ -29,6 +31,9 @@ export default defineEventHandler(async (event) => {
     }, { onConflict: 'user_id' })
     if (error) throw createError({ statusCode: 400, statusMessage: error.message })
     if (revoke) await db.from('p2p_listings').update({ is_active: false }).eq('seller_id', body.userId)
+  } else if (body.action === 'seller_flags') {
+    const { error } = await db.from('seller_profiles').update({ show_username: Boolean(body.showUsername), can_edit_payout_name: Boolean(body.canEditPayoutName) } as never).eq('user_id', body.userId)
+    if (error) throw createError({ statusCode: 400, statusMessage: error.message })
   } else if (body.action === 'grant_role' || body.action === 'revoke_role') {
     if (!body.role || !STAFF_ROLES.includes(body.role)) throw createError({ statusCode: 400, statusMessage: 'Unknown role' })
     if (body.action === 'revoke_role') {
