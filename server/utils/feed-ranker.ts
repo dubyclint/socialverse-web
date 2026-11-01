@@ -114,7 +114,7 @@ export type FeedItem =
 
 type Client = SupabaseClient<Database>
 
-export type FeedTab = 'for-you' | 'following' | 'trending'
+export type FeedTab = 'for-you' | 'following' | 'trending' | 'global' | 'hood'
 
 /**
  * Interest and behaviour ranked posts. Engagement is decayed by age so fresh
@@ -250,7 +250,11 @@ export const rankPosts = async (
   const rows: CandidatePost[] =
     tab === 'following'
       ? Array.from(byId.values()).filter(row => followingIds.has(row.page_id ?? row.user_id))
-      : Array.from(byId.values())
+      : tab === 'hood'
+        ? Array.from(byId.values()).filter(row => viewerCountry !== null && row.country === viewerCountry)
+        : tab === 'global'
+          ? Array.from(byId.values()).filter(row => !viewerCountry || (row.country !== null && row.country !== viewerCountry))
+          : Array.from(byId.values())
 
   if (!rows.length) return []
 

@@ -35,6 +35,9 @@
           </NuxtLink>
         </nav>
         <div class="header-right">
+          <NuxtLink to="/veep" class="header-search header-veep" aria-label="Veep">
+            <Icon name="play" size="22" />
+          </NuxtLink>
           <NuxtLink to="/search" class="header-search" aria-label="Search people">
             <Icon name="search" size="22" />
           </NuxtLink>
