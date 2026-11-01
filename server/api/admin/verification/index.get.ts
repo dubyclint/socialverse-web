@@ -46,13 +46,13 @@ export default defineEventHandler(async (event) => {
   const pageMap = new Map((pages ?? []).map(p => [p.id, p]))
 
   const signed = await Promise.all(rows.map(async (r) => {
-    const evidence = (r.evidence ?? {}) as { links?: string[], documents?: { name?: string, path?: string, url?: string }[] }
+    const evidence = (r.evidence ?? {}) as { links?: string[], documents?: { name?: string, path?: string, url?: string }[], business?: unknown, government?: unknown }
     const documents = await Promise.all((evidence.documents ?? []).map(async (d) => {
       if (!d.path) return { name: d.name ?? 'Document', url: d.url ?? null }
       const { data } = await service.storage.from('verification').createSignedUrl(d.path, 3600)
       return { name: d.name ?? 'Document', url: data?.signedUrl ?? null }
     }))
-    return { links: evidence.links ?? [], documents }
+    return { links: evidence.links ?? [], documents, business: evidence.business, government: evidence.government }
   }))
 
   return {

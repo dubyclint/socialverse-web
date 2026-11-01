@@ -84,6 +84,8 @@
         <div class="sa-links">
           <a v-for="l in r.evidence.links" :key="l" :href="l" target="_blank" rel="noopener noreferrer">{{ l }}</a>
           <a v-for="d in r.evidence.documents" :key="d.name + d.url" :href="d.url ?? undefined" target="_blank" rel="noopener noreferrer">📎 {{ d.name }}</a>
+          <small v-if="r.evidence.business" class="block">Business · {{ r.evidence.business.applicant_role === 'owner' ? 'Major owner' : 'Authorised person' }} · Owner: {{ r.evidence.business.owner_name }} ({{ r.evidence.business.ownership_pct }}%) · Reg: {{ r.evidence.business.registration_number }}<template v-if="r.evidence.business.tax_id"> · Tax: {{ r.evidence.business.tax_id }}</template><template v-if="r.evidence.business.shareholders"> · {{ r.evidence.business.shareholders }}</template></small>
+          <small v-if="r.evidence.government" class="block">Government · {{ r.evidence.government.institution }} · {{ r.evidence.government.position }}</small>
         </div>
         <p v-if="r.review_note" class="sa-muted">Note: {{ r.review_note }}</p>
         <div v-if="r.status === 'pending'" class="sa-row">
@@ -111,7 +113,7 @@ useHead({ title: 'Verification badges' })
 interface Person { username: string | null, display_name: string | null, avatar_url: string | null, followers_count: number | null }
 interface RequestRow {
   id: string, user_id: string, category: string | null, reason: string | null, status: string, review_note: string | null, created_at: string
-  evidence: { links: string[], documents: { name: string, url: string | null }[] }
+  evidence: { links: string[], documents: { name: string, url: string | null }[], business?: { applicant_role: string, owner_name: string, ownership_pct: number, registration_number: string, tax_id?: string, shareholders?: string }, government?: { institution: string, position: string } }
   user: Person | null
   page: { name: string, handle: string, avatar_url: string | null, followers_count: number | null } | null
 }

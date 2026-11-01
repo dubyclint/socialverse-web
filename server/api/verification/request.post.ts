@@ -14,6 +14,8 @@ interface Body {
   plan?: VerificationPlan
   businessSize?: 'sme' | 'corp'
   acceptTerms?: boolean
+  business?: { applicantRole?: 'owner' | 'authorised', ownerName?: string, ownershipPct?: number, registrationNumber?: string, taxId?: string, shareholders?: string }
+  government?: { institution?: string, position?: string }
 }
 
 const CATEGORIES: BadgeType[] = ['personal', 'business', 'government']
@@ -44,6 +46,33 @@ export default defineEventHandler(async (event) => {
 
   const service = getServiceClient()
   const pageId = body.pageId || null
+  const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n)
+  let business: Record<string, unknown> | null = null
+  let government: Record<string, unknown> | null = null
+  if (category === 'business') {
+    const b = body.business ?? {}
+    const applicantRole = b.applicantRole === 'authorised' ? 'authorised' : 'owner'
+    const pct = Number(b.ownershipPct ?? 0)
+    business = { applicant_role: applicantRole, owner_name: clip(b.ownerName, 120), ownership_pct: Number.isFinite(pct) ? pct : 0, registration_number: clip(b.registrationNumber, 80), tax_id: clip(b.taxId, 80), shareholders: clip(b.shareholders, 1500) }
+    if (!business.owner_name || !business.registration_number) throw createError({ statusCode: 400, statusMessage: 'Enter the major owner name and the business registration number' })
+    if (applicantRole === 'owner' && !(pct >= 25 && pct <= 100)) throw createError({ statusCode: 400, statusMessage: 'A major owner holds 25–100% of the business. Otherwise apply as an authorised person.' })
+    if (!documents.length) throw createError({ statusCode: 400, statusMessage: 'Upload the corporate documents (registration, tax, ownership)' })
+  }
+  if (category === 'government') {
+    const g = body.government ?? {}
+    government = { institution: clip(g.institution, 160), position: clip(g.position, 120) }
+    if (!government.institution || !government.position) throw createError({ statusCode: 400, statusMessage: 'Enter the institution/agency and your position or rank' })
+    if (!documents.length) throw createError({ statusCode: 400, statusMessage: 'Upload the supporting documents' })
+  }
+  // Business/government badges for a Page: the applicant must be KYC verified and already hold a verified badge.
+  if (pageId && (category === 'business' || category === 'government')) {
+    const [{ data: kyc }, { data: me }] = await Promise.all([
+      service.from('user_kyc' as never).select('status').eq('user_id', user.id).maybeSingle(),
+      service.from('user').select('is_verified').eq('user_id', user.id).maybeSingle()
+    ])
+    if ((kyc as { status?: string } | null)?.status !== 'verified') throw createError({ statusCode: 403, statusMessage: 'Complete your identity (KYC) verification first. Go to your profile → Identity (KYC).' })
+    if (!me?.is_verified) throw createError({ statusCode: 403, statusMessage: 'Only a user with an active verified badge can apply on behalf of a business or government Page.' })
+  }
   const tier = tierFor(category, Boolean(pageId), body.businessSize)
   const fee = (await getVerificationFees())[`${tier}_${plan}`]
   if (fee === null) throw createError({ statusCode: 400, statusMessage: `The ${plan} plan isn't available for this badge` })
@@ -75,7 +104,7 @@ export default defineEventHandler(async (event) => {
     page_id: pageId,
     category,
     reason,
-    evidence: { links, documents },
+    evidence: { links, documents, ...(business ? { business } : {}), ...(government ? { government } : {}) },
     status: 'pending',
     plan,
     tier

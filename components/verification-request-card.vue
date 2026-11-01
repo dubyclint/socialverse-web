@@ -24,6 +24,26 @@
           <label :class="['type', { active: form.businessSize === 'sme' }]"><input v-model="form.businessSize" type="radio" value="sme" /> SME / sole owner</label>
           <label :class="['type', { active: form.businessSize === 'corp' }]"><input v-model="form.businessSize" type="radio" value="corp" /> Large company</label>
         </div>
+        <fieldset v-if="form.category === 'business'" class="vset">
+          <legend>Ownership &amp; company details</legend>
+          <div class="types">
+            <label :class="['type', { active: biz.applicantRole === 'owner' }]"><input v-model="biz.applicantRole" type="radio" value="owner" /> I'm a major owner (25–100%)</label>
+            <label :class="['type', { active: biz.applicantRole === 'authorised' }]"><input v-model="biz.applicantRole" type="radio" value="authorised" /> I'm authorised to apply</label>
+          </div>
+          <input v-model.trim="biz.ownerName" placeholder="Major owner's full legal name" required />
+          <input v-model.number="biz.ownershipPct" type="number" min="0" max="100" step="0.01" placeholder="Major owner's share %" :required="biz.applicantRole === 'owner'" />
+          <input v-model.trim="biz.registrationNumber" placeholder="Business registration number" required />
+          <input v-model.trim="biz.taxId" placeholder="Tax ID (TIN/VAT)" />
+          <textarea v-model.trim="biz.shareholders" rows="2" maxlength="1500" placeholder="Shareholders and share split (name — %), directors, ownership rights" />
+          <p class="muted">Upload the corporate documents below: registration certificate, tax and ownership records. The owner or authorised person applying must be KYC verified and hold an active badge.</p>
+        </fieldset>
+        <fieldset v-if="form.category === 'government'" class="vset">
+          <legend>Government (classified, reviewed manually)</legend>
+          <input v-model.trim="gov.institution" placeholder="Institution or agency" required />
+          <input v-model.trim="gov.position" placeholder="Your position / rank" required />
+          <p class="muted">Upload all supporting documents below. All fees apply, and only a user with a verified badge can apply on a government Page's behalf.</p>
+        </fieldset>
+        <p v-if="form.category === 'personal'" class="muted">Work in government? You can upgrade an individual badge to a government badge — contact Support. All T&amp;Cs apply.</p>
         <div class="types">
           <label v-if="feeFor('monthly') !== null" :class="['type', { active: form.plan === 'monthly' }]"><input v-model="form.plan" type="radio" value="monthly" /> Monthly · {{ feeFor('monthly') }} PEW</label>
           <label v-if="feeFor('yearly') !== null" :class="['type', { active: form.plan === 'yearly' }]"><input v-model="form.plan" type="radio" value="yearly" /> Yearly · {{ feeFor('yearly') }} PEW</label>
@@ -69,6 +89,8 @@ const docPath = ref('')
 const form = reactive<{ category: BadgeType, reason: string, links: string, plan: 'monthly' | 'yearly', businessSize: 'sme' | 'corp', accept: boolean }>({
   category: props.pageId ? 'business' : 'personal', reason: '', links: '', plan: 'yearly', businessSize: 'sme', accept: false
 })
+const biz = reactive({ applicantRole: 'owner' as 'owner' | 'authorised', ownerName: '', ownershipPct: null as number | null, registrationNumber: '', taxId: '', shareholders: '' })
+const gov = reactive({ institution: '', position: '' })
 const fees = ref<Record<string, number | null>>({})
 const feeFor = (plan: 'monthly' | 'yearly') => {
   const tier = form.category === 'government' ? 'government' : form.category === 'business' ? (form.businessSize === 'corp' ? 'business_corp' : 'business_sme') : props.pageId ? 'page' : 'personal'
@@ -123,6 +145,8 @@ const submit = async () => {
         documents: docPath.value ? [{ name: docName.value, path: docPath.value }] : [],
         plan: form.plan,
         businessSize: form.businessSize,
+        business: form.category === 'business' ? { ...biz } : undefined,
+        government: form.category === 'government' ? { ...gov } : undefined,
         acceptTerms: form.accept
       }
     })
@@ -158,4 +182,6 @@ textarea, input:not([type=radio]):not([type=file]) { width: 100%; padding: 8px 1
 .btn:disabled { opacity: .6; }
 .muted { color: var(--text-secondary, #6b7280); font-size: .85rem; margin: 6px 0; }
 .error { color: #dc2626; font-size: .85rem; margin: 6px 0; }
+.vset { border: 1px solid rgba(100,116,139,.25); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.vset legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
 </style>
