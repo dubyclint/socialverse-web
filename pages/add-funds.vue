@@ -44,7 +44,7 @@ const providers = ref<DepositProvider[]>([])
 const settings = ref<DepositSettings>({ currency: 'USD', pewgift_per_unit: 1 })
 const webOnlyBlocked = ref(false)
 const isLoading = ref(true)
-const selectedGateway = ref('')
+const selectedGateway = ref('p2p')
 const amount = ref<number | null>(null)
 const isProcessing = ref(false)
 const errorMessage = ref('')
@@ -75,10 +75,18 @@ const loadProviders = async () => {
     const response = await $fetch<{
       data: { providers: DepositProvider[], settings: DepositSettings, webOnlyBlocked: boolean }
     }>('/api/wallet/deposit/providers', { query: { platform: platform.value } })
-    providers.value = response.data.providers.filter(p => p.code !== 'bachs')
+    
+    // Filter out 'bachs' and sort so 'paystack' is always pushed to the end
+    const rawProviders = response.data.providers.filter(p => p.code !== 'bachs')
+    providers.value = rawProviders.sort((a, b) => {
+      if (a.code === 'paystack') return 1
+      if (b.code === 'paystack') return -1
+      return 0
+    })
+
     settings.value = response.data.settings
     webOnlyBlocked.value = response.data.webOnlyBlocked
-    selectedGateway.value = providers.value[0]?.code ?? 'p2p'
+    selectedGateway.value = 'p2p'
   } catch (error: unknown) {
     errorMessage.value = (error as { data?: { statusMessage?: string } })?.data?.statusMessage
       || 'Could not load payment options.'
@@ -167,22 +175,7 @@ onMounted(loadProviders)
         <div v-else>
           <label class="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-3">Select Gateway</label>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              v-for="gateway in providers"
-              :key="gateway.code"
-              type="button"
-              :class="[
-                'text-left p-4 rounded-xl border transition-all flex items-center space-x-3',
-                selectedGateway === gateway.code ? 'bg-indigo-600/10 border-indigo-500' : 'bg-slate-950 border-slate-800 hover:border-slate-700'
-              ]"
-              @click="selectedGateway = gateway.code"
-            >
-              <div class="text-2xl">{{ GATEWAY_META[gateway.code]?.icon ?? '🏦' }}</div>
-              <div>
-                <h4 class="text-sm font-bold text-white">{{ gateway.display_name }}</h4>
-                <p class="text-[10px] text-slate-400">{{ GATEWAY_META[gateway.code]?.description ?? gateway.route }}</p>
-              </div>
-            </button>
+            <!-- P2P Network (Explicitly First) -->
             <button
               type="button"
               :class="[
@@ -197,7 +190,26 @@ onMounted(loadProviders)
                 <p class="text-[10px] text-slate-400">Direct Peer-to-Peer Escrow</p>
               </div>
             </button>
+
+            <!-- Other Gateways (Sorted so Paystack is at the very end) -->
+            <button
+              v-for="gateway in providers"
+              :key="gateway.code"
+              type="button"
+              :class="[
+                'text-left p-4 rounded-xl border transition-all flex items-center space-x-3',
+                selectedGateway === gateway.code ? 'bg-indigo-600/10 border-indigo-500' : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+              ]"
+              @click="selectedGateway = gateway.code"
+            >
+              <div class="text-2xl">{{ GATEWAY_META[gateway.code]?.icon ?? '💳' }}</div>
+              <div>
+                <h4 class="text-sm font-bold text-white">{{ gateway.display_name }}</h4>
+                <p class="text-[10px] text-slate-400">{{ GATEWAY_META[gateway.code]?.description ?? gateway.route }}</p>
+              </div>
+            </button>
           </div>
+
           <p v-if="!providers.length" class="text-[11px] text-amber-400 mt-3">
             No card or crypto gateway is enabled yet. You can still deposit through the P2P network.
           </p>
