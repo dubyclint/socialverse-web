@@ -276,7 +276,654 @@ Pause on Hold: Pressing and holding down anywhere on the screen pauses the timer
 Swipe Left/Right: Swiping horizontally switches between entirely different users. A swipe from right-to-left skips the current user entirely and opens the active statuses of the next user in the queue.
  to users on monitization page.
 
-viorp  tech E : For verification , the real life  approach is. There are 2 purpose((KYC, verified badge)and 2 methods ( manual verification , and using dedit or other api). So allow personal manual  application  and  submission to admin which already  exists, option 2 for faster personal application is using didit or any other api.  Now if user applied and submited for KYC alone,  using app manual method , user agree all terms conditions .  The KYC fee is 1.4pew irrespective of method of application (admin can adjust this fee on control dashboard, also this KYC can be revoked by admin and user can reapply. KYC is for app internal use case so status of KYC should not be seen by others only a user can see that he/she is KYC verified,  but this is not same for verification badge as it validate the user publicly) admin can award this KYC bypass the  fee by using the assign directly privilege , meaning only super admin or admin can assign/ remove or revoke KYC or verification badge directly. update that when KYC or verification badge application is submitted by a user, and when the approval manager or admin click approve the wallet of the user is auto debited the amount for KYC, or the amount for the class/type of badge, if balance is low it approval won't work but says low pew balance, the manager/ admin can decide to approve it next time or leave the application till later, or rejected the application with manual reason written as low pew balance for the badge type applied.
+viorp  tech E : For verification , the real life  approach is. There are 2 purpose((KYC, verified badge)and 2 methods ( manual verification , and using dedit or other api). So allow personal manual  application  and  submission to admin which already  exists, option 2 for faster personal application is using didit or any other api. the prompt for didit API is : You are integrating **Didit KYC (identity verification)**. Use a KYC workflow id.
+
+**Recommended:** configure a webhook so your backend is notified when a verification decision is made. If you don't have one yet, create a webhook destination and add its signing secret to your `.env` as `DIDIT_WEBHOOK_SECRET` (see the Webhooks section below).
+
+## Your Didit account
+
+Put these two secrets in `.env.local` — server-side only (never commit, never ship to the browser):
+
+```bash
+DIDIT_API_KEY=XBhJu2kqoLbbav1JT3Pnx12aliOzRxdTJ_zzdn1ff4o
+DIDIT_WEBHOOK_SECRET=<paste from console → Webhooks → signing secret>
+```
+
+Pass `workflow_id: d95c68c8-b199-46a7-843a-8004c6cfe7c4` — "Compliance workflow" in the body of each `POST /v3/session/` call. It's per-session config, not an env var.
+
+## Selected stack
+
+Target **Web (JS / TS)** (React · Vue · Next.js · vanilla). Use this surface only.
+
+**Install:**
+
+```bash
+npm install @didit-protocol/sdk-web
+```
+
+**Open the verification (after your backend returns the session):**
+
+```
+import { DiditSdk } from "@didit-protocol/sdk-web";
+
+// session.url comes from your backend POST /v3/session/
+DiditSdk.shared.startVerification({ url: session.url });
+```
+
+---
+
+# Integrate Didit into my application
+
+You are integrating Didit into my application end-to-end. Didit is one API for KYC, KYB, AML screening, biometric verification, and transaction monitoring. (Coverage, pricing, and free-tier numbers are in the **Module catalogue** appendix — you don't need them to build.)
+
+> If a **## Selected stack** block was prepended above this file, use its SDK install + client snippet for the client step; everything else here is unchanged.
+
+---
+
+## Summary
+
+Verification runs in three moves:
+
+1. **Backend** `POST`s a `workflow_id` to `https://verification.didit.me/v3/session/` (with your `x-api-key`) → gets back `{ url, session_id }`.
+2. **Frontend** opens that `url` (SDK modal, iframe, or redirect) → the user completes verification on Didit's hosted flow.
+3. **Didit** `POST`s a signed webhook (`Approved` / `Declined` / `In Review` / …) → you verify the HMAC and update your DB.
+
+The API key never touches the browser. You only need two secrets in `.env`.
+
+## Install
+
+**No install needed for iframe, redirect, or REST-only integrations.** Install the SDK only if you want the in-page modal:
+
+```bash
+npm install @didit-protocol/sdk-web   # web modal only; skip for iframe / redirect / REST
+```
+
+## .env (only two secrets — nothing else)
+
+```bash
+DIDIT_API_KEY=         # long-lived API key for every https://verification.didit.me/v3/* call (x-api-key header)
+DIDIT_WEBHOOK_SECRET=  # shared secret used to verify the X-Signature-V2 HMAC on incoming webhooks
+```
+
+> `workflow_id` is **NOT** an env var. It is chosen **per session** and passed in the create-session request body. Get it from the console (Workflows) or `GET /v3/workflows/`. It is a configuration value, not a secret — store it in code/config, e.g. a `WORKFLOW_ID` constant.
+
+## Files to create (Next.js App Router default)
+
+Adapt paths/idioms to my stack if it isn't Next.js — the three responsibilities (create-session route, webhook route, client trigger) are identical everywhere.
+
+### 1. `app/api/verify/route.ts` — create a session server-side, return `{ url, session_id }`
+
+```ts
+import { NextResponse } from "next/server";
+
+// Per-session config, NOT a secret and NOT an env var. Get a workflow_id from
+// the console (Workflows) or GET /v3/workflows/, then paste it here.
+const WORKFLOW_ID = "REPLACE_WITH_YOUR_WORKFLOW_ID";
+
+export async function POST(req: Request) {
+  // Identify the user from YOUR auth/session — never trust an id sent from the browser blindly.
+  const { vendorData } = await req.json().catch(() => ({ vendorData: undefined }));
+
+  const res = await fetch("https://verification.didit.me/v3/session/", {
+    method: "POST",
+    headers: {
+      "x-api-key": process.env.DIDIT_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      workflow_id: WORKFLOW_ID,
+      vendor_data: vendorData ?? "internal-user-id", // your stable internal user id
+      callback: "https://myapp.com/verify/done", // where Didit returns the user after the flow
+    }),
+  });
+
+  if (!res.ok) {
+    // 403 => missing/invalid/revoked x-api-key. Body: {"detail":"You do not have permission to perform this action."}
+    const detail = await res.text();
+    return NextResponse.json({ error: "session_create_failed", detail }, { status: 502 });
+  }
+
+  const session = await res.json(); // { session_id, session_token, url, status, workflow_id, vendor_data }
+  // Return ONLY what the client needs. session_token is for native SDKs; url is for web/iframe/redirect.
+  return NextResponse.json({ url: session.url, session_id: session.session_id });
+}
+```
+
+### 2. `app/api/webhooks/didit/route.ts` — verify `X-Signature-V2`, handle the decision
+
+```ts
+// SKIM PATH: read the 6 numbered steps inside POST() below — that's the whole flow.
+// The two helpers (shortenFloats, sortKeys) are load-bearing canonicalisation for the
+// X-Signature-V2 HMAC; you don't need to parse them to follow the handler.
+// NOTE: Didit ships no official webhook-verify helper — this hand-rolled
+// canonicalisation IS the supported approach. Don't go hunting for an SDK util.
+import crypto from "node:crypto";
+
+// Whole-number floats (1.0) -> integers (1), recursively. Matches Didit's server canonicalisation.
+function shortenFloats(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(shortenFloats);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, shortenFloats(x)]),
+    );
+  }
+  if (typeof v === "number" && !Number.isInteger(v) && v % 1 === 0) return Math.trunc(v);
+  return v;
+}
+
+// Recursive lexicographic key sort (array order preserved).
+function sortKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === "object") {
+    return Object.keys(v as object)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, k) => {
+        acc[k] = sortKeys((v as Record<string, unknown>)[k]);
+        return acc;
+      }, {});
+  }
+  return v;
+}
+
+export async function POST(req: Request) {
+  const raw = await req.text();
+  const sig = req.headers.get("x-signature-v2") ?? "";
+
+  // 1. Canonicalise (shortenFloats -> sortKeys -> JSON.stringify with unescaped Unicode, the JS default).
+  const parsed = JSON.parse(raw);
+  const canonical = JSON.stringify(sortKeys(shortenFloats(parsed)));
+
+  // 2. Constant-time HMAC-SHA256 compare against X-Signature-V2.
+  const expected = crypto
+    .createHmac("sha256", process.env.DIDIT_WEBHOOK_SECRET!)
+    .update(canonical, "utf8")
+    .digest("hex");
+  if (
+    sig.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))
+  ) {
+    return new Response("bad sig", { status: 401 });
+  }
+
+  // 3. Freshness — check the SIGNED `parsed.timestamp` field, never the unsigned
+  //    `X-Timestamp` header: the header is excluded from the HMAC, so a caller can
+  //    replay a captured (body, signature) pair with a freshened header and pass.
+  const ts = Number(parsed.timestamp);
+  if (!ts || Math.abs(Date.now() / 1000 - ts) > 300) {
+    return new Response("stale", { status: 401 });
+  }
+
+  // 4. Idempotency — dedupe on event_id (unique per delivery attempt). Use an atomic,
+  //    durable store (a DB unique constraint or `SET NX` in Redis) so two concurrent
+  //    retries can't both pass the check.
+  if (await alreadyProcessed(parsed.event_id)) return new Response("ok");
+  await markProcessed(parsed.event_id);
+
+  // 5. Apply the decision. Status strings are case-sensitive literals.
+  switch (parsed.status) {
+    case "Approved":
+      await setUserVerified(parsed.vendor_data, parsed.decision);
+      break;
+    case "Declined":
+      await setUserDeclined(parsed.vendor_data, parsed.decision);
+      break;
+    case "In Review":
+      await setUserPendingReview(parsed.vendor_data);
+      break;
+    case "Resubmitted":
+      await reopenNodes(parsed.vendor_data, parsed.resubmit_info?.nodes_to_resubmit);
+      break;
+    case "Kyc Expired":
+      await markReverificationNeeded(parsed.vendor_data);
+      break;
+    default:
+      // "Not Started" | "In Progress" | "Awaiting User" | "Abandoned" | "Expired" — log/no-op.
+      break;
+  }
+
+  // 6. Return 2xx within 5 seconds. Push heavy work to a queue if needed.
+  return new Response("ok");
+}
+
+// Replace these stubs with an atomic, durable store (a DB unique constraint on
+// event_id, or `SET NX` in Redis) so two concurrent retries can't both pass the check.
+async function alreadyProcessed(_id: string) {
+  return false;
+}
+async function markProcessed(_id: string) {}
+async function setUserVerified(_v: string, _d: unknown) {}
+async function setUserDeclined(_v: string, _d: unknown) {}
+async function setUserPendingReview(_v: string) {}
+async function reopenNodes(_v: string, _n: unknown) {}
+async function markReverificationNeeded(_v: string) {}
+```
+
+### 3. `app/verify/VerifyButton.tsx` — minimal client "Verify" button (web SDK default)
+
+```tsx
+"use client";
+import { DiditSdk } from "@didit-protocol/sdk-web";
+
+export function VerifyButton() {
+  async function start() {
+    const res = await fetch("/api/verify", { method: "POST", body: JSON.stringify({}) });
+    const { url } = await res.json();
+    DiditSdk.shared.onComplete = (result) => {
+      // result.status: "completed" | "cancelled" | "failed" — UI hint only.
+      // The webhook is the source of truth for the verification decision.
+      console.log("flow finished:", result.status);
+    };
+    DiditSdk.shared.startVerification({ url }); // opens the Didit modal
+  }
+  return <button onClick={start}>Verify my identity</button>;
+}
+```
+
+Other presentation options for the same `url` (pick one):
+
+| Pattern                      | Code                                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| Iframe (embedded)            | `<iframe src={url} allow="camera; microphone; fullscreen; autoplay; encrypted-media" />`     |
+| Redirect (cross-device)      | `window.location.href = url`                                                                 |
+| iOS / Android / RN / Flutter | `DiditSdk.startVerification(token: session_token)` — return `session_token` instead of `url` |
+
+## ALWAYS / NEVER
+
+**ALWAYS**
+
+- Create sessions **server-side only**; the `x-api-key` lives on the backend.
+- Send `x-api-key: $DIDIT_API_KEY` on every `https://verification.didit.me/v3/*` call.
+- Pass `workflow_id` in the create-session **body** (per session), and a stable `vendor_data` (your internal user id).
+- Treat the **webhook** as the source of truth — verify `X-Signature-V2` (HMAC-SHA256, constant-time compare), then enforce 300s freshness against the SIGNED `timestamp` field in the body.
+- Canonicalise the webhook body as `shortenFloats` → `sortKeys` → `JSON.stringify` (unescaped Unicode) before HMAC.
+- Dedupe on `event_id` using an atomic, durable store; compare status strings **case-sensitively**.
+- Read the V3 **plural arrays** (`id_verifications[]`, `liveness_checks[]`, `face_matches[]`, …), indexing by `node_id`.
+- Return `2xx` from the webhook within 5 seconds; offload heavy work.
+
+**NEVER**
+
+- Never ship `DIDIT_API_KEY` (or any secret) to the browser.
+- Never put `workflow_id` in `.env` or treat it as a secret — it's per-session config.
+- Never trust the SDK `onComplete` result or the `callback` redirect as proof of approval — only the verified webhook is authoritative.
+- Never skip signature verification or the timestamp freshness check, and never derive freshness from the unsigned `X-Timestamp` header — it's excluded from the HMAC, so a replayed (body, signature) pair with a freshened header would otherwise pass.
+- Never read the legacy **singular** decision keys (`aml`, `liveness`, `id_verification`, …) — they only ship for `webhook_version: "v2"` destinations.
+- Never register a webhook on `localhost`/private IPs (SSRF guard rejects them — HTTPS public hostnames only).
+- Never block the webhook response on slow downstream work.
+
+## Verify before responding
+
+- [ ] `DIDIT_API_KEY` and `DIDIT_WEBHOOK_SECRET` are read from env and never committed (only these two secrets).
+- [ ] A `WORKFLOW_ID` is configured in code/config (not `.env`) and passed in the create-session body.
+- [ ] `app/api/verify` creates the session server-side and returns `{ url, session_id }` only.
+- [ ] The client opens the returned `url` (SDK / iframe / redirect) matching my stack.
+- [ ] `app/api/webhooks/didit` does, in order: canonical V2 re-serialise → constant-time HMAC-SHA256 vs `X-Signature-V2` → freshness ≤ 300s against the SIGNED body `timestamp` (not the `X-Timestamp` header) → `event_id` idempotency → dispatch on `status` → `2xx` within 5s.
+- [ ] DB update logic covers all statuses: `Not Started`, `In Progress`, `Awaiting User`, `In Review`, `Approved`, `Declined`, `Resubmitted`, `Abandoned`, `Expired`, `Kyc Expired` (exact, case-sensitive).
+- [ ] No API key in the browser; decision logic trusts the webhook, not the client callback.
+- [ ] User-facing consent/disclosure is shown before the verification `url` opens.
+
+## Next steps
+
+1. Register the webhook destination once (gets you `DIDIT_WEBHOOK_SECRET`) — see **Webhooks** below.
+2. Create a Didit account programmatically if you don't have an `api_key` yet — see **Account** below.
+3. Pick/confirm a `workflow_id` (console → Workflows, or `GET /v3/workflows/`).
+4. Run the flow end-to-end; inspect deliveries and the full decision JSON via `GET /v3/session/{id}/decision/`.
+5. Add only the modules you need (AML, NFC, POA, Age, Phone/Email, KYB, transactions) — see the **Module catalogue**.
+
+---
+
+# Reference appendix
+
+Everything below is accurate detail for when you need more than the core flow. Skim it; don't paste it blindly.
+
+## Base URLs
+
+| Surface                                                                                                                                          | Base URL                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Verification API — every `/v3/...` endpoint (sessions, workflows, lists, billing, webhook destinations, entities, transactions, standalone APIs) | `https://verification.didit.me`           |
+| Auth / account-management API (`/auth/v2/programmatic/...`, `/auth/v2/organizations/...`)                                                        | `https://apx.didit.me`                    |
+| Console (human UI)                                                                                                                               | `https://business.didit.me`               |
+| Hosted verification URL handed to end users                                                                                                      | `https://verify.didit.me`                 |
+| Docs (cross-check anything)                                                                                                                      | `https://docs.didit.me`                   |
+| OpenAPI spec (verification API)                                                                                                                  | `https://docs.didit.me/openapi-25.json`   |
+| OpenAPI spec (auth + apps)                                                                                                                       | `https://docs.didit.me/openapi-auth.json` |
+
+## Account — create one programmatically (only if you have no `api_key`)
+
+Two API calls. No browser. No 2FA. Returns an `api_key` you use for every verification API request.
+
+```bash
+# 1) Register — creates a pending account + emails a 6-character code (15 min TTL).
+#    Password rules: >=8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special (!@#$%^&*()_+-=[]{}|;:,.<>?)
+#    Use a REAL inbox. Reserved test domains (@example.com, @example.org, @*.test, @*.example, @*.invalid)
+#    are refused by mail delivery and the call returns 500.
+curl -X POST https://apx.didit.me/auth/v2/programmatic/register/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "you@yourdomain.com", "password": "StrongP@ss1"}'
+# 201 -> {"message": "Registration successful...", "email": "you@yourdomain.com"}
+
+# 2) Verify email with the code from the inbox — returns api_key, JWT tokens, org, app.
+curl -X POST https://apx.didit.me/auth/v2/programmatic/verify-email/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "you@yourdomain.com", "code": "A3K9F2"}'
+# 200 -> {
+#   "access_token": "...", "refresh_token": "...", "expires_in": 86400,
+#   "organization": { "uuid": "..." },
+#   "application":  { "uuid": "...", "client_id": "...", "api_key": "..." }
+# }
+# Persist response.application.api_key as DIDIT_API_KEY — your only long-lived secret.
+```
+
+If you lose the key, log in again with `POST /auth/v2/programmatic/login/` (same body as register) → `GET /auth/v2/organizations/me/` → `GET /auth/v2/organizations/me/{org_id}/applications/{app_id}/` and read `api_key`.
+
+**Auth failure shape (every `/v3/...` endpoint).** Missing, malformed, or revoked `x-api-key` → **HTTP 403**:
+
+```json
+{ "detail": "You do not have permission to perform this action." }
+```
+
+There is no machine-readable discriminator — handle missing/expired/wrong-app cases uniformly (re-check env or rotate the key in the console).
+
+## Workflows — create or reuse (provides the per-session `workflow_id`)
+
+A workflow defines which modules run during a session and the per-feature thresholds. Create one via API (or `https://business.didit.me` → Workflows → Create).
+
+```bash
+# List existing workflows (newest first; unpaginated).
+curl https://verification.didit.me/v3/workflows/ -H "x-api-key: $DIDIT_API_KEY"
+
+# Create a new KYC workflow.
+# - features[] entries are objects: { "feature": "<UPPERCASE_ENUM>", "config": { ... } }
+# - The config block is optional per feature; sensible defaults apply.
+# - workflow_type defaults to "kyc"; set "kyb" for business onboarding.
+curl -X POST https://verification.didit.me/v3/workflows/ \
+  -H "x-api-key: $DIDIT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_label": "Standard KYC",
+    "features": [
+      { "feature": "OCR" },
+      { "feature": "LIVENESS", "config": { "face_liveness_method": "PASSIVE" } },
+      { "feature": "FACE_MATCH" },
+      { "feature": "IP_ANALYSIS" }
+    ]
+  }'
+# 201 -> response.uuid is the published version uuid; response.workflow_id is the
+# stable identifier you pass per session to POST /v3/session/ (in the body, NOT as an env var).
+```
+
+Feature enum values (UPPERCASE):
+
+- **KYC features:** `OCR`, `NFC`, `LIVENESS` (`face_liveness_method`: `PASSIVE` | `ACTIVE_3D` | `FLASHING`), `FACE_MATCH`, `AGE_ESTIMATION`, `PHONE_VERIFICATION`, `EMAIL_VERIFICATION`, `DATABASE_VALIDATION`, `AML`, `IP_ANALYSIS`, `PROOF_OF_ADDRESS`, `QUESTIONNAIRE`.
+- **KYB features:** `KYB_REGISTRY`, `KYB_DOCUMENTS`, `KYB_KEY_PEOPLE` (each plus `AML` / `DATABASE_VALIDATION` as needed).
+
+For a KYB workflow set `"workflow_type": "kyb"`. Workflow type is locked at creation — create separate workflows per kind.
+
+## Create-session — full field reference
+
+```bash
+curl -X POST https://verification.didit.me/v3/session/ \
+  -H "x-api-key: $DIDIT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workflow_id": "your-workflow-id",
+    "vendor_data": "internal-user-id",
+    "callback": "https://myapp.com/done"
+  }'
+```
+
+Successful response (201 Created):
+
+```json
+{
+  "session_id": "4c5c7f3a-...",
+  "session_token": "eyJ...",
+  "url": "https://verify.didit.me/session/...",
+  "status": "Not Started",
+  "session_kind": "user",
+  "workflow_id": "...",
+  "vendor_data": "internal-user-id"
+}
+```
+
+`vendor_data` is **your internal user ID** — Didit links the session to a User entity (auto-created if new). For KYB workflows it links to a Business entity. Use `url` for web (SDK/iframe/redirect); use `session_token` for native mobile SDKs.
+
+**Optional create-session fields:**
+
+| Field                | Type                                                                            | Notes                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `callback_method`    | `"initiator"` \| `"completer"` \| `"both"`                                      | Which side of a cross-device flow receives the `callback` redirect. Default `"initiator"`. |
+| `metadata`           | object                                                                          | Arbitrary JSON; echoed back on every webhook for this session.                             |
+| `language`           | ISO 639-1 string                                                                | Locks the hosted UI to that language (defaults to browser detection).                      |
+| `contact_details`    | `{ email, send_notification_emails, email_lang, phone }`                        | Lets Didit email or SMS the user a hosted-flow link.                                       |
+| `expected_details`   | `{ first_name, last_name, date_of_birth, id_country, expected_document_types }` | Sanity-checks document data against what your app already knows.                           |
+| `vendor_business_id` | string                                                                          | KYB only — your internal business identifier.                                              |
+
+## SDK table (full — the core uses the web SDK; pick the one matching my surface)
+
+| Stack                                               | Package                            | Install                                                                                             |
+| --------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Web (React, Vue, Next.js, Nuxt, Svelte, vanilla JS) | `@didit-protocol/sdk-web`          | `npm install @didit-protocol/sdk-web`                                                               |
+| iOS (Swift / SwiftUI / UIKit)                       | `DiditSDK`                         | SPM: `https://github.com/didit-protocol/sdk-ios` · CocoaPods: `pod 'DiditSDK'`                      |
+| Android (Kotlin / Jetpack Compose)                  | `me.didit:didit-sdk`               | Maven (custom repo: `https://raw.githubusercontent.com/didit-protocol/sdk-android/main/repository`) |
+| React Native (Expo or bare, RN 0.76+)               | `@didit-protocol/sdk-react-native` | `npm install @didit-protocol/sdk-react-native`                                                      |
+| Flutter (3.3+, Dart 3.11+)                          | `didit_sdk`                        | `flutter pub add didit_sdk`                                                                         |
+| Backend-only / batch / custom UI                    | none — call REST directly          | —                                                                                                   |
+
+- Web: `DiditSdk.shared.startVerification({ url })` (pass the create-session `url`).
+- Native (iOS/Android/RN/Flutter): `DiditSdk.startVerification(token: session_token)` (pass the create-session `session_token`).
+- Always prefer native iOS / Android SDKs over WebView on mobile (NFC + camera + biometrics work natively; NFC needs iOS 15+).
+
+## Webhooks — register the destination and verify deliveries
+
+**Register the webhook destination once** (returns the secret to store as `DIDIT_WEBHOOK_SECRET`):
+
+```bash
+curl -X POST https://verification.didit.me/v3/webhook/destinations/ \
+  -H "x-api-key: $DIDIT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "label": "Production session webhooks",
+    "url": "https://myapp.com/api/webhooks/didit",
+    "webhook_version": "v3",
+    "subscribed_events": ["status.updated", "data.updated"]
+  }'
+```
+
+Response includes `secret_shared_key` — save as `DIDIT_WEBHOOK_SECRET` immediately. Use `webhook_version: "v3"` for all new integrations (plural arrays). The `(application, url)` pair must be unique — POSTing the same URL twice returns 400.
+
+**Cloudflare / restrictive firewall users:** allowlist `18.203.201.92` (Didit's webhook egress IP, User-Agent `DiditWebhook/2.0 +https://didit.me`). HTTPS only, public hostnames only (no localhost / private CIDRs — SSRF guard).
+
+**Three signature headers** ship on every webhook. Verify **one** — `X-Signature-V2` is recommended because it survives JSON middleware re-encoding:
+
+| Header                         | What it signs                                                                 | When to use                                                                                                                                    |
+| ------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `X-Signature-V2` ★ recommended | `JSON.stringify(sortKeys(shortenFloats(parsed_body)))` with unescaped Unicode | Default — works through Express / Django / FastAPI / Next.js body parsers                                                                      |
+| `X-Signature`                  | The raw request bytes verbatim (`sort_keys=True, ensure_ascii=True`)          | Only if you can guarantee no middleware re-encodes the body                                                                                    |
+| `X-Signature-Simple`           | `"{timestamp}:{session_id}:{status}:{webhook_type}"`                          | Fallback only — does NOT authenticate `decision`, so treat decision data as untrusted unless you re-fetch via `GET /v3/session/{id}/decision/` |
+
+**Endpoint requirements (in order):** parse JSON → canonicalise (`shortenFloats` → `sortKeys` → `JSON.stringify`, unescaped Unicode) → `HMAC-SHA256(DIDIT_WEBHOOK_SECRET, canonical, "utf8")` → constant-time compare against `X-Signature-V2` → reject if `abs(now - body.timestamp) > 300` (the SIGNED body field — never the unsigned `X-Timestamp` header, which a replayed request can freshen without invalidating the signature) → dispatch on `webhook_type`/`status` → return `2xx` within 5s (timeout is 5s; retries on 5xx/404 twice, ~1 min then ~4 min). The Node/Next.js implementation is in the core above.
+
+**Webhook event types** (exact strings in `subscribed_events` — no wildcard):
+`status.updated`, `data.updated`, `user.status.updated`, `user.data.updated`, `business.status.updated`, `business.data.updated`, `activity.created`, `transaction.created`, `transaction.status.updated`.
+
+**Session webhook envelope (V3):**
+
+```json
+{
+  "event_id": "uuid",
+  "webhook_type": "status.updated",
+  "timestamp": 1774970000,
+  "created_at": 1774969994,
+  "application_id": "uuid",
+  "session_id": "uuid",
+  "status": "Approved",
+  "workflow_id": "uuid",
+  "workflow_version": 4,
+  "vendor_data": "internal-user-id",
+  "metadata": { "any": "json" },
+  "decision": {
+    /* present on Approved | Declined | In Review | Abandoned */
+  }
+}
+```
+
+KYB sessions additionally include `business_session_id`, `session_kind: "business"`, and `vendor_business_id`. `status: "Resubmitted"` carries `resubmit_info: { nodes_to_resubmit: [...], reasons: { node_id: "why" } }` instead of `decision`.
+
+The literal session status strings are exactly: `"Not Started"`, `"In Progress"`, `"Awaiting User"`, `"In Review"`, `"Approved"`, `"Declined"`, `"Resubmitted"`, `"Abandoned"`, `"Expired"`, `"Kyc Expired"` (mixed-case literal). Compare case-sensitively.
+
+**The `decision` object holds per-module plural arrays** (V3 schema — each entry keyed by its `node_id` in the workflow graph):
+
+- `id_verifications[]`: `first_name`, `last_name`, `document_type`, `document_number`, `date_of_birth`, `nationality`, `expiration_date`, `issuing_state`, `address`, `parsed_address`, `mrz`, `front_image_quality_score`, `back_image_quality_score`, `warnings[]`
+- `nfc_verifications[]`: `status`, `document_type`, `mrz`, `signature_status`, `chip_data`
+- `liveness_checks[]`: `status`, `score` (0–100), `method` (`"active"` | `"passive"` — lowercase in the response; the workflow config enum is uppercase `PASSIVE` / `ACTIVE_3D` / `FLASHING`), `reference_image`, `video_url` (active mode only), `face_quality`, `face_luminance`
+- `face_matches[]`: `status`, `score` (0–100), `source_image`, `target_image`, `warnings[]`
+- `phone_verifications[]`: `status`, `phone_number`, `carrier`, `is_disposable`, `is_virtual`
+- `email_verifications[]`: `status`, `email`, `is_breached`, `is_disposable`, `is_undeliverable`, `breaches[]`
+- `poa_verifications[]`: `status`, `document_type`, `issuer`, `poa_address`, `poa_parsed_address`, `issue_date`, `expiration_date`
+- `aml_screenings[]`: `status`, `total_hits`, `hits[]` (`pep_matches`, `sanction_matches`, `warning_matches`, `adverse_media_matches`), `entity_type` (`"person"` | `"company"`)
+- `ip_analyses[]`: `status`, `ip_address`, `country`, `vpn`, `proxy`, `tor`, `hosting`, `risk_score`
+- `database_validations[]`: `status`, `provider`, `match_type`, `fields_matched`
+- `questionnaire_responses`: nullable object keyed by question `node_id` → answer
+- `reviews[]`: manual-review audit trail (analyst, action, comment, timestamp)
+- KYB-only: `registry_checks[]`, `document_verifications[]`, `key_people_checks[]`
+
+For the full per-feature field reference see `https://docs.didit.me/reference/data-models`.
+
+V2 → V3 migration: V2 used singular keys (`aml`, `phone`, `email`, `poa`, `id_verification`, `nfc`, `liveness`, `face_match`). V3 renamed them to plural arrays so a single workflow can run the same module multiple times on different nodes — always index by `node_id`. Do **not** read the legacy singular fields; they only ship when a destination is explicitly pinned to `webhook_version: "v2"`.
+
+**Idempotency & retries.** Session and transaction webhooks dedupe on `event_id` (unique per delivery attempt; fallback compound key `session_id + webhook_type + timestamp`). On 5xx/404 Didit retries up to **2 times** (~1 min, then ~4 min); the outbound HTTP timeout is 5s. After the second retry the delivery is dropped — replay from the **Deliveries** tab in the console. Always return `2xx` immediately, even when processing is async.
+
+## Decision → database state machine (reference)
+
+```ts
+switch (event.status) {
+  case "Approved":
+    user.verified = true;
+    user.verifiedAt = new Date();
+    storeDecision(event.decision);
+    break;
+  case "Declined":
+    user.verificationStatus = "declined";
+    logWarnings(event.decision);
+    break;
+  case "In Review":
+    user.verificationStatus = "pending_review";
+    break;
+  case "In Progress":
+    user.verificationStatus = "in_progress";
+    break;
+  case "Awaiting User":
+    user.verificationStatus = "awaiting_user";
+    break; // KYB only — waiting for a UBO / officer KYC sub-session
+  case "Resubmitted":
+    reopenNodes(event.resubmit_info.nodes_to_resubmit);
+    break; // reviewer asked the user to retry specific steps
+  case "Abandoned":
+    scheduleReminderEmail(user);
+    break; // decision may still be present with partial data
+  case "Expired":
+    break; // session URL aged out before the user finished
+  case "Kyc Expired":
+    user.verified = false;
+    createNewSession(user);
+    break; // verified user's KYC has aged out per retention policy
+  case "Not Started":
+    break;
+}
+```
+
+## Module catalogue (use whichever ones match my use case)
+
+Coverage: 220+ countries, 14,000+ document types, 48+ languages. Pricing is pay-per-call from $0.30, with 500 free verifications per core feature per month, no minimums, no contract.
+
+| Module                                                                                              | Endpoint                                         | Price               | Free tier            |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------- | -------------------- |
+| Core KYC bundle (ID + Liveness + Face Match + IP)                                                   | session w/ workflow                              | **$0.30**           | 500/mo (per feature) |
+| ID Verification (standalone)                                                                        | `POST /v3/id-verification/`                      | $0.20               | 500/mo               |
+| Passive Liveness (standalone)                                                                       | `POST /v3/passive-liveness/`                     | $0.05               | 500/mo               |
+| Active Liveness (`ACTIVE_3D` / `FLASHING`)                                                          | session-only                                     | $0.15               | —                    |
+| Face Match 1:1                                                                                      | `POST /v3/face-match/`                           | $0.05               | 500/mo               |
+| Face Search 1:N                                                                                     | `POST /v3/face-search/`                          | $0.05               | —                    |
+| Age Estimation                                                                                      | `POST /v3/age-estimation/`                       | $0.10               | —                    |
+| AML Screening                                                                                       | `POST /v3/aml/`                                  | $0.20               | —                    |
+| Ongoing AML Monitoring                                                                              | org-level continuous (per active user/yr)        | $0.07 / user / year | —                    |
+| Database Validation (gov registries)                                                                | `POST /v3/database-validation/`                  | variable            | —                    |
+| Proof of Address                                                                                    | `POST /v3/poa/`                                  | $0.20               | —                    |
+| Email Verification                                                                                  | `POST /v3/email/send/` + `POST /v3/email/check/` | $0.03               | —                    |
+| Phone Verification (SMS / WhatsApp / voice / RCS / Telegram)                                        | `POST /v3/phone/send/` + `POST /v3/phone/check/` | $0.04 + carrier     | —                    |
+| NFC Verification (native SDKs only)                                                                 | session module                                   | $0.15               | —                    |
+| Biometric Authentication (re-auth)                                                                  | session module                                   | $0.10               | —                    |
+| Device & IP Analysis                                                                                | session module                                   | $0.03               | —                    |
+| Custom Questionnaire                                                                                | session module                                   | $0.10               | —                    |
+| Business Verification (KYB)                                                                         | `POST /v3/session/` w/ KYB workflow              | $2.00               | —                    |
+| Company AML Screening                                                                               | KYB module                                       | $0.20               | —                    |
+| Person AML (per UBO / officer)                                                                      | KYB module                                       | $0.20               | —                    |
+| Transaction Screening (rule engine)                                                                 | `POST /v3/transactions/`                         | $0.02 / tx          | —                    |
+| Wallet Verification & Screening (counterparty sanctions + wallet risk via Crystal / Merkle Science) | inside `/v3/transactions/`                       | $0.15 / tx          | —                    |
+| Reusable KYC (share verified user across partners)                                                  | session feature                                  | Free                | —                    |
+| White Label                                                                                         | workflow option                                  | $0.20               | —                    |
+
+## Operational APIs your code should know
+
+| Action                                                        | Endpoint                                                                                              |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Read full decision JSON                                       | `GET /v3/session/{sessionId}/decision/`                                                               |
+| List sessions (filter by status, workflow, vendor_data, date) | `GET /v3/sessions` (no trailing slash)                                                                |
+| Manually approve / decline / request review                   | `PATCH /v3/session/{sessionId}/update-status/`                                                        |
+| Patch metadata or extracted KYC/POA/NFC data                  | `PATCH /v3/session/{sessionId}/update-data/`                                                          |
+| Download compliance PDF                                       | `GET /v3/session/{sessionId}/generate-pdf`                                                            |
+| Delete a single session (GDPR / cleanup)                      | `DELETE /v3/session/{sessionId}/delete/`                                                              |
+| Batch delete sessions                                         | `POST /v3/sessions/delete/`                                                                           |
+| Mint a Reusable KYC share token                               | `POST /v3/session/{sessionId}/share/`                                                                 |
+| Redeem a Reusable KYC share token                             | `POST /v3/session/import-shared/`                                                                     |
+| Submit a transaction for monitoring                           | `POST /v3/transactions/`                                                                              |
+| List / create lists (blocklist, allowlist, custom)            | `GET/POST /v3/lists/`                                                                                 |
+| Add entry to a list                                           | `POST /v3/lists/{list_uuid}/entries/`                                                                 |
+| Upload a face image to a blocklist                            | `POST /v3/lists/{list_uuid}/entries/face-upload/`                                                     |
+| Check credit balance                                          | `GET /v3/billing/balance/`                                                                            |
+| Top up credits (returns Stripe checkout URL)                  | `POST /v3/billing/top-up/`                                                                            |
+| List / get / update / delete vendor users                     | `GET /v3/users/`, `GET/PATCH /v3/users/{vendor_data}/`, `POST /v3/users/delete/`                      |
+| List / get / update / delete vendor businesses                | `GET /v3/businesses/`, `GET/PATCH /v3/businesses/{vendor_data}/`, `POST /v3/businesses/delete/`       |
+| List / create / update / delete webhook destinations          | `GET/POST /v3/webhook/destinations/`, `GET/PATCH/DELETE /v3/webhook/destinations/{destination_uuid}/` |
+
+Every `/v3/...` endpoint above is served from `https://verification.didit.me` and authenticates with `x-api-key`. Auth/registration is the only surface on `https://apx.didit.me`.
+
+## When you need more detail
+
+- API root: `https://verification.didit.me/v3/` (everything `/v3/`). Auth only: `https://apx.didit.me/auth/v2/programmatic/`.
+- Sessions overview: `https://docs.didit.me/sessions-api/overview`
+- Create session: `https://docs.didit.me/sessions-api/create-session`
+- Retrieve session decision: `https://docs.didit.me/sessions-api/retrieve-session`
+- Standalone APIs index: `https://docs.didit.me/standalone-apis/id-verification`
+- Programmatic registration: `https://docs.didit.me/integration/programmatic-registration`
+- AI agent / MCP integration: `https://docs.didit.me/integration/ai-agent-integration`
+- Webhooks reference: `https://docs.didit.me/integration/webhooks`
+- Verification statuses (literal API strings): `https://docs.didit.me/integration/verification-statuses`
+- Data models (canonical V3 schema for every `decision.*` array): `https://docs.didit.me/reference/data-models`
+- SDKs overview: `https://docs.didit.me/integration/sdks`
+- Full OpenAPI 3 spec (verification API): `https://docs.didit.me/openapi-25.json`
+- Auth + apps OpenAPI: `https://docs.didit.me/openapi-auth.json`
+- MCP server config (drop into `.cursor/mcp.json`, `claude_desktop_config.json`, or equivalent). The hosted server signs in with OAuth in the browser, so no credentials go in the file:
+
+```json
+{
+  "mcpServers": {
+    "didit": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://mcp.didit.me/mcp"]
+    }
+  }
+}
+```
+
+To run it locally (stdio) instead, use the npm package: `"command": "npx", "args": ["-y", "@didit-protocol/mcp-server"]`, with `"env": { "DIDIT_ACCESS_TOKEN": "user-access-token" }` or no token (the agent then signs in with `didit_account_login`, plus `didit_account_verify_2fa` when the account has 2FA).
+
+The MCP server exposes 40+ tools spanning auth, sessions, workflows, questionnaires, users, billing, blocklist, and every standalone API — see `https://docs.didit.me/integration/ai-agent-integration` for the full tool catalogue.
+
+---
+
+Now build it: if my stack is unstated, ask once, then ship all three files.
+. Note : if user pew balance is lower than the verification pew balance ask user if he/she will pay later if yes continue and create negative balance on the pew balance which will paid or balanced first on any deposit or gift recieved  if no redirect to manual method with hint that while submission is allowed admin will still effect fee on approval.Now if user applied and submited for KYC alone,  using app manual method , user agree all terms conditions .  The KYC fee is 1.4pew irrespective of method of application (admin can adjust this fee on control dashboard, also this KYC can be revoked by admin and user can reapply. KYC is for app internal use case so status of KYC should not be seen by others only a user can see that he/she is KYC verified,  but this is not same for verification badge as it validate the user publicly) admin can award this KYC bypass the  fee by using the assign directly privilege , meaning only super admin or admin can assign/ remove or revoke KYC or verification badge directly. update that when KYC or verification badge application is submitted by a user, and when the approval manager or admin click approve the wallet of the user is auto debited the amount for KYC, or the amount for the class/type of badge, if balance is low it approval won't work but says low pew balance, the manager/ admin can decide to approve it next time or leave the application till later, or rejected the application with manual reason written as low pew balance for the badge type applied.
 
 
 (Note : KYC is for individual profile not pages, pages can only apply for badges. verifcation fee for badges across individual profile and pages remains are already set and can be adjusted by admin and applies on application irrespective of method of application.) 
