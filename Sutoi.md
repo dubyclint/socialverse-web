@@ -1,4 +1,4 @@
-viorp tech A: study and apply every bit of Tech Stack Behind TikTok's Seamless Video Player on this viorp project 
+fviorp tech A: study and apply every bit of Tech Stack Behind TikTok's Seamless Video Player on this viorp project 
 
 1. The Video Delivery Pipeline (HLS & MPEG-DASH)
 
@@ -224,7 +224,7 @@ Define a Nuxt state service (useveepFeedStore) that handles the payload generati
 
 very important: on the profile page the post should be arranged as : 1. All ; which is all posts scrolled through down  2., photos: all photos be it profile photo or Posts photos arrange in 3 coloums grid , when clicked it open in full screen 3: veep : all audio/video posts arranged in 3 coloums grid with view counts , ( standard view 5 second default, engaged views 25ec default, high tier engagement metrics 30mins. admin should be able to adjust /set how many seconds for each on dashboard control. actual view is engaged view or watch to finish . 
 
-critical: add in monitization requirements qualifications and progress page that 200000 views in 30 days from authentic videos, not copyright videos. Clippers video are reviewed, the standard views 5 seconds don't count only the engaged views.
+critical: add in monitization page : requirements qualifications and progress page that 200000 views in 30 days from authentic videos, not copyright videos. Clippers video are reviewed, the standard views 5 seconds don't count only the engaged views counts. When you go to pages/settings live, you will see how go live  and requirements and progress is shown to users. This is how I want the monitization requirements and progress to be shown to users on monitization page.
 
 Be best in 
 1. Vue 3 Full-Screen Core Skeleton: Provide a vertically swipable wrapper using a touch gesture handler or a native CSS scroll snap wrapper (snap-y snap-mandatory h-screen overflow-y-scroll).
@@ -248,9 +248,9 @@ Swipe Left/Right: Swiping horizontally switches between entirely different users
 
 Note the ad should also be there in between every 3 statuses on the bar.
 On feed.vue Make sure my feed post rendering obeys this. Make sure my admin settings apply.
-
+other posts placement arrangement order in feed or veep are
 First Post, 
- ad sponsored / strips of and,
+ ad sponsored / strips of and,(note strip are not allowed in veep since it fullscreen per post)
 another  different 2 posts,
   Strips of trending posts ,
  Another 3 posts ,
@@ -262,8 +262,7 @@ Another 2 posts global foreign trending,
 The idea is place trending post , pals post, ad mixed in between, other posts ( admin settings apply)
 
 For veep rendering apply all my post feed logic / algorithm but find out if I'm missing add other sophisticated render tech or post ideal on Tiktok or Facebook.
- When you go to pages/settings you will see how requirements and progress is shown to users. This is how I want the monitization requirements and progress to be shown to users on monitization page.
-
+  
 The ad placement in veep should align exactly to veep fullscreen design. And admin can set its settings at admin dashboard just like feed/post. When statuses are active and yet completely not viewed yet , a Blue coloured ring should encircle the profile to indicate that, and  this should be seen across  across posts, veep, chat message, live stream. And when clicked should take  one to the statuses and if more than one statuses then bar Segmented Progress .
 • Behavior: Each segment represents one single, distinct status post or video clip within a user's collection.
 2. Auto-Play & Timing Rules
@@ -277,7 +276,7 @@ Pause on Hold: Pressing and holding down anywhere on the screen pauses the timer
 Swipe Left/Right: Swiping horizontally switches between entirely different users. A swipe from right-to-left skips the current user entirely and opens the active statuses of the next user in the queue.
  to users on monitization page.
 
-viorp  tech E : For verification the real life  approach is. There are 2 purpose((KYC, verified badge)and 2 methods ( manual verification , and using dedit or other api). So allow personal manual  application  and  submission to admin which already  exists, option 2 for faster personal application is using didit or any other api.  Now if user applied and submited for KYC alone,  using app manual method , user agree all terms conditions .  The KYC fee is 1.4pew irrespective of method of application (admin can adjust this fee on control dashboard, also this KYC can be revoked by admin and user can reapply. KYC is for app internal use case so status of KYC should not be seen by others only a user can see that he/she is KYC verified,  but this is not same for verification badge as it validate the user publicly) 
+viorp  tech E : For verification , the real life  approach is. There are 2 purpose((KYC, verified badge)and 2 methods ( manual verification , and using dedit or other api). So allow personal manual  application  and  submission to admin which already  exists, option 2 for faster personal application is using didit or any other api.  Now if user applied and submited for KYC alone,  using app manual method , user agree all terms conditions .  The KYC fee is 1.4pew irrespective of method of application (admin can adjust this fee on control dashboard, also this KYC can be revoked by admin and user can reapply. KYC is for app internal use case so status of KYC should not be seen by others only a user can see that he/she is KYC verified,  but this is not same for verification badge as it validate the user publicly) admin can award this KYC bypass the  fee by using the assign directly privilege , meaning only super admin or admin can assign/ remove or revoke KYC or verification badge directly. update that when KYC or verification badge application is submitted by a user, and when the approval manager or admin click approve the wallet of the user is auto debited the amount for KYC, or the amount for the class/type of badge, if balance is low it approval won't work but says low pew balance, the manager/ admin can decide to approve it next time or leave the application till later, or rejected the application with manual reason written as low pew balance for the badge type applied.
 
 
 (Note : KYC is for individual profile not pages, pages can only apply for badges. verifcation fee for badges across individual profile and pages remains are already set and can be adjusted by admin and applies on application irrespective of method of application.) 
@@ -303,17 +302,18 @@ On individual/government badge application. A hint info that individual that are
 Let displayed name show 
 
 - when a user is  filling details on withdrawal using p2p  the name provided on KYC is auto filled and  cannot be edited, but if user is not KYC verified . A very very Tiny KYC  verify button show red and tickles besides name  text box telling user to KYC verify so that legal payment name can be populated. The button takes user to verification page in profile. 
-- unless edited, Reason for payment should always default as viorp earnings/ gifts withdrawal. Also seller can drop note on terms for the buyer or user paying to the provided account on withdrawal p2p.
+- unless edited, Reason for payment deposit/ withdrawal: should always default as viorp top up/  , earnings/ gifts withdrawal. Also seller can drop note on terms for the buyer or user paying to the provided account on withdrawal p2p.
 . For users with verified badge already without KYC , the  same KYC request and process should trigger and suffice so that they can update and provide legitimate name and details to used during transaction especially withdrawal.
-- make the p2p network option be top and default on add fund in wallet and paystack last. 
+   
 - create a special privilege where a seller can edit account name to be paid in .  Note only admin can assign this privilege to any user. If this is not assigned default sellers KYC name applies. 
 
 Everyone can add fund using P2P
- The p2p trade chat should not mix with chat message chat , they are different what, seller name displayed on trade chat should be displayed name not username, and support that would enter trade chat on dispute should also supposed to have set his/ her displayed name, if not the name : support followed by their user name would default.
+ The p2p trade chat should not mix with chat message chat , they are different what, The seller name displayed on trade chat should be displayed name not username only admin can permit seller username to display if not never should it ,I want seller privacy protection so nothing clicked should to seller profile or chat  or any other in app. but seller can access the buyer or any user provided he/she doesn't have seller privilege . any agent/support that would enter trade chat on dispute should also supposed to have set his/ her displayed name, if not the  support followed by their user name would default.
 
 -anytime a user  login or even if the user is on another feature and there is gift sent, or any credit, money should rain on the screen, the wallet icon should indicate unread and unread income or gift state with best wallet interactives.
-- the P2P trading on sidebar on feed.vue should be named P2P  Network and the tab should have counts of active trades.
-Refactor and redesign the Trade Chat component in our P2P trading dashboard.   Requirements:Attachment & Media Upload:Add an attachment button (paperclip/plus icon) inside the input toolbar.Allow users to upload photos (PNG, JPG), screenshots, screen recordings (MP4, WEBM), and documents (PDF).Include a file picker drawer/modal with options: Take Photo/Video, Upload File/Image, Paste Screenshot.Display a pre-send preview thumbnail area for selected media with a remove/cancel option.UI & Styling Improvements:Replace the rigid box design with a modern, full-width responsive chat box.   Redesign the message input bar to combine [Attachment Button] [Text Input] [Send Button] seamlessly in one toolbar.   Modernize the active/disabled states for the Send button.   Improve empty state UX for "No messages yet." with an icon/illustration and helpful prompt (e.g., "Communicate with the seller or attach payment proof here").Add distinct chat bubbles for sent vs. received messages, including timestamps and read/delivered status icons.Output Required:Provide clean, modular frontend code (React / Tailwind CSS / HTML) and file upload handler logic.
+
+- the P2P trading on sidebar on feed.vue should be renamed P2P  Network and the tab should have counts of active trades.
+Refactor and redesign the Trade Chat component ;   Requirements:Attachment & Media Upload:Add an attachment button (paperclip/plus icon) inside the input toolbar.Allow users to upload photos (PNG, JPG), screenshots, screen recordings (MP4, WEBM), and documents (PDF).Include a file picker drawer/modal with options: Take Photo/Video, Upload File/Image, Paste Screenshot.Display a pre-send preview thumbnail area for selected media with a remove/cancel option.UI & Styling Improvements:Replace the rigid box design with a modern, full-width responsive chat box.   Redesign the message input bar to combine [Attachment Button] [Text Input] [Send Button] seamlessly in one toolbar.   Modernize the active/disabled states for the Send button.   Improve empty state UX for "No messages yet." with an icon/illustration and helpful prompt (e.g., "Communicate with the seller or attach payment proof here").Add distinct chat bubbles for sent vs. received messages, including timestamps and read/delivered status icons.Output Required:Provide clean, modular frontend code (React / Tailwind CSS / HTML) and file upload handler logic.
 
 viorp tech G : - create creators analysts : only admin , manager can see the tab on profile since it's still in development: all miss matched figures should be aligned, admin control is important in any missing place
 
