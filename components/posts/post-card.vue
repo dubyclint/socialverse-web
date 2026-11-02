@@ -14,7 +14,7 @@
       <div class="post-identity">
         <span class="author-row">
           <NuxtLink :to="authorLink" class="post-author">
-            {{ authorName }}
+            <span class="author-name">{{ authorName }}</span>
             <VerifiedBadge v-if="post.author?.verified" :type="post.author?.verified_type" :size="16" />
           </NuxtLink>
           <SocialFollowButton v-if="!isMine && post.author?.id && post.author?.type !== 'PAGE'" :user-id="post.author.id" compact />
@@ -641,4 +641,8 @@ const formatTimeAgo = (value: string) => {
   .post-card .post-meta { max-width: 100%; font-size: 0.68rem; }
   .post-card .post-menu-wrap { align-self: center; }
 }
+.post-card .post-author { flex: 0 1 auto; max-width: 100%; }
+.post-card .post-author .author-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.post-card .post-author > :not(.author-name) { flex-shrink: 0; }
+.post-card .author-row > :not(.post-author) { flex-shrink: 0; }
 </style>
