@@ -159,13 +159,25 @@ export const rankPosts = async (
   likerPageId: string | null = null,
   locale: ViewerLocale = { language: null, country: null }
 ): Promise<RankedPost[]> => {
-  let viewerCountry = locale.country
-  if (!viewerCountry) {
-    const { data: me } = await getServiceClient().from('user').select('phone_country').eq('user_id', userId).maybeSingle()
-    viewerCountry = me?.phone_country && /^[A-Z]{2}$/.test(me.phone_country) ? me.phone_country : null
-  }
+  // Every read that only depends on the viewer runs in one parallel round trip;
+  // the public pool is cached and the restricted/own reads are independent too.
+  const countryLookup: Promise<string | null> = locale.country
+    ? Promise.resolve(locale.country)
+    : Promise.resolve(
+        getServiceClient().from('user').select('phone_country').eq('user_id', userId).maybeSingle()
+      ).then(({ data: me }) => (me?.phone_country && /^[A-Z]{2}$/.test(me.phone_country) ? me.phone_country : null))
 
-  const [{ data: following }, { data: interestLinks }, { data: interactions }] = await Promise.all([
+  const [
+    viewerCountry,
+    { data: following },
+    { data: interestLinks },
+    { data: interactions },
+    { data: followedPages },
+    publicPool,
+    { data: restricted },
+    { data: own }
+  ] = await Promise.all([
+    countryLookup,
     client.from('follows').select('following_id').eq('follower_id', userId),
     client.from('user_interests').select('interest_id').eq('user_id', userId),
     client
@@ -174,51 +186,12 @@ export const rankPosts = async (
       .eq('user_id', userId)
       .eq('item_type', 'post')
       .order('created_at', { ascending: false })
-      .limit(500)
-  ])
-
-  const followingIds = new Set((following ?? []).map(row => row.following_id))
-  const { data: followedPages } = await client.from('page_follows').select('page_id').eq('user_id', userId)
-  for (const row of followedPages ?? []) followingIds.add(row.page_id)
-
-  let interestTags = new Set<string>()
-  const interestIds = (interestLinks ?? []).map(row => row.interest_id)
-  if (interestIds.length) {
-    const { data: interests } = await client
-      .from('interests')
-      .select('name')
-      .in('id', interestIds)
-    interestTags = new Set((interests ?? []).map(row => row.name.toLowerCase()))
-  }
-
-  // A passive impression means "already seen"; an explicit action means the
-  // viewer engages with that author, which is the affinity signal.
-  const seenPostIds = new Set(
-    (interactions ?? [])
-      .filter(row => row.interaction_type === 'view' || row.interaction_type === 'hide')
-      .map(row => row.item_id)
-  )
-  const engagedPostIds = (interactions ?? [])
-    .filter(row => row.interaction_type !== 'view' && row.interaction_type !== 'hide')
-    .map(row => row.item_id)
-
-  let affinityAuthorIds = new Set<string>()
-  if (engagedPostIds.length) {
-    const { data: interactedPosts } = await client
-      .from('posts')
-      .select('user_id')
-      .in('id', engagedPostIds)
-    affinityAuthorIds = new Set((interactedPosts ?? []).map(row => row.user_id))
-  }
-
-  if (tab === 'following' && followingIds.size === 0) return []
-
-  // Public posts come from the shared cached pool; anything with restricted
-  // visibility is read through the viewer's own client so RLS decides what they
-  // are allowed to see. Only the scoring is personal.
-  // The viewer's own posts are read uncached so a post they just published is
-  // in their feed immediately rather than after the pool TTL.
-  const [publicPool, { data: restricted }, { data: own }] = await Promise.all([
+      .limit(500),
+    client.from('page_follows').select('page_id').eq('user_id', userId),
+    // Public posts come from the shared cached pool; anything with restricted
+    // visibility is read through the viewer's own client so RLS decides what they
+    // are allowed to see. The viewer's own posts are read uncached so a post they
+    // just published is in their feed immediately rather than after the pool TTL.
     getCandidatePool(weights.candidate_pool, tab),
     client
       .from('posts')
@@ -237,6 +210,34 @@ export const rankPosts = async (
       .order('created_at', { ascending: false })
       .limit(25)
   ])
+
+  const followingIds = new Set((following ?? []).map(row => row.following_id))
+  for (const row of followedPages ?? []) followingIds.add(row.page_id)
+  if (tab === 'following' && followingIds.size === 0) return []
+
+  const interestIds = (interestLinks ?? []).map(row => row.interest_id)
+
+  // A passive impression means "already seen"; an explicit action means the
+  // viewer engages with that author, which is the affinity signal.
+  const seenPostIds = new Set(
+    (interactions ?? [])
+      .filter(row => row.interaction_type === 'view' || row.interaction_type === 'hide')
+      .map(row => row.item_id)
+  )
+  const engagedPostIds = (interactions ?? [])
+    .filter(row => row.interaction_type !== 'view' && row.interaction_type !== 'hide')
+    .map(row => row.item_id)
+
+  const [{ data: interests }, { data: interactedPosts }] = await Promise.all([
+    interestIds.length
+      ? client.from('interests').select('name').in('id', interestIds)
+      : Promise.resolve({ data: [] as Array<{ name: string }> }),
+    engagedPostIds.length
+      ? client.from('posts').select('user_id').in('id', engagedPostIds)
+      : Promise.resolve({ data: [] as Array<{ user_id: string }> })
+  ])
+  const interestTags = new Set((interests ?? []).map(row => row.name.toLowerCase()))
+  const affinityAuthorIds = new Set((interactedPosts ?? []).map(row => row.user_id))
 
   const byId = new Map<string, CandidatePost>()
   for (const row of [

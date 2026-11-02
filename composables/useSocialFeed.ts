@@ -154,6 +154,25 @@ export const useSocialFeed = () => {
 
   // Statuses
   const fetchedStatuses = ref<FeedStatus[]>([])
+
+  // Last good feed/status payload per user, shown instantly on open while the
+  // fresh copy loads (stale-while-revalidate). Ads are never cached.
+  const cacheKey = (kind: string) => (currentUserId.value ? `viorp-${kind}:${currentUserId.value}` : null)
+  const readCache = <T>(key: string | null): T | null => {
+    if (!key || typeof localStorage === 'undefined') return null
+    try {
+      const raw = localStorage.getItem(key)
+      return raw ? (JSON.parse(raw) as T) : null
+    } catch {
+      return null
+    }
+  }
+  const writeCache = (key: string | null, value: unknown) => {
+    if (!key || typeof localStorage === 'undefined') return
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch { /* storage full or disabled */ }
+  }
   const statusLoading = ref(false)
   const statusAds = ref<FeedAd[]>([])
   const activeSelectedStatus = ref<FeedStatus | null>(null)
@@ -238,15 +257,24 @@ export const useSocialFeed = () => {
   }
 
   const refreshFeed = async (tab: FeedTab = activeTab.value) => {
+    const tabChanged = tab !== activeTab.value
     activeTab.value = tab
-    postsLoading.value = true
+    const key = cacheKey(`feed:${tab}`)
+    const cached = readCache<FeedItem[]>(key)
+    if (cached?.length) feedItems.value = cached
+    else if (tabChanged) feedItems.value = []
+    postsLoading.value = !feedItems.value.length
     try {
       page.value = 0
-      feedItems.value = await loadFeed(0)
+      const items = await loadFeed(0)
+      feedItems.value = items
+      writeCache(key, items.filter(i => i.type === 'post').slice(0, PAGE_SIZE))
     } catch (e) {
       console.error('[Feed] Loading feed failed', e)
-      feedItems.value = []
-      hasMorePosts.value = false
+      if (!cached?.length) {
+        feedItems.value = []
+        hasMorePosts.value = false
+      }
     } finally {
       postsLoading.value = false
     }
@@ -269,7 +297,9 @@ export const useSocialFeed = () => {
   }
 
   const fetchStatuses = async () => {
-    statusLoading.value = true
+    const key = cacheKey('statuses')
+    if (!fetchedStatuses.value.length) fetchedStatuses.value = readCache<FeedStatus[]>(key) ?? []
+    statusLoading.value = !fetchedStatuses.value.length
     try {
       const res = await $fetch<{ data: Array<{
         author: FeedAuthor
@@ -294,9 +324,10 @@ export const useSocialFeed = () => {
           is_me: group.is_me,
         }
       })
+      writeCache(key, fetchedStatuses.value)
     } catch (e) {
       console.error('[Feed] Loading statuses failed', e)
-      fetchedStatuses.value = []
+      if (!readCache<FeedStatus[]>(key)?.length) fetchedStatuses.value = []
     } finally {
       statusLoading.value = false
     }

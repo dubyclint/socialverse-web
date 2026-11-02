@@ -29,6 +29,16 @@ export interface FeedResponse {
   }
 }
 
+const CONFIG_TTL_MS = 30_000
+const configCache = new Map<string, { at: number, value: unknown }>()
+const cachedConfig = async <T>(client: Parameters<typeof loadConfig>[0], key: string, fallback: T): Promise<T> => {
+  const hit = configCache.get(key)
+  if (hit && Date.now() - hit.at < CONFIG_TTL_MS) return hit.value as T
+  const value = await loadConfig<T>(client, key, fallback)
+  configCache.set(key, { at: Date.now(), value })
+  return value
+}
+
 export default defineEventHandler(async (event): Promise<FeedResponse> => {
   const user = await requireAuth(event)
   const supabase = await serverSupabaseClient<Database>(event)
@@ -38,15 +48,16 @@ export default defineEventHandler(async (event): Promise<FeedResponse> => {
   const page = Math.max(0, Number(query.page) || 0)
 
   const [weights, ads] = await Promise.all([
-    loadConfig<FeedRankingWeights>(supabase, 'feed_ranking', DEFAULT_RANKING),
-    loadConfig<AdServingConfig>(supabase, 'ad_serving', DEFAULT_ADS)
+    cachedConfig<FeedRankingWeights>(supabase, 'feed_ranking', DEFAULT_RANKING),
+    cachedConfig<AdServingConfig>(supabase, 'ad_serving', DEFAULT_ADS)
   ])
 
   const tabParam = String(query.tab || 'for-you')
   const tab: FeedTab = tabParam === 'following' || tabParam === 'trending' ? tabParam : 'for-you'
 
-  const posts = await rankPosts(supabase, user.id, limit, page * limit, weights, tab, actingPageId(event), viewerLocale(event))
-  const [inAppAds, externalSlots] = await Promise.all([
+  // Ads do not depend on the ranked posts, so they load alongside ranking.
+  const [posts, inAppAds, externalSlots] = await Promise.all([
+    rankPosts(supabase, user.id, limit, page * limit, weights, tab, actingPageId(event), viewerLocale(event)),
     ads.enabled ? loadTargetedAds(event, user.id, ads.max_in_app_ads) : Promise.resolve([]),
     ads.enabled && ads.external_fallback
       ? loadExternalSlots(supabase, user.id)
