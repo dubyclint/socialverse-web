@@ -17,7 +17,14 @@
             :muted="muted"
             :low-data="lowData"
             @watched="w => track(it.post.id, w)"
+            :engaged-seconds="adEngagedSeconds"
+            @engaged="sec => requestViewAd(it.post.id, sec)"
           />
+          <div v-if="viewAd && viewAd.postId === it.post.id" class="veep-view-ad" @click="viewAdClick">
+            <img v-if="viewAd.ad.creativeUrl" :src="viewAd.ad.creativeUrl" alt="" @load="viewAdRendered" @error="settleViewAd('rendered_failed')">
+            <div><small>Sponsored</small><b>{{ viewAd.ad.headline || viewAd.ad.title }}</b></div>
+            <button aria-label="Close ad" @click.stop="viewAd = null">✕</button>
+          </div>
           <div class="veep-meta">
             <NuxtLink v-if="it.post.author" :to="`/profile/${it.post.author.id}`" class="veep-handle veep-author">
               <span class="veep-author-name">{{ it.post.author.full_name || it.post.author.username }}</span>
@@ -302,6 +309,36 @@ const openLibrary = () => { libOpen.value = true; loadLibrary('watched') }
 
 const adTrack = (id: string, interactionType: 'IMPRESSION' | 'CLICK') => { $fetch('/api/ads/track', { method: 'POST', body: { campaignId: id, interactionType, placement: 'veep' } }).catch(() => {}) }
 const adClick = (id: string) => adTrack(id, 'CLICK')
+
+// Sutoi G: at the engaged mark, request one ad for this view. The server decides house vs network ads
+// by DAU; if nothing renders within the admin fill timeout the request settles as 'no_ad' (no credit).
+interface ViewAd { postId: string, requestId: string, ad: { id: string, creativeUrl?: string | null, headline?: string | null, title?: string | null } }
+const viewAd = ref<ViewAd | null>(null)
+const adEngagedSeconds = ref(6)
+onMounted(() => { $fetch<{ ad_engaged_s?: number }>('/api/veep/settings').then((s) => { if (s.ad_engaged_s) adEngagedSeconds.value = s.ad_engaged_s }).catch(() => {}) })
+let viewAdTimer: ReturnType<typeof setTimeout> | null = null
+let viewAdSettled = true
+const settleViewAd = (status: 'rendered' | 'no_ad' | 'rendered_failed') => {
+  if (viewAdSettled || !viewAd.value) return
+  viewAdSettled = true
+  if (viewAdTimer) { clearTimeout(viewAdTimer); viewAdTimer = null }
+  $fetch('/api/veep/ad-result', { method: 'POST', body: { adRequestId: viewAd.value.requestId, status } }).catch(() => {})
+  if (status !== 'rendered') viewAd.value = null
+  else { const id = viewAd.value.ad.id; adTrack(id, 'IMPRESSION'); setTimeout(() => { if (viewAd.value?.ad.id === id) viewAd.value = null }, 5000) }
+}
+const viewAdRendered = () => settleViewAd('rendered')
+const viewAdClick = () => { if (viewAd.value) adClick(viewAd.value.ad.id) }
+const requestViewAd = async (postId: string, seconds: number) => {
+  try {
+    const r = await $fetch<{ adRequestId: string | null, ad: ViewAd['ad'] | null, timeoutMs?: number }>('/api/veep/ad-request', { method: 'POST', body: { postId, watchSeconds: seconds } })
+    if (!r.adRequestId) return
+    if (!r.ad) { await $fetch('/api/veep/ad-result', { method: 'POST', body: { adRequestId: r.adRequestId, status: 'no_ad' } }).catch(() => {}); return }
+    viewAdSettled = false
+    viewAd.value = { postId, requestId: r.adRequestId, ad: r.ad }
+    viewAdTimer = setTimeout(() => settleViewAd('no_ad'), r.timeoutMs ?? 3500)
+    if (!r.ad.creativeUrl) settleViewAd('rendered')
+  } catch { /* not engaged / rate limited */ }
+}
 const adSeen = new Set<string>()
 watch(active, (i) => {
   const it = items.value[i]
@@ -345,6 +382,12 @@ onMounted(() => {
 .veep-avatar.ring img { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6; }
 .veep-avatar img { width: 46px; height: 46px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
 .veep-avatar .plus { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; color: #fff; font-size: 14px; line-height: 18px; text-align: center; font-weight: 700; }
+.veep-view-ad { position: absolute; left: 12px; right: 72px; top: calc(env(safe-area-inset-top) + 56px); z-index: 15; display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 12px; background: rgba(0,0,0,.7); color: #fff; }
+.veep-view-ad img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.veep-view-ad div { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.veep-view-ad b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.veep-view-ad small { font-size: 10px; opacity: .7; }
+.veep-view-ad button { background: none; border: 0; color: #fff; min-height: 0; }
 .veep-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-around; padding: 6px 0 calc(env(safe-area-inset-bottom) + 6px); background: rgba(0,0,0,.75); }
 .veep-bottom a { display: flex; flex-direction: column; align-items: center; color: #fff; text-decoration: none; font-size: 20px; }
 .veep-bottom small { font-size: 10px; }

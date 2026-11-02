@@ -24,8 +24,9 @@
 
 <script setup lang="ts">
 /** One full-screen Veep media canvas: pre-buffers when near, plays when active, crossfades audio, reports watch time. */
-const props = defineProps<{ src: string, video: boolean, active: boolean, near: boolean, muted: boolean, lowData: boolean, poster?: string }>()
-const emit = defineEmits<{ watched: [{ watchMs: number, completed: boolean, loops: number }] }>()
+const props = defineProps<{ src: string, video: boolean, active: boolean, near: boolean, muted: boolean, lowData: boolean, poster?: string, engagedSeconds?: number }>()
+const emit = defineEmits<{ watched: [{ watchMs: number, completed: boolean, loops: number }], engaged: [seconds: number] }>()
+let engagedSent = false
 const el = ref<HTMLVideoElement | null>(null)
 const stalled = ref(false)
 const paused = ref(false)
@@ -50,7 +51,7 @@ const fadeOut = (v: HTMLVideoElement) => {
 const flush = () => {
   if (startedAt) { watchedMs += Date.now() - startedAt; startedAt = 0 }
   if (watchedMs > 300 || completed) emit('watched', { watchMs: watchedMs, completed, loops: loops.value })
-  watchedMs = 0; completed = false; loops.value = 0
+  watchedMs = 0; completed = false; loops.value = 0; engagedSent = false
 }
 
 watch(() => props.active, async (on) => {
@@ -74,6 +75,7 @@ watch(() => props.muted, (m) => { if (el.value && props.active) el.value.muted =
 const onTime = () => {
   const v = el.value
   if (v && v.duration && v.currentTime / v.duration > 0.95) completed = true
+  if (v && !engagedSent && (v.currentTime >= (props.engagedSeconds ?? 6) || completed)) { engagedSent = true; emit('engaged', v.currentTime) }
 }
 
 const togglePlay = () => {

@@ -122,6 +122,7 @@
         <section v-if="!profile.locked" class="posts-section">
           <div class="ptabs">
             <button v-for="t in (['all', 'photos', 'veep'] as const)" :key="t" :class="{ on: postTab === t }" @click="postTab = t">{{ t === 'all' ? 'All' : t === 'photos' ? 'Photos' : 'Veep' }}</button>
+            <button v-if="isStaff" :class="{ on: postTab === 'studio' }" @click="postTab = 'studio'">Studio</button>
           </div>
           <div v-if="postTab === 'photos'" class="pgrid">
             <button v-for="u in photoUrls" :key="u" class="pcell" @click="photoSrc = u"><img :src="u" alt="" loading="lazy"></button>
@@ -134,6 +135,7 @@
             </NuxtLink>
             <p v-if="!veepPosts.length" class="state-card">No veeps yet.</p>
           </div>
+          <CreatorStudio v-if="postTab === 'studio' && isStaff" :user-id="profile.id" />
           <div v-if="postsLoading && !posts.length" class="state-card">Loading posts…</div>
           <div v-else-if="postTab === 'all' && !posts.length" class="state-card">No posts yet.</div>
           <div v-else-if="postTab === 'all'" class="posts-list">
@@ -161,6 +163,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
+import CreatorStudio from '~/components/veep/creator-studio.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import MediaLightbox from '~/components/chat/media-lightbox.vue'
 import { useStaff } from '~/composables/useStaff'
@@ -274,7 +277,7 @@ const presenceText = computed(() => {
 })
 
 const posts = ref<FeedPost[]>([])
-const postTab = ref<'all' | 'photos' | 'veep'>('all')
+const postTab = ref<'all' | 'photos' | 'veep' | 'studio'>('all')
 const VIDEO_URL = /\.(mp4|webm|mov|m4v|m3u8)(\?|#|$)/i
 const photoUrls = computed(() => {
   const out = new Set<string>()

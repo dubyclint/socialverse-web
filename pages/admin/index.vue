@@ -60,6 +60,7 @@ const GROUPS: { title: string, tiles: Tile[] }[] = [
     { to: '/admin/users', icon: 'users', title: 'Roles & privileges', desc: 'Make managers and choose what each can do', perm: null },
     { to: '/admin/verified', icon: 'badge-check', title: 'Verification badges', desc: 'Approve requests, assign or remove badges', perm: 'verification', queue: 'pendingBadges' },
     { to: '/admin/veep', icon: 'play', title: 'Veep views', desc: 'View-tier seconds and monetization target', perm: null },
+    { to: '/admin/creator-revenue', icon: 'trending-up', title: 'Creator revenue', desc: 'Creator share %, eCPM, DAU gate, render rate', perm: null },
     { to: '/admin/kyc', icon: 'shield', title: 'KYC identity', desc: 'Review KYC, fee and sentence, assign or revoke', perm: 'verification' },
     { to: '/admin/compliance', icon: 'alert-triangle', title: 'Compliance', desc: 'Bans, timed bans, feature restrictions, reports', perm: 'compliance', queue: 'openReports' },
     { to: '/admin/staff', icon: 'shield', title: 'Staff & sellers', desc: 'Grant/revoke P2P sellers, support, P2P admin and dispute-decider roles', perm: 'admin' },
