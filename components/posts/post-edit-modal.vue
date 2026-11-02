@@ -45,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import { normalizeMediaFile } from '~/utils/media-normalize'
 import { computed, ref } from 'vue'
 import { POST_MEDIA_ACCEPT, POST_MEDIA_MAX_ITEMS, validatePostMediaFile } from '~/utils/post-media'
 import type { FeedPost } from '~/composables/useSocialFeed'
@@ -71,9 +72,11 @@ const removeMedia = (index: number) => {
 
 const onFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+  const picked = input.files?.[0]
   input.value = ''
-  if (!file) return
+  if (!picked) return
+  let file: File
+  try { file = await normalizeMediaFile(picked) } catch { error.value = 'This photo format could not be converted. Try a JPEG or PNG.'; return }
 
   const invalid = validatePostMediaFile(file)
   if (invalid) {

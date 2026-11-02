@@ -40,10 +40,11 @@ export const STORAGE_CONFIG: any = {
     posts: {
       name: 'posts',
       maxSize: POST_IMAGE_MAX_BYTES,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime'],
       mimeMaxSize: {
         'video/mp4': POST_VIDEO_MAX_BYTES,
-        'video/webm': POST_VIDEO_MAX_BYTES
+        'video/webm': POST_VIDEO_MAX_BYTES,
+        'video/quicktime': POST_VIDEO_MAX_BYTES
       }
     },
     'chat-media': {

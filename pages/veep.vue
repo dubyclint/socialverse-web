@@ -33,7 +33,7 @@
             <button :class="{ saved: saved.has(it.post.id) }" @click="toggleSave(it.post)"><span class="ic">🔖</span><small>{{ saved.has(it.post.id) ? 'Saved' : 'Save' }}</small></button>
             <button @click="share(it.post)"><span class="ic">↗</span><small>{{ n(it.post.shares_count) }}</small></button>
             <button @click="giftFor = it.post"><span class="ic">🎁</span><small>{{ n(it.post.gifts_count) }}</small></button>
-            <button v-if="dl(it.post).allow_download !== false" @click="download(it.post)"><span class="ic">⬇</span><small>Save</small></button>
+            <button v-if="dl(it.post).allow_download !== false" @click="download(it.post)"><span class="ic">⬇</span><small>Download</small></button>
             <button @click="muted = !muted"><span class="ic">{{ muted ? '🔇' : '🔊' }}</span></button>
           </div>
           <button class="veep-meatball" aria-label="More" @click="menuFor = it.post">•••</button>
@@ -49,6 +49,8 @@
             :muted="muted"
             :low-data="lowData"
           />
+          <img v-else-if="it.ad.creativeUrl" :src="it.ad.creativeUrl" :alt="it.ad.headline || 'Sponsored'" class="veep-ad-fallback" />
+          <div v-else class="veep-ad-fallback veep-ad-card"><strong>{{ it.ad.headline || it.ad.advertiser.name }}</strong></div>
           <div class="veep-meta">
             <span class="veep-sponsored">Sponsored</span>
             <span class="veep-handle">{{ it.ad.advertiser.name }}</span>
@@ -371,4 +373,6 @@ onMounted(() => {
 .veep-actions .veep-avatar img { width: 40px; height: 40px; }
 .veep-create { font-weight: 700; }
 .dl-tick { width: 14px; height: 14px; min-height: 0; accent-color: #3b82f6; }
+.veep-ad-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.veep-ad-card { display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 22px; background: linear-gradient(160deg, #1e3a8a, #7c3aed); }
 </style>

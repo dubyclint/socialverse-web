@@ -13,6 +13,10 @@ definePageMeta({
 
 useHead({ title: 'Wallet' })
 
+const router = useRouter()
+// History may start on the wallet (deep link, push notification); fall back to the feed instead of leaving the app.
+const goBack = () => { if (window.history.state?.back) router.back(); else void navigateTo('/feed', { replace: true }) }
+
 interface FeeSettings {
   deposit_fee_pct: number
   gift_fee_pct: number
@@ -192,6 +196,10 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 px-4 py-6 sm:px-6">
     <div class="max-w-3xl mx-auto space-y-5">
+      <nav class="wallet-nav flex items-center gap-2 text-sm">
+        <button type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700" aria-label="Back" @click="goBack">← Back</button>
+        <NuxtLink to="/feed" prefetch class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700">🏠 Home</NuxtLink>
+      </nav>
       <header class="flex items-center justify-between gap-3">
         <div class="min-w-0">
           <h1 class="text-xl font-bold">Wallet</h1>

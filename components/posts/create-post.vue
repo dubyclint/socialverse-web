@@ -145,7 +145,7 @@
       <input 
         ref="fileInputRef"
         type="file" 
-        accept="image/*,video/*" 
+        :accept="POST_MEDIA_ACCEPT"
         @change="handleMediaUpload"
         class="file-input"
       />
@@ -154,6 +154,8 @@
 </template>
 
 <script setup lang="ts">
+import { normalizeMediaFile, refreshDeviceMedia } from '~/utils/media-normalize'
+import { POST_MEDIA_ACCEPT } from '~/utils/post-media'
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useFileUpload } from '~/composables/use-file-upload'
@@ -221,7 +223,7 @@ function insertEmoji(emoji: string) {
 }
 
 function triggerFileInput() {
-  fileInputRef.value?.click()
+  void refreshDeviceMedia().finally(() => fileInputRef.value?.click())
 }
 
 function addGif() {
@@ -230,10 +232,12 @@ function addGif() {
 
 async function handleMediaUpload(event: Event) {
   const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+  const picked = target.files?.[0]
+  if (!picked) return
+  let file: File
+  try { file = await normalizeMediaFile(picked) } catch { clearUploadError(); return }
 
-  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm']
+  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']
   if (!validTypes.includes(file.type)) {
     clearUploadError()
     return

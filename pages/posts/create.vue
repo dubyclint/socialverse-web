@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import { normalizeMediaFile, refreshDeviceMedia } from '~/utils/media-normalize'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '~/stores/user'
@@ -204,14 +205,16 @@ const privacyOptions = [
 ]
 
 const goBack = () => router.back()
-const triggerFileInput = () => fileInputRef.value?.click()
+const triggerFileInput = async () => { await refreshDeviceMedia(); fileInputRef.value?.click() }
 const selectPrivacy = (val: string) => postsStore.updateDraft({ privacy: val })
 
-const handleMediaSelect = (event: Event) => {
+const handleMediaSelect = async (event: Event) => {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+  const picked = input.files?.[0]
   input.value = ''
-  if (!file) return
+  if (!picked) return
+  let file: File
+  try { file = await normalizeMediaFile(picked) } catch { errorMessage.value = 'This photo format could not be converted. Try a JPEG or PNG.'; return }
 
   const invalid = validatePostMediaFile(file)
   if (invalid) {
