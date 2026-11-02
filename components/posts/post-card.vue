@@ -630,8 +630,11 @@ const formatTimeAgo = (value: string) => {
 .post-card .post-meta .handle { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .post-card .post-menu-wrap { margin-left: auto; }
 .post-card .post-menu-wrap .icon-btn { padding: 2px; min-height: 0; min-width: 0; }
+/* main.css stacks every .post-header vertically under 480px; posts keep a single row. */
+.post-card .post-header { flex-direction: row !important; border-bottom: 0; margin: 0; }
+.post-card .author-row :deep(button) { min-height: 0 !important; height: auto; padding: 2px 10px; font-size: 0.72rem; line-height: 1.3; width: auto !important; margin: 0 !important; flex-shrink: 0; }
 @media (max-width: 768px) {
-  .post-card .post-header { align-items: flex-start; }
+  .post-card .post-header { align-items: center; }
   .post-card .post-avatar { width: 34px; height: 34px; }
   .post-card .post-identity { flex-direction: column; align-items: flex-start; gap: 1px; }
   .post-card .author-row { max-width: 100%; }

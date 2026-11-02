@@ -1330,4 +1330,26 @@ onMounted(async () => {
 .profile-card .profile-actions { gap: 3px !important; margin: 0 !important; }
 .profile-card .quick-stats { gap: 3px !important; padding: 0 !important; margin: 0 !important; }
 .profile-card .quick-stat { padding: 2px 6px !important; line-height: 1.2; }
+/* Profile card text never overflows: truncate name/handle, label/value pairs stay apart. */
+.profile-card .profile-header { display: flex; flex-direction: row; align-items: center; min-width: 0; }
+.profile-card .profile-info { flex: 1 1 0; min-width: 0; overflow: hidden; }
+.profile-card .profile-name { display: flex; align-items: center; gap: 0.25rem; min-width: 0; overflow: hidden; white-space: nowrap; }
+.profile-card .profile-name, .profile-card .profile-username { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 100%; }
+.profile-card .stat { min-width: 0; overflow: hidden; }
+.profile-card .stat-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-card .quick-stat { display: flex; justify-content: space-between; align-items: center; gap: 0.35rem; min-width: 0; }
+.profile-card .quick-stat .label { color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.profile-card .quick-stat .value { white-space: nowrap; flex-shrink: 0; font-weight: 600; }
+@media (max-width: 768px) {
+  .profile-card { padding: 0.4rem 0.55rem !important; gap: 4px !important; border-radius: 0.6rem; }
+  .profile-card .profile-avatar { width: 2.4rem !important; height: 2.4rem !important; }
+  .profile-card .profile-name { font-size: 0.86rem !important; }
+  .profile-card .profile-name :deep(svg), .profile-card .profile-name img { flex-shrink: 0; }
+  .profile-card .profile-username { font-size: 0.7rem !important; }
+  .profile-card .profile-stats { padding: 3px 0 !important; }
+  .profile-card .stat-value { font-size: 0.82rem !important; }
+  .profile-card .stat-label { font-size: 0.6rem !important; }
+  .profile-card .btn-edit-profile, .profile-card .btn-share-profile { padding: 0.28rem 0.5rem !important; font-size: 0.72rem !important; width: auto !important; margin: 0 !important; }
+  .profile-card .quick-stat { font-size: 0.66rem !important; background: #0f172a; border-radius: 6px; }
+}
 </style>
