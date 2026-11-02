@@ -39,8 +39,8 @@
             <button @click="giftFor = it.post"><span class="ic">🎁</span><small>{{ n(it.post.gifts_count) }}</small></button>
             <button v-if="dl(it.post).allow_download !== false" @click="download(it.post)"><span class="ic">⬇</span><small>Download</small></button>
             <button @click="muted = !muted"><span class="ic">{{ muted ? '🔇' : '🔊' }}</span></button>
+            <button aria-label="More" @click="menuFor = it.post"><span class="ic">⋯</span><small>More</small></button>
           </div>
-          <button class="veep-meatball" aria-label="More" @click="menuFor = it.post">•••</button>
         </template>
 
         <template v-else-if="it.type === 'ad'">
@@ -345,7 +345,6 @@ onMounted(() => {
 .veep-avatar.ring img { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6; }
 .veep-avatar img { width: 46px; height: 46px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
 .veep-avatar .plus { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; color: #fff; font-size: 14px; line-height: 18px; text-align: center; font-weight: 700; }
-.veep-meatball { position: absolute; right: 14px; bottom: calc(env(safe-area-inset-bottom) + 64px); z-index: 10; background: none; border: 0; color: #fff; font-size: 16px; letter-spacing: 1px; min-height: 0; }
 .veep-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 20; display: flex; justify-content: space-around; padding: 6px 0 calc(env(safe-area-inset-bottom) + 6px); background: rgba(0,0,0,.75); }
 .veep-bottom a { display: flex; flex-direction: column; align-items: center; color: #fff; text-decoration: none; font-size: 20px; }
 .veep-bottom small { font-size: 10px; }

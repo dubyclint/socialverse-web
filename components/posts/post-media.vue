@@ -5,8 +5,10 @@
         v-if="isVideo(url)"
         :src="url"
         class="media-item media-video"
+        :ref="el => registerVideo(el as HTMLVideoElement | null)"
         playsinline
         muted
+        loop
         preload="metadata"
         title="Tap to watch in Veep"
         @click.stop="openVeep"
@@ -36,6 +38,26 @@ const openVeep = (e: Event) => {
   else (e.target as HTMLVideoElement).play().catch(() => {})
 }
 const fullSrc = ref<string | null>(null)
+
+// Feed videos autoplay (muted) while mostly on screen and pause when scrolled away, like Veep.
+const videos = new Set<HTMLVideoElement>()
+let observer: IntersectionObserver | null = null
+const ensureObserver = () => {
+  if (observer || typeof IntersectionObserver === 'undefined') return observer
+  observer = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      const v = e.target as HTMLVideoElement
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) { v.muted = true; void v.play().catch(() => {}) } else v.pause()
+    }
+  }, { threshold: [0, 0.6, 1] })
+  return observer
+}
+const registerVideo = (el: HTMLVideoElement | null) => {
+  if (!el || videos.has(el)) return
+  videos.add(el)
+  ensureObserver()?.observe(el)
+}
+onBeforeUnmount(() => { observer?.disconnect(); observer = null; videos.clear() })
 defineEmits<{ open: [url: string] }>()
 
 const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)
