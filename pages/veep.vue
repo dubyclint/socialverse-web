@@ -19,7 +19,11 @@
             @watched="w => track(it.post.id, w)"
           />
           <div class="veep-meta">
-            <NuxtLink v-if="it.post.author" :to="`/profile/${it.post.author.id}`" class="veep-handle">@{{ it.post.author.username }}</NuxtLink>
+            <NuxtLink v-if="it.post.author" :to="`/profile/${it.post.author.id}`" class="veep-handle veep-author">
+              <span class="veep-author-name">{{ it.post.author.full_name || it.post.author.username }}</span>
+              <VerifiedBadge v-if="it.post.author.verified" :type="it.post.author.verified_type" :size="15" />
+              <small class="veep-author-user">@{{ it.post.author.username }}</small>
+            </NuxtLink>
             <p class="veep-text" :class="{ open: openText === it.post.id }" @click="openText = openText === it.post.id ? null : it.post.id">{{ it.post.content }}</p>
             <p v-if="it.post.hashtags?.length" class="veep-tags">{{ it.post.hashtags.map(h => '#' + h).join(' ') }}</p>
           </div>
@@ -127,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import { useStatusRings } from '~/composables/useStatusRings'
 import VeepPlayer from '~/components/veep/veep-player.vue'
 import type { FeedItem, RankedPost } from '~/server/utils/feed-ranker'
@@ -375,4 +380,8 @@ onMounted(() => {
 .dl-tick { width: 14px; height: 14px; min-height: 0; accent-color: #3b82f6; }
 .veep-ad-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 .veep-ad-card { display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 22px; background: linear-gradient(160deg, #1e3a8a, #7c3aed); }
+.veep-author { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.veep-author-name { min-width: 0; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.veep-author :deep(svg), .veep-author img { flex-shrink: 0; }
+.veep-author-user { flex-basis: 100%; font-weight: 500; font-size: 12px; opacity: .8; }
 </style>
