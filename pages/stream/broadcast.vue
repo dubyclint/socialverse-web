@@ -1,6 +1,6 @@
 <template>
   <div class="live" :class="{ setup: phase === 'setup' }">
-    <video ref="videoEl" class="live-video" :class="{ mirror: facing === 'user' && studio.mode.value !== 'clip' && studio.mode.value !== 'screen' }" autoplay playsinline muted />
+    <video ref="videoEl" class="live-video" :class="{ mirror: facing === 'user' && studio.mode.value !== 'clip' && studio.mode.value !== 'screen' && !compositor.output.value }" autoplay playsinline muted />
     <div class="shade-top" /><div class="shade-bottom" />
     <p v-if="camError" class="center-msg">{{ camError }} <button class="btn ghost" @click="startCamera">Retry</button></p>
 
@@ -78,7 +78,55 @@
       <button :class="{ off: !camOn }" aria-label="Camera" @click="toggleCam"><span class="ic">{{ camOn ? '📷' : '🚫' }}</span><small>Camera</small></button>
       <button v-if="torchSupported" :class="{ off: torchOn }" aria-label="Flash" @click="toggleTorch"><span class="ic">🔦</span><small>Flash</small></button>
       <button :class="{ off: studio.mode.value !== 'none' }" aria-label="Background Studio" @click="studioOpen = true"><span class="ic">🎨</span><small>Studio</small></button>
+      <button v-if="phase === 'live'" aria-label="Guests" @click="guestsOpen = true"><span class="ic">👥</span><small>Guests{{ requests.length ? ` (${requests.length})` : '' }}</small></button>
+      <button v-if="phase === 'live'" aria-label="Gift game" @click="gameOpen = true"><span class="ic">🏆</span><small>Game</small></button>
     </aside>
+
+    <LiveGiftGame v-if="game && (phase === 'live' || phase === 'ending')" :game="game" :board="board" :winners="winners" closable @close="game = null" />
+
+    <div v-if="guestsOpen" class="live-sheet-bg" @click.self="guestsOpen = false">
+      <div class="live-sheet">
+        <header>Guests &amp; co-hosts <button @click="guestsOpen = false">✕</button></header>
+        <p class="note" style="color:#cbd5e1">Multi-guest: {{ seatCount('guest') }}/8 viewers on screen · Co-host: {{ seatCount('cohost') + 1 }}/4 creators on screen.</p>
+        <template v-if="requests.length">
+          <strong style="font-size:13px">Requests to join</strong>
+          <div v-for="g in requests" :key="g.id" class="viewer-row"><img :src="g.avatar_url || '/default-avatar.svg'" alt="" /><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</span>
+            <button class="chip" style="background:#16a34a;border:0;color:#fff;border-radius:999px;padding:4px 10px" @click="guestAction('approve', g.id)">Approve</button>
+            <button class="chip" style="background:#334155;border:0;color:#fff;border-radius:999px;padding:4px 10px" @click="guestAction('remove', g.id)">Decline</button></div>
+        </template>
+        <template v-if="activeGuests.length">
+          <strong style="font-size:13px">On screen</strong>
+          <div v-for="g in activeGuests" :key="g.id" class="viewer-row"><img :src="g.avatar_url || '/default-avatar.svg'" alt="" /><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">{{ g.name }} · {{ g.role === 'cohost' ? 'Co-host' : 'Guest' }}{{ room.guestStreams.value.some(s => s.userId === g.id) ? '' : ' (connecting…)' }}</span>
+            <button class="chip" style="background:#b91c1c;border:0;color:#fff;border-radius:999px;padding:4px 10px" @click="guestAction('remove', g.id)">Remove</button></div>
+        </template>
+        <template v-if="invited.length">
+          <strong style="font-size:13px">Invited</strong>
+          <div v-for="g in invited" :key="g.id" class="viewer-row"><img :src="g.avatar_url || '/default-avatar.svg'" alt="" /><span style="flex:1">{{ g.name }} · {{ g.role === 'cohost' ? 'Co-host' : 'Guest' }}</span>
+            <button class="chip" style="background:#334155;border:0;color:#fff;border-radius:999px;padding:4px 10px" @click="guestAction('remove', g.id)">Cancel</button></div>
+        </template>
+        <strong style="font-size:13px">Invite from viewers</strong>
+        <div v-for="v in invitable" :key="v.id" class="viewer-row"><img :src="v.avatar || '/default-avatar.svg'" alt="" /><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">{{ v.name }}</span>
+          <button class="chip" style="background:#2563eb;border:0;color:#fff;border-radius:999px;padding:4px 10px" @click="guestAction('invite', v.id, 'guest')">Guest</button>
+          <button class="chip" style="background:#7c3aed;border:0;color:#fff;border-radius:999px;padding:4px 10px" @click="guestAction('invite', v.id, 'cohost')">Co-host</button></div>
+        <p v-if="!invitable.length" class="note">No other viewers to invite yet.</p>
+        <p v-if="error" class="note" style="color:#f87171">{{ error }}</p>
+      </div>
+    </div>
+
+    <div v-if="gameOpen" class="live-sheet-bg" @click.self="gameOpen = false">
+      <div class="live-sheet">
+        <header>Top gift getter game <button @click="gameOpen = false">✕</button></header>
+        <p class="note" style="color:#cbd5e1">Whoever receives the most gift value in this LIVE (you or your guests) before the timer ends wins. Ties share the win.</p>
+        <template v-if="game?.status === 'live'">
+          <button class="opt" @click="gameAction('end')">End now and show winner</button>
+          <button class="opt danger" @click="gameAction('cancel')">Cancel game</button>
+        </template>
+        <template v-else>
+          <button v-for="d in [60, 180, 300, 600]" :key="d" class="opt" @click="gameAction('start', d)">Start · {{ d / 60 }} min</button>
+        </template>
+        <p v-if="error" class="note" style="color:#f87171">{{ error }}</p>
+      </div>
+    </div>
 
     <div v-if="studioOpen" class="live-sheet-bg" @click.self="studioOpen = false">
       <div class="live-sheet">
@@ -149,10 +197,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useLiveRoom, type LiveEvent } from '~/composables/use-live-room'
 import { useBackgroundStudio, type StudioMode } from '~/composables/use-background-studio'
+import { useLiveCompositor } from '~/composables/use-live-compositor'
+import LiveGiftGame from '~/components/streaming/live-gift-game.vue'
 import '~/assets/css/live.css'
 
 definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'], layout: false })
@@ -170,6 +220,51 @@ const me = computed(() => {
 const room = useLiveRoom()
 const studio = useBackgroundStudio()
 const studioOpen = ref(false)
+const compositor = useLiveCompositor()
+interface Guest { id: string, name: string, username: string | null, avatar_url: string | null, role: 'guest' | 'cohost', status: 'requested' | 'invited' | 'active' }
+interface GameEntry { id: string, name: string, avatar_url: string | null, total: number }
+const guests = ref<Guest[]>([])
+const guestsOpen = ref(false)
+const gameOpen = ref(false)
+const game = ref<{ status: string, ends_at: string } | null>(null)
+const board = ref<GameEntry[]>([])
+const winners = ref<GameEntry[]>([])
+const activeGuests = computed(() => guests.value.filter(g => g.status === 'active'))
+const requests = computed(() => guests.value.filter(g => g.status === 'requested'))
+const invited = computed(() => guests.value.filter(g => g.status === 'invited'))
+const seatCount = (role: 'guest' | 'cohost') => activeGuests.value.filter(g => g.role === role).length
+const invitable = computed(() => room.topViewers.value.filter(v => !guests.value.some(g => g.id === v.id)))
+room.setGuestPolicy(uid => activeGuests.value.some(g => g.id === uid), uid => compositor.returnTrackFor(uid))
+const baseStream = () => studio.output.value ?? media.value
+const isLive = () => phase.value === 'live' || phase.value === 'ending'
+const showStream = async (out: MediaStream) => {
+  if (videoEl.value && videoEl.value.srcObject !== out) { videoEl.value.srcObject = out; await videoEl.value.play().catch(() => {}) }
+}
+const recompose = async () => {
+  const base = baseStream()
+  if (!base || !isLive()) return
+  const gs = room.guestStreams.value.filter(g => activeGuests.value.some(a => a.id === g.userId))
+  let out: MediaStream = base
+  if (gs.length) {
+    out = compositor.update([{ key: 'host', name: me.value.name, stream: base }, ...gs.map(g => ({ key: g.userId, name: activeGuests.value.find(a => a.id === g.userId)?.name || 'Guest', stream: g.stream }))]) ?? base
+    await room.refreshReturnAudio()
+  } else if (compositor.output.value) compositor.stop()
+  await showStream(out)
+  await room.replaceStream(out)
+}
+watch([() => room.guestStreams.value, activeGuests], () => { void recompose() })
+const guestAction = async (action: string, userId: string, role?: 'guest' | 'cohost') => {
+  error.value = ''
+  try { await $fetch(`/api/stream/${streamId.value}/guests`, { method: 'POST', body: { action, userId, role } }) } catch (e) { error.value = msgOf(e, 'Could not update guests') }
+}
+const gameAction = async (action: 'start' | 'end' | 'cancel', durationSeconds?: number) => {
+  error.value = ''
+  try {
+    const r = await $fetch<{ game: typeof game.value, board: GameEntry[], winners: GameEntry[] }>(`/api/stream/${streamId.value}/game`, { method: 'POST', body: { action, durationSeconds } })
+    game.value = r.game; board.value = r.board; winners.value = r.winners
+    gameOpen.value = false
+  } catch (e) { error.value = msgOf(e, 'Gift game failed') }
+}
 const canShareScreen = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getDisplayMedia) && !/Android|iPhone|iPad/i.test(navigator.userAgent)
 studio.whenReverted(() => { void applyStudio('none') })
 const videoEl = ref<HTMLVideoElement | null>(null)
@@ -234,8 +329,11 @@ const startCamera = async () => {
     media.value = next
     await studio.setSource(next)
     const shown = studio.output.value ?? next
-    if (videoEl.value) { videoEl.value.srcObject = shown; await videoEl.value.play().catch(() => {}) }
-    if (phase.value === 'live' || phase.value === 'ending') await room.replaceStream(shown)
+    if (compositor.output.value && isLive()) await recompose()
+    else {
+      if (videoEl.value) { videoEl.value.srcObject = shown; await videoEl.value.play().catch(() => {}) }
+      if (isLive()) await room.replaceStream(shown)
+    }
     old?.getTracks().forEach(t => t.stop())
     const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
     canFlip.value = cams.length > 1
@@ -270,6 +368,8 @@ room.on((e: LiveEvent) => {
   if (e.type === 'chat' && e.message) addMessage(e.message as ChatRow)
   else if (e.type === 'likes' && e.delta) burst(Number(e.delta))
   else if (e.type === 'viewers') peak.value = Math.max(peak.value, Number(e.count) || 0)
+  else if (e.type === 'guests') guests.value = e.guests as Guest[]
+  else if (e.type === 'game') { game.value = e.game; board.value = e.board ?? []; winners.value = e.winners ?? [] }
   else if (e.type === 'replaced') { error.value = 'This LIVE was opened on another device.'; room.disconnect() }
   else if (e.type === 'gift') {
     if (e.recipientId === myId.value) { giftTotal.value = Math.round((giftTotal.value + Number(e.totalCost || 0)) * 100) / 100; giftCount.value += Number(e.quantity || 1) }
@@ -320,6 +420,9 @@ const endLive = async () => {
   try { if (id) await $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: id } }) } catch (e) { error.value = msgOf(e, 'Could not end the LIVE') }
   if (statsTimer) clearInterval(statsTimer)
   room.disconnect()
+  compositor.stop()
+  guests.value = []
+  game.value = null
   summary.value = { duration, peak: peak.value, likes, gifts: giftTotal.value, giftCount: giftCount.value, comments: messages.value.length }
   if (id) {
     const s = await $fetch<{ data?: { totalGiftValue?: number, chatMessageCount?: number, peakViewerCount?: number } }>(`/api/stream/${id}/stats`).catch(() => null)
@@ -341,8 +444,11 @@ const applyStudio = async (next: StudioMode, ev?: Event) => {
   const out = await studio.setBackground(next, file)
   const shown = out ?? media.value
   if (!shown) return
-  if (videoEl.value) { videoEl.value.srcObject = shown; await videoEl.value.play().catch(() => {}) }
-  if (phase.value === 'live' || phase.value === 'ending') await room.replaceStream(shown)
+  if (compositor.output.value && isLive()) await recompose()
+  else {
+    if (videoEl.value) { videoEl.value.srcObject = shown; await videoEl.value.play().catch(() => {}) }
+    if (isLive()) await room.replaceStream(shown)
+  }
   if (!studio.error.value) studioOpen.value = false
 }
 const resetToSetup = () => { summary.value = null; phase.value = 'setup'; void startCamera() }
@@ -392,6 +498,7 @@ onBeforeUnmount(() => {
   if (streamId.value) void $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: streamId.value } }).catch(() => {})
   room.disconnect()
   studio.dispose()
+  compositor.stop()
   media.value?.getTracks().forEach(t => t.stop())
 })
 </script>

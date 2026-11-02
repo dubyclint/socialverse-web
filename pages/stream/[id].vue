@@ -24,6 +24,19 @@
       </header>
       <div class="badges"><span class="live-tag">LIVE</span><span v-if="stream.title" class="stat-tag">{{ stream.title }}</span></div>
       <StreamBattle v-if="matchId" :match-id="matchId" class="battle" />
+      <LiveGiftGame v-if="game" :game="game" :board="board" :winners="winners" closable @close="game = null" />
+      <div v-if="onScreen.length" class="badges" style="top:calc(env(safe-area-inset-top) + 80px);left:auto;right:12px;justify-content:flex-end;max-width:60%" @dblclick.stop>
+        <button v-for="g in onScreen" :key="g.id" class="stat-tag" style="border:0;color:#fff;cursor:pointer" @click="g.id !== myId ? (giftTarget = { id: g.id, name: g.name }) : null">{{ g.role === 'cohost' ? '⭐' : '🎙️' }} {{ g.name }}{{ g.id !== myId ? ' 🎁' : '' }}</button>
+      </div>
+      <video v-show="guestMedia" ref="selfEl" class="self-bubble" autoplay playsinline muted />
+      <audio ref="returnEl" autoplay />
+      <div v-if="myGuest?.status === 'invited'" class="confirm" @dblclick.stop>
+        <div>
+          <strong>{{ host?.name }} invited you {{ myGuest.role === 'cohost' ? 'to co-host' : 'on screen as a guest' }}</strong>
+          <button class="btn" :disabled="guestBusy" @click="guestAction('accept')">Join on screen</button>
+          <button class="btn ghost" :disabled="guestBusy" @click="guestAction('decline')">Not now</button>
+        </div>
+      </div>
       <p v-if="waitingForStream && !isEnded" class="center-msg">Waiting for the host…</p>
       <button v-if="muted && !isEnded && room.remoteStream.value" class="unmute" @click.stop="unmute">🔇 Tap to unmute</button>
 
@@ -49,6 +62,8 @@
       <aside class="actions" @dblclick.stop>
         <button aria-label="Like" @click="like"><span class="ic">❤️</span><small>{{ fmt(room.likes.value) }}</small></button>
         <button v-if="canGift" aria-label="Gift" @click="giftOpen = true"><span class="ic">🎁</span><small>Gift</small></button>
+        <button v-if="!isHost && !isEnded && (!myGuest || myGuest.status === 'requested')" :disabled="guestBusy" aria-label="Join on screen" @click="guestAction(myGuest?.status === 'requested' ? 'cancel' : 'request')"><span class="ic">👋</span><small>{{ myGuest?.status === 'requested' ? 'Requested' : 'Join' }}</small></button>
+        <button v-if="myGuest?.status === 'active'" class="off" aria-label="Leave seat" @click="guestAction('leave')"><span class="ic">📴</span><small>Leave</small></button>
         <button aria-label="Share" @click="share"><span class="ic">↗</span><small>Share</small></button>
         <NuxtLink :to="`/support?stream=${stream.id}`" aria-label="Report"><span class="ic">⚑</span><small>Report</small></NuxtLink>
       </aside>
@@ -104,12 +119,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import StreamBattle from '~/components/streaming/stream-battle.vue'
 import GiftPicker from '~/components/financial/gifts/pewgift-picker.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import { useUserStore } from '~/stores/user'
 import { useLiveRoom, type LiveEvent } from '~/composables/use-live-room'
+import LiveGiftGame from '~/components/streaming/live-gift-game.vue'
 import '~/assets/css/live.css'
 
 definePageMeta({ middleware: ['auth', 'profile-completion'], layout: false })
@@ -137,6 +153,46 @@ const matchId = ref<string | null>(null)
 const giftToasts = ref<{ key: number, name: string, avatar: string | null, gift: string, icon: string | null, qty: number }[]>([])
 const hearts = ref<{ id: number, x: number, d: number, e: string }[]>([])
 let seq = 0
+interface Guest { id: string, name: string, username: string | null, avatar_url: string | null, role: 'guest' | 'cohost', status: 'requested' | 'invited' | 'active' }
+interface GameEntry { id: string, name: string, avatar_url: string | null, total: number }
+const guests = ref<Guest[]>([])
+const game = ref<{ status: string, ends_at: string } | null>(null)
+const board = ref<GameEntry[]>([])
+const winners = ref<GameEntry[]>([])
+const selfEl = ref<HTMLVideoElement | null>(null)
+const returnEl = ref<HTMLAudioElement | null>(null)
+const guestMedia = shallowRef<MediaStream | null>(null)
+const guestBusy = ref(false)
+const myGuest = computed(() => guests.value.find(g => g.id === myId.value) ?? null)
+const onScreen = computed(() => guests.value.filter(g => g.status === 'active'))
+const guestAction = async (action: string) => {
+  chatError.value = ''
+  guestBusy.value = true
+  try { await $fetch(`/api/stream/${streamId.value}/guests`, { method: 'POST', body: { action } }) } catch (err) { chatError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Could not update your seat' } finally { guestBusy.value = false }
+}
+const startGuest = async () => {
+  if (guestMedia.value) return
+  try {
+    const m = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: { echoCancellation: true, noiseSuppression: true } })
+    guestMedia.value = m
+    await nextTick()
+    if (selfEl.value) { selfEl.value.srcObject = m; await selfEl.value.play().catch(() => {}) }
+    await room.startGuestUplink(m)
+    // You hear the host and other guests through the return channel, not your own delayed voice.
+    if (videoEl.value) videoEl.value.muted = true
+  } catch (err) {
+    chatError.value = err instanceof Error ? err.message : 'Could not start your camera'
+    void guestAction('leave')
+  }
+}
+const stopGuest = () => {
+  room.stopGuestUplink()
+  guestMedia.value?.getTracks().forEach(t => t.stop())
+  guestMedia.value = null
+  if (videoEl.value && !muted.value) videoEl.value.muted = false
+}
+watch(() => myGuest.value?.status, (st) => { if (st === 'active') void startGuest(); else if (guestMedia.value) stopGuest() })
+watch(() => room.returnAudio.value, async (a) => { if (returnEl.value) { returnEl.value.srcObject = a; await returnEl.value.play().catch(() => {}) } })
 
 const { data, pending } = await useFetch<{ data: StreamRow | null }>(() => `/api/stream/${streamId.value}`)
 const stream = computed(() => data.value?.data ?? null)
@@ -213,7 +269,9 @@ const moderate = async (action: 'pin' | 'unpin' | 'delete' | 'mute', m: ChatRow)
 }
 
 const onEvent = (e: LiveEvent) => {
-  if (e.type === 'chat' && e.message) addMessage(e.message as ChatRow)
+  if (e.type === 'guests') guests.value = e.guests as Guest[]
+  else if (e.type === 'game') { game.value = e.game; board.value = e.board ?? []; winners.value = e.winners ?? [] }
+  else if (e.type === 'chat' && e.message) addMessage(e.message as ChatRow)
   else if (e.type === 'likes' && e.delta) burst(Number(e.delta))
   else if (e.type === 'gift') {
     const key = ++seq
@@ -231,6 +289,8 @@ let poll: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   room.on(onEvent)
   await loadChat()
+  void $fetch<{ guests: Guest[] }>(`/api/stream/${streamId.value}/guests`).then(r => { guests.value = r.guests }).catch(() => {})
+  void $fetch<{ game: typeof game.value, board: GameEntry[], winners: GameEntry[] }>(`/api/stream/${streamId.value}/game`).then(r => { game.value = r.game; board.value = r.board; winners.value = r.winners }).catch(() => {})
   if (!stream.value || isEnded.value) return
   try { await room.connect(streamId.value, 'viewer') } catch (err) { console.error('[Live] connect failed', err) }
   $fetch(`/api/stream/${streamId.value}/viewers`, { method: 'POST', body: { action: 'join' } }).catch(() => {})
@@ -241,6 +301,8 @@ onMounted(async () => {
   } catch { /* no battle */ }
 })
 onUnmounted(() => {
+  if (myGuest.value?.status === 'active' || myGuest.value?.status === 'requested') void guestAction('leave')
+  stopGuest()
   if (poll) clearInterval(poll)
   room.disconnect()
   void $fetch(`/api/stream/${streamId.value}/viewers`, { method: 'POST', body: { action: 'leave' } }).catch(() => {})

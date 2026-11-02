@@ -57,12 +57,12 @@ export default defineWebSocketHandler({
       if (auth.role === 'broadcaster') {
         if (room.broadcaster && room.broadcaster.key !== peer.id) room.broadcaster.send({ type: 'replaced' })
         room.broadcaster = entry
-        room.viewers.forEach(v => v.send({ type: 'broadcaster-ready' }))
+        room.viewers.forEach(v => v.send({ type: 'broadcaster-ready', broadcasterPeerId: peerId }))
         send({ type: 'joined', role: 'broadcaster', viewers: Array.from(room.viewers.keys()), likes: room.likes })
       } else {
         room.viewers.set(peerId, entry)
         room.broadcaster?.send({ type: 'viewer-joined', viewerId: peerId })
-        send({ type: 'joined', role: 'viewer', broadcasterOnline: Boolean(room.broadcaster), likes: room.likes })
+        send({ type: 'joined', role: 'viewer', broadcasterOnline: Boolean(room.broadcaster), broadcasterPeerId: room.broadcaster?.peerId ?? null, likes: room.likes })
       }
       scheduleViewerUpdate(room)
       return
@@ -76,7 +76,8 @@ export default defineWebSocketHandler({
       const target = room.broadcaster?.peerId === data.to ? room.broadcaster : room.viewers.get(data.to)
       // Viewers may only signal the broadcaster; the broadcaster may signal any viewer.
       const fromBroadcaster = room.broadcaster?.key === peer.id
-      if (target && (fromBroadcaster || target === room.broadcaster)) target.send({ type: 'signal', from: entry.peerId, payload: data.payload })
+      const sender = fromBroadcaster ? room.broadcaster : room.viewers.get(entry.peerId)
+      if (target && (fromBroadcaster || target === room.broadcaster)) target.send({ type: 'signal', from: entry.peerId, fromUser: sender?.userId ?? null, payload: data.payload })
       return
     }
 

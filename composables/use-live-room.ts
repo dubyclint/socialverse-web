@@ -54,6 +54,14 @@ export const useLiveRoom = () => {
   let retries = 0
   let pingTimer: ReturnType<typeof setInterval> | null = null
   let lastSample: { bytes: number, at: number } | null = null
+  let broadcasterPeerId: string | null = null
+  // Guest seats: guest -> host uplink (guest side), host <- guests (host side).
+  let uplink: RTCPeerConnection | null = null
+  const returnAudio = shallowRef<MediaStream | null>(null)
+  const guestPcs = new Map<string, { pc: RTCPeerConnection, userId: string }>()
+  const guestStreams = ref<{ peerId: string, userId: string, stream: MediaStream }[]>([])
+  let guestAllowed: (userId: string) => boolean = () => false
+  let returnTrackFor: (userId: string) => MediaStreamTrack | null = () => null
 
   const send = (m: Record<string, unknown>) => { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(m)) }
   const on = (fn: (e: LiveEvent) => void) => { listeners.add(fn); return () => listeners.delete(fn) }
@@ -71,8 +79,74 @@ export const useLiveRoom = () => {
     send({ type: 'signal', to: viewerId, payload: { kind: 'offer', sdp: offer } })
   }
 
-  const handleSignal = async (m: LiveEvent) => {
+  const dropGuest = (peerId: string) => {
+    guestPcs.get(peerId)?.pc.close()
+    guestPcs.delete(peerId)
+    guestStreams.value = guestStreams.value.filter(g => g.peerId !== peerId)
+  }
+
+  const handleGuestSignal = async (m: LiveEvent) => {
     const p = m.payload as { kind: string, sdp?: RTCSessionDescriptionInit, candidate?: RTCIceCandidateInit }
+    if (role === 'broadcaster') {
+      if (p.kind === 'offer' && p.sdp) {
+        if (!m.fromUser || !guestAllowed(m.fromUser)) return
+        dropGuest(m.from)
+        const pc = new RTCPeerConnection({ iceServers: ice })
+        guestPcs.set(m.from, { pc, userId: m.fromUser })
+        pc.ontrack = (e) => {
+          const stream = e.streams[0] ?? new MediaStream([e.track])
+          guestStreams.value = [...guestStreams.value.filter(g => g.peerId !== m.from), { peerId: m.from, userId: m.fromUser, stream }]
+        }
+        pc.onicecandidate = (e) => { if (e.candidate) send({ type: 'signal', to: m.from, payload: { channel: 'guest', kind: 'ice', candidate: e.candidate.toJSON() } }) }
+        pc.onconnectionstatechange = () => { if (['failed', 'closed'].includes(pc.connectionState)) dropGuest(m.from) }
+        await pc.setRemoteDescription(p.sdp)
+        const back = returnTrackFor(m.fromUser)
+        const audioTx = pc.getTransceivers().find(t => t.receiver.track.kind === 'audio')
+        if (back && audioTx) { audioTx.direction = 'sendrecv'; await audioTx.sender.replaceTrack(back) }
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        send({ type: 'signal', to: m.from, payload: { channel: 'guest', kind: 'answer', sdp: answer } })
+      } else if (p.kind === 'ice' && p.candidate) {
+        await guestPcs.get(m.from)?.pc.addIceCandidate(p.candidate).catch(() => {})
+      }
+      return
+    }
+    if (!uplink) return
+    if (p.kind === 'answer' && p.sdp) await uplink.setRemoteDescription(p.sdp)
+    else if (p.kind === 'ice' && p.candidate) await uplink.addIceCandidate(p.candidate).catch(() => {})
+  }
+
+  /** Guest side: send camera+mic to the host, who composites guests into the LIVE. */
+  const startGuestUplink = async (media: MediaStream) => {
+    if (!broadcasterPeerId) throw new Error('The host is not connected')
+    stopGuestUplink()
+    const pc = new RTCPeerConnection({ iceServers: ice })
+    uplink = pc
+    media.getTracks().forEach(t => pc.addTrack(t, media))
+    pc.ontrack = (e) => { returnAudio.value = e.streams[0] ?? new MediaStream([e.track]) }
+    pc.onicecandidate = (e) => { if (e.candidate && broadcasterPeerId) send({ type: 'signal', to: broadcasterPeerId, payload: { channel: 'guest', kind: 'ice', candidate: e.candidate.toJSON() } }) }
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    send({ type: 'signal', to: broadcasterPeerId, payload: { channel: 'guest', kind: 'offer', sdp: offer } })
+  }
+  const stopGuestUplink = () => { uplink?.close(); uplink = null; returnAudio.value = null }
+  const setGuestPolicy = (allowed: (userId: string) => boolean, returnTrack: (userId: string) => MediaStreamTrack | null) => {
+    guestAllowed = allowed
+    returnTrackFor = returnTrack
+    for (const [peerId, g] of guestPcs) if (!allowed(g.userId)) dropGuest(peerId)
+  }
+  /** Refresh each guest's return audio (host + the other guests) after the seat list changes. */
+  const refreshReturnAudio = async () => {
+    for (const g of guestPcs.values()) {
+      const t = returnTrackFor(g.userId)
+      const tx = g.pc.getTransceivers().find(x => x.receiver.track.kind === 'audio')
+      if (t && tx) await tx.sender.replaceTrack(t).catch(() => {})
+    }
+  }
+
+  const handleSignal = async (m: LiveEvent) => {
+    const p = m.payload as { kind: string, channel?: string, sdp?: RTCSessionDescriptionInit, candidate?: RTCIceCandidateInit }
+    if (p.channel === 'guest') return handleGuestSignal(m)
     if (role === 'broadcaster') {
       const pc = pcs.get(m.from)
       if (!pc) return
@@ -100,16 +174,20 @@ export const useLiveRoom = () => {
       case 'joined':
         connected.value = true
         retries = 0
+        if (m.broadcasterPeerId) broadcasterPeerId = m.broadcasterPeerId
         if (typeof m.likes === 'number') likes.value = m.likes
         if (role === 'broadcaster') for (const id of (m.viewers as string[] | undefined) ?? []) await offerTo(id)
         if (role === 'viewer' && mode.value === 'mesh' && !m.broadcasterOnline) waiting.value = true
         break
       case 'viewer-joined': if (role === 'broadcaster') await offerTo(m.viewerId); break
-      case 'viewer-left': pcs.get(m.viewerId)?.close(); pcs.delete(m.viewerId); break
+      case 'viewer-left': pcs.get(m.viewerId)?.close(); pcs.delete(m.viewerId); dropGuest(m.viewerId); break
+      case 'broadcaster-ready': broadcasterPeerId = m.broadcasterPeerId ?? broadcasterPeerId; break
       case 'broadcaster-left':
         if (mode.value === 'mesh') { waiting.value = true; remoteStream.value = null; viewerPc?.close(); viewerPc = null }
         break
-      case 'signal': if (mode.value === 'mesh' && m.from && m.payload) await handleSignal(m).catch(err => console.error('[live] signal', err)); break
+      case 'signal':
+        if (m.from && m.payload && (mode.value === 'mesh' || (m.payload as { channel?: string }).channel === 'guest')) await handleSignal(m).catch(err => console.error('[live] signal', err))
+        break
       case 'viewers': viewerCount.value = m.count ?? 0; topViewers.value = m.top ?? []; break
       case 'likes': likes.value = m.total ?? likes.value; break
       case 'ended': ended.value = true; break
@@ -206,6 +284,10 @@ export const useLiveRoom = () => {
     pingTimer = null
     pcs.forEach(pc => pc.close())
     pcs.clear()
+    guestPcs.forEach(g => g.pc.close())
+    guestPcs.clear()
+    guestStreams.value = []
+    stopGuestUplink()
     viewerPc?.close(); viewerPc = null
     mediaPc?.close(); mediaPc = null
     const ws = socket
@@ -217,5 +299,5 @@ export const useLiveRoom = () => {
 
   onUnmounted(disconnect)
 
-  return { connect, disconnect, on, sendLike, replaceStream, sampleStats, connected, viewerCount, topViewers, likes, remoteStream, waiting, ended, mode, error }
+  return { connect, disconnect, on, sendLike, replaceStream, sampleStats, startGuestUplink, stopGuestUplink, setGuestPolicy, refreshReturnAudio, guestStreams, returnAudio, connected, viewerCount, topViewers, likes, remoteStream, waiting, ended, mode, error }
 }

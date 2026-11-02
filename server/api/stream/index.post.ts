@@ -4,6 +4,8 @@ import { getServiceClient } from '~/server/utils/supabase-admin'
 import { assertAllowed } from '~/server/utils/staff'
 import { getLiveEligibility } from '~/server/utils/live-access'
 import { broadcastToStream } from '~/server/utils/stream-hub'
+import { endAllGuests } from '~/server/utils/stream-guests'
+import { currentGame, finishGame } from '~/server/utils/stream-games'
 
 type StreamAction = 'create' | 'start' | 'end' | 'viewers'
 
@@ -86,6 +88,9 @@ export default defineEventHandler(async (event) => {
   }
 
   if (action === 'end') {
+    const live = await currentGame(streamId)
+    if (live?.status === 'live') await finishGame({ ...live, ends_at: new Date().toISOString() })
+    await endAllGuests(streamId)
     const ended = await StreamModel.endStream(streamId)
     broadcastToStream(streamId, { type: 'ended' })
     return { success: true, message: 'Stream ended', data: ended }

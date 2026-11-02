@@ -6,6 +6,7 @@ import type { Database } from '~/types/database.types'
 import { assertAllowed } from '~/server/utils/staff'
 import { loadHostStreamPrefs } from '~/server/utils/stream-settings'
 import { broadcastToStream, liveUserCard } from '~/server/utils/stream-hub'
+import { pushGameUpdate } from '~/server/utils/stream-games'
 
 interface SendGiftToStreamRequest {
   streamId: string
@@ -85,6 +86,7 @@ export default defineEventHandler(async (event) => {
     sender
   })
   if (chatRow) broadcastToStream(body.streamId, { type: 'chat', message: { ...chatRow, user: sender } })
+  void pushGameUpdate(body.streamId)
 
   return {
     success: true,
