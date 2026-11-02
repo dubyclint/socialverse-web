@@ -478,7 +478,7 @@ const isAdmin = computed(() => staff.value?.role === 'admin');
 const activeTrades = ref(0);
 onMounted(() => {
   loadStaff(true);
-  $fetch<{ count: number }>('/api/p2p/active-count').then((r) => { activeTrades.value = r.count; }).catch(() => {});
+  $fetch('/api/p2p/active-count').then((r) => { activeTrades.value = r.count; }).catch(() => {});
 });
 
 // Top Navigation Configuration with updated Lucide icon mappings
