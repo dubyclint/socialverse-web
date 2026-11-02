@@ -1,18 +1,22 @@
 <template>
   <div v-if="media.length" class="post-media" :class="`count-${Math.min(media.length, 4)}`">
     <template v-for="(url, index) in media.slice(0, 4)" :key="url">
-      <video
-        v-if="isVideo(url)"
-        :src="url"
-        class="media-item media-video"
-        :ref="el => registerVideo(el as HTMLVideoElement | null)"
-        playsinline
-        muted
-        loop
-        preload="metadata"
-        title="Tap to watch in Veep"
-        @click.stop="openVeep"
-      />
+      <div v-if="isVideo(url)" class="media-video-wrap">
+        <video
+          :src="url"
+          class="media-item media-video"
+          :ref="el => registerVideo(el as HTMLVideoElement | null)"
+          playsinline
+          :muted="feedMuted"
+          loop
+          preload="metadata"
+          title="Tap to watch in Veep"
+          @click.stop="openVeep"
+        />
+        <button type="button" class="media-sound" :aria-label="feedMuted ? 'Unmute' : 'Mute'" @click.stop="toggleSound">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" /><path v-if="feedMuted" d="m23 9-6 6M17 9l6 6" /><path v-else d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /></svg>
+        </button>
+      </div>
       <img
         v-else
         :src="url"
@@ -39,18 +43,35 @@ const openVeep = (e: Event) => {
 }
 const fullSrc = ref<string | null>(null)
 
-// Feed videos autoplay (muted) while mostly on screen and pause when scrolled away, like Veep.
+// Feed videos autoplay with sound (shared on/off choice) while mostly on screen and pause when scrolled away, like Veep.
+// Only one feed video plays at a time. Browsers block sound until the first tap, so we fall back to muted until then.
+const feedMuted = useState('feed-video-muted', () => false)
 const videos = new Set<HTMLVideoElement>()
 let observer: IntersectionObserver | null = null
+const playWithSound = (v: HTMLVideoElement) => {
+  if (activeFeedVideo && activeFeedVideo !== v) activeFeedVideo.pause()
+  activeFeedVideo = v
+  v.muted = feedMuted.value
+  v.play().catch(() => {
+    v.muted = true
+    void v.play().catch(() => {})
+    armUnmuteOnGesture()
+  })
+}
 const ensureObserver = () => {
   if (observer || typeof IntersectionObserver === 'undefined') return observer
   observer = new IntersectionObserver((entries) => {
     for (const e of entries) {
       const v = e.target as HTMLVideoElement
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) { v.muted = true; void v.play().catch(() => {}) } else v.pause()
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) playWithSound(v)
+      else { v.pause(); if (activeFeedVideo === v) activeFeedVideo = null }
     }
   }, { threshold: [0, 0.6, 1] })
   return observer
+}
+const toggleSound = () => {
+  feedMuted.value = !feedMuted.value
+  if (activeFeedVideo) activeFeedVideo.muted = feedMuted.value
 }
 const registerVideo = (el: HTMLVideoElement | null) => {
   if (!el || videos.has(el)) return
@@ -61,6 +82,22 @@ onBeforeUnmount(() => { observer?.disconnect(); observer = null; videos.clear() 
 defineEmits<{ open: [url: string] }>()
 
 const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)
+</script>
+
+<script lang="ts">
+let activeFeedVideo: HTMLVideoElement | null = null
+let gestureArmed = false
+/** After the first tap anywhere, unmute the playing feed video (browser autoplay-with-sound policy). */
+const armUnmuteOnGesture = () => {
+  if (gestureArmed || typeof document === 'undefined') return
+  gestureArmed = true
+  const onGesture = () => {
+    gestureArmed = false
+    const muted = useState<boolean>('feed-video-muted', () => false)
+    if (activeFeedVideo && !muted.value) activeFeedVideo.muted = false
+  }
+  document.addEventListener('pointerdown', onGesture, { once: true, capture: true })
+}
 </script>
 
 <style scoped>
@@ -107,6 +144,31 @@ const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)
 
 .media-video {
   cursor: default;
+}
+
+.media-video-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.media-video-wrap .media-item {
+  width: 100%;
+}
+
+.media-sound {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(10, 15, 30, 0.65);
+  color: #fff;
 }
 
 .media-more {

@@ -178,6 +178,10 @@
               <Icon name="dollar-sign" class="item-icon" size="18" />
               <span class="item-label">Monetization</span>
             </NuxtLink>
+            <NuxtLink v-if="creator?.studio" :to="`/profile/${creator.userId}?tab=studio`" class="sidebar-item" @click="toggleSidebar">
+              <Icon name="bar-chart-2" class="item-icon" size="18" />
+              <span class="item-label">Creator Studio</span>
+            </NuxtLink>
             <NuxtLink to="/p2p" class="sidebar-item" @click="toggleSidebar">
               <Icon name="trending-up" class="item-icon" size="18" />
               <span class="item-label">P2P Network</span>
@@ -468,6 +472,8 @@ import VerifiedBadge from '~/components/VerifiedBadge.vue';
 import { useStaff } from '~/composables/useStaff';
 
 const { staff, isStaff, can: canStaff, load: loadStaff } = useStaff();
+const creator = ref<{ userId: string, studio: boolean } | null>(null);
+onMounted(() => { $fetch<{ userId: string, studio: boolean }>('/api/creator/status').then((r) => { creator.value = r; }).catch(() => {}); });
 const isAdmin = computed(() => staff.value?.role === 'admin');
 const activeTrades = ref(0);
 onMounted(() => {

@@ -1,12 +1,15 @@
 import { getQuery } from 'h3'
 import { requireStaff } from '~/server/utils/staff'
+import { requireUser } from '~/server/utils/auth'
+import { isMonetized } from '~/server/utils/monetization'
 import { loadCreatorRevenueConfig, revenueDb } from '~/server/utils/creator-revenue'
 
-/** Creator Studio data (staff-only while in development): plays, ad-interacted engaged views, ledger, drop-off curve. */
+/** Creator Studio data (own data for monetized creators; any creator for staff): plays, ad-interacted engaged views, ledger, drop-off curve. */
 export default defineEventHandler(async (event) => {
-  await requireStaff(event)
+  const user = await requireUser(event)
   const creatorId = String(getQuery(event).userId ?? '')
   if (!creatorId) throw createError({ statusCode: 400, statusMessage: 'userId required' })
+  if (!(creatorId === user.id && await isMonetized(user.id))) await requireStaff(event)
   const db = revenueDb()
   const cfg = await loadCreatorRevenueConfig()
   const gate = cfg.engaged_seconds
