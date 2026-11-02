@@ -1,6 +1,7 @@
 import { readBody } from 'h3'
 import { requireUser } from '~/server/utils/auth'
 import { loadCreatorRevenueConfig, revenueDb, viewCredit, type AdType } from '~/server/utils/creator-revenue'
+import { isMonetized } from '~/server/utils/monetization'
 
 /**
  * Settles one ad request. The creator is credited ONLY when the row is an engaged view
@@ -20,9 +21,11 @@ export default defineEventHandler(async (event) => {
   const cfg = await loadCreatorRevenueConfig()
   const adType = (row.network_source === 'internal_house' ? 'house_ad' : (body.adType ?? row.ad_type_served)) as AdType
   const ecpm = cfg.ecpm[adType] ?? 0
+  // Only monetized creators (met the requirements or admin-awarded) earn; others are logged at zero.
+  const monetized = row.is_engaged_view ? await isMonetized(row.creator_id) : false
   const share = row.network_source === 'internal_house' ? cfg.internal_share_pct : cfg.creator_share_pct
-  const { raw, credit: adCredit } = rendered && row.is_engaged_view ? viewCredit(ecpm, share) : { raw: 0, credit: 0 }
-  const fund = row.is_engaged_view ? viewCredit(Math.max(0, Number(cfg.platform_fund_cpm) || 0), 100).credit : 0
+  const { raw, credit: adCredit } = rendered && monetized ? viewCredit(ecpm, share) : { raw: 0, credit: 0 }
+  const fund = monetized ? viewCredit(Math.max(0, Number(cfg.platform_fund_cpm) || 0), 100).credit : 0
   const credit = Math.round((adCredit + fund) * 1e8) / 1e8
   const { data: settled } = await db.from('ad_revenue_events').update({
     fill_status: rendered ? 'rendered' : body.status === 'rendered_failed' ? 'rendered_failed' : 'no_ad',

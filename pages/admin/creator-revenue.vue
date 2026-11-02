@@ -22,6 +22,20 @@
       <button class="w-full rounded-lg bg-blue-600 py-2 font-semibold" :disabled="busy">{{ busy ? 'Saving…' : 'Save' }}</button>
       <p v-if="msg" class="text-sm" :class="ok ? 'text-emerald-400' : 'text-red-400'">{{ msg }}</p>
     </form>
+    <h2 class="mt-6 text-sm font-semibold text-zinc-300">Monetization awards</h2>
+    <p class="mb-2 text-xs text-zinc-400">Users who meet the requirements are monetized automatically. Award or revoke it for anyone here.</p>
+    <div class="flex gap-2">
+      <input v-model="awardUser" placeholder="@username" class="min-w-0 flex-1 rounded bg-zinc-800 px-2 py-2 text-sm">
+      <button class="rounded bg-emerald-600 px-3 text-sm font-semibold" :disabled="!awardUser" @click="award('award')">Award</button>
+      <button class="rounded bg-red-600 px-3 text-sm font-semibold" :disabled="!awardUser" @click="award('revoke')">Revoke</button>
+    </div>
+    <p v-if="awardMsg" class="mt-1 text-xs" :class="awardOk ? 'text-emerald-400' : 'text-red-400'">{{ awardMsg }}</p>
+    <ul class="mt-2 space-y-1 text-sm">
+      <li v-for="a in awards" :key="a.user_id" class="flex items-center justify-between gap-2 rounded bg-zinc-900 px-3 py-2">
+        <span class="min-w-0 truncate">{{ a.name || a.username }} <small class="text-zinc-400">@{{ a.username }}</small></span>
+        <button class="shrink-0 text-xs text-red-400" @click="awardUser = a.username; award('revoke')">Revoke</button>
+      </li>
+    </ul>
   </div>
 </template>
 
@@ -50,6 +64,18 @@ const load = async () => {
   Object.assign(form, rest); Object.assign(ecpm, e)
 }
 onMounted(() => load().catch((e: { data?: { statusMessage?: string } }) => { msg.value = e?.data?.statusMessage || 'Could not load'; ok.value = false }))
+const awardUser = ref(''); const awardMsg = ref(''); const awardOk = ref(false)
+const awards = ref<{ user_id: string, username: string, name: string }[]>([])
+const loadAwards = async () => { awards.value = (await $fetch<{ awards: typeof awards.value }>('/api/admin/monetization-award')).awards }
+onMounted(() => { loadAwards().catch(() => {}) })
+const award = async (action: 'award' | 'revoke') => {
+  awardMsg.value = ''
+  try {
+    const r = await $fetch<{ username: string }>('/api/admin/monetization-award', { method: 'POST', body: { username: awardUser.value, action } })
+    awardOk.value = true; awardMsg.value = `${action === 'award' ? 'Awarded' : 'Revoked'} @${r.username}`; awardUser.value = ''
+    await loadAwards()
+  } catch (e) { awardOk.value = false; awardMsg.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Failed' }
+}
 const save = async () => {
   busy.value = true; msg.value = ''
   try {
