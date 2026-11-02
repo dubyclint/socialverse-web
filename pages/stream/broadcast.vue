@@ -1,6 +1,6 @@
 <template>
   <div class="live" :class="{ setup: phase === 'setup' }">
-    <video ref="videoEl" class="live-video" :class="{ mirror: facing === 'user' }" autoplay playsinline muted />
+    <video ref="videoEl" class="live-video" :class="{ mirror: facing === 'user' && studio.mode.value !== 'clip' && studio.mode.value !== 'screen' }" autoplay playsinline muted />
     <div class="shade-top" /><div class="shade-bottom" />
     <p v-if="camError" class="center-msg">{{ camError }} <button class="btn ghost" @click="startCamera">Retry</button></p>
 
@@ -36,6 +36,8 @@
         <span class="stat-tag">❤️ {{ fmt(room.likes.value) }}</span>
         <span class="stat-tag">🎁 {{ giftTotal }} PEW</span>
         <span class="stat-tag">{{ stats.bitrate }} kbps · {{ stats.fps }} fps</span>
+        <button v-if="studio.mode.value === 'clip'" class="stat-tag" style="border:0;color:#fff;cursor:pointer" @click="studio.toggleClip()">{{ studio.clipPlaying.value ? '⏸ Pause clip' : '▶ Play clip' }}</button>
+        <button v-if="studio.mode.value === 'clip'" class="stat-tag" style="border:0;color:#fff;cursor:pointer" @click="studio.toggleClipSound()">{{ studio.clipMuted.value ? '🔇 Clip' : '🔊 Clip' }}</button>
         <span v-if="trialEndsAt" class="stat-tag" style="background:#f59e0bcc;color:#111">Trial {{ trialClock }}</span>
       </div>
       <div class="gift-toasts">
@@ -84,6 +86,8 @@
         <p class="note" style="color:#cbd5e1">Processed on your device. Viewers see the new background.</p>
         <label class="opt">🖼️ Upload photo<input type="file" accept="image/*" hidden @change="applyStudio('image', $event)" /></label>
         <label class="opt">🎬 Upload video<input type="file" accept="video/*" hidden @change="applyStudio('video', $event)" /></label>
+        <label class="opt">📽️ Show a clip (you talk from a bubble)<input type="file" accept="video/*" hidden @change="applyStudio('clip', $event)" /></label>
+        <button v-if="canShareScreen" class="opt" @click="applyStudio('screen')">🖥️ Share screen (you talk from a bubble)</button>
         <button class="opt" :style="studio.mode.value === 'blur' ? 'color:#60a5fa' : ''" @click="applyStudio('blur')">🌫️ Blur background</button>
         <button class="opt" :style="studio.mode.value === 'none' ? 'color:#60a5fa' : ''" @click="applyStudio('none')">↺ Original</button>
         <p v-if="studio.loading.value" class="note">Loading Background Studio…</p>
@@ -166,6 +170,8 @@ const me = computed(() => {
 const room = useLiveRoom()
 const studio = useBackgroundStudio()
 const studioOpen = ref(false)
+const canShareScreen = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getDisplayMedia) && !/Android|iPhone|iPad/i.test(navigator.userAgent)
+studio.whenReverted(() => { void applyStudio('none') })
 const videoEl = ref<HTMLVideoElement | null>(null)
 const chatBox = ref<HTMLElement | null>(null)
 const media = shallowRef<MediaStream | null>(null)
@@ -331,7 +337,7 @@ const applyStudio = async (next: StudioMode, ev?: Event) => {
   const input = ev?.target as HTMLInputElement | undefined
   const file = input?.files?.[0]
   if (input) input.value = ''
-  if ((next === 'image' || next === 'video') && !file) return
+  if ((next === 'image' || next === 'video' || next === 'clip') && !file) return
   const out = await studio.setBackground(next, file)
   const shown = out ?? media.value
   if (!shown) return
