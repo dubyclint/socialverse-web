@@ -75,7 +75,21 @@
       <button :class="{ off: !micOn }" aria-label="Microphone" @click="toggleMic"><span class="ic">{{ micOn ? '🎙️' : '🔇' }}</span><small>Mic</small></button>
       <button :class="{ off: !camOn }" aria-label="Camera" @click="toggleCam"><span class="ic">{{ camOn ? '📷' : '🚫' }}</span><small>Camera</small></button>
       <button v-if="torchSupported" :class="{ off: torchOn }" aria-label="Flash" @click="toggleTorch"><span class="ic">🔦</span><small>Flash</small></button>
+      <button :class="{ off: studio.mode.value !== 'none' }" aria-label="Background Studio" @click="studioOpen = true"><span class="ic">🎨</span><small>Studio</small></button>
     </aside>
+
+    <div v-if="studioOpen" class="live-sheet-bg" @click.self="studioOpen = false">
+      <div class="live-sheet">
+        <header>Background Studio <button @click="studioOpen = false">✕</button></header>
+        <p class="note" style="color:#cbd5e1">Processed on your device. Viewers see the new background.</p>
+        <label class="opt">🖼️ Upload photo<input type="file" accept="image/*" hidden @change="applyStudio('image', $event)" /></label>
+        <label class="opt">🎬 Upload video<input type="file" accept="video/*" hidden @change="applyStudio('video', $event)" /></label>
+        <button class="opt" :style="studio.mode.value === 'blur' ? 'color:#60a5fa' : ''" @click="applyStudio('blur')">🌫️ Blur background</button>
+        <button class="opt" :style="studio.mode.value === 'none' ? 'color:#60a5fa' : ''" @click="applyStudio('none')">↺ Original</button>
+        <p v-if="studio.loading.value" class="note">Loading Background Studio…</p>
+        <p v-if="studio.error.value" class="note" style="color:#f87171">{{ studio.error.value }}</p>
+      </div>
+    </div>
 
     <div v-if="phase === 'setup'" class="setup-panel">
       <input v-model="title" maxlength="80" placeholder="Add a title to your LIVE" />
@@ -134,6 +148,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useUserStore } from '~/stores/user'
 import { useLiveRoom, type LiveEvent } from '~/composables/use-live-room'
+import { useBackgroundStudio, type StudioMode } from '~/composables/use-background-studio'
 import '~/assets/css/live.css'
 
 definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check', 'status-middleware'], layout: false })
@@ -149,6 +164,8 @@ const me = computed(() => {
   return { name: p.display_name || p.full_name || p.username || 'You', avatar: p.avatar_url || null, username: p.username || '' }
 })
 const room = useLiveRoom()
+const studio = useBackgroundStudio()
+const studioOpen = ref(false)
 const videoEl = ref<HTMLVideoElement | null>(null)
 const chatBox = ref<HTMLElement | null>(null)
 const media = shallowRef<MediaStream | null>(null)
@@ -209,8 +226,10 @@ const startCamera = async () => {
     torchOn.value = false
     const old = media.value
     media.value = next
-    if (videoEl.value) { videoEl.value.srcObject = next; await videoEl.value.play().catch(() => {}) }
-    if (phase.value === 'live' || phase.value === 'ending') await room.replaceStream(next)
+    await studio.setSource(next)
+    const shown = studio.output.value ?? next
+    if (videoEl.value) { videoEl.value.srcObject = shown; await videoEl.value.play().catch(() => {}) }
+    if (phase.value === 'live' || phase.value === 'ending') await room.replaceStream(shown)
     old?.getTracks().forEach(t => t.stop())
     const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
     canFlip.value = cams.length > 1
@@ -270,7 +289,7 @@ const goLive = async () => {
     streamId.value = created.data.id
     const started = await $fetch<{ access?: { mode: string, trialSecondsLeft: number | null } }>('/api/stream', { method: 'POST', body: { action: 'start', stream_id: created.data.id } })
     trialEndsAt.value = started.access?.mode === 'trial' && started.access.trialSecondsLeft ? Date.now() + started.access.trialSecondsLeft * 1000 : null
-    await room.connect(created.data.id, 'broadcaster', media.value)
+    await room.connect(created.data.id, 'broadcaster', studio.output.value ?? media.value)
     startedAt.value = Date.now()
     messages.value = []
     giftTotal.value = 0; giftCount.value = 0; peak.value = 0
@@ -307,6 +326,18 @@ const endLive = async () => {
   trialEndsAt.value = null
   phase.value = 'summary'
   busy.value = false
+}
+const applyStudio = async (next: StudioMode, ev?: Event) => {
+  const input = ev?.target as HTMLInputElement | undefined
+  const file = input?.files?.[0]
+  if (input) input.value = ''
+  if ((next === 'image' || next === 'video') && !file) return
+  const out = await studio.setBackground(next, file)
+  const shown = out ?? media.value
+  if (!shown) return
+  if (videoEl.value) { videoEl.value.srcObject = shown; await videoEl.value.play().catch(() => {}) }
+  if (phase.value === 'live' || phase.value === 'ending') await room.replaceStream(shown)
+  if (!studio.error.value) studioOpen.value = false
 }
 const resetToSetup = () => { summary.value = null; phase.value = 'setup'; void startCamera() }
 
@@ -354,6 +385,7 @@ onBeforeUnmount(() => {
   if (statsTimer) clearInterval(statsTimer)
   if (streamId.value) void $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: streamId.value } }).catch(() => {})
   room.disconnect()
+  studio.dispose()
   media.value?.getTracks().forEach(t => t.stop())
 })
 </script>

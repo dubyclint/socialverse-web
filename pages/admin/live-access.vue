@@ -50,7 +50,7 @@ import { onMounted, ref } from 'vue'
 definePageMeta({ middleware: ['auth'], layout: 'default' })
 useHead({ title: 'Live access' })
 
-type RuleKey = 'trial_minutes' | 'min_followers' | 'min_account_days' | 'min_pew_added' | 'min_pew_received' | 'min_active_days' | 'min_transactions' | 'window_days'
+type RuleKey = 'trial_minutes' | 'min_followers' | 'min_account_days' | 'min_pew_added' | 'min_pew_received' | 'min_active_days' | 'min_transactions' | 'window_days' | 'viewer_gift_host_pct'
 type Mode = 'waived' | 'qualified' | 'trial' | 'locked' | 'denied'
 interface LiveUser {
   id: string
@@ -68,7 +68,8 @@ const FIELDS: { key: RuleKey, label: string }[] = [
   { key: 'min_pew_received', label: '…PEW received' },
   { key: 'min_active_days', label: 'Active days in window' },
   { key: 'min_transactions', label: 'Wallet transactions in window' },
-  { key: 'window_days', label: 'Activity window (days)' }
+  { key: 'window_days', label: 'Activity window (days)' },
+  { key: 'viewer_gift_host_pct', label: 'Gifts to viewers/guests in a LIVE: host share % (rest goes to the viewer)' }
 ]
 const MODE_LABELS: Record<Mode, string> = { waived: 'Granted by admin', qualified: 'Qualified', trial: 'On trial', locked: 'Not qualified', denied: 'Disallowed' }
 

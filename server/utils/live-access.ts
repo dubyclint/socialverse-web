@@ -10,6 +10,7 @@ export interface LiveRules {
   min_active_days: number
   min_transactions: number
   window_days: number
+  viewer_gift_host_pct: number
 }
 
 export interface LiveEligibility {

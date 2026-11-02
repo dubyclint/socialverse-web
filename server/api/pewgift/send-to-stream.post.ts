@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
 
   if (txError) throw mapGiftError(txError)
 
-  const receipt = result as unknown as { transaction_id: string, total_cost: number, new_sender_balance: number, host_id: string, split: boolean }
+  const receipt = result as unknown as { transaction_id: string, total_cost: number, new_sender_balance: number, host_id: string, split: boolean, host_pct?: number }
 
   // Gifts sent into a live battle count towards the streamer's side.
   const { data: participant } = await supabase
@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
   const { data: chatRow } = await supabase.from('stream_chats').insert({
     stream_id: body.streamId,
     user_id: user.id,
-    message_text: body.message || (receipt.split ? `🎁 Sent a ${gift.name} (80% to the host)` : `🎁 Sent a ${gift.name}!`)
+    message_text: body.message || (receipt.split ? `🎁 Sent a ${gift.name} (${Number(receipt.host_pct ?? 80)}% to the host)` : `🎁 Sent a ${gift.name}!`)
   }).select('id, stream_id, user_id, message_text, is_pinned, created_at').single()
   const sender = await liveUserCard(user.id)
   broadcastToStream(body.streamId, {

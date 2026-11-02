@@ -2,6 +2,7 @@
 import { StreamModel } from '~/server/models/stream'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import { liveUserCard } from '~/server/utils/stream-hub'
+import { getServiceClient } from '~/server/utils/supabase-admin'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -17,7 +18,9 @@ export default defineEventHandler(async (event) => {
     result = await StreamModel.endStream(id)
   }
 
-    return { success: true, data: result ? { ...result, creator: await liveUserCard(result.creator_id) } : null }
+    const { data: rules } = await getServiceClient().from('live_access_rules' as never).select('viewer_gift_host_pct').eq('id', true).maybeSingle()
+    const hostPct = Number((rules as { viewer_gift_host_pct?: number } | null)?.viewer_gift_host_pct ?? 80)
+    return { success: true, data: result ? { ...result, creator: await liveUserCard(result.creator_id), viewer_gift_host_pct: hostPct } : null }
   } catch (error: any) {
     console.error('[Stream Get] Error:', error)
     throw createError({ statusCode: error.statusCode || 500, statusMessage: error.message || 'Failed to get stream' })

@@ -10,7 +10,8 @@ const LIMITS: Record<keyof LiveRules, [number, number]> = {
   min_pew_received: [0, 100_000_000],
   min_active_days: [0, 3650],
   min_transactions: [0, 1_000_000],
-  window_days: [1, 3650]
+  window_days: [1, 3650],
+  viewer_gift_host_pct: [0, 100]
 }
 
 export default defineEventHandler(async (event) => {

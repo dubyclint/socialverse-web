@@ -77,7 +77,7 @@
     <div v-if="giftTarget && stream" class="live-sheet-bg" @click.self="giftTarget = null" @dblclick.stop>
       <div class="live-sheet">
         <header>Gift {{ giftTarget.name }} <button @click="giftTarget = null">✕</button></header>
-        <p class="note">80% of this gift goes to the host and 20% to {{ giftTarget.name }}, after the gift fee.</p>
+        <p class="note">{{ hostPct }}% of this gift goes to the host and {{ 100 - hostPct }}% to {{ giftTarget.name }}, after the gift fee.</p>
         <GiftPicker target-type="stream" :stream-id="stream.id" :recipient-id="giftTarget.id" @gift-sent="giftTarget = null" />
       </div>
     </div>
@@ -115,7 +115,7 @@ import '~/assets/css/live.css'
 definePageMeta({ middleware: ['auth', 'profile-completion'], layout: false })
 
 interface HostCard { id: string, name: string, username: string | null, avatar_url: string | null, is_verified?: boolean | null, verified_type?: string | null }
-interface StreamRow { id: string, title: string, creator_id: string, current_viewer_count: number, broadcast_status: string, creator?: HostCard }
+interface StreamRow { id: string, title: string, creator_id: string, current_viewer_count: number, broadcast_status: string, creator?: HostCard, viewer_gift_host_pct?: number }
 interface ChatRow { id: string, user_id: string, message_text: string, is_pinned?: boolean, created_at: string, user: (Partial<HostCard> & { name: string }) | null }
 
 const route = useRoute()
@@ -142,6 +142,7 @@ const { data, pending } = await useFetch<{ data: StreamRow | null }>(() => `/api
 const stream = computed(() => data.value?.data ?? null)
 useHead({ title: () => `${stream.value?.creator?.name ?? 'Live'} · LIVE · Viorp` })
 const host = computed(() => stream.value?.creator ?? null)
+const hostPct = computed(() => Number(stream.value?.viewer_gift_host_pct ?? 80))
 const isHost = computed(() => !!stream.value && stream.value.creator_id === myId.value)
 const isEnded = computed(() => room.ended.value || (!!stream.value && stream.value.broadcast_status !== 'LIVE'))
 const canGift = computed(() => !!stream.value && !isEnded.value && stream.value.creator_id !== myId.value)
