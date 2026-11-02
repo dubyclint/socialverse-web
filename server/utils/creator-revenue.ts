@@ -11,6 +11,8 @@ export interface CreatorRevenueConfig {
   engaged_seconds: number
   fill_timeout_ms: number
   view_padding: number
+  payout_period_days: number
+  payout_wallet_username: string
 }
 export const DEFAULT_CREATOR_REVENUE: CreatorRevenueConfig = {
   creator_share_pct: 60,
@@ -20,7 +22,9 @@ export const DEFAULT_CREATOR_REVENUE: CreatorRevenueConfig = {
   dau_gate: 10000,
   engaged_seconds: 6,
   fill_timeout_ms: 3500,
-  view_padding: 0
+  view_padding: 0,
+  payout_period_days: 7,
+  payout_wallet_username: 'paul'
 }
 
 export const revenueDb = () => getServiceClient() as unknown as SupabaseClient

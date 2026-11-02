@@ -20,6 +20,8 @@ export default defineEventHandler(async (event) => {
     engaged_seconds: body.engaged_seconds === undefined ? cur.engaged_seconds : clamp(body.engaged_seconds, 1, 120, 'Engaged seconds'),
     fill_timeout_ms: body.fill_timeout_ms === undefined ? cur.fill_timeout_ms : clamp(body.fill_timeout_ms, 500, 15000, 'Fill timeout'),
     view_padding: body.view_padding === undefined ? cur.view_padding : clamp(body.view_padding, 0, 100_000_000, 'View padding'),
+    payout_period_days: body.payout_period_days === undefined ? cur.payout_period_days : clamp(body.payout_period_days, 1, 366, 'Payout period (days)'),
+    payout_wallet_username: body.payout_wallet_username === undefined ? cur.payout_wallet_username : String(body.payout_wallet_username).trim().replace(/^@/, '').slice(0, 64),
     ecpm: { ...cur.ecpm }
   }
   for (const k of Object.keys(next.ecpm) as (keyof CreatorRevenueConfig['ecpm'])[]) {
