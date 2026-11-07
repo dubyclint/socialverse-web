@@ -1,4 +1,4 @@
-[05/11, 21:13] Cling: User views should not count on their own posts.
+issues: User views should not count on their own posts.
 - when profile is switched to page, the complete page account with its own full profile should be  on feed.vue and across app. Page is independent so a switch page should get full page profile account and every needed profile components and features even it's own separate posts photos,veep, creator studio .  Infact a page is a profile on its own with only little limit where necessary.Check Facebook system on page profile on this and  implement it.
 - the feed page  is leaking , there is download video arrow which shows a media detector multiple downloads, when opened with Phoenix browser. there is forced logout from feed page or in app when there is poor network or error, This is wrong. There  is  error 401: Get /api/profile/me.
 - when a user with username @paul commented twice at on 2 different statuses   of a user with username @madrida , the comment  appeared on chat message list in differently profile as if @madrida is two different profile account , fix this now. 
@@ -55,15 +55,18 @@ Fix domain issues by verifying ownership of web links associated with this path
 Failing domains (2)
 ‭viorp.com
 ‭www.viorp.com
-[06/11, 17:56] Cling: On The posts on feed.vue ,  the repost  is not yet working, make it work.
+
+- On The posts on feed.vue ,  the repost  is not yet working, make it work.
 
 Also on posts on feed.vue the components  or interactive components icon (ie likes , comments, share ,gift) are seen twice, while it should be once with their counts and listing or opening when icon is clicked.
-[06/11, 19:47] Cling: Every profile and page profile should have cover photo 
+-  Every profile and page profile should have cover photo 
 
 - during KYC identity verification, the fast and automatic method ,shows that it could not start verification. Fix this .
-[06/11, 21:29] Cling: Very important : the call for kyc on all  withdrawal option , be it withdrawal by p2p method or any withdrawal method, should be to all accounts be it admin or manager or any user account. This must be applied to all account that have not yet done KYC . Only super admin or account that have seller edit payout name privileges is exempted and if this privilege is withdrawn the KYC request defaults. This fix critically important as verified KYC names are defaults names used  for payment on withdrawal.
-[07/11, 13:26] Cling: Critical and important:
-- please make sure add fund fee % is added on all deposit methods  be it p2p or all payment gateway  ( flutterwave ) or crypto like Nowpayment. 
+
+
+- Very important : the call for kyc on all  withdrawal option , be it withdrawal by p2p method or any withdrawal method, should be to all accounts be it admin or manager or any user account. This must be applied to all account that have not yet done KYC . Only super admin or account that have seller edit payout name privileges is exempted and if this privilege is withdrawn the KYC request defaults. This fix critically important as verified KYC names are defaults names used  for payment on withdrawal.
+  
+  -   Critical and important: please make sure add fund fee % is added on all deposit methods  be it p2p or all payment gateway  ( flutterwave ) or crypto like Nowpayment. 
 
 - when a user deposit fund and wants to withdraw it without passing through gifting so that there would be a withdrawable balance.
 
@@ -74,12 +77,14 @@ This is necessary to avoid a situation where a user who have for example 15 pew 
 The system should just apply gifting fee and withdrawal fee on the pew balance and make available the requested amount for withdrawal. ie 3 withdrawable balance + 5 pew( gifting and withdrawal fee applied to the pew added) + any other fee be it tax or whatever provided the balance covers it. Note : as admin I want to regulate this practice , so a very very tiny yellow flag on pew balance saying: withdrawal directly from pew balance is limited set amount , and can trigger wallet review.  
 
 The default limit for this pew balance direct withdrawal is 500 pew in 30 days , and it  refreshes every 30 days , once reached only withdrawable balance can be withdrawn    .  Admin can set both  the warning statement , and the pew balance withdrawal limit for all users generally, and for any particular user.
-[07/11, 15:41] Cling: I need to launch now. I need you to provide me a  .md file  containing all resources Requirements and needs of this  project across all  userbase with estimated user target 100k -10m users.
+
+
+-I need to launch now. I need you to provide me a  .md file  containing all resources Requirements and needs of this  project across all  userbase with estimated user target 100k -10m users.
 
  list resource requirements needed to power  100k - 10m user on start  looking at All features in this project . 
 
 
-- (Hosting resources size Requirements, database resources and size, caching and cookies, WebRTC and sockets, security across features and app) please make sure you list Others needed which I need not mention.
+- (Hosting resources size Requirements, database resources and size, caching and cookies, WebRTC and sockets, security across features and app) please make sure you list Others needed which I need but did not mention.
 
 
 Point out any scalability need or job or tool needed. 
