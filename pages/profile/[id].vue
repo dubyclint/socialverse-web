@@ -165,6 +165,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDob } from '~/shared/dob'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PostCard from '~/components/posts/post-card.vue'
@@ -197,6 +198,7 @@ interface PublicProfile {
   website: string | null
   gender: string | null
   birth_date: string | null
+  joined?: string | null
   marital_status: string | null
   university: string | null
   work: string | null
@@ -265,11 +267,13 @@ const DETAIL_ICONS: Record<Exclude<PrivateProfileField, 'interests'>, string> = 
   religion: 'star',
   gender: 'user',
   birth_date: 'calendar',
+  joined: 'clock',
   website: 'link'
 }
 
 const formatDetail = (key: string, value: string) => {
-  if (key === 'birth_date') return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+  if (key === 'birth_date') return formatDob(value)
+  if (key === 'joined') return new Date(value).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
   if (key === 'gender') return value.replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase())
   return value
 }

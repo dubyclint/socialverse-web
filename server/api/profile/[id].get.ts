@@ -62,7 +62,8 @@ export default defineEventHandler(async (event) => {
     university: profile.university,
     work: profile.work,
     religion: profile.religion,
-    interests: profile.interest_tags ?? []
+    interests: profile.interest_tags ?? [],
+    joined: profile.created_at
   }
   const details: Record<string, unknown> = {}
   for (const field of PRIVATE_PROFILE_FIELDS) {
@@ -85,7 +86,7 @@ export default defineEventHandler(async (event) => {
     role: profile.role,
     rank: profile.hide_rank && !isSelf ? null : profile.rank,
     posts_count: profile.posts_count,
-    created_at: profile.created_at,
+    created_at: details.joined ?? null,
     is_banned: profile.is_banned,
     ...details,
     interest_tags: details.interests,

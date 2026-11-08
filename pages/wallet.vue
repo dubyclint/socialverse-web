@@ -230,8 +230,17 @@ onMounted(() => {
         <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-gradient-to-br from-indigo-600/30 to-slate-900 border border-indigo-500/30 rounded-xl p-4">
             <span class="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">Total balance</span>
-            <button v-if="summary.direct" type="button" class="pew-warn" :title="summary.direct.warning" :aria-label="summary.direct.warning" @click="showDirectWarning = !showDirectWarning">!</button>
-            <p v-if="showDirectWarning && summary.direct" class="text-[11px] text-amber-300 mt-1">{{ summary.direct.warning }} {{ fmt(summary.direct.allowance_pew) }} of {{ fmt(summary.direct.limit_pew) }} PEW left this {{ summary.direct.window_days }}-day period.</p>
+            <button v-if="summary.direct" type="button" class="pew-warn" :class="{ open: showDirectWarning }" :aria-expanded="showDirectWarning" aria-label="Direct PEW withdrawal limit" @click="showDirectWarning = !showDirectWarning">
+              <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z" /></svg>
+              <span>Limit</span>
+            </button>
+            <Transition name="pew-note">
+              <div v-if="showDirectWarning && summary.direct" class="pew-note" role="note">
+                <p>{{ summary.direct.warning }}</p>
+                <div class="pew-meter"><span :style="{ width: `${Math.min(100, (summary.direct.allowance_pew / Math.max(1, summary.direct.limit_pew)) * 100)}%` }" /></div>
+                <small>{{ fmt(summary.direct.allowance_pew) }} / {{ fmt(summary.direct.limit_pew) }} PEW left · {{ summary.direct.window_days }}-day period</small>
+              </div>
+            </Transition>
             <p class="text-2xl font-bold mt-1 font-mono">{{ fmt(summary.balance) }} <span class="text-sm text-slate-300">PEW</span></p>
           </div>
           <div class="bg-gradient-to-br from-emerald-600/25 to-slate-900 border border-emerald-500/30 rounded-xl p-4">
@@ -395,7 +404,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.pew-warn { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 6px; border-radius: 50%; background: #facc15; color: #111; font-size: 10px; font-weight: 800; line-height: 1; vertical-align: middle; }
+.pew-warn { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px 1px 5px; border-radius: 999px; border: 1px solid rgba(250, 204, 21, .35); background: rgba(250, 204, 21, .12); color: #fde047; font-size: 10px; font-weight: 600; letter-spacing: .02em; line-height: 14px; vertical-align: middle; cursor: pointer; transition: background .15s, border-color .15s; }
+.pew-warn:hover, .pew-warn.open { background: rgba(250, 204, 21, .22); border-color: rgba(250, 204, 21, .6); }
+.pew-note { margin-top: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #facc15; background: rgba(15, 23, 42, .7); backdrop-filter: blur(6px); }
+.pew-note p { margin: 0 0 6px; font-size: 11px; line-height: 1.4; color: #e2e8f0; }
+.pew-note small { display: block; margin-top: 4px; font-size: 10px; color: #94a3b8; }
+.pew-meter { height: 4px; border-radius: 999px; background: rgba(148, 163, 184, .2); overflow: hidden; }
+.pew-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #facc15, #f59e0b); transition: width .4s ease; }
+.pew-note-enter-active, .pew-note-leave-active { transition: opacity .15s ease, transform .15s ease; }
+.pew-note-enter-from, .pew-note-leave-to { opacity: 0; transform: translateY(-4px); }
 .kyc-tick { padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 9px; line-height: 14px; font-weight: 700; text-decoration: none; animation: kyc-tickle 1.6s ease-in-out infinite; }
 @keyframes kyc-tickle { 0%, 80%, 100% { transform: translateY(-50%) rotate(0) } 85% { transform: translateY(-50%) rotate(-8deg) } 90% { transform: translateY(-50%) rotate(8deg) } }
 .tiny-check {

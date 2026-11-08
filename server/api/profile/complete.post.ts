@@ -10,6 +10,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import type { H3Event } from 'h3'
 import { getServiceClient } from '~/server/utils/supabase-admin'
+import { parseDob } from '~/shared/dob'
 import { loadOwnProfile } from '~/server/utils/own-profile'
 import { changeUsername, normaliseUsername } from '~/server/utils/username-change'
 
@@ -113,7 +114,12 @@ export default defineEventHandler(async (event: H3Event) => {
     if (body.cover_url !== undefined) updatePayload.cover_url = body.cover_url
     if (body.website !== undefined) updatePayload.website = trimmed(body.website)
     if (body.location !== undefined) updatePayload.location = trimmed(body.location)
-    if (body.birth_date !== undefined) updatePayload.birth_date = body.birth_date
+    if (body.birth_date !== undefined) {
+      const raw = (body.birth_date ?? '').trim()
+      const iso = raw.includes('/') ? parseDob(raw) : raw || null
+      if (raw && !iso) throw createError({ statusCode: 400, statusMessage: 'Enter your date of birth as DD/MM/YY' })
+      updatePayload.birth_date = iso
+    }
     if (body.gender !== undefined) updatePayload.gender = body.gender
     
     updatePayload.profile_completed = true

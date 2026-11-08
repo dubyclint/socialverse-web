@@ -1,5 +1,6 @@
 // FILE: /server/api/profile/update.post.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { parseDob } from '~/shared/dob'
 import type { Database } from '~/types/database.types'
 import { requireUser } from '~/server/utils/auth'
 import { loadOwnProfile } from '~/server/utils/own-profile'
@@ -76,7 +77,14 @@ export default defineEventHandler(async (event) => {
   if (body.cover_url !== undefined) updateData.cover_url = body.cover_url
   if (body.website !== undefined) updateData.website = body.website
   if (body.location !== undefined) updateData.location = body.location
-  if (body.birth_date !== undefined) updateData.birth_date = nullIfBlank(body.birth_date)
+  if (body.birth_date !== undefined) {
+    const raw = nullIfBlank(body.birth_date)
+    if (raw && raw.includes('/')) {
+      const iso = parseDob(raw)
+      if (!iso) throw createError({ statusCode: 400, statusMessage: 'Enter your date of birth as DD/MM/YY' })
+      updateData.birth_date = iso
+    } else updateData.birth_date = raw
+  }
   if (body.gender !== undefined) updateData.gender = nullIfBlank(body.gender)
   if (body.is_private !== undefined) updateData.is_private = body.is_private
   if (typeof body.hide_following === 'boolean') updateData.hide_following = body.hide_following

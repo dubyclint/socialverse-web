@@ -8,7 +8,8 @@ export const PRIVATE_PROFILE_FIELDS = [
   'university',
   'work',
   'religion',
-  'interests'
+  'interests',
+  'joined'
 ] as const
 
 export type PrivateProfileField = typeof PRIVATE_PROFILE_FIELDS[number]
@@ -24,7 +25,8 @@ export const PROFILE_FIELD_LABELS: Record<PrivateProfileField, string> = {
   university: 'University / school',
   work: 'Work / business',
   religion: 'Religion / denomination',
-  interests: 'Interests'
+  interests: 'Interests',
+  joined: 'Joined'
 }
 
 export const MARITAL_STATUSES = [

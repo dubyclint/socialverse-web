@@ -58,12 +58,16 @@
         </div>
 
         <div class="field">
-          <label for="birth_date">Birth date</label>
+          <label for="birth_date">Date of birth (DD/MM/YY)</label>
           <input
             id="birth_date"
             v-model="form.birth_date"
-            type="date"
+            type="text"
+            inputmode="numeric"
+            maxlength="10"
+            :placeholder="DOB_PLACEHOLDER"
             :disabled="loading"
+            @input="form.birth_date = maskDob(form.birth_date)"
           />
         </div>
 
@@ -92,6 +96,7 @@
 </template>
             
 <script setup lang="ts">
+import { DOB_PLACEHOLDER, maskDob } from '~/shared/dob'
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '~/lib/api'

@@ -233,11 +233,15 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-300 mb-2">Date of Birth</label>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Date of birth (DD/MM/YY)</label>
             <input
               v-model="formData.birth_date"
-              type="date"
-              class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              type="text"
+              inputmode="numeric"
+              maxlength="10"
+              :placeholder="DOB_PLACEHOLDER"
+              class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              @input="formData.birth_date = maskDob(formData.birth_date)"
             />
           </div>
 
@@ -438,6 +442,7 @@
 </template>
 
 <script setup lang="ts">
+import { DOB_PLACEHOLDER, formatDob, maskDob } from '~/shared/dob'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -499,7 +504,7 @@ const formData = ref({
 
 const maritalStatuses = MARITAL_STATUSES
 const fieldLabels = PROFILE_FIELD_LABELS
-const basicVisibilityFields: PrivateProfileField[] = ['gender', 'birth_date', 'location', 'website']
+const basicVisibilityFields: PrivateProfileField[] = ['gender', 'birth_date', 'location', 'website', 'joined']
 const interestDraft = ref('')
 const addInterest = () => {
   const tag = interestDraft.value.trim().replace(/,$/, '')
@@ -656,7 +661,7 @@ const loadProfile = async () => {
         phone: p.phone || '',
         phone_country: p.phone_country || DEFAULT_CALLING_COUNTRY,
         website: p.website || '',
-        birth_date: p.birth_date ? (p.birth_date.split('T')[0] ?? '') : '',
+        birth_date: formatDob(p.birth_date),
         gender: p.gender || '',
         is_private: !!p.is_private,
         hide_following: !!p.hide_following,
