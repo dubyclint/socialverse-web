@@ -4,7 +4,7 @@
       v-if="video"
       ref="el"
       class="vp-media"
-      :src="src"
+      :src="playSrc"
       :poster="poster || BLANK_POSTER"
       :preload="preload"
       playsinline
@@ -29,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import { acquireMediaBlob, releaseMediaBlob } from '~/composables/useMediaBlob'
 /** One full-screen Veep media canvas: pre-buffers when near, plays when active, crossfades audio, reports watch time. */
 const props = defineProps<{ src: string, video: boolean, active: boolean, near: boolean, muted: boolean, lowData: boolean, poster?: string, engagedSeconds?: number }>()
 const emit = defineEmits<{ watched: [{ watchMs: number, completed: boolean, loops: number }], engaged: [seconds: number] }>()
@@ -36,6 +37,25 @@ let engagedSent = false
 // A transparent poster stops Android WebView from drawing its large grey play placeholder before playback.
 const BLANK_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 const el = ref<HTMLVideoElement | null>(null)
+// The video plays from a blob: URL fetched when near, so download detectors don't list it.
+const playSrc = ref<string | undefined>()
+let heldSrc: string | null = null
+const holdSrc = () => {
+  if (!props.video || heldSrc === props.src || !(props.near || props.active)) return
+  if (heldSrc) releaseMediaBlob(heldSrc)
+  const want = props.src
+  heldSrc = want
+  playSrc.value = undefined
+  void acquireMediaBlob(want).then((s) => { if (heldSrc === want) playSrc.value = s })
+}
+watch(() => [props.src, props.near, props.active, props.video], holdSrc, { immediate: true })
+watch(playSrc, async (s) => {
+  await nextTick()
+  const v = el.value
+  if (!s || !v || !props.active) return
+  v.muted = props.muted
+  try { await v.play() } catch { v.muted = true; await v.play().catch(() => {}) }
+})
 const stalled = ref(false)
 const paused = ref(false)
 const loops = ref(0)
@@ -93,7 +113,7 @@ const togglePlay = () => {
   if (v.paused) { v.play().catch(() => {}); paused.value = false; startedAt = Date.now() } else { v.pause(); paused.value = true; if (startedAt) { watchedMs += Date.now() - startedAt; startedAt = 0 } }
 }
 
-onBeforeUnmount(() => { if (props.active) flush(); if (fade) clearInterval(fade) })
+onBeforeUnmount(() => { if (props.active) flush(); if (fade) clearInterval(fade); if (heldSrc) releaseMediaBlob(heldSrc) })
 </script>
 
 <style scoped>

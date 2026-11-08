@@ -4,7 +4,7 @@
      history from the ledger, gift history, and withdrawal requests.
      ============================================================================ -->
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 definePageMeta({
   middleware: ['auth', 'profile-completion', 'language-check'],
@@ -97,6 +97,33 @@ const withdrawError = ref('')
 const withdrawNotice = ref('')
 const isWithdrawing = ref(false)
 const showDirectWarning = ref(false)
+// The PEW limit warning only appears at 80%+ of the period limit used, or when a request is above the limit,
+// then hides itself after a few seconds until those conditions occur again.
+const directUsedPct = computed(() => {
+  const d = summary.value?.direct
+  if (!d || d.limit_pew <= 0) return 0
+  return Math.min(100, Math.max(0, (d.limit_pew - d.allowance_pew) / d.limit_pew * 100))
+})
+const overDirectLimit = computed(() => {
+  const s = summary.value
+  const amount = Number(withdrawForm.amount) || 0
+  if (!s?.direct || amount <= s.withdrawable_usd) return false
+  return amount - s.withdrawable_usd > s.direct.usd
+})
+const directLimitAlert = computed(() => !!summary.value?.direct && (directUsedPct.value >= 80 || overDirectLimit.value))
+let directWarnTimer: ReturnType<typeof setTimeout> | null = null
+const flashDirectWarning = () => {
+  showDirectWarning.value = true
+  if (directWarnTimer) clearTimeout(directWarnTimer)
+  directWarnTimer = setTimeout(() => { showDirectWarning.value = false }, 6000)
+}
+const hideDirectWarning = () => {
+  showDirectWarning.value = false
+  if (directWarnTimer) { clearTimeout(directWarnTimer); directWarnTimer = null }
+}
+watch(directLimitAlert, (on) => { if (on) flashDirectWarning(); else hideDirectWarning() }, { immediate: true })
+watch(overDirectLimit, (over) => { if (over) flashDirectWarning() })
+onBeforeUnmount(() => { if (directWarnTimer) clearTimeout(directWarnTimer) })
 
 const fmt = (value: number, dp = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
 const formatDate = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -151,6 +178,7 @@ const submitWithdrawal = async () => {
   }
   const directUsd = withdrawForm.usePew ? (summary.value?.direct?.usd ?? 0) : 0
   if (summary.value && amount > summary.value.withdrawable_usd + directUsd) {
+    if (overDirectLimit.value) flashDirectWarning()
     withdrawError.value = 'Amount is more than your withdrawable balance'
     return
   }
@@ -230,15 +258,15 @@ onMounted(() => {
         <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-gradient-to-br from-indigo-600/30 to-slate-900 border border-indigo-500/30 rounded-xl p-4">
             <span class="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">Total balance</span>
-            <button v-if="summary.direct" type="button" class="pew-warn" :class="{ open: showDirectWarning }" :aria-expanded="showDirectWarning" aria-label="Direct PEW withdrawal limit" @click="showDirectWarning = !showDirectWarning">
+            <button v-if="summary.direct && directLimitAlert && showDirectWarning" type="button" class="pew-warn open" aria-expanded="true" aria-label="Dismiss PEW withdrawal limit warning" @click="hideDirectWarning">
               <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z" /></svg>
               <span>Limit</span>
             </button>
             <Transition name="pew-note">
-              <div v-if="showDirectWarning && summary.direct" class="pew-note" role="note">
+              <div v-if="showDirectWarning && directLimitAlert && summary.direct" class="pew-note" role="alert">
                 <p>{{ summary.direct.warning }}</p>
                 <div class="pew-meter"><span :style="{ width: `${Math.min(100, (summary.direct.allowance_pew / Math.max(1, summary.direct.limit_pew)) * 100)}%` }" /></div>
-                <small>{{ fmt(summary.direct.allowance_pew) }} / {{ fmt(summary.direct.limit_pew) }} PEW left · {{ summary.direct.window_days }}-day period</small>
+                <small>{{ Math.round(directUsedPct) }}% used · {{ fmt(summary.direct.allowance_pew) }} / {{ fmt(summary.direct.limit_pew) }} PEW left · {{ summary.direct.window_days }}-day period</small>
               </div>
             </Transition>
             <p class="text-2xl font-bold mt-1 font-mono">{{ fmt(summary.balance) }} <span class="text-sm text-slate-300">PEW</span></p>
@@ -370,10 +398,15 @@ onMounted(() => {
               <option v-for="c in currencies" :key="c.code" :value="c.code">{{ c.code }} · {{ c.display_name }}</option>
             </select>
             <input v-model.number="withdrawForm.amount" type="number" min="0" step="0.01" required placeholder="Amount in USD" class="wallet-input font-mono">
+            <Transition name="pew-note">
+              <p v-if="overDirectLimit && showDirectWarning && summary.direct" class="pew-inline" role="alert">
+                Above your PEW withdrawal limit: at most ${{ fmt(summary.withdrawable_usd + summary.direct.usd) }} right now ({{ fmt(summary.direct.allowance_pew) }} of {{ fmt(summary.direct.limit_pew) }} PEW left this {{ summary.direct.window_days }}-day period).
+              </p>
+            </Transition>
             <textarea v-model="withdrawForm.note" maxlength="500" rows="2" placeholder="Note (optional): any other information for the payout" class="wallet-input" />
             <label v-if="summary.direct && summary.direct.usd > 0" class="flex items-start gap-2 text-[11px] text-amber-300 leading-snug">
               <input v-model="withdrawForm.usePew" type="checkbox" class="tiny-check">
-              <span>Also use my PEW balance (up to ${{ fmt(summary.direct.usd) }} after the {{ summary.fees.gift_fee_pct }}% gift and {{ summary.fees.withdrawal_fee_pct }}% withdrawal fees). {{ summary.direct.warning }}</span>
+              <span>Also use my PEW balance (up to ${{ fmt(summary.direct.usd) }} after the {{ summary.fees.gift_fee_pct }}% gift and {{ summary.fees.withdrawal_fee_pct }}% withdrawal fees).</span>
             </label>
 
             <div v-if="withdrawForm.amount" class="text-[11px] text-slate-400 bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
@@ -411,6 +444,7 @@ onMounted(() => {
 .pew-note small { display: block; margin-top: 4px; font-size: 10px; color: #94a3b8; }
 .pew-meter { height: 4px; border-radius: 999px; background: rgba(148, 163, 184, .2); overflow: hidden; }
 .pew-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #facc15, #f59e0b); transition: width .4s ease; }
+.pew-inline { margin: 0; padding: 6px 9px; border-radius: 8px; border-left: 3px solid #f87171; background: rgba(127, 29, 29, .25); color: #fecaca; font-size: 11px; line-height: 1.4; }
 .pew-note-enter-active, .pew-note-leave-active { transition: opacity .15s ease, transform .15s ease; }
 .pew-note-enter-from, .pew-note-leave-to { opacity: 0; transform: translateY(-4px); }
 .kyc-tick { padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 9px; line-height: 14px; font-weight: 700; text-decoration: none; animation: kyc-tickle 1.6s ease-in-out infinite; }

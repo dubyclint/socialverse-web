@@ -3,7 +3,8 @@
     <template v-for="(url, index) in media.slice(0, 4)" :key="url">
       <div v-if="isVideo(url)" class="media-video-wrap">
         <video
-          :src="frameSrc(url)"
+          :src="blobSrc[url] ? frameSrc(blobSrc[url]!) : undefined"
+          :data-src="url"
           :poster="BLANK_POSTER"
           class="media-item media-video"
           :ref="el => registerVideo(el as HTMLVideoElement | null)"
@@ -46,6 +47,7 @@
 
 <script setup lang="ts">
 import MediaLightbox from '~/components/chat/media-lightbox.vue'
+import { acquireMediaBlob, releaseMediaBlob } from '~/composables/useMediaBlob'
 
 const props = defineProps<{ media: string[], postId?: string }>()
 const openVeep = () => {
@@ -107,11 +109,42 @@ const toggleSound = () => {
 }
 const registerVideo = (el: HTMLVideoElement | null) => {
   if (!el || videos.has(el)) return
-  el.dataset.src = el.getAttribute('src')?.replace(/#t=[\d.]+$/, '') ?? ''
+  el.dataset.src ||= el.getAttribute('src')?.replace(/#t=[\d.]+$/, '') ?? ''
   videos.add(el)
   ensureObserver()?.observe(el)
+  const near = ensureNearObserver()
+  if (near) near.observe(el)
+  else hold(urlOf(el))
 }
-onBeforeUnmount(() => { observer?.disconnect(); observer = null; videos.clear() })
+// Videos load as blob: URLs once they come near the screen, so download detectors don't list them.
+const blobSrc = reactive<Record<string, string>>({})
+const held = new Set<string>()
+const hold = (url: string) => {
+  if (!url || held.has(url)) return
+  held.add(url)
+  void acquireMediaBlob(url).then((src) => {
+    if (!held.has(url)) return
+    blobSrc[url] = src
+    void nextTick(() => {
+      for (const v of videos) if (v === activeFeedVideo && urlOf(v) === url && !userPaused.has(url)) playWithSound(v)
+    })
+  })
+}
+let nearObserver: IntersectionObserver | null = null
+const ensureNearObserver = () => {
+  if (nearObserver || typeof IntersectionObserver === 'undefined') return nearObserver
+  nearObserver = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) hold(urlOf(e.target as HTMLVideoElement))
+  }, { rootMargin: '800px 0px' })
+  return nearObserver
+}
+onBeforeUnmount(() => {
+  observer?.disconnect(); observer = null
+  nearObserver?.disconnect(); nearObserver = null
+  videos.clear()
+  for (const u of held) releaseMediaBlob(u)
+  held.clear()
+})
 defineEmits<{ open: [url: string] }>()
 
 const isVideo = (url: string) => /\.(mp4|webm|mov|m3u8)(\?|$)/i.test(url)

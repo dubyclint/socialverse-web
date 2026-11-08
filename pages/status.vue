@@ -83,7 +83,7 @@
       <div class="st-vbody" :style="current!.media_type === 'text' ? { background: current!.background_color || '#1e293b', color: current!.text_color || '#fff' } : {}">
         <p v-if="current!.media_type === 'text'" class="st-vtext">{{ current!.content }}</p>
         <img v-else-if="current!.media_type === 'image'" :src="current!.media_url!" alt="" @load="startTimer()">
-        <video v-else ref="videoEl" :src="current!.media_url!" autoplay playsinline @loadedmetadata="onVideoMeta" @ended="next" />
+        <video v-else ref="videoEl" :src="statusVideoSrc" autoplay playsinline @loadedmetadata="onVideoMeta" @ended="next" />
         <p v-if="current!.media_type !== 'text' && current!.content" class="st-vcaption">{{ current!.content }}</p>
       </div>
       <div v-if="!viewing.is_me" class="st-react" @click.stop>
@@ -125,8 +125,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { reactive, ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useUserStore } from '~/stores/user'
+import { acquireMediaBlob, releaseMediaBlob } from '~/composables/useMediaBlob'
 import type { StatusGroup } from '~/server/api/status/index.get'
 
 definePageMeta({ middleware: ['auth', 'profile-completion', 'language-check'], layout: 'default' })
@@ -416,6 +417,17 @@ onMounted(async () => {
   if (g) openGroup(g)
 })
 onBeforeUnmount(stopTimer)
+
+// Status videos play from a blob: URL so download detectors don't list them.
+const statusVideoSrc = ref<string>()
+let statusHeld: string | null = null
+watch(() => (current.value && current.value.media_type !== 'text' && current.value.media_type !== 'image' ? current.value.media_url : null), (u) => {
+  if (statusHeld) releaseMediaBlob(statusHeld)
+  statusHeld = u ?? null
+  statusVideoSrc.value = undefined
+  if (u) void acquireMediaBlob(u).then((s) => { if (statusHeld === u) statusVideoSrc.value = s })
+}, { immediate: true })
+onBeforeUnmount(() => { if (statusHeld) releaseMediaBlob(statusHeld) })
 </script>
 
 <style scoped>
