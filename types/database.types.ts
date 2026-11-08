@@ -1485,6 +1485,7 @@ export type Database = {
           message_text: string
           notifier_id: string | null
           recipient_id: string
+          recipient_page_id: string | null
           source_id: string
         }
         Insert: {
@@ -1495,6 +1496,7 @@ export type Database = {
           message_text: string
           notifier_id?: string | null
           recipient_id: string
+          recipient_page_id?: string | null
           source_id: string
         }
         Update: {
@@ -1505,6 +1507,7 @@ export type Database = {
           message_text?: string
           notifier_id?: string | null
           recipient_id?: string
+          recipient_page_id?: string | null
           source_id?: string
         }
         Relationships: []
@@ -3793,6 +3796,7 @@ export type Database = {
           expires_at: string
           id: string
           media_url: string | null
+          page_id: string | null
           text_color: string | null
           user_id: string
           view_count: number
@@ -3807,6 +3811,7 @@ export type Database = {
           expires_at?: string
           id?: string
           media_url?: string | null
+          page_id?: string | null
           text_color?: string | null
           user_id: string
           view_count?: number
@@ -3821,6 +3826,7 @@ export type Database = {
           expires_at?: string
           id?: string
           media_url?: string | null
+          page_id?: string | null
           text_color?: string | null
           user_id?: string
           view_count?: number

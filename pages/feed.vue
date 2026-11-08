@@ -538,9 +538,9 @@ const searchQuery = ref('');
 
 // --- Navigation & Action Handlers ---
 const goToCreatePost = () => navigateTo('/posts/create');
-const goToProfilePage = () => navigateTo('/profile');
+const goToProfilePage = () => navigateTo(contextStore.isPage && contextStore.activeActor?.handle ? `/pages/${contextStore.activeActor.handle}` : '/profile');
 const goToUserProfile = (username, id) => id ? navigateTo(`/profile/${username}`) : null;
-const goToSettingsProfile = () => navigateTo('/profile');
+const goToSettingsProfile = () => navigateTo(contextStore.isPage && contextStore.activeActor?.handle ? `/pages/${contextStore.activeActor.handle}?tab=manage` : '/profile');
 const closeStatusViewer = () => activeSelectedStatus.value = null;
 
 // Status tray: My status first, then PAL / matched statuses with sponsored statuses mixed in

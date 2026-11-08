@@ -5,6 +5,7 @@ import type { Chat, ChatMember } from '~/types/chat'
 import { pageRoomsById } from '~/server/utils/page-chat'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { privacyGate } from '~/server/utils/privacy-visibility'
+import { resolveActor } from '~/server/utils/actor'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
@@ -19,7 +20,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: membershipError.message })
   }
 
-  const roomIds = (memberships || []).map(m => m.room_id)
+  const actor = await resolveActor(event)
+  const allRoomIds = (memberships || []).map(m => m.room_id)
+  const pageRooms = await pageRoomsById(allRoomIds)
+  // A Page's inbox holds only its own conversations; the personal inbox hides the Page side of them.
+  const roomIds = allRoomIds.filter((id) => {
+    const room = pageRooms.get(id)
+    return actor.type === 'PAGE' ? room?.page.id === actor.id : !room || room.visitorId === user.id
+  })
   if (roomIds.length === 0) return { success: true, data: [] as Chat[] }
 
   const [{ data: rooms }, { data: messages }, { data: unread }, { data: memberRows }] = await Promise.all([
@@ -52,7 +60,6 @@ export default defineEventHandler(async (event) => {
     avatar_url: canSee(person.user_id, 'profilePhoto') ? person.avatar_url : null
   }]))
 
-  const pageRooms = await pageRoomsById(roomIds)
   const unreadByRoom = new Map((unread ?? []).map(row => [row.room_id, Number(row.unread)]))
 
   const latestByRoom = new Map<string, { message_text: string | null, message_type: string | null, created_at: string }>()

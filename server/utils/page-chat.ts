@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 
 /** Roles that read and answer a Page's inbox. */
@@ -60,4 +61,32 @@ export const pageSenderOverride = (
 ): { senderName: string, senderAvatar: string | undefined, senderPageId: string, senderVerified: boolean, senderVerifiedType: string | null } | null => {
   if (!room || senderId === room.visitorId) return null
   return { senderName: room.page.name, senderAvatar: room.page.avatar_url || undefined, senderPageId: room.page.id, senderVerified: room.page.is_verified === true, senderVerifiedType: room.page.verified_type }
+}
+
+/** Finds or opens the Page conversation with `visitorId`; null when the visitor manages the Page or it is gone. */
+export const ensurePageRoom = async (pageId: string, visitorId: string, createdBy: string): Promise<string | null> => {
+  const service = getServiceClient()
+  const { data: existing } = await service.from('chat_rooms').select('id').eq('page_id', pageId).eq('page_visitor_id', visitorId).maybeSingle()
+  if (existing) return existing.id
+  const [{ data: page }, admins] = await Promise.all([
+    service.from('pages').select('name, avatar_url').eq('id', pageId).maybeSingle(),
+    pageInboxUserIds(pageId)
+  ])
+  if (!page || admins.includes(visitorId)) return null
+  const id = randomUUID()
+  const { error } = await service.from('chat_rooms').insert({
+    id, is_group_chat: false, room_name: page.name, room_avatar: page.avatar_url, created_by: createdBy, page_id: pageId, page_visitor_id: visitorId
+  })
+  if (error) {
+    if (error.code !== '23505') return null
+    const { data: raced } = await service.from('chat_rooms').select('id').eq('page_id', pageId).eq('page_visitor_id', visitorId).maybeSingle()
+    return raced?.id ?? null
+  }
+  const { error: memberError } = await service.from('chat_room_members')
+    .insert([...new Set([visitorId, ...admins])].map(user_id => ({ room_id: id, user_id })))
+  if (memberError) {
+    await service.from('chat_rooms').delete().eq('id', id)
+    return null
+  }
+  return id
 }

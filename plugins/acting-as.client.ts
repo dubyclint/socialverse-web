@@ -1,4 +1,4 @@
-import { applyActingAs } from '~/utils/acting-as'
+import { applyActingAs, setActingAs } from '~/utils/acting-as'
 import { useContextStore } from '~/stores/context'
 
 const RETRY_STATUS = [401, 408, 409, 425, 429, 500, 502, 503, 504]
@@ -16,6 +16,11 @@ export default defineNuxtPlugin(() => {
       .finally(() => { setTimeout(() => { refreshing = null }, 5_000) })
     return refreshing
   }
+
+  try {
+    const saved = localStorage.getItem('viorp.activeActor')
+    if (saved) setActingAs({ id: saved, type: 'PAGE' })
+  } catch { /* storage unavailable */ }
 
   const base = globalThis.$fetch
   globalThis.$fetch = base.create({

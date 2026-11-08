@@ -29,10 +29,13 @@ const context = useContextStore()
 const open = ref(false)
 const active = computed(() => context.activeActor)
 
+// Like Facebook, switching reloads the app so every screen (feed, statuses, chats, notifications, wallet) is the chosen identity's.
 const pick = (pageId: string | null) => {
+  open.value = false
+  if ((pageId ?? null) === (context.isPage ? active.value?.id ?? null : null)) return
   if (pageId) context.switchToPage(pageId)
   else context.switchTo(null)
-  open.value = false
+  window.location.assign('/feed')
 }
 </script>
 

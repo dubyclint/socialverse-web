@@ -142,6 +142,7 @@ async function sendWithPageWallet(
   if (postOwnerId !== operatorId) {
     await service.from('notifications').insert({
       recipient_id: postOwnerId,
+      recipient_page_id: toPageId ?? null,
       notifier_id: body.isAnonymous || fromPage ? null : operatorId,
       event_type: 'GIFT_RECEIVED',
       source_id: body.postId,

@@ -11,13 +11,13 @@ export default defineEventHandler(async (event) => {
 
   const { data: status } = await db
     .from('user_statuses')
-    .select('id, user_id, content, caption, media_url, background_color, text_color, created_at, expires_at, view_count')
+    .select('id, user_id, page_id, content, caption, media_url, background_color, text_color, created_at, expires_at, view_count')
     .eq('id', id)
     .is('deleted_at', null)
     .gt('expires_at', new Date().toISOString())
     .maybeSingle()
   if (!status) throw createError({ statusCode: 404, statusMessage: 'This status has expired' })
-  if (!await canSeeStatus(db, user.id, status.user_id)) {
+  if (!status.page_id && !await canSeeStatus(db, user.id, status.user_id)) {
     throw createError({ statusCode: 404, statusMessage: 'This status has expired' })
   }
 

@@ -1,4 +1,5 @@
 import { requireUser } from '~/server/utils/auth'
+import { resolveActor } from '~/server/utils/actor'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { loadPeople } from '~/server/utils/status-privacy'
 
@@ -6,9 +7,11 @@ import { loadPeople } from '~/server/utils/status-privacy'
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const db = getServiceClient()
-  const { data: rows, error } = await db.from('user_statuses')
+  const actor = await resolveActor(event)
+  const base = db.from('user_statuses')
     .select('id, content, caption, media_url, background_color, text_color, created_at, expires_at, view_count')
-    .eq('user_id', user.id).is('deleted_at', null).gt('expires_at', new Date().toISOString())
+    .is('deleted_at', null).gt('expires_at', new Date().toISOString())
+  const { data: rows, error } = await (actor.type === 'PAGE' ? base.eq('page_id', actor.id) : base.eq('user_id', user.id).is('page_id', null))
     .order('created_at', { ascending: false })
   if (error) throw createError({ statusCode: 500, statusMessage: 'Could not load your statuses' })
   const ids = (rows ?? []).map(r => r.id)

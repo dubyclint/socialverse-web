@@ -1,6 +1,7 @@
 import { requireUser } from '~/server/utils/auth'
 import { getServiceClient } from '~/server/utils/supabase-admin'
 import { rankPalSuggestions } from '~/server/utils/pal-suggestions'
+import { resolveActor } from '~/server/utils/actor'
 
 export interface StatusItem {
   id: string
@@ -20,6 +21,7 @@ export interface StatusItem {
 export interface StatusGroup {
   author: { id: string, username: string, full_name: string, avatar_url: string | null, verified: boolean, verified_type: string | null }
   is_me: boolean
+  is_page?: boolean
   all_viewed: boolean
   statuses: StatusItem[]
 }
@@ -33,6 +35,8 @@ const mediaType = (url: string | null): StatusItem['media_type'] => {
 export default defineEventHandler(async (event): Promise<{ success: true, data: StatusGroup[] }> => {
   const user = await requireUser(event)
   const db = getServiceClient()
+  const actor = await resolveActor(event)
+  const actingPage = actor.type === 'PAGE' ? actor.id : null
 
   const nowIso = new Date().toISOString()
   const [suggested, { data: pals }, { data: active }, { data: blocks }] = await Promise.all([
@@ -66,23 +70,36 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
     }
   }
 
-  const { data: rows, error } = await db
-    .from('user_statuses')
-    .select('id, user_id, content, caption, media_url, background_color, text_color, created_at, expires_at, view_count')
-    .in('user_id', [...authorIds])
-    .is('deleted_at', null)
-    .gt('expires_at', nowIso)
-    .order('created_at', { ascending: true })
-    .limit(500)
+  const COLS = 'id, user_id, page_id, content, caption, media_url, background_color, text_color, created_at, expires_at, view_count'
+  // Pages post statuses as themselves: followers see them, and the acting Page sees its own as "My status".
+  const { data: followedPages } = await db.from('page_follows').select('page_id').eq('user_id', user.id)
+  const pageIds = [...new Set([...(followedPages ?? []).map(f => f.page_id), ...(actingPage ? [actingPage] : [])])]
+  const [{ data: rows, error }, { data: pageRows }, { data: pageInfo }] = await Promise.all([
+    db.from('user_statuses').select(COLS)
+      .in('user_id', [...authorIds])
+      .is('page_id', null)
+      .is('deleted_at', null)
+      .gt('expires_at', nowIso)
+      .order('created_at', { ascending: true })
+      .limit(500),
+    pageIds.length
+      ? db.from('user_statuses').select(COLS).in('page_id', pageIds).is('deleted_at', null).gt('expires_at', nowIso).order('created_at', { ascending: true }).limit(300)
+      : Promise.resolve({ data: [] as never[] }),
+    pageIds.length
+      ? db.from('pages').select('id, name, handle, avatar_url, is_verified, verified_type').in('id', pageIds)
+      : Promise.resolve({ data: [] as { id: string, name: string, handle: string, avatar_url: string | null, is_verified: boolean | null, verified_type: string | null }[] })
+  ])
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  if (!rows?.length) return { success: true, data: [] }
+  const all = [...(rows ?? []), ...(pageRows ?? [])]
+  if (!all.length) return { success: true, data: [] }
 
-  const ids = rows.map(r => r.id)
+  const ids = all.map(r => r.id)
   const [{ data: views }, { data: people }, { data: likes }] = await Promise.all([
     db.from('status_views').select('status_id').eq('viewer_id', user.id).in('status_id', ids),
-    db.from('user').select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type').in('user_id', [...new Set(rows.map(r => r.user_id))]),
+    db.from('user').select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type').in('user_id', [...new Set((rows ?? []).map(r => r.user_id))]),
     db.from('status_likes').select('status_id, user_id').in('status_id', ids)
   ])
+  const pageById = new Map((pageInfo ?? []).map(p => [p.id, p]))
   const likeCount = new Map<string, number>()
   const likedByMe = new Set<string>()
   for (const l of likes ?? []) {
@@ -93,26 +110,33 @@ export default defineEventHandler(async (event): Promise<{ success: true, data: 
   const personById = new Map((people ?? []).map(p => [p.user_id, p]))
 
   const groups = new Map<string, StatusGroup>()
-  for (const row of rows) {
-    const person = personById.get(row.user_id)
-    if (!person) continue
-    const isMe = row.user_id === user.id
-    let group = groups.get(row.user_id)
+  for (const row of all) {
+    const page = row.page_id ? pageById.get(row.page_id) : undefined
+    const person = row.page_id ? undefined : personById.get(row.user_id)
+    if (!page && !person) continue
+    // While acting as a Page the person's own statuses stay out of the Page's tray.
+    if (person && actingPage && row.user_id === user.id) continue
+    const isMe = page ? page.id === actingPage : row.user_id === user.id
+    const key = page ? `page:${page.id}` : row.user_id
+    let group = groups.get(key)
     if (!group) {
       group = {
-        author: {
-          id: person.user_id,
-          username: person.username || 'user',
-          full_name: person.full_name || person.display_name || person.username || 'User',
-          avatar_url: person.avatar_url,
-          verified: person.is_verified === true,
-          verified_type: person.verified_type
-        },
+        author: page
+          ? { id: page.id, username: page.handle, full_name: page.name, avatar_url: page.avatar_url, verified: page.is_verified === true, verified_type: page.verified_type }
+          : {
+              id: person!.user_id,
+              username: person!.username || 'user',
+              full_name: person!.full_name || person!.display_name || person!.username || 'User',
+              avatar_url: person!.avatar_url,
+              verified: person!.is_verified === true,
+              verified_type: person!.verified_type
+            },
         is_me: isMe,
+        ...(page ? { is_page: true } : {}),
         all_viewed: true,
         statuses: []
       }
-      groups.set(row.user_id, group)
+      groups.set(key, group)
     }
     const seen = isMe || viewed.has(row.id)
     if (!seen) group.all_viewed = false

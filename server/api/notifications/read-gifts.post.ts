@@ -1,16 +1,19 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { resolveActor } from '~/server/utils/actor'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
-import type { Database } from '~/types/database.types'
 
 /** Clears the wallet gift dot: marks unread gift notifications as read. */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  const supabase = await serverSupabaseClient<Database>(event)
+  const supabase = getServiceClient()
+  const actor = await resolveActor(event)
+  const pageId = actor.type === 'PAGE' ? actor.id : null
 
   const { error } = await supabase
     .from('notifications')
     .update({ is_read: true })
-    .eq('recipient_id', user.id)
+    .eq(pageId ? 'recipient_page_id' : 'recipient_id', pageId ?? user.id)
+    .filter('recipient_page_id', pageId ? 'not.is' : 'is', 'null')
     .eq('event_type', 'GIFT_RECEIVED')
     .eq('is_read', false)
 

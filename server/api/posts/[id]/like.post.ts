@@ -33,13 +33,14 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   const liked = desired
   const likesCount = result?.likes_count ?? 0
 
-  if (liked && result?.changed && post.user_id !== user.id && post.page_id !== pageId) {
+  if (liked && result?.changed && (post.page_id ? post.page_id !== pageId : post.user_id !== user.id)) {
     const { data: liker } = pageId
       ? await client.from('pages').select('username:name').eq('id', pageId).maybeSingle()
       : await client.from('user').select('username').eq('user_id', user.id).maybeSingle()
 
     await client.from('notifications').insert({
       recipient_id: post.user_id,
+      recipient_page_id: post.page_id,
       notifier_id: user.id,
       event_type: 'POST_LIKE',
       message_text: `${liker?.username ?? 'Someone'} liked your post`,

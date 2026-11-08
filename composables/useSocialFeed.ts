@@ -1,8 +1,9 @@
 import type { AdView } from '~/utils/ad-options'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSupabaseClient, useSupabaseUser } from '#imports'
 import { useUserStore } from '~/stores/user' // Unified store
+import { useContextStore } from '~/stores/context'
 import { useEngagementSync } from '~/composables/use-engagement-sync'
 import type { PerformResult } from '~/composables/use-engagement-sync'
 
@@ -196,17 +197,26 @@ export const useSocialFeed = () => {
   const currentUserId = computed<string | null>(
     () => supabaseUser.value?.id ?? userStore.user?.id ?? null
   )
+  const contextStore = useContextStore()
+  const actingPage = computed(() => contextStore.isPage
+    ? contextStore.managedPages.find(p => p.id === contextStore.activeActor?.id) ?? null
+    : null)
   const userName = computed(
-    () => userStore.profile?.full_name || userStore.profile?.username || 'User'
+    () => actingPage.value?.name || userStore.profile?.full_name || userStore.profile?.username || 'User'
   )
-  const userUsername = computed(() => userStore.profile?.username || '')
-  const userAvatar = computed(() => userStore.profile?.avatar_url || '/default-avatar.svg')
+  const userUsername = computed(() => actingPage.value?.handle || userStore.profile?.username || '')
+  const userAvatar = computed(() => (actingPage.value ? actingPage.value.avatar_url : userStore.profile?.avatar_url) || '/default-avatar.svg')
   const userStatus = computed(() => (currentUserId.value ? 'online' : 'offline'))
-  const isVerified = computed(() => userStore.profile?.is_verified === true)
-  const verifiedType = computed(() => userStore.profile?.verified_type ?? null)
-  const userFollowers = computed(() => userStore.profile?.followers_count ?? 0)
-  const userFollowing = computed(() => userStore.profile?.following_count ?? 0)
-  const userPosts = computed(() => userStore.profile?.posts_count ?? 0)
+  const isVerified = computed(() => actingPage.value ? actingPage.value.is_verified === true : userStore.profile?.is_verified === true)
+  const verifiedType = computed(() => actingPage.value ? actingPage.value.verified_type ?? null : userStore.profile?.verified_type ?? null)
+  const userFollowers = computed(() => actingPage.value ? actingPage.value.followers_count ?? 0 : userStore.profile?.followers_count ?? 0)
+  const userFollowing = computed(() => actingPage.value ? 0 : userStore.profile?.following_count ?? 0)
+  const userPosts = computed(() => actingPage.value ? actingPage.value.posts_count ?? 0 : userStore.profile?.posts_count ?? 0)
+  const loadPageWallet = async (pageId: string) => {
+    const res = await $fetch<{ balance?: number }>(`/api/pages/${pageId}/wallet`).catch(() => null)
+    walletBalance.value = `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(res?.balance ?? 0)} PEW`
+  }
+  watch(actingPage, (page) => { if (page) void loadPageWallet(page.id) })
 
   const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value
@@ -465,7 +475,8 @@ export const useSocialFeed = () => {
     try {
       await userStore.refreshProfile()
 
-      if (currentUserId.value) {
+      if (actingPage.value) await loadPageWallet(actingPage.value.id)
+      else if (currentUserId.value) {
         const { data: wallet } = await supabase
           .from('wallets')
           .select('balance,currency')
@@ -696,11 +707,11 @@ export const useSocialFeed = () => {
     }
   }
 
-  const goToFollowers = () =>
+  const goToFollowers = () => actingPage.value ? router.push(`/pages/${actingPage.value.handle}`) :
     router.push(userUsername.value ? { path: `/profile/${userUsername.value}`, query: { list: 'followers' } } : '/profile')
-  const goToFollowing = () =>
+  const goToFollowing = () => actingPage.value ? router.push(`/pages/${actingPage.value.handle}`) :
     router.push(userUsername.value ? { path: `/profile/${userUsername.value}`, query: { list: 'following' } } : '/profile')
-  const goToUserPosts = () =>
+  const goToUserPosts = () => actingPage.value ? router.push(`/pages/${actingPage.value.handle}`) :
     router.push(userUsername.value ? `/profile/${userUsername.value}` : '/profile')
 
   return {

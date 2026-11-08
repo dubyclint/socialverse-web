@@ -6,6 +6,7 @@ import { isActingAsPage, resolveActor } from '~/server/utils/actor'
 const PERSONAL_ONLY = [
   /^\/api\/posts\/[^/]+\/(pewgift|share|repost|report)(\/|$)/,
   /^\/api\/follows(\/|$)/,
+  /^\/api\/status\/[^/]+\/(like|gift)$/,
   /^\/api\/pals(\/|$)/,
   /^\/api\/pewgift(\/(?!send-to-posts$)|$)/,
   /^\/api\/pages\/[^/]+\/follow$/

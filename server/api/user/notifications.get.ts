@@ -1,4 +1,5 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { getServiceClient } from '~/server/utils/supabase-admin'
+import { resolveActor } from '~/server/utils/actor'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
 
@@ -16,12 +17,15 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
   const query = getQuery(event)
   const limit = Math.min(100, Math.max(1, Number.parseInt(String(query.limit ?? '20'), 10) || 20))
 
-  const supabase = await serverSupabaseClient<Database>(event)
+  const supabase = getServiceClient()
+  const actor = await resolveActor(event)
+  const pageId = actor.type === 'PAGE' ? actor.id : null
 
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
-    .eq('recipient_id', user.id)
+    .eq(pageId ? 'recipient_page_id' : 'recipient_id', pageId ?? user.id)
+    .filter('recipient_page_id', pageId ? 'not.is' : 'is', 'null')
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -31,12 +35,14 @@ export default defineEventHandler(async (event): Promise<NotificationsResponse> 
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
+      .eq(pageId ? 'recipient_page_id' : 'recipient_id', pageId ?? user.id)
+      .filter('recipient_page_id', pageId ? 'not.is' : 'is', 'null')
       .eq('is_read', false),
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
+      .eq(pageId ? 'recipient_page_id' : 'recipient_id', pageId ?? user.id)
+      .filter('recipient_page_id', pageId ? 'not.is' : 'is', 'null')
       .eq('event_type', 'GIFT_RECEIVED')
       .eq('is_read', false)
   ])

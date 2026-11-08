@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
     if (owner?.created_by_user_id && owner.created_by_user_id !== user.id) {
       await service.from('notifications').insert({
         recipient_id: owner.created_by_user_id,
+        recipient_page_id: page.id,
         notifier_id: user.id,
         event_type: 'PAGE_FOLLOWED',
         source_id: page.id,

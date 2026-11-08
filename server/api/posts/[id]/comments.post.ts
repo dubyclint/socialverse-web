@@ -75,10 +75,11 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   if (post && !replayed) {
     const actorName = page?.name ?? author?.username ?? 'Someone'
     const notified = new Set<string>()
-    if (post.user_id !== user.id && post.page_id !== pageId) {
+    if (post.page_id ? post.page_id !== pageId : post.user_id !== user.id) {
       notified.add(post.user_id)
       await client.from('notifications').insert({
         recipient_id: post.user_id,
+        recipient_page_id: post.page_id,
         notifier_id: user.id,
         event_type: 'COMMENT_ADDED',
         message_text: `${actorName} commented: ${content.slice(0, 80)}`,

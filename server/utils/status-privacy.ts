@@ -19,9 +19,9 @@ export const canSeeStatus = async (db: Db, viewerId: string, authorId: string): 
 /** Loads an active status the viewer is allowed to see, or throws 404. */
 export const loadVisibleStatus = async (db: Db, viewerId: string, id: string) => {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw createError({ statusCode: 400, statusMessage: 'Invalid status' })
-  const { data: status } = await db.from('user_statuses').select('id, user_id')
+  const { data: status } = await db.from('user_statuses').select('id, user_id, page_id')
     .eq('id', id).is('deleted_at', null).gt('expires_at', new Date().toISOString()).maybeSingle()
-  if (!status || !await canSeeStatus(db, viewerId, status.user_id)) {
+  if (!status || (!status.page_id && !await canSeeStatus(db, viewerId, status.user_id))) {
     throw createError({ statusCode: 404, statusMessage: 'This status has expired' })
   }
   return status
