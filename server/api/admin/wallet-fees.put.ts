@@ -10,7 +10,9 @@ const LIMITS: Record<keyof FeeSettings, [number, number]> = {
   p2p_deposit_fee_pct: [0, 50],
   p2p_withdrawal_fee_pct: [0, 50],
   pew_usd_rate: [0.0001, 1000000],
-  min_withdrawal_pew: [0, 1000000]
+  min_withdrawal_pew: [0, 1000000],
+  direct_pew_limit: [0, 100000000],
+  direct_pew_window_days: [1, 3650]
 }
 
 export default defineEventHandler(async (event) => {

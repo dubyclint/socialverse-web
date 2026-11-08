@@ -35,6 +35,8 @@ interface FeeSettings {
   p2p_withdrawal_fee_pct: number
   pew_usd_rate: number
   min_withdrawal_pew: number
+  direct_pew_limit: number
+  direct_pew_window_days: number
 }
 
 const FEE_FIELDS: { key: keyof FeeSettings, label: string }[] = [
@@ -45,8 +47,28 @@ const FEE_FIELDS: { key: keyof FeeSettings, label: string }[] = [
   { key: 'p2p_deposit_fee_pct', label: 'P2P add funds fee (%)' },
   { key: 'p2p_withdrawal_fee_pct', label: 'P2P withdrawal fee (%)' },
   { key: 'pew_usd_rate', label: 'USD per 1 PEW' },
-  { key: 'min_withdrawal_pew', label: 'Minimum withdrawal (PEW)' }
+  { key: 'min_withdrawal_pew', label: 'Minimum withdrawal (PEW)' },
+  { key: 'direct_pew_limit', label: 'Direct PEW-balance withdrawal limit (PEW per period)' },
+  { key: 'direct_pew_window_days', label: 'Direct PEW limit period (days)' }
 ]
+
+const direct = ref<{ warning: string, limits: { user_id: string, username: string | null, limit_pew: number }[] }>({ warning: '', limits: [] })
+const directForm = reactive({ username: '', limit: null as number | null })
+const directNotice = ref('')
+const loadDirect = async () => { direct.value = await $fetch('/api/admin/direct-pew').catch(() => direct.value) }
+const saveDirect = async (body: Record<string, unknown>) => {
+  directNotice.value = ''
+  try {
+    await $fetch('/api/admin/direct-pew', { method: 'PUT', body })
+    directNotice.value = 'Saved'
+    directForm.username = ''
+    directForm.limit = null
+    await loadDirect()
+  } catch (e) {
+    directNotice.value = (e as { data?: { statusMessage?: string } }).data?.statusMessage ?? 'Could not save'
+  }
+}
+onMounted(loadDirect)
 
 const FILTERS = ['open', 'successful', 'failed'] as const
 const filter = ref<typeof FILTERS[number]>('open')
@@ -189,6 +211,28 @@ onMounted(() => {
             <span v-if="feeNotice" class="text-xs text-emerald-400">{{ feeNotice }}</span>
           </div>
         </form>
+      </section>
+
+      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <h2 class="text-sm font-bold">Direct PEW-balance withdrawal</h2>
+        <label class="block text-[11px] text-slate-400 space-y-1">
+          <span>Warning shown on every PEW balance</span>
+          <textarea v-model="direct.warning" rows="2" maxlength="300" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-2 text-sm text-white" />
+        </label>
+        <button type="button" class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600" @click="saveDirect({ warning: direct.warning })">Save warning</button>
+        <form class="flex flex-wrap gap-2 items-end" @submit.prevent="saveDirect({ username: directForm.username, limit: directForm.limit })">
+          <input v-model.trim="directForm.username" required placeholder="@username" class="bg-slate-950 border border-slate-800 rounded px-2 py-2 text-sm text-white">
+          <input v-model.number="directForm.limit" type="number" min="0" step="any" placeholder="PEW limit (empty = default)" class="bg-slate-950 border border-slate-800 rounded px-2 py-2 text-sm text-white font-mono">
+          <button type="submit" class="px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600">Set user limit</button>
+        </form>
+        <p v-if="directNotice" class="text-xs text-emerald-400">{{ directNotice }}</p>
+        <ul v-if="direct.limits.length" class="text-xs text-slate-300 space-y-1">
+          <li v-for="l in direct.limits" :key="l.user_id" class="flex items-center gap-2">
+            <span class="min-w-0 truncate">@{{ l.username ?? l.user_id }}</span>
+            <span class="font-mono">{{ l.limit_pew }} PEW</span>
+            <button type="button" class="text-red-400 underline" @click="saveDirect({ username: l.username, limit: null })">Remove</button>
+          </li>
+        </ul>
       </section>
     </div>
   </div>

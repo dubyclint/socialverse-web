@@ -9,6 +9,7 @@ interface WithdrawBody {
   method: 'bank' | 'crypto'
   details: Record<string, string>
   agree_terms?: boolean
+  use_pew_balance?: boolean
 }
 
 const REQUIRED: Record<WithdrawBody['method'], string[]> = {
@@ -55,8 +56,9 @@ export default defineEventHandler(async (event) => {
     p_amount: amount,
     p_method: method,
     p_details: details,
-    p_user: user.id
-  })
+    p_user: user.id,
+    p_use_direct: body.use_pew_balance === true
+  } as never)
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })
   return { id: data, status: 'pending' }
 })

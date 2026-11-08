@@ -11,6 +11,8 @@ export interface FeeSettings {
   p2p_withdrawal_fee_pct: number
   pew_usd_rate: number
   min_withdrawal_pew: number
+  direct_pew_limit: number
+  direct_pew_window_days: number
 }
 
 export const DEFAULT_FEES: FeeSettings = {
@@ -21,7 +23,9 @@ export const DEFAULT_FEES: FeeSettings = {
   p2p_deposit_fee_pct: 0,
   p2p_withdrawal_fee_pct: 0,
   pew_usd_rate: 1,
-  min_withdrawal_pew: 10
+  min_withdrawal_pew: 10,
+  direct_pew_limit: 500,
+  direct_pew_window_days: 30
 }
 
 export const getFeeSettings = async (): Promise<FeeSettings> => {
@@ -76,4 +80,13 @@ export const DEPOSIT_STATE: Record<string, TxState> = {
   SETTLED: 'successful',
   FAILED: 'failed',
   REFUNDED: 'failed'
+}
+
+export const DEFAULT_DIRECT_PEW_WARNING = 'Direct withdrawal from PEW balance is limited and may trigger a wallet review.'
+
+export const getDirectPewWarning = async (): Promise<string> => {
+  const { data } = await getServiceClient().from('platform_configurations')
+    .select('config_values').eq('config_key', 'direct_pew_settings').maybeSingle()
+  const w = (data?.config_values as { warning?: unknown } | null)?.warning
+  return typeof w === 'string' && w.trim() ? w : DEFAULT_DIRECT_PEW_WARNING
 }

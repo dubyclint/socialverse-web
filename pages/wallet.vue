@@ -30,6 +30,7 @@ interface WalletSummary {
   balance: number
   withdrawable_pew: number
   withdrawable_usd: number
+  direct?: { spare_pew: number, allowance_pew: number, limit_pew: number, window_days: number, usd: number, warning: string }
   is_locked: boolean
   totals: { added_funds: number, gifts_received: number, other_incoming: number, outgoing: number, fees: number }
   fees: FeeSettings
@@ -74,7 +75,8 @@ const withdrawForm = reactive({
   country: '',
   currency: 'USD',
   note: '',
-  agree: false
+  agree: false,
+  usePew: false
 })
 const kycState = ref<{ kyc: { status: string, legal_name: string | null }, privileged: boolean, user_id: string } | null>(null)
 const kycLocked = computed(() => !kycState.value?.privileged && kycState.value?.kyc.status === 'verified')
@@ -94,6 +96,7 @@ const localPayout = computed(() => {
 const withdrawError = ref('')
 const withdrawNotice = ref('')
 const isWithdrawing = ref(false)
+const showDirectWarning = ref(false)
 
 const fmt = (value: number, dp = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
 const formatDate = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -146,7 +149,8 @@ const submitWithdrawal = async () => {
     withdrawError.value = 'Tick the box to accept the terms'
     return
   }
-  if (summary.value && amount > summary.value.withdrawable_usd) {
+  const directUsd = withdrawForm.usePew ? (summary.value?.direct?.usd ?? 0) : 0
+  if (summary.value && amount > summary.value.withdrawable_usd + directUsd) {
     withdrawError.value = 'Amount is more than your withdrawable balance'
     return
   }
@@ -156,7 +160,7 @@ const submitWithdrawal = async () => {
 
   isWithdrawing.value = true
   try {
-    await $fetch('/api/wallet/withdraw', { method: 'POST', body: { amount, method: withdrawForm.method, details: { ...details, currency: withdrawForm.currency, note: withdrawForm.note }, agree_terms: withdrawForm.agree } })
+    await $fetch('/api/wallet/withdraw', { method: 'POST', body: { amount, method: withdrawForm.method, details: { ...details, currency: withdrawForm.currency, note: withdrawForm.note }, agree_terms: withdrawForm.agree, use_pew_balance: withdrawForm.usePew } })
     withdrawNotice.value = 'Withdrawal sent for admin approval. You can follow its status in History.'
     withdrawForm.amount = null
     await loadWallet()
@@ -226,6 +230,8 @@ onMounted(() => {
         <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-gradient-to-br from-indigo-600/30 to-slate-900 border border-indigo-500/30 rounded-xl p-4">
             <span class="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">Total balance</span>
+            <button v-if="summary.direct" type="button" class="pew-warn" :title="summary.direct.warning" :aria-label="summary.direct.warning" @click="showDirectWarning = !showDirectWarning">!</button>
+            <p v-if="showDirectWarning && summary.direct" class="text-[11px] text-amber-300 mt-1">{{ summary.direct.warning }} {{ fmt(summary.direct.allowance_pew) }} of {{ fmt(summary.direct.limit_pew) }} PEW left this {{ summary.direct.window_days }}-day period.</p>
             <p class="text-2xl font-bold mt-1 font-mono">{{ fmt(summary.balance) }} <span class="text-sm text-slate-300">PEW</span></p>
           </div>
           <div class="bg-gradient-to-br from-emerald-600/25 to-slate-900 border border-emerald-500/30 rounded-xl p-4">
@@ -356,6 +362,10 @@ onMounted(() => {
             </select>
             <input v-model.number="withdrawForm.amount" type="number" min="0" step="0.01" required placeholder="Amount in USD" class="wallet-input font-mono">
             <textarea v-model="withdrawForm.note" maxlength="500" rows="2" placeholder="Note (optional): any other information for the payout" class="wallet-input" />
+            <label v-if="summary.direct && summary.direct.usd > 0" class="flex items-start gap-2 text-[11px] text-amber-300 leading-snug">
+              <input v-model="withdrawForm.usePew" type="checkbox" class="tiny-check">
+              <span>Also use my PEW balance (up to ${{ fmt(summary.direct.usd) }} after the {{ summary.fees.gift_fee_pct }}% gift and {{ summary.fees.withdrawal_fee_pct }}% withdrawal fees). {{ summary.direct.warning }}</span>
+            </label>
 
             <div v-if="withdrawForm.amount" class="text-[11px] text-slate-400 bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
               <p>No further withdrawal fee: your withdrawable balance already has it taken off.</p>
@@ -372,7 +382,7 @@ onMounted(() => {
 
             <button
               type="submit"
-              :disabled="isWithdrawing || summary.is_locked || summary.withdrawable_usd <= 0"
+              :disabled="isWithdrawing || summary.is_locked || (summary.withdrawable_usd <= 0 && !(withdrawForm.usePew && summary.direct?.usd))"
               class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-lg"
             >
               {{ isWithdrawing ? 'Sending…' : 'Send for approval' }}
@@ -385,6 +395,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.pew-warn { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: 6px; border-radius: 50%; background: #facc15; color: #111; font-size: 10px; font-weight: 800; line-height: 1; vertical-align: middle; }
 .kyc-tick { padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 9px; line-height: 14px; font-weight: 700; text-decoration: none; animation: kyc-tickle 1.6s ease-in-out infinite; }
 @keyframes kyc-tickle { 0%, 80%, 100% { transform: translateY(-50%) rotate(0) } 85% { transform: translateY(-50%) rotate(-8deg) } 90% { transform: translateY(-50%) rotate(8deg) } }
 .tiny-check {
