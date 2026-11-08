@@ -1,3 +1,4 @@
+import { p2pTradeRoomIds } from '~/server/utils/direct-room'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireAuth } from '~/server/gateway/auth/auth-bouncer'
 import type { Database } from '~/types/database.types'
@@ -21,7 +22,9 @@ export default defineEventHandler(async (event) => {
   ])
 
   const theirRooms = new Set((theirs || []).map(row => row.room_id))
-  const sharedRoomIds = (mine || []).map(row => row.room_id).filter(id => theirRooms.has(id))
+  const shared = (mine || []).map(row => row.room_id).filter(id => theirRooms.has(id))
+  const tradeRooms = await p2pTradeRoomIds(shared)
+  const sharedRoomIds = shared.filter(id => !tradeRooms.has(id))
 
   let roomId: string | null = null
 
@@ -31,6 +34,8 @@ export default defineEventHandler(async (event) => {
       .select('id')
       .in('id', sharedRoomIds)
       .eq('is_group_chat', false)
+      .is('page_id', null)
+      .order('created_at', { ascending: true })
       .limit(1)
 
     roomId = directRooms?.[0]?.id ?? null

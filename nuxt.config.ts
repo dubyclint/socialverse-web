@@ -53,6 +53,7 @@ export default defineNuxtConfig({
       exclude: [
         '/', '/register', '/feed', '/stream', '/signin', '/signup', 
         '/auth/forgot-password', '/auth/reset-password', '/terms-and-policy', '/offline.html',
+        '/.well-known/*',
       ],
       saveRedirectToCookie: true,
     },
@@ -203,6 +204,8 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // Dot-directories under server/routes are not scanned, so the App Links file is registered explicitly.
+    handlers: [{ route: '/.well-known/assetlinks.json', method: 'get', handler: '~/server/handlers/assetlinks.ts' }],
     preset: isCapacitorBuild ? 'static' : (process.env.NITRO_PRESET || 'node-server'),
     minify: true,
     sourceMap: false,

@@ -8,7 +8,6 @@ import { defineNuxtPlugin, useRouter } from '#app'
 import { watch } from 'vue'
 import { useSupabaseUser, useSupabaseClient } from '#imports'
 
-const DEFAULT_TIMEOUT_MINUTES = 30
 const WARNING_BEFORE = 5 * 60 * 1000
 const ACTIVITY_KEY = 'socialverse:last-activity'
 
@@ -22,8 +21,11 @@ export default defineNuxtPlugin({
     const router = useRouter()
     const { settings, load } = useUserSettings()
 
-    const timeoutMs = () =>
-      Math.max(settings.value.general.idleLogoutMinutes || DEFAULT_TIMEOUT_MINUTES, 1) * 60 * 1000
+    // 0 means never: auto sign-out is opt-in so a weak network or a backgrounded app never logs anyone out.
+    const timeoutMs = () => {
+      const minutes = Number(settings.value.general.idleLogoutMinutes) || 0
+      return minutes > 0 ? minutes * 60 * 1000 : 0
+    }
 
     let inactivityTimer: ReturnType<typeof setTimeout> | null = null
     let warningTimer: ReturnType<typeof setTimeout> | null = null
@@ -51,7 +53,7 @@ export default defineNuxtPlugin({
     /** Schedules against the persisted stamp so a reopened tab resumes the clock. */
     const scheduleFromStamp = () => {
       clearInactivityTimer()
-      if (!user.value) return
+      if (!user.value || !timeoutMs()) return
 
       const idleFor = Date.now() - readLastActivity()
       const remaining = timeoutMs() - idleFor

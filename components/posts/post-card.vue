@@ -80,16 +80,6 @@
       </NuxtLink>
     </div>
 
-    <div class="post-counts">
-      <button type="button" class="count-btn" :disabled="!likesCount" @click="toggleLikers">
-        <Icon name="heart" size="13" /> {{ likesCount }}
-      </button>
-      <button type="button" class="count-btn" @click="toggleComments">
-        {{ commentsCount }} comments
-      </button>
-      <span class="count-btn static">{{ sharesCount }} shares</span>
-      <span class="count-btn static"><Icon name="gift" size="13" /> {{ post.gifts_count }}</span>
-    </div>
 
     <ul v-if="likersOpen" class="likers">
       <li v-if="likersLoading" class="likers-state">Loading...</li>
@@ -102,25 +92,23 @@
     </ul>
 
     <div class="post-actions">
-      <button
-        type="button"
-        class="action-btn"
-        :class="{ active: liked }"
-        @click="onLike($event)"
-      >
-        <Icon name="heart" size="18" /> <span>Like</span>
+      <span class="action-group">
+        <button type="button" class="action-btn" :class="{ active: liked }" aria-label="Like" @click="onLike($event)">
+          <Icon name="heart" size="18" />
+        </button>
+        <button type="button" class="action-count" :disabled="!likesCount" aria-label="See who liked" @click="toggleLikers">{{ likesCount }}</button>
+      </span>
+      <button type="button" class="action-btn" :class="{ active: commentsOpen }" aria-label="Comments" @click="toggleComments">
+        <Icon name="message-square" size="18" /> <span>{{ commentsCount }}</span>
       </button>
-      <button type="button" class="action-btn" :class="{ active: commentsOpen }" @click="toggleComments">
-        <Icon name="message-square" size="18" /> <span>Comment</span>
+      <button type="button" class="action-btn" :disabled="reposting" aria-label="Repost" @click="onRepost">
+        <Icon name="refresh" size="18" />
       </button>
-      <button type="button" class="action-btn" :disabled="reposting" @click="onRepost">
-        <Icon name="refresh" size="18" /> <span>Repost</span>
+      <button type="button" class="action-btn" aria-label="Share" @click="onShare">
+        <Icon name="share" size="18" /> <span>{{ sharesCount }}</span>
       </button>
-      <button type="button" class="action-btn" @click="onShare">
-        <Icon name="share" size="18" /> <span>Share</span>
-      </button>
-      <button type="button" class="action-btn gift" @click="$emit('pewgift', post)">
-        <Icon name="gift" size="18" /> <span>Gift</span>
+      <button type="button" class="action-btn gift" aria-label="Send a gift" @click="$emit('pewgift', post)">
+        <Icon name="gift" size="18" /> <span>{{ post.gifts_count ?? 0 }}</span>
       </button>
     </div>
 
@@ -595,6 +583,11 @@ const formatTimeAgo = (value: string) => {
 .action-btn.active { color: var(--color-aurora-mint, #6fffd4); opacity: 1; }
 .action-btn.gift { color: var(--color-solar-gold, #ffc857); }
 .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-group { display: inline-flex; align-items: center; flex: 1; justify-content: center; min-width: 0; }
+.action-group .action-btn { flex: 0 0 auto; padding-right: 0.2rem; }
+.action-count { min-height: 0; padding: 0.4rem 0.3rem; border: 0; background: none; color: inherit; font: inherit; font-size: 0.8rem; opacity: 0.85; cursor: pointer; }
+.action-count:disabled { cursor: default; opacity: 0.6; }
+.action-count:hover:not(:disabled) { text-decoration: underline; }
 
 .post-notice {
   margin: 0;

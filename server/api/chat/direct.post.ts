@@ -1,3 +1,4 @@
+import { p2pTradeRoomIds } from '~/server/utils/direct-room'
 import { randomUUID } from 'node:crypto'
 import { defineEventHandler, readBody, createError } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
@@ -87,7 +88,8 @@ export default defineEventHandler(async (event) => {
     .eq('chat_rooms.is_group_chat', false)
     .is('chat_rooms.page_id', null)
 
-  const candidateIds = (mine ?? []).map(row => row.room_id)
+  const tradeRooms = await p2pTradeRoomIds((mine ?? []).map(row => row.room_id))
+  const candidateIds = (mine ?? []).map(row => row.room_id).filter(id => !tradeRooms.has(id))
 
   if (candidateIds.length) {
     const { data: shared } = await client

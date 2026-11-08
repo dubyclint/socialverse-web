@@ -5,12 +5,16 @@
       ref="el"
       class="vp-media"
       :src="src"
-      :poster="poster"
+      :poster="poster || BLANK_POSTER"
       :preload="preload"
       playsinline
       webkit-playsinline
       loop
       muted
+      disablepictureinpicture
+      disableremoteplayback
+      controlslist="nodownload noplaybackrate noremoteplayback"
+      @contextmenu.prevent
       @timeupdate="onTime"
       @ended="loops++"
       @waiting="stalled = true"
@@ -18,7 +22,9 @@
     />
     <img v-else class="vp-media" :src="src" :loading="near ? 'eager' : 'lazy'" alt="" decoding="async">
     <div v-if="video && stalled && active" class="vp-spin" />
-    <div v-if="video && paused && active" class="vp-play">▶</div>
+    <div v-if="video && paused && active" class="vp-play" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+    </div>
   </div>
 </template>
 
@@ -27,6 +33,8 @@
 const props = defineProps<{ src: string, video: boolean, active: boolean, near: boolean, muted: boolean, lowData: boolean, poster?: string, engagedSeconds?: number }>()
 const emit = defineEmits<{ watched: [{ watchMs: number, completed: boolean, loops: number }], engaged: [seconds: number] }>()
 let engagedSent = false
+// A transparent poster stops Android WebView from drawing its large grey play placeholder before playback.
+const BLANK_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 const el = ref<HTMLVideoElement | null>(null)
 const stalled = ref(false)
 const paused = ref(false)
@@ -62,7 +70,8 @@ watch(() => props.active, async (on) => {
     if (fade) { clearInterval(fade); fade = null }
     v.volume = 1
     v.muted = props.muted
-    try { await v.play(); paused.value = false } catch { v.muted = true; try { await v.play() } catch { paused.value = true } }
+    paused.value = false
+    try { await v.play() } catch { v.muted = true; await v.play().catch(() => {}) }
   } else {
     if (v && !v.paused) fadeOut(v)
     flush()
@@ -91,6 +100,6 @@ onBeforeUnmount(() => { if (props.active) flush(); if (fade) clearInterval(fade)
 .vp { position: absolute; inset: 0; background: #000; }
 .vp-media { width: 100%; height: 100%; object-fit: cover; display: block; }
 .vp-spin { position: absolute; top: 50%; left: 50%; width: 36px; height: 36px; margin: -18px; border: 3px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: vps .8s linear infinite; }
-.vp-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 56px; color: rgba(255,255,255,.75); pointer-events: none; }
+.vp-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: rgba(0,0,0,.35); color: rgba(255,255,255,.9); pointer-events: none; }
 @keyframes vps { to { transform: rotate(360deg) } }
 </style>

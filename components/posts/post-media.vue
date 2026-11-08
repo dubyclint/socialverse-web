@@ -3,16 +3,27 @@
     <template v-for="(url, index) in media.slice(0, 4)" :key="url">
       <div v-if="isVideo(url)" class="media-video-wrap">
         <video
-          :src="url"
+          :src="frameSrc(url)"
+          :poster="BLANK_POSTER"
           class="media-item media-video"
           :ref="el => registerVideo(el as HTMLVideoElement | null)"
           playsinline
+          webkit-playsinline
           :muted="feedMuted"
           loop
           preload="metadata"
-          title="Tap to watch in Veep"
-          @click.stop="openVeep"
+          disablepictureinpicture
+          disableremoteplayback
+          controlslist="nodownload noplaybackrate noremoteplayback"
+          @contextmenu.prevent
+          @click.stop="togglePause"
         />
+        <span v-if="userPaused.has(url)" class="media-paused" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+        </span>
+        <button v-if="postId" type="button" class="media-expand" aria-label="Open in Veep" @click.stop="openVeep">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+        </button>
         <button type="button" class="media-sound" :aria-label="feedMuted ? 'Unmute' : 'Mute'" @click.stop="toggleSound">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" /><path v-if="feedMuted" d="m23 9-6 6M17 9l6 6" /><path v-else d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" /></svg>
         </button>
@@ -37,9 +48,25 @@
 import MediaLightbox from '~/components/chat/media-lightbox.vue'
 
 const props = defineProps<{ media: string[], postId?: string }>()
-const openVeep = (e: Event) => {
+const openVeep = () => {
   if (props.postId) navigateTo(`/veep?start=${props.postId}`)
-  else (e.target as HTMLVideoElement).play().catch(() => {})
+}
+// A transparent poster stops Android WebView from drawing its large grey play placeholder;
+// the #t fragment makes browsers paint the first frame while the video starts.
+const BLANK_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+const frameSrc = (url: string) => (/\.m3u8(\?|$)/i.test(url) || url.includes('#') ? url : `${url}#t=0.001`)
+// Tap pauses/resumes; a video the viewer paused stays paused until it scrolls away.
+const userPaused = reactive(new Set<string>())
+const urlOf = (v: HTMLVideoElement) => v.dataset.src ?? ''
+const togglePause = (e: Event) => {
+  const v = e.currentTarget as HTMLVideoElement
+  if (v.paused) {
+    userPaused.delete(urlOf(v))
+    playWithSound(v)
+  } else {
+    v.pause()
+    userPaused.add(urlOf(v))
+  }
 }
 const fullSrc = ref<string | null>(null)
 
@@ -63,8 +90,13 @@ const ensureObserver = () => {
   observer = new IntersectionObserver((entries) => {
     for (const e of entries) {
       const v = e.target as HTMLVideoElement
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) playWithSound(v)
-      else { v.pause(); if (activeFeedVideo === v) activeFeedVideo = null }
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) {
+        if (!userPaused.has(urlOf(v))) playWithSound(v)
+      } else {
+        v.pause()
+        userPaused.delete(urlOf(v))
+        if (activeFeedVideo === v) activeFeedVideo = null
+      }
     }
   }, { threshold: [0, 0.6, 1] })
   return observer
@@ -75,6 +107,7 @@ const toggleSound = () => {
 }
 const registerVideo = (el: HTMLVideoElement | null) => {
   if (!el || videos.has(el)) return
+  el.dataset.src = el.getAttribute('src')?.replace(/#t=[\d.]+$/, '') ?? ''
   videos.add(el)
   ensureObserver()?.observe(el)
 }
@@ -143,7 +176,8 @@ const armUnmuteOnGesture = () => {
 }
 
 .media-video {
-  cursor: default;
+  cursor: pointer;
+  background: #000;
 }
 
 .media-video-wrap {
@@ -158,6 +192,36 @@ const armUnmuteOnGesture = () => {
 .media-sound {
   position: absolute;
   right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(10, 15, 30, 0.65);
+  color: #fff;
+}
+
+.media-paused {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: rgba(10, 15, 30, 0.65);
+  color: #fff;
+  pointer-events: none;
+}
+
+.media-expand {
+  position: absolute;
+  right: 44px;
   bottom: 8px;
   display: grid;
   place-items: center;

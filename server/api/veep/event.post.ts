@@ -23,6 +23,19 @@ export default defineEventHandler(async (event) => {
     return { ok: true }
   }
 
+  // Watching your own post (or a Page you run) never counts as a view.
+  const { data: post } = await db.from('posts').select('user_id, page_id').eq('id', postId).maybeSingle()
+  const row = post as { user_id: string | null, page_id: string | null } | null
+  let own = row?.user_id === user.id
+  if (!own && row?.page_id) {
+    const { data: page } = await db.from('pages' as never).select('created_by_user_id').eq('id', row.page_id).maybeSingle()
+    own = (page as { created_by_user_id?: string } | null)?.created_by_user_id === user.id
+  }
+  if (own) {
+    await db.from('veep_library' as never).upsert({ user_id: user.id, post_id: postId, kind: 'watched', created_at: new Date().toISOString() } as never)
+    return { ok: true, tier: 'own' }
+  }
+
   const watchMs = Math.max(0, Math.min(Number(b?.watchMs) || 0, 6 * 3600_000))
   const completed = b?.completed === true
   const s = await getVeepSettings()

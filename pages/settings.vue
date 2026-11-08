@@ -24,7 +24,7 @@
           <div class="row">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Auto sign-out</span><span class="block text-[11px] text-slate-400">Sign out after this long without activity</span></span>
             <select :value="userSettings.general.idleLogoutMinutes" class="sel" @change="updateUserSettings('general', { idleLogoutMinutes: Number(($event.target as HTMLSelectElement).value) })">
-              <option v-for="m in [15, 30, 60, 120, 480, 1440]" :key="m" :value="m">{{ m < 60 ? `${m} min` : `${m / 60} h` }}</option>
+              <option v-for="m in [0, 15, 30, 60, 120, 480, 1440]" :key="m" :value="m">{{ !m ? 'Never' : m < 60 ? `${m} min` : `${m / 60} h` }}</option>
             </select>
           </div>
         </template>

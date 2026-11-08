@@ -202,7 +202,7 @@
             <settings-item
               icon="log-out"
               title="Auto Logout"
-              :subtitle="`${settings.general.idleLogoutMinutes} minutes idle`"
+              :subtitle="settings.general.idleLogoutMinutes ? `${settings.general.idleLogoutMinutes} minutes idle` : 'Never'"
               @click="currentSection = 'idleLogout'"
             />
             <settings-item
@@ -494,8 +494,8 @@
             @click="update('general', { idleLogoutMinutes: minutes })"
           >
             <div class="option-info">
-              <div class="option-title">{{ minutes }} minutes</div>
-              <div class="option-description">Sign out after this much inactivity</div>
+              <div class="option-title">{{ minutes ? `${minutes} minutes` : 'Never' }}</div>
+              <div class="option-description">{{ minutes ? 'Sign out after this much inactivity' : 'Stay signed in on this device' }}</div>
             </div>
             <div class="option-radio">
               <div v-if="settings.general.idleLogoutMinutes === minutes" class="radio-dot" />
@@ -701,7 +701,7 @@ const languageOptions = [
   { value: 'ar', label: 'العربية' }
 ]
 
-const idleLogoutOptions = [15, 30, 60, 120]
+const idleLogoutOptions = [0, 15, 30, 60, 120]
 
 const autoDownloadGroups = [
   { key: 'autoDownloadPhotos' as const, label: 'Photos' },
