@@ -51,6 +51,9 @@
 
       <nav class="tabs">
         <button type="button" :class="{ active: tab === 'posts' }" @click="tab = 'posts'">Posts</button>
+        <button type="button" :class="{ active: tab === 'photos' }" @click="tab = 'photos'">Photos</button>
+        <button type="button" :class="{ active: tab === 'veep' }" @click="tab = 'veep'">Veep</button>
+        <button v-if="page.viewer_role" type="button" :class="{ active: tab === 'studio' }" @click="tab = 'studio'">Studio</button>
         <button type="button" :class="{ active: tab === 'about' }" @click="tab = 'about'">About</button>
         <button v-if="page.viewer_role" type="button" :class="{ active: tab === 'manage' }" @click="tab = 'manage'">Manage</button>
       </nav>
@@ -63,6 +66,25 @@
         </div>
         <PostCard v-for="post in posts" :key="post.id" :post="post" />
         <button v-if="hasMore" type="button" class="btn small" @click="loadPosts()">Load more</button>
+      </section>
+
+      <section v-else-if="tab === 'photos'" class="pgrid">
+        <button v-for="u in photoUrls" :key="u" type="button" class="pcell" @click="photoSrc = u"><img :src="u" alt="" loading="lazy"></button>
+        <p v-if="!photoUrls.length" class="state-card">No photos yet.</p>
+        <button v-if="hasMore" type="button" class="btn small" @click="loadPosts()">Load more</button>
+      </section>
+
+      <section v-else-if="tab === 'veep'" class="pgrid">
+        <NuxtLink v-for="v in veepPosts" :key="v.id" :to="`/veep?start=${v.id}`" class="pcell">
+          <video :src="v.url" preload="metadata" muted playsinline disablepictureinpicture controlslist="nodownload" />
+          <span class="pviews">▶ {{ viewCounts[v.id]?.views ?? 0 }}</span>
+        </NuxtLink>
+        <p v-if="!veepPosts.length" class="state-card">No veeps yet.</p>
+        <button v-if="hasMore" type="button" class="btn small" @click="loadPosts()">Load more</button>
+      </section>
+
+      <section v-else-if="tab === 'studio' && page.viewer_role" class="posts">
+        <CreatorStudio :page-id="page.id" />
       </section>
 
       <section v-else-if="tab === 'about'" class="card about">
@@ -151,6 +173,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import PostCard from '~/components/posts/post-card.vue'
 import PlacementAd from '~/components/ads/placement-ad.vue'
+import CreatorStudio from '~/components/veep/creator-studio.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
 import VerificationRequestCard from '~/components/verification-request-card.vue'
 import MediaLightbox from '~/components/chat/media-lightbox.vue'
@@ -190,7 +213,25 @@ const edit = reactive({
   website: '', location: '', contact_email: '', contact_phone: '', founded_year: null as number | null
 })
 const photoSrc = ref<string | null>(null)
-const tab = ref<'posts' | 'about' | 'manage'>('posts')
+const tab = ref<'posts' | 'photos' | 'veep' | 'studio' | 'about' | 'manage'>('posts')
+const VIDEO_URL = /\.(mp4|webm|mov|m4v|m3u8)(\?|#|$)/i
+const photoUrls = computed(() => {
+  const out = new Set<string>()
+  if (page.value?.cover_url) out.add(page.value.cover_url)
+  if (page.value?.avatar_url) out.add(page.value.avatar_url)
+  for (const p of posts.value) for (const u of p.media ?? []) if (!VIDEO_URL.test(u)) out.add(u)
+  return [...out]
+})
+const veepPosts = computed(() => posts.value.flatMap((p) => {
+  const url = (p.media ?? []).find(u => VIDEO_URL.test(u))
+  return url ? [{ id: p.id, url }] : []
+}))
+const viewCounts = ref<Record<string, { views: number, engaged: number }>>({})
+watch(veepPosts, async (list) => {
+  const ids = list.map(v => v.id).filter(id => !viewCounts.value[id])
+  if (!ids.length) return
+  try { Object.assign(viewCounts.value, (await $fetch<{ views: typeof viewCounts.value }>('/api/veep/views', { query: { ids: ids.join(',') } })).views) } catch { /* counts optional */ }
+})
 const followersOpen = ref(false)
 const followersLoading = ref(false)
 const followers = ref<Follower[]>([])
@@ -397,7 +438,12 @@ h2 { font-size: 1rem; font-weight: 700; margin: 0 0 8px; }
 .setup { margin: 0 8px; }
 .setup-step { display: flex; gap: 10px; align-items: center; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 10px; padding: 10px 12px; cursor: pointer; text-align: left; }
 .setup-step.done { color: #4ade80; cursor: default; opacity: .8; }
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid #334155; margin: 0 8px; }
+.pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 8px; }
+.pgrid .state-card, .pgrid .btn { grid-column: 1 / -1; }
+.pcell { border: 0; padding: 0; cursor: pointer; position: relative; aspect-ratio: 1; overflow: hidden; background: #0f172a; border-radius: 4px; display: block; }
+.pcell img, .pcell video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pviews { position: absolute; left: 4px; bottom: 4px; font-size: 11px; color: #fff; text-shadow: 0 1px 2px #000; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid #334155; margin: 0 8px; }
 .tabs button { background: none; border: none; color: #94a3b8; padding: 10px 16px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; }
 .tabs button.active { color: #fff; border-bottom-color: #f59e0b; }
 .card { display: flex; flex-direction: column; gap: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 16px; margin: 0 8px; }

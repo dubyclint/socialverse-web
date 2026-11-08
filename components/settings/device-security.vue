@@ -1,7 +1,7 @@
 <template>
   <section class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
     <div class="flex items-center gap-2">
-      <Icon name="smartphone" size="16" class="text-indigo-400 flex-shrink-0" />
+      <Icon name="monitor" size="16" class="text-indigo-400 flex-shrink-0" />
       <span class="min-w-0">
         <span class="block text-sm font-bold text-white">Devices</span>
         <span class="block text-[11px] text-slate-400">Every device signed in to your account, with approximate location</span>

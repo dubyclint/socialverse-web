@@ -34,14 +34,14 @@
 <script setup lang="ts">
 interface Ledger { ad_request_id: string, post_id: string, ad_type_served: string, current_network_ecpm: number, wallet_credit_amount: number, fund_credit_amount: number, network_source: string }
 interface Studio { engagedSeconds: number, plays: number, adInteractedEngagedViews: number, reachAdWindowPct: number, curve: { t: number, pct: number }[], ledger: Ledger[], balance: { pending_amount: number, lifetime_amount: number } }
-const props = defineProps<{ userId: string }>()
+const props = defineProps<{ userId?: string, pageId?: string }>()
 const data = ref<Studio | null>(null)
 const error = ref('')
 const x = (t: number) => 30 + (t / 60) * 265
 const y = (pct: number) => 105 - pct * 0.95
-watch(() => props.userId, async (id) => {
+watch(() => props.pageId || props.userId, async (id) => {
   data.value = null; error.value = ''
-  try { data.value = await $fetch<Studio>('/api/creator/analytics', { query: { userId: id } }) } catch (e) { error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Could not load analytics' }
+  try { data.value = await $fetch<Studio>('/api/creator/analytics', { query: props.pageId ? { pageId: id } : { userId: id } }) } catch (e) { error.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Could not load analytics' }
 }, { immediate: true })
 </script>
 
