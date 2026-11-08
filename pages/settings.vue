@@ -114,6 +114,7 @@
 
         <template v-if="activeTab === 'security'">
           <TwoFactorSettings />
+          <DeviceSecurity />
           <div class="row">
             <span class="min-w-0"><span class="block text-sm font-bold text-white">Change password</span><span class="block text-[11px] text-slate-400">We email you a secure link to set a new password</span></span>
             <button class="btn-secondary flex-shrink-0" :disabled="resetSending" @click="sendPasswordReset">{{ resetSending ? 'Sending…' : 'Send link' }}</button>
@@ -139,6 +140,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useUserSettings } from '~/composables/use-user-settings'
 import TwoFactorSettings from '~/components/settings/two-factor-settings.vue'
+import DeviceSecurity from '~/components/settings/device-security.vue'
 
 definePageMeta({ middleware: ['auth'], layout: 'default' })
 

@@ -59,6 +59,7 @@ export default defineEventHandler(async (event) => {
       role: user.role || 'user',
       raw: user
     }
+    ;(event.context as { accessToken?: string | null }).accessToken = accessToken
   } catch (err: unknown) {
     console.warn('[Auth Middleware] Unable to populate context user:', err instanceof Error ? err.message : err)
   }

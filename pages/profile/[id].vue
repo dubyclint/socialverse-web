@@ -15,6 +15,12 @@
       </div>
 
       <template v-else>
+        <div class="cover" :class="{ empty: !profile.cover_url }" :style="profile.cover_url ? { backgroundImage: `url(${profile.cover_url})` } : {}" role="img" aria-label="Cover photo" @click="profile.cover_url && (photoSrc = profile.cover_url)">
+          <label v-if="isSelf" class="cover-edit" @click.stop>
+            <Icon name="camera" size="14" /> {{ coverBusy ? 'Uploading…' : profile.cover_url ? 'Change cover' : 'Add cover photo' }}
+            <input type="file" accept="image/*" hidden :disabled="coverBusy" @change="onCover">
+          </label>
+        </div>
         <section class="profile-header">
           <div class="avatar-wrap">
             <img
@@ -185,6 +191,7 @@ interface PublicProfile {
   display_name: string | null
   full_name: string | null
   avatar_url: string | null
+  cover_url?: string | null
   bio: string | null
   location: string | null
   website: string | null
@@ -224,6 +231,24 @@ const profile = ref<PublicProfile | null>(null)
 const listKind = ref<'followers' | 'following' | 'pals' | null>(null)
 const listNotice = ref('')
 const photoSrc = ref<string | null>(null)
+const { uploadFile } = useFileUpload()
+const coverBusy = ref(false)
+const onCover = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !profile.value) return
+  coverBusy.value = true
+  try {
+    const url = (await uploadFile(file, 'posts')).url
+    await $fetch('/api/profile/update', { method: 'POST', body: { cover_url: url } })
+    profile.value.cover_url = url
+  } catch {
+    // keep the old cover; the upload composable reports the error
+  } finally {
+    coverBusy.value = false
+  }
+}
 
 const isSelf = computed(() => Boolean(profile.value?.relationship.is_self))
 const { isStaff, load: loadStaffInfo } = useStaff()
@@ -287,6 +312,7 @@ const VIDEO_URL = /\.(mp4|webm|mov|m4v|m3u8)(\?|#|$)/i
 const photoUrls = computed(() => {
   const out = new Set<string>()
   if (profile.value?.avatar_url) out.add(profile.value.avatar_url)
+  if (profile.value?.cover_url) out.add(profile.value.cover_url)
   for (const p of posts.value) for (const u of p.media ?? []) if (!VIDEO_URL.test(u)) out.add(u)
   return [...out]
 })
@@ -411,6 +437,10 @@ watch(() => route.params.id, load, { immediate: true })
 .state-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; color: #cbd5e1; text-align: center; }
 .state-card.error h2 { color: #fca5a5; }
 .spinner { width: 34px; height: 34px; border: 3px solid #334155; border-top-color: #3b82f6; border-radius: 999px; margin: 0 auto 10px; animation: spin 1s linear infinite; }
+.cover { position: relative; height: 170px; border-radius: 12px 12px 0 0; background: #1e293b center / cover no-repeat; cursor: zoom-in; }
+.cover.empty { background: linear-gradient(135deg, #1e3a8a, #6d28d9 60%, #db2777); cursor: default; }
+.cover-edit { position: absolute; right: 10px; bottom: 10px; background: rgba(15, 23, 42, .75); color: #fff; border-radius: 999px; padding: 6px 12px; font-size: .8rem; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.cover + .profile-header { border-top-left-radius: 0; border-top-right-radius: 0; }
 .profile-header { display: grid; grid-template-columns: 110px 1fr; gap: 18px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; color: #e2e8f0; }
 .avatar-wrap { position: relative; width: 110px; height: 110px; }
 .avatar { width: 110px; height: 110px; border-radius: 999px; object-fit: cover; border: 2px solid #3b82f6; cursor: zoom-in; }
