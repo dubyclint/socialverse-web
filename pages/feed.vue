@@ -128,10 +128,6 @@
               <Icon name="layers" class="item-icon" size="18" />
               <span class="item-label">Statuses</span>
             </NuxtLink>
-            <NuxtLink to="/explore" class="sidebar-item" @click="toggleSidebar">
-              <Icon name="compass" class="item-icon" size="18" />
-              <span class="item-label">Explore</span>
-            </NuxtLink>
             <NuxtLink v-if="isAdmin" to="/match" class="sidebar-item" @click="toggleSidebar">
               <Icon name="heart" class="item-icon" size="18" />
               <span class="item-label">Match</span>
@@ -160,10 +156,6 @@
             <NuxtLink to="/stream/broadcast" class="sidebar-item sub" @click="toggleSidebar">
               <Icon name="radio" class="item-icon" size="16" />
               <span class="item-label">Go live</span>
-            </NuxtLink>
-            <NuxtLink to="/stream/history" class="sidebar-item sub" @click="toggleSidebar">
-              <Icon name="clock" class="item-icon" size="16" />
-              <span class="item-label">Past streams</span>
             </NuxtLink>
           </div>
 

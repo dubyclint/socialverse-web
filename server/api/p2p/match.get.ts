@@ -18,17 +18,17 @@ export default defineEventHandler(async (event) => {
 
   const db = getServiceClient()
   await refreshFiatRatesIfStale(db)
-  const [{ data: a }, { data: fee }, { data: wmin }, { data: p2pDep }, { data: p2pWd }] = await Promise.all([
+  const [{ data: a }, { data: addFunds }, { data: wmin }, { data: p2pDep }, { data: p2pWd }] = await Promise.all([
     db.from('supported_assets').select('reference_rate, is_enabled').eq('code', asset).maybeSingle(),
-    db.from('fee_settings').select('percent_rate').eq('scope', 'deposit').eq('is_active', true),
+    db.rpc('fee_setting' as never, { p_key: 'deposit_fee_pct', p_default: 1.2 } as never),
     db.rpc('fee_setting' as never, { p_key: 'min_withdrawal_pew', p_default: 10 } as never),
-    db.rpc('fee_setting' as never, { p_key: 'p2p_deposit_fee_pct', p_default: -1 } as never),
+    db.rpc('fee_setting' as never, { p_key: 'p2p_deposit_fee_pct', p_default: 0 } as never),
     db.rpc('fee_setting' as never, { p_key: 'p2p_withdrawal_fee_pct', p_default: 0 } as never)
   ])
   if (!a?.is_enabled) throw createError({ statusCode: 400, statusMessage: 'Currency is not available' })
   const rate = Number(a.reference_rate)
-  const legacyDepositPct = Math.max(0, ...((fee ?? []).map(f => Number(f.percent_rate) || 0)))
-  const depositPct = Number(p2pDep ?? -1) >= 0 ? Number(p2pDep) : legacyDepositPct
+  // Same add-funds fee as every other deposit method, plus any extra P2P fee; deducted from the PEW credited.
+  const depositPct = Math.max(0, Number(addFunds ?? 1.2)) + Math.max(0, Number(p2pDep ?? 0))
   const withdrawPct = Math.max(0, Number(p2pWd ?? 0))
   const minWithdraw = Math.max(Number(wmin ?? 10), 5)
   if (side === 'buy' && amount < minWithdraw) throw createError({ statusCode: 400, statusMessage: `Minimum withdrawal is $${minWithdraw}` })
@@ -59,8 +59,8 @@ export default defineEventHandler(async (event) => {
     if (side === 'sell' && (bal.get(l.seller_id) ?? 0) < amount) return []
     const margin = Number(l.margin_pct)
     const taxPct = Number((l as { tax_pct?: number }).tax_pct ?? 0)
-    const net = side === 'sell' ? amount : amount * (1 - withdrawPct / 100)
-    const perPew = side === 'sell' ? (1 + (margin + depositPct + taxPct) / 100) / rate : (1 - (margin + taxPct) / 100) / rate
+    const net = amount * (1 - (side === 'sell' ? depositPct : withdrawPct) / 100)
+    const perPew = side === 'sell' ? (1 + (margin + taxPct) / 100) / rate : (1 - (margin + taxPct) / 100) / rate
     return [{
       listing_id: l.id, seller_id: l.seller_id, side,
       seller_name: p.display_name || u.display_name || 'Seller', username: (p as { show_username?: boolean }).show_username || viewerPrivileged ? u.username : null, avatar_url: null,
@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
       margin_pct: margin, tax_pct: taxPct, platform_fee_pct: side === 'sell' ? depositPct : withdrawPct,
       min_amount: Number(l.min_amount), max_amount: Math.min(Number(l.max_amount), Number(l.available_pewgift)),
       price_per_pew: Number(perPew.toFixed(6)), pew_after_fee: Number(net.toFixed(4)),
-      quote_amount: Number((net * perPew).toFixed(2))
+      quote_amount: Number(((side === 'sell' ? amount : net) * perPew).toFixed(2))
     }]
   })
   matches.sort((x, y) => side === 'sell' ? x.price_per_pew - y.price_per_pew : y.price_per_pew - x.price_per_pew)

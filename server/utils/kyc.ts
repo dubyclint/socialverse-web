@@ -35,9 +35,23 @@ export const isNamePrivileged = async (userId: string): Promise<boolean> => {
   return role === 'admin' || role === 'manager' || (count ?? 0) > 0
 }
 
-/** Returns the payout name to use; throws if the user must KYC first. */
+/**
+ * Every withdrawal needs KYC, whatever the account's role. Only the super admin and
+ * sellers granted the payout-name privilege are exempt; revoking the grant restores the rule.
+ */
+export const isKycExempt = async (userId: string): Promise<boolean> => {
+  const db = getServiceClient()
+  const [{ data: u }, { data: seller }] = await Promise.all([
+    db.from('user').select('role').eq('user_id', userId).maybeSingle(),
+    db.from('seller_profiles').select('can_edit_payout_name').eq('user_id', userId).maybeSingle()
+  ])
+  return (u as { role?: string } | null)?.role === 'admin'
+    || (seller as { can_edit_payout_name?: boolean } | null)?.can_edit_payout_name === true
+}
+
+/** Returns the payout name to use (the verified KYC name by default); throws if the user must KYC first. */
 export const resolvePayoutName = async (userId: string, typed: string): Promise<string> => {
-  if (await isNamePrivileged(userId)) return typed
+  if (await isKycExempt(userId)) return typed
   const kyc = await getKyc(userId)
   if (kyc.status !== 'verified' || !kyc.legal_name) {
     throw createError({ statusCode: 403, statusMessage: 'Verify your identity (KYC) first so your legal payment name can be used. Go to your profile → Identity (KYC).' })

@@ -30,8 +30,14 @@ export default defineEventHandler(async (event) => {
     body: JSON.stringify({ workflow_id: WORKFLOW_ID, vendor_data: user.id, callback: `${origin}/profile/${user.id}?kyc=done` })
   })
   if (!res.ok) {
-    console.error('[didit] session create failed', res.status, (await res.text()).slice(0, 300))
-    throw createError({ statusCode: 502, statusMessage: 'Could not start verification. Try again or use manual verification.' })
+    const detail = (await res.text()).slice(0, 300)
+    console.error('[didit] session create failed', res.status, detail)
+    const reason = res.status === 401 || res.status === 403
+      ? 'the verification service rejected the API key (check DIDIT_API_KEY)'
+      : res.status === 400 || res.status === 404
+        ? 'the verification workflow is not set up (check DIDIT_WORKFLOW_ID)'
+        : 'the verification service is unavailable'
+    throw createError({ statusCode: 502, statusMessage: `Could not start verification: ${reason}. Try again or use manual verification.` })
   }
   const session = await res.json() as { session_id: string, url: string }
   await db.from('kyc_requests' as never).insert({

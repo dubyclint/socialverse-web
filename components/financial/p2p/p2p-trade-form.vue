@@ -48,7 +48,7 @@
       <h3>Trade terms</h3>
       <p>
         You pay <strong>{{ formatAsset(pendingMatch.quote_amount) }} {{ assetCode }}</strong> off-platform and receive
-        <strong>{{ amount }} Pewgift</strong>. Accepting locks the seller's Pewgift in escrow and reveals their payout
+        <strong>{{ pendingMatch.pew_after_fee ?? amount }} Pewgift</strong>. Accepting locks the seller's Pewgift in escrow and reveals their payout
         details. Release happens once the seller confirms your payment; disputes are settled by an admin.
       </p>
       <div class="terms-actions">

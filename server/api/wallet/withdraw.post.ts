@@ -39,7 +39,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Fill in ${missing.join(', ').replace(/_/g, ' ')}` })
   }
 
-  if (method === 'bank') details.account_name = await resolvePayoutName(user.id, details.account_name ?? '')
+  const payoutName = await resolvePayoutName(user.id, details.account_name ?? '')
+  if (method === 'bank') details.account_name = payoutName
+  else details.kyc_name = payoutName
   if (!details.note) details.note = 'Viorp earnings/gifts withdrawal'
   const db = getServiceClient()
   const currency = (details.currency || 'USD').toUpperCase()

@@ -15,6 +15,7 @@ export interface SupportedAsset {
 }
 
 export interface SellerMatch {
+  pew_after_fee?: number
   listing_id: string
   seller_id: string
   username: string | null
