@@ -8,6 +8,7 @@
         <p class="muted">Signed in as {{ staff?.role === 'admin' ? 'administrator' : 'manager' }}</p>
       </div>
     </header>
+    <UserLookup v-if="staff?.role === 'admin'" />
 
     <p v-if="loaded && !staff" class="error">You don't have staff access.</p>
 
@@ -38,6 +39,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useStaff } from '~/composables/useStaff'
+import UserLookup from '~/components/admin/user-lookup.vue'
 
 definePageMeta({ middleware: ['auth', 'route-guard'], layout: 'default' })
 useHead({ title: 'Control dashboard' })
