@@ -32,10 +32,20 @@
       inventory is available, third-party networks may serve a fallback ad and process data under
       their own policies.
     </p>
+    <p>
+      In the Android app, Viorp and its ad partners (Appodeal and its partner networks) use your
+      device's Advertising ID for analytics, to show and measure ads (including personalised ads), and
+      to prevent ad fraud. The Advertising ID is a resettable identifier that is not your name, phone
+      number or email. You can reset or delete it at any time in Android Settings → Google → Ads, which
+      stops personalised ads based on it. On the web, Monetag may use cookies or similar technologies for
+      the same purposes.
+    </p>
 
     <h2>Permissions</h2>
     <ul>
-      <li><strong>Camera / photos:</strong> only when you attach media or change your avatar.</li>
+      <li><strong>Camera / photos:</strong> only when you attach media, change your avatar, go LIVE or make a video call.</li>
+      <li><strong>Microphone:</strong> only when you go LIVE, make a call or record a voice note.</li>
+      <li><strong>Advertising ID (Android):</strong> for analytics, advertising and fraud prevention, as described above.</li>
       <li><strong>Notifications:</strong> only after you grant permission; used for messages and activity.</li>
       <li><strong>Contacts:</strong> only after explicit opt-in, for hashed contact matching.</li>
     </ul>
