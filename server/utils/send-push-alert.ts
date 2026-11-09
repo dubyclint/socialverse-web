@@ -1,46 +1,23 @@
-import { getSupabaseClient } from './database';
+import { getServiceClient } from './supabase-admin'
+import { sendFcm } from './fcm'
 
-// Mock push service - replace with actual implementation (FCM, APNs, etc.)
-const pushService = {
-  async send(notification: { to: string; title: string; body: string }) {
-    console.log('Push notification sent:', notification);
-    // TODO: Implement actual push notification service
-    return Promise.resolve();
-  }
-};
-
+/** Pushes a notification to the user's registered device; clears tokens FCM reports as dead. */
 export async function sendPushAlert(
-  userId: string, 
-  title: string, 
-  body: string
-): Promise<void> {
+  userId: string,
+  title: string,
+  body: string,
+  options: { data?: Record<string, string>, channel?: string, ttl?: number } = {}
+): Promise<boolean> {
   try {
-    const supabase = await getSupabaseClient();
-    
-    const { data: user, error } = await supabase
-      .from('user')
-      .select('push_token')
-      .eq('user_id', userId)
-      .single();
-      
-    if (error) {
-      console.error('Failed to get user for push notification:', error);
-      return;
-    }
-    
-    if (!user?.push_token) {
-      console.log('No push token found for user:', userId);
-      return;
-    }
-
-    await pushService.send({
-      to: user.push_token,
-      title,
-      body
-    });
-
-    console.log(`Push alert sent to user ${userId}:`);
+    const admin = getServiceClient()
+    const { data: user } = await admin.from('user').select('push_token').eq('user_id', userId).maybeSingle()
+    const token = user?.push_token
+    if (!token) return false
+    const result = await sendFcm({ token, title, body, ...options })
+    if (result === 'invalid') await admin.from('user').update({ push_token: null }).eq('user_id', userId)
+    return result === 'sent'
   } catch (error) {
-    console.error('Error sending push alert:', error);
+    console.error('Error sending push alert:', error)
+    return false
   }
 }

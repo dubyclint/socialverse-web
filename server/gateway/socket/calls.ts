@@ -1,5 +1,6 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { sendPushAlert } from '../../utils/send-push-alert'
 
 /** Everyone on a call, caller included. */
 export const MAX_CALL_PARTICIPANTS = 8
@@ -15,6 +16,8 @@ interface LiveCall {
   invited: Map<string, ReturnType<typeof setTimeout>>
   connected: boolean
   connectedAt?: number
+  /** The call:incoming payload, replayed to an invitee whose app opens while it is still ringing. */
+  ringPayload?: Record<string, unknown>
 }
 
 interface Person {
@@ -158,18 +161,29 @@ const removeParticipant = async (
 const ring = async (ctx: CallContext, call: LiveCall, targets: string[], inviterId: string) => {
   const [inviter] = await lookupPeople(ctx.admin, [inviterId])
   const participants = await lookupPeople(ctx.admin, [...call.joined])
+  const payload = {
+    id: call.id,
+    room_id: call.chatId,
+    host_id: inviterId,
+    call_mode: call.mode,
+    callerName: inviter?.name,
+    callerAvatar: inviter?.avatar,
+    participants
+  }
+  call.ringPayload = payload
+  const kind = call.mode === 'VIDEO' ? 'video' : 'voice'
+  const caller = inviter?.name ?? 'Someone'
   for (const target of targets) {
     call.invited.set(target, setTimeout(() => {
       void removeParticipant(ctx, call, target, 'missed')
+      void sendPushAlert(target, 'Missed call', `Missed ${kind} call from ${caller}`, { data: { type: 'missed_call', chatId: call.chatId }, channel: 'default' })
     }, RING_TIMEOUT_MS))
-    ctx.io.to(userRoom(target)).emit('call:incoming', {
-      id: call.id,
-      room_id: call.chatId,
-      host_id: inviterId,
-      call_mode: call.mode,
-      callerName: inviter?.name,
-      callerAvatar: inviter?.avatar,
-      participants
+    ctx.io.to(userRoom(target)).emit('call:incoming', payload)
+    // Rings the phone even when Viorp is closed; opening the app replays call:incoming.
+    void sendPushAlert(target, caller, `Incoming ${kind} call`, {
+      data: { type: 'call', callId: call.id, chatId: call.chatId, mode: call.mode },
+      channel: 'calls',
+      ttl: Math.round(RING_TIMEOUT_MS / 1000)
     })
   }
 }
@@ -181,6 +195,12 @@ const ring = async (ctx: CallContext, call: LiveCall, targets: string[], inviter
  */
 export const registerCallHandlers = (ctx: CallContext) => {
   const { io, admin, socket, isMember } = ctx
+
+  if (socket.userId) {
+    for (const call of liveCalls.values()) {
+      if (call.invited.has(socket.userId) && call.ringPayload) socket.emit('call:incoming', call.ringPayload)
+    }
+  }
 
   socket.on('call:invite', async (data: { chatId?: string, callType?: string, targetUserIds?: string[], targetUserId?: string }, ack?: (result: unknown) => void) => {
     const userId = socket.userId
