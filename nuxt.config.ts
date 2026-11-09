@@ -64,7 +64,8 @@ export default defineNuxtConfig({
     // to a value derived from the URL, which would differ between build and runtime).
     cookiePrefix: 'sb-socialverse',
     cookieOptions: {
-      maxAge: 60 * 60 * 8,
+      // The session cookie holds the refresh token; an 8-hour cookie signed people out after a few idle hours.
+      maxAge: 60 * 60 * 24 * 90,
       path: '/',
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',

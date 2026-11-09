@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 /** Everyone on a call, caller included. */
 export const MAX_CALL_PARTICIPANTS = 8
 const RING_TIMEOUT_MS = 45_000
+const DISCONNECT_GRACE_MS = 30_000
 
 interface LiveCall {
   id: string
@@ -13,6 +14,7 @@ interface LiveCall {
   joined: Set<string>
   invited: Map<string, ReturnType<typeof setTimeout>>
   connected: boolean
+  connectedAt?: number
 }
 
 interface Person {
@@ -66,7 +68,44 @@ const sharesChat = async (admin: SupabaseClient, a: string, b: string) => {
   return Boolean(shared?.length)
 }
 
+const mmss = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+
+/** Every call leaves a line in the chat (missed, or answered with its length), like WhatsApp. */
+const logCallMessage = async (ctx: Pick<CallContext, 'io' | 'admin'>, call: LiveCall) => {
+  const duration = call.connectedAt ? Math.max(0, Math.round((Date.now() - call.connectedAt) / 1000)) : 0
+  const kind = call.mode === 'VIDEO' ? 'video' : 'voice'
+  const status = call.connected ? 'ANSWERED' : 'MISSED'
+  const text = call.connected ? `${kind === 'video' ? 'Video' : 'Voice'} call · ${mmss(duration)}` : `Missed ${kind} call`
+  const meta = { id: call.id, mode: call.mode, status, duration }
+  const { data: row } = await ctx.admin
+    .from('chat_messages')
+    .insert({ room_id: call.chatId, sender_id: call.hostId, message_text: text, message_type: 'call', metadata: { call: meta } })
+    .select('id, created_at')
+    .single()
+  if (!row) return
+  await ctx.admin.from('chat_rooms').update({ updated_at: new Date().toISOString() }).eq('id', call.chatId)
+  const { data: members } = await ctx.admin.from('chat_room_members').select('user_id').eq('room_id', call.chatId)
+  const [host] = await lookupPeople(ctx.admin, [call.hostId])
+  const rooms = [`chat:${call.chatId}`, ...((members ?? []) as { user_id: string }[]).map(m => userRoom(m.user_id))]
+  ctx.io.to(rooms).emit('chat:message', {
+    id: (row as { id: string }).id,
+    chatId: call.chatId,
+    content: text,
+    attachments: [],
+    messageType: 'call',
+    replyToId: null,
+    forwarded: false,
+    expiresAt: null,
+    senderId: call.hostId,
+    senderName: host?.name,
+    senderAvatar: host?.avatar,
+    timestamp: (row as { created_at: string }).created_at,
+    call: meta
+  })
+}
+
 const finish = async (ctx: Pick<CallContext, 'io' | 'admin'>, call: LiveCall) => {
+  if (!liveCalls.has(call.id)) return
   liveCalls.delete(call.id)
   for (const timer of call.invited.values()) clearTimeout(timer)
   const everyone = [...call.joined, ...call.invited.keys()]
@@ -77,6 +116,7 @@ const finish = async (ctx: Pick<CallContext, 'io' | 'admin'>, call: LiveCall) =>
     .update({ status: call.connected ? 'DISCONNECTED' : 'MISSED', ended_at: new Date().toISOString() })
     .eq('id', call.id)
   for (const userId of everyone) ctx.io.to(userRoom(userId)).emit('call:ended', { callId: call.id })
+  await logCallMessage(ctx, call).catch(err => console.warn('[calls] call log failed', err))
 }
 
 /** A call ends once nobody is left to talk to and nobody is still being rung. */
@@ -226,6 +266,7 @@ export const registerCallHandlers = (ctx: CallContext) => {
 
     if (!call.connected) {
       call.connected = true
+      call.connectedAt = Date.now()
       await admin
         .from('call_sessions')
         .update({ status: 'CONNECTED', started_at: new Date().toISOString() })
@@ -267,11 +308,16 @@ export const registerCallHandlers = (ctx: CallContext) => {
     })
   })
 
-  socket.on('disconnect', async () => {
+  // Mobile sockets drop and reconnect on network blips while WebRTC media keeps
+  // flowing, so only treat someone as gone if they stay offline for a while.
+  socket.on('disconnect', () => {
     const userId = socket.userId
-    if (!userId || (await isOnline(io, userId))) return
-    for (const call of [...liveCalls.values()]) {
-      if (call.joined.has(userId) || call.invited.has(userId)) await removeParticipant(ctx, call, userId, 'left')
-    }
+    if (!userId) return
+    setTimeout(async () => {
+      if (await isOnline(io, userId)) return
+      for (const call of [...liveCalls.values()]) {
+        if (call.joined.has(userId)) await removeParticipant(ctx, call, userId, 'left')
+      }
+    }, DISCONNECT_GRACE_MS)
   })
 }

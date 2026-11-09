@@ -10,7 +10,10 @@ export default defineNuxtPlugin(() => {
   const supabase = useSupabaseClient()
   let refreshing: Promise<boolean> | null = null
   const refreshOnce = () => {
-    refreshing ??= supabase.auth.refreshSession()
+    // getSession refreshes an expired token under the client's own lock; a manual
+    // refreshSession() here raced the auto-refresh, reused the rotated refresh token
+    // and made Supabase revoke the session (the "logged out on bad network" bug).
+    refreshing ??= supabase.auth.getSession()
       .then(({ data, error }) => !error && !!data.session)
       .catch(() => false)
       .finally(() => { setTimeout(() => { refreshing = null }, 5_000) })

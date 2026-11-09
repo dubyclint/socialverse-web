@@ -269,7 +269,7 @@
               <button class="btn-share-profile" @click="shareProfile"><Icon name="share-2" size="16" /></button>
             </div>
             <div class="quick-stats">
-              <div class="quick-stat"><span class="label">Wallet Balance</span><span class="value">{{ walletBalance }}</span></div>
+              <div class="quick-stat"><span class="label">Wallet Balance <button type="button" class="balance-eye" :aria-label="hideBalance ? 'Show balance' : 'Hide balance'" :aria-pressed="hideBalance" @click="toggleHideBalance"><Icon :name="hideBalance ? 'eye-off' : 'eye'" size="14" /></button></span><span class="value">{{ hideBalance ? '•••• PEW' : walletBalance }}</span></div>
               <div class="quick-stat"><span class="label">Verification</span><span :class="['value', isVerified ? 'verified' : 'pending']">{{ isVerified ? '✓ Verified' : '⏳ Pending' }}</span></div>
             </div>
           </div>
@@ -454,6 +454,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute, navigateTo } from '#app';
 import { useSocialFeed } from '~/composables/useSocialFeed';
 import { useContextStore } from '~/stores/context';
+import { useBalanceVisibility } from '~/composables/useBalanceVisibility';
 import EmailVerificationBanner from '~/components/EmailVerificationBanner.vue';
 import PewGiftModal from '~/components/modals/PewGiftModal.vue';
 import LiveRail from '~/components/feed/live-rail.vue';
@@ -485,6 +486,7 @@ const topNavItems = [
 // --- Initialize Unified Social Feed ---
 const socialFeed = useSocialFeed();
 const contextStore = useContextStore();
+const { hideBalance, toggleHideBalance } = useBalanceVisibility();
 const { 
   posts, postsLoading, hasMorePosts, loadingMore, 
   loadMorePosts, refreshFeed, initPipeline, 
@@ -616,6 +618,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.balance-eye { display: inline-flex; align-items: center; margin-left: 4px; padding: 2px; color: inherit; opacity: .75; vertical-align: middle; background: none; border: 0; cursor: pointer; }
+.balance-eye:hover { opacity: 1; }
 /* ============================================================================
    GLOBAL & LAYOUT ARCHITECTURE
    ============================================================================ */

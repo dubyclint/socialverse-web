@@ -312,14 +312,63 @@ const pinned = computed(() => messages.value.find(m => m.is_pinned) ?? null)
 const msgOf = (e: unknown, fallback: string) => (e as { data?: { statusMessage?: string }, message?: string })?.data?.statusMessage || (e as Error)?.message || fallback
 
 const DIMS = { 480: [854, 480], 720: [1280, 720], 1080: [1920, 1080] } as const
+const CAM_ERRORS: Record<string, string> = {
+  NotAllowedError: 'Camera or microphone access is blocked. Allow both for Viorp (browser: tap the lock icon by the address → Site settings; app: phone Settings → Apps → Viorp → Permissions). LIVE starts by itself once allowed.',
+  SecurityError: 'Camera access needs a secure (https) page.',
+  NotReadableError: 'Your camera or microphone is busy in another app, tab or call. Close it, then tap Retry.',
+  AbortError: 'Your camera or microphone is busy in another app, tab or call. Close it, then tap Retry.',
+  NotFoundError: 'No camera or microphone was found on this device.'
+}
+let permissionWatchBound = false
+// After a denial the browser never re-prompts, so Retry alone cannot recover; restart as soon as access is granted.
+const watchPermissions = async () => {
+  if (permissionWatchBound || !navigator.permissions?.query) return
+  permissionWatchBound = true
+  for (const name of ['camera', 'microphone']) {
+    try {
+      const status = await navigator.permissions.query({ name: name as PermissionName })
+      status.onchange = () => { if (status.state === 'granted' && camError.value) void startCamera() }
+    } catch { /* permission name unsupported in this browser */ }
+  }
+}
+const requestNativeCamera = async () => {
+  try {
+    const { Capacitor } = await import('@capacitor/core')
+    if (!Capacitor.isNativePlatform()) return
+    const { Camera } = await import('@capacitor/camera')
+    const state = await Camera.checkPermissions()
+    if (state.camera !== 'granted') await Camera.requestPermissions({ permissions: ['camera'] })
+  } catch { /* the WebView prompt still runs */ }
+}
+const AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+// Phones can open only one camera at a time and some reject exact sizes, so step down instead of failing.
+const acquireCamera = async (): Promise<MediaStream> => {
+  const [w, h] = DIMS[Number(quality.value) as 480 | 720 | 1080]
+  const attempts: MediaStreamConstraints[] = [
+    { video: { facingMode: facing.value, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: 30 } }, audio: AUDIO },
+    { video: { facingMode: facing.value }, audio: AUDIO },
+    { video: true, audio: true }
+  ]
+  let last: unknown
+  for (const [i, constraints] of attempts.entries()) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints)
+    } catch (e) {
+      last = e
+      const name = (e as DOMException)?.name
+      if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'NotFoundError') throw e
+      if (i === 0) media.value?.getTracks().forEach(t => t.stop())
+    }
+  }
+  throw last
+}
 const startCamera = async () => {
   camError.value = ''
-  const [w, h] = DIMS[Number(quality.value) as 480 | 720 | 1080]
+  if (!navigator.mediaDevices?.getUserMedia) { camError.value = CAM_ERRORS.SecurityError!; return }
+  void watchPermissions()
+  await requestNativeCamera()
   try {
-    const next = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing.value, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: 30 } },
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    })
+    const next = await acquireCamera()
     next.getAudioTracks().forEach(t => { t.enabled = micOn.value })
     next.getVideoTracks().forEach(t => { t.enabled = camOn.value })
     const vt = next.getVideoTracks()[0]
@@ -338,7 +387,7 @@ const startCamera = async () => {
     const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
     canFlip.value = cams.length > 1
   } catch (e) {
-    camError.value = (e as DOMException)?.name === 'NotAllowedError' ? 'Allow camera and microphone access to go LIVE.' : 'Could not start the camera.'
+    camError.value = CAM_ERRORS[(e as DOMException)?.name ?? ''] ?? 'Could not start the camera. Close other apps using it, then tap Retry.'
   }
 }
 const flip = () => { facing.value = facing.value === 'user' ? 'environment' : 'user'; void startCamera() }
