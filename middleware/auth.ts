@@ -14,7 +14,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const publicRoutes = [
     '/', '/signin', '/signup', '/auth/forgot-password', 
     '/auth/reset-password', '/auth/verify-email', 
-    '/terms-and-policy', '/privacy-policy'
+    '/terms-and-policy', '/privacy-policy', '/privacy', '/terms'
   ]
   const protectedPrefixes = [
     '/feed', '/profile', '/settings', '/notifications', 

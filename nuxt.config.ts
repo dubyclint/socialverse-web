@@ -52,7 +52,7 @@ export default defineNuxtConfig({
       callback: '/auth/verify-email',
       exclude: [
         '/', '/register', '/feed', '/stream', '/signin', '/signup', 
-        '/auth/forgot-password', '/auth/reset-password', '/terms-and-policy', '/offline.html',
+        '/auth/forgot-password', '/auth/reset-password', '/terms-and-policy', '/privacy', '/terms', '/offline.html',
         '/.well-known/*',
       ],
       saveRedirectToCookie: true,

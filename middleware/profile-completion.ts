@@ -12,7 +12,7 @@ export default defineNuxtRouteMiddleware(async (to: any) => {
   const publicRoutes = [
     '/', '/signin', '/signup', '/auth/forgot-password', 
     '/auth/reset-password', '/auth/verify-email', 
-    '/terms-and-policy', '/privacy-policy', '/error'
+    '/terms-and-policy', '/privacy-policy', '/privacy', '/terms', '/error'
   ]
   const startsWithSegment = (p: string, prefix: string) => 
     p === prefix || p.startsWith(`${prefix}/`)
