@@ -10,6 +10,7 @@ import { useSupabaseUser, useSupabaseClient } from '#imports'
 
 const WARNING_BEFORE = 5 * 60 * 1000
 const ACTIVITY_KEY = 'socialverse:last-activity'
+const MAX_IDLE_MINUTES = 8 * 60
 
 export default defineNuxtPlugin({
   name: 'socialverse-session-timeout',
@@ -21,10 +22,10 @@ export default defineNuxtPlugin({
     const router = useRouter()
     const { settings, load } = useUserSettings()
 
-    // 0 means never: auto sign-out is opt-in so a weak network or a backgrounded app never logs anyone out.
+    // Idle sign-out is mandatory: 8 hours at most, shorter if the user picked it.
     const timeoutMs = () => {
-      const minutes = Number(settings.value.general.idleLogoutMinutes) || 0
-      return minutes > 0 ? minutes * 60 * 1000 : 0
+      const minutes = Number(settings.value.general.idleLogoutMinutes) || MAX_IDLE_MINUTES
+      return Math.min(minutes, MAX_IDLE_MINUTES) * 60 * 1000
     }
 
     let inactivityTimer: ReturnType<typeof setTimeout> | null = null

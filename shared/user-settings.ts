@@ -106,7 +106,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     chatWallpaper: 'default',
     chatTheme: 'aurora',
     enterToSend: true,
-    idleLogoutMinutes: 0
+    idleLogoutMinutes: 480
   }
 }
 

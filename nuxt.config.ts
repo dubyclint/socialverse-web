@@ -64,8 +64,8 @@ export default defineNuxtConfig({
     // to a value derived from the URL, which would differ between build and runtime).
     cookiePrefix: 'sb-socialverse',
     cookieOptions: {
-      // The session cookie holds the refresh token; an 8-hour cookie signed people out after a few idle hours.
-      maxAge: 60 * 60 * 24 * 90,
+      // Rewritten on every token refresh while the app is open, so it only lapses after 8 idle hours.
+      maxAge: 60 * 60 * 8,
       path: '/',
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -130,6 +130,8 @@ export default defineNuxtConfig({
       enablePremium: true,
       enableAnalytics: true,
       isCapacitorBuild,
+      // Android build number from which the app ships google-services.json; older builds crash on push register.
+      fcmMinBuild: Number(process.env.NUXT_PUBLIC_FCM_MIN_BUILD || 0),
       telegramBotUsername: process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'Viorp_verification_bot',
       appDomain: process.env.NUXT_PUBLIC_APP_DOMAIN || process.env.NUXT_PUBLIC_SITE_URL || 'https://viorp.com',
     },
