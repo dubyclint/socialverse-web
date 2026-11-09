@@ -55,8 +55,12 @@ export const useMediaPermission = () => {
     }
   }
 
-  /** In the app, asks Android before the WebView does; a no-op on the web, where getUserMedia prompts. */
-  const prepare = async (video = true): Promise<MediaAccess> => native ? request(video) : 'unknown'
+  /** In the app, asks Android only while access is missing; a no-op on the web, where getUserMedia prompts. */
+  const prepare = async (video = true): Promise<MediaAccess> => {
+    if (!native) return 'unknown'
+    const current = await check(video)
+    return current === 'granted' || current === 'blocked' ? current : request(video)
+  }
 
   const openSettings = async (): Promise<boolean> => {
     if (!native) return false
