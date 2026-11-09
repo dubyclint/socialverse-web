@@ -64,11 +64,11 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
     client.from('posts').select('user_id, page_id, comments_count').eq('id', postId).maybeSingle(),
     client
       .from('user')
-      .select('user_id, username, display_name, full_name, avatar_url')
+      .select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type')
       .eq('user_id', user.id)
       .maybeSingle(),
     pageId
-      ? client.from('pages').select('id, handle, name, avatar_url').eq('id', pageId).maybeSingle()
+      ? client.from('pages').select('id, handle, name, avatar_url, is_verified, verified_type').eq('id', pageId).maybeSingle()
       : Promise.resolve({ data: null })
   ])
 
@@ -120,13 +120,15 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
       createdAt: comment.created_at,
       editedAt: comment.edited_at,
       author: page
-        ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, type: 'PAGE' }
+        ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, type: 'PAGE', verified: page.is_verified === true, verifiedType: page.verified_type ?? null }
         : {
             id: user.id,
             username: author?.username ?? 'unknown',
             name: author?.full_name || author?.display_name || author?.username || 'You',
             avatar: author?.avatar_url ?? null,
-            type: 'USER'
+            type: 'USER',
+            verified: author?.is_verified === true,
+            verifiedType: author?.verified_type ?? null
           }
     },
     commentsCount: post?.comments_count ?? 0

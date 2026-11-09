@@ -184,6 +184,12 @@ export const useChatStore = defineStore('chat', {
       )
     },
 
+    removeMessage(chatId: string, messageId: string) {
+      const msgs = this.messages.get(chatId)
+      if (!msgs) return
+      this.messages.set(chatId, msgs.filter(m => m.id !== messageId))
+    },
+
     reset() {
       this.$reset()
       chatCacheService.remove('chat_state_cache')

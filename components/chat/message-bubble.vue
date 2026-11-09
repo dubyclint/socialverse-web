@@ -110,94 +110,37 @@
         </button>
       </div>
 
-      <!-- Message Actions -->
+      <!-- Message Actions: text actions first, reactions last (WhatsApp order) -->
       <div v-if="showActions" class="message-actions" @click.stop="closeActions">
-        <!-- Quick reactions -->
-        <button
-          v-for="emoji in quickReactions"
-          :key="emoji"
-          class="action-btn reaction-btn"
-          :title="`React ${emoji}`"
-          @click="react(emoji)"
-        >
-          {{ emoji }}
+        <button v-if="!isDeleted" class="action-btn reply-btn" title="Reply" @click="$emit('reply', message)">
+          Reply <Icon name="corner-up-left" size="14" />
         </button>
-
-        <!-- Reply Button -->
-        <button
-          v-if="!isDeleted"
-          class="action-btn reply-btn"
-          title="Reply"
-          @click="$emit('reply', message)"
-        >
-          <Icon name="corner-up-left" size="16" />
-          Reply
+        <button v-if="!isDeleted && (message.content || attachments.length)" class="action-btn copy-btn" title="Copy" @click="copyMessage">
+          {{ copied ? 'Copied' : 'Copy' }} <Icon name="copy" size="14" />
         </button>
-
-        <button
-          v-if="!isDeleted && (message.content || attachments.length)"
-          class="action-btn copy-btn"
-          title="Copy"
-          @click="copyMessage"
-        >
-          <Icon name="copy" size="16" />
-          {{ copied ? 'Copied' : 'Copy' }}
+        <button v-if="!isDeleted && !message.gift && (message.content || attachments.length)" class="action-btn forward-btn" title="Forward" @click="$emit('forward', message)">
+          Forward <Icon name="forward" size="14" />
         </button>
-
-        <button
-          v-if="!isDeleted && !message.gift && (message.content || attachments.length)"
-          class="action-btn forward-btn"
-          title="Forward"
-          @click="$emit('forward', message)"
-        >
-          <Icon name="forward" size="16" />
-          Forward
+        <button v-if="message.id" class="action-btn delete-btn" title="Delete message" @click="$emit('delete', message.id)">
+          Delete <Icon name="trash-2" size="14" />
         </button>
-
-        <!-- Translate Button -->
-        <button 
-          v-if="!isTranslated && !message.isDeleted"
-          @click="translateMessage"
-          class="action-btn translate-btn"
-          :disabled="isTranslating"
-          title="Translate message"
-        >
-          <Icon name="globe" size="16" />
-          {{ isTranslating ? 'Translating...' : 'Translate' }}
+        <button v-if="!isTranslated && !isDeleted && message.content" class="action-btn translate-btn" :disabled="isTranslating" title="Translate message" @click="translateMessage">
+          {{ isTranslating ? 'Translating...' : 'Translate' }} <Icon name="globe" size="14" />
         </button>
-
-        <!-- Pewgift Button -->
-        <button 
-          v-if="!isOwn && !message.isDeleted"
-          @click="openGiftModal"
-          class="action-btn pewgift-btn"
-          title="Send pewgift to sender"
-        >
-          <Icon name="gift" size="16" />
-          🎁 Pewgift
+        <button v-if="isOwn && !isDeleted && canEdit()" class="action-btn edit-btn" title="Edit message" @click="$emit('edit', message)">
+          Edit <Icon name="edit-2" size="14" />
         </button>
-
-        <!-- Edit Button -->
-        <button 
-          v-if="isOwn && !message.isDeleted && canEdit()"
-          @click="$emit('edit', message)"
-          class="action-btn edit-btn"
-          title="Edit message"
-        >
-          <Icon name="edit-2" size="16" />
-          Edit
+        <button v-if="message.id" class="action-btn select-btn" title="Select messages" @click="$emit('select', message.id)">
+          Select <Icon name="check-square" size="14" />
         </button>
-
-        <!-- Delete Button -->
-        <button 
-          v-if="isOwn && !message.isDeleted"
-          @click="message.id && $emit('delete', message.id)"
-          class="action-btn delete-btn"
-          title="Delete message"
-        >
-          <Icon name="trash-2" size="16" />
-          Delete
+        <button v-if="!isOwn && !isDeleted" class="action-btn pewgift-btn" title="Send pewgift to sender" @click="openGiftModal">
+          Pewgift <Icon name="gift" size="14" />
         </button>
+        <template v-if="!isDeleted">
+          <button v-for="emoji in quickReactions" :key="emoji" class="action-btn reaction-btn" :title="`React ${emoji}`" @click="react(emoji)">
+            {{ emoji }}
+          </button>
+        </template>
       </div>
 
       <!-- Timestamp -->
@@ -279,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import MediaLightbox from './media-lightbox.vue'
 import PresenceDot from '~/components/presence-dot.vue'
 import VerifiedBadge from '~/components/VerifiedBadge.vue'
@@ -318,6 +261,7 @@ const props = defineProps<{
   isOwn?: boolean
   showAvatar?: boolean
   showSenderName?: boolean
+  selectionMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -327,6 +271,7 @@ const emit = defineEmits<{
   forward: [message: Message]
   react: [messageId: string, emoji: string]
   gifted: []
+  select: [messageId: string]
 }>()
 
 // Matches the server-side edit window in the socket gateway.
@@ -381,9 +326,17 @@ const closeActions = (): void => {
 const toggleActions = (event: MouseEvent): void => {
   const target = event.target as HTMLElement | null
   if (target?.closest('a, button, audio, video, input, .modal-overlay')) return
-  if (!props.message.id || isDeleted.value) return
+  if (!props.message.id || isDeleted.value || props.selectionMode) return
   openActionsId.value = showActions.value ? null : props.message.id
 }
+
+// The selection bar can ask one message to translate itself.
+const translateRequest = useState<string | null>('chat-translate-request', () => null)
+watch(translateRequest, (id) => {
+  if (!id || id !== props.message.id) return
+  translateRequest.value = null
+  if (!isTranslated.value && !isTranslating.value) void translateMessage()
+})
 
 const SENDER_HUES = [200, 280, 330, 25, 140, 45, 175, 255]
 const senderStyle = computed(() => {
@@ -569,7 +522,11 @@ const sendPewgift = async () => {
 
 const handleContextMenu = (event: MouseEvent) => {
   event.preventDefault()
-  if (props.message.id && !isDeleted.value) openActionsId.value = props.message.id
+  if (!props.message.id) return
+  // Long-press (contextmenu on touch) selects the message, like WhatsApp.
+  if (props.selectionMode) return
+  closeActions()
+  emit('select', props.message.id)
 }
 </script>
 
@@ -730,6 +687,7 @@ const handleContextMenu = (event: MouseEvent) => {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.message-actions .select-btn, .message-actions .delete-btn { font-weight: 600; }
 .action-btn {
   display: flex;
   align-items: center;

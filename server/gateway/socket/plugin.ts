@@ -360,6 +360,28 @@ export default defineNitroPlugin((nitroApp: any) => {
           return ack?.({ success: false, error: 'Invalid delete' })
         }
 
+        // Delete for me: any member can hide any message from their own view only.
+        if (!forEveryone) {
+          if (!(await isMember(chatId, socket.userId))) return ack?.({ success: false, error: 'Not a member of this chat' })
+          const { data: row } = await admin
+            .from('chat_messages')
+            .select('id, metadata')
+            .eq('id', messageId)
+            .eq('room_id', chatId)
+            .maybeSingle()
+          if (!row) return ack?.({ success: false, error: 'Message not found' })
+          const meta = ((row as { metadata?: Record<string, unknown> | null }).metadata ?? {}) as Record<string, unknown>
+          const hiddenFor = new Set(Array.isArray(meta.hidden_for) ? (meta.hidden_for as string[]) : [])
+          hiddenFor.add(socket.userId)
+          const { error: hideError } = await admin
+            .from('chat_messages')
+            .update({ metadata: { ...meta, hidden_for: [...hiddenFor] } })
+            .eq('id', messageId)
+          if (hideError) return ack?.({ success: false, error: 'Could not delete message' })
+          io?.to(`user:${socket.userId}`).emit('chat:deleted', { chatId, messageId, forEveryone: false })
+          return ack?.({ success: true })
+        }
+
         const { data: deleted, error } = await admin
           .from('chat_messages')
           .update({

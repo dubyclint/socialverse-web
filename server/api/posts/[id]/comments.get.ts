@@ -14,6 +14,8 @@ export interface PostCommentView {
     name: string
     avatar: string | null
     type: 'USER' | 'PAGE'
+    verified: boolean
+    verifiedType: string | null
   }
 }
 
@@ -40,14 +42,14 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   const { data: authors } = authorIds.length
     ? await client
         .from('user')
-        .select('user_id, username, display_name, full_name, avatar_url')
+        .select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type')
         .in('user_id', authorIds)
     : { data: [] }
 
   const authorById = new Map((authors ?? []).map(row => [row.user_id, row]))
   const pageIds = Array.from(new Set((comments ?? []).map(row => row.page_id).filter((id): id is string => Boolean(id))))
   const { data: pages } = pageIds.length
-    ? await client.from('pages').select('id, handle, name, avatar_url').in('id', pageIds)
+    ? await client.from('pages').select('id, handle, name, avatar_url, is_verified, verified_type').in('id', pageIds)
     : { data: [] }
   const pageById = new Map((pages ?? []).map(row => [row.id, row]))
 
@@ -64,13 +66,15 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
         createdAt: row.created_at,
         editedAt: row.edited_at,
         author: page
-          ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, type: 'PAGE' as const }
+          ? { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, type: 'PAGE' as const, verified: page.is_verified === true, verifiedType: page.verified_type ?? null }
           : {
               id: row.user_id,
               username: author?.username ?? 'unknown',
               name: author?.full_name || author?.display_name || author?.username || 'Unknown user',
               avatar: author?.avatar_url ?? null,
-              type: 'USER' as const
+              type: 'USER' as const,
+              verified: author?.is_verified === true,
+              verifiedType: author?.verified_type ?? null
             }
       }
     })

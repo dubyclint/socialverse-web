@@ -87,7 +87,7 @@
         <NuxtLink :to="liker.type === 'PAGE' ? `/pages/${liker.username}` : `/profile/${liker.username}`" class="liker-avatar-link">
           <img :src="liker.avatar || '/default-avatar.svg'" :alt="liker.name" class="liker-avatar" />
         </NuxtLink>
-        <NuxtLink :to="liker.type === 'PAGE' ? `/pages/${liker.username}` : `/profile/${liker.username}`">{{ liker.name }}</NuxtLink>
+        <NuxtLink :to="liker.type === 'PAGE' ? `/pages/${liker.username}` : `/profile/${liker.username}`" class="liker-name">{{ liker.name }}<VerifiedBadge v-if="liker.verified" :type="liker.verifiedType" :size="13" /></NuxtLink>
       </li>
     </ul>
 
@@ -554,6 +554,7 @@ const formatTimeAgo = (value: string) => {
 
 .liker { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
 .liker a { color: inherit; text-decoration: none; }
+.liker-name { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .liker-avatar { width: 24px; height: 24px; border-radius: 9999px; object-fit: cover; }
 .liker-avatar-link, .repost-avatar-link { display: inline-flex; flex-shrink: 0; }
 .likers-state { font-size: 0.8rem; opacity: 0.7; }

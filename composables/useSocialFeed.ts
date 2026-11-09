@@ -57,6 +57,8 @@ export interface PostComment {
     name: string
     avatar: string | null
     type?: 'USER' | 'PAGE'
+    verified?: boolean
+    verifiedType?: string | null
   }
 }
 
@@ -67,6 +69,8 @@ export interface PostLiker {
   avatar: string | null
   likedAt: string
   type?: 'USER' | 'PAGE'
+  verified?: boolean
+  verifiedType?: string | null
 }
 
 export type SharePlatform = 'twitter' | 'facebook' | 'whatsapp' | 'copy' | 'email'

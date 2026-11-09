@@ -27,6 +27,7 @@
           <div class="comment-body">
             <NuxtLink :to="authorLink(thread.comment.author)" class="comment-author">
               {{ thread.comment.author.name }}
+              <VerifiedBadge v-if="thread.comment.author.verified" :type="thread.comment.author.verifiedType" :size="13" />
             </NuxtLink>
             <form v-if="editingId === thread.comment.id" class="edit-form" @submit.prevent="saveEdit(thread.comment)">
               <input v-model="editDraft" class="composer-input" type="text" maxlength="500" aria-label="Edit comment" />
@@ -72,6 +73,7 @@
                 <div class="comment-body">
                   <NuxtLink :to="authorLink(reply.author)" class="comment-author">
                     {{ reply.author.name }}
+                    <VerifiedBadge v-if="reply.author.verified" :type="reply.author.verifiedType" :size="12" />
                   </NuxtLink>
                   <form v-if="editingId === reply.id" class="edit-form" @submit.prevent="saveEdit(reply)">
                     <input v-model="editDraft" class="composer-input" type="text" maxlength="500" aria-label="Edit reply" />
@@ -103,6 +105,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import type { PostComment } from '~/composables/useSocialFeed'
 import { useEngagementSync } from '~/composables/use-engagement-sync'
 import { useUserStore } from '~/stores/user'
+import VerifiedBadge from '~/components/VerifiedBadge.vue'
 
 const props = defineProps<{ postId: string, viewerAvatar: string }>()
 const emit = defineEmits<{
@@ -130,7 +133,9 @@ const viewer = computed(() => ({
   id: currentUserId.value ?? '',
   username: userStore.profile?.username ?? '',
   name: userStore.profile?.full_name || userStore.profile?.username || 'You',
-  avatar: props.viewerAvatar || null
+  avatar: props.viewerAvatar || null,
+  verified: (userStore.profile as { is_verified?: boolean } | null)?.is_verified === true,
+  verifiedType: (userStore.profile as { verified_type?: string | null } | null)?.verified_type ?? null
 }))
 
 const authorLink = (author: { username: string, type?: 'USER' | 'PAGE' }) =>

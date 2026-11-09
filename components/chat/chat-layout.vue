@@ -490,7 +490,7 @@ interface ForwardableMessage {
   messageType?: string
 }
 
-const forwarding = ref<ForwardableMessage | null>(null)
+const forwarding = ref<ForwardableMessage[] | null>(null)
 const forwardSearch = ref('')
 const forwardError = ref('')
 const forwardSent = ref(new Set<string>())
@@ -501,37 +501,43 @@ const forwardTargets = computed(() => {
     .slice(0, 50)
 })
 
-const openForward = (message: ForwardableMessage) => {
-  forwarding.value = message
+const openForward = (message: ForwardableMessage | ForwardableMessage[]) => {
+  forwarding.value = Array.isArray(message) ? message : [message]
   forwardSearch.value = ''
   forwardError.value = ''
   forwardSent.value = new Set()
 }
 
 const forwardTo = async (chatId: string) => {
-  const message = forwarding.value
-  if (!message) return
+  const messages = forwarding.value
+  if (!messages?.length) return
   forwardError.value = ''
-  const messageType = message.messageType === 'gift' || message.messageType === 'system' ? 'text' : message.messageType
-  const ack = await emitMessage(chatId, {
-    content: message.content ?? '',
-    attachments: message.attachments ?? [],
-    messageType: messageType ?? 'text',
-    tempId: `fwd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    forwarded: true
-  })
-  if (ack.success) forwardSent.value = new Set([...forwardSent.value, chatId])
-  else forwardError.value = ack.error || 'Could not forward message'
+  for (const message of messages) {
+    const messageType = message.messageType === 'gift' || message.messageType === 'system' || message.messageType === 'call' ? 'text' : message.messageType
+    const ack = await emitMessage(chatId, {
+      content: message.content ?? '',
+      attachments: message.attachments ?? [],
+      messageType: messageType ?? 'text',
+      tempId: `fwd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      forwarded: true
+    })
+    if (!ack.success) {
+      forwardError.value = ack.error || 'Could not forward message'
+      return
+    }
+  }
+  forwardSent.value = new Set([...forwardSent.value, chatId])
 }
 
-const deleteMessage = async (messageId: string) => {
-  if (!chatStore.currentChatId) return
-  try {
-    emitDeleteMessage(chatStore.currentChatId, messageId)
-  } catch (error) {
-    console.error('Failed to delete message:', error)
-    chatStore.setError('Failed to delete message')
+const deleteMessage = async (messageId: string, forEveryone = true) => {
+  const chatId = chatStore.currentChatId
+  if (!chatId) return
+  const ack = await emitDeleteMessage(chatId, messageId, forEveryone)
+  if (!ack.success) {
+    chatStore.setError(ack.error || 'Failed to delete message')
+    return
   }
+  if (!forEveryone) chatStore.removeMessage(chatId, messageId)
 }
 
 const reactToMessage = (messageId: string, emoji: string) => {
@@ -725,6 +731,10 @@ onMounted(async () => {
   })
 
   onDeleted((event) => {
+    if (event.forEveryone === false) {
+      chatStore.removeMessage(event.chatId, event.messageId)
+      return
+    }
     chatStore.updateMessage(event.chatId, event.messageId, {
       content: '',
       attachments: [],

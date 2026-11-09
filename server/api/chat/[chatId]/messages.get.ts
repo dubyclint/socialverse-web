@@ -56,7 +56,11 @@ export default defineEventHandler(async (event) => {
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
 
   // Messages a member cleared for themselves disappear; deletions for everyone stay as tombstones.
-  const visible = (rows || []).filter(row => !row.deleted_at || row.deleted_for_everyone)
+  const hiddenForMe = (meta: unknown) => {
+    const list = (meta as { hidden_for?: unknown } | null)?.hidden_for
+    return Array.isArray(list) && list.includes(user.id)
+  }
+  const visible = (rows || []).filter(row => (!row.deleted_at || row.deleted_for_everyone) && !hiddenForMe(row.metadata))
 
   const senderIds = Array.from(new Set(visible.map(row => row.sender_id)))
   const { data: senders } = senderIds.length

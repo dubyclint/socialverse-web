@@ -5,6 +5,18 @@
   <div class="chat-session" :style="themeStyle">
     <!-- Chat Header -->
     <div class="session-header">
+      <div v-if="selectionMode" class="selection-bar">
+        <button class="header-btn" title="Cancel selection" @click="clearSelection"><icon name="x" /></button>
+        <span class="selection-count">{{ selectedMessages.length }} selected</span>
+        <div class="selection-actions">
+          <button v-if="singleSelected && !isGone(singleSelected)" class="sel-btn" @click="replySelected">Reply <icon name="corner-up-left" size="14" /></button>
+          <button v-if="copyableSelected.length" class="sel-btn" @click="copySelected">{{ selectionCopied ? 'Copied' : 'Copy' }} <icon name="copy" size="14" /></button>
+          <button v-if="forwardableSelected.length" class="sel-btn" @click="forwardSelected">Forward <icon name="forward" size="14" /></button>
+          <button class="sel-btn danger" @click="askDelete([...selectedIds])">Delete <icon name="trash-2" size="14" /></button>
+          <button v-if="singleSelected && !isGone(singleSelected) && singleSelected.content" class="sel-btn" @click="translateSelected">Translate <icon name="globe" size="14" /></button>
+          <button v-if="canEditSelected" class="sel-btn" @click="editSelected">Edit <icon name="edit-2" size="14" /></button>
+        </div>
+      </div>
       <div class="header-left">
         <button class="back-btn" @click="$emit('back')" v-if="isMobile">
           <icon name="arrow-left" />
@@ -97,6 +109,15 @@
       </div>
     </div>
 
+    <div v-if="pendingDelete" class="delete-overlay" @click.self="pendingDelete = null">
+      <div class="delete-dialog" role="dialog" aria-modal="true">
+        <p class="delete-title">Delete {{ pendingDelete.length === 1 ? 'message' : `${pendingDelete.length} messages` }}?</p>
+        <button v-if="canDeleteForEveryone" class="dlg-btn danger" @click="confirmDelete(true)">Delete for everyone</button>
+        <button class="dlg-btn danger-soft" @click="confirmDelete(false)">Delete for me</button>
+        <button class="dlg-btn" @click="pendingDelete = null">Cancel</button>
+      </div>
+    </div>
+
     <!-- Messages Container -->
     <div class="messages-container" ref="messagesContainer" :style="wallpaperStyle">
       <div class="messages-list">
@@ -117,9 +138,13 @@
             class="message-wrapper"
             :class="{ 
               'own-message': message.senderId === currentUser?.id,
-              'system-message': message.messageType === 'system'
+              'system-message': message.messageType === 'system',
+              'selecting': selectionMode,
+              'is-selected': selectedIds.has(message.id)
             }"
+            @click="selectionMode && message.id && toggleSelect(message.id)"
           >
+            <span v-if="selectionMode" class="select-check" :class="{ on: selectedIds.has(message.id) }" aria-hidden="true">✓</span>
             <message-bubble
               :message="message"
               :chat-id="chat.id"
@@ -127,7 +152,9 @@
               :showAvatar="shouldShowAvatar(message, group)"
               :showSenderName="shouldShowName(message, group)"
               @edit="editMessage"
-              @delete="deleteMessage"
+              :selection-mode="selectionMode"
+              @select="toggleSelect"
+              @delete="id => askDelete([id])"
               @reply="replyToMessage"
               @forward="message => emit('forwardMessage', message)"
               @react="reactToMessage"
@@ -631,13 +658,71 @@ const editMessage = (message) => {
   messageInput.value?.focus()
 }
 
-const deleteMessage = async (messageId) => {
-  try {
-    await emit('deleteMessage', messageId)
-  } catch (error) {
-    console.error('Error deleting message:', error)
-  }
+const deleteMessage = (messageId, forEveryone = true) => {
+  emit('deleteMessage', messageId, forEveryone)
 }
+
+// WhatsApp-style selection: long-press or "Select" starts it, taps add or remove messages.
+const selectedIds = ref(new Set())
+const selectionMode = computed(() => selectedIds.value.size > 0)
+const byTime = (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+const selectedMessages = computed(() => props.messages.filter(m => selectedIds.value.has(m.id)).sort(byTime))
+const isGone = m => Boolean(m?.deleted ?? m?.isDeleted)
+const singleSelected = computed(() => (selectedMessages.value.length === 1 ? selectedMessages.value[0] : null))
+const copyableSelected = computed(() => selectedMessages.value.filter(m => !isGone(m) && (m.content || m.attachments?.length)))
+const forwardableSelected = computed(() => copyableSelected.value.filter(m => !m.gift))
+const canEditSelected = computed(() => {
+  const m = singleSelected.value
+  return Boolean(m && !isGone(m) && !m.gift && m.senderId === props.currentUser?.id && Date.now() - new Date(m.timestamp).getTime() < EDIT_WINDOW_MS)
+})
+const toggleSelect = (id) => {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+const clearSelection = () => { selectedIds.value = new Set() }
+const selectionCopied = ref(false)
+const copySelected = async () => {
+  const text = copyableSelected.value
+    .map(m => [m.content, ...(m.attachments ?? [])].filter(Boolean).join('\n'))
+    .join('\n\n')
+  try { await navigator.clipboard.writeText(text) } catch { /* clipboard unavailable */ }
+  selectionCopied.value = true
+  setTimeout(() => { selectionCopied.value = false; clearSelection() }, 700)
+}
+const forwardSelected = () => {
+  emit('forwardMessage', forwardableSelected.value)
+  clearSelection()
+}
+const replySelected = () => {
+  replyToMessage(singleSelected.value)
+  clearSelection()
+}
+const editSelected = () => {
+  editMessage(singleSelected.value)
+  clearSelection()
+}
+const translateRequest = useState('chat-translate-request', () => null)
+const translateSelected = () => {
+  translateRequest.value = singleSelected.value.id
+  clearSelection()
+}
+const pendingDelete = ref(null)
+const askDelete = (ids) => { pendingDelete.value = ids.filter(Boolean) }
+const canDeleteForEveryone = computed(() => (pendingDelete.value ?? []).every((id) => {
+  const m = props.messages.find(x => x.id === id)
+  return m && !isGone(m) && m.senderId === props.currentUser?.id
+}))
+const confirmDelete = (forEveryone) => {
+  for (const id of pendingDelete.value ?? []) deleteMessage(id, forEveryone)
+  pendingDelete.value = null
+  clearSelection()
+}
+const onSelectionKey = (e) => { if (e.key === 'Escape') { clearSelection(); pendingDelete.value = null } }
+onMounted(() => window.addEventListener('keydown', onSelectionKey))
+onUnmounted(() => window.removeEventListener('keydown', onSelectionKey))
+watch(() => props.chat?.id, clearSelection)
 
 const replyToMessage = (message) => {
   replyingTo.value = message
@@ -1028,6 +1113,23 @@ watch(() => props.messages, () => {
 </script>
   
 <style scoped>
+.session-header { position: relative; }
+.selection-bar { position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--bg-secondary, #111827); color: var(--text-primary, #f9fafb); }
+.selection-count { font-weight: 600; white-space: nowrap; }
+.selection-actions { display: flex; gap: 6px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+.sel-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; font-size: 13px; color: inherit; white-space: nowrap; background: rgba(255, 255, 255, 0.08); border: 0; border-radius: 999px; cursor: pointer; }
+.sel-btn.danger { color: #f87171; }
+.message-wrapper.selecting { position: relative; padding-left: 34px; cursor: pointer; user-select: none; }
+.message-wrapper.is-selected { background: rgba(34, 197, 94, 0.16); }
+.select-check { position: absolute; top: 50%; left: 8px; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; font-size: 12px; color: transparent; border: 2px solid #9ca3af; border-radius: 50%; transform: translateY(-50%); }
+.select-check.on { color: #fff; background: #22c55e; border-color: #22c55e; }
+.delete-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); }
+.delete-dialog { display: flex; flex-direction: column; gap: 8px; width: min(320px, 90vw); padding: 18px; color: var(--text-primary, #f9fafb); background: var(--bg-secondary, #1f2937); border-radius: 14px; }
+.delete-title { margin: 0 0 6px; font-weight: 600; }
+.dlg-btn { padding: 10px; font-size: 14px; color: inherit; text-align: left; background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
+.dlg-btn:hover { background: rgba(255, 255, 255, 0.06); }
+.dlg-btn.danger { color: #ef4444; font-weight: 600; }
+.dlg-btn.danger-soft { color: #f87171; }
 .chat-session {
   display: flex;
   flex-direction: column;

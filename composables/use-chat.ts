@@ -189,9 +189,14 @@ export const useChat = () => {
       })
     })
 
-  const deleteMessage = (chatId: string, messageId: string, forEveryone = true) => {
-    socket.emit('chat:delete', { chatId, messageId, forEveryone })
-  }
+  const deleteMessage = (chatId: string, messageId: string, forEveryone = true) =>
+    new Promise<{ success: boolean, error?: string }>((resolve) => {
+      const timer = setTimeout(() => resolve({ success: false, error: 'Timed out' }), 10_000)
+      socket.emit('chat:delete', { chatId, messageId, forEveryone }, (ack: { success: boolean, error?: string }) => {
+        clearTimeout(timer)
+        resolve(ack || { success: false, error: 'No acknowledgement' })
+      })
+    })
 
   const reactToMessage = (chatId: string, messageId: string, emoji: string) => {
     socket.emit('chat:react', { chatId, messageId, emoji })

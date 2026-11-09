@@ -8,6 +8,8 @@ export interface PostLikerView {
   avatar: string | null
   likedAt: string
   type: 'USER' | 'PAGE'
+  verified: boolean
+  verifiedType: string | null
 }
 
 export default defineEventHandler(async (event): Promise<{ success: boolean, data: PostLikerView[] }> => {
@@ -32,14 +34,14 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
   const { data: users } = userIds.length
     ? await client
         .from('user')
-        .select('user_id, username, display_name, full_name, avatar_url')
+        .select('user_id, username, display_name, full_name, avatar_url, is_verified, verified_type')
         .in('user_id', userIds)
     : { data: [] }
 
   const userById = new Map((users ?? []).map(row => [row.user_id, row]))
   const pageIds = Array.from(new Set((likes ?? []).map(row => row.page_id).filter((id): id is string => Boolean(id))))
   const { data: pages } = pageIds.length
-    ? await client.from('pages').select('id, handle, name, avatar_url').in('id', pageIds)
+    ? await client.from('pages').select('id, handle, name, avatar_url, is_verified, verified_type').in('id', pageIds)
     : { data: [] }
   const pageById = new Map((pages ?? []).map(row => [row.id, row]))
 
@@ -47,7 +49,7 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
     success: true,
     data: (likes ?? []).map((row) => {
       const page = row.page_id ? pageById.get(row.page_id) : undefined
-      if (page) return { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, likedAt: row.created_at, type: 'PAGE' as const }
+      if (page) return { id: page.id, username: page.handle, name: page.name, avatar: page.avatar_url, likedAt: row.created_at, type: 'PAGE' as const, verified: page.is_verified === true, verifiedType: page.verified_type ?? null }
       const profile = userById.get(row.user_id)
       return {
         id: row.user_id,
@@ -55,7 +57,9 @@ export default defineEventHandler(async (event): Promise<{ success: boolean, dat
         name: profile?.full_name || profile?.display_name || profile?.username || 'Unknown user',
         avatar: profile?.avatar_url ?? null,
         likedAt: row.created_at,
-        type: 'USER' as const
+        type: 'USER' as const,
+        verified: profile?.is_verified === true,
+        verifiedType: profile?.verified_type ?? null
       }
     })
   }
