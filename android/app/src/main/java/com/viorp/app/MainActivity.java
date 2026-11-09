@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MediaScanPlugin.class);
+        registerPlugin(DevicePermissionsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

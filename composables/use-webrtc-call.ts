@@ -152,6 +152,10 @@ export const useWebrtcCall = () => {
       error.value = 'Calls need a secure (https) page and a browser with microphone support.'
       return null
     }
+    const access = await useMediaPermission().prepare(callType === 'video')
+    if (access === 'blocked') {
+      error.value = `Viorp is blocked from your ${callType === 'video' ? 'camera and microphone' : 'microphone'}. Open phone Settings → Apps → Viorp → Permissions and allow them. You can still hear the other side.`
+    }
     try {
       localStream.value = markRaw(await navigator.mediaDevices.getUserMedia({
         audio: AUDIO_CONSTRAINTS,

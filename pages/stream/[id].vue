@@ -173,6 +173,7 @@ const guestAction = async (action: string) => {
 const startGuest = async () => {
   if (guestMedia.value) return
   try {
+    if (await useMediaPermission().prepare(true) === 'blocked') throw new Error('Allow camera and microphone for Viorp in phone Settings → Apps → Viorp → Permissions.')
     const m = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: { echoCancellation: true, noiseSuppression: true } })
     guestMedia.value = m
     await nextTick()

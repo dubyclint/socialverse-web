@@ -2,7 +2,20 @@
   <div class="live" :class="{ setup: phase === 'setup' }">
     <video ref="videoEl" class="live-video" :class="{ mirror: facing === 'user' && studio.mode.value !== 'clip' && studio.mode.value !== 'screen' && !compositor.output.value }" autoplay playsinline muted />
     <div class="shade-top" /><div class="shade-bottom" />
-    <p v-if="camError" class="center-msg">{{ camError }} <button class="btn ghost" @click="startCamera">Retry</button></p>
+    <div v-if="access === 'prompt' || access === 'blocked'" class="center-msg perm-card">
+      <strong>{{ access === 'blocked' ? 'Camera and microphone are blocked' : 'Allow camera and microphone' }}</strong>
+      <span v-if="access === 'prompt'">Viorp needs your camera and microphone to go LIVE.</span>
+      <span v-else-if="perm.native">Open Settings → Permissions, allow Camera and Microphone for Viorp, then come back.</span>
+      <span v-else>Tap the lock icon by the address → Site settings → allow Camera and Microphone, then tap Try again.</span>
+      <div class="perm-actions">
+        <button v-if="access === 'prompt'" class="btn" @click="allowMedia">Allow</button>
+        <template v-else>
+          <button v-if="perm.native" class="btn" @click="perm.openSettings()">Open settings</button>
+          <button class="btn ghost" @click="allowMedia">Try again</button>
+        </template>
+      </div>
+    </div>
+    <p v-else-if="camError" class="center-msg">{{ camError }} <button class="btn ghost" @click="startCamera">Retry</button></p>
 
     <template v-if="phase === 'setup'">
       <header class="top">
@@ -202,6 +215,7 @@ import { useUserStore } from '~/stores/user'
 import { useLiveRoom, type LiveEvent } from '~/composables/use-live-room'
 import { useBackgroundStudio, type StudioMode } from '~/composables/use-background-studio'
 import { useLiveCompositor } from '~/composables/use-live-compositor'
+import { useMediaPermission, type MediaAccess } from '~/composables/use-media-permission'
 import LiveGiftGame from '~/components/streaming/live-gift-game.vue'
 import '~/assets/css/live.css'
 
@@ -319,6 +333,8 @@ const CAM_ERRORS: Record<string, string> = {
   AbortError: 'Your camera or microphone is busy in another app, tab or call. Close it, then tap Retry.',
   NotFoundError: 'No camera or microphone was found on this device.'
 }
+const perm = useMediaPermission()
+const access = ref<MediaAccess>('unknown')
 let permissionWatchBound = false
 // After a denial the browser never re-prompts, so Retry alone cannot recover; restart as soon as access is granted.
 const watchPermissions = async () => {
@@ -327,18 +343,21 @@ const watchPermissions = async () => {
   for (const name of ['camera', 'microphone']) {
     try {
       const status = await navigator.permissions.query({ name: name as PermissionName })
-      status.onchange = () => { if (status.state === 'granted' && camError.value) void startCamera() }
+      status.onchange = () => { if (status.state === 'granted' && (camError.value || access.value !== 'granted')) void startCamera() }
     } catch { /* permission name unsupported in this browser */ }
   }
 }
-const requestNativeCamera = async () => {
-  try {
-    const { Capacitor } = await import('@capacitor/core')
-    if (!Capacitor.isNativePlatform()) return
-    const { Camera } = await import('@capacitor/camera')
-    const state = await Camera.checkPermissions()
-    if (state.camera !== 'granted') await Camera.requestPermissions({ permissions: ['camera'] })
-  } catch { /* the WebView prompt still runs */ }
+// Tapped Allow / Try again: shows the system dialog, then starts the camera if allowed.
+const allowMedia = async () => {
+  access.value = await perm.request()
+  if (access.value === 'granted' || access.value === 'unknown') await startCamera()
+}
+// Back from phone Settings: pick up a permission the user just turned on.
+const recheckMedia = async () => {
+  if (document.visibilityState !== 'visible' || (access.value !== 'blocked' && access.value !== 'prompt')) return
+  const next = await perm.check()
+  if (next === 'granted') await startCamera()
+  else access.value = next
 }
 const AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
 // Phones can open only one camera at a time and some reject exact sizes, so step down instead of failing.
@@ -366,7 +385,6 @@ const startCamera = async () => {
   camError.value = ''
   if (!navigator.mediaDevices?.getUserMedia) { camError.value = CAM_ERRORS.SecurityError!; return }
   void watchPermissions()
-  await requestNativeCamera()
   try {
     const next = await acquireCamera()
     next.getAudioTracks().forEach(t => { t.enabled = micOn.value })
@@ -384,9 +402,11 @@ const startCamera = async () => {
       if (isLive()) await room.replaceStream(shown)
     }
     old?.getTracks().forEach(t => t.stop())
+    access.value = 'granted'
     const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
     canFlip.value = cams.length > 1
   } catch (e) {
+    if ((e as DOMException)?.name === 'NotAllowedError') { access.value = 'blocked'; return }
     camError.value = CAM_ERRORS[(e as DOMException)?.name ?? ''] ?? 'Could not start the camera. Close other apps using it, then tap Retry.'
   }
 }
@@ -529,7 +549,10 @@ onMounted(async () => {
     liveAccess.value = res.data
     if (!res.data.canGoLive) { await navigateTo('/stream/requirements', { replace: true }); return }
   } catch (e) { console.error('[Go LIVE] access check failed', e) }
-  await startCamera()
+  access.value = await perm.check()
+  if (access.value === 'granted' || access.value === 'unknown') await startCamera()
+  else void watchPermissions()
+  document.addEventListener('visibilitychange', recheckMedia)
   window.addEventListener('pagehide', endOnUnload)
   tick = setInterval(() => {
     now.value = Date.now()
@@ -542,6 +565,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', endOnUnload)
+  document.removeEventListener('visibilitychange', recheckMedia)
   if (tick) clearInterval(tick)
   if (statsTimer) clearInterval(statsTimer)
   if (streamId.value) void $fetch('/api/stream', { method: 'POST', body: { action: 'end', stream_id: streamId.value } }).catch(() => {})
