@@ -270,11 +270,30 @@ export const useSocialFeed = () => {
     return response.data?.items ?? []
   }
 
+  // A cached feed is a snapshot from its last load; counts seen since then on this device are newer.
+  const withLatestMetrics = (item: FeedItem): FeedItem => {
+    if (item.type !== 'post') return item
+    const seen = engagement.readMetrics(item.post.id)
+    if (!seen) return item
+    // Saved counts already include unsynced actions, which the card adds back on top.
+    const pending = engagement.pendingFor(item.post.id)
+    return {
+      ...item,
+      post: {
+        ...item.post,
+        liked_by_me: seen.liked,
+        likes_count: seen.likes,
+        comments_count: Math.max(0, seen.comments - pending.comments.length),
+        shares_count: Math.max(0, seen.shares - pending.shares)
+      }
+    }
+  }
+
   const refreshFeed = async (tab: FeedTab = activeTab.value) => {
     const tabChanged = tab !== activeTab.value
     activeTab.value = tab
     const key = cacheKey(`feed:${tab}`)
-    const cached = readCache<FeedItem[]>(key)
+    const cached = readCache<FeedItem[]>(key)?.map(withLatestMetrics)
     if (cached?.length) feedItems.value = cached
     else if (tabChanged) feedItems.value = []
     postsLoading.value = !feedItems.value.length

@@ -161,15 +161,18 @@ const load = async () => {
 
 const toggleLike = async () => {
   if (!post.value) return
-  try {
-    const res = await $fetch<{ data: { liked: boolean, likesCount: number } }>(
-      `/api/posts/${postId.value}/like`,
-      { method: 'POST' }
-    )
-    post.value.likedByMe = res.data.liked
-    post.value.likesCount = res.data.likesCount
-  } catch (err) {
-    loadError.value = messageOf(err)
+  const p = post.value
+  const want = !p.likedByMe
+  p.likedByMe = want
+  p.likesCount = Math.max(0, p.likesCount + (want ? 1 : -1))
+  const res = await useEngagementSync().perform<{ data: { liked: boolean, likesCount: number } }>({ kind: 'like', postId: postId.value, liked: want })
+  if (res.status === 'failed') {
+    p.likedByMe = !want
+    p.likesCount = Math.max(0, p.likesCount + (want ? -1 : 1))
+    loadError.value = res.message
+  } else if (res.status === 'synced') {
+    p.likedByMe = res.data.data.liked
+    p.likesCount = res.data.data.likesCount
   }
 }
 

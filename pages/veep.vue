@@ -196,7 +196,9 @@ const load = async () => {
   try {
     const r = await $fetch<{ items: FeedItem[], hasMore: boolean }>('/api/veep/feed', { query: { tab: tab.value, page: page.value, start: page.value === 0 ? route.query.start : undefined } })
     const seen = new Set(items.value.filter(x => x.type === 'post').map(x => (x as { post: RankedPost }).post.id))
-    items.value.push(...r.items.filter(x => x.type !== 'post' || !seen.has(x.post.id)))
+    const fresh = r.items.filter(x => x.type !== 'post' || !seen.has(x.post.id))
+    for (const x of fresh) if (x.type === 'post') { withPending(x.post); remember(x.post) }
+    items.value.push(...fresh)
     hasMore.value = r.hasMore
     page.value++
   } catch (e: unknown) {
@@ -228,14 +230,26 @@ const track = (postId: string, w: { watchMs: number, completed: boolean, loops: 
   $fetch('/api/veep/event', { method: 'POST', body: { postId, kind: 'watch', ...w } }).catch(() => {})
 }
 
+// Likes go through the offline queue, so a bad network keeps the tap instead of reverting it.
+const engagement = useEngagementSync()
+const remember = (p: RankedPost) => engagement.saveMetrics(p.id, { liked: p.liked_by_me, likes: p.likes_count, comments: p.comments_count, shares: p.shares_count })
+const withPending = (p: RankedPost) => {
+  const pending = engagement.pendingFor(p.id).liked
+  if (pending !== undefined && pending !== p.liked_by_me) {
+    p.likes_count = Math.max(0, p.likes_count + (pending ? 1 : -1))
+    p.liked_by_me = pending
+  }
+}
 const like = async (p: RankedPost) => {
   const want = !p.liked_by_me
-  p.liked_by_me = want; p.likes_count += want ? 1 : -1
-  try {
-    const r = await $fetch<{ data: { liked: boolean, likesCount: number } }>(`/api/posts/${p.id}/like`, { method: 'POST', body: { liked: want } })
-    p.liked_by_me = r.data.liked; p.likes_count = r.data.likesCount
-    $fetch('/api/veep/event', { method: 'POST', body: { postId: p.id, kind: r.data.liked ? 'like' : 'unlike' } }).catch(() => {})
-  } catch { p.liked_by_me = !want; p.likes_count += want ? -1 : 1 }
+  p.liked_by_me = want; p.likes_count = Math.max(0, p.likes_count + (want ? 1 : -1))
+  const r = await engagement.perform<{ data: { liked: boolean, likesCount: number } }>({ kind: 'like', postId: p.id, liked: want })
+  if (r.status === 'failed') { p.liked_by_me = !want; p.likes_count = Math.max(0, p.likes_count + (want ? -1 : 1)) }
+  else if (r.status === 'synced') {
+    p.liked_by_me = r.data.data.liked; p.likes_count = r.data.data.likesCount
+    $fetch('/api/veep/event', { method: 'POST', body: { postId: p.id, kind: r.data.data.liked ? 'like' : 'unlike' } }).catch(() => {})
+  }
+  remember(p)
 }
 
 const toggleSave = (p: RankedPost) => {
