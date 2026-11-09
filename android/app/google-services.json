@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "876820438370",
+    "project_id": "vior-13bea",
+    "storage_bucket": "vior-13bea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:876820438370:android:eef912993922de3eef603b",
+        "android_client_info": {
+          "package_name": "com.viorp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKmk_74zTaWd_IiWRhlid5LdBEkbzb9fk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

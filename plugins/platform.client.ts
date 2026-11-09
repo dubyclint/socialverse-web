@@ -26,6 +26,13 @@ export default defineNuxtPlugin(() => {
       const isOwnDomain = appDomain ? url.host === new URL(appDomain).host : false
       const isCustomScheme = url.protocol.startsWith('viorp')
       if (!isOwnDomain && !isCustomScheme) return
+      // Answer tapped on the lock-screen call screen: accept once the call reaches the app.
+      const answer = url.searchParams.get('answer')
+      if (answer) {
+        sessionStorage.setItem('viorp:answer-call', answer)
+        url.searchParams.delete('answer')
+        window.dispatchEvent(new Event('viorp:answer-call'))
+      }
       router.push(`${url.pathname}${url.search}${url.hash}` || '/')
     } catch {
       // Ignore malformed deep links rather than crashing the shell.
@@ -40,6 +47,7 @@ export default defineNuxtPlugin(() => {
   if (!Capacitor.isNativePlatform()) return
 
   CapacitorApp.addListener('appUrlOpen', (event) => routeDeepLink(event.url))
+  void CapacitorApp.getLaunchUrl().then(launch => launch?.url && routeDeepLink(launch.url)).catch(() => {})
 
   CapacitorApp.addListener('backButton', ({ canGoBack }) => {
     if (canGoBack) router.back()

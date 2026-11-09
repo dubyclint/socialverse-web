@@ -107,11 +107,20 @@ const logCallMessage = async (ctx: Pick<CallContext, 'io' | 'admin'>, call: Live
   })
 }
 
+/** Stops the full-screen ringing on phones that were rung while the app was closed. */
+const cancelRingPush = (userIds: string[], callId: string) => {
+  for (const userId of userIds) {
+    void sendPushAlert(userId, '', '', { data: { type: 'call_cancel', callId }, dataOnly: true, ttl: 60 })
+  }
+}
+
 const finish = async (ctx: Pick<CallContext, 'io' | 'admin'>, call: LiveCall) => {
   if (!liveCalls.has(call.id)) return
   liveCalls.delete(call.id)
   for (const timer of call.invited.values()) clearTimeout(timer)
-  const everyone = [...call.joined, ...call.invited.keys()]
+  const stillRinging = [...call.invited.keys()]
+  const everyone = [...call.joined, ...stillRinging]
+  cancelRingPush(stillRinging, call.id)
   call.invited.clear()
   call.joined.clear()
   await ctx.admin
@@ -140,6 +149,7 @@ const removeParticipant = async (
   const wasInvited = call.invited.delete(userId)
   const wasJoined = call.joined.delete(userId)
   if (!wasInvited && !wasJoined) return
+  if (wasInvited) cancelRingPush([userId], call.id)
 
   ctx.io.to(userRoom(userId)).emit('call:ended', { callId: call.id })
   if (reason === 'missed' && wasInvited) {
@@ -181,8 +191,9 @@ const ring = async (ctx: CallContext, call: LiveCall, targets: string[], inviter
     ctx.io.to(userRoom(target)).emit('call:incoming', payload)
     // Rings the phone even when Viorp is closed; opening the app replays call:incoming.
     void sendPushAlert(target, caller, `Incoming ${kind} call`, {
-      data: { type: 'call', callId: call.id, chatId: call.chatId, mode: call.mode },
+      data: { type: 'call', callId: call.id, chatId: call.chatId, mode: call.mode, callerName: caller },
       channel: 'calls',
+      dataOnly: true,
       ttl: Math.round(RING_TIMEOUT_MS / 1000)
     })
   }

@@ -100,6 +100,13 @@ const creatingPeers = new Map<string, Promise<Peer>>()
 const signalQueues = new Map<string, Promise<void>>()
 let listenersBound = false
 let ringTimer: ReturnType<typeof setTimeout> | null = null
+/** Set when Answer was tapped on the lock-screen call screen before the app opened. */
+const ANSWER_KEY = 'viorp:answer-call'
+const takePendingAnswer = (callId: string) => {
+  if (typeof sessionStorage === 'undefined' || sessionStorage.getItem(ANSWER_KEY) !== callId) return false
+  sessionStorage.removeItem(ANSWER_KEY)
+  return true
+}
 const RING_TIMEOUT_MS = 45_000
 
 const setParticipant = (userId: string, patch: Partial<CallParticipant> & Partial<CallPerson>) => {
@@ -425,6 +432,11 @@ export const useWebrtcCall = () => {
     ringTimer = setTimeout(() => {
       if (call.value && !call.value.isActive) rejectCall()
     }, RING_TIMEOUT_MS)
+    if (takePendingAnswer(data.id)) void acceptCall()
+  }
+
+  const onAnswerFromNotification = () => {
+    if (call.value?.isIncoming && !call.value.isActive && takePendingAnswer(call.value.id)) void acceptCall()
   }
 
   // We just joined: offer to everyone already on the call.
@@ -512,6 +524,7 @@ export const useWebrtcCall = () => {
     socket.on('call:participants-invited', onParticipantsInvited)
     socket.on('call:participant-left', onParticipantLeft)
     socket.on('call:ended', onEnded)
+    if (typeof window !== 'undefined') window.addEventListener('viorp:answer-call', onAnswerFromNotification)
   }
 
   return {

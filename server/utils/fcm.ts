@@ -15,6 +15,8 @@ export interface FcmMessage {
   channel?: string
   /** Seconds before an undelivered message is dropped. */
   ttl?: number
+  /** Data-only push: the Android app builds its own (full-screen call) notification. */
+  dataOnly?: boolean
 }
 
 let account: ServiceAccount | null | undefined
@@ -75,14 +77,18 @@ export const sendFcm = async (msg: FcmMessage): Promise<'sent' | 'invalid' | 'sk
       body: JSON.stringify({
         message: {
           token: msg.token,
-          notification: { title: msg.title, body: msg.body },
+          ...(msg.dataOnly ? {} : { notification: { title: msg.title, body: msg.body } }),
           data: msg.data ?? {},
           android: {
             priority: 'HIGH',
             ttl,
-            notification: { channel_id: msg.channel ?? 'default', sound: 'default', default_vibrate_timings: true }
+            ...(msg.dataOnly
+              ? {}
+              : { notification: { channel_id: msg.channel ?? 'default', sound: 'default', default_vibrate_timings: true } })
           },
-          apns: { headers: { 'apns-priority': '10' }, payload: { aps: { sound: 'default' } } }
+          apns: msg.dataOnly
+            ? { headers: { 'apns-priority': '5', 'apns-push-type': 'background' }, payload: { aps: { 'content-available': 1 } } }
+            : { headers: { 'apns-priority': '10' }, payload: { aps: { sound: 'default' } } }
         }
       })
     })

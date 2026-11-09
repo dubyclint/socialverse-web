@@ -6,7 +6,7 @@ export async function sendPushAlert(
   userId: string,
   title: string,
   body: string,
-  options: { data?: Record<string, string>, channel?: string, ttl?: number } = {}
+  options: { data?: Record<string, string>, channel?: string, ttl?: number, dataOnly?: boolean } = {}
 ): Promise<boolean> {
   try {
     const admin = getServiceClient()
