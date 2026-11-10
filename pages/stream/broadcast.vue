@@ -549,9 +549,8 @@ onMounted(async () => {
     liveAccess.value = res.data
     if (!res.data.canGoLive) { await navigateTo('/stream/requirements', { replace: true }); return }
   } catch (e) { console.error('[Go LIVE] access check failed', e) }
-  access.value = await perm.check()
-  if (access.value === 'granted' || access.value === 'unknown') await startCamera()
-  else void watchPermissions()
+  // Start straight away: the device or browser only asks when access is missing.
+  await startCamera()
   document.addEventListener('visibilitychange', recheckMedia)
   window.addEventListener('pagehide', endOnUnload)
   tick = setInterval(() => {
